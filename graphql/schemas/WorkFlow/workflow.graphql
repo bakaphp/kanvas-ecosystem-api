@@ -9,9 +9,20 @@ type Workflow {
     updated_at: DateTime
 }
 
+input runWorkflowEntityInput {
+    entity_namespace: String!
+    entity_id: ID!
+    action: String!
+    params: Mixed
+}
+
 extend type Mutation @guardByAppKey {
     retryWebhookCall(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Workflow\\Mutations\\Receivers\\ReceiverWebhookMutationManagement@retryWebhookCall"
+        )
+    runWorkflowFromEntity(input: runWorkflowEntityInput!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Workflows\\WorkflowMutationManagement@runWorkflowFromEntity"
         )
 }

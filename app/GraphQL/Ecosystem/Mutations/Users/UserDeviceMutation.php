@@ -18,15 +18,19 @@ class UserDeviceMutation
         $source = Sources::where('title', $req['source_site'])->firstOrFail();
         $user = auth()->user();
 
-        UserLinkedSources::updateOrCreate([
+        $result = UserLinkedSources::firstOrNew([
             'users_id' => $user->getId(),
             'source_id' => $source->getId(),
             'source_users_id_text' => $req['device_id'],
-        ], [
-            'source_users_id' => $user->getId(),
-            'source_username' => $user->displayname . ' ' . $source->title,
-            'is_deleted' => 0,
         ]);
+
+        // Update the attributes explicitly
+        $result->source_users_id = $user->getId();
+        $result->source_username = $user->displayname . ' ' . $source->title;
+        $result->is_deleted = 0;
+
+        // Save the model
+        $result->saveOrFail();
 
         return true;
     }

@@ -31,13 +31,27 @@ class SyncLeadToZohoAction
             $zohoLead = ZohoLead::fromLead($this->lead);
             $zohoData = $zohoLead->toArray();
             $company = $lead->company;
+            $receiver = $lead->receiver;
+            $leadRotation = $receiver ? $receiver->rotation : null;
             $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
 
             $zohoCrm = Client::getInstance($this->app, $company);
 
             if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
-                if ($usesAgentsModule) {
+                if ($usesAgentsModule && ! $leadRotation) {
                     $this->assignAgent($this->app, $zohoLead, $lead, $company, $zohoData);
+                } elseif ($leadRotation) {
+                    /* $rotationOwner = $leadRotation->getAgent();
+                    $lead->users_id = $rotationOwner ? $rotationOwner->getId() : (int) $receiver->agents_id;
+                    $lead->leads_owner_id = $lead->users_id;
+                    $lead->disableWorkflows();
+                    $lead->saveOrFail();
+
+                    // Reload the owner relationship to ensure it's up-to-date
+                    $lead->load('owner'); */
+
+                    $zohoData['Lead_Source'] = $receiver->name ?? 'Kanvas Api';
+                    $zohoData['Owner'] = $lead->owner->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $company->get(CustomFieldEnum::DEFAULT_OWNER->value);
                 }
 
                 $zohoData['Lead_Status'] = 'New Lead';

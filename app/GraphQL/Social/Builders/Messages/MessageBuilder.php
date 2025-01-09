@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Builders\Messages;
 
 use Algolia\AlgoliaSearch\SearchClient;
+use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Enums\InteractionEnum;
@@ -28,7 +30,7 @@ class MessageBuilder
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid') && isset($args['where']['value']);
+        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid' || $args['where']['column'] === 'slug') && isset($args['where']['value']);
         //if enable home-view interaction , remove once , moved to getUserFeed
         if ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
             UserInteractionJob::dispatch(
@@ -39,8 +41,11 @@ class MessageBuilder
             );
         }
 
+        //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
         if (! $user->isAppOwner()) {
-            return Message::fromCompany($user->getCurrentCompany());
+            $messages = Message::fromCompany($user->getCurrentCompany());
+
+            return $messages;
         }
 
         return Message::query();
@@ -75,13 +80,21 @@ class MessageBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        return Message::fromApp()->whereHas('channels', function ($query) use ($args) {
-            $query->where('channels.uuid', $args['channel_uuid']);
-        })
-        ->when(! auth()->user()->isAdmin(), function ($query) {
-            $query->where('companies_id', auth()->user()->currentCompanyId());
-        })
-        ->select('messages.*');
+        if (isset($args['channel_uuid']) && isset($args['channel_slug'])) {
+            throw new InvalidArgumentException('Provide only one of channel_uuid or channel_slug, not both.');
+        }
+
+        return Message::fromApp()
+            ->whereHas('channels', function ($query) use ($args) {
+                if (isset($args['channel_uuid'])) {
+                    $query->where('channels.uuid', $args['channel_uuid']);
+                } elseif (isset($args['channel_slug'])) {
+                    $query->where('channels.slug', $args['channel_slug']);
+                }
+            })
+            ->when(! auth()->user()->isAdmin(), function ($query) {
+                $query->where('companies_id', auth()->user()->currentCompanyId());
+            });
     }
 
     public function getGroupByDate(
@@ -146,5 +159,20 @@ class MessageBuilder
             ->where('messages.is_deleted', '=', 0)
             ->where('messages.apps_id', '=', $app->getId())
             ->select('messages.*');
+    }
+
+    public function viewMessageHistory(mixed $root, array $request): Builder
+    {
+        $messagePath = Message::where('id', $request['message_id'])->value('path')->getValue();
+
+        if (! $messagePath) {
+            throw new Exception('Message does not a have history');
+        }
+
+        $messageHistory = Message::query()->whereIn('id', explode('.', $messagePath))
+                            ->where('is_deleted', 0)
+                            ->where('is_locked', 0);
+
+        return $messageHistory;
     }
 }

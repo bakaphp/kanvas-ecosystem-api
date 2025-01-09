@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ESim\Services;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\ESim\Client;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
@@ -61,14 +62,16 @@ class OrderService
         $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
 
         $metaData = $this->order->metadata;
-        $startDate = $metaData['start_date'] ?? now()->format('Y-m-d');
-        $endDate = $metaData['end_date'] ?? now()->addDays($totalDays)->format('Y-m-d');
-        $imeiNumber = $metaData['imei_number'] ?? null;
+        $startDate = $metaData['startDate'] ?? now()->format('Y-m-d');
+        $endDate = $metaData['endDate'] ?? now()->addDays($totalDays)->format('Y-m-d');
+        $imeiNumber = $metaData['deviceImei'] ?? null;
+
+        $this->order->user_phone ??= '1234567899';
 
         return $this->client->post('/api/v2/easyactivations/create/order', [
             'products' => [
                 [
-                    'sku' => $item->product_sku,
+                    'sku' => $item->variant->get('parent_sku'),
                     'service_days' => $totalDays,
                     'product_qty' => $item->quantity,
                     'start_date' => $startDate,
@@ -101,10 +104,15 @@ class OrderService
 
     protected function getUserDetails(): array
     {
+        $firstName = $this->order->user->firstname;
+        $lastName = trim((string) $this->order->user->lastname) ?:
+                        Str::of($firstName)->after(' ') ?:
+                        $firstName;
+
         return [
-            'first_name' => $this->order->user->firstname,
-            'last_name' => $this->order->user->lastname,
-            'contact_number' => $this->order->user->cell_phone_number,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'contact_number' => $this->order->user->cell_phone_number ?? $this->order->user->phone_numbers ?? $this->order->user_phone,
             'email' => $this->order->user->email,
         ];
     }

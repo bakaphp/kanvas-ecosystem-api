@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Souk\Models\BaseModel;
@@ -21,6 +22,8 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Spatie\LaravelData\DataCollection;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 
 /**
  * Class Order
@@ -107,6 +110,11 @@ class Order extends BaseModel
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class, 'order_id', 'id');
+    }
+
+    public function shippingAddress(): BelongsTo
+    {
+        return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder
@@ -219,7 +227,17 @@ class Order extends BaseModel
 
     public function isFulfilled(): bool
     {
-        return $this->fulfillment_status === 'fulfilled';
+        return $this->fulfillment_status === OrderFulfillmentStatusEnum::COMPLETED->value;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === OrderStatusEnum::COMPLETED->value;
+    }
+
+    public function isFullyCompleted(): bool
+    {
+        return $this->isFulfilled() && $this->isCompleted();
     }
 
     public function generateOrderNumber(): int

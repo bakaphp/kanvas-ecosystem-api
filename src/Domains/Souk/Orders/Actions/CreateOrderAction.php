@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
@@ -77,22 +79,28 @@ class CreateOrderAction
                 );
             }
 
-            $order->user->notify(new NewOrderNotification($order, [
-                'app' => $this->orderData->app,
-                'company' => $this->orderData->company,
-            ]));
+            try {
+                $order->user->notify(new NewOrderNotification($order, [
+                    'app' => $this->orderData->app,
+                    'company' => $this->orderData->company,
+                ]));
+            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+            }
 
-            UserRoleNotificationService::notify(
-                RolesEnums::ADMIN->value,
-                new NewOrderStoreOwnerNotification(
-                    $order,
-                    [
-                        'app' => $this->orderData->app,
-                        'company' => $this->orderData->company,
-                    ]
-                ),
-                $this->orderData->app
-            );
+            try {
+                UserRoleNotificationService::notify(
+                    RolesEnums::ADMIN->value,
+                    new NewOrderStoreOwnerNotification(
+                        $order,
+                        [
+                            'app' => $this->orderData->app,
+                            'company' => $this->orderData->company,
+                        ]
+                    ),
+                    $this->orderData->app
+                );
+            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+            }
 
             return $order;
         });

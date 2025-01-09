@@ -11,6 +11,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Agents\Models\Agent;
@@ -93,6 +94,11 @@ class Lead extends BaseModel
 
     public function scopeFilterSettings(Builder $query, mixed $user = null): Builder
     {
+        //super admin can see all leads
+        if (app()->bound(AppKey::class)) {
+            return $query;
+        }
+
         $app = app(Apps::class);
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
@@ -176,7 +182,7 @@ class Lead extends BaseModel
 
     public function type(): BelongsTo
     {
-        return $this->belongsTo(LeadType::class, 'lead_types_id', 'id');
+        return $this->belongsTo(LeadType::class, 'leads_types_id', 'id');
     }
 
     public function organization(): BelongsTo

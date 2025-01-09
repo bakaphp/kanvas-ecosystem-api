@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Baka\Traits\AddressTraitRelationship;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
@@ -20,7 +20,6 @@ use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
 use Laravel\Scout\Searchable;
-use Baka\Traits\AddressTraitRelationship;
 
 /**
  * Companies Model.
@@ -112,23 +111,33 @@ class CompaniesBranches extends BaseModel
     public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
+        $appId = app(Apps::class)->getId();
+        $companyBranch = app()->bound(CompaniesBranches::class)
+            ? app(CompaniesBranches::class)->company()->first()
+            : null;
 
-        return $query->join('users_associated_company', function ($join) use ($user) {
-            $join->on('users_associated_company.companies_id', '=', 'companies_branches.companies_id')
-                ->where('users_associated_company.is_deleted', '=', 0);
-        })
-        ->join('users_associated_apps', function ($join) {
-            $join->on('users_associated_apps.companies_id', '=', 'companies_branches.companies_id')
-                ->where('users_associated_apps.apps_id', app(Apps::class)->getId());
-        })
-        ->when(! $user->isAdmin(), function ($query) use ($user) {
-            $query->where('users_associated_company.users_id', $user->getId());
-        })
-        ->when(app()->bound(CompaniesBranches::class), function ($query) use ($user) {
-            $query->where('users_associated_apps.companies_id', app(CompaniesBranches::class)->company()->first()->getId());
-        })
-        ->where('companies_branches.is_deleted', '=', 0)
-        ->groupBy('companies_branches.id');
+        return $query
+            ->select('companies_branches.*') // Explicitly select all columns from companies_branches
+            ->join('users_associated_company', function ($join) {
+                $join->on('users_associated_company.companies_id', '=', 'companies_branches.companies_id')
+                    ->where('users_associated_company.is_deleted', '=', 0);
+            })
+            ->join('users_associated_apps', function ($join) use ($appId) {
+                $join->on('users_associated_apps.companies_id', '=', 'companies_branches.companies_id')
+                    ->where('users_associated_apps.apps_id', $appId);
+            })
+            ->when(
+                ! $user->isAdmin(),
+                fn ($query) =>
+                $query->where('users_associated_company.users_id', $user->getId())
+            )
+            ->when(
+                $companyBranch,
+                fn ($query) =>
+                $query->where('users_associated_apps.companies_id', $companyBranch->getId())
+            )
+            ->where('companies_branches.is_deleted', 0)
+            ->groupBy('companies_branches.id');
     }
 
     public function users(): HasManyThrough

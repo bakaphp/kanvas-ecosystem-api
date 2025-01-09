@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Services;
 
-use Awobaz\Compoships\Database\Eloquent\Model;
 use Baka\Contracts\AppInterface;
 use Baka\Support\PdfGenerator;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Templates\Actions\RenderTemplateAction;
+use Knp\Snappy\Pdf;
 
 class PdfService
 {
@@ -21,18 +22,22 @@ class PdfService
         ?string $fileName = null,
         array $options = []
     ): ModelsFilesystem {
-        $response = PdfGenerator::fromHtml($html, $options);
+        //$response = PdfGenerator::fromHtml($html, $options);
 
         // Define the file name
         $fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
         $tempFilePath = sys_get_temp_dir() . '/' . $fileName;
 
-        // Save the content temporarily
-        if (file_put_contents($tempFilePath, $response) === false) {
-            logger()->error('Failed to save PDF to temporary location.');
+        $snappy = new Pdf('/usr/bin/wkhtmltopdf', $options);
 
-            return null;
-        }
+        $snappy->generateFromHtml($html, $tempFilePath);
+        $snappy->setOption('encoding', 'UTF-8');
+        $snappy->setOption('no-outline', true);
+        $snappy->setOption('margin-right', 0);
+        $snappy->setOption('margin-left', 0);
+        $snappy->setOption('disable-smart-shrinking', true);
+        $snappy->setOption('enable-local-file-access', true);
+        $snappy->setOption('page-size', 'A4');
 
         // Create an UploadedFile instance from the temporary file
         $uploadedFile = new UploadedFile(
@@ -57,19 +62,22 @@ class PdfService
         AppInterface $app,
         UserInterface $user,
         string $templateName,
-        Model $entity
+        Model $entity,
+        array $data = [],
+        array $options = []
     ): ModelsFilesystem {
-        $renderTemplate = new RenderTemplateAction($app);
+        $renderTemplate = new RenderTemplateAction($app, $entity->company ?? null);
 
         $renderTemplateHtml = $renderTemplate->execute(
             $templateName,
-            ['entity' => $entity]
+            array_merge(['entity' => $entity], $data)
         );
 
         return self::htmlToPdf(
-            $app,
-            $user,
-            $renderTemplateHtml
+            app: $app,
+            user: $user,
+            html: $renderTemplateHtml,
+            options: $options
         );
     }
 }

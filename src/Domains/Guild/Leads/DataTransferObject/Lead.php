@@ -66,6 +66,18 @@ class Lead extends Data
         // Re-index the array if needed
         $request['people']['contacts'] = array_values($request['people']['contacts']);
 
+        $organization = isset($request['organization'])
+        ? Organization::from(array_merge(
+            [
+                'company' => $branch->company,
+                'user' => $user,
+                'app' => $app,
+            ],
+            is_array($request['organization'])
+                ? $request['organization']
+                : ['name' => $request['organization']]
+        )) : null;
+
         return new self(
             $app,
             $branch,
@@ -95,12 +107,7 @@ class Lead extends Data
             (int) ($request['receiver_id'] ?? 0),
             $request['description'] ?? null,
             $request['reason_lost'] ?? null,
-            isset($request['organization']) ? Organization::from([
-                'company' => $branch->company,
-                'user' => $user,
-                'app' => $app,
-                ...$request['organization'],
-            ]) : null,
+            $organization,
             $request['custom_fields'] ?? [],
             $request['files'] ?? []
         );

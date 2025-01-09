@@ -87,24 +87,25 @@ class ConvertJsonTemplateToLeadStructureAction
         $parsedData = [];
         $customFields = [];
         $processFields = [];
-
-        // Initialize people structure with placeholders
         $peopleStructure = [
             'firstname' => null,
             'lastname' => null,
             'contacts' => [],
         ];
 
-        // Iterate through the template and map values accordingly
         foreach ($template as $path => $info) {
             $value = $this->getValueFromPath($request, $path);
+            $value = ! empty($value) ? $value : ($info['default'] ?? null);
+
             $name = $info['name'];
             $type = $info['type'];
+            $pattern = $info['pattern'] ?? null; // Optional regex pattern
 
             match ($type) {
                 'string' => $this->mapStringType($peopleStructure, $parsedData, $name, $value),
-                'customField' => $customFields[$name] = $value,
+                'customField' => $this->mapCustomField($customFields, $name, $value, $pattern),
                 'function' => $this->mapFunctionType($parsedData, $request, $info, $name),
+                'regex' => $this->mapRegexType($parsedData, $name, $value, $pattern),
                 default => null
             };
 
@@ -126,6 +127,33 @@ class ConvertJsonTemplateToLeadStructureAction
         $parsedData['people'] = $peopleStructure;
 
         return $parsedData;
+    }
+
+    private function mapRegexType(array &$parsedData, string $name, ?string $value, ?string $pattern): void
+    {
+        if ($value && $pattern) {
+            if (preg_match($pattern, $value, $matches)) {
+                $parsedData[$name] = $matches[1] ?? $matches[0]; // Default to the first match or full match
+            } else {
+                $parsedData[$name] = null; // No match found
+            }
+        } else {
+            $parsedData[$name] = $value; // No pattern provided, use raw value
+        }
+    }
+
+    private function mapCustomField(array &$customFields, string $name, ?string $value, ?string $pattern = null): void
+    {
+        if ($pattern) {
+            // Apply regex to extract value
+            if ($value && preg_match($pattern, $value, $matches)) {
+                $customFields[$name] = $matches[1] ?? $matches[0]; // Use the first captured group or full match
+            } else {
+                $customFields[$name] = null; // No match found
+            }
+        } else {
+            $customFields[$name] = $value; // Use raw value if no pattern
+        }
     }
 
     private function mapStringType(array &$peopleStructure, array &$parsedData, string $name, $value): void
@@ -161,27 +189,20 @@ class ConvertJsonTemplateToLeadStructureAction
 
     public function getValueFromPath(array $array, string $path): string
     {
-        $values = [];
-        $paths = explode(' ', $path);
-        foreach ($paths as $p) {
-            $keys = explode('.', $p);
-            $tempArray = $array;
-            foreach ($keys as $key) {
-                if (isset($tempArray[$key])) {
-                    $tempArray = $tempArray[$key];
-                } else {
-                    $tempArray = null;
+        $keys = explode('.', $path); // Use dot notation for hierarchical keys
+        $tempArray = $array;
 
-                    break;
-                }
-            }
-            // Check if the value is a string before appending
-            if (is_string($tempArray) || is_numeric($tempArray)) {
-                $values[] = $tempArray;
+        foreach ($keys as $key) {
+            $key = trim($key); // Remove any unnecessary spaces
+            if (isset($tempArray[$key])) {
+                $tempArray = $tempArray[$key];
+            } else {
+                return ''; // Return an empty string if the key does not exist
             }
         }
 
-        return implode(' ', $values);
+        // Ensure the value is a string or numeric
+        return is_string($tempArray) || is_numeric($tempArray) ? (string) $tempArray : '';
     }
 
     /**
@@ -191,6 +212,9 @@ class ConvertJsonTemplateToLeadStructureAction
     {
         $person = [];
         $person['name'] = $this->getValueFromPath($request, $json['name']);
+        if (! empty($json['organization'])) {
+            $person['organization'] = $this->getValueFromPath($request, $json['organization']);
+        }
         $person['contacts'] = [];
         foreach ($json['contacts'] as $contact) {
             $person['contacts'][] = [

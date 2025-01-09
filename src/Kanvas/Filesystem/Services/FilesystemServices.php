@@ -8,6 +8,7 @@ use Baka\Contracts\CompanyInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\CreateFilesystemAction;
@@ -128,5 +129,33 @@ class FilesystemServices
         file_put_contents($path, $fileContent);
 
         return $path;
+    }
+
+    public function createFileSystemFromBase64(string $base64String, string $originalName, Users $user): ModelsFilesystem
+    {
+        /**
+         * @todo should we cache the decoded content? to avoid decoding it again
+         */
+        $decodedContent = base64_decode($base64String);
+
+        // Ensure the content is decoded correctly
+        if ($decodedContent === false) {
+            throw new InvalidArgumentException('Invalid Base64 string provided');
+        }
+
+        // Save to a temporary file
+        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '_' . $originalName;
+        file_put_contents($tempFilePath, $decodedContent);
+
+        return $this->upload(
+            new UploadedFile(
+                $tempFilePath,               // Path to the file
+                $originalName,               // Original file name
+                mime_content_type($tempFilePath), // MIME type
+                null,                        // Error (null means no error)
+                true                         // Mark it as a test file (will not delete original file)
+            ),
+            $user
+        );
     }
 }

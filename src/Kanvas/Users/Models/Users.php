@@ -312,6 +312,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $role ? $role->name : '';
     }
 
+    public static function getById(mixed $id, ?AppInterface $app = null): self
+    {
+        try {
+            return self::where('id', $id)
+            ->notDeleted()
+            ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
+        }
+    }
+
     /**
      * Get the current user information for the running app.
      * @psalm-suppress MixedReturnStatement
@@ -578,6 +590,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
         if (! Hash::check($currentPassword, (string) $user->password)) {
             throw new InternalServerErrorException('Current password is incorrect');
+        }
+
+        if (Hash::check($newPassword, (string) $user->password)) {
+            throw new InternalServerErrorException('The new password cannot be the same as your current password');
         }
 
         return $this->resetPassword($newPassword, $app);

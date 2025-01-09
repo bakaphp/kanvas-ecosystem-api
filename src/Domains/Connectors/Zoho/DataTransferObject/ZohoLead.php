@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Zoho\DataTransferObject;
 
-use Baka\Validations\Date;
+use Carbon\Carbon;
+use Exception;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Spatie\LaravelData\Data;
@@ -83,11 +84,16 @@ class ZohoLead extends Data
                 if ($name['type'] !== 'date') {
                     settype($value, $name['type']);
                 } else {
-                    $value = Date::isValid($value, 'm/d/Y') || Date::isValid($value, 'Y-m-d') || Date::isValid($value, 'd-m-Y') ? date('Y-m-d', strtotime($value)) : null;
+                    try {
+                        $date = Carbon::parse($value);
+                        $value = $date->format('Y-m-d');
+                    } catch (Exception $e) {
+                        $value = null;
+                    }
                 }
                 $name = $name['name'];
             }
-            if (strtolower($key) == 'credit_score' && $value != null && (int) $value > 0) {
+            if (strtolower($key) == 'credit_score' && $value != null) {
                 $creditScore = [
                     1 => '720-950',
                     2 => '680-719',

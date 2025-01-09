@@ -25,6 +25,12 @@ class OrderTest extends TestCase
                 'firstname' => fake()->firstName(),
                 'lastname' => fake()->lastName(),
             ],
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ],
             'items' => [
                 [
                     'variant_id' => $variantWarehouse->variant->getId(),
@@ -78,6 +84,12 @@ class OrderTest extends TestCase
                     'quantity' => 2,
                 ],
             ],
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ]
         ];
 
         // Perform GraphQL mutation to create a draft order

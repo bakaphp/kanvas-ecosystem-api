@@ -36,6 +36,12 @@ type Order {
     created_at: String!
     updated_at: String
     items: [OrderItem!]
+    shipping_address: Address @belongsTo(relation: "shippingAddress")
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
 }
 
 type OrderItem {
@@ -160,6 +166,7 @@ input AppleInAppPurchaseReceipt {
     receipt: String!
     transaction_date: Mixed!
     region_id: ID
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 extend type Mutation @guard {
@@ -176,7 +183,9 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
         )
-    createOrderFromAppleInAppPurchase(input: AppleInAppPurchaseReceipt!): Order!
+    createOrderFromAppleInAppPurchase(
+        input: AppleInAppPurchaseReceipt!
+    ): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\AppleInAppPurchaseMutation@create"
         )
@@ -211,6 +220,24 @@ extend type Query @guard {
                     "user_phone"
                     "status"
                 ]
+            )
+        hasAddress: _
+            @whereConditions(
+                columns: [
+                    "address"
+                    "address_2"
+                    "city"
+                    "county"
+                    "state"
+                    "zip"
+                    "countries_id"
+                ]
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasAddressHandler"
+            )
+        hasItems: _
+            @whereHasConditions(
+                relation: "items"
+                columns: ["product_name", "product_sku"]
             )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "status"])

@@ -244,7 +244,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     public function getPriceInfoFromDefaultChannel(): Channels
     {
         //@todo add is_default to channels
-        $channel = Channels::where('slug', 'default')
+        $channel = Channels::where('is_default', true)
             ->where('apps_id', $this->apps_id)
             ->notDeleted()
             ->where('is_published', StateEnums::ON->getValue())

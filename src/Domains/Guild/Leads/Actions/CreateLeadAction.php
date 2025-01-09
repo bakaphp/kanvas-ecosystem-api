@@ -119,7 +119,7 @@ class CreateLeadAction
             }
 
             try {
-                $newLead->owner->notify(new NewLeadNotification($newLead, [
+                $newLead->owner?->notify(new NewLeadNotification($newLead, [
                     'app' => $newLead->app,
                     'company' => $newLead->company,
                 ]));

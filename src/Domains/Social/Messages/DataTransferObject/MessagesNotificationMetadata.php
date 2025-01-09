@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\DataTransferObject;
 
 use Kanvas\Notifications\Enums\NotificationDistributionEnum;
+use Kanvas\Social\Messages\Models\Message;
 use Spatie\LaravelData\Data;
 
 class MessagesNotificationMetadata extends Data

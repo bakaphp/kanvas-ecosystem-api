@@ -13,6 +13,7 @@ use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -29,6 +30,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
@@ -40,6 +42,7 @@ use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
+use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
@@ -235,6 +238,18 @@ class Companies extends BaseModel implements CompanyInterface
         return (int) ($this->get('total_branches') ?? (new CompaniesTotalBranchesAction($this))->execute());
     }
 
+    public static function getById(mixed $id, ?AppInterface $app = null): self
+    {
+        try {
+            return self::where('id', $id)
+            ->notDeleted()
+            ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
+        }
+    }
+
     /**
      * Associate user to this company.
      * @psalm-suppress MixedReturnStatement
@@ -379,8 +394,10 @@ class Companies extends BaseModel implements CompanyInterface
 
     public function hasCompanyPermission(UserInterface $user): void
     {
-        if (! $user->isAdmin() && $this->users_id != $user->getId()) {
-            throw new AuthorizationException('Your are not allowed to perform this action for company ' . $this->name);
+        if (! UsersRepository::belongsToCompany($user, $this) && ! $user->isAdmin()) {
+            throw new AuthorizationException(
+                'You are not allowed to perform this action for company ' . $this->name
+            );
         }
     }
 }

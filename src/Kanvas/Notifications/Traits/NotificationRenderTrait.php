@@ -12,6 +12,8 @@ use Kanvas\Templates\Actions\RenderTemplateAction;
 trait NotificationRenderTrait
 {
     protected ?string $templateName = null;
+    protected ?string $pushTemplateName = null;
+
     public array $data = [];
 
     abstract public function getType(): NotificationTypes;
@@ -21,11 +23,12 @@ trait NotificationRenderTrait
      */
     public function message(): string
     {
-        if ($this->getType()->hasEmailTemplate()) {
+        $message = $this->data['message'] ?? '';
+        if (empty($message) && $this->getType()->hasEmailTemplate()) {
             return $this->getEmailTemplate();
         }
 
-        return '';
+        return $message;
     }
 
     public function getEmailContent(): string
@@ -53,7 +56,7 @@ trait NotificationRenderTrait
 
     protected function getPushTemplate(): string
     {
-        $templateName =  $this->templateName ?? $this->getType()->getPushTemplateName();
+        $templateName = $this->pushTemplateName ?? $this->templateName ?? $this->getType()->getPushTemplateName();
 
         $renderTemplate = new RenderTemplateAction($this->app, $this->company);
 
@@ -88,6 +91,13 @@ trait NotificationRenderTrait
     public function setTemplateName(string $name): self
     {
         $this->templateName = $name;
+
+        return $this;
+    }
+
+    public function setPushTemplateName(string $name): self
+    {
+        $this->pushTemplateName = $name;
 
         return $this;
     }

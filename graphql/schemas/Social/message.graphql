@@ -57,6 +57,7 @@ type myInteraction {
     is_saved: Boolean
     is_shared: Boolean
     is_reported: Boolean
+    is_purchased: Boolean
 }
 
 input MessageInput {
@@ -73,6 +74,7 @@ input MessageInput {
 
 input MessageUpdateInput {
     message: Mixed
+    message_verb: ID
     is_public: Int
     is_deleted: Int
     tags: [TagInput!]
@@ -285,7 +287,8 @@ extend type Query @guard {
         )
 
     channelMessages(
-        channel_uuid: String!
+        channel_uuid: String
+        channel_slug: String
         where: _
             @whereConditions(
                 columns: [
@@ -301,6 +304,20 @@ extend type Query @guard {
                     "total_liked"
                     "total_saved"
                     "total_shared"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
                 ]
             )
     ): [Message!]!
@@ -386,5 +403,13 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@likedMessagesByUser"
+        )
+    viewMessageHistory(
+        message_id: ID!
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@viewMessageHistory"
         )
 }

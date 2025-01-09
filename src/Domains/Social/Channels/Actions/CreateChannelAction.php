@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Social\Channels\Actions;
 
 use Baka\Support\Str;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 
@@ -26,7 +28,15 @@ class CreateChannelAction
             'entity_id' => $this->channelDto->entity_id,
             'entity_namespace' => $this->channelDto->entity_namespace,
         ]);
-        $channel->users()->attach($this->channelDto->users->id, ['roles_id' => 1]);
+
+        $channel->users()->syncWithoutDetaching([
+            $this->channelDto->users->id => [
+                'roles_id' => RolesRepository::getByNameFromCompany(
+                    name: RolesEnums::ADMIN->value,
+                    app: $this->channelDto->apps,
+                )->id,
+            ],
+        ]);
 
         return $channel;
     }

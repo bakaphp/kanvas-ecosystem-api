@@ -94,7 +94,12 @@ trait HashTableTrait
 
         foreach ($settings as $setting) {
             $isPublic = $setting['public'] ?? $isPublic;
-            $this->set($setting['name'], $setting['data'], $isPublic);
+            $value = $setting['data'] ?? $setting['value'] ?? null;
+            if ($value === null) {
+                continue;
+            }
+
+            $this->set($setting['name'], $value, $isPublic);
         }
 
         return true;

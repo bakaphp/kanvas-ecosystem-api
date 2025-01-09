@@ -104,6 +104,7 @@ class ProductImporterAction
             $this->productWarehouse();
 
             //$this->variants();
+            // @todo to be removed
             $this->variantsLocation($this->product);
 
             if (! empty($this->importedProduct->productType)) {

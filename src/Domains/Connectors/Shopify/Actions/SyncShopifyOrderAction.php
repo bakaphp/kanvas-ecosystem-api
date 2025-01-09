@@ -48,7 +48,6 @@ class SyncShopifyOrderAction
                 zipcode: $this->orderData['shipping_address']['zip'] ?? ''
             ))
             : null;
-
         $billingAddress = ! empty($this->orderData['billing_address']['address1']) ?
             $customer->addAddress(new Address(
                 address: $this->orderData['billing_address']['address1'],
@@ -115,7 +114,7 @@ class SyncShopifyOrderAction
         $order->setShopifyId($this->region, $this->orderData['id']);
 
         $order->fireWorkflow(
-            WorkflowEnum::AFTER_PULL->value,
+            WorkflowEnum::PULL->value,
             true,
             [
                 'app' => $this->app,

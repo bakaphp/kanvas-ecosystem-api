@@ -4,25 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Jobs;
 
-use Kanvas\Apps\Models\Apps;
-use Baka\Traits\KanvasJobsTrait;
-use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Auth;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Event\Support\Setup as EventSetup;
-use Kanvas\Guild\Support\Setup as GuildSetup;
-use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 
 class IndexProductJob implements ShouldQueue
 {
@@ -43,6 +35,7 @@ class IndexProductJob implements ShouldQueue
     public function handle()
     {
         $products = Products::where('apps_id', $this->app->getId())
+            ->orderBy('id', 'desc')
             ->limit($this->limit)
             ->get();
         foreach ($products as $product) {

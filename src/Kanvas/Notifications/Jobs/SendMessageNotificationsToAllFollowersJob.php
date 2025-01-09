@@ -31,7 +31,7 @@ class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
         protected Users $fromUser,
         protected AppInterface $app,
         protected NotificationTypes $notificationType,
-        protected MessagesNotificationMetadata $messagePayload
+        protected MessagesNotificationMetadata $messagePayload,
     ) {
     }
 

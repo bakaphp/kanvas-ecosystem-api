@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Models;
 
 use Awobaz\Compoships\Database\Eloquent\Model;
+use Baka\Casts\Json;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
-use Baka\Users\Contracts\UserInterface;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -48,51 +48,35 @@ class Notifications extends BaseModel
      */
     protected $guarded = [];
 
-    /**
-     * users.
-     *
-     * @return BelongsTo
-     */
-    public function users()
+    protected $casts = [
+        'entity_content' => Json::class,
+    ];
+
+    public function users(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
 
-    /**
-     * fromUsers.
-     */
     public function fromUsers(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'from_users_id');
     }
 
-    /**
-     * companies.
-     */
     public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
 
-    /**
-     * apps.
-     */
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
-    /**
-     * systemModule.
-     */
     public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
     }
 
-    /**
-     * types.
-     */
     public function types(): BelongsTo
     {
         return $this->belongsTo(NotificationTypes::class, 'notification_type_id');
