@@ -592,6 +592,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             throw new InternalServerErrorException('Current password is incorrect');
         }
 
+        if (Hash::check($newPassword, (string) $user->password)) {
+            throw new InternalServerErrorException('The new password cannot be the same as your current password');
+        }
+
         return $this->resetPassword($newPassword, $app);
     }
 

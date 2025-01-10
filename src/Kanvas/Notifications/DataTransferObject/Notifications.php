@@ -23,6 +23,7 @@ class Notifications extends Data
         public int $entity_id,
         public string $content,
         public int $read,
+        public ?array $entity_content = null,
         public ?string $content_group = null,
     ) {
     }
@@ -43,6 +44,7 @@ class Notifications extends Data
             content: $request['content'],
             read: $request['read'],
             content_group: $request['content_group'] ?? null,
+            entity_content: $request['entity_content'] ?? null,
         );
     }
 }

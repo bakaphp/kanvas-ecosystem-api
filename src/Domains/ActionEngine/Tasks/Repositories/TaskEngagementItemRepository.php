@@ -22,14 +22,23 @@ class TaskEngagementItemRepository
             return $query->where('company_task_list_items.task_list_id', $taskListId);
         })
         ->orderBy('company_task_list_items.weight', 'ASC')
-        ->select(
-            'company_task_list_items.*',
-            'company_task_engagement_items.lead_id',
-            'company_task_engagement_items.status',
-            'company_task_engagement_items.engagement_start_id',
-            'company_task_engagement_items.engagement_end_id',
-            'company_task_engagement_items.created_at',
-            'company_task_engagement_items.updated_at'
-        );
+        ->selectRaw('
+            company_task_list_items.*,
+            company_task_engagement_items.lead_id,
+            company_task_engagement_items.status,
+            company_task_engagement_items.engagement_start_id,
+            company_task_engagement_items.engagement_end_id,
+            company_task_engagement_items.created_at,
+            company_task_engagement_items.updated_at,
+            CASE 
+                WHEN company_task_engagement_items.config IS NOT NULL THEN 
+                    JSON_MERGE_PATCH(
+                        company_task_list_items.config,
+                        company_task_engagement_items.config
+                    )
+                ELSE 
+                    company_task_list_items.config
+            END AS config
+        ');
     }
 }

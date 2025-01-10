@@ -13,9 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\AnonymousNotifiable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as LaravelNotification;
-use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Enums\AppSettingsEnums;
@@ -220,7 +218,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function getFromUser(): UserInterface
     {
-        if ($this->fromUser !== null && ! $this->app->get(AppSettingsEnums::NOTIFICATION_FROM_USER_ID->getValue())) {
+        if ($this->fromUser === null && ! $this->app->get(AppSettingsEnums::NOTIFICATION_FROM_USER_ID->getValue())) {
             throw new ValidationException('Please contact admin to configure the notification_from_user_id');
         }
 
