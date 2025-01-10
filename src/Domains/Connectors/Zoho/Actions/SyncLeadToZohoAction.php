@@ -13,7 +13,11 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+
+use function Sentry\captureException;
+
 use Throwable;
+use Webleit\ZohoCrmApi\Exception\ApiError;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
 
 class SyncLeadToZohoAction
@@ -60,13 +64,35 @@ class SyncLeadToZohoAction
                     $zohoData['Company'] = $organization->name;
                 }
 
-                $zohoLead = $zohoCrm->leads->create($zohoData);
-                $zohoLeadId = $zohoLead->getId();
+                try {
+                    $zohoLead = $zohoCrm->leads->create($zohoData);
+                    $zohoLeadId = $zohoLead->getId();
 
-                $lead->set(
-                    CustomFieldEnum::ZOHO_LEAD_ID->value,
-                    $zohoLeadId
-                );
+                    $lead->set(
+                        CustomFieldEnum::ZOHO_LEAD_ID->value,
+                        $zohoLeadId
+                    );
+                } catch (ApiError $e) {
+                    \Sentry\withScope(function ($scope) use ($e, $zohoData, $zohoLead, $lead) {
+                        $scope->setExtra('zoho_data', [
+                            'request' => $zohoData,
+                            'response' => $zohoLead ? [
+                                'lead_id' => $zohoLead->getId() ?? null,
+                                'full_response' => json_encode($zohoLead) ?? null,
+                            ] : null,
+                            'error_message' => $e->getMessage(),
+                            'error_code' => $e->getCode(),
+                        ]);
+
+                        // Add request timing if available
+                        $scope->setExtra('performance', [
+                            'timestamp' => now()->toIso8601String(),
+                        ]);
+                        $scope->setTag('zoho_operation_status', 'failed');
+
+                        captureException($e);
+                    });
+                }
             } else {
                 $zohoLeadInfo = $zohoCrm->leads->get((string) $zohoLeadId)->getData();
                 if (! empty($zohoLeadInfo)) {
