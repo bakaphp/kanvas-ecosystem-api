@@ -14,7 +14,6 @@ use Kanvas\Notifications\Actions\CreateNotificationTypesMessageLogicAction;
 use Kanvas\Notifications\DataTransferObject\NotificationType;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Models\NotificationChannel;
-use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Follows\Actions\FollowAction;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
@@ -134,7 +133,6 @@ class Setup
         $source->is_deleted = 0;
         $source->saveOrFail();
 
-
         $createUserLinkedSource = new CreateUserLinkedSourcesAction(
             $this->user,
             $source,
@@ -166,7 +164,7 @@ class Setup
             );
 
             $createNotificationTypeMessageLogic->execute();
-        } catch(Exception $e) {
+        } catch (Exception $e) {
         }
 
         return $defaultInteraction instanceof Interactions;
@@ -198,6 +196,30 @@ class Setup
                 $this->user,
                 'test-social-notification-message',
                 'test-social-notification-message',
+                $template
+            )
+        ))->execute();
+
+        $notificationType->assignChannel(
+            NotificationChannel::getById(NotificationChannelEnum::MAIL->value),
+            $template
+        );
+
+        $notificationType->assignChannel(
+            NotificationChannel::getById(NotificationChannelEnum::PUSH->value),
+            $pushTemplate
+        );
+
+        /**
+         * setup blank template
+         */
+        $template->name = 'blank';
+        $notificationType = (new CreateNotificationTypeAction(
+            new NotificationType(
+                $this->app,
+                $this->user,
+                'blank',
+                'blank',
                 $template
             )
         ))->execute();

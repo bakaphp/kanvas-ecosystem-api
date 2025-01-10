@@ -14,6 +14,7 @@ use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
 class CreateLeadsFromReceiverJob extends ProcessWebhookJob
@@ -72,6 +73,15 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         );
 
         $lead = $createLead->execute();
+
+        $lead->fireWorkflow(
+            WorkflowEnum::AFTER_RUNNING_RECEIVER->value,
+            true,
+            [
+                'receiver' => $leadReceiver,
+                'attempt' => $attempt,
+            ]
+        );
 
         return [
             'message' => 'Lead created successfully via receiver ' . $leadReceiver->uuid,

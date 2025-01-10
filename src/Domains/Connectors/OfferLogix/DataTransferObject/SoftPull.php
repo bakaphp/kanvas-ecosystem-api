@@ -10,6 +10,9 @@ use Spatie\LaravelData\Data;
 
 class SoftPull extends Data
 {
+    private const DEFAULT_PHONE = '8090000000';
+    private const MAX_PHONE_LENGTH = 10;
+
     public function __construct(
         public readonly string $first_name,
         public readonly string $last_name,

@@ -32,6 +32,10 @@ class OneSignalNotificationChannel
             $additionalData['app'],
             $additionalData['options'],
             $additionalData['fromUser'],
+            $additionalData['via'],
+            $additionalData['email_template'],
+            $additionalData['push_template'],
+            $additionalData['company'],
             $additionalData['user']);
 
         $oneSignalService->sendNotificationToUser(

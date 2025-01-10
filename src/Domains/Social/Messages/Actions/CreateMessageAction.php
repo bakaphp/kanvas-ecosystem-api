@@ -10,9 +10,12 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateMessageAction
 {
+    public bool $runWorkflow = true;
+
     public function __construct(
         public MessageInput $messageInput,
         public ?SystemModules $systemModule = null,
@@ -38,7 +41,7 @@ class CreateMessageAction
             'total_shared' => $this->messageInput->total_shared,
             'ip_address' => $this->messageInput->ip_address,
             'is_public' => $this->messageInput->is_public,
-            'slug' => $this->messageInput->slug
+            'slug' => $this->messageInput->slug,
         ];
 
         $validator = Validator::make($data, [
@@ -66,6 +69,16 @@ class CreateMessageAction
                 $this->entityId
             );
             $associateMessage->execute();
+        }
+
+        if ($this->runWorkflow) {
+            $message->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->messageInput->app,
+                ]
+            );
         }
 
         return $message;

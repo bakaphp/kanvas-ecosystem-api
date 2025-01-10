@@ -119,22 +119,25 @@ class CreateLeadAction
             }
 
             try {
-                $newLead->owner?->notify(new NewLeadNotification($newLead, [
-                    'app' => $newLead->app,
-                    'company' => $newLead->company,
-                ]));
+                /**
+                 * @todo move this notifications to workflow
+                 */
+                /*   $newLead->owner?->notify(new NewLeadNotification($newLead, [
+                      'app' => $newLead->app,
+                      'company' => $newLead->company,
+                  ]));
 
-                UserRoleNotificationService::notify(
-                    RolesEnums::ADMIN->value,
-                    new NewLeadCompanyOwnerNotification(
-                        $newLead,
-                        [
-                            'app' => $newLead->app,
-                            'company' => $newLead->company,
-                        ]
-                    ),
-                    $newLead->app
-                );
+                  UserRoleNotificationService::notify(
+                      RolesEnums::ADMIN->value,
+                      new NewLeadCompanyOwnerNotification(
+                          $newLead,
+                          [
+                              'app' => $newLead->app,
+                              'company' => $newLead->company,
+                          ]
+                      ),
+                      $newLead->app
+                  ); */
             } catch (Exception $e) {
                 captureException($e);
             }

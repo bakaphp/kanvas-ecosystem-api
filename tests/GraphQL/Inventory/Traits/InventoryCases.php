@@ -2,8 +2,22 @@
 
 namespace Tests\GraphQL\Inventory\Traits;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
 use Baka\Support\Str;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Testing\TestResponse;
+use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
+use Kanvas\Inventory\Regions\DataTransferObject\Region;
+use Kanvas\Inventory\Status\Actions\CreateStatusAction;
+use Kanvas\Inventory\Status\DataTransferObject\Status;
+use Kanvas\Inventory\Status\Models\Status as ModelsStatus;
+use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
+use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as DataTransferObjectWarehouses;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 
 trait InventoryCases
 {
@@ -123,5 +137,59 @@ trait InventoryCases
                     is_published
                 }
             }', ['data' => $data]);
+    }
+
+    public function createDefaultWarehouse(CompanyInterface $company, AppInterface $app, UserInterface $user, Regions $region): Warehouses
+    {
+        $createWarehouse = new CreateWarehouseAction(
+            new DataTransferObjectWarehouses(
+                $company,
+                $app,
+                $user,
+                $region,
+                StateEnums::DEFAULT_NAME->getValue(),
+                StateEnums::DEFAULT_NAME->getValue(),
+                (bool) StateEnums::YES->getValue(),
+                (bool) StateEnums::YES->getValue(),
+            ),
+            $user
+        );
+
+        return $createWarehouse->execute();
+    }
+
+    public function createDefaultRegion(CompanyInterface $company, AppInterface $app, UserInterface $user): Regions
+    {
+        $createRegion = new CreateRegionAction(
+            new Region(
+                $company,
+                $app,
+                $user,
+                Currencies::where('code', 'USD')->firstOrFail(),
+                StateEnums::DEFAULT_NAME->getValue(),
+                StateEnums::DEFAULT_NAME->getValue(),
+                null,
+                StateEnums::YES->getValue(),
+            ),
+            $user
+        );
+
+        return $createRegion->execute();
+    }
+
+    public function createDefaultStatus(CompanyInterface $company, AppInterface $app, UserInterface $user): ModelsStatus
+    {
+        $createDefaultStatus = new CreateStatusAction(
+            new Status(
+                $app,
+                $company,
+                $user,
+                'Default',
+                true
+            ),
+            $user
+        );
+
+        return $createDefaultStatus->execute();
     }
 }

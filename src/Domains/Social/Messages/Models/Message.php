@@ -8,7 +8,9 @@ use Baka\Casts\Json;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Exception;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,16 +32,13 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
-use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
-use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
-use Exception;
 
 /**
  *  Class Message
@@ -155,9 +154,10 @@ class Message extends BaseModel
         return $this->hasMany(MessageComment::class, 'message_id');
     }
 
-    public function getMyInteraction(): array
+    public function getMyInteraction(?UserInterface $user = null): array
     {
-        $userMessage = UserMessage::where('users_id', auth()->user()->id)
+        $user = $user ?? auth()->user();
+        $userMessage = UserMessage::where('users_id', $user->id)
             ->where('messages_id', $this->id)
             ->first();
 
@@ -246,6 +246,7 @@ class Message extends BaseModel
         //For now lets make sure all that all messages not linked with orders are unlocked.
         if ((! $this->appModuleMessage->exist()) || (! $this->appModuleMessage->hasEntityOfClass(Order::class))) {
             $this->setUnlock();
+
             return (bool)$this->is_locked;
         }
 
