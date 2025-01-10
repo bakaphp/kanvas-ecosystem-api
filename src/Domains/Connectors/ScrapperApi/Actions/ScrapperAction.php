@@ -9,12 +9,15 @@ use Baka\Support\Str;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Connectors\ScrapperApi\Services\ProductService;
 use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
+use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 
@@ -84,6 +87,7 @@ class ScrapperAction
                 $syncProductWithShopify = new SyncProductWithShopifyAction($product);
                 $syncProductWithShopify->execute();
 
+                // $this->setCustomFieldAmazonPrice($product);
                 $importerProducts++;
 
                 if (App::environment('local')) {
@@ -104,5 +108,25 @@ class ScrapperAction
             'scrapperProducts' => $scrapperProducts,
             'importerProducts' => $importerProducts,
         ];
+    }
+
+    public function setCustomFieldAmazonPrice(Products $product): void
+    {
+        $sdk = Client::getInstance($this->app, $this->companyBranch->company, $this->region);
+
+        $shopifyProductId = $product->getShopifyId($this->region);
+
+        $metafieldData = [
+            'namespace' => 'custom_fields',
+            'key' => 'amazon_price',
+            'value' => $product->get(ScrapperConfigEnum::AMAZON_ID->value),
+            'type' => 'single_line_text_field',
+        ];
+
+        $response = $sdk->call([
+            'METHOD' => 'POST',
+            'URL' => "/admin/products/$shopifyProductId/metafields.json",
+            'DATA' => ['metafield' => $metafieldData],
+        ]);
     }
 }

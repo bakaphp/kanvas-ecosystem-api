@@ -14,5 +14,6 @@ class SetAmazonPriceShopifyAction
 
     public function execute(): array
     {
+        return [];
     }
 }
