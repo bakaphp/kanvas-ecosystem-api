@@ -87,17 +87,20 @@ class CreateOrderAction
             }
 
             try {
-                UserRoleNotificationService::notify(
-                    RolesEnums::ADMIN->value,
-                    new NewOrderStoreOwnerNotification(
-                        $order,
-                        [
-                            'app' => $this->orderData->app,
-                            'company' => $this->orderData->company,
-                        ]
-                    ),
-                    $this->orderData->app
-                );
+                /**
+                 * @todo move to workflow
+                 */
+                /*  UserRoleNotificationService::notify(
+                     RolesEnums::ADMIN->value,
+                     new NewOrderStoreOwnerNotification(
+                         $order,
+                         [
+                             'app' => $this->orderData->app,
+                             'company' => $this->orderData->company,
+                         ]
+                     ),
+                     $this->orderData->app
+                 ); */
             } catch (ModelNotFoundException $e) {
             }
 
