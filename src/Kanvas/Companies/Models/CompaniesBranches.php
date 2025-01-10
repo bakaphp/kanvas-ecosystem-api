@@ -118,26 +118,36 @@ class CompaniesBranches extends BaseModel
 
         return $query
             ->select('companies_branches.*') // Explicitly select all columns from companies_branches
-            ->join('users_associated_company', function ($join) {
-                $join->on('users_associated_company.companies_id', '=', 'companies_branches.companies_id')
-                    ->where('users_associated_company.is_deleted', '=', 0);
+            ->where('companies_branches.is_deleted', 0) // Filter out deleted branches early
+            ->whereExists(function ($subQuery) use ($appId) {
+                $subQuery
+                    ->from('users_associated_company')
+                    ->whereColumn('users_associated_company.companies_id', 'companies_branches.companies_id')
+                    ->where('users_associated_company.is_deleted', 0);
             })
-            ->join('users_associated_apps', function ($join) use ($appId) {
-                $join->on('users_associated_apps.companies_id', '=', 'companies_branches.companies_id')
+            ->whereExists(function ($subQuery) use ($appId) {
+                $subQuery
+                    ->from('users_associated_apps')
+                    ->whereColumn('users_associated_apps.companies_id', 'companies_branches.companies_id')
                     ->where('users_associated_apps.apps_id', $appId);
             })
             ->when(
                 ! $user->isAdmin(),
-                fn ($query) =>
-                $query->where('users_associated_company.users_id', $user->getId())
+                function ($query) use ($user) {
+                    $query->whereExists(function ($subQuery) use ($user) {
+                        $subQuery
+                            ->from('users_associated_company')
+                            ->whereColumn('users_associated_company.companies_id', 'companies_branches.companies_id')
+                            ->where('users_associated_company.users_id', $user->getId());
+                    });
+                }
             )
             ->when(
                 $companyBranch,
-                fn ($query) =>
-                $query->where('users_associated_apps.companies_id', $companyBranch->getId())
-            )
-            ->where('companies_branches.is_deleted', 0)
-            ->groupBy('companies_branches.id');
+                function ($query) use ($companyBranch) {
+                    $query->where('companies_branches.companies_id', $companyBranch->getId());
+                }
+            );
     }
 
     public function users(): HasManyThrough
