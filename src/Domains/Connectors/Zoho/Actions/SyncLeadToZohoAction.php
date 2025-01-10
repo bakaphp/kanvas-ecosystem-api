@@ -18,6 +18,8 @@ use Throwable;
 use Webleit\ZohoCrmApi\Exception\ApiError;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
 
+use function Sentry\captureException;
+
 class SyncLeadToZohoAction
 {
     public function __construct(
@@ -71,12 +73,13 @@ class SyncLeadToZohoAction
                         $zohoLeadId
                     );
                 } catch (ApiError $e) {
-                    Sentry::withScope(function ($scope) use ($zohoData, $lead) {
+                    Sentry::withScope(function ($scope) use ($zohoData, $lead, $e) {
                         $scope->setContext('Lead Zoho Data', [
                             'zohoData' => $zohoData,
                             'leadId' => $lead->getId(),
                         ]);
-                        Sentry::captureMessage("Sync Lead to Zoho Error for Lead: {$lead->getId()}");
+
+                        captureException($e);
                     });
                 }
             } else {
