@@ -97,23 +97,23 @@ class UpdateLeadAction
             $lead = Lead::where('id', $this->lead->getId())
                     ->lockForUpdate()
                     ->firstOrFail();
+
             $lead->title = $this->leadData->title;
+            $lead->companies_branches_id = $branch->getId();
             $lead->people_id = $people->getId();
             $lead->firstname = $people->firstname;
             $lead->lastname = $people->lastname;
-            $lead->email = $people->getEmails()->count() ? $people->getEmails()->first()->value : '';
-            $lead->leads_status_id = $this->leadData->status_id ? $leadStatus->getId() : 0;
-            $lead->leads_types_id = $this->leadData->type_id ? $leadType->getId() : null;
-            $lead->leads_sources_id = $this->leadData->source_id ? $leadSource->getId() : null;
-            $lead->pipeline_id = $this->leadData->pipeline_stage_id ? $pipeline->getId() : 0;
-            $lead->pipeline_stage_id = $this->leadData->pipeline_stage_id ? $pipelineStage->getId() : 0;
-            $lead->leads_receivers_id = $receiver ? $receiver->getId() : 0;
-            $lead->companies_branches_id = $branch->getId();
-            $lead->description = $this->leadData->description ?? '';
-            $lead->reason_lost = $this->leadData->reason_lost ?? '';
-            $lead->leads_owner_id = $owner ? $owner->getId() : 0;
-            $lead->organization_id = $organization ? $organization->getId() : 0;
-
+            $lead->email = $people->getEmails()->first()?->value ?? $lead->email ?? '';
+            $lead->leads_status_id = $this->leadData->status_id ? $leadStatus->getId() : $lead->leads_status_id ?? 0;
+            $lead->leads_types_id = $this->leadData->type_id ? $leadType->getId() : $lead->leads_types_id ?? null;
+            $lead->leads_sources_id = $this->leadData->source_id ? $leadSource->getId() : $lead->leads_sources_id ?? 0;
+            $lead->pipeline_id = $this->leadData->pipeline_stage_id ? $pipeline->getId() : $lead->pipeline_id ?? 0;
+            $lead->pipeline_stage_id = $this->leadData->pipeline_stage_id ? $pipelineStage->getId() : $lead->pipeline_stage_id ?? 0;
+            $lead->leads_receivers_id = $receiver?->getId() ?? $lead->leads_receivers_id ?? 0;
+            $lead->leads_owner_id = $owner?->getId() ?? $lead->leads_owner_id ?? 0;
+            $lead->organization_id = $organization?->getId() ?? $lead->organization_id ?? 0;
+            $lead->description = $this->leadData->description ?? $lead->description ?? '';
+            $lead->reason_lost = $this->leadData->reason_lost ?? $lead->reason_lost ?? '';
             $lead->saveOrFail();
 
             $lead->setCustomFields($this->leadData->custom_fields);
