@@ -13,7 +13,9 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+use Sentry\Laravel\Facade as Sentry;
 use Throwable;
+use Webleit\ZohoCrmApi\Exception\ApiError;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
 
 class SyncLeadToZohoAction
@@ -60,13 +62,23 @@ class SyncLeadToZohoAction
                     $zohoData['Company'] = $organization->name;
                 }
 
-                $zohoLead = $zohoCrm->leads->create($zohoData);
-                $zohoLeadId = $zohoLead->getId();
+                try {
+                    $zohoLead = $zohoCrm->leads->create($zohoData);
+                    $zohoLeadId = $zohoLead->getId();
 
-                $lead->set(
-                    CustomFieldEnum::ZOHO_LEAD_ID->value,
-                    $zohoLeadId
-                );
+                    $lead->set(
+                        CustomFieldEnum::ZOHO_LEAD_ID->value,
+                        $zohoLeadId
+                    );
+                } catch (ApiError $e) {
+                    Sentry::withScope(function ($scope) use ($zohoData, $lead) {
+                        $scope->setContext('Lead Zoho Data', [
+                            'zohoData' => $zohoData,
+                            'leadId' => $lead->getId(),
+                        ]);
+                        Sentry::captureMessage("Sync Lead to Zoho Error for Lead: {$lead->getId()}");
+                    });
+                }
             } else {
                 $zohoLeadInfo = $zohoCrm->leads->get((string) $zohoLeadId)->getData();
                 if (! empty($zohoLeadInfo)) {
