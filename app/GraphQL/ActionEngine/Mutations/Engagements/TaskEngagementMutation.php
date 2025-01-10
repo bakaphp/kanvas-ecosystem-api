@@ -53,6 +53,8 @@ class TaskEngagementMutation
          * @todo move to observer
          */
         $taskEngagementItem->disableRelatedItems();
+        $taskEngagementItem->enableRelatedTasks();
+        $taskEngagementItem->completeRelatedItems();
 
         return $saveTaskEngagementItem;
     }

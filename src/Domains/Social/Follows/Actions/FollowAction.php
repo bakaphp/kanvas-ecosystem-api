@@ -6,9 +6,13 @@ namespace Kanvas\Social\Follows\Actions;
 
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Social\Follows\Models\UsersFollows;
+use Kanvas\Social\Follows\Notifications\NewFollowerNotification;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -52,6 +56,34 @@ class FollowAction
             $params['companies_branches_id'] = $this->entity->companies_branches_id;
         }
 
-        return UsersFollows::updateOrCreate($search, $params);
+        $userFollowed = UsersFollows::updateOrCreate($search, $params);
+
+        //if ($userFollowed->wasRecentlyCreated && $this->entity instanceof UserInterface) {
+        if ($this->entity instanceof UserInterface) {
+            try {
+                $this->entity->notify(new NewFollowerNotification($this->user, [
+                    'app' => $this->app,
+                    'company' => $this->company,
+                    'user_followed' => [
+                        'id' => $this->user->getId(),
+                        'displayname' => $this->user->displayname,
+                        'photo' => $this->user->photo,
+                    ],
+                    'user_following' => [
+                        'id' => $this->entity->getId(),
+                        'displayname' => $this->entity->displayname,
+                        'photo' => $this->entity->photo,
+                    ],
+                    'title' => 'New Follower',
+                    'message' => sprintf('You’ve got a new follower! %s is now following you ', $this->user->displayname),
+                    'destination_id' => $this->user->getId(),
+                    'destination_type' => 'USER',
+                    'destination_event' => 'FOLLOWING',
+                ]));
+            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+            }
+        }
+
+        return $userFollowed;
     }
 }

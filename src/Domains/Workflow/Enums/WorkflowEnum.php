@@ -26,6 +26,7 @@ enum WorkflowEnum: string
     case SYNC_SHOPIFY = 'sync-shopify';
     case AFTER_CREATE_ORDER = 'after-create-order';
     case GENERATE = 'generate';
+    case AFTER_RUNNING_RECEIVER = 'after-running-receiver';
 
     /**
      * Get the enum case by its value.

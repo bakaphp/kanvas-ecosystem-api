@@ -16,6 +16,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\KanvasActivity;
 
+/**
+ * @todo rename to specific activity is from a message
+ */
 class SoftPullActivity extends KanvasActivity
 {
     public function execute(Message $entity, Apps $app, array $params): array
@@ -91,7 +94,7 @@ class SoftPullActivity extends KanvasActivity
         }
 
         return [
-            'message' => 'Soft Pull executed',
+            'message' => 'Soft Pull executed from message',
             'entity' => $entity,
             'results' => $results,
         ];

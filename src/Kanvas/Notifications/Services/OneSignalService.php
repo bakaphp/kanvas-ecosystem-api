@@ -111,6 +111,7 @@ class OneSignalService
             ];
         }
 
+        //$this->oneSignalClient->sendNotificationCustom($params)->getBody()->getContents();
         $this->oneSignalClient->sendNotificationCustom($params);
     }
 }

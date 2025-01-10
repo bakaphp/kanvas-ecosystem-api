@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
@@ -83,7 +84,7 @@ class CreateOrderAction
                     'app' => $this->orderData->app,
                     'company' => $this->orderData->company,
                 ]));
-            } catch (ModelNotFoundException $e) {
+            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
             }
 
             try {
