@@ -13,9 +13,7 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
-
-use function Sentry\captureException;
-
+use Sentry\Laravel\Facade as Sentry;
 use Throwable;
 use Webleit\ZohoCrmApi\Exception\ApiError;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
@@ -73,24 +71,12 @@ class SyncLeadToZohoAction
                         $zohoLeadId
                     );
                 } catch (ApiError $e) {
-                    \Sentry\withScope(function ($scope) use ($e, $zohoData, $zohoLead, $lead) {
-                        $scope->setExtra('zoho_data', [
-                            'request' => $zohoData,
-                            'response' => $zohoLead ? [
-                                'lead_id' => $zohoLead->getId() ?? null,
-                                'full_response' => json_encode($zohoLead) ?? null,
-                            ] : null,
-                            'error_message' => $e->getMessage(),
-                            'error_code' => $e->getCode(),
+                    Sentry::withScope(function ($scope) use ($zohoData, $lead) {
+                        $scope->setContext('Lead Zoho Data', [
+                            'zohoData' => $zohoData,
+                            'leadId' => $lead->getId(),
                         ]);
-
-                        // Add request timing if available
-                        $scope->setExtra('performance', [
-                            'timestamp' => now()->toIso8601String(),
-                        ]);
-                        $scope->setTag('zoho_operation_status', 'failed');
-
-                        captureException($e);
+                        Sentry::captureMessage("Sync Lead to Zoho Error for Lead: {$lead->getId()}");
                     });
                 }
             } else {
