@@ -49,9 +49,7 @@ class KanvasAppKeyMiddleware
     {
         $companyBranchHeader = AppEnums::KANVAS_APP_BRANCH_HEADER->getValue();
 
-        if ($request->hasHeader($companyBranchHeader)) {
-            $companyBranchKey = $request->header($companyBranchHeader);
-
+        if (! empty($companyBranchKey = $request->header($companyBranchHeader))) {
             try {
                 $companyBranch = CompaniesBranches::getByUuid($companyBranchKey);
                 app()->scoped(CompaniesBranches::class, fn () => $companyBranch);
@@ -67,9 +65,7 @@ class KanvasAppKeyMiddleware
     {
         $appKeyHeader = AppEnums::KANVAS_APP_KEY_HEADER->getValue();
 
-        if ($request->hasHeader($appKeyHeader)) {
-            $appKey = $request->header($appKeyHeader);
-
+        if (! empty($appKey = $request->header($appKeyHeader))) {
             try {
                 $kanvasAppKey = AppKey::where('client_secret_id', $appKey)->firstOrFail();
                 $kanvasApp = $kanvasAppKey->app()->firstOrFail();
