@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Attributes\Actions\AddAttributeValue;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
@@ -90,5 +91,20 @@ class Attributes extends BaseModel
         return $this->productsAttributes()->exists()
         || $this->variantAttributes()->exists()
         || $this->productsTypesAttributes()->exists();
+    }
+
+    public function addValues(array $values): void
+    {
+        $valueObjects = array_map(
+            fn ($value) => ['value' => $value],
+            $values
+        );
+
+        (new AddAttributeValue($this, $valueObjects))->execute();
+    }
+
+    public function addValue(mixed $value): void
+    {
+        $this->addValues([$value]);
     }
 }
