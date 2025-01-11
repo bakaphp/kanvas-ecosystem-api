@@ -36,7 +36,7 @@ class Client
         }
 
         $this->httpClient = new GuzzleClient([
-            'timeout' => 10,
+            'timeout' => 20,
             'headers' => [
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/x-www-form-urlencoded',
