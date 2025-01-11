@@ -106,7 +106,7 @@ class GenerateInventoryFiltrableAttributesCommand extends Command
         );
 
         $attribute = (new CreateAttribute($attributeDTO, $company->user))->execute();
-        $attribute->addValues($config['values']);
+        $attribute->addDefaultValues($config['values']);
 
         $this->info("Created attribute: {$config['name']}");
     }
@@ -122,7 +122,7 @@ class GenerateInventoryFiltrableAttributesCommand extends Command
             ->get();
 
         foreach ($attributeValues as $value) {
-            $attribute->addValue($value->value);
+            $attribute->addDefaultValue($value->value);
         }
     }
 }

@@ -93,7 +93,7 @@ class Attributes extends BaseModel
         || $this->productsTypesAttributes()->exists();
     }
 
-    public function addValues(array $values): void
+    public function addDefaultValues(array $values): void
     {
         $valueObjects = array_map(
             fn ($value) => ['value' => $value],
@@ -103,7 +103,7 @@ class Attributes extends BaseModel
         (new AddAttributeValue($this, $valueObjects))->execute();
     }
 
-    public function addValue(mixed $value): void
+    public function addDefaultValue(mixed $value): void
     {
         $this->addValues([$value]);
     }
