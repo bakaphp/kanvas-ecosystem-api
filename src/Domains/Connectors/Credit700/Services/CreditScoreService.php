@@ -29,6 +29,8 @@ class CreditScoreService
     {
         // $this->app->get(ConfigurationEnum::BUREAU_SETTING->value) ?? 'TU';
         try {
+            $bureau = Str::replace('|', ':', $bureau);
+            $bureauTypes = explode(':', $bureau);
             $data = [
                 'ACCOUNT' => $this->app->get(ConfigurationEnum::ACCOUNT->value),
                 'PASSWD' => $this->app->get(ConfigurationEnum::PASSWORD->value),
@@ -56,10 +58,11 @@ class CreditScoreService
 
             $scores = [];
 
-            $bureauType = $this->app->get(ConfigurationEnum::BUREAU_SETTING->value) ?? 'TU';
-            // Check if risk_models exist in the response
-            if (isset($responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report']['subject_segments']['scoring_segments']['scoring'])) {
-                $scores = $responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report']['subject_segments']['scoring_segments']['scoring'];
+            foreach ($bureauTypes as $bureauType) {
+                // Check if risk_models exist in the response
+                if (isset($responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report'])) {
+                    $scores[$bureauType] = $responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report'];
+                }
             }
 
             // Extract iframe URL
