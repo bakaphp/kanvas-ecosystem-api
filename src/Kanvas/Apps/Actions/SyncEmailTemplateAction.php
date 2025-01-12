@@ -81,13 +81,13 @@ class SyncEmailTemplateAction
                 'template' => File::get(resource_path('views/emails/newLeadCompany.blade.php')),
             ],[
                 'name' => NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value,
-                'template' => File::get(resource_path('views/emails/newPushNotification.blade')),
+                'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
             ],[
                 'name' => EnumsNotificationTemplateEnum::PUSH_NEW_MESSAGE->value,
-                'template' => File::get(resource_path('views/emails/newPushNotification.blade')),
+                'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
             ],[
                 'name' => EnumsNotificationTemplateEnum::PUSH_NEW_INTERACTION_MESSAGE->value,
-                'template' => File::get(resource_path('views/emails/newPushNotification.blade')),
+                'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
             ],
         ];
 
