@@ -14,6 +14,8 @@ use Throwable;
 use Workflow\ActivityStub;
 use Workflow\Workflow;
 
+use function Sentry\captureException;
+
 class DynamicRuleWorkflow extends Workflow
 {
     public function execute(AppInterface $app, Rule $rule, Model $entity, array $params): Generator
@@ -37,6 +39,7 @@ class DynamicRuleWorkflow extends Workflow
                 $values
             );
         } catch (Throwable $e) {
+            captureException($e);
             return $activities;
         }
 

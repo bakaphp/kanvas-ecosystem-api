@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Follows\Workflows;
+namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
