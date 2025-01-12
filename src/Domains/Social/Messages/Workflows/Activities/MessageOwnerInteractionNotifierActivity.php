@@ -59,7 +59,7 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
             'push_template' => $pushTemplate,
             'app' => $app,
             'company' => $message->company,
-            'message' => sprintf($notificationMessage, $interactionType, $message->user->displayname),
+            'message' => sprintf($notificationMessage, $interactionType, $userInteraction->user->displayname),
             'title' => $notificationTitle,
             'metadata' => $message->getMessage(),
             'interaction_type' => $interactionType,
