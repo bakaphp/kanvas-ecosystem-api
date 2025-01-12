@@ -16,6 +16,7 @@ use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Messages\Actions\CreateUserMessageAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class MessageInteractionService
 {
@@ -129,7 +130,18 @@ class MessageInteractionService
             )
         );
 
-        return $createUserInteraction->execute();
+        $userInteraction = $createUserInteraction->execute();
+
+        $this->message->fireWorkflow(
+            event: WorkflowEnum::AFTER_MESSAGE_INTERACTION->value,
+            async: true,
+            params: [
+                'interaction' => $interactionType,
+                'user_interaction' => $userInteraction,
+            ]
+        );
+
+        return $userInteraction;
     }
 
     protected function addToUserMessage(UserInterface $user): UserMessage
