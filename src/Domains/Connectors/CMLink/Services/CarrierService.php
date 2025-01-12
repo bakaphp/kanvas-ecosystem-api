@@ -36,7 +36,8 @@ class CarrierService
     public function getAllDataBundle(
         string $language = '2',
         int $beginIndex = 0,
-        int $count = 50
+        int $count = 50,
+        ?string $mcc = null,
     ): array {
         $body = [
             'accessToken' => $this->client->getAccessToken(),
@@ -46,11 +47,11 @@ class CarrierService
             'Group_id' => '',
             'language' => $language,
             'country' => 'US',
-            'mcc' => null,
+            'mcc' => $mcc,
             'status' => '1',
             'currency' => ['USD'],
-            'beginIndex' => 0,
-            'count' => 50,
+            'beginIndex' => $beginIndex,
+            'count' => $count,
             'cooperationMode' => '1',
         ];
 
