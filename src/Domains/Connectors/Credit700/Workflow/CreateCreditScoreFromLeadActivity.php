@@ -120,6 +120,8 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $housing = $messageData['housing'];
 
         $creditScoreService = new CreditScoreService($app);
+        $provider = $params['provider'] ?? 'TU'; // Default to 'TU' if not provided
+        $provider = Str::replace(',', '|', trim($provider)); // Replace commas with '|' and trim whitespace
 
         return $creditScoreService->getCreditScore(
             new CreditApplicant(
@@ -131,7 +133,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
                 $personal['ssn']
             ),
             $lead->user,
-            $params['provider'] ?? 'TU'
+            $provider
         );
     }
 
