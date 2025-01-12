@@ -18,7 +18,7 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
-        
+
         $emailTemplate = $params['email_template'] ?? null;
         $pushTemplate = $params['push_template'] ?? null;
         $notificationMessage = $params['message'] ?? 'New message from %s';

@@ -24,7 +24,7 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
     public function execute(Model $entity, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
-        
+
         $user = Users::getById($entity->users_id);
         $notificationType = NotificationTypesRepository::getByName($params['notification_name'], $app);
         $toUsersArray = $params['toUsers'] ?? [];

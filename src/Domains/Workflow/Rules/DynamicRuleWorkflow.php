@@ -24,7 +24,7 @@ class DynamicRuleWorkflow extends Workflow
 
         $values = array_merge(
             $values,
-            $entity->toArray(), 
+            $entity->toArray(),
             $params
         );
 
