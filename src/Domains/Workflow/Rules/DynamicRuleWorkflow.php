@@ -24,7 +24,8 @@ class DynamicRuleWorkflow extends Workflow
 
         $values = array_merge(
             $values,
-            $entity->toArray()
+            $entity->toArray(), 
+            $params
         );
 
         $expressionLanguage = new ExpressionLanguage();
@@ -47,7 +48,7 @@ class DynamicRuleWorkflow extends Workflow
             $params = array_merge($params, $rule->params);
         }
 
-        unset($params['app']); //dont pass the app to the activity via the param array
+        unset($params['app']); //don't pass the app to the activity via the param array
         foreach ($rule->workflowActivities as $workflowActivity) {
             $activity = $workflowActivity->activity;
 

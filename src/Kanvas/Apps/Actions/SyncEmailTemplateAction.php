@@ -14,6 +14,8 @@ use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Notifications\Templates\Invite;
 use Kanvas\Notifications\Templates\ResetPassword;
 use Kanvas\Notifications\Templates\Welcome;
+use Kanvas\Social\Follows\Enums\NotificationTemplateEnum;
+use Kanvas\Social\Messages\Enums\NotificationTemplateEnum as EnumsNotificationTemplateEnum;
 use Kanvas\Souk\Orders\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Templates\Actions\CreateTemplateAction;
@@ -77,6 +79,15 @@ class SyncEmailTemplateAction
             ], [
                 'name' => LeadsEnumsEmailTemplateEnum::NEW_LEAD_COMPANY_ADMIN->value,
                 'template' => File::get(resource_path('views/emails/newLeadCompany.blade.php')),
+            ],[
+                'name' => NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value,
+                'template' => File::get(resource_path('views/emails/newPushNotification.blade')),
+            ],[
+                'name' => EnumsNotificationTemplateEnum::PUSH_NEW_MESSAGE->value,
+                'template' => File::get(resource_path('views/emails/newPushNotification.blade')),
+            ],[
+                'name' => EnumsNotificationTemplateEnum::PUSH_NEW_INTERACTION_MESSAGE->value,
+                'template' => File::get(resource_path('views/emails/newPushNotification.blade')),
             ],
         ];
 

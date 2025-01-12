@@ -48,6 +48,7 @@ use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUse
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
+use Kanvas\Social\Follows\Workflows\MessageOwnerInteractionNotifierActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
@@ -115,6 +116,7 @@ class KanvasWorkflowSynActionCommand extends Command
             GeneratePdfActivity::class,
             SoftPullFromLeadActivity::class,
             SendMessageNotificationToFollowersActivity::class,
+            MessageOwnerInteractionNotifierActivity::class,
         ];
 
         $createdActions = [];

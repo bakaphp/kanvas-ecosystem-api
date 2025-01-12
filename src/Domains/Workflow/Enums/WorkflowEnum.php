@@ -27,6 +27,7 @@ enum WorkflowEnum: string
     case AFTER_CREATE_ORDER = 'after-create-order';
     case GENERATE = 'generate';
     case AFTER_RUNNING_RECEIVER = 'after-running-receiver';
+    case AFTER_MESSAGE_INTERACTION = 'after-message-interaction';
 
     /**
      * Get the enum case by its value.
