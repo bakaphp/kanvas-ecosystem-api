@@ -15,8 +15,8 @@ final class OrderServiceTest extends TestCase
     {
         $app = app(Apps::class);
 
-        $app->set(ConfigurationEnum::EASY_ACTIVATION_USERNAME->value, getenv('EASY_ACTIVATION_USERNAME'));
-        $app->set(ConfigurationEnum::EASY_ACTIVATION_PASSWORD->value, getenv('EASY_ACTIVATION_PASSWORD'));
+        $app->set(ConfigurationEnum::EASY_ACTIVATION_USERNAME->value, getenv('TEST_EASY_ACTIVATION_USERNAME'));
+        $app->set(ConfigurationEnum::EASY_ACTIVATION_PASSWORD->value, getenv('TEST_EASY_ACTIVATION_PASSWORD'));
 
         $orderService = new OrderService($app);
         $orderStatus = $orderService->checkStatus(getenv('TEST_EASY_ACTIVATION_ICCID'));
