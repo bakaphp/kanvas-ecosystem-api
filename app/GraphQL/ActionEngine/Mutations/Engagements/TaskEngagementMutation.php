@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\ActionEngine\Mutations\Engagements;
 
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
@@ -20,6 +22,7 @@ class TaskEngagementMutation
         $app = app(Apps::class);
         $status = $request['status'];
         $lead = Lead::getByIdFromCompanyApp($request['lead_id'], $company, $app);
+        $messageId = $request['message_id'] ?? null;
 
         $taskListItem = TaskListItem::getById($id);
 
@@ -29,6 +32,10 @@ class TaskEngagementMutation
 
         if ($taskListItem->companyAction->apps_id != $app->getId()) {
             throw new ValidationException('You are not allowed to change the status of this task , app mismatch');
+        }
+
+        if (! TaskStatusEnum::validate($status)) {
+            throw new ValidationException('Invalid Task Status');
         }
 
         $taskEngagementItem = TaskEngagementItem::fromCompany($company)
@@ -44,6 +51,11 @@ class TaskEngagementMutation
             $taskEngagementItem->companies_id = $company->getId();
             $taskEngagementItem->apps_id = $app->getId();
             $taskEngagementItem->users_id = $user->getId();
+        }
+
+        if ($status = TaskStatusEnum::COMPLETED->value && $messageId) {
+            $finalEngagement = Engagement::fromApp($app)->fromCompany($company)->where('message_id', $messageId)->first();
+            $taskEngagementItem->engagements_id = $finalEngagement?->getId();
         }
 
         $taskEngagementItem->status = $status;
