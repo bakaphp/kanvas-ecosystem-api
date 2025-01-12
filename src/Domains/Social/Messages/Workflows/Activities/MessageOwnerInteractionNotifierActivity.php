@@ -24,11 +24,20 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
         $emailTemplate = $params['email_template'] ?? null;
         $pushTemplate = $params['push_template'] ?? null;
         $interaction = $params['interaction'] ?? null;
+        $userInteraction = $params['user_interaction'] ?? null;
 
         if ($interaction === null) {
             return [
                 'result' => false,
                 'message' => 'Interaction is required',
+                'params' => $params,
+            ];
+        }
+
+        if ($userInteraction === null) {
+            return [
+                'result' => false,
+                'message' => 'User Interaction is required',
                 'params' => $params,
             ];
         }
@@ -56,7 +65,7 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
             'interaction_type' => $interactionType,
             'subject' => sprintf($subject, $message->user->displayname),
             'via' => $endViaList,
-            'fromUser' => $message->user,
+            'fromUser' => $userInteraction->user,
             'message_id' => $message->getId(),
             'destination_id' => $message->getId(),
             'destination_type' => $params['destination_type'] ?? 'MESSAGE',
@@ -69,6 +78,7 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
                 $config,
                 $config['via']
             );
+            $newMessageNotification->setFromUser($userInteraction->user);
 
             $message->user->notify($newMessageNotification);
         } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
