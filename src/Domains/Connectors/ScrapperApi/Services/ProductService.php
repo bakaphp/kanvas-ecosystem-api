@@ -30,8 +30,8 @@ class ProductService
         $price = $this->calcDiscountPrice($product);
         $name = Str::limit($product['name'], 255);
         $product = [
-            'name' => TranslateToSpanishAction::execute($name),
-            'description' => TranslateToSpanishAction::execute($this->getDescription($product)),
+            'name' => TranslateToSpanishAction::execute($name) ?? $name,
+            'description' => TranslateToSpanishAction::execute($this->getDescription($product)) ?? $this->getDescription($product),
             'price' => $price['total'],
             'discountPrice' => $price['discount'],
             'slug' => Str::slug($product['asin']),
