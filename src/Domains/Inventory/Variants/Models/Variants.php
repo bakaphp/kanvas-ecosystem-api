@@ -386,6 +386,42 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         return $variant;
     }
 
+    public function toSearchableArraySummary(): array
+    {
+        $variant = [
+            'objectID' => $this->uuid,
+            'id' => $this->id,
+            'name' => $this->name,
+            'company' => [
+                'id' => $this?->product?->companies_id,
+                'name' => $this?->product?->company?->name,
+            ],
+            'uuid' => $this->uuid,
+            'slug' => $this->slug,
+            'sku' => $this->sku,
+
+            'channels' => $this->channels->map(function ($channels) {
+                return [
+                    'id' => $channels->getId(),
+                    'name' => $channels->name,
+                    'price' => (float) $channels->price,
+                    'is_published' => $channels->is_published,
+                ];
+            }),
+            'attributes' => [],
+        ];
+        $attributes = $this->attributes()->get();
+        foreach ($attributes as $attribute) {
+            //if its over 100 characters we dont want to index it
+            if (! is_array($attribute->value) && strlen((string) $attribute->value) > 100) {
+                continue;
+            }
+            $variant['attributes'][$attribute->name] = $attribute->value;
+        }
+
+        return $variant;
+    }
+
     public function searchableAs(): string
     {
         $variant = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);

@@ -15,6 +15,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
@@ -308,9 +309,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'position' => $category->position,
                   ];
             }),
-            'variants' => $this->variants->take(15)->map(function ($variant) {
-                return $variant->toSearchableArray();
-            }),
+            'variants' => $this->getVariantsData(),
             'status' => [
                 'id' => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,
@@ -468,5 +467,12 @@ class Products extends BaseModel implements EntityIntegrationInterface
     {
         $this->is_published = 1;
         $this->save();
+    }
+
+    protected function getVariantsData(): Collection
+    {
+        return $this->variants->count() > 200 
+            ? $this->variants->map(fn($variant) => $variant->toSearchableArraySummary()) 
+            : $this->variants->map(fn($variant) => $variant->toSearchableArray());
     }
 }
