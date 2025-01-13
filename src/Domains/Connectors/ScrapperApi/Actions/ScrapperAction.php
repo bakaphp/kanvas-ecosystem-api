@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
+use Kanvas\Connectors\ScrapperApi\Events\ProductScrapperEvent;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Connectors\ScrapperApi\Services\ProductService;
 use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
@@ -87,8 +88,17 @@ class ScrapperAction
                 $syncProductWithShopify = new SyncProductWithShopifyAction($product);
                 $syncProductWithShopify->execute();
 
-                // $this->setCustomFieldAmazonPrice($product);
+                $this->setCustomFieldAmazonPrice($product);
                 $importerProducts++;
+
+                if ($this->uuid) {
+                    ProductScrapperEvent::dispatch(
+                        $this->app,
+                        $this->uuid,
+                        $product,
+                        $product->getShopifyId($this->region)
+                    );
+                }
 
                 if (App::environment('local')) {
                     break;
@@ -113,20 +123,15 @@ class ScrapperAction
     public function setCustomFieldAmazonPrice(Products $product): void
     {
         $sdk = Client::getInstance($this->app, $this->companyBranch->company, $this->region);
-
         $shopifyProductId = $product->getShopifyId($this->region);
-
+        $attribute = $product->attributes()->where('name', ScrapperConfigEnum::AMAZON_PRICE->value)->first();
         $metafieldData = [
-            'namespace' => 'custom_fields',
+            'namespace' => 'custom',
             'key' => 'amazon_price',
-            'value' => $product->get(ScrapperConfigEnum::AMAZON_ID->value),
-            'type' => 'single_line_text_field',
+            'value' => json_encode(['amount' => $attribute->value, 'currency_code' => 'USD']),
+            'type' => 'money',
         ];
 
-        $response = $sdk->call([
-            'METHOD' => 'POST',
-            'URL' => "/admin/products/$shopifyProductId/metafields.json",
-            'DATA' => ['metafield' => $metafieldData],
-        ]);
+        $sdk->Product($shopifyProductId)->Metafield->post($metafieldData);
     }
 }
