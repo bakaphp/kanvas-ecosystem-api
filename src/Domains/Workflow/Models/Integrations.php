@@ -48,7 +48,8 @@ class Integrations extends BaseModel
     public function getIntegrationsByCompany(): Collection
     {
         $user = auth()->user();
-        return $user->getCurrentCompany()->integrations;
+        $company = $user->getCurrentCompany();
+        return $company->integrations()->where('integrations_id', '=', $this->getId())->get();
     }
 
     public function getIntegrationStatus(): Status
