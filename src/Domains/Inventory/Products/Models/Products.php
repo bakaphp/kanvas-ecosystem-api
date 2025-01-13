@@ -24,6 +24,7 @@ use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Builders\ProductSortAttributeBuilder;
@@ -471,7 +472,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     protected function getVariantsData(): Collection
     {
-        return $this->variants->count() > 200 
+        return $this->variants->count() > $this->app->get(AppEnums::PRODUCT_VARIANTS_SEARCH_LIMIT->getValue())
             ? $this->variants->map(fn ($variant) => $variant->toSearchableArraySummary())
             : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
     }
