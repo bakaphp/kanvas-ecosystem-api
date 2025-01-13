@@ -4210,16 +4210,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.26",
+            "version": "1.0.27",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel-workflow/laravel-workflow.git",
-                "reference": "be2663cf67597870cdcbcadf5b031459758da00d"
+                "reference": "b1d8343c272ccfb51c43d9b63aae1364f12508ab"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/be2663cf67597870cdcbcadf5b031459758da00d",
-                "reference": "be2663cf67597870cdcbcadf5b031459758da00d",
+                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/b1d8343c272ccfb51c43d9b63aae1364f12508ab",
+                "reference": "b1d8343c272ccfb51c43d9b63aae1364f12508ab",
                 "shasum": ""
             },
             "require": {
@@ -4261,9 +4261,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/laravel-workflow/laravel-workflow/issues",
-                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.26"
+                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.27"
             },
-            "time": "2024-05-24T14:03:25+00:00"
+            "time": "2025-01-09T14:40:23+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -10632,16 +10632,16 @@
         },
         {
             "name": "spatie/php-structure-discoverer",
-            "version": "2.2.1",
+            "version": "2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/php-structure-discoverer.git",
-                "reference": "e2b39ba0baaf05d1300c5467e7ee8a6439324827"
+                "reference": "42d161298630ede76c61e8a437a06eea2e106f4c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/php-structure-discoverer/zipball/e2b39ba0baaf05d1300c5467e7ee8a6439324827",
-                "reference": "e2b39ba0baaf05d1300c5467e7ee8a6439324827",
+                "url": "https://api.github.com/repos/spatie/php-structure-discoverer/zipball/42d161298630ede76c61e8a437a06eea2e106f4c",
+                "reference": "42d161298630ede76c61e8a437a06eea2e106f4c",
                 "shasum": ""
             },
             "require": {
@@ -10700,7 +10700,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/php-structure-discoverer/issues",
-                "source": "https://github.com/spatie/php-structure-discoverer/tree/2.2.1"
+                "source": "https://github.com/spatie/php-structure-discoverer/tree/2.3.0"
             },
             "funding": [
                 {
@@ -10708,7 +10708,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-16T13:29:18+00:00"
+            "time": "2025-01-13T13:15:29+00:00"
         },
         {
             "name": "spatie/regex",
@@ -17049,5 +17049,5 @@
         "php": "^8.2"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.3.0"
 }
