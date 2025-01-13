@@ -10,6 +10,7 @@ use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\EasyActivation\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Social\Messages\Models\Message;
@@ -33,9 +34,7 @@ class SyncEsimWithProviderCommand extends Command
     protected $description = 'Sync Esim with providers';
 
     /**
-     * Execute the console command.
-     *
-     * @return mixed
+     * @todo refactor this
      */
     public function handle()
     {
@@ -47,10 +46,12 @@ class SyncEsimWithProviderCommand extends Command
         $messages = Message::fromApp($app)->fromCompany($company)->notDeleted()->whereIsPublic()->orderBy('id', 'desc')->get();
 
         $eSimService = new ESimService($app);
+        $easyActivationOrderService = new OrderService($app);
 
         foreach ($messages as $message) {
             $iccid = $message->message['data']['iccid'] ?? null;
             $bundle = $message->message['data']['plan'] ?? null;
+            $network = strtolower($message->message['items'][0]['variant']['attributes']['Variant Network'] ?? '') ?: '';
 
             if ($iccid == null) {
                 $this->info("Message ID: {$message->id} does not have an ICCID.");
@@ -60,8 +61,17 @@ class SyncEsimWithProviderCommand extends Command
             }
 
             try {
-                $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
-                $iccidStatus = $eSimService->checkStatus($iccid);
+                if ($network == 'esimgo') {
+                    $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
+                    $iccidStatus = $eSimService->checkStatus($iccid);
+                } elseif ($network == 'easyactivations') {
+                    $response = $easyActivationOrderService->checkStatus($iccid);
+                } else {
+                    $this->info("Message ID: {$message->id} does not have a valid network.");
+                    //$message->setPrivate();
+
+                    continue;
+                }
             } catch (Exception $e) {
                 $this->info("Message ID: {$message->id} has an error: {$e->getMessage()}");
                 //$message->setPrivate();
@@ -70,34 +80,42 @@ class SyncEsimWithProviderCommand extends Command
             }
 
             if (! empty($response)) {
-                $inactiveStatuses = [
-                    IccidStatusEnum::INACTIVE->value,
-                    IccidStatusEnum::EXPIRED->value,
-                    IccidStatusEnum::COMPLETED->value,
-                ];
+                if ($network == 'esimgo') {
+                    $inactiveStatuses = [
+                        IccidStatusEnum::INACTIVE->value,
+                        IccidStatusEnum::EXPIRED->value,
+                        IccidStatusEnum::COMPLETED->value,
+                    ];
 
-                $firstInstallTimestamp = $iccidStatus['firstInstalledDateTime'] ?? null;
-                $isUnlimited = filter_var($response['unlimited'] ?? false, FILTER_VALIDATE_BOOLEAN);
-                $messageData = $message->message;
+                    $firstInstallTimestamp = $iccidStatus['firstInstalledDateTime'] ?? null;
+                    $isUnlimited = filter_var($response['unlimited'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                    $messageData = $message->message;
 
-                if ($firstInstallTimestamp) {
-                    $installDate = (new DateTime())->setTimestamp($firstInstallTimestamp / 1000); // Convert milliseconds to seconds
-                    $firstInstallDate = $installDate->format('Y-m-d H:i:s');
+                    if ($firstInstallTimestamp) {
+                        $installDate = (new DateTime())->setTimestamp($firstInstallTimestamp / 1000); // Convert milliseconds to seconds
+                        $firstInstallDate = $installDate->format('Y-m-d H:i:s');
 
-                    $esimDays = $messageData['items'][0]['variant']['attributes']['esim_days'] ?? 0;
-                    $expiredDate = (! $isUnlimited && $esimDays > 0)
-                        ? $installDate->modify('+' . $esimDays . ' days')->format('Y-m-d H:i:s')
-                        : null;
-                } else {
-                    $firstInstallDate = null;
-                    $expiredDate = null;
+                        $esimDays = $messageData['items'][0]['variant']['attributes']['esim_days'] ?? 0;
+                        $expiredDate = (! $isUnlimited && $esimDays > 0)
+                            ? $installDate->modify('+' . $esimDays . ' days')->format('Y-m-d H:i:s')
+                            : null;
+                    } else {
+                        $firstInstallDate = null;
+                        $expiredDate = null;
+                    }
+
+                    $response['bundleState'] = IccidStatusEnum::getStatus($iccidStatus['profileStatus']);
+                    $response['installed_date'] = $firstInstallDate;
+                    $response['expiration_date'] = $expiredDate ?? ($messageData['esim_status']['expiration_date'] ?? null);
+                    $response['phone_number'] = $messageData['esim_status']['phone_number'] ?? null;
+                    $messageData['esim_status'] = $response;
+                } elseif ($network == 'easyactivations') {
+                    $response['bundleState'] = $response['esim_status'];
+                    $response['installed_date'] = $message->created_at;
+                    $response['expiration_date'] = $response['expire_date'] ?? null;
+                    $response['phone_number'] = $messageData['phone_number'] ?? null;
+                    $messageData['esim_status'] = $response;
                 }
-
-                $response['bundleState'] = IccidStatusEnum::getStatus($iccidStatus['profileStatus']);
-                $response['installed_date'] = $firstInstallDate;
-                $response['expiration_date'] = $expiredDate ?? ($messageData['esim_status']['expiration_date'] ?? null);
-                $response['phone_number'] = $messageData['esim_status']['phone_number'] ?? null;
-                $messageData['esim_status'] = $response;
                 $message->message = $messageData;
                 $message->saveOrFail();
 

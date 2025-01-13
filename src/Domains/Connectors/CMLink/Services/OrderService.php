@@ -32,20 +32,24 @@ class OrderService
         string $thirdOrderId,
         string $iccid,
         int $quantity,
-        int $isRefuel,
-        string $dataBundleId
+        string $dataBundleId,
+        string $activeDate,
+        int $isRefuel = 1,
     ): array {
         return $this->client->post('/aep/APP_createOrder_SBO/v1', [
             'thirdOrderId' => $thirdOrderId,
             'ICCID' => $iccid,
             'quantity' => $quantity,
-            'is_Refuel' => $isRefuel,
+            'is_Refuel' => (string) $isRefuel,
             'includeCard' => 0, // Assuming 0 means no physical card
             'dataBundleId' => $dataBundleId,
+            'sendLang' => 'English',
+            'setActiveTime' => date('Ymd', strtotime($activeDate)),
             'accessToken' => $this->client->getAccessToken(),
         ]);
     }
 
+    //date('YmdHis', strtotime($activeDate));
     /**
      * Create an order and ensure activation.
      *
@@ -59,15 +63,17 @@ class OrderService
         string $thirdOrderId,
         string $iccid,
         int $quantity,
-        int $isRefuel,
-        string $dataBundleId
+        string $dataBundleId,
+        string $activeDate,
+        int $isRefuel = 1
     ): array {
         $orderResponse = $this->createOrder(
             $thirdOrderId,
             $iccid,
             $quantity,
-            $isRefuel,
-            $dataBundleId
+            $dataBundleId,
+            $activeDate,
+            $isRefuel
         );
 
         // Step 2: Activate the package immediately after order creation
