@@ -49,7 +49,6 @@ class OrderService
         ]);
     }
 
-    //date('YmdHis', strtotime($activeDate));
     /**
      * Create an order and ensure activation.
      *
