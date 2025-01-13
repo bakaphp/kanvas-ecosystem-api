@@ -475,7 +475,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
         $limit = $this->app->get(ConfigurationEnum::PRODUCT_VARIANTS_SEARCH_LIMIT->value) ?? 200;
 
         return $this->variants->count() > $limit
-            ? $this->variants->map(fn ($variant) => $variant->toSearchableArraySummary())
+            ? $this->variants->take($limit)->map(fn ($variant) => $variant->toSearchableArraySummary())
             : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
     }
 }
