@@ -55,7 +55,7 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
         );
 
         $metaData = $message->getMessage();
-        unset($metaData['message']['ai_nugged']); //@todo move this to a customization
+        unset($metaData['ai_nugged']); //@todo move this to a customization
 
         $config = [
             'email_template' => $emailTemplate,
@@ -64,7 +64,7 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
             'company' => $message->company,
             'message' => sprintf($notificationMessage, $interactionType, $userInteraction->user->displayname),
             'title' => $notificationTitle,
-            'metadata' => $message->getMessage(),
+            'metadata' => $metaData,
             'interaction_type' => $interactionType,
             'interaction' => $interaction,
             'subject' => sprintf($subject, $message->user->displayname),
