@@ -43,8 +43,8 @@ class OrderService
             'is_Refuel' => (string) $isRefuel,
             'includeCard' => 0, // Assuming 0 means no physical card
             'dataBundleId' => $dataBundleId,
-            'sendLang' => 'English',
-            'setActiveTime' => date('Ymd', strtotime($activeDate)),
+            'sendLang' => 2,
+            //'setActiveTime' => date('Ymd', strtotime($activeDate)),
             'accessToken' => $this->client->getAccessToken(),
         ]);
     }
