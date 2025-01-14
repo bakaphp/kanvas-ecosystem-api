@@ -15,8 +15,8 @@ final class ConnectionTest extends TestCase
     {
         $app = app(Apps::class);
         $app->set(ConfigurationEnum::AUTH_BASE_URL->value, getenv('TEST_IPLUS_BASE_URL'));
-        $app->set(ConfigurationEnum::CLIENT_ID->value,  getenv('TEST_IPLUS_CLIENT_ID'));
-        $app->set(ConfigurationEnum::CLIENT_SECRET->value,  getenv('TEST_IPLUS_CLIENT_SECRET'));
+        $app->set(ConfigurationEnum::CLIENT_ID->value, getenv('TEST_IPLUS_CLIENT_ID'));
+        $app->set(ConfigurationEnum::CLIENT_SECRET->value, getenv('TEST_IPLUS_CLIENT_SECRET'));
 
         $client = new Client($app);
         $token = $client->getValidAccessToken();

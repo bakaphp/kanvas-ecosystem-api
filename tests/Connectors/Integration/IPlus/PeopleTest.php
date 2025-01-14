@@ -16,8 +16,8 @@ final class PeopleTest extends TestCase
     {
         $app = app(Apps::class);
         $app->set(ConfigurationEnum::AUTH_BASE_URL->value, getenv('TEST_IPLUS_BASE_URL'));
-        $app->set(ConfigurationEnum::CLIENT_ID->value,  getenv('TEST_IPLUS_CLIENT_ID'));
-        $app->set(ConfigurationEnum::CLIENT_SECRET->value,  getenv('TEST_IPLUS_CLIENT_SECRET'));
+        $app->set(ConfigurationEnum::CLIENT_ID->value, getenv('TEST_IPLUS_CLIENT_ID'));
+        $app->set(ConfigurationEnum::CLIENT_SECRET->value, getenv('TEST_IPLUS_CLIENT_SECRET'));
 
         $people = People::fromApp($app)->first();
         $people->company->set(ConfigurationEnum::COMPANY_ID->value, '01');
