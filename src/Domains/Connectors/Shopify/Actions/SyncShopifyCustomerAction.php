@@ -63,7 +63,7 @@ class SyncShopifyCustomerAction
                     'county' => $this->customerData['default_address']['province'],
                     'state' => $this->customerData['default_address']['province'],
                     'country' => $this->customerData['default_address']['country'],
-                    'zipcode' => $this->customerData['default_address']['zip'],
+                    'zip' => $this->customerData['default_address']['zip'],
                     'is_default' => true,
                 ],
             ];

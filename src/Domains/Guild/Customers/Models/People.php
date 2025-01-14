@@ -207,7 +207,7 @@ class People extends BaseModel
                 'city' => $address->city,
                 'state' => $address->state,
                 'countries_id' => $address->country ? Countries::getByName($address->country)->getId() : null,
-                'zip' => $address->zipcode,
+                'zip' => $address->zip,
             ],
             [
                 'address_2' => $address->address_2,
