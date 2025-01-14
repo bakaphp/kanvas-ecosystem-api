@@ -206,6 +206,12 @@ final class LeadReceiverParserTest extends TestCase
                 "pattern" : "/^[^;]*;([^;]+)/",
                 "note": "For now this will also create the parsed version SUB_ID and the main one SubID, maybe we should fix this in the future?"
             },
+            "SubID": {
+                "name": "SubID",
+                "type": "customField",
+                "pattern" : "/^[^;]+/",
+                "note": "Takes the first part of the SubID"
+            },
             "Test": {
                 "name": "Another1",
                 "type": "customField",
@@ -270,7 +276,7 @@ final class LeadReceiverParserTest extends TestCase
         $this->assertEquals($email, $leadStructure['people']['contacts'][1]['value']);
         $this->assertEquals('Excellent (720+)', $leadStructure['custom_fields']['Credit_Score']);
         $this->assertEquals('1150000', $leadStructure['custom_fields']['Amount Requested']);
-        $this->assertEquals('272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108', $leadStructure['custom_fields']['SubID']);
+        $this->assertEquals('272da453-ed2c-4fa7-9ec0-c3efc6f55c87', $leadStructure['custom_fields']['SubID']);
         $this->assertEquals('cf3e6255ba55da60765e9d108', $leadStructure['custom_fields']['SubID_ID']);
         $this->assertEquals('cf3e6255ba55da60765e9d108', $leadStructure['SubID2']);
     }
