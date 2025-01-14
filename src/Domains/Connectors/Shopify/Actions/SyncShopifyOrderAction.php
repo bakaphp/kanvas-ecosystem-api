@@ -11,6 +11,8 @@ use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
+use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -45,7 +47,8 @@ class SyncShopifyOrderAction
                 city: $this->orderData['shipping_address']['city'] ?? '',
                 state: $this->orderData['shipping_address']['province'] ?? '',
                 country: $this->orderData['shipping_address']['country'] ?? '',
-                zip: $this->orderData['shipping_address']['zip'] ?? ''
+                zip: $this->orderData['shipping_address']['zip'] ?? '',
+                address_type_id: AddressType::getByName(AddressTypeEnum::SHIPPING->value, $this->app)->getId()
             ))
             : null;
         $billingAddress = ! empty($this->orderData['billing_address']['address1']) ?
@@ -55,7 +58,8 @@ class SyncShopifyOrderAction
                 city: $this->orderData['billing_address']['city'],
                 state: $this->orderData['billing_address']['province'],
                 country: $this->orderData['billing_address']['country'],
-                zip: $this->orderData['billing_address']['zip']
+                zip: $this->orderData['billing_address']['zip'],
+                address_type_id: AddressType::getByName(AddressTypeEnum::BILLING->value, $this->app)->getId()
             ))
             : null;
 
