@@ -19,22 +19,7 @@ class Json implements CastsAttributes
      */
     public function get(Model $model, string $key, mixed $value, array $attributes): mixed
     {
-        if (! is_string($value)) {
-            return $value;
-        }
-
-        // First check if it's already valid JSON
-        if (Str::isJson($value)) {
-            if (str_starts_with($value, '"') && str_ends_with($value, '"')) {
-                //if true means the json most likely is a string like this "{\"description\":\"test\"}"
-                $value = substr(stripslashes($value), 1, -1);
-            }
-
-            return json_decode($value, true);
-        }
-
-        // If all attempts fail, return original value
-        return $value;
+        return Str::isJson($value) ? json_decode($value, true) : $value;
     }
 
     /**
