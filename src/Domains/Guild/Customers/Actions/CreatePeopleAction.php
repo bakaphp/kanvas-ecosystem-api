@@ -117,7 +117,7 @@ class CreatePeopleAction
                     'city' => $address->city,
                     'county' => $address->county,
                     'state' => $address->state,
-                    'zip' => $address->zipcode,
+                    'zip' => $address->zip,
                     'city_id' => $address->city_id ?? 0,
                     'state_id' => $address->state_id ?? 0,
                     'countries_id' => $address->country_id ?? 0,

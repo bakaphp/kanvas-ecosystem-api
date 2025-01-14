@@ -88,7 +88,7 @@ class UpdatePeopleAction
                 $existingAddress = $this->people->address()->where('address', $address->address)
                     ->where('city', $address->city)
                     ->where('state', $address->state)
-                    ->where('zip', $address->zipcode)
+                    ->where('zip', $address->zip)
                     ->first();
 
                 if (! $existingAddress) {
@@ -97,7 +97,7 @@ class UpdatePeopleAction
                         'address_2' => $address->address_2,
                         'city' => $address->city,
                         'state' => $address->state,
-                        'zip' => $address->zipcode,
+                        'zip' => $address->zip,
                         //'country' => $address->country,
                         'is_default' => $address->is_default,
                         'city_id' => $address->city_id ?? 0,
