@@ -25,7 +25,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(DispatchQueueCheckJobsCommand::class)->everyMinute();
         $schedule->command(ScheduleCheckHeartbeatCommand::class)->everyMinute();
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
-        $schedule->command(SocialUserCounterResetCommand::class)->dailyAt('00:00');
+        $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         #$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron
         #$schedule->command(ImportPromptsFromDocsCommand::class)->weeklyOn(1, '00:00');
 
