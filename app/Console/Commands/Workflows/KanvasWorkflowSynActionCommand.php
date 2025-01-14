@@ -51,6 +51,7 @@ use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
+use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
@@ -117,6 +118,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SoftPullFromLeadActivity::class,
             SendMessageNotificationToFollowersActivity::class,
             MessageOwnerInteractionNotifierActivity::class,
+            MessageOwnerChildNotificationActivity::class,
         ];
 
         $createdActions = [];
