@@ -31,7 +31,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
             ];
         }
 
-        $notificationMessage = $params['message'] ?? 'New %s from %s on your message';
+        $notificationMessage = $params['message'] ?? 'New message from %s';
         $notificationTitle = $params['title'] ?? 'New message';
         $subject = $params['subject'] ?? 'New message from %s';
         $viaList = $params['via'] ?? ['database'];
