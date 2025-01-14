@@ -25,8 +25,8 @@ class Json implements CastsAttributes
 
         // First check if it's already valid JSON
         if (Str::isJson($value)) {
-            //if true means the json most likely is a string like this "{\"description\":\"test\"}"
             if (str_starts_with($value, '"') && str_ends_with($value, '"')) {
+                //if true means the json most likely is a string like this "{\"description\":\"test\"}"
                 $value = substr(stripslashes($value), 1, -1);
             }
 
