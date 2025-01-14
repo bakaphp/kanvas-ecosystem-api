@@ -27,8 +27,8 @@ class Client
     ) {
         $this->authBaseUrl = $this->app->get(ConfigurationEnum::AUTH_BASE_URL->value);
         $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value);
-        $this->username = $this->app->get(ConfigurationEnum::USERNAME->value);
-        $this->password = $this->app->get(ConfigurationEnum::PASSWORD->value);
+        //$this->username = $this->app->get(ConfigurationEnum::USERNAME->value);
+        //$this->password = $this->app->get(ConfigurationEnum::PASSWORD->value);
         $this->clientSecret = $this->app->get(ConfigurationEnum::CLIENT_SECRET->value);
 
         if (empty($this->clientId) || empty($this->clientSecret)) {
@@ -72,11 +72,9 @@ class Client
         try {
             $response = $this->httpClient->post($this->authBaseUrl . '/oauth2/token', [
                 'form_params' => [
-                    'grant_type' => 'password',
+                    'grant_type' => 'client_credentials',
                     'client_id' => $this->clientId,
                     'client_secret' => $this->clientSecret,
-                    'username' => $this->username,
-                    'password' => $this->password,
                     'scope' => 'iplus.read iplus.write',
                 ],
             ]);
