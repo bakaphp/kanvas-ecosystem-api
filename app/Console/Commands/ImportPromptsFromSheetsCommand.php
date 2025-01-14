@@ -14,7 +14,7 @@ use Google\Service\Sheets;
 use Illuminate\Support\Facades\Log;
 use PDO;
 
-class ImportPromptsFromDocsCommand extends Command
+class ImportPromptsFromSheetsCommand extends Command
 {
     /**
      * The name and signature of the console command.
@@ -49,7 +49,7 @@ class ImportPromptsFromDocsCommand extends Command
 
         $service = new Sheets($client);
         $spreadsheetId = getenv('GOOGLE_SHEET_ID');
-        $range = 'A:E';
+        $range = 'A:F';
 
         // Fetch the entire sheet data
         $response = $service->spreadsheets_values->get($spreadsheetId, $range);
