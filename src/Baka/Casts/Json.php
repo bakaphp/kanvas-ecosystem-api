@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Baka\Casts;
 
-use Exception;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -24,37 +23,18 @@ class Json implements CastsAttributes
             return $value;
         }
 
-        try {
-            // First check if it's already valid JSON
-            if (Str::isJson($value)) {
-                return json_decode($value, true);
+        // First check if it's already valid JSON
+        if (Str::isJson($value)) {
+            //if true means the json most likely is a string like this "{\"description\":\"test\"}"
+            if (str_starts_with($value, '"') && str_ends_with($value, '"')) {
+                $value = substr(stripslashes($value), 1, -1);
             }
 
-            // Clean the string if needed (remove escaped quotes, etc)
-            $cleanValue = stripslashes($value);
-
-            // Try to decode after cleaning
-            $decoded = json_decode($cleanValue, true);
-
-            // If successful decoding after cleaning, return the decoded value
-            if (json_last_error() === JSON_ERROR_NONE) {
-                return $decoded;
-            }
-
-            // Try to handle malformed JSON strings
-            if (str_starts_with($cleanValue, '"') && str_ends_with($cleanValue, '"')) {
-                $cleanValue = substr($cleanValue, 1, -1);
-                $decoded = json_decode($cleanValue, true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    return $decoded;
-                }
-            }
-
-            // If all attempts fail, return original value
-            return $value;
-        } catch (Exception $e) {
-            return $value;
+            return json_decode($value, true);
         }
+
+        // If all attempts fail, return original value
+        return $value;
     }
 
     /**
