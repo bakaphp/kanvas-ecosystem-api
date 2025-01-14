@@ -53,7 +53,7 @@ class TaskEngagementMutation
             $taskEngagementItem->users_id = $user->getId();
         }
 
-        if ($status = TaskStatusEnum::COMPLETED->value && $messageId) {
+        if ($status == TaskStatusEnum::COMPLETED->value && $messageId) {
             $finalEngagement = Engagement::fromApp($app)->fromCompany($company)->where('message_id', $messageId)->first();
             $taskEngagementItem->engagement_end_id = $finalEngagement?->getId();
         }
