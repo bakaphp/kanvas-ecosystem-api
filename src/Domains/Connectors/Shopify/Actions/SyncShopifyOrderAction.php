@@ -45,7 +45,7 @@ class SyncShopifyOrderAction
                 city: $this->orderData['shipping_address']['city'] ?? '',
                 state: $this->orderData['shipping_address']['province'] ?? '',
                 country: $this->orderData['shipping_address']['country'] ?? '',
-                zipcode: $this->orderData['shipping_address']['zip'] ?? ''
+                zip: $this->orderData['shipping_address']['zip'] ?? ''
             ))
             : null;
         $billingAddress = ! empty($this->orderData['billing_address']['address1']) ?
@@ -55,7 +55,7 @@ class SyncShopifyOrderAction
                 city: $this->orderData['billing_address']['city'],
                 state: $this->orderData['billing_address']['province'],
                 country: $this->orderData['billing_address']['country'],
-                zipcode: $this->orderData['billing_address']['zip']
+                zip: $this->orderData['billing_address']['zip']
             ))
             : null;
 

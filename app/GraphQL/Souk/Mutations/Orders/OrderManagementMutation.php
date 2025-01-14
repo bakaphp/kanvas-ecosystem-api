@@ -7,6 +7,7 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
@@ -78,6 +79,7 @@ class OrderManagementMutation
         $people = $createPeople->execute();
 
         $billing = isset($request['input']['billing']) ? CreditCardBilling::from($request['input']) : null;
+        $shippingAddress = isset($request['input']['address']) ? Address::from($request['input']['shipping_address']) : null;
 
         if ($cart->isEmpty() && empty($request['input']['items'])) {
             return [
@@ -98,6 +100,7 @@ class OrderManagementMutation
             $user,
             $app,
             $billing,
+            $shippingAddress,
             $request
         );
 

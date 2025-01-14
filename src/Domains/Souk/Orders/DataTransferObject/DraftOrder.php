@@ -95,7 +95,7 @@ class DraftOrder extends Data
                 city: $request['input']['shipping_address']['city'] ?? '',
                 state: $request['input']['shipping_address']['province'] ?? '',
                 country: $request['input']['shipping_address']['country'] ?? '',
-                zipcode: $request['input']['shipping_address']['zip'] ?? ''
+                zip: $request['input']['shipping_address']['zip'] ?? ''
             ))
             : null;
 
@@ -106,7 +106,7 @@ class DraftOrder extends Data
                 city: $request['input']['billing_address']['city'],
                 state: $request['input']['billing_address']['province'],
                 country: $request['input']['billing_address']['country'],
-                zipcode: $request['input']['billing_address']['zip']
+                zip: $request['input']['billing_address']['zip']
             ))
             : null;
 
