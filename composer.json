@@ -20,7 +20,7 @@
         "genealabs/laravel-model-caching": "^11.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
-        "google/cloud-recommendations-ai": "^0.7.5",
+        "google/cloud-recommendations-ai": "^0.8.0",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
         "imdhemy/laravel-purchases": "^1.14",
