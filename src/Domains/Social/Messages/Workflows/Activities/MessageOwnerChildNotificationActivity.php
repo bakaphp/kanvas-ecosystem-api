@@ -27,6 +27,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
         if (empty($message->parent_id)) {
             return [
                 'result' => false,
+                'message_id' => $message->getId(),
                 'message' => 'Only child messages can send notification to its parent owner',
             ];
         }
@@ -63,6 +64,14 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
             'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
         ];
 
+        if ($message->parent->user_id == $message->user_id) {
+            return [
+                'result' => false,
+                'message_id' => $message->getId(),
+                'message' => 'Message owner is the same as the parent owner',
+            ];
+        }
+
         try {
             $newMessageNotification = new NewMessageNotification(
                 $message,
@@ -75,6 +84,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
         } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
             return [
                 'result' => false,
+                'message_id' => $message->getId(),
                 'message' => 'Error in notification to user',
                 'exception' => $e,
             ];
