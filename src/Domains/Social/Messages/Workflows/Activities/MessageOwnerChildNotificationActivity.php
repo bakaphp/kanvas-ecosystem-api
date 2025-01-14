@@ -44,6 +44,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
 
         $metaData = $message->getMessage();
         unset($metaData['ai_nugged']); //@todo move this to a customization
+        unset($metaData['nugget']); //@todo move this to a customization
 
         $config = [
             'email_template' => $emailTemplate,
