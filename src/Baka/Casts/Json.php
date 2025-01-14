@@ -8,6 +8,7 @@ use Exception;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use JsonException;
 
 class Json implements CastsAttributes
 {
@@ -15,8 +16,7 @@ class Json implements CastsAttributes
      * Cast the given value.
      *
      * @param  array<string, mixed>  $attributes
-     * @return array<string, mixed>
-     * @psalm-suppress MixedReturnStatement
+     * @return array<string, mixed>|mixed
      */
     public function get(Model $model, string $key, mixed $value, array $attributes): mixed
     {
@@ -27,32 +27,17 @@ class Json implements CastsAttributes
         try {
             // First check if it's already valid JSON
             if (Str::isJson($value)) {
-                return json_decode($value, true);
+                return json_decode($value, true, 512, JSON_THROW_ON_ERROR);
             }
 
-            // Clean the string if needed (remove escaped quotes, etc)
-            $cleanValue = stripslashes($value);
+            // Clean and normalize the value
+            $cleanValue = $this->normalizeJsonString($value);
 
             // Try to decode after cleaning
-            $decoded = json_decode($cleanValue, true);
+            $decoded = json_decode($cleanValue, true, 512, JSON_THROW_ON_ERROR);
 
-            // If successful decoding after cleaning, return the decoded value
-            if (json_last_error() === JSON_ERROR_NONE) {
-                return $decoded;
-            }
-
-            // Try to handle malformed JSON strings
-            if (str_starts_with($cleanValue, '"') && str_ends_with($cleanValue, '"')) {
-                $cleanValue = substr($cleanValue, 1, -1);
-                $decoded = json_decode($cleanValue, true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    return $decoded;
-                }
-            }
-
-            // If all attempts fail, return original value
-            return $value;
-        } catch (Exception $e) {
+            return $decoded ?? $value;
+        } catch (JsonException|Exception) {
             return $value;
         }
     }
@@ -64,6 +49,38 @@ class Json implements CastsAttributes
      */
     public function set(Model $model, string $key, mixed $value, array $attributes): mixed
     {
-        return Str::isJson($value) || is_array($value) ? json_encode($value) : $value;
+        if (is_null($value)) {
+            return null;
+        }
+
+        if (is_string($value) && Str::isJson($value)) {
+            return $value;
+        }
+
+        if (is_array($value) || is_object($value)) {
+            try {
+                return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            } catch (JsonException) {
+                return $value;
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * Normalize and clean JSON string.
+     */
+    private function normalizeJsonString(string $value): string
+    {
+        $value = stripslashes($value);
+        $value = str_replace(['\\"', '\"'], ['"', '"'], $value);
+        $value = str_replace(['\\n', '\n'], "\n", $value);
+
+        if (str_starts_with($value, '"') && str_ends_with($value, '"')) {
+            $value = substr($value, 1, -1);
+        }
+
+        return $value;
     }
 }
