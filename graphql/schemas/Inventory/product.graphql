@@ -93,8 +93,8 @@ input ProductAttributeOrderBy {
 }
 
 enum FormatSortAttribute {
-    NUMERIC 
-    STRING 
+    NUMERIC
+    STRING
     DATE
 }
 
@@ -184,6 +184,11 @@ extend type Query @guard {
             @whereHasConditions(
                 relation: "customFields"
                 columns: ["name", "value"]
+            )
+        whereRating: _
+            @whereConditions(
+                columns: ["rating"]
+                handler: "App\\GraphQL\\Social\\Handlers\\UsersRatingsHandler"
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Product!]!
