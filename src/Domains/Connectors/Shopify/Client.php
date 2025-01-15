@@ -24,7 +24,7 @@ class Client
     {
     }
 
-        /**
+    /**
      * Get unique key for the connection.
      */
     protected static function getConnectionKey(AppInterface $app, CompanyInterface $company, Regions $region): string
