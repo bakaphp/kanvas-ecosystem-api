@@ -54,10 +54,6 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
 
         $creditApplicant = $this->processCreditScore($messageData, $lead, $app, $params);
 
-        if (empty($creditApplicant['iframe_url'])) {
-            return $this->errorResponse('Credit score not found', $lead, $creditApplicant);
-        }
-
         $parentMessage = $this->createParentMessage(
             $creditApplicant,
             $lead,
@@ -123,9 +119,11 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $provider = $params['provider'] ?? 'TU'; // Default to 'TU' if not provided
         $provider = Str::replace(',', '|', trim($provider)); // Replace commas with '|' and trim whitespace
 
+        $name = $personal['first_name'] . ' ' . ($personal['last_name'] ?? '');
+
         return $creditScoreService->getCreditScore(
             new CreditApplicant(
-                "{$personal['first_name']} {$personal['last_name']}",
+                $name,
                 $housing['address'],
                 $housing['city'],
                 $housing['state']['code'],
