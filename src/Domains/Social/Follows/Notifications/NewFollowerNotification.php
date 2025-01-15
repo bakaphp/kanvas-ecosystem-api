@@ -24,7 +24,7 @@ class NewFollowerNotification extends Notification
         $this->channels = [
             NotificationChannelEnum::getNotificationChannelBySlug('mail'),
             NotificationChannelEnum::getNotificationChannelBySlug('push'),
-            NotificationChannelEnum::getNotificationChannelBySlug('database'),
+            //NotificationChannelEnum::getNotificationChannelBySlug('database'),
         ];
     }
 }
