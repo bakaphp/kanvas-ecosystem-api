@@ -128,7 +128,7 @@ final class DataPushTest extends TestCase
         $creditApplicationEngagementData = EngagementMessage::from($creditApplicationMessage);
 
         $dataPushMappingService = new DataPushMultiMappingService($app);
-        
+
         $xmlRequest = $dataPushMappingService->pushData($creditApplicationEngagementData);
 
         $this->assertInstanceOf(SimpleXMLElement::class, $xmlRequest);
