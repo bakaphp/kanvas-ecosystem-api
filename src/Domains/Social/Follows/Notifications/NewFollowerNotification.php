@@ -22,9 +22,9 @@ class NewFollowerNotification extends Notification
         $this->setPushTemplateName(NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value);
         $this->setData($data);
         $this->channels = [
-            NotificationChannelEnum::getNotificationChannelBySlug('mail'),
+            //NotificationChannelEnum::getNotificationChannelBySlug('mail'),
             NotificationChannelEnum::getNotificationChannelBySlug('push'),
-            //NotificationChannelEnum::getNotificationChannelBySlug('database'),
+            NotificationChannelEnum::getNotificationChannelBySlug('database'),
         ];
     }
 }
