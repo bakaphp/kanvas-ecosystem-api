@@ -35,7 +35,7 @@
         "lcobucci/jwt": "^5.2",
         "league/csv": "^9.0",
         "league/flysystem-aws-s3-v3": "^3.12",
-        "league/oauth2-client": "2.7.0",
+        "league/oauth2-client": "2.8.0",
         "meilisearch/meilisearch-php": "^1.4",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^3.1.0",
