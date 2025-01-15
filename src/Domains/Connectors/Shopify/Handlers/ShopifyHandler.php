@@ -24,6 +24,6 @@ class ShopifyHandler extends BaseIntegration
 
         ShopifyService::shopifySetup($shopifyDto);
 
-        return ! empty(Client::getInstance($this->app, $this->company, $shopifyDto->region)->Shop->get());
+        return ! empty(Client::getInstanceValidation($this->app, $this->company, $shopifyDto->region)->Shop->get());
     }
 }

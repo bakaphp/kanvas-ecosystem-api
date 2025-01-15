@@ -31,7 +31,7 @@ class PlanService
     ): array {
         return $this->client->post('/aep/APP_activeDataBundle_SBO/v1', [
             'dataBundleId' => $dataBundleId,
-            'ICCID' => $iccid,
+            'iccid' => $iccid,
             'accessToken' => $this->client->getAccessToken(),
         ]);
     }

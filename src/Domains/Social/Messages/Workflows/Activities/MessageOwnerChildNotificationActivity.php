@@ -2,15 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Follows\Workflows;
+namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
-use Kanvas\Social\Messages\Jobs\SendMessageNotificationsToAllFollowersJob;
+use Kanvas\Social\Messages\Notifications\NewMessageNotification;
 use Kanvas\Workflow\KanvasActivity;
 
-class SendMessageNotificationToFollowersActivity extends KanvasActivity
+class MessageOwnerChildNotificationActivity extends KanvasActivity
 {
     public $tries = 3;
     public $queue = 'default';
@@ -21,8 +23,17 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
 
         $emailTemplate = $params['email_template'] ?? null;
         $pushTemplate = $params['push_template'] ?? null;
+
+        if (empty($message->parent_id)) {
+            return [
+                'result' => false,
+                'message_id' => $message->getId(),
+                'message' => 'Only child messages can send notification to its parent owner',
+            ];
+        }
+
         $notificationMessage = $params['message'] ?? 'New message from %s';
-        $notificationTitle = $params['title'] ?? 'New Message';
+        $notificationTitle = $params['title'] ?? 'New message';
         $subject = $params['subject'] ?? 'New message from %s';
         $viaList = $params['via'] ?? ['database'];
 
@@ -53,14 +64,35 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
             'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
         ];
 
-        SendMessageNotificationsToAllFollowersJob::dispatch(
-            $message,
-            $config,
-        );
+        if ($message->parent->user_id == $message->user_id) {
+            return [
+                'result' => false,
+                'message_id' => $message->getId(),
+                'message' => 'Message owner is the same as the parent owner',
+            ];
+        }
+
+        try {
+            $newMessageNotification = new NewMessageNotification(
+                $message,
+                $config,
+                $config['via']
+            );
+            $newMessageNotification->setFromUser($message->user);
+
+            $message->parent->user->notify($newMessageNotification);
+        } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+            return [
+                'result' => false,
+                'message_id' => $message->getId(),
+                'message' => 'Error in notification to user',
+                'exception' => $e,
+            ];
+        }
 
         return [
             'result' => true,
-            'message' => 'Notification Message sent to all followers',
+            'message' => 'New message notification sent to message owner',
             'data' => $config,
             'message_id' => $message->getId(),
         ];

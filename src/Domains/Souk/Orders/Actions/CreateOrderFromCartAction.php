@@ -7,11 +7,12 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Wearepixel\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
+use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -21,6 +22,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Spatie\LaravelData\DataCollection;
+use Wearepixel\Cart\Cart;
 
 class CreateOrderFromCartAction
 {
@@ -33,6 +35,7 @@ class CreateOrderFromCartAction
         protected UserInterface $user,
         protected Apps $app,
         protected ?CreditCardBilling $billingAddress,
+        protected ?Address $shippingAddress,
         protected ?array $request,
     ) {
     }
@@ -46,7 +49,20 @@ class CreateOrderFromCartAction
                 city: $this->billingAddress->city,
                 state: $this->billingAddress->state,
                 country: $this->billingAddress->country,
-                zipcode: $this->billingAddress->zip
+                zip: $this->billingAddress->zip,
+                address_type_id: AddressType::getByName(AddressTypeEnum::BILLING->value, $this->app)->getId()
+            ));
+        }
+
+        if ($this->shippingAddress !== null) {
+            $shipping = $this->people->addAddress(new Address(
+                address: $this->shippingAddress->address,
+                address_2: null,
+                city: $this->shippingAddress->city,
+                state: $this->shippingAddress->state,
+                country: $this->shippingAddress->country,
+                zip: $this->shippingAddress->zip,
+                address_type_id: AddressType::getByName(AddressTypeEnum::SHIPPING->value, $this->app)->getId()
             ));
         }
 
@@ -77,7 +93,7 @@ class CreateOrderFromCartAction
             email: $this->orderCustomer->email,
             phone: $this->orderCustomer->phone,
             token: Str::random(32),
-            shippingAddress: null,
+            shippingAddress: $shipping ?? null,
             billingAddress: $billing ?? null,
             total: (float) $total,
             taxes: (float) $totalTax,

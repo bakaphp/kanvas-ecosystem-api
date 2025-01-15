@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0e18a57db87d9f9191c4736db83354d3",
+    "content-hash": "ca7fe9286fb92787a55546a5e91307e8",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -2724,16 +2724,16 @@
         },
         {
             "name": "google/cloud-recommendations-ai",
-            "version": "v0.7.7",
+            "version": "v0.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-recommendations-ai.git",
-                "reference": "aaa4baa2e56d737fb91263d9bc6767c5b73f6fde"
+                "reference": "8caccd41bd3cf707b5507c636510f311d2860942"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/aaa4baa2e56d737fb91263d9bc6767c5b73f6fde",
-                "reference": "aaa4baa2e56d737fb91263d9bc6767c5b73f6fde",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/8caccd41bd3cf707b5507c636510f311d2860942",
+                "reference": "8caccd41bd3cf707b5507c636510f311d2860942",
                 "shasum": ""
             },
             "require": {
@@ -2768,9 +2768,9 @@
             ],
             "description": "Google Cloud Recommendation Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.7.7"
+                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.8.0"
             },
-            "time": "2024-12-12T21:15:35+00:00"
+            "time": "2025-01-11T02:14:50+00:00"
         },
         {
             "name": "google/cloud-storage",
@@ -2831,16 +2831,16 @@
         },
         {
             "name": "google/common-protos",
-            "version": "4.8.3",
+            "version": "4.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/common-protos-php.git",
-                "reference": "38a9a8bb459fa618da797d25d7bf36bb21d1103d"
+                "reference": "a2d1a583819286db5ef9403c6a2bfa29c9636c46"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/38a9a8bb459fa618da797d25d7bf36bb21d1103d",
-                "reference": "38a9a8bb459fa618da797d25d7bf36bb21d1103d",
+                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/a2d1a583819286db5ef9403c6a2bfa29c9636c46",
+                "reference": "a2d1a583819286db5ef9403c6a2bfa29c9636c46",
                 "shasum": ""
             },
             "require": {
@@ -2884,9 +2884,9 @@
                 "google"
             ],
             "support": {
-                "source": "https://github.com/googleapis/common-protos-php/tree/v4.8.3"
+                "source": "https://github.com/googleapis/common-protos-php/tree/v4.9.0"
             },
-            "time": "2024-09-07T01:37:15+00:00"
+            "time": "2025-01-11T02:14:50+00:00"
         },
         {
             "name": "google/gax",
@@ -3036,16 +3036,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v4.29.2",
+            "version": "v4.29.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "79aa5014efeeec3d137df5cdb0ae2fc163953945"
+                "reference": "ab5077c2cfdd1f415f42d11fdbdf903ba8e3d9b7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/79aa5014efeeec3d137df5cdb0ae2fc163953945",
-                "reference": "79aa5014efeeec3d137df5cdb0ae2fc163953945",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/ab5077c2cfdd1f415f42d11fdbdf903ba8e3d9b7",
+                "reference": "ab5077c2cfdd1f415f42d11fdbdf903ba8e3d9b7",
                 "shasum": ""
             },
             "require": {
@@ -3074,9 +3074,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.29.2"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.29.3"
             },
-            "time": "2024-12-18T14:11:12+00:00"
+            "time": "2025-01-08T21:00:13+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -4210,16 +4210,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.26",
+            "version": "1.0.27",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel-workflow/laravel-workflow.git",
-                "reference": "be2663cf67597870cdcbcadf5b031459758da00d"
+                "reference": "b1d8343c272ccfb51c43d9b63aae1364f12508ab"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/be2663cf67597870cdcbcadf5b031459758da00d",
-                "reference": "be2663cf67597870cdcbcadf5b031459758da00d",
+                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/b1d8343c272ccfb51c43d9b63aae1364f12508ab",
+                "reference": "b1d8343c272ccfb51c43d9b63aae1364f12508ab",
                 "shasum": ""
             },
             "require": {
@@ -4261,9 +4261,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/laravel-workflow/laravel-workflow/issues",
-                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.26"
+                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.27"
             },
-            "time": "2024-05-24T14:03:25+00:00"
+            "time": "2025-01-09T14:40:23+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -10243,16 +10243,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.31.0",
+            "version": "1.32.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "0d3b665b60e6821397367cd7f6230fa6fc68b2c8"
+                "reference": "812d35ff4edd991e1f35eebca898f43854689fa5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/0d3b665b60e6821397367cd7f6230fa6fc68b2c8",
-                "reference": "0d3b665b60e6821397367cd7f6230fa6fc68b2c8",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/812d35ff4edd991e1f35eebca898f43854689fa5",
+                "reference": "812d35ff4edd991e1f35eebca898f43854689fa5",
                 "shasum": ""
             },
             "require": {
@@ -10325,7 +10325,7 @@
                 "spatie"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-health/tree/1.31.0"
+                "source": "https://github.com/spatie/laravel-health/tree/1.32.0"
             },
             "funding": [
                 {
@@ -10333,7 +10333,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-09T14:17:48+00:00"
+            "time": "2025-01-13T11:00:12+00:00"
         },
         {
             "name": "spatie/laravel-model-states",
@@ -10632,16 +10632,16 @@
         },
         {
             "name": "spatie/php-structure-discoverer",
-            "version": "2.2.1",
+            "version": "2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/php-structure-discoverer.git",
-                "reference": "e2b39ba0baaf05d1300c5467e7ee8a6439324827"
+                "reference": "42d161298630ede76c61e8a437a06eea2e106f4c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/php-structure-discoverer/zipball/e2b39ba0baaf05d1300c5467e7ee8a6439324827",
-                "reference": "e2b39ba0baaf05d1300c5467e7ee8a6439324827",
+                "url": "https://api.github.com/repos/spatie/php-structure-discoverer/zipball/42d161298630ede76c61e8a437a06eea2e106f4c",
+                "reference": "42d161298630ede76c61e8a437a06eea2e106f4c",
                 "shasum": ""
             },
             "require": {
@@ -10700,7 +10700,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/php-structure-discoverer/issues",
-                "source": "https://github.com/spatie/php-structure-discoverer/tree/2.2.1"
+                "source": "https://github.com/spatie/php-structure-discoverer/tree/2.3.0"
             },
             "funding": [
                 {
@@ -10708,7 +10708,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-16T13:29:18+00:00"
+            "time": "2025-01-13T13:15:29+00:00"
         },
         {
             "name": "spatie/regex",
@@ -10775,16 +10775,16 @@
         },
         {
             "name": "spatie/temporary-directory",
-            "version": "2.2.1",
+            "version": "2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/temporary-directory.git",
-                "reference": "76949fa18f8e1a7f663fd2eaa1d00e0bcea0752a"
+                "reference": "580eddfe9a0a41a902cac6eeb8f066b42e65a32b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/temporary-directory/zipball/76949fa18f8e1a7f663fd2eaa1d00e0bcea0752a",
-                "reference": "76949fa18f8e1a7f663fd2eaa1d00e0bcea0752a",
+                "url": "https://api.github.com/repos/spatie/temporary-directory/zipball/580eddfe9a0a41a902cac6eeb8f066b42e65a32b",
+                "reference": "580eddfe9a0a41a902cac6eeb8f066b42e65a32b",
                 "shasum": ""
             },
             "require": {
@@ -10820,7 +10820,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/temporary-directory/issues",
-                "source": "https://github.com/spatie/temporary-directory/tree/2.2.1"
+                "source": "https://github.com/spatie/temporary-directory/tree/2.3.0"
             },
             "funding": [
                 {
@@ -10832,7 +10832,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-12-25T11:46:58+00:00"
+            "time": "2025-01-13T13:04:43+00:00"
         },
         {
             "name": "stripe/stripe-php",
@@ -14186,16 +14186,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.3.11",
+            "version": "8.3.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php.git",
-                "reference": "253c4ec575b65a1510c91cc4cc4c9d6bfe845619"
+                "reference": "6fd8a3ef45efd1154d5d84a8be96b1be2051de64"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/253c4ec575b65a1510c91cc4cc4c9d6bfe845619",
-                "reference": "253c4ec575b65a1510c91cc4cc4c9d6bfe845619",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/6fd8a3ef45efd1154d5d84a8be96b1be2051de64",
+                "reference": "6fd8a3ef45efd1154d5d84a8be96b1be2051de64",
                 "shasum": ""
             },
             "require": {
@@ -14233,9 +14233,9 @@
             ],
             "support": {
                 "issues": "https://github.com/twilio/twilio-php/issues",
-                "source": "https://github.com/twilio/twilio-php/tree/8.3.11"
+                "source": "https://github.com/twilio/twilio-php/tree/8.3.12"
             },
-            "time": "2025-01-10T08:56:17+00:00"
+            "time": "2025-01-13T11:49:32+00:00"
         },
         {
             "name": "typesense/typesense-php",
@@ -17049,5 +17049,5 @@
         "php": "^8.2"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.3.0"
 }

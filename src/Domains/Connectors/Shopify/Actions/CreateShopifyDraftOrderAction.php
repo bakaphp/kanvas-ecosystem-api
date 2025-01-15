@@ -125,7 +125,7 @@ class CreateShopifyDraftOrderAction
             'city' => $this->order->shippingAddress->city,
             'province' => $this->order->shippingAddress->state,
             'country' => $this->order->shippingAddress->country,
-            'zip' => $this->order->shippingAddress->zipcode,
+            'zip' => $this->order->shippingAddress->zip,
         ] : null;
 
         // Prepare draft order payload

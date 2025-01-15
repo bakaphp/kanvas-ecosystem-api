@@ -125,9 +125,9 @@ class VariantChannelBuilder
         }
         $channelUuid = $req['HAS']['condition']['value'];
 
-        return $root->with(['channels' => function ($query) use ($channelUuid) {
+        return $root->whereHas('channels', function ($query) use ($channelUuid) {
             $query->where('uuid', $channelUuid);
-        }])->get();
+        })->get();
     }
 
     /**

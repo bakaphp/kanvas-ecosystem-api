@@ -15,6 +15,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
@@ -30,6 +31,7 @@ use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -308,9 +310,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'position' => $category->position,
                   ];
             }),
-            'variants' => $this->variants->take(15)->map(function ($variant) {
-                return $variant->toSearchableArray();
-            }),
+            'variants' => $this->getVariantsData(),
             'status' => [
                 'id' => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,
@@ -468,5 +468,14 @@ class Products extends BaseModel implements EntityIntegrationInterface
     {
         $this->is_published = 1;
         $this->save();
+    }
+
+    protected function getVariantsData(): Collection
+    {
+        $limit = $this->app->get(ConfigurationEnum::PRODUCT_VARIANTS_SEARCH_LIMIT->value) ?? 200;
+
+        return $this->variants->count() > $limit
+            ? $this->variants->take($limit)->map(fn ($variant) => $variant->toSearchableArraySummary())
+            : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
     }
 }

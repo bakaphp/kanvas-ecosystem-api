@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Models;
 
 use Baka\Casts\Json;
+use Baka\Support\Str;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
@@ -126,7 +127,29 @@ class Message extends BaseModel
 
     public function getMessage(): array
     {
-        return (array) $this->message;
+        /**
+         * why? wtf ?
+         * because we have a app running that using incorrect json format so we need to handle it
+         * @todo remove this once we are sure all apps are using the correct json format
+         */
+        $value = $this->getRawOriginal('message');
+
+        if (! is_string($value)) {
+            return [];
+        }
+
+        // First check if it's already valid JSON
+        if (Str::isJson($value)) {
+            if (str_starts_with($value, '"') && str_ends_with($value, '"')) {
+                //if true means the json most likely is a string like this "{\"description\":\"test\"}"
+                $value = substr(stripslashes($value), 1, -1);
+            }
+
+            return json_decode($value, true);
+        }
+
+        // If all attempts fail, return original value
+        return is_array($value) ? $value : [];
     }
 
     public function entity(): ?Model
