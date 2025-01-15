@@ -83,6 +83,11 @@ extend type Query {
                 relation: "attributeValues"
                 columns: ["products_variants_id", "value", "attributes_id"]
             )
+        whereRating: _
+            @whereConditions(
+                columns: ["rating"], 
+                handler: "App\\GraphQL\\Social\\Handlers\\UsersRatingsHandler"
+            )
         orderBy: _
             @orderBy(
                 columns: [

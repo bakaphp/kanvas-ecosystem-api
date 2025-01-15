@@ -1,0 +1,22 @@
+type UserRating {
+    id: ID!
+    rating: Int!
+    comment: String
+    created_at: DateTime!
+    updated_at: DateTime!
+    user: User!
+}
+
+input UsersRatingsInput {
+    rating: Float!
+    comment: String
+    system_module_id: ID!
+    entity_id: ID!
+}
+
+extend type Mutation {
+    createUserRating(input: UsersRatingsInput!): UserRating
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersRatings\\UsersRatingsManagement@create"
+        )
+}
