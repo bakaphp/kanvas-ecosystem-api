@@ -88,6 +88,27 @@ class CartManagementMutation
         return $cart->getContent()->toArray();
     }
 
+    public function discountCodesUpdate(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $cart = app('cart')->session($user->getId());
+
+        /**
+         * @todo add https://github.com/wearepixel/laravel-cart#adding-a-condition-to-the-cart-cartcondition
+         */
+
+        if ($cart->isEmpty()) {
+            return [
+                'id' => 'default',
+                'total' => 0,
+                'name' => null,
+                'items' => [],
+            ];
+        }
+
+        return $cart->getContent()->toArray();
+    }
+
     public function clear(mixed $root, array $request): bool
     {
         $user = auth()->user();
