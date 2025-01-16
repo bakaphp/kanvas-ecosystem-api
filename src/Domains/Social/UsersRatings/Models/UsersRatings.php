@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\UsersRatings\Models;
 
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\UsersRatings\Observers\UsersRatingsObserver;
+use Kanvas\SystemModules\Models\SystemModules;
 
 /**
  * @property int $id
@@ -16,6 +20,7 @@ use Kanvas\Social\Models\BaseModel;
  * @property float $ratings
  * @property string $comment
  */
+#[ObservedBy([UsersRatingsObserver::class])]
 class UsersRatings extends BaseModel
 {
     protected $table = 'users_ratings';
@@ -27,6 +32,16 @@ class UsersRatings extends BaseModel
         'system_modules_id',
         'entity_id',
         'rating',
-        'comment'
+        'comment',
     ];
+
+    public function systemModule(): BelongsTo
+    {
+        return $this->belongsTo(SystemModules::class, 'system_modules_id');
+    }
+
+    public function entity()
+    {
+        return $this->belongsTo($this->systemModule->model_name, 'entity_id');
+    }
 }

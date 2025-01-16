@@ -32,6 +32,7 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
+use Kanvas\Social\UsersRatings\Traits\UsersRatings;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
@@ -70,6 +71,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     use CascadeSoftDeletes;
     use Compoships;
     use CanUseWorkflow;
+    use UsersRatings;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];

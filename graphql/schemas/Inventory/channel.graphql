@@ -97,7 +97,8 @@ extend type Query {
                     "name"
                     "products_id"
                     "status_id"
-                    "is_published"
+                    "is_published",
+                    "rating"
                 ]
             )
     ): [Product!]
