@@ -67,7 +67,11 @@ class ESimProductService
                 ],
             ]);
         }
-        $variants = $this->mapVariant($destination, $destination['plans']) ?? [];
+        $variants = $this->mapVariant(
+            $destination,
+            $destination['plans'],
+            $destination['coverages'] ?? []
+        ) ?? [];
         $recommendationAttribute = $this->mapProductRecommendationAttribute($variants);
 
         if (! empty($recommendationAttribute)) {
@@ -200,7 +204,7 @@ class ESimProductService
         return 0; // Default value if the attribute is not found
     }
 
-    protected function mapVariant($destination, array $plans): array
+    protected function mapVariant($destination, array $plans, array $coverages): array
     {
         $productVariants = [];
         foreach ($plans as $variant) {
@@ -221,10 +225,13 @@ class ESimProductService
                     'value' => $variant['duration'],
                 ],[
                     'name' => 'Variant Network',
-                    'value' => $variant['coverages'][0]['networks'][0]['name'] ?? $destination['provider'] ?? null,
+                    'value' => $coverages[0]['networks'][0]['name'] ?? $destination['provider'] ?? null,
                 ],[
                     'name' => 'Variant Speed',
-                    'value' => $variant['coverages'][0]['networks'][0]['types'][0] ?? 'LTE', //change to custom setting per app
+                    'value' => $coverages[0]['networks'][0]['types'][0] ?? 'LTE', //change to custom setting per app
+                ],[
+                    'name' => 'coverages',
+                    'value' => $coverages,
                 ],[
                     'name' => 'Rechargeability',
                     'value' => $variant['rechargeability'],

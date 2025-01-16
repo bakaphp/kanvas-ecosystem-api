@@ -59,6 +59,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
             'via' => $endViaList,
             'fromUser' => $message->user,
             'message_id' => $message->getId(),
+            'parent_message_id' => $message->parent ? $message->parent->getId() : $message->getId(),
             'destination_id' => $message->getId(),
             'destination_type' => $params['destination_type'] ?? 'MESSAGE',
             'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
