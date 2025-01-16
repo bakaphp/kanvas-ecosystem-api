@@ -58,7 +58,12 @@ class PushNotificationsHandlerJob implements ShouldQueue
                 default => null,
             };
 
-            $oneSignalClient = new OneSignalClient($oneSignalAppId, $oneSignalRestApiKey, '');
+            $oneSignalClient = new OneSignalClient(
+                $oneSignalAppId,
+                'https://api.onesignal.com',
+                $oneSignalRestApiKey,
+                ''
+            );
 
             $oneSignalClient->sendNotificationToUser(
                 $this->message['message'],
