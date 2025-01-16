@@ -63,7 +63,7 @@ class SyncOrdersWithProviderCommand extends Command
             }
 
             $item = $order->items()->first();
-            $provider = $item->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+            $provider = $item->variant?->product?->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
 
             if ($provider == null) {
                 $this->info("Order ID: {$order->id} does not have a provider.");
