@@ -64,7 +64,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
             'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
         ];
 
-        if ($message->parent->user_id == $message->user_id) {
+        if ($message->parent->users_id == $message->users_id) {
             return [
                 'result' => false,
                 'message_id' => $message->getId(),
