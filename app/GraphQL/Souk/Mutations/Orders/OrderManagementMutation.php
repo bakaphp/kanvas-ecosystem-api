@@ -79,7 +79,7 @@ class OrderManagementMutation
         $people = $createPeople->execute();
 
         $billing = isset($request['input']['billing']) ? CreditCardBilling::from($request['input']) : null;
-        $shippingAddress = isset($request['input']['address']) ? Address::from($request['input']['shipping_address']) : null;
+        $shippingAddress = isset($request['input']['shipping_address']) ? Address::from($request['input']['shipping_address']) : null;
 
         if ($cart->isEmpty() && empty($request['input']['items'])) {
             return [
