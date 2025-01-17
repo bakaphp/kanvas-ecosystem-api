@@ -207,6 +207,7 @@ class ESimProductService
     protected function mapVariant($destination, array $plans, array $coverages): array
     {
         $productVariants = [];
+        $rechargeable = $this->region->app->get('esim_rechargeables') ?? ['airalo', 'esimgo'];
         foreach ($plans as $variant) {
             $variantName = $variant['data'];
 
@@ -234,7 +235,7 @@ class ESimProductService
                     'value' => $coverages,
                 ],[
                     'name' => 'Rechargeability',
-                    'value' => $variant['rechargeability'],
+                    'value' => (int) in_array(strtolower($destination['provider']) ?? null, $rechargeable),
                 ],[
                     'name' => 'Has Phone Number',
                     'value' => 0,
