@@ -108,18 +108,8 @@ class CartManagementMutation
                    'minimum' => 1,
                    'order' => 1,
                 ]);
-         */
-        if ($cart->isEmpty()) {
-            return [
-                'id' => 'default',
-                'total' => 0,
-                'name' => null,
-                'discounts' => [],
-                'items' => [],
-            ];
-        }
 
-        //$cart->condition($tenPercentOff);
+                $cart->condition($tenPercentOff); */
 
         $cartService = new CartService($cart);
 
