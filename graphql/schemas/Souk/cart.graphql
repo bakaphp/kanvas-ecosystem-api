@@ -3,7 +3,7 @@ type Cart {
     items: [CartItem!]!
     discounts: [CartDiscount!]!
     total_discount: Money!
-    total: Float!
+    total: Money!
 }
 
 type CartDiscount {
