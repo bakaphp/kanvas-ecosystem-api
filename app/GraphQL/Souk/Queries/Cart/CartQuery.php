@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Queries\Cart;
 
-use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Cart\Services\CartService;
 
 class CartQuery
 {
@@ -13,21 +13,8 @@ class CartQuery
         $user = auth()->user();
         $cart = app('cart')->session($user->getId());
 
-        $cartItems = array_map(function ($item) {
-            return [
-                'id' => $item['id'],
-                'name' => $item['name'],
-                'price' => $item['price'],
-                'variant' => Variants::getById($item['id']),
-                'quantity' => $item['quantity'],
-                'attributes' => $item['attributes'],
-            ];
-        }, $cart->getContent()->toArray());
+        $cartService = new CartService($cart);
 
-        return [
-            'id' => 'default',
-            'items' => $cartItems, //$cart->getContent()->toArray(),
-            'total' => $cart->getTotal(),
-        ];
+        return $cartService->getCart();
     }
 }

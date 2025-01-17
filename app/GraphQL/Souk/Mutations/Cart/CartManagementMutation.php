@@ -7,8 +7,10 @@ namespace App\GraphQL\Souk\Mutations\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Cart\Services\CartService;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\UserCompanyApps;
+use Wearepixel\Cart\CartCondition;
 
 class CartManagementMutation
 {
@@ -97,22 +99,38 @@ class CartManagementMutation
          * @todo add https://github.com/wearepixel/laravel-cart#adding-a-condition-to-the-cart-cartcondition
          */
 
+        $discountCodes = $request['discountCodes'];
+        /*         $tenPercentOff = new CartCondition([
+                   'name' => 'KANVAS',
+                   'type' => 'discount',
+                   'target' => 'subtotal',
+                   'value' => '-10%',
+                   'minimum' => 1,
+                   'order' => 1,
+                ]);
+         */
         if ($cart->isEmpty()) {
             return [
                 'id' => 'default',
                 'total' => 0,
                 'name' => null,
+                'discounts' => [],
                 'items' => [],
             ];
         }
 
-        return $cart->getContent()->toArray();
+        //$cart->condition($tenPercentOff);
+
+        $cartService = new CartService($cart);
+
+        return $cartService->getCart();
     }
 
     public function clear(mixed $root, array $request): bool
     {
         $user = auth()->user();
         $cart = app('cart')->session($user->getId());
+        $cart->clearAllConditions();
 
         return $cart->clear();
     }
