@@ -55,7 +55,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $creditApplicant = $this->processCreditScore($messageData, $lead, $app, $params);
 
         if (empty($creditApplicant['iframe_url'])) {
-            return $this->errorResponse('Credit score not found', $lead, $creditApplicant);
+            // return $this->errorResponse('Credit score not found', $lead, $creditApplicant);
         }
 
         $parentMessage = $this->createParentMessage(
