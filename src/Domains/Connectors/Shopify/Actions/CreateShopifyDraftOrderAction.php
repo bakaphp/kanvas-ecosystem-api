@@ -6,14 +6,12 @@ namespace Kanvas\Connectors\Shopify\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Exceptions\EntityNotIntegratedException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Users\Models\UserCompanyApps;
 use PHPShopify\ShopifySDK;
 
 class CreateShopifyDraftOrderAction
@@ -28,18 +26,9 @@ class CreateShopifyDraftOrderAction
         $this->company = $order->company;
         $this->app = $order->app;
 
-        /**
-         * @todo refactor the b2b company group logic
-         */
-        if ($this->app->get('USE_B2B_COMPANY_GROUP')) {
-            if (UserCompanyApps::where('companies_id', $this->app->get('B2B_GLOBAL_COMPANY'))->where('apps_id', $this->app->getId())->first()) {
-                $this->company = Companies::getById($this->app->get('B2B_GLOBAL_COMPANY'));
-            }
-        }
-
         $this->shopifySdk = Client::getInstance(
             $order->app,
-            $this->company,
+            $order->company,
             $order->region
         );
     }
