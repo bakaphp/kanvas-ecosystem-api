@@ -235,7 +235,7 @@ class ESimProductService
                     'value' => $coverages,
                 ],[
                     'name' => 'Rechargeability',
-                    'value' => (int) in_array($destination['provider'] ?? null, $rechargeable),
+                    'value' => (int) in_array(strtolower($destination['provider']) ?? null, $rechargeable),
                 ],[
                     'name' => 'Has Phone Number',
                     'value' => 0,
