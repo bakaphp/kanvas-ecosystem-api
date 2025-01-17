@@ -55,7 +55,7 @@ class CreateDraftOrderAction
                     'company' => $this->orderData->branch->company,
                 ]));
             } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
-                captureException($e);
+                //captureException($e);
             }
 
             return $order;
