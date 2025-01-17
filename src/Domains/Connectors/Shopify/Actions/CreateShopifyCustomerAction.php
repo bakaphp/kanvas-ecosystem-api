@@ -39,7 +39,7 @@ class CreateShopifyCustomerAction
         if (empty($customerEmail)) {
             throw new ValidationException('Email is required to create a Shopify customer.');
         }
-
+        
         if ($this->people->get(ShopifyConfigurationService::getKey(
             CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value,
             $this->people->company,
@@ -97,7 +97,7 @@ class CreateShopifyCustomerAction
             'address2' => $address->address_2,
             'city' => $address->city,
             'province' => $address->state,
-            'country' => $address->country,
+            'country' => $address->country ?? 'US',
             'zip' => $address->zip,
             //'phone' => $this->people->phone,
         ]];

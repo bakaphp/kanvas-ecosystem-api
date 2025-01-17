@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Souk\Orders\DataTransferObject\DraftOrder;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
+
+use function Sentry\captureException;
 
 class CreateDraftOrderAction
 {
@@ -43,6 +48,15 @@ class CreateDraftOrderAction
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);
+
+            try {
+                $order->user->notify(new NewOrderNotification($order, [
+                    'app' => $this->orderData->app,
+                    'company' => $this->orderData->branch->company,
+                ]));
+            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                captureException($e);
+            }
 
             return $order;
         });
