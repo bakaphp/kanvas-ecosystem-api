@@ -139,6 +139,10 @@ class UsersRepository
      */
     public static function belongsToCompany(Users|UserInterface $user, CompanyInterface $company): UsersAssociatedCompanies
     {
+        if ($user->isAppOwner()) {
+            return new UsersAssociatedCompanies();
+        }
+
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
                 ->where('companies_id', $company->getKey())
