@@ -29,16 +29,28 @@ class CreateOrderAction
 
     public function execute(): ModelsOrder
     {
-        $validator = Validator::make(
-            ['order_number' => $this->orderData->orderNumber],
-            ['order_number' => new UniqueOrderNumber($this->orderData->app, $this->orderData->company, $this->orderData->region)]
-        );
-
-        if ($validator->fails()) {
-            throw new ValidationException($validator->messages()->__toString());
-        }
-
         return DB::connection('commerce')->transaction(function () {
+            // Lock the table for uniqueness check
+            $existingOrder = ModelsOrder::where([
+                'apps_id' => $this->orderData->app->getId(),
+                'companies_id' => $this->orderData->company->getId(),
+                'order_number' => $this->orderData->orderNumber,
+            ])->lockForUpdate()->first();
+
+            if ($existingOrder) {
+                throw new ValidationException('Order number already exists');
+            }
+
+            // Additional validation
+            $validator = Validator::make(
+                ['order_number' => $this->orderData->orderNumber],
+                ['order_number' => new UniqueOrderNumber($this->orderData->app, $this->orderData->company, $this->orderData->region)]
+            );
+
+            if ($validator->fails()) {
+                throw new ValidationException($validator->messages()->__toString());
+            }
+
             $order = new ModelsOrder();
             $order->apps_id = $this->orderData->app->getId();
             $order->region_id = $this->orderData->region->getId();
@@ -85,6 +97,7 @@ class CreateOrderAction
                     'company' => $this->orderData->company,
                 ]));
             } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                // Handle notification failure
             }
 
             try {
@@ -103,6 +116,7 @@ class CreateOrderAction
                      $this->orderData->app
                  ); */
             } catch (ModelNotFoundException $e) {
+                // Handle admin notification failure
             }
 
             return $order;

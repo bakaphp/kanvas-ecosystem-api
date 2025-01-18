@@ -6992,16 +6992,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.49.0",
+            "version": "v6.49.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "c5091158a8e52ccadcee35c1babeeb3e2a7c8d82"
+                "reference": "f6b46c159de97e266e1a7c1c52fa0ca2689a41bc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/c5091158a8e52ccadcee35c1babeeb3e2a7c8d82",
-                "reference": "c5091158a8e52ccadcee35c1babeeb3e2a7c8d82",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/f6b46c159de97e266e1a7c1c52fa0ca2689a41bc",
+                "reference": "f6b46c159de97e266e1a7c1c52fa0ca2689a41bc",
                 "shasum": ""
             },
             "require": {
@@ -7119,7 +7119,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2025-01-16T09:02:42+00:00"
+            "time": "2025-01-17T15:31:00+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -10471,16 +10471,16 @@
         },
         {
             "name": "spatie/laravel-queueable-action",
-            "version": "2.15.0",
+            "version": "2.16.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-queueable-action.git",
-                "reference": "cc9273121c90d99623570199cc52bcf4699835bf"
+                "reference": "11db345cf5343656e0fd6148198d65b681555a4f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-queueable-action/zipball/cc9273121c90d99623570199cc52bcf4699835bf",
-                "reference": "cc9273121c90d99623570199cc52bcf4699835bf",
+                "url": "https://api.github.com/repos/spatie/laravel-queueable-action/zipball/11db345cf5343656e0fd6148198d65b681555a4f",
+                "reference": "11db345cf5343656e0fd6148198d65b681555a4f",
                 "shasum": ""
             },
             "require": {
@@ -10544,7 +10544,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-queueable-action/issues",
-                "source": "https://github.com/spatie/laravel-queueable-action/tree/2.15.0"
+                "source": "https://github.com/spatie/laravel-queueable-action/tree/2.16.0"
             },
             "funding": [
                 {
@@ -10552,7 +10552,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2024-02-27T12:08:08+00:00"
+            "time": "2025-01-17T12:06:44+00:00"
         },
         {
             "name": "spatie/laravel-webhook-server",
