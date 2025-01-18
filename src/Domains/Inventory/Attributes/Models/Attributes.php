@@ -74,7 +74,15 @@ class Attributes extends BaseModel
     public function value(): Attribute
     {
         return Attribute::make(
-            get: fn () => Str::isJson($this->pivot->value) ? json_decode($this->pivot->value, true) : $this->pivot->value,
+            get: function () {
+                if (! $this->pivot || ! isset($this->pivot->value)) {
+                    return null;
+                }
+
+                $value = $this->pivot->value;
+
+                return Str::isJson($value) ? json_decode($value, true) : $value;
+            }
         );
     }
 
