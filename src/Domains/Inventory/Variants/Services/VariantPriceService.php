@@ -44,7 +44,7 @@ class VariantPriceService
      */
     private function getCompanySpecificPrice(Variants $variant): float
     {
-        return $variant->variantChannels()
+        return (float) $variant->variantChannels()
             ->whereHas('channel', function ($query) {
                 $query->where('slug', $this->currentUserCompany->uuid);
             })
@@ -55,10 +55,10 @@ class VariantPriceService
     private function getChannelPrice(Variants $variant, ?int $channelId = null): float
     {
         if (! $channelId) {
-            return $variant->getPriceInfoFromDefaultChannel()->price;
+            return (float) $variant->getPriceInfoFromDefaultChannel()->price;
         }
 
-        return $variant->channels()
+        return (float) $variant->channels()
             ->where('channels_id', $channelId)
             ->firstOrFail()
             ->price;
@@ -66,6 +66,6 @@ class VariantPriceService
 
     private function getInventoryPrice(Variants $variant): float
     {
-        return $variant->variantWarehouses()->firstOrFail()->price;
+        return $variant->variantWarehouses()->first()->price ?? 0.00;
     }
 }
