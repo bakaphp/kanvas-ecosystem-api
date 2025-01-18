@@ -25,12 +25,21 @@ class CreateUserMessageAction
 
     public function execute(): UserMessage
     {
-        return DB::transaction(function () {
-            $userMessage = UserMessage::firstOrCreate([
+        return DB::connection('social')->transaction(function () {
+            // Search with a lock to prevent race conditions
+            $userMessage = UserMessage::where([
                 'messages_id' => $this->message->getId(),
                 'users_id' => $this->user->getId(),
                 'apps_id' => $this->message->apps_id,
-            ]);
+            ])->lockForUpdate()->first();
+
+            if (! $userMessage) {
+                $userMessage = UserMessage::create([
+                    'messages_id' => $this->message->getId(),
+                    'users_id' => $this->user->getId(),
+                    'apps_id' => $this->message->apps_id,
+                ]);
+            }
 
             if ($this->message->appModuleMessage && ! empty($this->activity)) {
                 UserMessageActivity::firstOrCreate([
