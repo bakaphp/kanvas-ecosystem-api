@@ -20,7 +20,7 @@ class VariantPriceService
         protected ?CompanyInterface $currentUserCompany = null
     ) {
         $this->currentUserCompany = $currentUserCompany;
-        $this->useCompanySpecificPrice = $app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false;
+        $this->useCompanySpecificPrice = (bool) ($app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false);
     }
 
     public function getPrice(Variants $variant, ?int $channelId = null): float
