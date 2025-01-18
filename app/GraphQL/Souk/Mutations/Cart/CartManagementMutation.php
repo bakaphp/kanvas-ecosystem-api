@@ -43,12 +43,12 @@ class CartManagementMutation
             $channelId = $item['channel_id'] ?? null;
 
             //$variantPrice = $variant->variantWarehouses()->firstOrFail()->price;
-            /*   $variantPrice = $useCompanySpecificPrice
-                      ? $variant->variantChannels()
-                          ->whereHas('channel', fn ($query) => $query->where('slug', $currentUserCompany->uuid))
-                          ->firstOrFail()->price
-                      : (! $channelId ? $variant->getPriceInfoFromDefaultChannel()->price : $variant->channels()->where('channels_id', $channelId)->firstOrFail()->price);
- */
+            /*                $variantPrice = $useCompanySpecificPrice
+                                  ? $variant->variantChannels()
+                                      ->whereHas('channel', fn ($query) => $query->where('slug', $currentUserCompany->uuid))
+                                      ->firstOrFail()->price
+                                  : $variant->getPriceInfoFromDefaultChannel()->price;
+              */
             $variantPrice = $variantPriceService->getPrice($variant, $channelId);
             $cart->add([
                 'id' => $variant->getId(),

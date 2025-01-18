@@ -6,6 +6,8 @@ namespace Kanvas\Inventory\Variants\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 
@@ -23,11 +25,15 @@ class VariantPriceService
 
     public function getPrice(Variants $variant, ?int $channelId = null): float
     {
-        if ($this->useCompanySpecificPrice && $this->currentUserCompany) {
-            return $this->getCompanySpecificPrice($variant);
-        }
+        try {
+            if ($this->useCompanySpecificPrice && $this->currentUserCompany) {
+                return $this->getCompanySpecificPrice($variant);
+            }
 
-        return $this->getChannelPrice($variant, $channelId);
+            return $this->getChannelPrice($variant, $channelId);
+        } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+            return $this->getInventoryPrice($variant);
+        }
     }
 
     /**
@@ -56,5 +62,10 @@ class VariantPriceService
             ->where('channels_id', $channelId)
             ->firstOrFail()
             ->price;
+    }
+
+    private function getInventoryPrice(Variants $variant): float
+    {
+        return $variant->variantWarehouses()->firstOrFail()->price;
     }
 }
