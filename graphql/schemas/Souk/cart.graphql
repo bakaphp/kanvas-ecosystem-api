@@ -24,6 +24,7 @@ type CartItem {
 input CartItemInput {
     quantity: Int!
     variant_id: ID!
+    channel_id: ID
     attributes: Mixed
 }
 
