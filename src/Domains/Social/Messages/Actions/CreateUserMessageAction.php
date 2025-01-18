@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Actions;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
@@ -24,23 +25,25 @@ class CreateUserMessageAction
 
     public function execute(): UserMessage
     {
-        $userMessage = UserMessage::firstOrCreate([
-            'messages_id' => $this->message->getId(),
-            'users_id' => $this->user->getId(),
-            'apps_id' => $this->message->apps_id,
-        ]);
+        return DB::transaction(function () {
+            $userMessage = UserMessage::firstOrCreate([
+                'messages_id' => $this->message->getId(),
+                'users_id' => $this->user->getId(),
+                'apps_id' => $this->message->apps_id,
+            ]);
 
-        if ($this->message->appModuleMessage && ! empty($this->activity)) {
-            UserMessageActivity::firstOrCreate([
-                 'user_messages_id' => $userMessage->id,
-                 'from_entity_id' => $this->message->appModuleMessage->entity_id,
-                 'entity_namespace' => $this->activity['entity_namespace'] ?? null,
-                 'username' => $this->activity['username'] ?? null,
-                 'type' => $this->activity['type'] ?? null,
-                 'text' => $this->activity['text'] ?? null,
-             ]);
-        }
+            if ($this->message->appModuleMessage && ! empty($this->activity)) {
+                UserMessageActivity::firstOrCreate([
+                    'user_messages_id' => $userMessage->id,
+                    'from_entity_id' => $this->message->appModuleMessage->entity_id,
+                    'entity_namespace' => $this->activity['entity_namespace'] ?? null,
+                    'username' => $this->activity['username'] ?? null,
+                    'type' => $this->activity['type'] ?? null,
+                    'text' => $this->activity['text'] ?? null,
+                ]);
+            }
 
-        return $userMessage;
+            return $userMessage;
+        });
     }
 }
