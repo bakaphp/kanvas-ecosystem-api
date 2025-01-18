@@ -143,7 +143,7 @@ class UsersRatingsTest extends TestCase
         $this->graphQL('
             query {
                 products(
-                    whereRating: {
+                    where: {
                         column: RATING,
                         operator: EQ,
                         value: 5
@@ -215,7 +215,7 @@ class UsersRatingsTest extends TestCase
         $this->graphQL('
             query {
                 products(
-                    whereRating: {
+                    where: {
                         column: RATING,
                         operator: EQ,
                         value: 5
