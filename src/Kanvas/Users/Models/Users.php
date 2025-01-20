@@ -55,7 +55,7 @@ use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Users\Traits\CanBlockUser;
-use Kanvas\Social\UsersRatings\Traits\UserAddRating;
+use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
@@ -132,7 +132,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use Searchable {
         search as public traitSearch;
     }
-    use UserAddRating;
+    use HasRating;
     use CanUseWorkflow;
 
     protected ?string $defaultCompanyName = null;
