@@ -22,7 +22,7 @@ trait HasRating
 
     public function addRating(Model $model, float $rating, ?string $comment = null): bool
     {
-        if(!$this instanceof Users){
+        if (! $this instanceof Users) {
             throw new Exception('The method addRating can only be used by the Users model');
         }
         $systemModule = SystemModulesRepository::getByModelName(get_class($model), app(Apps::class));
