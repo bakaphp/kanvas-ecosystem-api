@@ -43,7 +43,7 @@ class AuthManagementMutation
         mixed $rootValue,
         array $request,
         ?GraphQLContext $context = null,
-        ResolveInfo $resolveInfo
+        ?ResolveInfo $resolveInfo =null
     ): array {
         $email = $request['data']['email'];
         $password = $request['data']['password'];
@@ -107,7 +107,7 @@ class AuthManagementMutation
         mixed $rootValue,
         array $request,
         ?GraphQLContext $context = null,
-        ResolveInfo $resolveInfo
+        ?ResolveInfo $resolveInfo =null
     ): array {
         $app = app(Apps::class);
 
@@ -188,7 +188,7 @@ class AuthManagementMutation
         mixed $rootValue,
         array $request,
         ?GraphQLContext $context = null,
-        ResolveInfo $resolveInfo
+        ?ResolveInfo $resolveInfo =null
     ): bool {
         $user = new ForgotPasswordService();
 
@@ -216,7 +216,7 @@ class AuthManagementMutation
         mixed $rootValue,
         array $request,
         ?GraphQLContext $context = null,
-        ResolveInfo $resolveInfo
+        ?ResolveInfo $resolveInfo =null
     ): bool {
         $user = new ForgotPasswordService();
 
