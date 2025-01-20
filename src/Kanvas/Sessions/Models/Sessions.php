@@ -238,7 +238,7 @@ class Sessions extends PersonalAccessToken
      * Checks for a given user session, tidies session table and updates user
      * sessions at each page refresh.
      */
-    public function check(Users $user, string $sessionId, string $userIp, ?Apps $app = null, int $pageId): Users
+    public function check(Users $user, string $sessionId, string $userIp, ?Apps $app = null, ?int $pageId = null): Users
     {
         $currentTime = time();
 
