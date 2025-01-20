@@ -3,9 +3,12 @@
 namespace Kanvas\Social\UsersRatings\Observers;
 
 use Kanvas\Social\UsersRatings\Models\UsersRatings;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
 
-class UsersRatingsObserver
+class UsersRatingsObserver implements ShouldQueue
 {
+    use Queueable;
     protected function calcAverageRating(UsersRatings $usersRatings): void
     {
         $rating = UsersRatings::where('entity_id', $usersRatings->entity_id)
