@@ -7,7 +7,7 @@ type UserRating {
     user: User!
 }
 
-input UsersRatingsInput {
+input UserRatingInput {
     rating: Float!
     comment: String
     system_module_id: ID!
@@ -15,8 +15,8 @@ input UsersRatingsInput {
 }
 
 extend type Mutation {
-    createUserRating(input: UsersRatingsInput!): UserRating
+    createUserRating(input: UserRatingInput!): UserRating
         @field(
-            resolver: "App\\GraphQL\\Social\\Mutations\\UsersRatings\\UsersRatingsManagement@create"
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersRatings\\UserRatingManagement@create"
         )
 }
