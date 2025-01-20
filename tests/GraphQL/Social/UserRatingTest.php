@@ -10,7 +10,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
-class UsersRatingsTest extends TestCase
+class UserRatingTest extends TestCase
 {
     use InventoryCases;
 
@@ -26,7 +26,7 @@ class UsersRatingsTest extends TestCase
         ];
         $this->graphQL(
             '
-                mutation createUserRating($input: UsersRatingsInput!) {
+                mutation createUserRating($input: UserRatingInput!) {
                     createUserRating(input: $input) {
                         rating
                     }
@@ -56,7 +56,7 @@ class UsersRatingsTest extends TestCase
         ];
         $this->graphQL(
             '
-                mutation createUserRating($input: UsersRatingsInput!) {
+                mutation createUserRating($input: UserRatingInput!) {
                     createUserRating(input: $input) {
                     id,
                         rating
@@ -78,7 +78,7 @@ class UsersRatingsTest extends TestCase
 
         $this->graphQL(
             '
-                mutation createUserRating($input: UsersRatingsInput!) {
+                mutation createUserRating($input: UserRatingInput!) {
                     createUserRating(input: $input) {
                     id,
                         rating
@@ -122,7 +122,7 @@ class UsersRatingsTest extends TestCase
         ];
         $this->graphQL(
             '
-                mutation createUserRating($input: UsersRatingsInput!) {
+                mutation createUserRating($input: UserRatingInput!) {
                     createUserRating(input: $input) {
                     id,
                         rating
@@ -194,7 +194,7 @@ class UsersRatingsTest extends TestCase
         ];
         $this->graphQL(
             '
-                mutation createUserRating($input: UsersRatingsInput!) {
+                mutation createUserRating($input: UserRatingInput!) {
                     createUserRating(input: $input) {
                     id,
                         rating

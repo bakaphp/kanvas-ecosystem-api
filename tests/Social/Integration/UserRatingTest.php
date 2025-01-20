@@ -5,7 +5,7 @@ namespace Tests\Social\Integration;
 use Kanvas\Inventory\Products\Models\Products;
 use Tests\TestCase;
 
-final class UsersRatingTest extends TestCase
+final class UserRatingTest extends TestCase
 {
     public function testCreateUsersRating(): void
     {
