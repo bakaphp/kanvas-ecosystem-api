@@ -10,7 +10,7 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\Data;
 
-class UsersRatings extends Data
+class UserRating extends Data
 {
     public function __construct(
         public Apps $app,
