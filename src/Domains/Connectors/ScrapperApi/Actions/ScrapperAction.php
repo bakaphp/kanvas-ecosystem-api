@@ -134,4 +134,18 @@ class ScrapperAction
 
         $sdk->Product($shopifyProductId)->Metafield->post($metafieldData);
     }
+    public function setCustomFieldShippingPrice(Products $product): void
+    {
+        $sdk = Client::getInstance($this->app, $this->companyBranch->company, $this->region);
+        $shopifyProductId = $product->getShopifyId($this->region);
+        $attribute = $product->attributes()->where('name', ScrapperConfigEnum::SCRAPPER_SHIPPING->value)->first();
+        $metafieldData = [
+            'namespace' => 'custom',
+            'key' => 'shipping_date',
+            'value' => $attribute->value,
+            'type' => 'date',
+        ];
+
+        $sdk->Product($shopifyProductId)->Metafield->post($metafieldData);
+    }
 }
