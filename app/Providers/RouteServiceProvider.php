@@ -54,6 +54,10 @@ class RouteServiceProvider extends ServiceProvider
             $this->loadRoutesFrom(base_path('routes/api.php'));
         });
 
+        Route::group($this->routeConfiguration(), function () {
+            $this->loadRoutesFrom(base_path('routes/web.php'));
+        });
+
         Route::get('/', [IndexController::class, 'index']);
     }
 

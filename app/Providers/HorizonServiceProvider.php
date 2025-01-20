@@ -16,6 +16,13 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
     {
         parent::boot();
 
+        $this->gate();
+
+        Horizon::auth(function ($request) {
+            // Check if the user is authorized to view Horizon
+            return Gate::allows('viewHorizon', $request->user());
+        });
+
         // Horizon::routeSmsNotificationsTo('15556667777');
         // Horizon::routeMailNotificationsTo('example@example.com');
         // Horizon::routeSlackNotificationsTo('slack-webhook-url', '#channel');
@@ -28,7 +35,9 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
      */
     protected function gate(): void
     {
-        Gate::define('viewHorizon', function (Users $user) {
+        Gate::define('viewHorizon', function () {
+            $user = auth()->user();
+            dd($user);
             return in_array($user->email, [
                 'rwhite@mctekk.com'
             ]);

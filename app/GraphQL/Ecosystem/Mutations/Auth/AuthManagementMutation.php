@@ -34,6 +34,12 @@ class AuthManagementMutation
     use TokenTrait;
     use AuthTrait;
 
+    public function showLoginForm()
+    {
+        $app = app(Apps::class);
+        return view('horizon.login', ['app' => $app]);
+    }
+
     /**
      * @param array $args
      *
