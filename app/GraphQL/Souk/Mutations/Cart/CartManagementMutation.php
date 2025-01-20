@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Cart;
 
+use Illuminate\Support\Facades\App;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -103,16 +104,23 @@ class CartManagementMutation
          */
 
         $discountCodes = $request['discountCodes'];
-        /*         $tenPercentOff = new CartCondition([
-                   'name' => 'KANVAS',
-                   'type' => 'discount',
-                   'target' => 'subtotal',
-                   'value' => '-10%',
-                   'minimum' => 1,
-                   'order' => 1,
-                ]);
+        $isDevelopment = App::environment('development');
 
-                $cart->condition($tenPercentOff); */
+        /**
+         * @todo temp condition for development so they can test
+         */
+        if ($isDevelopment) {
+            $tenPercentOff = new CartCondition([
+              'name' => 'KANVAS',
+              'type' => 'discount',
+              'target' => 'subtotal',
+              'value' => '-10%',
+              'minimum' => 1,
+              'order' => 1,
+                    ]);
+
+            $cart->condition($tenPercentOff);
+        }
 
         $cartService = new CartService($cart);
 
