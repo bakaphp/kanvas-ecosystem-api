@@ -41,6 +41,7 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Kanvas\Social\UsersRatings\Traits\HasRating;
 
 /**
  * Class Products.
@@ -78,6 +79,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use CascadeSoftDeletes;
     use Compoships;
     use CanUseWorkflow;
+    use HasRating;
 
     protected $table = 'products';
     protected $guarded = [];

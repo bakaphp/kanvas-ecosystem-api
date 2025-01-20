@@ -29,6 +29,8 @@ type Product {
         @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo
     companies: Company! @belongsTo(relation: "company")
+    usersRatings: [UserRating!] @hasMany(relation: "usersRatings")
+    rating: Float
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
@@ -93,8 +95,8 @@ input ProductAttributeOrderBy {
 }
 
 enum FormatSortAttribute {
-    NUMERIC 
-    STRING 
+    NUMERIC
+    STRING
     DATE
 }
 
@@ -153,7 +155,8 @@ extend type Query @guard {
                     "slug"
                     "code"
                     "uuid"
-                    "is_published"
+                    "is_published",
+                    "rating"
                 ]
             )
         hasVariants: _

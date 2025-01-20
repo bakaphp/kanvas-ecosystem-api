@@ -150,7 +150,8 @@ extend type Query @guard {
                     "uuid"
                     "sku"
                     "serial_number"
-                    "is_published"
+                    "is_published",
+                    "rating"
                 ]
             )
         hasAttributesValues: _
