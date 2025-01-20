@@ -231,6 +231,7 @@ class IntegrationTest extends TestCase
 
         $variant = VariantService::createDefaultVariant($product, $product->user);
         $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
         $this->setupShopifyIntegration($product, $warehouse->region);
 
         $exportActivity = new SyncProductWithShopifyWithIntegrationActivity(

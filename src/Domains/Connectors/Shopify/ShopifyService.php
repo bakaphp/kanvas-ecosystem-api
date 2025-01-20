@@ -42,4 +42,20 @@ class ShopifyService
             $configData
         );
     }
+
+    public static function removeShopifySetup(ShopifyDto $data): bool
+    {
+        $clientCredentialNaming = ShopifyConfigurationService::generateCredentialKey($data->company, $data->app, $data->region);
+
+        $configData = [
+            CustomFieldEnum::SHOPIFY_API_KEY->value => $data->apiKey,
+            CustomFieldEnum::SHOPIFY_API_SECRET->value => $data->apiSecret,
+            CustomFieldEnum::SHOP_URL->value => $data->shopUrl,
+        ];
+
+        return $data->company->del(
+            $clientCredentialNaming,
+            $configData
+        );
+    }
 }

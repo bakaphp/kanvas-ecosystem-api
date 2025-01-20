@@ -7,8 +7,11 @@ namespace App\GraphQL\Souk\Mutations\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Services\VariantPriceService;
+use Kanvas\Souk\Cart\Services\CartService;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\UserCompanyApps;
+use Wearepixel\Cart\CartCondition;
 
 class CartManagementMutation
 {
@@ -32,19 +35,21 @@ class CartManagementMutation
         }
 
         //@todo send warehouse via header
-        $useCompanySpecificPrice = $app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false;
+        //$useCompanySpecificPrice = $app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false;
 
+        $variantPriceService = new VariantPriceService($app, $currentUserCompany);
         foreach ($items as $item) {
             $variant = Variants::getByIdFromCompany($item['variant_id'], $company);
+            $channelId = $item['channel_id'] ?? null;
 
             //$variantPrice = $variant->variantWarehouses()->firstOrFail()->price;
-            $variantPrice = $useCompanySpecificPrice
-                    ? $variant->variantChannels()
-                        ->whereHas('channel', fn ($query) => $query->where('slug', $currentUserCompany->uuid))
-                        ->firstOrFail()->price
-                    : $variant->variantWarehouses()
-                        ->firstOrFail()->price;
-
+            /*                $variantPrice = $useCompanySpecificPrice
+                                  ? $variant->variantChannels()
+                                      ->whereHas('channel', fn ($query) => $query->where('slug', $currentUserCompany->uuid))
+                                      ->firstOrFail()->price
+                                  : $variant->getPriceInfoFromDefaultChannel()->price;
+              */
+            $variantPrice = $variantPriceService->getPrice($variant, $channelId);
             $cart->add([
                 'id' => $variant->getId(),
                 'name' => $variant->name,
@@ -88,10 +93,37 @@ class CartManagementMutation
         return $cart->getContent()->toArray();
     }
 
+    public function discountCodesUpdate(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $cart = app('cart')->session($user->getId());
+
+        /**
+         * @todo add https://github.com/wearepixel/laravel-cart#adding-a-condition-to-the-cart-cartcondition
+         */
+
+        $discountCodes = $request['discountCodes'];
+        /*         $tenPercentOff = new CartCondition([
+                   'name' => 'KANVAS',
+                   'type' => 'discount',
+                   'target' => 'subtotal',
+                   'value' => '-10%',
+                   'minimum' => 1,
+                   'order' => 1,
+                ]);
+
+                $cart->condition($tenPercentOff); */
+
+        $cartService = new CartService($cart);
+
+        return $cartService->getCart();
+    }
+
     public function clear(mixed $root, array $request): bool
     {
         $user = auth()->user();
         $cart = app('cart')->session($user->getId());
+        $cart->clearAllConditions();
 
         return $cart->clear();
     }

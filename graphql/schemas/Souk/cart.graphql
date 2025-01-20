@@ -1,7 +1,15 @@
 type Cart {
     id: ID!
     items: [CartItem!]!
-    total: Float!
+    discounts: [CartDiscount!]!
+    total_discount: Money!
+    total: Money!
+}
+
+type CartDiscount {
+    code: String!
+    amount: String!
+    total: Money
 }
 
 type CartItem {
@@ -16,6 +24,7 @@ type CartItem {
 input CartItemInput {
     quantity: Int!
     variant_id: ID!
+    channel_id: ID
     attributes: Mixed
 }
 
@@ -32,6 +41,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@remove"
         )
+    cartDiscountCodesUpdate(discountCodes: [String!]!): Cart!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@discountCodesUpdate"
+        )
     clearCart: Boolean!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@clear"
@@ -39,5 +52,6 @@ extend type Mutation @guard {
 }
 
 extend type Query @guard {
-    cart: Cart @field(resolver: "App\\GraphQL\\Souk\\Queries\\Cart\\CartQuery@index")
+    cart: Cart
+        @field(resolver: "App\\GraphQL\\Souk\\Queries\\Cart\\CartQuery@index")
 }
