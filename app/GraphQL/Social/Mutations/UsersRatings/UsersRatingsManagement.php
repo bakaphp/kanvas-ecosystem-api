@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\UsersRatings;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\UsersRatings\Actions\CreateUserRating;
-use Kanvas\Social\UsersRatings\DataTransferObject\UserRating as UsersRatingsDTO;
-use Kanvas\Social\UsersRatings\Models\UserRating;
+use Kanvas\Social\UsersRatings\Actions\CreateUsersRatings;
+use Kanvas\Social\UsersRatings\DataTransferObject\UsersRatings as UsersRatingsDTO;
+use Kanvas\Social\UsersRatings\Models\UsersRatings;
 use Kanvas\SystemModules\Models\SystemModules;
 
-class UserRatingManagement
+class UsersRatingsManagement
 {
-    public function create(mixed $root, array $request): UserRating
+    public function create(mixed $root, array $request): UsersRatings
     {
         $input = $request['input'];
 
@@ -26,6 +26,6 @@ class UserRatingManagement
             $input['comment']
         );
 
-        return (new CreateUserRating($usersRatingsDTO))->execute();
+        return (new CreateUsersRatings($usersRatingsDTO))->execute();
     }
 }

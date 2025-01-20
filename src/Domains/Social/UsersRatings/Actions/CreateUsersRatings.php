@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\UsersRatings\Actions;
 
-use Kanvas\Social\UsersRatings\DataTransferObject\UserRating as UsersRatingsDTO;
-use Kanvas\Social\UsersRatings\Models\UserRating;
+use Kanvas\Social\UsersRatings\DataTransferObject\UsersRatings as UsersRatingsDTO;
+use Kanvas\Social\UsersRatings\Models\UsersRatings;
 
-class CreateUserRating
+class CreateUsersRatings
 {
     public function __construct(
         private UsersRatingsDTO $usersRatingsDTO
     ) {
     }
 
-    public function execute(): UserRating
+    public function execute(): UsersRatings
     {
-        return UserRating::updateOrCreate([
+        return UsersRatings::updateOrCreate([
             'users_id' => $this->usersRatingsDTO->user->getId(),
             'companies_id' => $this->usersRatingsDTO->company->getId(),
             'apps_id' => $this->usersRatingsDTO->app->getId(),

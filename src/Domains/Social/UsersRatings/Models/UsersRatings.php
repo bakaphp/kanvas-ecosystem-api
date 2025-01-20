@@ -7,7 +7,7 @@ namespace Kanvas\Social\UsersRatings\Models;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Social\Models\BaseModel;
-use Kanvas\Social\UsersRatings\Observers\UserRatingObserver;
+use Kanvas\Social\UsersRatings\Observers\UsersRatingsObserver;
 use Kanvas\SystemModules\Models\SystemModules;
 
 /**
@@ -20,8 +20,8 @@ use Kanvas\SystemModules\Models\SystemModules;
  * @property float $ratings
  * @property string $comment
  */
-#[ObservedBy([UserRatingObserver::class])]
-class UserRating extends BaseModel
+#[ObservedBy([UsersRatingsObserver::class])]
+class UsersRatings extends BaseModel
 {
     protected $table = 'users_ratings';
 
