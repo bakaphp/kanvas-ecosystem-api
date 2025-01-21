@@ -247,7 +247,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
      */
     public function variants(): HasMany
     {
-        if ($this->app->get('product_variants_sort_by_weight')) {
+        $app = $this->app ?? app(Apps::class);
+        if ($app->get('product_variants_sort_by_weight')) {
             return $this->hasMany(Variants::class, 'products_id')->orderBy('weight', 'asc');
         }
 
