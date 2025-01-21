@@ -44,7 +44,8 @@ class VariantTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => $variantResponse['sku']
+            'sku' => $variantResponse['sku'],
+            'weight' => 1,
         ];
         $this->graphQL('
         mutation($id: ID! $data: VariantsUpdateInput!) {
@@ -172,6 +173,7 @@ class VariantTest extends TestCase
             'price' => rand(1, 1000),
             'quantity' => rand(1, 5),
             'position' => rand(1, 4),
+            'weight' => 1,
         ];
         $warehouseResponse = $this->graphQL('
         mutation($data: WarehouseReferenceInput! $id: ID!) {
