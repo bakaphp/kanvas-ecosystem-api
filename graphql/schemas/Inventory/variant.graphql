@@ -78,6 +78,7 @@ input VariantsInput {
     discountPrice: Float
     status: StatusReferenceInput
     price: Float
+    weight: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput!]
     warehouses: [WarehouseReferenceInput!]
@@ -99,6 +100,7 @@ input VariantsUpdateInput {
     attributes: [VariantsAttributesInput!]
     serial_number: String
     is_published: Boolean
+    weight: Float
     warehouses: [WarehouseReferenceInput!]
     channels: [VariantChannelReferenceInput!]
     custom_fields: [CustomFieldEntityInput!]
@@ -150,7 +152,7 @@ extend type Query @guard {
                     "uuid"
                     "sku"
                     "serial_number"
-                    "is_published",
+                    "is_published"
                     "rating"
                 ]
             )
@@ -175,6 +177,8 @@ extend type Query @guard {
                     "products_id"
                     "status_id"
                     "is_published"
+                    "weight"
+                    "rating"
                 ]
             )
     ): [Variant!]!
