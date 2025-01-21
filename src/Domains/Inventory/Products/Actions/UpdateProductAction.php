@@ -50,6 +50,7 @@ class UpdateProductAction
                     'status_id' => $this->productDto->status_id ?? $this->product->status_id,
                     'is_published' => $this->productDto->is_published,
                     'published_at' => $this->productDto->is_published ? Carbon::now() : null,
+                    'weight' => $this->productDto->weight ?? $this->product->weight,
                 ]
             );
 

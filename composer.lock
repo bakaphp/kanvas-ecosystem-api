@@ -10471,16 +10471,16 @@
         },
         {
             "name": "spatie/laravel-queueable-action",
-            "version": "2.16.0",
+            "version": "2.16.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-queueable-action.git",
-                "reference": "11db345cf5343656e0fd6148198d65b681555a4f"
+                "reference": "356cb39385737e9dc867ab966c9142a759e489d1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-queueable-action/zipball/11db345cf5343656e0fd6148198d65b681555a4f",
-                "reference": "11db345cf5343656e0fd6148198d65b681555a4f",
+                "url": "https://api.github.com/repos/spatie/laravel-queueable-action/zipball/356cb39385737e9dc867ab966c9142a759e489d1",
+                "reference": "356cb39385737e9dc867ab966c9142a759e489d1",
                 "shasum": ""
             },
             "require": {
@@ -10544,7 +10544,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-queueable-action/issues",
-                "source": "https://github.com/spatie/laravel-queueable-action/tree/2.16.0"
+                "source": "https://github.com/spatie/laravel-queueable-action/tree/2.16.1"
             },
             "funding": [
                 {
@@ -10552,7 +10552,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2025-01-17T12:06:44+00:00"
+            "time": "2025-01-19T15:49:31+00:00"
         },
         {
             "name": "spatie/laravel-webhook-server",

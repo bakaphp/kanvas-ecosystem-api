@@ -44,7 +44,8 @@ class VariantTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => $variantResponse['sku']
+            'sku' => $variantResponse['sku'],
+            'weight' => 1,
         ];
         $this->graphQL('
         mutation($id: ID! $data: VariantsUpdateInput!) {
@@ -54,6 +55,7 @@ class VariantTest extends TestCase
                 name
                 sku
                 description
+                weight
             }
         }', ['id' => $variantResponse['id'], 'data' => $data])->assertJson([
             'data' => ['updateVariant' => $data]

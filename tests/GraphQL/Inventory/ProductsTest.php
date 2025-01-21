@@ -20,6 +20,7 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'sku' => fake()->time,
+            'weight' => 1,
             'attributes' => [
                 [
                     'name' => fake()->name,
@@ -158,6 +159,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'weight' => 1,
         ];
         $this->graphQL('
         mutation($data: ProductInputUpdate! $id: ID!) {
@@ -165,6 +167,7 @@ class ProductsTest extends TestCase
             {
                 name
                 description
+                weight
             }
         }', ['data' => $data, 'id' => $id])->assertJson([
             'data' => ['updateProduct' => $data],
