@@ -31,11 +31,11 @@ class AppsListQuery
     public function getPublicAppSettings($rootValue, array $request): array
     {
         $app = app(Apps::class);
-
+        
         return [
             'name' => $app->name,
             'description' => $app->description,
-            'settings' => $app->getAllSettings(),
+            'settings' => $app->getAllSettings(true),
         ];
     }
 }
