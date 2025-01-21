@@ -55,6 +55,7 @@ class VariantTest extends TestCase
                 name
                 sku
                 description
+                weight
             }
         }', ['id' => $variantResponse['id'], 'data' => $data])->assertJson([
             'data' => ['updateVariant' => $data]
@@ -173,7 +174,6 @@ class VariantTest extends TestCase
             'price' => rand(1, 1000),
             'quantity' => rand(1, 5),
             'position' => rand(1, 4),
-            'weight' => 1,
         ];
         $warehouseResponse = $this->graphQL('
         mutation($data: WarehouseReferenceInput! $id: ID!) {

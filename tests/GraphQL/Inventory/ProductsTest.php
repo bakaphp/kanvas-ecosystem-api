@@ -167,6 +167,7 @@ class ProductsTest extends TestCase
             {
                 name
                 description
+                weight
             }
         }', ['data' => $data, 'id' => $id])->assertJson([
             'data' => ['updateProduct' => $data],

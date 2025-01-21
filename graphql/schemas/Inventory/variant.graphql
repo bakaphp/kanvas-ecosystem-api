@@ -12,6 +12,8 @@ type Variant {
     barcode: String
     serial_number: String
     status: Status
+    rating: Float
+    weight: Float
     files: [Filesystem]
         @cacheRedis
         @paginate(
