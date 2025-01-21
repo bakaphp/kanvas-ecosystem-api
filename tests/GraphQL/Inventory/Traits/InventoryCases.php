@@ -30,6 +30,7 @@ trait InventoryCases
                 'description' => fake()->text,
                 'sku' => fake()->time,
                 'slug' => Str::slug($name),
+                'weight' => 1,
                 'attributes' => [
                     [
                         'name' => fake()->name,
@@ -47,6 +48,7 @@ trait InventoryCases
                     name
                     description
                     slug
+                    weight
                     attributes {
                         name
                         value
@@ -63,6 +65,7 @@ trait InventoryCases
                 'description' => fake()->text,
                 'products_id' => $productId,
                 'sku' => fake()->time,
+                'weight' => 1,
                 'warehouses' => [$warehouseData],
                 'attributes' => [
                     [
@@ -82,6 +85,7 @@ trait InventoryCases
                     sku
                     description
                     products_id
+                    weight
                 }
             }', ['data' => $data]);
     }

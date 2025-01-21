@@ -31,6 +31,7 @@ type Product {
     companies: Company! @belongsTo(relation: "company")
     usersRatings: [UserRating!] @hasMany(relation: "usersRatings")
     rating: Float
+    weight: Float
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
