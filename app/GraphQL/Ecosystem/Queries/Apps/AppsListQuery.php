@@ -13,9 +13,6 @@ class AppsListQuery
      * Get user from the current company.
      *
      * @param mixed $rootValue
-     * @param array $request
-     *
-     * @return array
      */
     public function getAppSettings($rootValue, array $request): array
     {
@@ -35,7 +32,7 @@ class AppsListQuery
         return [
             'name' => $app->name,
             'description' => $app->description,
-            'settings' => $app->getAllSettings(),
+            'settings' => $app->getAllSettings(true),
         ];
     }
 }

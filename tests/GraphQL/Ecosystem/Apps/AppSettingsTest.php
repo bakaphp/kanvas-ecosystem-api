@@ -32,6 +32,31 @@ class AppSettingsTest extends TestCase
         ->assertSee('settings');
     }
 
+    public function testAppSettingVisibility()
+    {
+        $app = app(Apps::class);
+        $app->set('public_test', 'public_test', true);
+        $app->set('private_test', 'private_test', false);
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            {
+                appSetting {     
+                    name,
+                    description,
+                    settings
+                }
+            }
+            
+            
+            '
+        )
+        ->json();
+
+        $this->assertArrayHasKey('public_test', $response['data']['appSetting']['settings']);
+        $this->assertArrayNotHasKey('private_test', $response['data']['appSetting']['settings']);
+    }
+
     public function testSetAppSetting()
     {
         $app = app(Apps::class);
@@ -65,7 +90,7 @@ class AppSettingsTest extends TestCase
     public function testDeleteAppSetting()
     {
         $app = app(Apps::class);
-        $input =  'test';
+        $input = 'test';
 
         $app->set('test', 'test');
 
