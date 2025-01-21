@@ -150,7 +150,7 @@ extend type Query @guard {
                     "uuid"
                     "sku"
                     "serial_number"
-                    "is_published",
+                    "is_published"
                     "rating"
                 ]
             )
@@ -175,6 +175,8 @@ extend type Query @guard {
                     "products_id"
                     "status_id"
                     "is_published"
+                    "weight"
+                    "rating"
                 ]
             )
     ): [Variant!]!

@@ -155,7 +155,7 @@ extend type Query @guard {
                     "slug"
                     "code"
                     "uuid"
-                    "is_published",
+                    "is_published"
                     "rating"
                 ]
             )
@@ -188,7 +188,17 @@ extend type Query @guard {
                 relation: "customFields"
                 columns: ["name", "value"]
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "weight"
+                    "rating"
+                ]
+            )
     ): [Product!]!
         @paginate(
             scopes: ["fromApp", "fromCompany", "notDeleted"]
