@@ -221,7 +221,7 @@ class ProductService
         if ($date) {
             $date->modify('+5 days');
 
-            return $date->format('Y-m-d'); // Resultado: 2025-01-30
+            return $date->format('Y-m-d');
         } else {
             return null;
         }
