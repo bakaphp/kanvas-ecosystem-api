@@ -89,6 +89,7 @@ class ScrapperAction
                 $syncProductWithShopify->execute();
 
                 $this->setCustomFieldAmazonPrice($product);
+                $this->setCustomFieldShippingDate($product);
                 $importerProducts++;
 
                 if ($this->uuid) {
@@ -134,7 +135,8 @@ class ScrapperAction
 
         $sdk->Product($shopifyProductId)->Metafield->post($metafieldData);
     }
-    public function setCustomFieldShippingPrice(Products $product): void
+
+    public function setCustomFieldShippingDate(Products $product): void
     {
         $sdk = Client::getInstance($this->app, $this->companyBranch->company, $this->region);
         $shopifyProductId = $product->getShopifyId($this->region);
