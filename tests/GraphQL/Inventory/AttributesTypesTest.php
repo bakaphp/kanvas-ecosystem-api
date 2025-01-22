@@ -25,5 +25,4 @@ class AttributesTypesTest extends TestCase
             }');
         $this->assertArrayHasKey('name', $response->json()['data']['attributesTypes']['data'][0]);
     }
-
 }
