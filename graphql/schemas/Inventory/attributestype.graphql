@@ -24,22 +24,6 @@ type AttributesType {
     updated_at: String
 }
 
-
-extend type Mutation @guardByAdmin {
-    createAttributeType(input: AttributesTypeInput!): AttributesType!
-        @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeTypeMutation@create"
-        )
-    updateAttributeType(id: ID!, input: AttributeTypeUpdateInput!): AttributesType!
-        @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeTypeMutation@update"
-        )
-    deleteAttributeType(id: ID!): Boolean!
-        @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeTypeMutation@delete"
-        )
-
-}
 extend type Query @guard {
     attributesTypes(
         search: String @search
@@ -64,6 +48,6 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Inventory\\Attributes\\Models\\AttributesTypes"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "notDeleted", "fromPublicApp"]
         )
 }
