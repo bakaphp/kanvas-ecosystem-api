@@ -52,6 +52,10 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
             return $this->errorResponse('Message data not found', $lead);
         }
 
+        if (! isset($messageData['personal']['ssn'])) {
+            return $this->errorResponse('Credit app with incorrect data, SSN not found', $lead);
+        }
+
         $creditApplicant = $this->processCreditScore($messageData, $lead, $app, $params);
 
         if (empty($creditApplicant['iframe_url'])) {
