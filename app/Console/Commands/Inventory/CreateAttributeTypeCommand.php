@@ -46,7 +46,7 @@ class CreateAttributeTypeCommand extends Command
     {
         $data = $this->options();
 
-        if (! empty($data['app_id']) || !empty($data['name'])) {
+        if (! empty($data['app_id']) || ! empty($data['name'])) {
             // Validation
             $validator = Validator::make($data, [
                 'app_id' => 'required_with:name',
