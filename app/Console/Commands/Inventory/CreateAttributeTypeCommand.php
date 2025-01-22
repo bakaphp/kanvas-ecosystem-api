@@ -76,7 +76,8 @@ class CreateAttributeTypeCommand extends Command
             'apps_id' => 0,
             'companies_id' => 0,
         ], [
-            'slug' => Str::slug(AttributeTypeEnum::INPUT->value)
+            'slug' => Str::slug(AttributeTypeEnum::INPUT->value),
+            'users_id' => 0
         ]);
 
         AttributesTypes::firstOrCreate([
@@ -84,7 +85,8 @@ class CreateAttributeTypeCommand extends Command
             'apps_id' => 0,
             'companies_id' => 0,
         ], [
-            'slug' => Str::slug(AttributeTypeEnum::CHECKBOX->value)
+            'slug' => Str::slug(AttributeTypeEnum::CHECKBOX->value),
+            'users_id' => 0
         ]);
 
         AttributesTypes::firstOrCreate([
@@ -92,7 +94,8 @@ class CreateAttributeTypeCommand extends Command
             'apps_id' => 0,
             'companies_id' => 0,
         ], [
-            'slug' => Str::slug(AttributeTypeEnum::JSON->value)
+            'slug' => Str::slug(AttributeTypeEnum::JSON->value),
+            'users_id' => 0
         ]);
 
         info('Attribute Types created for all apps');
@@ -104,7 +107,9 @@ class CreateAttributeTypeCommand extends Command
             'name' => $name,
             'apps_id' => (int) $app->getId(),
         ], [
-            'slug' => Str::slug($name)
+            'slug' => Str::slug($name),
+            'users_id' => 0,
+            'companies_id' => 0,
         ]);
 
         info('Attribute Type ' . $name . ' created for app - ' . $app->getId());
