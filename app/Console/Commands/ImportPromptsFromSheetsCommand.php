@@ -68,49 +68,49 @@ class ImportPromptsFromSheetsCommand extends Command
 
             $promptsCollection = [];
 
-        if (! empty($values)) {
-            array_shift($values);
-            $headers = [
-                'title',
-                'category',
-                'prompt',
-                'tags',
-                'preview',
-                'nugget'
-            ];
+            if (! empty($values)) {
+                array_shift($values);
+                $headers = [
+                    'title',
+                    'category',
+                    'prompt',
+                    'tags',
+                    'preview',
+                    'nugget'
+                ];
 
-            foreach ($values as $row) {
-                $promptArray = [];
-                foreach ($headers as $index => $header) {
-                    $value = $row[$index] ?? null;
-                    if ($header !== 'preview' && (is_null($value) || empty($value))) {
-                        echo "Null or Empty value for $header on sheet $sheetName.\n";
-                        $skipSheet = true;
-                        break 2;
+                foreach ($values as $row) {
+                    $promptArray = [];
+                    foreach ($headers as $index => $header) {
+                        $value = $row[$index] ?? null;
+                        if ($header !== 'preview' && (is_null($value) || empty($value))) {
+                            echo "Null or Empty value for $header on sheet $sheetName.\n";
+                            $skipSheet = true;
+                            break 2;
+                        }
+                        $promptArray[$header] = $value;
                     }
-                    $promptArray[$header] = $value;
+                    $promptsCollection[] = $promptArray;
                 }
-                $promptsCollection[] = $promptArray;
+            } else {
+                echo "No data found.";
             }
-        } else {
-            echo "No data found.";
-        }
 
-        if ($skipSheet) {
-            echo "Skipping sheet $sheetName due to null or empty required values.\n";
-            continue;
-        }
+            if ($skipSheet) {
+                echo "Skipping sheet $sheetName due to null or empty required values.\n";
+                continue;
+            }
 
-        if (! empty($promptsCollection)) {
-            $this->insertPrompts($promptsCollection, $appId, $messageType, $nuggetMessageType, $companyId);
-        }
+            if (! empty($promptsCollection)) {
+                $this->insertPrompts($promptsCollection, $appId, $messageType, $nuggetMessageType, $companyId);
+            }
 
-        $promptsCollection = [];
+            $promptsCollection = [];
         }
     }
 
 
-    public function insertPrompts(array $promptsCollection, int $appId, int $messageType, int $nuggetMessageType, int $companyId) 
+    public function insertPrompts(array $promptsCollection, int $appId, int $messageType, int $nuggetMessageType, int $companyId)
     {
         foreach ($promptsCollection as $prompt) {
             $userId = $this->fetchRandomUser()->id;
@@ -120,7 +120,7 @@ class ImportPromptsFromSheetsCommand extends Command
                 ->first();
 
             if ($result) {
-                echo($prompt['title'] . 'message already exists with id: ' . $result->id . PHP_EOL);
+                echo ($prompt['title'] . 'message already exists with id: ' . $result->id . PHP_EOL);
                 Log::info($prompt['title'] . 'message already exists with id: ' . $result->id);
 
                 continue;
@@ -214,7 +214,7 @@ class ImportPromptsFromSheetsCommand extends Command
                 ]);
             }
 
-            echo($prompt['title'] . ' message inserted with id: ' . $lastId . PHP_EOL);
+            echo ($prompt['title'] . ' message inserted with id: ' . $lastId . PHP_EOL);
             Log::info($prompt['title'] . ' message inserted with id: ' . $lastId);
         }
     }
