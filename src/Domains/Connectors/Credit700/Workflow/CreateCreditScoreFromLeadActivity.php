@@ -123,9 +123,11 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $provider = $params['provider'] ?? 'TU'; // Default to 'TU' if not provided
         $provider = Str::replace(',', '|', trim($provider)); // Replace commas with '|' and trim whitespace
 
+        $name = isset($personal['last_name']) ? $personal['first_name'] . ' ' . $personal['last_name'] : $personal['first_name'];
+
         return $creditScoreService->getCreditScore(
             new CreditApplicant(
-                "{$personal['first_name']} {$personal['last_name']}",
+                $name,
                 $housing['address'],
                 $housing['city'],
                 $housing['state']['code'],
