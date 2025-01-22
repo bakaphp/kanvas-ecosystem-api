@@ -9,6 +9,12 @@ type Workflow {
     updated_at: DateTime
 }
 
+type WorkflowStatus {
+    id: ID!
+    name: String!
+    slug: String
+}
+
 input runWorkflowEntityInput {
     entity_namespace: String!
     entity_id: ID!

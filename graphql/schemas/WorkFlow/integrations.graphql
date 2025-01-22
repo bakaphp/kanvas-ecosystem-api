@@ -78,6 +78,7 @@ extend type Mutation @guard {
 enum WorkFlowIntegrationsHistoryEnumColumn {
     ID @enum(value: "entity_integration_history.id")
     ENTITY_NAMESPACE @enum(value: "entity_integration_history.entity_namespace")
+    ENTITY_ID @enum(value: "entity_integration_history.entity_id")
     STATUS_ID @enum(value: "entity_integration_history.status_id")
     INTEGRATIONS_ID @enum(value: "entity_integration_history.integrations_id")
 }
@@ -90,6 +91,15 @@ extend type Query @guard {
     ): [Integrations!]!
         @paginate(
             model: "Kanvas\\Workflow\\Models\\Integrations"
+            scopes: ["fromApp", "notDeleted", "fromPublicApp"]
+            defaultCount: 25
+        )
+    workflowStatus(
+        where: _ @whereConditions(columns: ["id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "name"])
+    ): [WorkflowStatus!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Integrations\\Models\\Status"
             scopes: ["fromApp", "notDeleted", "fromPublicApp"]
             defaultCount: 25
         )
