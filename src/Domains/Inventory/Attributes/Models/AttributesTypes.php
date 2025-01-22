@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Enums\AttributeTypeEnum;
 use Kanvas\Inventory\Attributes\Models\Attributes as ModelsAttributes;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Workflow\Traits\PublicAppScopeTrait;
 
 /**
  * Class Attributes.
@@ -24,6 +25,7 @@ use Kanvas\Inventory\Models\BaseModel;
  */
 class AttributesTypes extends BaseModel
 {
+    use PublicAppScopeTrait;
     use SlugTrait;
 
     public $table = 'attributes_types_input';
