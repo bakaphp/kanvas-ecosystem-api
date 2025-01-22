@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Integrations\Models;
 
 use Kanvas\Workflow\Models\BaseModel;
+use Kanvas\Workflow\Traits\PublicAppScopeTrait;
 
 class Status extends BaseModel
 {
+    use PublicAppScopeTrait;
+
     protected $table = 'status';
 
     protected $fillable = [
