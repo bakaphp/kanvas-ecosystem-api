@@ -120,7 +120,7 @@ class ImportPromptsFromSheetsCommand extends Command
                 ->first();
 
             if ($result) {
-                echo ($prompt['title'] . 'message already exists with id: ' . $result->id . PHP_EOL);
+                echo($prompt['title'] . 'message already exists with id: ' . $result->id . PHP_EOL);
                 Log::info($prompt['title'] . 'message already exists with id: ' . $result->id);
 
                 continue;
@@ -214,7 +214,7 @@ class ImportPromptsFromSheetsCommand extends Command
                 ]);
             }
 
-            echo ($prompt['title'] . ' message inserted with id: ' . $lastId . PHP_EOL);
+            echo($prompt['title'] . ' message inserted with id: ' . $lastId . PHP_EOL);
             Log::info($prompt['title'] . ' message inserted with id: ' . $lastId);
         }
     }
