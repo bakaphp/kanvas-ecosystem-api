@@ -46,6 +46,7 @@ use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
@@ -119,6 +120,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SendMessageNotificationToFollowersActivity::class,
             MessageOwnerInteractionNotifierActivity::class,
             MessageOwnerChildNotificationActivity::class,
+            SwitchZohoLeadOwnerReceiverJob::class,
         ];
 
         $createdActions = [];
