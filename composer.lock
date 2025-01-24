@@ -9769,16 +9769,16 @@
         },
         {
             "name": "sentry/sentry-laravel",
-            "version": "4.10.2",
+            "version": "4.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-laravel.git",
-                "reference": "0e2e5bc4311da51349487afcf67b8fca937f6d94"
+                "reference": "ad7d59652f6fb2934b54ef9d469abeaaf5f4eb96"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/0e2e5bc4311da51349487afcf67b8fca937f6d94",
-                "reference": "0e2e5bc4311da51349487afcf67b8fca937f6d94",
+                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/ad7d59652f6fb2934b54ef9d469abeaaf5f4eb96",
+                "reference": "ad7d59652f6fb2934b54ef9d469abeaaf5f4eb96",
                 "shasum": ""
             },
             "require": {
@@ -9842,7 +9842,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-laravel/issues",
-                "source": "https://github.com/getsentry/sentry-laravel/tree/4.10.2"
+                "source": "https://github.com/getsentry/sentry-laravel/tree/4.11.0"
             },
             "funding": [
                 {
@@ -9854,7 +9854,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2024-12-17T11:38:58+00:00"
+            "time": "2025-01-23T12:35:37+00:00"
         },
         {
             "name": "shopify/shopify-api",
@@ -17040,12 +17040,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": [],
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "platform-dev": [],
+    "plugin-api-version": "2.3.0"
 }
