@@ -37,7 +37,7 @@ class Attributes extends Data
             auth()->user(),
             $request['name'],
             $request['slug'] ?? Str::slug($request['name']),
-            isset($request['attribute_type']['id']) ? AttributesTypesModel::getById((int) $request['attribute_type']['id'], $app) : null,
+            isset($request['attribute_type']['id']) ? AttributesTypesModel::getById((int) $request['attribute_type']['id']) : null,
             $request['is_visible'] ?? true,
             $request['is_searchable'] ?? true,
             $request['is_filtrable'] ?? true,
