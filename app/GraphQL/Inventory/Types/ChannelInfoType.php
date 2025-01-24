@@ -29,6 +29,7 @@ class ChannelInfoType
             'is_on_sale' => false,
             'is_on_promotion' => false,
             'is_coming_soon' => false,
+            'config' => $defaultChannelInfo?->config ?? null,
         ];
     }
 }
