@@ -55,6 +55,7 @@ type VariantPricingInfo {
     is_on_sale: Boolean
     is_on_promotion: Boolean
     is_coming_soon: Boolean
+    config: Mixed
 }
 
 #@deprecated(reason: "Use the ProductAttributesInput type instead")

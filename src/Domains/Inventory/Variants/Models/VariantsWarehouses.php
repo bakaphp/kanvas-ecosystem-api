@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
@@ -57,6 +58,7 @@ class VariantsWarehouses extends BaseModel
         return [
             'price' => 'decimal:2',
             'quantity' => 'integer',
+            'config' => Json::class
         ];
     }
 
