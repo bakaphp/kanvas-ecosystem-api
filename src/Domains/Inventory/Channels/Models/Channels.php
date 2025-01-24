@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Channels\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
@@ -97,6 +98,13 @@ class Channels extends BaseModel
     {
         return Attribute::make(
             get: fn () => $this->pivot->warehouses_id,
+        );
+    }
+
+    public function config(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => Str::isJson($this->pivot->config) ? json_decode($this->pivot->config, true) : $this->pivot->config
         );
     }
 }

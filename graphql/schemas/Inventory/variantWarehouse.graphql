@@ -21,6 +21,7 @@ type WarehouseVariantRelationship {
     is_coming_soon: Boolean
     is_new: Boolean
     is_published: Boolean
+    config: Mixed
     status_history: [StatusHistoryRelationship!]!
         @method(name: "getStatusHistory")
     prices_history: [WarehousesPricesHistoryRelationship!]!
