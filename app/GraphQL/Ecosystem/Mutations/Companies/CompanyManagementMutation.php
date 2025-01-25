@@ -60,9 +60,9 @@ class CompanyManagementMutation
 
         return $company;
     }
-    
+
     /**
-     * @todo move to service ?
+     * @todo move to service ? 
      * updateCompany
      */
     public function updateCompany(mixed $root, array $request): Companies
