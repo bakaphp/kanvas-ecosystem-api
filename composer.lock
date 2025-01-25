@@ -4,11 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-<<<<<<< HEAD
-    "content-hash": "1034b16c0bb22e4f057f0ac34f06754c",
-=======
     "content-hash": "3e48a300a7bde58f44d46647c37e4e12",
->>>>>>> development
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1148,29 +1144,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-<<<<<<< HEAD
-            "version": "3.337.2",
+            "version": "3.338.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "f885dd803a257da9d54e72a4750bba73e1196aee"
+                "reference": "7a52364e053d74363f9976dfb4473bace5b7790e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/f885dd803a257da9d54e72a4750bba73e1196aee",
-                "reference": "f885dd803a257da9d54e72a4750bba73e1196aee",
-=======
-            "version": "3.338.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "b456832a41f4638ad8d117cedd6efaed4017e651"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/b456832a41f4638ad8d117cedd6efaed4017e651",
-                "reference": "b456832a41f4638ad8d117cedd6efaed4017e651",
->>>>>>> development
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/7a52364e053d74363f9976dfb4473bace5b7790e",
+                "reference": "7a52364e053d74363f9976dfb4473bace5b7790e",
                 "shasum": ""
             },
             "require": {
@@ -1253,15 +1236,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-<<<<<<< HEAD
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.337.2"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.338.2"
             },
-            "time": "2025-01-17T19:10:04+00:00"
-=======
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.338.0"
-            },
-            "time": "2025-01-22T19:15:24+00:00"
->>>>>>> development
+            "time": "2025-01-24T19:09:22+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -2745,16 +2722,16 @@
         },
         {
             "name": "google/cloud-recommendations-ai",
-            "version": "v0.8.0",
+            "version": "v0.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-recommendations-ai.git",
-                "reference": "8caccd41bd3cf707b5507c636510f311d2860942"
+                "reference": "2cb1e43c6428aec2e10a2bae54f1808a63bdf4b4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/8caccd41bd3cf707b5507c636510f311d2860942",
-                "reference": "8caccd41bd3cf707b5507c636510f311d2860942",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/2cb1e43c6428aec2e10a2bae54f1808a63bdf4b4",
+                "reference": "2cb1e43c6428aec2e10a2bae54f1808a63bdf4b4",
                 "shasum": ""
             },
             "require": {
@@ -2789,9 +2766,9 @@
             ],
             "description": "Google Cloud Recommendation Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.8.0"
+                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.8.1"
             },
-            "time": "2025-01-11T02:14:50+00:00"
+            "time": "2025-01-24T21:24:06+00:00"
         },
         {
             "name": "google/cloud-storage",
@@ -10435,18 +10412,6 @@
         },
         {
             "name": "spatie/laravel-package-tools",
-<<<<<<< HEAD
-            "version": "1.18.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/spatie/laravel-package-tools.git",
-                "reference": "d41c44a7eab604c3eb0cad93210612d4c1429c20"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/d41c44a7eab604c3eb0cad93210612d4c1429c20",
-                "reference": "d41c44a7eab604c3eb0cad93210612d4c1429c20",
-=======
             "version": "1.18.3",
             "source": {
                 "type": "git",
@@ -10457,7 +10422,6 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/ba67eee37d86ed775dab7dad58a7cbaf9a6cfe78",
                 "reference": "ba67eee37d86ed775dab7dad58a7cbaf9a6cfe78",
->>>>>>> development
                 "shasum": ""
             },
             "require": {
@@ -10496,11 +10460,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-package-tools/issues",
-<<<<<<< HEAD
-                "source": "https://github.com/spatie/laravel-package-tools/tree/1.18.2"
-=======
                 "source": "https://github.com/spatie/laravel-package-tools/tree/1.18.3"
->>>>>>> development
             },
             "funding": [
                 {
@@ -10508,11 +10468,7 @@
                     "type": "github"
                 }
             ],
-<<<<<<< HEAD
-            "time": "2025-01-20T14:14:17+00:00"
-=======
             "time": "2025-01-22T08:51:18+00:00"
->>>>>>> development
         },
         {
             "name": "spatie/laravel-queueable-action",
