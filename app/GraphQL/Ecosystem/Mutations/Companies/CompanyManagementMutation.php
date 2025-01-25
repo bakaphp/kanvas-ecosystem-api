@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
-use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
@@ -52,7 +51,7 @@ class CompanyManagementMutation
         $dto = Company::viaRequest($request['input'], $user);
         $company = (new CreateCompaniesAction($dto))->execute();
 
-        (new SetupService())->onBoarding(
+        new SetupService()->onBoarding(
             $user,
             app(Apps::class),
             $company
@@ -63,10 +62,6 @@ class CompanyManagementMutation
 
     /**
      * @todo move to service ?
-     */
-
-
-    /**
      * updateCompany
      */
     public function updateCompany(mixed $root, array $request): Companies
