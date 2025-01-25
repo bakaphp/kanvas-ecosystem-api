@@ -32,6 +32,7 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
+use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
@@ -70,6 +71,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     use CascadeSoftDeletes;
     use Compoships;
     use CanUseWorkflow;
+    use HasRating;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
@@ -91,6 +93,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         'html_description',
         'sku',
         'ean',
+        'weight',
         'apps_id',
     ];
 
@@ -235,7 +238,14 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             'products_variants_id',
             'channels_id'
         )
-            ->withPivot('price', 'discounted_price', 'is_published', 'warehouses_id', 'channels_id');
+        ->withPivot(
+            'price',
+            'discounted_price',
+            'is_published',
+            'warehouses_id',
+            'channels_id',
+            'config'
+        );
     }
 
     /**

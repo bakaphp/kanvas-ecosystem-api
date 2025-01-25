@@ -37,6 +37,7 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
@@ -78,6 +79,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use CascadeSoftDeletes;
     use Compoships;
     use CanUseWorkflow;
+    use HasRating;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -245,6 +247,11 @@ class Products extends BaseModel implements EntityIntegrationInterface
      */
     public function variants(): HasMany
     {
+        $app = $this->app ?? app(Apps::class);
+        if ($app->get('product_variants_sort_by_weight')) {
+            return $this->hasMany(Variants::class, 'products_id')->orderBy('weight', 'asc');
+        }
+
         return $this->hasMany(Variants::class, 'products_id');
     }
 

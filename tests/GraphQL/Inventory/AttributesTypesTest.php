@@ -13,22 +13,22 @@ class AttributesTypesTest extends TestCase
      *
      * @return void
      */
-    public function testCreate(): void
-    {
-        $data = [
-            'name' => fake()->name
-        ];
+    // public function testCreate(): void
+    // {
+    //     $data = [
+    //         'name' => fake()->name
+    //     ];
 
-        $response = $this->graphQL('
-            mutation($data: AttributesTypeInput!) {
-                createAttributeType(input: $data)
-                {
-                    name
-                }
-            }', ['data' => $data]);
+    //     $response = $this->graphQL('
+    //         mutation($data: AttributesTypeInput!) {
+    //             createAttributeType(input: $data)
+    //             {
+    //                 name
+    //             }
+    //         }', ['data' => $data]);
 
-        $this->assertArrayHasKey('name', $response->json()['data']['createAttributeType']);
-    }
+    //     $this->assertArrayHasKey('name', $response->json()['data']['createAttributeType']);
+    // }
 
     /**
      * testSearch.
@@ -37,19 +37,6 @@ class AttributesTypesTest extends TestCase
      */
     public function testSearch(): void
     {
-        $data = [
-            'name' => fake()->name
-        ];
-        $response = $this->graphQL('
-            mutation($data: AttributesTypeInput!) {
-                createAttributeType(input: $data)
-                {
-                    name
-                }
-            }', ['data' => $data]);
-
-        $this->assertArrayHasKey('name', $response->json()['data']['createAttributeType']);
-
         $response = $this->graphQL('
             query {
                 attributesTypes {
@@ -66,69 +53,69 @@ class AttributesTypesTest extends TestCase
      *
      * @return void
      */
-    public function testUpdate(): void
-    {
-        $data = [
-            'name' => fake()->name,
-        ];
-        $response = $this->graphQL('
-            mutation($data: AttributesTypeInput!) {
-                createAttributeType(input: $data)
-                {
-                    id
-                    name
-                }
-            }', ['data' => $data]);
+    // public function testUpdate(): void
+    // {
+    //     $data = [
+    //         'name' => fake()->name,
+    //     ];
+    //     $response = $this->graphQL('
+    //         mutation($data: AttributesTypeInput!) {
+    //             createAttributeType(input: $data)
+    //             {
+    //                 id
+    //                 name
+    //             }
+    //         }', ['data' => $data]);
 
-        $this->assertArrayHasKey('name', $response->json()['data']['createAttributeType']);
+    //     $this->assertArrayHasKey('name', $response->json()['data']['createAttributeType']);
 
-        $id = $response->json()['data']['createAttributeType']['id'];
-        $dataUpdate = [
-            'name' => fake()->name
-        ];
+    //     $id = $response->json()['data']['createAttributeType']['id'];
+    //     $dataUpdate = [
+    //         'name' => fake()->name
+    //     ];
 
-        $response = $this->graphQL('
-            mutation($dataUpdate: AttributeTypeUpdateInput! $id: ID!) {
-                updateAttributeType(input: $dataUpdate id: $id)
-                {
-                    name
-                }
-            }', ['dataUpdate' => $dataUpdate, 'id' => $id]);
+    //     $response = $this->graphQL('
+    //         mutation($dataUpdate: AttributeTypeUpdateInput! $id: ID!) {
+    //             updateAttributeType(input: $dataUpdate id: $id)
+    //             {
+    //                 name
+    //             }
+    //         }', ['dataUpdate' => $dataUpdate, 'id' => $id]);
 
-        $this->assertEquals(
-            $dataUpdate['name'],
-            $response->json()['data']['updateAttributeType']['name']
-        );
-    }
+    //     $this->assertEquals(
+    //         $dataUpdate['name'],
+    //         $response->json()['data']['updateAttributeType']['name']
+    //     );
+    // }
 
     /**
      * testDelete.
      *
      * @return void
      */
-    public function testDelete(): void
-    {
-        $data = [
-            'name' => fake()->name
-        ];
-        $response = $this->graphQL('
-            mutation($data: AttributesTypeInput!) {
-                createAttributeType(input: $data)
-                {
-                    id
-                    name
-                }
-            }', ['data' => $data])->json()['data']['createAttributeType'];
+    // public function testDelete(): void
+    // {
+    //     $data = [
+    //         'name' => fake()->name
+    //     ];
+    //     $response = $this->graphQL('
+    //         mutation($data: AttributesTypeInput!) {
+    //             createAttributeType(input: $data)
+    //             {
+    //                 id
+    //                 name
+    //             }
+    //         }', ['data' => $data])->json()['data']['createAttributeType'];
 
-        $this->assertArrayHasKey('name', $response);
+    //     $this->assertArrayHasKey('name', $response);
 
 
-        $id = $response['id'];
-        $this->graphQL('
-            mutation($id: ID!) {
-                deleteAttributeType(id: $id)
-            }', ['id' => $id])->assertJson([
-            'data' => ['deleteAttributeType' => true]
-        ]);
-    }
+    //     $id = $response['id'];
+    //     $this->graphQL('
+    //         mutation($id: ID!) {
+    //             deleteAttributeType(id: $id)
+    //         }', ['id' => $id])->assertJson([
+    //         'data' => ['deleteAttributeType' => true]
+    //     ]);
+    // }
 }

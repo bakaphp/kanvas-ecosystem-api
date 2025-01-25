@@ -7,6 +7,7 @@ namespace App\GraphQL\Souk\Mutations\Cart;
 use Illuminate\Support\Facades\App;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantPriceService;
 use Kanvas\Souk\Cart\Services\CartService;
@@ -102,14 +103,17 @@ class CartManagementMutation
         /**
          * @todo add https://github.com/wearepixel/laravel-cart#adding-a-condition-to-the-cart-cartcondition
          */
-
         $discountCodes = $request['discountCodes'];
         $isDevelopment = App::environment('development');
 
         /**
          * @todo temp condition for development so they can test
          */
-        if ($isDevelopment) {
+        if ($isDevelopment && ! empty($discountCodes)) {
+            if (strtolower($discountCodes[0]) !== 'kanvas') {
+                throw new ModelNotFoundException('Discount code not found');
+            }
+
             $tenPercentOff = new CartCondition([
               'name' => 'KANVAS',
               'type' => 'discount',

@@ -29,6 +29,9 @@ type Product {
         @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo
     companies: Company! @belongsTo(relation: "company")
+    usersRatings: [UserRating!] @hasMany(relation: "usersRatings")
+    rating: Float
+    weight: Float
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
@@ -60,6 +63,7 @@ input ProductInput {
     attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
     price: Float
+    weight: Float
     company_id: ID
     custom_fields: [CustomFieldEntityInput!]
 }
@@ -80,6 +84,7 @@ input ProductInputUpdate {
     warranty_terms: String
     upc: String
     is_published: Boolean
+    weight: Float
     status: StatusReferenceInput
     attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
@@ -93,8 +98,8 @@ input ProductAttributeOrderBy {
 }
 
 enum FormatSortAttribute {
-    NUMERIC 
-    STRING 
+    NUMERIC
+    STRING
     DATE
 }
 
@@ -154,6 +159,7 @@ extend type Query @guard {
                     "code"
                     "uuid"
                     "is_published"
+                    "rating"
                 ]
             )
         hasVariants: _
@@ -185,7 +191,17 @@ extend type Query @guard {
                 relation: "customFields"
                 columns: ["name", "value"]
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "weight"
+                    "rating"
+                ]
+            )
     ): [Product!]!
         @paginate(
             scopes: ["fromApp", "fromCompany", "notDeleted"]
