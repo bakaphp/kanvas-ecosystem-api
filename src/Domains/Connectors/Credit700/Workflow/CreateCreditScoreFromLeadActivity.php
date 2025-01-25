@@ -15,6 +15,7 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Credit700\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Credit700\Services\CreditScoreService;
 use Kanvas\Connectors\Credit700\Support\Setup;
 use Kanvas\Enums\AppEnums;
@@ -57,6 +58,16 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         }
 
         $creditApplicant = $this->processCreditScore($messageData, $lead, $app, $params);
+        $leadPullCreditHistory = $lead->get(CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value) ?? [];
+        $history = [
+            'date' => date('Y-m-d H:i:s'),
+            'detail' => $creditApplicant,
+            'iframe_url' => $creditApplicant['iframe_url'],
+            'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
+            'passed' => $creditApplicant['iframe_url'] ? true : false,
+        ];
+
+        $lead->set(CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value, array_merge($leadPullCreditHistory, [$history]));
 
         if (empty($creditApplicant['iframe_url'])) {
             // return $this->errorResponse('Credit score not found', $lead, $creditApplicant);
