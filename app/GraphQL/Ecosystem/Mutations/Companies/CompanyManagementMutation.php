@@ -119,8 +119,7 @@ class CompanyManagementMutation
         $action = new AttachFilesystemAction(
             $filesystemEntity,
             $company
-        );
-        $action->execute('photo');
+        )->execute('photo');
 
         return $company;
     }
