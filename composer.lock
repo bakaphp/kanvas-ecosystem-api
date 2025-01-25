@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ca7fe9286fb92787a55546a5e91307e8",
+    "content-hash": "3e48a300a7bde58f44d46647c37e4e12",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -9619,16 +9619,16 @@
         },
         {
             "name": "ryanwinchester/netsuite-php",
-            "version": "v2023.2.0",
+            "version": "v2024.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/netsuitephp/netsuite-php.git",
-                "reference": "13c7e9bf68b1acb183da5ffb57d1bff9f6bf9ff6"
+                "reference": "07e6089de7f4c02ce2bd529a48bbd8e727965b56"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netsuitephp/netsuite-php/zipball/13c7e9bf68b1acb183da5ffb57d1bff9f6bf9ff6",
-                "reference": "13c7e9bf68b1acb183da5ffb57d1bff9f6bf9ff6",
+                "url": "https://api.github.com/repos/netsuitephp/netsuite-php/zipball/07e6089de7f4c02ce2bd529a48bbd8e727965b56",
+                "reference": "07e6089de7f4c02ce2bd529a48bbd8e727965b56",
                 "shasum": ""
             },
             "require": {
@@ -9675,9 +9675,9 @@
             ],
             "support": {
                 "issues": "https://github.com/netsuitephp/netsuite-php/issues",
-                "source": "https://github.com/netsuitephp/netsuite-php/tree/v2023.2.0"
+                "source": "https://github.com/netsuitephp/netsuite-php/tree/v2024.2.0"
             },
-            "time": "2024-08-14T04:52:43+00:00"
+            "time": "2025-01-24T17:51:40+00:00"
         },
         {
             "name": "sentry/sentry",
