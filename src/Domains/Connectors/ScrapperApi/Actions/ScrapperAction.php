@@ -39,7 +39,7 @@ class ScrapperAction
         public CompaniesBranches $companyBranch,
         protected Regions $region,
         public string $search,
-        string $uuid = null
+        ?string $uuid = null
     ) {
         $this->uuid = $uuid ?? Str::uuid();
     }

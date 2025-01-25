@@ -259,7 +259,7 @@ class Companies extends BaseModel implements CompanyInterface
         int|bool $isActive,
         CompaniesBranches $branch,
         ?int $userRoleId = null,
-        string $companyUserIdentifier = null
+        ?string $companyUserIdentifier = null
     ): UsersAssociatedCompanies {
         return UsersAssociatedCompanies::firstOrCreate([
             'users_id' => $user->getKey(),
@@ -281,8 +281,8 @@ class Companies extends BaseModel implements CompanyInterface
         Apps $app,
         int $isActive,
         ?int $userRoleId = null,
-        string $password = null,
-        string $companyUserIdentifier = null
+        ?string $password = null,
+        ?string $companyUserIdentifier = null
     ): UsersAssociatedApps {
         return UsersAssociatedApps::firstOrCreate([
             'users_id' => $user->getKey(),
