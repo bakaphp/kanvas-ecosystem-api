@@ -53,6 +53,7 @@
         "spatie/laravel-data": "^4.5",
         "spatie/laravel-google-cloud-storage": "^2.3",
         "spatie/laravel-health": "^1.27",
+        "spatie/laravel-image-optimizer": "^1.8",
         "spatie/laravel-queueable-action": "^2.15",
         "spatie/laravel-webhook-server": "^3.8",
         "stripe/stripe-php": "^13.0",
@@ -160,12 +161,6 @@
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/laravel-shift/laravelshoppingcart.git"
-        }
-    ],
     "extra": {
         "laravel": {
             "dont-discover": []
