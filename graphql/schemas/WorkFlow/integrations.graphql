@@ -42,8 +42,8 @@ type WorkflowIntegrationsHistory {
     integrationCompany: IntegrationsCompanies
     status: Status
     workflow: Workflow
-    response: String
-    exception: String
+    response: Mixed
+    exception: Mixed
     trigger: String
     created_at: DateTime
 }
