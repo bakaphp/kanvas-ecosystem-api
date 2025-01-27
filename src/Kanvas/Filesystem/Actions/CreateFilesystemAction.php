@@ -39,7 +39,7 @@ class CreateFilesystemAction
         $fileSystem->users_id = $this->user->getKey();
         $fileSystem->path = $uploadPath;
         $fileSystem->url = $uploadUrl;
-        $fileSystem->file_type = $this->file->guessExtension();
+        $fileSystem->file_type = $this->file->guessExtension() ?? $this->file->getClientOriginalExtension() ?? 'unknown';
         $fileSystem->size = $this->file->getSize();
         $fileSystem->saveOrFail();
 
