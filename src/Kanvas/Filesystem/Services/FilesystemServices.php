@@ -159,7 +159,7 @@ class FilesystemServices
         );
     }
 
-    public static function downloadImageFromUrl(string $imageUrl) : ?string
+    public static function downloadImageFromUrl(string $imageUrl): ?string
     {
         $fileInfo =  pathinfo($imageUrl);
         $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $fileInfo['extension'];

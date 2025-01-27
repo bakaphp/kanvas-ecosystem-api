@@ -9,20 +9,13 @@ use Spatie\ImageOptimizer\OptimizerChainFactory;
 
 class ImageOptimizerService
 {
-    public static function optimizeImageFromFileSystem(Filesystem $file): void
-    {
-        //Get url from filesystem
-        $pathToImage = $file->url;
-
-        //Download the file from url
-
-        //Optimize the file
-        $optimizerChain = OptimizerChainFactory::create();
-        $optimizerChain->optimize($pathToImage);
-
-        //Upload the file back to the filesystem, replace the url or create another filesystem entry
-    }
-
+    /**
+     * Optimize an image from a URL.
+     *
+     * @param string $imageUrl
+     *
+     * @return string
+     */
     public static function optimizeImageFromUrl(string $imageUrl): string
     {
         //Download the file from url
@@ -32,11 +25,5 @@ class ImageOptimizerService
         $optimizerChain->optimize($imagePath);
 
         return $imagePath;
-    }
-
-    public static function optimizeImage(string $pathToImage): void
-    {
-        $optimizerChain = OptimizerChainFactory::create();
-        $optimizerChain->optimize($pathToImage);
     }
 }
