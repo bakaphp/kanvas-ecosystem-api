@@ -80,6 +80,7 @@ class CreditScoreService
                 'scores' => $scores,
                 'iframe_url' => $iframeUrl,
                 'iframe_url_signed' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
+                'iframe_url_digital_jacket' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
                 'pdf' => $pdf,
             ];
         } catch (RequestException $e) {
