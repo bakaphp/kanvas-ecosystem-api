@@ -62,6 +62,7 @@ class SyncNetSuiteCustomerItemsListAction
         $channel = $createNewChannel->execute();
 
         $totalProcessed = 0;
+        $missed = [];
         foreach ($listOrProductVariantsBarCodeIds as $bardCodeId) {
             $variant = Variants::fromApp($this->app)
                     ->fromCompany($this->mainAppCompany)
@@ -69,6 +70,7 @@ class SyncNetSuiteCustomerItemsListAction
                     ->first();
 
             if (! $variant) {
+                $missed[] = $bardCodeId->item->name;
                 continue;
             }
 
@@ -91,6 +93,8 @@ class SyncNetSuiteCustomerItemsListAction
             'items' => $listOrProductVariantsBarCodeIds,
             'total_items' => count($listOrProductVariantsBarCodeIds),
             'total_processed' => $totalProcessed,
+            'total_missed' => count($missed),
+            'products_not_found' => $missed,
         ];
     }
 }
