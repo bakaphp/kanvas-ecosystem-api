@@ -18,7 +18,7 @@ class TestCase extends BaseTestCase
 
     protected string $graphqlVersion = 'graphql';
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
         Dotenv::createImmutable(base_path())->load(); //load .env not .env.testing

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Subscription;
 
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
@@ -16,7 +15,7 @@ final class SubscriptionPlansTest extends TestCase
     protected Companies $company;
     protected Apps $appModel;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
         $this->company = auth()->user()->getCurrentCompany();
