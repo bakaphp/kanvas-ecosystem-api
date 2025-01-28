@@ -67,7 +67,7 @@ class SyncNetSuiteCustomerItemsListAction
 
         $totalProcessed = 0;
         $setMinimumQuantity = $this->app->get(ConfigurationEnum::NET_SUITE_MINIMUM_PRODUCT_QUANTITY->value);
-        $config = [];
+        $config = null;
         $missed = [];
         foreach ($listOrProductVariantsBarCodeIds as $bardCodeId) {
             $variant = Variants::fromApp($this->app)
@@ -84,7 +84,9 @@ class SyncNetSuiteCustomerItemsListAction
             if ($setMinimumQuantity) {
                 try {
                     $netsuiteProductInfo = $this->productService->searchProductByItemNumber($variant->barcode);
-                    $config['minimum_quantity'] = $netsuiteProductInfo[0]->minimumQuantity;
+                    $config = [
+                        'minimum_quantity' => $netsuiteProductInfo[0]->minimumQuantity,
+                    ];
                 } catch (Exception $e) {
                     //$config['minimum_quantity'] = 0;
                 }
@@ -97,7 +99,7 @@ class SyncNetSuiteCustomerItemsListAction
                     'price' => $bardCodeId->price,
                     'discounted_price' => $bardCodeId->price,
                     'is_published' => $bardCodeId->price > 0,
-                    'config' => $config,
+                    'config' => $config ?? null,
                 ])
             );
             $addVariantToChannel->execute();
