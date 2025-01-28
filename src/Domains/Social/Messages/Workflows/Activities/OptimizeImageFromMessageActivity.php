@@ -21,12 +21,15 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
         $this->overwriteAppService($app);
 
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($params['image_url']);
-        $fileName = "testing_optimizer";
+        $fileName = basename($tempFilePath);
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($tempFilePath);
 
         $uploadedFile = new UploadedFile(
             $tempFilePath,
             $fileName,
-            'application/pdf',
+            $mimeType,
             null,
             true
         );

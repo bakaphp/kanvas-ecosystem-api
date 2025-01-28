@@ -161,8 +161,17 @@ class FilesystemServices
 
     public static function downloadImageFromUrl(string $imageUrl): ?string
     {
-        $fileInfo =  pathinfo($imageUrl);
-        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $fileInfo['extension'];
+        $fileInfo = pathinfo($imageUrl);
+        $extension = $fileInfo['extension'] ?? null;
+
+        if (is_null($extension)) {
+            $parsedUrl = parse_url($imageUrl);
+            $path = $parsedUrl['path'];
+
+            $extension = pathinfo($path, PATHINFO_EXTENSION);
+        }
+
+        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $extension;
 
         // Get the image content
         $imageContent = file_get_contents($imageUrl);
