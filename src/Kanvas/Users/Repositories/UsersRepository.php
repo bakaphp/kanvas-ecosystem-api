@@ -63,7 +63,7 @@ class UsersRepository
                 ->firstOrFail();
     }
 
-    public static function getUserOfAppByEmail(string $email, AppInterface $app = null): Users
+    public static function getUserOfAppByEmail(string $email, ?AppInterface $app = null): Users
     {
         return Users::select('users.*')
             ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')

@@ -15,6 +15,7 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Credit700\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Credit700\Services\CreditScoreService;
 use Kanvas\Connectors\Credit700\Support\Setup;
 use Kanvas\Enums\AppEnums;
@@ -52,7 +53,21 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
             return $this->errorResponse('Message data not found', $lead);
         }
 
+        if (! isset($messageData['personal']['ssn'])) {
+            return $this->errorResponse('Credit app with incorrect data, SSN not found', $lead);
+        }
+
         $creditApplicant = $this->processCreditScore($messageData, $lead, $app, $params);
+        $leadPullCreditHistory = $lead->get(CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value) ?? [];
+        $history = [
+            'date' => date('Y-m-d H:i:s'),
+            'detail' => $creditApplicant,
+            'iframe_url' => $creditApplicant['iframe_url'],
+            'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
+            'passed' => $creditApplicant['iframe_url'] ? true : false,
+        ];
+
+        $lead->set(CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value, array_merge($leadPullCreditHistory, [$history]));
 
         if (empty($creditApplicant['iframe_url'])) {
             // return $this->errorResponse('Credit score not found', $lead, $creditApplicant);
@@ -75,10 +90,14 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $this->distributeMessages($lead, $app, $parentMessage, $childMessage);
         $this->createEngagements($lead, $app, $parentMessage, $childMessage, $engagement->message);
 
+        //pull-credit?leadId=<Lead ID>&bcid=<Branch ID>
+        $digitalJacketUrl = $app->get(ConfigurationEnum::DIGITAL_JACKET_DOMAIN->value) . '/pull-credit?leadId=' . $lead->getId() . '&bcid=' . $lead->company->branch->uuid;
+
         return [
             'scores' => $creditApplicant['scores'],
             'iframe_url' => $creditApplicant['iframe_url'],
             'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
+            'iframe_url_digital_jacket' => $digitalJacketUrl,
             'pdf' => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
             'message_id' => $parentMessage->getId(),
             'message' => 'Credit score created successfully',
@@ -123,9 +142,11 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $provider = $params['provider'] ?? 'TU'; // Default to 'TU' if not provided
         $provider = Str::replace(',', '|', trim($provider)); // Replace commas with '|' and trim whitespace
 
+        $name = isset($personal['last_name']) ? $personal['first_name'] . ' ' . $personal['last_name'] : $personal['first_name'];
+
         return $creditScoreService->getCreditScore(
             new CreditApplicant(
-                "{$personal['first_name']} {$personal['last_name']}",
+                $name,
                 $housing['address'],
                 $housing['city'],
                 $housing['state']['code'],

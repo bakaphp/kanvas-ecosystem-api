@@ -51,39 +51,67 @@ class ImportPromptsFromSheetsCommand extends Command
         $spreadsheetId = getenv('GOOGLE_SHEET_ID');
         $range = 'A:F';
 
-        // Fetch the entire sheet data
-        $response = $service->spreadsheets_values->get($spreadsheetId, $range);
-        $values = $response->getValues();
+        $appId = (int) $this->option('appId');
+        $messageType = (int) $this->option('messageType');
+        $nuggetMessageType = (int) $this->option('nuggetMessageType');
+        $companyId = (int) $this->option('companyId');
 
-        $contentArray = [];
-        $promptsCollection = [];
-        // Process the sheet data as needed
-        if (! empty($values)) {
-            array_shift($values);
-            $headers = [
-                'title',
-                'category',
-                'prompt',
-                'tags',
-                'preview',
-                'nugget'
-            ];
-            foreach ($values as $row) {
-                foreach ($row as $index => $value) {
-                    $promptArray[$headers[$index]] = $value ?? null;
+        $spreadsheet = $service->spreadsheets->get($spreadsheetId);
+        $sheets = $spreadsheet->getSheets();
+
+        foreach ($sheets as $sheet) {
+            $skipSheet = false;
+            $sheetName = $sheet->getProperties()->getTitle();
+            $range = $sheetName;
+            $response = $service->spreadsheets_values->get($spreadsheetId, $range);
+            $values = $response->getValues();
+
+            $promptsCollection = [];
+
+            if (! empty($values)) {
+                array_shift($values);
+                $headers = [
+                    'title',
+                    'category',
+                    'prompt',
+                    'tags',
+                    'preview',
+                    'nugget'
+                ];
+
+                foreach ($values as $row) {
+                    $promptArray = [];
+                    foreach ($headers as $index => $header) {
+                        $value = $row[$index] ?? null;
+                        if ($header !== 'preview' && (is_null($value) || empty($value))) {
+                            echo "Null or Empty value for $header on sheet $sheetName.\n";
+                            $skipSheet = true;
+                            break 2;
+                        }
+                        $promptArray[$header] = $value;
+                    }
+                    $promptsCollection[] = $promptArray;
                 }
-                $promptsCollection [] = $promptArray;
+            } else {
+                echo "No data found.";
             }
-        } else {
-            echo "No data found.";
+
+            if ($skipSheet) {
+                echo "Skipping sheet $sheetName due to null or empty required values.\n";
+                continue;
+            }
+
+            if (! empty($promptsCollection)) {
+                $this->insertPrompts($promptsCollection, $appId, $messageType, $nuggetMessageType, $companyId);
+            }
+
+            $promptsCollection = [];
         }
+    }
 
-        // Retrieve command options
-        $appId = $this->option('appId');
-        $messageType = $this->option('messageType');
-        $nuggetMessageType = $this->option('nuggetMessageType');
-        $companyId = $this->option('companyId');
 
+    public function insertPrompts(array $promptsCollection, int $appId, int $messageType, int $nuggetMessageType, int $companyId)
+    {
         foreach ($promptsCollection as $prompt) {
             $userId = $this->fetchRandomUser()->id;
             $result = DB::connection('social')->table('messages')
