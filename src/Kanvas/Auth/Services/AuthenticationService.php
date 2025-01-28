@@ -80,7 +80,7 @@ class AuthenticationService
             $authentically = $userRegisterInApp->execute($user->password);
         }
         $this->loginAttemptsValidation($authentically);
-        
+
         //password verification
         if (Hash::check($loginInput->getPassword(), $authentically->password) && $authentically->isActive()) {
             Password::rehash($loginInput->getPassword(), $authentically);

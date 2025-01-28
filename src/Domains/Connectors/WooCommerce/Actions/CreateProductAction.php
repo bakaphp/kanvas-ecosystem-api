@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace Kanvas\Connectors\WooCommerce\Actions;
 
 use Kanvas\Apps\Models\Apps;
@@ -29,9 +31,9 @@ class CreateProductAction
 
         $variants = [];
         foreach ($this->product->variations as $variant) {
-            $variants[]= $wooCommerce->client->get('products/' . $this->product->id . '/variations/' . $variant);
+            $variants[] = $wooCommerce->client->get('products/' . $this->product->id . '/variations/' . $variant);
         }
-        $variants = empty($variants) ? [$this->product]: $variants;
+        $variants = empty($variants) ? [$this->product] : $variants;
         $this->product->variations = $variants;
         $productDto = WooCommerceImportProduct::fromWooCommerce(
             $this->product
@@ -43,6 +45,5 @@ class CreateProductAction
             $this->region,
             $this->app,
         ))->execute();
-
     }
 }

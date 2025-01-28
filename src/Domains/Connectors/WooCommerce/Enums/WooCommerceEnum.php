@@ -9,5 +9,5 @@ enum WooCommerceEnum: string
     case WORDPRESS_PASSWORD = 'wordpress_password';
 
     case WOOCOMMERCE_KEY = 'woocommerce_key';
-    CASE WOOCOMMERCE_SECRET_KEY = 'woocommerce_secret_key';
+    case WOOCOMMERCE_SECRET_KEY = 'woocommerce_secret_key';
 }
