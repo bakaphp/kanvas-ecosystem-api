@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\WooCommerce\Actions;
@@ -26,7 +27,6 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 
 class CreateOrderAction
 {
-
     public function __construct(
         protected Apps $app,
         protected Companies $company,
@@ -39,7 +39,7 @@ class CreateOrderAction
     public function execute(): ModelsOrder
     {
         $people = PeoplesRepository::getByEmail($this->order->billing->email, $this->company);
-        if (!$people) {
+        if (! $people) {
             $peopleDto = PeopleDto::from([
                 'app' => $this->app,
                 'branch' => $this->user->getCurrentBranch(),

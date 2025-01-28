@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace Kanvas\Connectors\WooCommerce\DataTransferObject;
 
 use Kanvas\Souk\Orders\DataTransferObject\Order as OrderDto;
@@ -34,7 +36,7 @@ class WooCommerceImportOrder extends OrderDto
             $variant = Variants::where('sku', $item->sku)
                       ->where('apps_id', $app->getId())
                       ->first();
-            if (!$variant) {
+            if (! $variant) {
                 $wooCommerce = new WooCommerce($app);
                 $product = $wooCommerce->client->get('products/' . $item->product_id);
                 $product = (new CreateProductAction(
@@ -51,7 +53,7 @@ class WooCommerceImportOrder extends OrderDto
             }, 0);
 
             $items[] = [
-                'app'=> $app,
+                'app' => $app,
                 'variant' => $variant,
                 'name' => $item->name,
                 'sku' => $item->sku,
@@ -69,7 +71,7 @@ class WooCommerceImportOrder extends OrderDto
         $shippingLine = array_reduce($order->shipping_lines, function ($carry, $shipping) {
             return $carry + $shipping->total;
         }, 0);
-        $status = match($order->status) {
+        $status = match ($order->status) {
             'processing' => 'draft',
             'completed' => 'completed',
             'cancelled' => 'cancelled',

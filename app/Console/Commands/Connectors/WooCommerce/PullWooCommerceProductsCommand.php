@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace App\Console\Commands\Connectors\WooCommerce;
 
 use Kanvas\Connectors\WooCommerce\Actions\PullWooCommerceProductsAction;
@@ -11,9 +13,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Connectors\WooCommerce\Actions\CreateProductAction;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerce;
+
 class PullWooCommerceProductsCommand extends Command
 {
-
     protected $signature = 'kanvas:pull-woocomerce-products {app_id} {user_id} {companies_id} {region_id} ';
     protected $description = 'Pull products from WooCommerce';
 
@@ -22,19 +24,19 @@ class PullWooCommerceProductsCommand extends Command
         $app = Apps::getById((int) $this->argument(key: 'app_id'));
 
         $wooCommerceUrl = $app->get(WooCommerceEnum::WORDPRESS_URL->value);
-        if (!$wooCommerceUrl) {
+        if (! $wooCommerceUrl) {
             $ask = $this->ask("What is the WooCommerce Base URL?");
             $app->set(WooCommerceEnum::WORDPRESS_URL->value, $ask);
         }
 
         $wooCommerceUser = $app->get(WooCommerceEnum::WOOCOMMERCE_KEY->value);
-        if (!$wooCommerceUser) {
+        if (! $wooCommerceUser) {
             $ask = $this->ask("What is the WooCommerce Key?");
             $app->set(WooCommerceEnum::WOOCOMMERCE_KEY->value, $ask);
         }
 
         $wooCommercePassword = $app->get(WooCommerceEnum::WOOCOMMERCE_SECRET_KEY->value);
-        if (!$wooCommercePassword) {
+        if (! $wooCommercePassword) {
             $ask = $this->secret("What is the WooCommerce secret key?");
             $app->set(WooCommerceEnum::WOOCOMMERCE_SECRET_KEY->value, $ask);
         }
@@ -44,7 +46,7 @@ class PullWooCommerceProductsCommand extends Command
         $region = Regions::getById((int) $this->argument('region_id'), $app);
         $page = 1;
         $woocommerce = new WooCommerce($app);
-        $products = $woocommerce->client->get("products",[
+        $products = $woocommerce->client->get("products", [
             'per_page' => 100,
             'page' => $page
         ]);
@@ -60,7 +62,7 @@ class PullWooCommerceProductsCommand extends Command
                 ))->execute();
             }
             $page++;
-            $products = $woocommerce->client->get("products",[
+            $products = $woocommerce->client->get("products", [
                 'per_page' => 100,
                 'page' => $page
             ]);
