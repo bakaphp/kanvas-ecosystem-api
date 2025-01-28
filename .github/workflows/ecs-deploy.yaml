@@ -9,8 +9,8 @@ jobs:
     environment: ${{ github.ref_name }}
 
     permissions:
+      id-token: write
       contents: read
-      packages: write
 
     steps:
     
