@@ -8,8 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
 use Kanvas\Companies\DataTransferObject\Company;
+use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
+use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
 use Kanvas\Inventory\Channels\Actions\CreateChannel;
 use Kanvas\Inventory\Channels\DataTransferObject\Channels;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
@@ -27,6 +29,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 class SyncNetSuiteCustomerItemsListAction
 {
     protected NetSuiteCustomerService $service;
+    protected NetSuiteProductService $productService;
 
     public function __construct(
         protected AppInterface $app,
@@ -34,6 +37,7 @@ class SyncNetSuiteCustomerItemsListAction
         protected CompanyInterface $buyerCompany
     ) {
         $this->service = new NetSuiteCustomerService($app, $mainAppCompany);
+        $this->productService = new NetSuiteProductService($app, $mainAppCompany);
     }
 
     public function execute(): array
@@ -62,6 +66,8 @@ class SyncNetSuiteCustomerItemsListAction
         $channel = $createNewChannel->execute();
 
         $totalProcessed = 0;
+        $setMinimumQuantity = $this->app->get(ConfigurationEnum::NET_SUITE_MINIMUM_PRODUCT_QUANTITY->value);
+        $config = null;
         $missed = [];
         foreach ($listOrProductVariantsBarCodeIds as $bardCodeId) {
             $variant = Variants::fromApp($this->app)
@@ -71,16 +77,29 @@ class SyncNetSuiteCustomerItemsListAction
 
             if (! $variant) {
                 $missed[] = $bardCodeId->item->name;
+
                 continue;
+            }
+
+            if ($setMinimumQuantity) {
+                try {
+                    $netsuiteProductInfo = $this->productService->searchProductByItemNumber($variant->barcode);
+                    $config = [
+                        'minimum_quantity' => $netsuiteProductInfo[0]->minimumQuantity,
+                    ];
+                } catch (Exception $e) {
+                    //$config['minimum_quantity'] = 0;
+                }
             }
 
             $addVariantToChannel = new AddVariantToChannelAction(
                 $variant->variantWarehouses()->first(),
                 $channel,
-                VariantChannel::fromArray([
+                VariantChannel::from([
                     'price' => $bardCodeId->price,
                     'discounted_price' => $bardCodeId->price,
                     'is_published' => $bardCodeId->price > 0,
+                    'config' => $config ?? null,
                 ])
             );
             $addVariantToChannel->execute();
