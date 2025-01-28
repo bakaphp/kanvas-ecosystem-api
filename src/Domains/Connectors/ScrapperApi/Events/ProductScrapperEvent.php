@@ -29,6 +29,7 @@ class ProductScrapperEvent implements ShouldBroadcast
         return [
             'kanvas_product_id' => $this->product->getId(),
             'shopify_product_id' => $this->shopifyProductId,
+            'sku' => $this->product->variants()->first()->sku,
         ];
     }
 
