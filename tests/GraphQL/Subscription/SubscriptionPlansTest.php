@@ -16,7 +16,7 @@ final class SubscriptionPlansTest extends TestCase
     protected Companies $company;
     protected Apps $appModel;
 
-    protected function setUp(): void
+    public function setUp(): void
     {
         parent::setUp();
         $this->company = auth()->user()->getCurrentCompany();
