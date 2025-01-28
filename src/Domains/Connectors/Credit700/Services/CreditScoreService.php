@@ -71,7 +71,8 @@ class CreditScoreService
 
             try {
                 $fileSystem = new FilesystemServices($this->app);
-                $pdf = ! empty($pdfBase64) ? $fileSystem->createFileSystemFromBase64($pdfBase64, 'credit-app.pdf', $userRequestingReport) : null;
+                $fileName = 'credit-pull-' . Str::replace(':', '-', $bureau) . '.pdf';
+                $pdf = ! empty($pdfBase64) ? $fileSystem->createFileSystemFromBase64($pdfBase64, $fileName, $userRequestingReport) : null;
             } catch (Exception $e) {
                 $pdf = null;
             }
