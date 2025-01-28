@@ -3,7 +3,6 @@
 use Illuminate\Support\Str;
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Default Cache Store
@@ -32,7 +31,6 @@ return [
     */
 
     'stores' => [
-
         'apc' => [
             'driver' => 'apc',
         ],
@@ -79,6 +77,12 @@ return [
             'lock_connection' => 'default',
         ],
 
+        'lighthouse-redis-subscription' => [
+            'driver' => 'redis',
+            'connection' => 'lighthouse-redis-subscription',
+            'lock_connection' => 'default',
+        ],
+
         'model' => [
             'driver' => 'redis',
             'connection' => 'model-cache',
@@ -97,7 +101,6 @@ return [
         'octane' => [
             'driver' => 'octane',
         ],
-
     ],
 
     /*
@@ -112,5 +115,4 @@ return [
     */
 
     'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_cache_'),
-
 ];
