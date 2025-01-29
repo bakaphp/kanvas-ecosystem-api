@@ -45,7 +45,7 @@ Todo:
 
 2. Check the status of containers using the command ```docker-compose ps```. Make sure they are running and services are healthy.
 
-3. Get inside the database container using ```docker exec -it mysqlLaravel /bin/bash```. Then, create 4 databases: `inventory`, `social`, `crm`, `workflow`.
+3. Get inside the database container using ```docker exec -it mysqlLaravel /bin/bash```. Then, create 7 databases: `inventory`, `social`, `crm`, `workflow`, `commerce`, `action_engine`, `event`.
 
 4. Set up your .env: You can start by copying the `.env.example setup`. Next, update it with the database and Redis connection info, making sure that the host values match your container's name.
 

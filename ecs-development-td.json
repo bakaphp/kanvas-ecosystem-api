@@ -1,0 +1,43 @@
+{
+    "family": "kanvas-development-td",
+    "networkMode": "awsvpc",
+    "containerDefinitions": [
+      {
+        "name": "php",
+        "image": "123456789.dkr.ecr.us-west-1.amazonaws.com/my-app:latest",
+        "memory": 512,
+        "cpu": 256,
+        "essential": true,
+        "portMappings": [
+          {
+            "containerPort": 8000,
+            "hostPort": 8000,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "ENV_VAR_1",
+            "value": "value1"
+          },
+          {
+            "name": "ENV_VAR_2",
+            "value": "value2"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/my-task-logs",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        }
+      }
+    ],
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "256",
+    "memory": "512",
+    "executionRoleArn": "arn:aws:iam::123456789:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::123456789:role/ecsTaskRole"
+  }
