@@ -197,6 +197,13 @@ services:
         restart: always
         networks:
             - sail
+    laravel-horizon:
+        <<: *common-queue-settings
+        container_name: laravel-horizon
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:clear && php artisan route:clear && php artisan cache:clear && php artisan view:clear && php artisan horizon"
 networks:
     sail:
         driver: bridge
