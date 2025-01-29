@@ -50,6 +50,38 @@ class NetSuiteProductService
         throw new Exception('Error retrieving product: ' . $response->readResponse->status->statusDetail[0]->message);
     }
 
+    public function getInventoryQuantityByLocation(InventoryItem $product, int|string $locationId): int
+    {
+        if (! isset($product->locationsList->locations)) {
+            throw new Exception('Inventory locations not found for the specified product.');
+        }
+
+        foreach ($product->locationsList->locations as $assignment) {
+            if ($assignment->location == $locationId) {
+                return (int)$assignment->quantityOnHand;
+            }
+        }
+
+        throw new Exception('Inventory quantity not found for the specified location.');
+    }
+
+    public function getProductPrice(InventoryItem $product, string $priceLevel = 'MSRP Price'): float
+    {
+        // Check if the product has pricing details
+        if (! isset($product->pricingMatrix->pricing)) {
+            throw new Exception('No pricing details found for this product.');
+        }
+
+        // Loop through the pricing matrix to find the price for the specified price level and customer
+        foreach ($product->pricingMatrix->pricing as $pricing) {
+            if ($pricing->priceLevel->name === $priceLevel) {
+                return (float) $pricing->priceList->price[0]->value ?? 0;
+            }
+        }
+
+        throw new Exception('Price not found for the specified criteria.');
+    }
+
     /**
      * Search for products by item name.
      */
