@@ -162,12 +162,12 @@ final class ProductTest extends TestCase
             $shopifyResponse[0]['title']
         );
         $this->assertEquals(
-            $product->name,
-            $shopifyResponse[1]['title'] . '(Part 2)'
+            $product->name . '(Part 2)',
+            $shopifyResponse[1]['title']
         );
         $this->assertEquals(
-            $product->name,
-            $shopifyResponse[2]['title'] . '(Part 3)'
+            $product->name . '(Part 3)',
+            $shopifyResponse[2]['title']
         );
     }
 }
