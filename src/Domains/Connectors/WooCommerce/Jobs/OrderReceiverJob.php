@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\WooCommerce\Jobs;
@@ -7,13 +8,14 @@ use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Connectors\WooCommerce\Actions\CreateOrderAction;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Apps\Models\Apps;
+
 class OrderReceiverJob extends ProcessWebhookJob
 {
     public function execute(): array
     {
         $payload = json_encode($this->webhookRequest->payload);
         $payload = json_decode($payload);
-        if (!$payload->status === 'completed') {
+        if (! $payload->status === 'completed') {
             return [
                 'message' => 'Order not completed',
             ];
