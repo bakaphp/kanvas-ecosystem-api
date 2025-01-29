@@ -57,11 +57,17 @@ class CreditScoreService
             );
 
             $scores = [];
+            $pullCreditPass = false;
 
             foreach ($bureauTypes as $bureauType) {
                 // Check if risk_models exist in the response
                 if (isset($responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report'])) {
                     $scores[$bureauType] = $responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report'];
+
+                    // Check if ScoreRange is not empty to determine pass status
+                    if (! empty($scores[$bureauType]['ScoreRange'])) {
+                        $pullCreditPass = true;
+                    }
                 }
             }
 
@@ -79,6 +85,7 @@ class CreditScoreService
 
             return [
                 'scores' => $scores,
+                'pull_credit_pass' => $pullCreditPass, // New field added
                 'iframe_url' => $iframeUrl,
                 'iframe_url_signed' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
                 'iframe_url_digital_jacket' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
