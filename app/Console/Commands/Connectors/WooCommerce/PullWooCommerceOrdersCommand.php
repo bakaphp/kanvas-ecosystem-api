@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace App\Console\Commands\Connectors\WooCommerce;
 
 use Kanvas\Connectors\WooCommerce\Actions\PullWooCommerceOrdersAction;
@@ -15,7 +17,6 @@ use Exception;
 
 class PullWooCommerceOrdersCommand extends Command
 {
-
     protected $signature = 'kanvas:pull-woocomerce-orders {app_id} {user_id} {companies_id} {region_id} ';
     protected $description = 'Pull orders from WooCommerce';
 
@@ -24,19 +25,19 @@ class PullWooCommerceOrdersCommand extends Command
         $app = Apps::getById((int) $this->argument(key: 'app_id'));
 
         $wooCommerceUrl = $app->get(WooCommerceEnum::WORDPRESS_URL->value);
-        if (!$wooCommerceUrl) {
+        if (! $wooCommerceUrl) {
             $ask = $this->ask("What is the WooCommerce Base URL?");
             $app->set(WooCommerceEnum::WORDPRESS_URL->value, $ask);
         }
 
         $wooCommerceUser = $app->get(WooCommerceEnum::WOOCOMMERCE_KEY->value);
-        if (!$wooCommerceUser) {
+        if (! $wooCommerceUser) {
             $ask = $this->ask("What is the WooCommerce Key?");
             $app->set(WooCommerceEnum::WOOCOMMERCE_KEY->value, $ask);
         }
 
         $wooCommercePassword = $app->get(WooCommerceEnum::WOOCOMMERCE_SECRET_KEY->value);
-        if (!$wooCommercePassword) {
+        if (! $wooCommercePassword) {
             $ask = $this->secret("What is the WooCommerce secret key?");
             $app->set(WooCommerceEnum::WOOCOMMERCE_SECRET_KEY->value, $ask);
         }
@@ -46,7 +47,7 @@ class PullWooCommerceOrdersCommand extends Command
         $region = Regions::getById((int) $this->argument('region_id'), $app);
 
         $wooCommerce = new WooCommerce($app);
-        $page =1;
+        $page = 1;
         $orders = $wooCommerce->client->get("orders", [
             'status' => 'completed',
             'per_page' => 100,
@@ -64,7 +65,7 @@ class PullWooCommerceOrdersCommand extends Command
                         $order
                     ))->execute();
                 } catch (Exception $e) {
-                    echo $e->getMessage().PHP_EOL;
+                    echo $e->getMessage() . PHP_EOL;
                 }
             }
             $page++;

@@ -11,13 +11,11 @@ use Kanvas\Connectors\WooCommerce\Services\WooCommerce;
 
 class PullWooCommerceUsersAction
 {
-
     public function __construct(
         protected Apps $app
     ) {
-
     }
-    
+
     public function execute()
     {
         $wooCommerce = new WooCommerce($this->app);
