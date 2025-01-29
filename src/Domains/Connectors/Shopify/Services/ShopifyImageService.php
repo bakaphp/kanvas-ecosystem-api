@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Exception;
 use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -36,6 +37,7 @@ class ShopifyImageService
         return $entity->files->sortBy('id')->reduce(function ($totalUploaded, $file, $index) use ($entity) {
             $method = $entity instanceof Products ? 'addImage' : 'addVariantImage';
             $position = $index + 1;
+
             return $totalUploaded + ($this->$method($entity, $file->url, $position) ? 1 : 0);
         }, 0);
     }
@@ -71,7 +73,10 @@ class ShopifyImageService
     public function addVariantImage(Variants $variant, string $imageUrl, int $position = 1): bool
     {
         try {
-            $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->region));
+            $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
+            $partNumber = ShopifyInventoryService::getProductPartForVariant($variant->product, $variant, $variantLimit);
+
+            $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->region, $partNumber));
             $shopifyVariant = $shopifyProduct->Variant($variant->getShopifyId($this->region));
 
             // Check if the image already exists

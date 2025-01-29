@@ -120,7 +120,7 @@ class ShopifyInventoryService
             }
 
             try {
-                $productListing = $this->shopifySdk->ProductListing($shopifyProductId);
+                $productListing = $this->shopifySdk->ProductListinShopifyVariantMetafieldServicg($shopifyProductId);
 
                 $productListing->put([
                     'product_id' => $shopifyProductId,
@@ -208,8 +208,12 @@ class ShopifyInventoryService
         $shopifyVariantMetafieldService = new ShopifyVariantMetafieldService($this->app, $this->company, $this->warehouses->regions, $variant);
 
         $variantInfo = $this->mapVariant($variant, $channel);
+        // Determine which part of the product this variant belongs to
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
+        $partNumber = self::getProductPartForVariant($variant->product, $variant, $variantLimit);
 
-        $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions));
+        $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions, $partNumber));
+
         if ($shopifyProductVariantId === null) {
             $response = $shopifyProduct->Variant->post($variantInfo);
             $shopifyProductVariantId = $response['id'];
@@ -232,8 +236,11 @@ class ShopifyInventoryService
     public function deleteVariant(Variants $variant): array
     {
         $shopifyProductVariantId = $variant->getShopifyId($this->warehouses->regions);
+        // Determine which part of the product this variant belongs to
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
+        $partNumber = self::getProductPartForVariant($variant->product, $variant, $variantLimit);
 
-        $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions));
+        $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions, $partNumber));
         $response = $shopifyProduct->Variant($shopifyProductVariantId)->delete();
 
         return $response;
@@ -337,5 +344,30 @@ class ShopifyInventoryService
         }
 
         $response = $this->shopifySdk->Collect->post($collectData);
+    }
+
+    /**
+     * Determine which part of the product this variant belongs to. So we can get the correct
+     * shopify product ID.
+     *
+     * Example:
+     *  Variant position 101 is part-2
+     */
+    public static function getProductPartForVariant(Products $product, Variants $variant, int $variantLimit): ?string
+    {
+        // Fetch all variants, including deleted ones, and order them consistently
+        $allVariants = $product->variants()->withTrashed()->orderBy('id')->get();
+
+        // Find the variant's position in the ordered list
+        $variantIndex = $allVariants->search(fn ($v) => $v->id === $variant->id);
+
+        if ($variantIndex === false) {
+            return null; // Variant not found
+        }
+
+        // Calculate which part number this variant belongs to
+        $index = intdiv($variantIndex, $variantLimit) + 1;
+
+        return $index > 1 ? "-part-{$index}" : null;
     }
 }
