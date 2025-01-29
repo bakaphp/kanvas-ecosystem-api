@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\WooCommerce\Jobs;
@@ -13,7 +14,7 @@ class ProductReceiverJob extends ProcessWebhookJob
     {
         $payload = json_encode($this->webhookRequest->payload);
         $payload = json_decode($payload);
-        if (!$payload->status === 'completed') {
+        if (! $payload->status === 'completed') {
             return [
                 'message' => 'Order not completed',
             ];
@@ -32,6 +33,5 @@ class ProductReceiverJob extends ProcessWebhookJob
             'message' => 'Product created successfully',
             'order' => $createProduct->execute()->getId(),
         ];
-
     }
 }

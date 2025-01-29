@@ -38,7 +38,6 @@ class CreateOrderAction
 
     public function execute(): ModelsOrder
     {
-        
         $people = PeoplesRepository::getByEmail($this->order->billing->email, $this->company);
         if (! $people) {
             $peopleDto = PeopleDto::from([
