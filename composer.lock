@@ -2546,16 +2546,16 @@
         },
         {
             "name": "google/auth",
-            "version": "v1.45.1",
+            "version": "v1.45.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-auth-library-php.git",
-                "reference": "86e9d937632a96b09dc40444c7cb68eb778a6ea6"
+                "reference": "bf86c992aba9452584cb0c63afd52cc1f6a27ccc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-auth-library-php/zipball/86e9d937632a96b09dc40444c7cb68eb778a6ea6",
-                "reference": "86e9d937632a96b09dc40444c7cb68eb778a6ea6",
+                "url": "https://api.github.com/repos/googleapis/google-auth-library-php/zipball/bf86c992aba9452584cb0c63afd52cc1f6a27ccc",
+                "reference": "bf86c992aba9452584cb0c63afd52cc1f6a27ccc",
                 "shasum": ""
             },
             "require": {
@@ -2592,7 +2592,7 @@
                 "Apache-2.0"
             ],
             "description": "Google Auth Library for PHP",
-            "homepage": "http://github.com/google/google-auth-library-php",
+            "homepage": "https://github.com/google/google-auth-library-php",
             "keywords": [
                 "Authentication",
                 "google",
@@ -2601,9 +2601,9 @@
             "support": {
                 "docs": "https://googleapis.github.io/google-auth-library-php/main/",
                 "issues": "https://github.com/googleapis/google-auth-library-php/issues",
-                "source": "https://github.com/googleapis/google-auth-library-php/tree/v1.45.1"
+                "source": "https://github.com/googleapis/google-auth-library-php/tree/v1.45.2"
             },
-            "time": "2025-01-22T23:27:35+00:00"
+            "time": "2025-01-28T21:56:26+00:00"
         },
         {
             "name": "google/cloud-core",
@@ -3800,16 +3800,16 @@
         },
         {
             "name": "imdhemy/laravel-purchases",
-            "version": "1.14.2",
+            "version": "1.15.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/imdhemy/laravel-in-app-purchases.git",
-                "reference": "9a46fd4cf748efd2e1fdd1e7389a3190c340615f"
+                "reference": "b03fac928f80591ea16ac90dfeebf7e9b73d5744"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/9a46fd4cf748efd2e1fdd1e7389a3190c340615f",
-                "reference": "9a46fd4cf748efd2e1fdd1e7389a3190c340615f",
+                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/b03fac928f80591ea16ac90dfeebf7e9b73d5744",
+                "reference": "b03fac928f80591ea16ac90dfeebf7e9b73d5744",
                 "shasum": ""
             },
             "require": {
@@ -3866,7 +3866,7 @@
             ],
             "support": {
                 "issues": "https://github.com/imdhemy/laravel-in-app-purchases/issues",
-                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.14.2"
+                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.15.0"
             },
             "funding": [
                 {
@@ -3874,7 +3874,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-10T12:45:19+00:00"
+            "time": "2025-01-28T21:39:37+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -5122,16 +5122,16 @@
         },
         {
             "name": "lcobucci/jwt",
-            "version": "5.4.2",
+            "version": "5.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/lcobucci/jwt.git",
-                "reference": "ea1ce71cbf9741e445a5914e2f67cdbb484ff712"
+                "reference": "a835af59b030d3f2967725697cf88300f579088e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/lcobucci/jwt/zipball/ea1ce71cbf9741e445a5914e2f67cdbb484ff712",
-                "reference": "ea1ce71cbf9741e445a5914e2f67cdbb484ff712",
+                "url": "https://api.github.com/repos/lcobucci/jwt/zipball/a835af59b030d3f2967725697cf88300f579088e",
+                "reference": "a835af59b030d3f2967725697cf88300f579088e",
                 "shasum": ""
             },
             "require": {
@@ -5179,7 +5179,7 @@
             ],
             "support": {
                 "issues": "https://github.com/lcobucci/jwt/issues",
-                "source": "https://github.com/lcobucci/jwt/tree/5.4.2"
+                "source": "https://github.com/lcobucci/jwt/tree/5.5.0"
             },
             "funding": [
                 {
@@ -5191,7 +5191,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2024-11-07T12:54:35+00:00"
+            "time": "2025-01-26T21:29:45+00:00"
         },
         {
             "name": "league/commonmark",
