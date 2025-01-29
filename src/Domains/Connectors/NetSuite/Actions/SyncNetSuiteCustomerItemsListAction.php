@@ -67,7 +67,9 @@ class SyncNetSuiteCustomerItemsListAction
 
         $totalProcessed = 0;
         $setMinimumQuantity = $this->app->get(ConfigurationEnum::NET_SUITE_MINIMUM_PRODUCT_QUANTITY->value);
+        $defaultWarehouse = $this->mainAppCompany->get(ConfigurationEnum::NET_SUITE_DEFAULT_WAREHOUSE->value);
         $config = null;
+        $netsuiteProductQuantity = null;
         $missed = [];
         foreach ($listOrProductVariantsBarCodeIds as $bardCodeId) {
             $variant = Variants::fromApp($this->app)
@@ -81,19 +83,37 @@ class SyncNetSuiteCustomerItemsListAction
                 continue;
             }
 
+            $variantWarehouse = $variant->variantWarehouses()->firstOrFail();
+
             if ($setMinimumQuantity) {
                 try {
-                    $netsuiteProductInfo = $this->productService->searchProductByItemNumber($variant->barcode);
+                    $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($variant->barcode);
+                    $netsuiteProductInfo = $this->productService->getProductById($searchNetsuiteProductInfo[0]->internalId);
+                    $netsuiteProductQuantity = $this->productService->getInventoryQuantityByLocation(
+                        $netsuiteProductInfo,
+                        $variantWarehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value) ?? $defaultWarehouse
+                    );
+                    $netsuiteProductPrice = $this->productService->getProductPrice($netsuiteProductInfo);
                     $config = [
-                        'minimum_quantity' => $netsuiteProductInfo[0]->minimumQuantity,
+                        'minimum_quantity' => $netsuiteProductInfo->minimumQuantity,
                     ];
                 } catch (Exception $e) {
                     //$config['minimum_quantity'] = 0;
+                    $missed[] = $bardCodeId->item->name;
                 }
             }
 
+            /**
+             * @todo , this logic to update the quantity and price should be moved to a dedicated action / workflow
+             */
+            if (isset($netsuiteProductQuantity) && $netsuiteProductQuantity !== null) {
+                $variantWarehouse->quantity = $netsuiteProductQuantity;
+                $variantWarehouse->price = $netsuiteProductPrice ?? 0;
+                $variantWarehouse->saveOrFail();
+            }
+
             $addVariantToChannel = new AddVariantToChannelAction(
-                $variant->variantWarehouses()->first(),
+                $variantWarehouse,
                 $channel,
                 VariantChannel::from([
                     'price' => $bardCodeId->price,
