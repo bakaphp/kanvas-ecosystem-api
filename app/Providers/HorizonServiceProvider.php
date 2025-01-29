@@ -3,24 +3,23 @@
 namespace App\Providers;
 
 use Illuminate\Support\Facades\Gate;
-use Laravel\Horizon\Horizon;
 use Laravel\Horizon\HorizonApplicationServiceProvider;
-use Kanvas\Users\Models\Users;
+use Laravel\Horizon\Horizon;
+
 
 class HorizonServiceProvider extends HorizonApplicationServiceProvider
 {
+
     /**
      * Bootstrap any application services.
      */
     public function boot(): void
     {
         parent::boot();
-
         $this->gate();
 
-        Horizon::auth(function ($request) {
-            // Check if the user is authorized to view Horizon
-            return Gate::allows('viewHorizon', $request->user());
+        Horizon::auth(function () {
+            return Gate::allows('viewHorizon');
         });
 
         // Horizon::routeSmsNotificationsTo('15556667777');
@@ -35,12 +34,9 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
      */
     protected function gate(): void
     {
-        Gate::define('viewHorizon', function () {
-            $user = auth()->user();
-            dd($user);
-            return in_array($user->email, [
-                'rwhite@mctekk.com'
-            ]);
+        Gate::define('viewHorizon', function ($user = null) {
+            $allowedIPs = explode(',', env('REMOTE_ADDRESSES'));
+            return in_array(request()->ip(), $allowedIPs);
         });
     }
 }
