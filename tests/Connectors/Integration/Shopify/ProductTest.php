@@ -132,9 +132,9 @@ final class ProductTest extends TestCase
             $warehouse
         );
 
-        $product->app->set(ConfigEnum::VARIANT_LIMIT->value, 5);
+        $product->app->set(ConfigEnum::VARIANT_LIMIT->value, 1);
         $variants = [];
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 2; $i++) {
             $variants[] = [
                 'name' => fake()->name,
                 'apps_id' => $product->app->getId(),
