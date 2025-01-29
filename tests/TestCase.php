@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use Dotenv\Dotenv;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -16,6 +17,12 @@ class TestCase extends BaseTestCase
     use MakesGraphQLRequests;
 
     protected string $graphqlVersion = 'graphql';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Dotenv::createImmutable(base_path())->load(); //load .env not .env.testing
+    }
 
     /**
      * createUser.

@@ -23,6 +23,7 @@ final class PeopleTest extends TestCase
         $people->company->set(ConfigurationEnum::COMPANY_ID->value, '01');
 
         $savePeopleToIplusAction = new SavePeopleToIPlusAction($people);
+        //$savePeopleToIplusAction->execute());
         $this->assertNotEmpty($savePeopleToIplusAction->execute());
     }
 }

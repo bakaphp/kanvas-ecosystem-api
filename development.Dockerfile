@@ -1,23 +1,23 @@
-FROM unit:php8.3
+FROM unit:php8.4
 
-COPY ./docker/unit.json /docker-entrypoint.d/
-
-# Add docker php ext repo
+# Add docker PHP extension installer
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
-# Install php extensions
-RUN chmod +x /usr/local/bin/install-php-extensions && sync && \
+RUN chmod +x /usr/local/bin/install-php-extensions && \
     install-php-extensions mbstring pdo_mysql zip exif pcntl gd memcached redis swoole opcache curl readline sqlite3 msgpack igbinary pcov sockets bcmath soap
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
+# Install additional dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     locales \
     zip \
-    jpegoptim optipng pngquant gifsicle \
+    jpegoptim \
+    optipng \
+    pngquant \
+    gifsicle \
     unzip \
     git \
     curl \
@@ -26,26 +26,36 @@ RUN apt-get update && apt-get install -y \
     nginx \
     vim \
     wkhtmltopdf \
-    xvfb
+    xvfb && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
+# Copy application files
 COPY . /var/www/html/
-# COPY chown -R unit:unit /var/www/html/
-
-# add root to www group
-# RUN chmod -R ug+w var/www/html/storage
-# RUN cp docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
 
 WORKDIR /var/www/html/
 
-RUN cp docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
-RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
+# Install composer globally
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-RUN chmod -R 755 /var/www/html/
-RUN chmod -R 777 /var/www/html/storage/
-RUN chmod -R 777 /var/www/html/storage/logs/
+# Set appropriate ownership for the application
+RUN chown -R www-data:www-data /var/www/html
 
-RUN composer install --optimize-autoloader
+# Copy configuration files
+COPY ./docker/unit.json /docker-entrypoint.d/
+COPY docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+COPY docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 
+# Set git safe directory
+RUN git config --global --add safe.directory /var/www/html
+
+# Set proper permissions
+RUN chmod -R 755 /var/www/html/ && \
+    chmod -R 777 /var/www/html/storage/ && \
+    chmod -R 777 /var/www/html/storage/logs/
+
+# Install PHP dependencies
+RUN composer install --no-dev --optimize-autoloader
+
+# Expose the required port
 EXPOSE 8000

@@ -71,7 +71,8 @@ class CreditScoreService
 
             try {
                 $fileSystem = new FilesystemServices($this->app);
-                $pdf = ! empty($pdfBase64) ? $fileSystem->createFileSystemFromBase64($pdfBase64, 'credit-app.pdf', $userRequestingReport) : null;
+                $fileName = 'credit-pull-' . Str::replace(':', '-', $bureau) . '.pdf';
+                $pdf = ! empty($pdfBase64) ? $fileSystem->createFileSystemFromBase64($pdfBase64, $fileName, $userRequestingReport) : null;
             } catch (Exception $e) {
                 $pdf = null;
             }
@@ -80,6 +81,7 @@ class CreditScoreService
                 'scores' => $scores,
                 'iframe_url' => $iframeUrl,
                 'iframe_url_signed' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
+                'iframe_url_digital_jacket' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
                 'pdf' => $pdf,
             ];
         } catch (RequestException $e) {

@@ -222,9 +222,9 @@ class Apps extends BaseModel implements AppInterface
         Users $user,
         int $isActive,
         ?int $userRoleId = null,
-        string $password = null,
-        string $companyUserIdentifier = null,
-        string $configuration = null
+        ?string $password = null,
+        ?string $companyUserIdentifier = null,
+        ?string $configuration = null
     ): UsersAssociatedApps {
         return UsersAssociatedApps::firstOrCreate([
             'users_id' => $user->getKey(),

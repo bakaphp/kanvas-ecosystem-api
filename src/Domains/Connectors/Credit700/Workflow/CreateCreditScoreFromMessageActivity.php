@@ -69,6 +69,7 @@ class CreateCreditScoreFromMessageActivity extends CreateCreditScoreFromLeadActi
             'scores' => $creditApplicant['scores'],
             'iframe_url' => $creditApplicant['iframe_url'],
             'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
+            //'iframe_url_digital_jacket' => $creditApplicant['iframe_url_digital_jacket'],
             'pdf' => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
             'message_id' => $parentMessage->getId(),
             'message' => 'Credit score created successfully',
