@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Rotations\DataTransferObject;
@@ -20,5 +21,4 @@ class RotationUser extends Data
         public float $percentage = 0,
     ) {
     }
-
 }

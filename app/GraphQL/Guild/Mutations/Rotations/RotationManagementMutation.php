@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Rotations;
@@ -12,7 +13,6 @@ use Kanvas\Apps\Models\Apps;
 
 class RotationManagementMutation
 {
-
     public function create(mixed $root, array $req): Rotation
     {
         $input = $req['input'];

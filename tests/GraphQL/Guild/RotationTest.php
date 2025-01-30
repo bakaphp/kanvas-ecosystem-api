@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
@@ -7,7 +8,6 @@ use Tests\TestCase;
 
 class RotationTest extends TestCase
 {
-
     public function testCreateRotation(): void
     {
         $input = [
@@ -37,6 +37,5 @@ class RotationTest extends TestCase
                     ]
                 ]
             ]);
-
     }
 }
