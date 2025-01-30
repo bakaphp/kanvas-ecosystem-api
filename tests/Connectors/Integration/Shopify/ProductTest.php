@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Shopify;
 
+use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\TestCase;
 
@@ -116,6 +116,58 @@ final class ProductTest extends TestCase
         $this->assertEquals(
             StatusEnum::ARCHIVED->value,
             $shopifyResponse['status']
+        );
+    }
+
+    public function testProductWith100PlusVariant()
+    {
+        $product = Products::first();
+        $channel = Channels::fromCompany($product->company)->first();
+        $warehouse = $product->variants()->first()->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
+
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
+
+        $product->app->set(ConfigEnum::VARIANT_LIMIT->value, 1);
+        $variants = [];
+        for ($i = 0; $i < 2; $i++) {
+            $variants[] = [
+                'name' => fake()->name,
+                'apps_id' => $product->app->getId(),
+                'companies_id' => $product->company->getId(),
+                'users_id' => $product->user->getId(),
+                'sku' => fake()->uuid,
+                'description' => fake()->sentence,
+                'short_description' => fake()->sentence,
+                'html_description' => fake()->sentence,
+                'status_id' => 1,
+                'ean' => fake()->uuid,
+                'barcode' => fake()->uuid,
+                'serial_number' => fake()->uuid,
+                'weight' => 1,
+            ];
+        }
+
+        //$product->variants()->delete();
+        $product->variants()->createMany($variants);
+
+        $shopifyResponse = $shopify->saveProduct($product, StatusEnum::ACTIVE);
+
+        $this->assertEquals(
+            $product->name,
+            $shopifyResponse[0]['title']
+        );
+        $this->assertEquals(
+            $product->name . ' (Part 2)',
+            $shopifyResponse[1]['title']
+        );
+        $this->assertEquals(
+            $product->name . ' (Part 3)',
+            $shopifyResponse[2]['title']
         );
     }
 }

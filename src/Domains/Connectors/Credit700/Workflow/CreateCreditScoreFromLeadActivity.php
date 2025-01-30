@@ -89,15 +89,18 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
 
         $this->distributeMessages($lead, $app, $parentMessage, $childMessage);
         $this->createEngagements($lead, $app, $parentMessage, $childMessage, $engagement->message);
+        //pull_credit_pass
 
         //pull-credit?leadId=<Lead ID>&bcid=<Branch ID>
         $digitalJacketUrl = $app->get(ConfigurationEnum::DIGITAL_JACKET_DOMAIN->value) . '/pull-credit?leadId=' . $lead->getId() . '&bcid=' . $lead->company->branch->uuid;
+        $lead->set('pull_credit_pass', (int) $creditApplicant['pull_credit_pass']);
 
         return [
             'scores' => $creditApplicant['scores'],
             'iframe_url' => $creditApplicant['iframe_url'],
             'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
             'iframe_url_digital_jacket' => $digitalJacketUrl,
+            'pull_credit_pass' => $creditApplicant['pull_credit_pass'],
             'pdf' => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
             'message_id' => $parentMessage->getId(),
             'message' => 'Credit score created successfully',
