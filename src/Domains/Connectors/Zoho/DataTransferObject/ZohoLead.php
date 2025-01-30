@@ -70,6 +70,7 @@ class ZohoLead extends Data
 
     /**
      * Map properties from one array to another.
+     * @todo think of a better way to do this.
      */
     protected static function mapProperties(array $map, array &$data, array $entity): void
     {
@@ -102,6 +103,10 @@ class ZohoLead extends Data
                 ];
 
                 $value = $creditScore[(int) $value] ?? $value;
+            }
+
+            if (strtolower($key) == 'subid' && $value != null) {
+                $value = (string) $value;
             }
 
             if ($value !== null) {
