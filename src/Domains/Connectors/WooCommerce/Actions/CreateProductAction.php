@@ -27,10 +27,9 @@ class CreateProductAction
 
     public function execute(): Products
     {
-        $wooCommerce = new WooCommerce($this->app);
-
         $variants = [];
         foreach ($this->product->variations as $variant) {
+            $wooCommerce = new WooCommerce($this->app);
             $variants[] = $wooCommerce->client->get('products/' . $this->product->id . '/variations/' . $variant);
         }
         $variants = empty($variants) ? [$this->product] : $variants;
