@@ -77,7 +77,7 @@ class ShopifyImageService
     public function addVariantImage(Variants $variant, string $imageUrl, int $position = 1): bool
     {
         try {
-            $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
+            $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 99);
             $partNumber = ShopifyInventoryService::getProductPartForVariant($variant->product, $variant, $variantLimit);
 
             $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->region, $partNumber));

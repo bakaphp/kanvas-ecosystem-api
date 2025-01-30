@@ -73,7 +73,7 @@ class ShopifyInventoryService
      */
     public function saveProduct(Products $product, StatusEnum $status, ?Channels $channel = null): array
     {
-        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 99);
 
         $productParts = $this->prepareProductParts($product, $variantLimit);
         $response = [];
@@ -209,7 +209,7 @@ class ShopifyInventoryService
 
         $variantInfo = $this->mapVariant($variant, $channel);
         // Determine which part of the product this variant belongs to
-        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 99);
         $partNumber = self::getProductPartForVariant($variant->product, $variant, $variantLimit);
 
         $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions, $partNumber));
@@ -237,7 +237,7 @@ class ShopifyInventoryService
     {
         $shopifyProductVariantId = $variant->getShopifyId($this->warehouses->regions);
         // Determine which part of the product this variant belongs to
-        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 99);
         $partNumber = self::getProductPartForVariant($variant->product, $variant, $variantLimit);
 
         $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions, $partNumber));
