@@ -38,7 +38,7 @@ class ShopifyVariantMetafieldService
     {
         $attributes = $this->variant->attributes;
         $shopifyProductVariantId = $this->variant->getShopifyId($this->region);
-        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 99);
         $partNumber = ShopifyInventoryService::getProductPartForVariant($this->variant->product, $this->variant, $variantLimit);
 
         $shopifyProduct = $this->shopifySdk->Product($this->variant->product->getShopifyId($this->region, $partNumber));
@@ -97,7 +97,7 @@ class ShopifyVariantMetafieldService
 
     public function getMetaField(): array
     {
-        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 99);
         $partNumber = ShopifyInventoryService::getProductPartForVariant($this->variant->product, $this->variant, $variantLimit);
 
         $shopifyProductVariantId = $this->variant->getShopifyId($this->region);
