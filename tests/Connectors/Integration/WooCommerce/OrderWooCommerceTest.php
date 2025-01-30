@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\WooCommerce;
@@ -159,7 +160,7 @@ class OrderWooCommerceTest extends TestCase
             'user' => $user,
             'currency' => Currencies::getByCode('USD'),
             'name' => 'Region Test',
-            'short_slug' => Str::createRandomStringsNormally(). Str::random(5)
+            'short_slug' => Str::createRandomStringsNormally() . Str::random(5)
         ]);
         $region = (new CreateRegionAction($regionDto, $user))->execute();
         $productDb = (
