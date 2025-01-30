@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Rotations\Actions;
@@ -38,9 +39,9 @@ class CreateRotationAction
                 'user' => UsersRepository::getUserOfAppById((int) $user['user_id'], app(Apps::class)),
                 'name' => key_exists('name', $user) ? $user['name'] : null,
                 'email' => key_exists('email', $user) ? $user['email'] : null,
-                'phone' => key_exists('phone', $user) ? $user['phone']: null,
+                'phone' => key_exists('phone', $user) ? $user['phone'] : null,
                 'hits' => key_exists('hits', $user) ? $user['hits'] : 0,
-                'percentage' =>key_exists('percentage', $user) ? $user['percentage'] : null
+                'percentage' => key_exists('percentage', $user) ? $user['percentage'] : null
             ]);
             (new AddUserToRotationAction($rotationUserDto))->execute();
         }

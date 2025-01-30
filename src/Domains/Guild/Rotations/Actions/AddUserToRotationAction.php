@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace Kanvas\Guild\Rotations\Actions;
 
 use Kanvas\Users\Models\Users;
@@ -9,7 +11,6 @@ use Kanvas\Guild\Rotations\DataTransferObject\RotationUser as RotationUserDto;
 
 class AddUserToRotationAction
 {
-
     public function __construct(
         protected RotationUserDto $data,
     ) {
@@ -27,5 +28,4 @@ class AddUserToRotationAction
             'percentage' => $this->data->percentage,
         ]);
     }
-
 }
