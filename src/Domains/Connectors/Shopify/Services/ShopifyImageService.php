@@ -42,10 +42,14 @@ class ShopifyImageService
         }, 0);
     }
 
-    public function addImage(Products $product, string $imageUrl, int $position = 1): ?array
-    {
+    public function addImage(
+        Products $product,
+        string $imageUrl,
+        int $position = 1,
+        ?string $partNumber = null
+    ): ?array {
         try {
-            $shopifyProduct = $this->shopifySdk->Product($product->getShopifyId($this->region));
+            $shopifyProduct = $this->shopifySdk->Product($product->getShopifyId($this->region, $partNumber));
 
             $fileName = pathinfo($imageUrl, PATHINFO_BASENAME);
             // Check if the image already exists
@@ -90,7 +94,7 @@ class ShopifyImageService
             }
 
             // Add the image if it does not exist
-            $image = $this->addImage($variant->product, $imageUrl, $position);
+            $image = $this->addImage($variant->product, $imageUrl, $position, $partNumber);
 
             if ($image) {
                 $shopifyVariantData = $shopifyVariant->get();
