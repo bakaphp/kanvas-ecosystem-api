@@ -38,7 +38,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
 
         $payload = $this->webhookRequest->payload;
 
-        if ($this->receiver->configuration['double_encoded_json']) {
+        if (isset($this->receiver->configuration['double_encoded_json'])) {
             $payload = $this->parseDoubleEncodedJsonToArray($payload);
         }
 
