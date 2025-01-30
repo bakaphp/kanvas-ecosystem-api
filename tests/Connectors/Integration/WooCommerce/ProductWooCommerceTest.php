@@ -16,7 +16,6 @@ class ProductWooCommerceTest extends TestCase
 {
     public function testCreateProduct(): void
     {
-
         $product = [
             "id" => Str::uuid(),
             "name" => Str::random(),
@@ -159,7 +158,7 @@ class ProductWooCommerceTest extends TestCase
             'user' => $user,
             'currency' => Currencies::getByCode('USD'),
             'name' => 'Region Test',
-            'short_slug' => Str::createRandomStringsNormally(). Str::random(5)
+            'short_slug' => Str::createRandomStringsNormally() . Str::random(5)
         ]);
         $region = (new CreateRegionAction($regionDto, $user))->execute();
         $productDb = (
