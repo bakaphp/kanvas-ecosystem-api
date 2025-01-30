@@ -161,6 +161,7 @@ class ConvertJsonTemplateToLeadStructureAction
         match ($name) {
             'firstname' => $peopleStructure['firstname'] = $value,
             'lastname' => $peopleStructure['lastname'] = $value,
+            'description' => $parsedData['description'] = $value,
             'email' => $this->addContact($peopleStructure['contacts'], ContactTypeEnum::EMAIL->value, $value),
             'phone' => $this->addContact($peopleStructure['contacts'], ContactTypeEnum::PHONE->value, $value),
             default => null
