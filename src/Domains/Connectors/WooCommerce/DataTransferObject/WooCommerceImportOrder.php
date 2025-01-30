@@ -48,8 +48,8 @@ class WooCommerceImportOrder extends OrderDto
                 ))->execute();
                 $variant = $product->variants()->where('sku', $item->sku)->first();
             }
-            $taxes_total = array_reduce($order->tax_lines, function ($carry, $tax) {
-                return $carry + $tax->total;
+            $taxTotal = array_reduce($order->tax_lines, function ($carry, $tax) {
+                return $carry + $tax->tax_total;
             }, 0);
 
             $items[] = [
@@ -60,14 +60,12 @@ class WooCommerceImportOrder extends OrderDto
                 'quantity' => $item->quantity,
                 'price' => $item->price,
                 'discount' => 0,
-                'tax' => $taxes_total,
+                'tax' => $taxTotal,
                 'currency' => $currency,
                 'id' => $variant->id,
             ];
         }
-        $taxTotal = array_reduce($order->tax_lines, function ($carry, $tax) {
-            return $carry + $tax->total;
-        }, 0);
+
         $shippingLine = array_reduce($order->shipping_lines, function ($carry, $shipping) {
             return $carry + $shipping->total;
         }, 0);
@@ -86,7 +84,7 @@ class WooCommerceImportOrder extends OrderDto
             people: $people,
             user: $user,
             token: $order->order_key,
-            orderNumber: $order->number,
+            orderNumber: (string)$order->number,
             shippingAddress: $shippingAddress,
             billingAddress: $billingAddress,
             total: (float)$order->total,

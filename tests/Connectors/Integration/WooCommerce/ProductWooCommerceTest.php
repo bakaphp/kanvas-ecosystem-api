@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Integration\WooCommerce;
+namespace Tests\Connectors\Integration\WooCommerce;
 
 use Kanvas\Connectors\WooCommerce\Actions\CreateProductAction;
 use Tests\TestCase;
