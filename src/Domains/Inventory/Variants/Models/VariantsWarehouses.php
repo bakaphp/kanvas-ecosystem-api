@@ -62,7 +62,7 @@ class VariantsWarehouses extends BaseModel
         ];
     }
 
-    public function getPriceAttribute(string|int $value): float
+    public function getPriceAttribute(string|float $value): float
     {
         return (float) $value;
     }
