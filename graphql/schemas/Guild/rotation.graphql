@@ -1,0 +1,60 @@
+type Rotation {
+    id: ID!
+    name: String!
+    company: Company!
+    Users: [User!] @belongsTo(relation: "users")
+}
+
+input CreateRotationInput {
+    name: String!
+    users: [RotationUserInput!]
+}
+
+input UpdateRotationInput {
+    id: ID!
+    name: String
+    users: [ID!]
+}
+
+input RotationUserInput {
+    user_id: ID!
+    rotation_id: ID
+    name: String
+    email: String
+    phone: String
+    hits: Int
+    percentage: Float!
+}
+
+extend type Mutation @guard{
+    createRotation(input: CreateRotationInput!): Rotation! 
+    @field(
+        resolver: "App\\GraphQL\\Guild\\Mutations\\Rotations\\RotationManagementMutation@create"
+        scopes: ["fromUser"]
+    )
+    updateRotation(input: UpdateRotationInput!): Rotation! 
+    @field(
+        resolver: "App\\GraphQL\\Guild\\Mutations\\Rotations\\RotationManagementMutation@update"
+        scopes: ["fromUser"]
+
+    )
+    deleteRotation(id: ID!): Boolean! 
+    @field(
+        resolver: "App\\GraphQL\\Guild\\Mutations\\Rotations\\RotationManagementMutation@delete"
+        scopes: ["fromUser"]
+    )
+}
+
+extend type Query @guard
+{
+    rotations(
+        where: _@whereConditions(
+            columns: ["id", "name"]
+        )
+        orderBy: _@orderBy(columns: ["id", "name"])
+    ): Rotation! 
+    @paginate(
+        model: "Kanvas\\Guild\\Rotations\\Models\\Rotation"
+        scopes: ["fromUser"]
+    )
+}
