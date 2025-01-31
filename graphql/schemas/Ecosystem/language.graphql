@@ -3,3 +3,8 @@ type Language {
     name: String!
     order: Int
 }
+
+type LanguageDisplay {
+    code: String
+    language: String
+}
