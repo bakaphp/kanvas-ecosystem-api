@@ -9,7 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Rotations\Models\Rotation;
 use Spatie\LaravelData\Data;
-
+use Kanvas\Guild\Leads\Models\LeadRotation;
 class LeadReceiver extends Data
 {
     /**
@@ -23,7 +23,7 @@ class LeadReceiver extends Data
         public string $name,
         public string $source,
         public bool $isDefault = false,
-        public ?Rotation $rotation = null
+        public Rotation|LeadRotation|null $rotation = null
     ) {
     }
 }
