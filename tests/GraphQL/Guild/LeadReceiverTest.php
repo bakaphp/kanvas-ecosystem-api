@@ -11,10 +11,19 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Models\LeadSource;
 use Kanvas\Apps\Models\Apps;
 use Illuminate\Support\Str;
+use Kanvas\Guild\Leads\Models\LeadRotation;
+
 class LeadReceiverTest extends TestCase
 {
     public function testCreateLeadReceiver(): void
     {
+        $leadRotation = LeadRotation::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
+            'name' => 'Lead Rotation',
+            'hits' => 1,
+            'leads_rotations_email' => ''
+        ]);
         $leadType = LeadType::create([
             'apps_id' => app(Apps::class)->getId(),
             'companies_id' => auth()->user()->getCurrentCompany()->getId(),
@@ -36,7 +45,7 @@ class LeadReceiverTest extends TestCase
             'name' => fake()->word,
             'agents_id' => auth()->user()->getId(),
             'is_default' => true,
-            'rotations_id' => 1,
+            'rotations_id' => $leadRotation->getId(),
             'source_name' => 'source',
             'lead_sources_id' => $leadSource->getId(),
             'lead_types_id' => $leadType->getId(),
