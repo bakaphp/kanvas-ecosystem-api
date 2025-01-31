@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Models\LeadSource;
 use Kanvas\Apps\Models\Apps;
 use Illuminate\Support\Str;
+
 class LeadReceiverTest extends TestCase
 {
     public function testCreateLeadReceiver(): void
