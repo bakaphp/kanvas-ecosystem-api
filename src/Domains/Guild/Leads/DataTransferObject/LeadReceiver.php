@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Rotations\Models\Rotation;
 use Spatie\LaravelData\Data;
 use Kanvas\Guild\Leads\Models\LeadRotation;
+
 class LeadReceiver extends Data
 {
     /**
