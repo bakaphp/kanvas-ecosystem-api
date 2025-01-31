@@ -20,7 +20,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($params['image_url']);
+        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($message->message['image']);
         $fileName = basename($tempFilePath);
 
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
