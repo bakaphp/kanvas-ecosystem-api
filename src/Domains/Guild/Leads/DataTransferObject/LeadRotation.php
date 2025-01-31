@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Spatie\LaravelData\Attributes\MapInputName;
 use Spatie\LaravelData\Attributes\MapOutputName;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
+
 class LeadRotation extends Data
 {
     public function __construct(
