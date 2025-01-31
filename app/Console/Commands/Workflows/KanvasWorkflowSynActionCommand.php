@@ -56,6 +56,7 @@ use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationAct
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
+use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
@@ -121,6 +122,7 @@ class KanvasWorkflowSynActionCommand extends Command
             MessageOwnerInteractionNotifierActivity::class,
             MessageOwnerChildNotificationActivity::class,
             SwitchZohoLeadOwnerReceiverJob::class,
+            OptimizeImageFromMessageActivity::class,
         ];
 
         $createdActions = [];
