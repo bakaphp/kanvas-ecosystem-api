@@ -42,6 +42,7 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Spatie\Translatable\HasTranslations;
 
 /**
  * Class Products.
@@ -80,6 +81,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use Compoships;
     use CanUseWorkflow;
     use HasRating;
+    use HasTranslations;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -90,6 +92,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
     ];
 
     protected $is_deleted;
+
+    public $translatable = ['name','description','short_description','html_description','warranty_terms'];
 
     public function getGraphTypeName(): string
     {
