@@ -1,0 +1,51 @@
+type LeadReceiver {
+    id: ID!
+    users: User! @belongsTo(relation: "users")
+    companies: Company! @belongsTo(relation: "companies")
+    branches: CompanyBranch! @belongsTo(relation: "branch")
+    agent: User! @belongsTo(relation: "agent")
+    name: String!
+    agent: User!
+    source_name: String
+    is_default: Boolean!
+    template: String
+    leadSource: LeadSource @belongsTo(relation: "leadSource")
+    leadType: LeadType @belongsTo(relation: "leadType")
+}
+
+input LeadReceiverInput {
+    name: String!
+    agents_id: ID!
+    is_default: Boolean!
+    rotations_id: ID!
+    source_name: String
+    lead_sources_id: ID!
+    lead_types_id: ID!
+    template: String
+}
+
+extend type Mutation {
+    createLeadReceiver(input: LeadReceiverInput!): LeadReceiver!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadReceiverManagement@create"
+        )
+    updateLeadReceiver(id: ID!, input: LeadReceiverInput!): LeadReceiver!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadReceiverManagement@update"
+        )
+    deleteLeadReceiver(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadReceiverManagement@delete"
+        )
+}
+
+extend type Query {
+    leadReceivers(
+        where: _
+            @whereConditions(columns: ["name", "source_name", "is_default"])
+    ): [LeadReceiver!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Leads\\Models\\LeadReceiver"
+            defaultCount: 10
+        )
+}
