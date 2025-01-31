@@ -7,7 +7,7 @@ namespace Kanvas\Guild\Leads\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Guild\Rotations\Models\Rotation;
+use Kanvas\Guild\LeadsRotations\Models\Rotation;
 use Spatie\LaravelData\Data;
 
 class LeadReceiver extends Data

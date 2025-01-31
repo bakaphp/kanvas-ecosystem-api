@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Rotations\Actions;
+namespace Kanvas\Guild\LeadsRotations\Actions;
 
-use Kanvas\Guild\Rotations\DataTransferObject\Rotation as RotationDto;
-use Kanvas\Guild\Rotations\Models\Rotation as RotationModel;
+use Kanvas\Guild\LeadsRotations\DataTransferObject\LeadRotation as RotationDto;
+use Kanvas\Guild\LeadsRotations\Models\LeadRotation as RotationModel;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Guild\Rotations\Actions\AddUserToRotationAction;
-use Kanvas\Guild\Rotations\DataTransferObject\RotationUser;
+use Kanvas\Guild\LeadsRotations\Actions\AddUserToLeadRotationAction;
+use Kanvas\Guild\LeadsRotations\DataTransferObject\LeadRotationUser;
 use Kanvas\Apps\Models\Apps;
 
 class CreateRotationAction
@@ -34,7 +34,7 @@ class CreateRotationAction
         ]);
 
         foreach ($this->data->users as $user) {
-            $rotationUserDto = RotationUser::from([
+            $rotationUserDto = LeadRotationUser::from([
                 'rotation' => $rotation,
                 'user' => UsersRepository::getUserOfAppById((int) $user['user_id'], app(Apps::class)),
                 'name' => key_exists('name', $user) ? $user['name'] : null,
@@ -43,7 +43,7 @@ class CreateRotationAction
                 'hits' => key_exists('hits', $user) ? $user['hits'] : 0,
                 'percentage' => key_exists('percentage', $user) ? $user['percentage'] : null
             ]);
-            (new AddUserToRotationAction($rotationUserDto))->execute();
+            (new AddUserToLeadRotationAction($rotationUserDto))->execute();
         }
         return $rotation;
     }

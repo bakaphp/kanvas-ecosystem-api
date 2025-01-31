@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Rotations\Models;
+namespace Kanvas\Guild\LeadsRotations\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
@@ -18,7 +19,7 @@ use Kanvas\Users\Models\Users;
  * @property int $companies_id
  * @property string $name
  */
-class Rotation extends BaseModel
+class LeadRotation extends BaseModel
 {
     use NoAppRelationshipTrait;
 
@@ -30,14 +31,13 @@ class Rotation extends BaseModel
         return $this->belongsTo(Users::class, 'users_id', 'id');
     }
 
-    public function users(): HasManyThrough
+    public function users(): BelongsToMany
     {
-        return $this->hasManyThrough(
+        $pivot = (new LeadRotationUser())->getFullTableName();
+        return $this->belongsToMany(
             Users::class,
-            RotationUser::class,
+            $pivot,
             'rotations_id',
-            'id',
-            'id',
             'users_id'
         );
     }

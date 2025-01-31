@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Rotations\DataTransferObject;
+namespace Kanvas\Guild\LeadsRotations\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 
 use Kanvas\Users\Models\Users;
-use Kanvas\Guild\Rotations\Models\Rotation;
+use Kanvas\Guild\LeadsRotations\Models\LeadRotation;
 
-class RotationUser extends Data
+class LeadRotationUser extends Data
 {
     public function __construct(
-        public Rotation $rotation,
+        public LeadRotation $rotation,
         public Users $user,
         public ?string $name = null,
         public ?string $email = null,

@@ -2,23 +2,24 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Rotations\Actions;
+namespace Kanvas\Guild\LeadsRotations\Actions;
 
+use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Users\Models\Users;
-use Kanvas\Guild\Rotations\Models\Rotation;
-use Kanvas\Guild\Rotations\Models\RotationUser;
-use Kanvas\Guild\Rotations\DataTransferObject\RotationUser as RotationUserDto;
+use Kanvas\Guild\LeadsRotations\Models\LeadRotation;
+use Kanvas\Guild\LeadsRotations\Models\LeadRotationUser;
+use Kanvas\Guild\LeadsRotations\DataTransferObject\LeadRotationUser as RotationUserDto;
 
-class AddUserToRotationAction
+class AddUserToLeadRotationAction
 {
     public function __construct(
         protected RotationUserDto $data,
     ) {
     }
 
-    public function execute(): RotationUser
+    public function execute(): LeadRotationUser
     {
-        return RotationUser::firstOrCreate([
+        return LeadRotationUser::firstOrCreate([
             'companies_id' => $this->data->rotation->companies_id,
             'users_id' => $this->data->user->getId(),
             'rotations_id' => $this->data->rotation->getId(),

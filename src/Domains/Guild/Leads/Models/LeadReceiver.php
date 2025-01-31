@@ -9,7 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Models\BaseModel;
-use Kanvas\Guild\Rotations\Models\Rotation;
+use Kanvas\Guild\LeadsRotations\Models\Rotation;
 
 /**
  * Class LeadReceiver.

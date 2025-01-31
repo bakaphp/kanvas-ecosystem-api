@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Rotations\Models;
+namespace Kanvas\Guild\LeadsRotations\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Kanvas\Guild\Models\BaseModel;
@@ -20,7 +20,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property int $hits
  * @property float $percentage
  */
-class RotationUser extends BaseModel
+class LeadRotationUser extends BaseModel
 {
     use NoAppRelationshipTrait;
 
