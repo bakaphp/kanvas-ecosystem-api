@@ -161,6 +161,12 @@
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/laravel-shift/laravelshoppingcart.git"
+        }
+    ],
     "extra": {
         "laravel": {
             "dont-discover": []
