@@ -1,0 +1,54 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Social\Messages\Workflows\Activities;
+
+use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Workflow\KanvasActivity;
+use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Illuminate\Http\UploadedFile;
+use Kanvas\Filesystem\Services\FilesystemServices;
+
+class OptimizeImageFromMessageActivity extends KanvasActivity
+{
+    public $tries = 3;
+    public $queue = 'default';
+
+    public function execute(Model $message, AppInterface $app, array $params = []): array
+    {
+        $this->overwriteAppService($app);
+
+        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($params['image_url']);
+        $fileName = basename($tempFilePath);
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($tempFilePath);
+
+        $uploadedFile = new UploadedFile(
+            $tempFilePath,
+            $fileName,
+            $mimeType,
+            null,
+            true
+        );
+
+        $filesystem = new FilesystemServices($app);
+        $fileSystemRecord = $filesystem->upload($uploadedFile, $message->user);
+
+        if (array_key_exists('image', $message->message)) {
+            $message->message = array_merge($message->message, ['image' => $fileSystemRecord->url]);
+            $message->saveOrFail();
+        }
+        // Clean up the temporary file
+        unlink($tempFilePath);
+
+        return [
+            'result' => true,
+            'message' => 'Image optimized and uploaded',
+            'data' => $fileSystemRecord,
+            'message_id' => $message->getId(),
+        ];
+    }
+}
