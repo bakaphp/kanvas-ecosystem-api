@@ -38,7 +38,9 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
         $fileSystemRecord = $filesystem->upload($uploadedFile, $message->user);
 
         if (array_key_exists('image', $message->message['ai_image'])) {
-            $message->message['ai_image'] = array_merge($message->message['ai_image'], ['image' => $fileSystemRecord->url]);
+            $tempMessageArray = $message->message;
+            $tempMessageArray['ai_image'] = array_merge($message->message['ai_image'], ['image' => $fileSystemRecord->url]);
+            $message->message = $tempMessageArray;
             $message->saveOrFail();
         }
 
