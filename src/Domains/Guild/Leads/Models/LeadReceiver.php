@@ -63,7 +63,7 @@ class LeadReceiver extends BaseModel
 
     public function leadSource(): BelongsTo
     {
-        return $this->belongsTo(LeadSource::class, 'lead_sources_id');
+        return $this->belongsTo(LeadSource::class, 'leads_sources_id');
     }
 
     public function leadType(): BelongsTo

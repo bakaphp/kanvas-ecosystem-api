@@ -7,17 +7,39 @@ namespace Tests\GraphQL\Guild;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
-
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Leads\Models\LeadSource;
+use Kanvas\Apps\Models\Apps;
+use Illuminate\Support\Str;
 class LeadReceiverTest extends TestCase
 {
     public function testCreateLeadReceiver(): void
     {
+        $leadType = LeadType::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
+            'name' => 'Lead Type',
+            'description' => 'Lead Type Description',
+            'is_active' => true,
+            'uuid' => Str::uuid(),
+        ]);
+        $leadSource = LeadSource::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
+            'name' => 'Lead Source',
+            'description' => 'Lead Source Description',
+            'is_active' => true,
+            'uuid' => Str::uuid(),
+            'leads_types_id' => $leadType->getId(),
+        ]);
         $input = [
             'name' => fake()->word,
             'agents_id' => auth()->user()->getId(),
             'is_default' => true,
             'rotations_id' => 1,
             'source_name' => 'source',
+            'lead_sources_id' => $leadSource->getId(),
+            'lead_types_id' => $leadType->getId(),
         ];
         $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {
@@ -28,6 +50,12 @@ class LeadReceiverTest extends TestCase
                     },
                     is_default,
                     source_name,
+                    leadSource{
+                        id
+                    },
+                    leadType{
+                        id
+                    }
                 }
             }',
             [
@@ -42,6 +70,12 @@ class LeadReceiverTest extends TestCase
                     ],
                     'is_default' => $input['is_default'],
                     'source_name' => $input['source_name'],
+                    'leadSource' => [
+                        'id' => $input['lead_sources_id'],
+                    ],
+                    'leadType' => [
+                        'id' => $input['lead_types_id'],
+                    ],
                 ],
             ],
         ]);
@@ -55,6 +89,8 @@ class LeadReceiverTest extends TestCase
             'is_default' => true,
             'rotations_id' => 1,
             'source_name' => 'source',
+            'lead_sources_id' => 0,
+            'lead_types_id' => 0,
         ];
         $response = $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {
@@ -105,6 +141,8 @@ class LeadReceiverTest extends TestCase
             'is_default' => true,
             'rotations_id' => 1,
             'source_name' => 'source',
+            'lead_sources_id' => 0,
+            'lead_types_id' => 0,
         ];
         $response = $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {
@@ -139,6 +177,8 @@ class LeadReceiverTest extends TestCase
             'is_default' => true,
             'rotations_id' => 1,
             'source_name' => 'source',
+            'lead_sources_id' => 0,
+            'lead_types_id' => 0,
         ];
         $response = $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {

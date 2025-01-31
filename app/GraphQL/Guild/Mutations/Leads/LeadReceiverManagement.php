@@ -24,7 +24,9 @@ class LeadReceiverManagement
             'agent' => Users::getById($request['input']['agents_id'], app(Apps::class)),
             'isDefault' => $request['input']['is_default'],
             'rotation' => LeadRotation::getById($request['input']['rotations_id']),
-            'source' => $request['input']['source_name']
+            'source' => $request['input']['source_name'],
+            'lead_sources_id' => $request['input']['lead_sources_id'],
+            'lead_types_id' => $request['input']['lead_types_id'],
         ]);
         return (new CreateLeadReceiverAction($dto))->execute();
     }
@@ -39,9 +41,12 @@ class LeadReceiverManagement
             'agent' => Users::getById($request['input']['agents_id'], app(Apps::class)),
             'isDefault' => $request['input']['is_default'],
             'rotation' => LeadRotation::getById($request['input']['rotations_id']),
-            'source' => $request['input']['source_name']
+            'source' => $request['input']['source_name'],
+            'lead_sources_id' => $request['input']['lead_sources_id'],
+            'lead_types_id' => $request['input']['lead_types_id'],
         ]);
-        return (new UpdateLeadReceiverAction((int)$request['id'], $dto))->execute();
+        $leadReceiver = LeadReceiverModel::getById($request['id'], app(Apps::class));
+        return (new UpdateLeadReceiverAction($leadReceiver, $dto))->execute();
     }
 
     public function delete(mixed $root, array $request): bool

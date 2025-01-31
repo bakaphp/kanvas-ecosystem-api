@@ -32,6 +32,8 @@ class CreateLeadReceiverAction
             'is_default' => (int) $this->leadReceiver->isDefault,
             'rotations_id' => $this->leadReceiver->rotation ? $this->leadReceiver->rotation->getId() : 0,
             'source_name' => $this->leadReceiver->source,
+            'leads_sources_id' => $this->leadReceiver->lead_sources_id,	
+            'lead_types_id' => $this->leadReceiver->lead_types_id,
         ]);
     }
 }

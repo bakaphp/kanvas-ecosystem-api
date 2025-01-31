@@ -9,8 +9,8 @@ type LeadReceiver {
     source_name: String
     is_default: Boolean!
     template: String
-    leadSource: LeadSource! @belongsTo(relation: "leadSource")
-    leadType: LeadType! @belongsTo(relation: "leadType")
+    leadSource: LeadSource @belongsTo(relation: "leadSource")
+    leadType: LeadType @belongsTo(relation: "leadType")
 }
 
 input LeadReceiverInput {

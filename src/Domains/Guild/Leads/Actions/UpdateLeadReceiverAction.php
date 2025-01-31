@@ -14,25 +14,23 @@ class UpdateLeadReceiverAction
      * __construct.
      */
     public function __construct(
-        protected int $id,
-        protected readonly LeadReceiver $leadReceiver,
+        protected ModelsLeadReceiver $leadReceiver,
+        protected readonly LeadReceiver $leadReceiverDto,
     ) {
     }
 
     public function execute(): ModelsLeadReceiver
     {
-        return ModelsLeadReceiver::updateOrCreate([
-            'id' => $this->id,
-            'companies_branches_id' => $this->leadReceiver->branch->getId(),
-            'companies_id' => $this->leadReceiver->branch->company->getId(),
-            'apps_id' => $this->leadReceiver->app->getId(),
-        ], [
-            'name' => $this->leadReceiver->name,
-            'users_id' => $this->leadReceiver->user->getId(),
-            'agents_id' => $this->leadReceiver->agent->getId(),
-            'is_default' => (int) $this->leadReceiver->isDefault,
-            'rotations_id' => $this->leadReceiver->rotation ? $this->leadReceiver->rotation->getId() : 0,
-            'source_name' => $this->leadReceiver->source,
+        $this->leadReceiver->update([
+            'name' => $this->leadReceiverDto->name,
+            'users_id' => $this->leadReceiverDto->user->getId(),
+            'agents_id' => $this->leadReceiverDto->agent->getId(),
+            'is_default' => (int) $this->leadReceiverDto->isDefault,
+            'rotations_id' => $this->leadReceiverDto->rotation ? $this->leadReceiverDto->rotation->getId() : 0,
+            'source_name' => $this->leadReceiverDto->source,
+            'leads_sources_id' => $this->leadReceiverDto->lead_sources_id,	
+            'lead_types_id' => $this->leadReceiverDto->lead_types_id,
         ]);
+        return $this->leadReceiver;
     }
 }
