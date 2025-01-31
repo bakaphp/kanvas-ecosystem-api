@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
@@ -84,7 +85,6 @@ class LeadRotationTest extends TestCase
                         ]
                     ]
                 ]);
-
     }
 
     public function testDeleteLeadRotation()
