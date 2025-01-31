@@ -1,0 +1,55 @@
+type LeadRotation {
+    id: ID!
+    companies: Company! @belongsTo(relation: "companies")
+    name: String!
+    leads_rotations_email: String
+    hits: Int
+    agents: [LeadRotationAgent!] @hasMany(relation: "agents")
+}
+type LeadRotationAgent {
+    id: ID!
+    users: User! @belongsTo(relation: "users")
+    phone: String!
+    percent: Float!
+    hits: Int
+}
+input LeadRotationAgentInput {
+    users_id: ID!
+    phone: String!
+    percent: Float!
+    hits: Int
+}
+
+input LeadRotationInput {
+    name: String!
+    leads_rotations_email: String
+    hits: Int
+    agents: [LeadRotationAgentInput!]
+}
+
+extend type Mutation @guard {
+    createLeadRotation(input: LeadRotationInput!): LeadRotation!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadRotationManagementMutation@create"
+        )
+    updateLeadRotation(id: ID!, input: LeadRotationInput!): LeadRotation!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadRotationManagementMutation@update"
+        )
+    deleteLeadRotation(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadRotationManagementMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    leadsRotations(
+        where: _
+            @whereConditions(columns: ["name", "leads_rotations_email", "hits"])
+    ): [LeadRotation!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Leads\\Models\\LeadRotation"
+            defaultCount: 10
+            scopes: ["fromCompany", "fromApp"]
+        )
+}

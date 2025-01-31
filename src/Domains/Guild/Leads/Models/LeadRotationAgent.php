@@ -6,7 +6,9 @@ namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Traits\KanvasScopesTrait;
 use Baka\Traits\NoAppRelationshipTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 
 /**
  * Class LeadRotationAgent.
@@ -28,4 +30,9 @@ class LeadRotationAgent extends BaseModel
 
     protected $table = 'leads_rotations_agents';
     protected $guarded = [];
+
+    public function users(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'users_id');
+    }
 }
