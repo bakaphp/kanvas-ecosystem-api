@@ -1027,6 +1027,59 @@
             "time": "2021-03-07T01:55:46+00:00"
         },
         {
+            "name": "automattic/woocommerce",
+            "version": "3.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/woocommerce/wc-api-php.git",
+                "reference": "d3b292f04c0b3b21dced691ebad8be073a83b4ad"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/woocommerce/wc-api-php/zipball/d3b292f04c0b3b21dced691ebad8be073a83b4ad",
+                "reference": "d3b292f04c0b3b21dced691ebad8be073a83b4ad",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "php": ">= 7.1.0"
+            },
+            "require-dev": {
+                "overtrue/phplint": "7.4.x-dev",
+                "phpunit/phpunit": "^8",
+                "squizlabs/php_codesniffer": "3.*"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Automattic\\WooCommerce\\": [
+                        "src/WooCommerce"
+                    ]
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Claudio Sanches",
+                    "email": "claudio.sanches@automattic.com"
+                }
+            ],
+            "description": "A PHP wrapper for the WooCommerce REST API",
+            "keywords": [
+                "api",
+                "woocommerce"
+            ],
+            "support": {
+                "issues": "https://github.com/woocommerce/wc-api-php/issues",
+                "source": "https://github.com/woocommerce/wc-api-php/tree/3.1.0"
+            },
+            "time": "2022-03-18T21:46:17+00:00"
+        },
+        {
             "name": "awobaz/compoships",
             "version": "2.4.0",
             "source": {
