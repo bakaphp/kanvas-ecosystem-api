@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WooCommerce\DataTransferObject;
 
-use Spatie\LaravelData\Data;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
-use Illuminate\Support\Str;
-use Kanvas\Connectors\WooCommerce\Services\WooCommerce;
 
 class WooCommerceImportProduct extends ProductImporter
 {
@@ -49,13 +46,14 @@ class WooCommerceImportProduct extends ProductImporter
                 'value' => $attribute->options[0],
             ];
         }
+
         return new self(
             name: $product->name,
             slug: $product->slug,
             sku: $product->sku,
             price: (float)$product->price,
             discountPrice: (int)$product->sale_price,
-            isPublished: $product->status == "publish",
+            isPublished: $product->status == 'publish',
             sourceId: (string)$product->id,
             variants: $variants,
             quantity: (int)$product->stock_quantity,

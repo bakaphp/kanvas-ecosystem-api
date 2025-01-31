@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WooCommerce\Services;
 
+use Automattic\WooCommerce\Client;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WooCommerce\Enums\WooCommerceEnum;
-use Automattic\WooCommerce\Client;
 
 class WooCommerce
 {
     public Client $client;
+
     public function __construct(
         protected Apps $app
     ) {
@@ -36,6 +37,7 @@ class WooCommerce
     {
         $response = $this->client->get('/wp-json/custom/v1/users');
         $users = json_decode($response->getBody()->getContents(), true);
+
         return $users;
     }
 }

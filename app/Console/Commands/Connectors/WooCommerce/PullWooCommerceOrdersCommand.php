@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\WooCommerce;
 
-use Kanvas\Connectors\WooCommerce\Actions\PullWooCommerceOrdersAction;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\WooCommerce\Enums\WooCommerceEnum;
-use Illuminate\Console\Command;
-use Kanvas\Users\Models\Users;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Regions\Models\Regions;
-use Kanvas\Connectors\WooCommerce\Actions\CreateOrderAction;
-use Kanvas\Connectors\WooCommerce\Services\WooCommerce;
 use Exception;
+use Illuminate\Console\Command;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\WooCommerce\Actions\CreateOrderAction;
+use Kanvas\Connectors\WooCommerce\Enums\WooCommerceEnum;
+use Kanvas\Connectors\WooCommerce\Services\WooCommerce;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Users\Models\Users;
 
 class PullWooCommerceOrdersCommand extends Command
 {
@@ -26,19 +25,19 @@ class PullWooCommerceOrdersCommand extends Command
 
         $wooCommerceUrl = $app->get(WooCommerceEnum::WORDPRESS_URL->value);
         if (! $wooCommerceUrl) {
-            $ask = $this->ask("What is the WooCommerce Base URL?");
+            $ask = $this->ask('What is the WooCommerce Base URL?');
             $app->set(WooCommerceEnum::WORDPRESS_URL->value, $ask);
         }
 
         $wooCommerceUser = $app->get(WooCommerceEnum::WOOCOMMERCE_KEY->value);
         if (! $wooCommerceUser) {
-            $ask = $this->ask("What is the WooCommerce Key?");
+            $ask = $this->ask('What is the WooCommerce Key?');
             $app->set(WooCommerceEnum::WOOCOMMERCE_KEY->value, $ask);
         }
 
         $wooCommercePassword = $app->get(WooCommerceEnum::WOOCOMMERCE_SECRET_KEY->value);
         if (! $wooCommercePassword) {
-            $ask = $this->secret("What is the WooCommerce secret key?");
+            $ask = $this->secret('What is the WooCommerce secret key?');
             $app->set(WooCommerceEnum::WOOCOMMERCE_SECRET_KEY->value, $ask);
         }
 
@@ -48,10 +47,10 @@ class PullWooCommerceOrdersCommand extends Command
 
         $wooCommerce = new WooCommerce($app);
         $page = 1;
-        $orders = $wooCommerce->client->get("orders", [
+        $orders = $wooCommerce->client->get('orders', [
             'status' => 'completed',
             'per_page' => 100,
-            'page' => $page
+            'page' => $page,
         ]);
         $totalPage = $wooCommerce->client->http->getResponse()->getHeaders()['X-WP-TotalPages'][0] ?? 1;
         while ($page <= $totalPage) {
@@ -69,10 +68,10 @@ class PullWooCommerceOrdersCommand extends Command
                 }
             }
             $page++;
-            $orders = $wooCommerce->client->get("orders", [
+            $orders = $wooCommerce->client->get('orders', [
                 'status' => 'completed',
                 'per_page' => 100,
-                'page' => $page
+                'page' => $page,
             ]);
         }
     }

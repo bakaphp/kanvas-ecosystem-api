@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\WooCommerce\Actions;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\WooCommerce\DataTransferObject\WooCommerceImportProduct;
-use Kanvas\Users\Models\Users;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
-use Kanvas\Regions\Models\Regions;
+use Kanvas\Connectors\WooCommerce\DataTransferObject\WooCommerceImportProduct;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerce;
-use Exception;
+use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Users\Models\Users;
 
 class CreateProductAction
 {
@@ -37,6 +36,7 @@ class CreateProductAction
         $productDto = WooCommerceImportProduct::fromWooCommerce(
             $this->product
         );
+
         return (new ProductImporterAction(
             $productDto,
             $this->company,

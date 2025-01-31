@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WooCommerce\Jobs;
 
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Connectors\WooCommerce\Actions\CreateProductAction;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
 class ProductReceiverJob extends ProcessWebhookJob
 {
@@ -29,6 +29,7 @@ class ProductReceiverJob extends ProcessWebhookJob
             ),
             $payload
         );
+
         return [
             'message' => 'Product created successfully',
             'order' => $createProduct->execute()->getId(),

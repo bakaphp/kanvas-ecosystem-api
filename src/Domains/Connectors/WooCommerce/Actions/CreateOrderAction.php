@@ -6,24 +6,20 @@ namespace Kanvas\Connectors\WooCommerce\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Users\Models\Users;
-use Kanvas\Regions\Models\Regions;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
-use Kanvas\Guild\Customers\Models\Address;
-use Kanvas\Guild\Customers\DataTransferObject\Address as AddressDto;
-use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
-use Kanvas\Souk\Orders\Models\Orders;
-use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
-use Kanvas\Guild\Customers\Models\People;
-use Spatie\LaravelData\DataCollection;
-use Kanvas\Guild\Customers\Models\Address as AddressModel;
 use Kanvas\Connectors\WooCommerce\DataTransferObject\WooCommerceImportOrder;
+use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\DataTransferObject\Address as AddressDto;
+use Kanvas\Guild\Customers\DataTransferObject\Contact;
+use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Address as AddressModel;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Locations\Models\Countries;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction as SoukCreateOrderAction;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
-use Kanvas\Guild\Customers\DataTransferObject\Contact;
-use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Locations\Models\Countries;
-use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Users\Models\Users;
+use Spatie\LaravelData\DataCollection;
 
 class CreateOrderAction
 {
@@ -50,7 +46,7 @@ class CreateOrderAction
                     [
                         'value' => $this->order->billing->email,
                         'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                    ]
+                    ],
                 ], DataCollection::class),
                 'address' => AddressDto::collect([
                     [
@@ -61,7 +57,7 @@ class CreateOrderAction
                         'zip' => $this->order->billing->postcode,
                         'countries_id' => Countries::where('code', $this->order->billing->country)
                                     ->first()
-                                    ->id,]
+                                    ->id,],
                 ], DataCollection::class),
             ]);
             $createPeople = new CreatePeopleAction($peopleDto);
@@ -100,6 +96,7 @@ class CreateOrderAction
             $billingAddress,
         );
         $createOrder = new SoukCreateOrderAction($orderDto);
+
         return $createOrder->execute();
     }
 }

@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WooCommerce\DataTransferObject;
 
-use Kanvas\Souk\Orders\DataTransferObject\Order as OrderDto;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Regions\Models\Regions;
-use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Users\Models\Users;
-use Kanvas\Guild\Customers\Models\Address;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
-use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Currencies\Models\Currencies;
 use InvalidArgumentException;
-use Kanvas\Connectors\WooCommerce\Services\WooCommerce;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WooCommerce\Actions\CreateProductAction;
+use Kanvas\Connectors\WooCommerce\Services\WooCommerce;
+use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Guild\Customers\Models\Address;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\DataTransferObject\Order as OrderDto;
+use Kanvas\Users\Models\Users;
 
 class WooCommerceImportOrder extends OrderDto
 {
@@ -77,6 +76,7 @@ class WooCommerceImportOrder extends OrderDto
             'failed' => 'failed',
             default => throw new InvalidArgumentException('Invalid status'),
         };
+
         return new self(
             app: $app,
             region: $region,
