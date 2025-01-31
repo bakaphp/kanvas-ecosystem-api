@@ -34,7 +34,8 @@ class LeadRotationManagementMutation
             'hits' => $request['input']['hits'],
             'agents' => key_exists('agents', $request['input']) ? $request['input']['agents'] : []
         ]);
-        return (new UpdateLeadRotationAction((int)$request['id'], $dto))->execute();
+        $leadRotation = LeadRotationModel::getById($request['id'], app(Apps::class));
+        return (new UpdateLeadRotationAction($leadRotation, $dto))->execute();
     }
 
     public function delete(mixed $root, array $request): bool

@@ -10,7 +10,7 @@ type LeadRotation {
 input LeadRotationInput {
     name: String!
     leads_rotations_email: String
-    hits: Int,
+    hits: Int
     agents: [ID!]
 }
 
@@ -37,6 +37,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\LeadRotation"
             defaultCount: 10
-            scopes: ["fromCompany"]
+            scopes: ["fromCompany", "fromApp"]
         )
 }

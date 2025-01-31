@@ -11,27 +11,26 @@ class UpdateLeadRotationAction
 {
 
     public function __construct(
-        public int $id,
+        public LeadRotation $leadRotation,
         public LeadRotationDto $leadRotationDto
     ) {
     }
 
     public function execute(): LeadRotation
     {
-        $leadRotation = LeadRotation::getById($this->id, $this->leadRotationDto->app);
-        $leadRotation->update([
+        $this->leadRotation->update([
             'companies_id' => $this->leadRotationDto->company->getId(),
             'apps_id' => $this->leadRotationDto->app->getId(),
             'name' => $this->leadRotationDto->name,
-            'leads_rotations_email' => $this->leadRotationDto->leads_rotations_email,
+            'leads_rotations_email' => $this->leadRotationDto->leadsRotationsEmail,
             'hits' => $this->leadRotationDto->hits
         ]);
         if ($this->leadRotationDto->agents) {
             $users = UsersRepository::findUsersByArray($this->leadRotationDto->agents, $this->leadRotationDto->app);
             $usersIds = $users->pluck('id');
-            $leadRotation->agents()->sync($usersIds);
+            $this->leadRotation->agents()->sync($usersIds);
         }
 
-        return $leadRotation;
+        return $this->leadRotation;
     }
 }

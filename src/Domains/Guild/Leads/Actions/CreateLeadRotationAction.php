@@ -21,7 +21,7 @@ class CreateLeadRotationAction
             'companies_id' => $this->leadRotationDto->company->getId(),
             'apps_id' => $this->leadRotationDto->app->getId(),
             'name' => $this->leadRotationDto->name,
-            'leads_rotations_email' => $this->leadRotationDto->leads_rotations_email,
+            'leads_rotations_email' => $this->leadRotationDto->leadsRotationsEmail,
             'hits' => $this->leadRotationDto->hits
         ]);
         if ($this->leadRotationDto->agents) {
