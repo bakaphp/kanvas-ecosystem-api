@@ -20,7 +20,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($message->message['image']);
+        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($message->message['ai_image']['image']);
         $fileName = basename($tempFilePath);
 
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
@@ -41,6 +41,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             $message->message = array_merge($message->message, ['image' => $fileSystemRecord->url]);
             $message->saveOrFail();
         }
+
         // Clean up the temporary file
         unlink($tempFilePath);
 
