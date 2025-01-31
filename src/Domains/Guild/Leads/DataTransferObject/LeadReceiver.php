@@ -7,7 +7,6 @@ namespace Kanvas\Guild\Leads\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Guild\Rotations\Models\Rotation;
 use Spatie\LaravelData\Data;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 
@@ -27,7 +26,7 @@ class LeadReceiver extends Data
         public int $lead_sources_id = 0,
         public int $lead_types_id = 0,
         public ?string $template = null,
-        public Rotation|LeadRotation|null $rotation = null
+        public ?LeadRotation $rotation = null
     ) {
     }
 }
