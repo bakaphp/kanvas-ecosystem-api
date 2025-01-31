@@ -41,7 +41,6 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             $message->message = array_merge($message->message, ['image' => $fileSystemRecord->url]);
             $message->saveOrFail();
         }
-        
         // Clean up the temporary file
         unlink($tempFilePath);
 
