@@ -26,7 +26,7 @@ class CreateLeadRotationAction
             'leads_rotations_email' => $this->leadRotationDto->leadsRotationsEmail,
             'hits' => $this->leadRotationDto->hits
         ]);
-        if (!empty($this->leadRotationDto->agents)) {
+        if (! empty($this->leadRotationDto->agents)) {
             foreach ($this->leadRotationDto->agents as $agent) {
                 $user = Users::getById($agent['users_id'], $this->leadRotationDto->app);
                 $leadRotationAgent = new LeadRotationAgent();
