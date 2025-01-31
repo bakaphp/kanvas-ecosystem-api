@@ -40,7 +40,6 @@ class UpdateLeadRotationAction
                 $this->leadRotation->agents()->save($leadRotationAgent);
                 $this->leadRotation->save();
             }
-
         }
 
         return $this->leadRotation;
