@@ -4,14 +4,27 @@ type LeadRotation {
     name: String!
     leads_rotations_email: String
     hits: Int
-    agents: [User!] @hasMany(relation: "agents")
+    agents: [LeadRotationAgent!] @hasMany(relation: "agents")
+}
+type LeadRotationAgent {
+    id: ID!
+    users: User! @belongsTo(relation: "users")
+    phone: String!
+    percent: Float!
+    hits: Int!
+}
+input LeadRotationAgentInput {
+    users_id: ID!
+    phone: String!
+    percent: Float!
+    hits: Int!
 }
 
 input LeadRotationInput {
     name: String!
     leads_rotations_email: String
     hits: Int
-    agents: [ID!]
+    agents: [LeadRotationAgentInput!]
 }
 
 extend type Mutation @guard {

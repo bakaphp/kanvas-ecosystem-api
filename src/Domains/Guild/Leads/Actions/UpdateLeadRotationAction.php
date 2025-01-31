@@ -7,6 +7,8 @@ namespace Kanvas\Guild\Leads\Actions;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\DataTransferObject\LeadRotation as LeadRotationDto;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Users\Models\Users;
+use Kanvas\Guild\Leads\Models\LeadRotationAgent;
 
 class UpdateLeadRotationAction
 {
@@ -26,9 +28,19 @@ class UpdateLeadRotationAction
             'hits' => $this->leadRotationDto->hits
         ]);
         if ($this->leadRotationDto->agents) {
-            $users = UsersRepository::findUsersByArray($this->leadRotationDto->agents, $this->leadRotationDto->app);
-            $usersIds = $users->pluck('id');
-            $this->leadRotation->agents()->sync($usersIds);
+            $this->leadRotation->agents()->dissociate();
+            foreach ($this->leadRotationDto->agents as $agent) {
+                $user = Users::getById($agent['users_id'], $this->leadRotationDto->app);
+                $leadRotationAgent = new LeadRotationAgent();
+                $leadRotationAgent->phone = $agent['phone'];
+                $leadRotationAgent->percent = $agent['percent'];
+                $leadRotationAgent->users_id = $user->getId();
+                $leadRotationAgent->companies_id = $this->leadRotationDto->company->getId();
+                $leadRotationAgent->hits = $agent['hits'];
+                $this->leadRotation->agents()->save($leadRotationAgent);
+                $this->leadRotation->save();
+            }
+
         }
 
         return $this->leadRotation;

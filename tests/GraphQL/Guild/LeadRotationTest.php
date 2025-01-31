@@ -127,21 +127,38 @@ class LeadRotationTest extends TestCase
             'name' => fake()->word,
             'leads_rotations_email' => fake()->email,
             'hits' => fake()->numberBetween(1, 100),
-            'agents' => [auth()->user()->getId()]
+            'agents' => [
+                [
+                    'users_id' => auth()->user()->getId(),
+                    'phone' => fake()->phoneNumber,
+                    'percent' => 10,
+                    'hits' => 0
+                ]
+            ]
         ];
 
         $response = $this->graphQL(
             '
             mutation createLeadRotation($input: LeadRotationInput!) {
                 createLeadRotation(input: $input){
-                    id
+                    name,
+                    leads_rotations_email,
+                    hits
                 }
             }
             ',
             [
                 'input' => $input,
             ]
-        );
+        )->assertJson([
+            'data' => [
+                'createLeadRotation' => [
+                    'name' => $input['name'],
+                    'leads_rotations_email' => $input['leads_rotations_email'],
+                    'hits' => $input['hits'],
+                ],
+            ],
+        ]);
 
         $response = $this->graphQL(
             '
@@ -154,25 +171,28 @@ class LeadRotationTest extends TestCase
                         leads_rotations_email
                         hits, 
                         agents {
-                            id
+                            users {
+                                id
+                            }
                         }
                     }
                 }
             }
             '
         );
-        $response->assertJsonStructure([
+        $response->assertJson([
             'data' => [
                 'leadsRotations' => [
                     'data' => [
-                        '*' => [
-                            'id',
-                            'name',
-                            'leads_rotations_email',
-                            'hits',
+                        [
+                            'name' => $input['name'],
+                            'leads_rotations_email' => $input['leads_rotations_email'],
+                            'hits' => $input['hits'],
                             'agents' => [
-                                '*' => [
-                                    'id'
+                                [
+                                    "users" => [
+                                        "id" => $input['agents'][0]['users_id']
+                                    ]
                                 ]
                             ]
                         ]
