@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
@@ -9,7 +10,6 @@ use Kanvas\Users\Repositories\UsersRepository;
 
 class UpdateLeadRotationAction
 {
-
     public function __construct(
         public int $id,
         public LeadRotationDto $leadRotationDto
