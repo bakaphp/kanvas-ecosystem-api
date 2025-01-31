@@ -34,7 +34,7 @@ class CreateLeadRotationAction
                 $leadRotationAgent->percent = $agent['percent'];
                 $leadRotationAgent->users_id = $user->getId();
                 $leadRotationAgent->companies_id = $this->leadRotationDto->company->getId();
-                $leadRotationAgent->hits = $agent['hits'];
+                $leadRotationAgent->hits = key_exists('hits', $agent) ? $agent['hits']: 0;
                 $leadRotation->agents()->save($leadRotationAgent);
                 $leadRotation->save();
             }

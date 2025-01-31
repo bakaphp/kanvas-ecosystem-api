@@ -11,13 +11,13 @@ type LeadRotationAgent {
     users: User! @belongsTo(relation: "users")
     phone: String!
     percent: Float!
-    hits: Int!
+    hits: Int
 }
 input LeadRotationAgentInput {
     users_id: ID!
     phone: String!
     percent: Float!
-    hits: Int!
+    hits: Int
 }
 
 input LeadRotationInput {

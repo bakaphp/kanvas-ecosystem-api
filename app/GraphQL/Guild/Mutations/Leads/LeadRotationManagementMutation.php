@@ -19,7 +19,7 @@ class LeadRotationManagementMutation
             'company' => auth()->user()->getCurrentCompany(),
             'name' => $request['input']['name'],
             'leads_rotations_email' => key_exists('leads_rotations_email', $request['input']) ? $request['input']['leads_rotations_email'] : null,
-            'hits' => $request['input']['hits'],
+            'hits' => key_exists('hits', array: $request['input']) ? $request['input']['hits'] : 0,
             'agents' => key_exists('agents', $request['input']) ? $request['input']['agents'] : []
         ]);
         return (new CreateLeadRotationAction($dto))->execute();
@@ -32,7 +32,7 @@ class LeadRotationManagementMutation
             'company' => auth()->user()->getCurrentCompany(),
             'name' => $request['input']['name'],
             'leads_rotations_email' => key_exists('leads_rotations_email', $request['input']) ? $request['input']['leads_rotations_email'] : null,
-            'hits' => $request['input']['hits'],
+            'hits' => key_exists('hits', array: $request['input']) ? $request['input']['hits'] : 0,
             'agents' => key_exists('agents', $request['input']) ? $request['input']['agents'] : []
         ]);
         $leadRotation = LeadRotationModel::getById($request['id'], app(Apps::class));
