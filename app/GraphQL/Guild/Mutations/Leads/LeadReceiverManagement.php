@@ -28,6 +28,7 @@ class LeadReceiverManagement
             'source' => $request['input']['source_name'],
             'lead_sources_id' => $request['input']['lead_sources_id'],
             'lead_types_id' => $request['input']['lead_types_id'],
+            'template' => key_exists('template', $request['input']) ? $request['input']['template'] : '',
         ]);
         return (new CreateLeadReceiverAction($dto))->execute();
     }
@@ -45,6 +46,7 @@ class LeadReceiverManagement
             'source' => $request['input']['source_name'],
             'lead_sources_id' => $request['input']['lead_sources_id'],
             'lead_types_id' => $request['input']['lead_types_id'],
+            'template' => key_exists('template', $request['input']) ? $request['input']['template'] : null,
         ]);
         $leadReceiver = LeadReceiverModel::getById($request['id'], app(Apps::class));
         return (new UpdateLeadReceiverAction($leadReceiver, $dto))->execute();

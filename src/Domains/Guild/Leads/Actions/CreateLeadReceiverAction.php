@@ -34,6 +34,7 @@ class CreateLeadReceiverAction
             'source_name' => $this->leadReceiver->source,
             'leads_sources_id' => $this->leadReceiver->lead_sources_id,
             'lead_types_id' => $this->leadReceiver->lead_types_id,
+            'template' => $this->leadReceiver->template,
         ]);
     }
 }

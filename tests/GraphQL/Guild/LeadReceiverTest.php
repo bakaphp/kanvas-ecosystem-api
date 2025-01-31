@@ -49,6 +49,7 @@ class LeadReceiverTest extends TestCase
             'source_name' => 'source',
             'lead_sources_id' => $leadSource->getId(),
             'lead_types_id' => $leadType->getId(),
+            'template' => 'template',
         ];
         $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {
@@ -64,7 +65,8 @@ class LeadReceiverTest extends TestCase
                     },
                     leadType{
                         id
-                    }
+                    },
+                    template
                 }
             }',
             [
@@ -85,6 +87,7 @@ class LeadReceiverTest extends TestCase
                     'leadType' => [
                         'id' => $input['lead_types_id'],
                     ],
+                    'template' => 'template'
                 ],
             ],
         ]);
@@ -100,6 +103,7 @@ class LeadReceiverTest extends TestCase
             'source_name' => 'source',
             'lead_sources_id' => 0,
             'lead_types_id' => 0,
+            'template' => 'template',
         ];
         $response = $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {
@@ -122,6 +126,7 @@ class LeadReceiverTest extends TestCase
                     },
                     is_default,
                     source_name,
+                    template
                 }
             }',
             [
@@ -137,6 +142,7 @@ class LeadReceiverTest extends TestCase
                     ],
                     'is_default' => $input['is_default'],
                     'source_name' => $input['source_name'],
+                    'template' => $input['template'],
                 ],
             ],
         ]);
