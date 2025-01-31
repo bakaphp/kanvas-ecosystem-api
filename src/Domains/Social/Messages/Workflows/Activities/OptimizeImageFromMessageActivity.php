@@ -35,15 +35,20 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
         );
 
         $filesystem = new FilesystemServices($app);
-        $fileSystemPath = $filesystem->upload($uploadedFile, $message->user);
+        $fileSystemRecord = $filesystem->upload($uploadedFile, $message->user);
 
+        if (array_key_exists('image', $message->message)) {
+            $message->message = array_merge($message->message, ['image' => $fileSystemRecord->url]);
+            $message->saveOrFail();
+        }
+        
         // Clean up the temporary file
         unlink($tempFilePath);
 
         return [
             'result' => true,
             'message' => 'Image optimized and uploaded',
-            'data' => $fileSystemPath,
+            'data' => $fileSystemRecord,
             'message_id' => $message->getId(),
         ];
     }
