@@ -1,8 +1,8 @@
 type LeadReceiver {
     id: ID!
     user: User! @belongsTo(relation: "user")
-    companies: Company! @belongsTo(relation: "companies")
-    branches: CompanyBranch! @belongsTo(relation: "branch")
+    company: Company! @belongsTo(relation: "company")
+    branch: CompanyBranch! @belongsTo(relation: "branch")
     agent: User! @belongsTo(relation: "agent")
     name: String!
     source_name: String
