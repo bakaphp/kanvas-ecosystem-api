@@ -1,11 +1,10 @@
 type LeadReceiver {
     id: ID!
-    users: User! @belongsTo(relation: "users")
+    user: User! @belongsTo(relation: "user")
     companies: Company! @belongsTo(relation: "companies")
     branches: CompanyBranch! @belongsTo(relation: "branch")
     agent: User! @belongsTo(relation: "agent")
     name: String!
-    agent: User!
     source_name: String
     is_default: Boolean!
     template: String
