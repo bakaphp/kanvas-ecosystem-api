@@ -10,4 +10,5 @@ enum ConfigurationEnum: string
     case APP_KEY = 'CM_LINK_APP_KEY';
     case APP_SECRET = 'CM_LINK_APP_SECRET';
     case APP_TYPE = 'CM_LINK_APP_TYPE';
+    case NAME = 'CMLink';
 }

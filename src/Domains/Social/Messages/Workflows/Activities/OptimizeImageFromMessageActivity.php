@@ -6,10 +6,10 @@ namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Workflow\KanvasActivity;
-use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Kanvas\Workflow\KanvasActivity;
 
 class OptimizeImageFromMessageActivity extends KanvasActivity
 {
@@ -19,6 +19,13 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
+
+        if (empty($message->message['ai_image']) || empty($message->message['ai_image']['image'])) {
+            return [
+                'result' => false,
+                'message' => 'Message does not have an AI image',
+            ];
+        }
 
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($message->message['ai_image']['image']);
         $fileName = basename($tempFilePath);

@@ -6,6 +6,9 @@ namespace Kanvas\Connectors\CMLink\Services;
 
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum;
+use Kanvas\Connectors\CMLink\Enums\CustomFieldEnum;
+use Kanvas\Connectors\ESim\Enums\ProductTypeEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Locations\Models\Countries;
@@ -80,15 +83,15 @@ class CMLinkProductService
                     'status' => $bundle['status'] ?? 0,
                     'files' => [
                         [
-                            'name' => 'product_image',
+                            'name' => 'logo.jpg',
                             'url' => $bundle['imgurl'] ?? '',
                         ],
                     ],
-                    'source' => 'cmlink_product',
+                    'source' => CustomFieldEnum::CMLINK_SOURCE_ID->value,
                     'sourceId' => $sku,
                     'customFields' => [
                         [
-                            'name' => 'cmlink_product_id',
+                            'name' => CustomFieldEnum::CMLINK_PRODUCT_ID->value,
                             'data' => $sku,
                         ],
                     ],
@@ -98,10 +101,15 @@ class CMLinkProductService
                             'code' => crc32('cmlink'),
                             'is_published' => true,
                             'position' => 1,
+                        ],[
+                            'name' => 'esim',
+                            'code' => crc32('esim'),
+                            'is_published' => true,
+                            'position' => 1,
                         ],
                     ],
                     'productType' => [
-                        'name' => 'CMLink',
+                        'name' => ProductTypeEnum::getTypeByName($baseName)->value,
                         'weight' => 0,
                     ],
                     'attributes' => $productAttributes,
@@ -172,7 +180,7 @@ class CMLinkProductService
         $attributes = [
             [
                 'name' => 'product-provider',
-                'value' => 'CMLink',
+                'value' => ConfigurationEnum::NAME->value,
             ],
         ];
 
@@ -181,7 +189,7 @@ class CMLinkProductService
 
         if (! empty($mccs)) {
             $attributes[] = [
-                'name' => 'Countries',
+                'name' => 'countries',
                 'value' => $this->mapCountriesAttribute($mccs),
             ];
             $attributes[] = [
@@ -196,6 +204,15 @@ class CMLinkProductService
                   'value' => $bundle['recommendedPlans'],
               ]; */
         }
+
+        $attributes[] = [
+            'name' => 'max_unlimited_days',
+            'value' => $bundle['period'] ?? 0,
+        ];
+        $attributes[] = [
+            'name' => 'refueling_package',
+            'value' => $bundle['refuelingPackage'] ?? null,
+        ];
 
         return $attributes;
     }
