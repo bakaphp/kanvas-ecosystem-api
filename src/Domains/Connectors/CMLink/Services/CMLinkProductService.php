@@ -8,7 +8,6 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CMLink\Enums\CustomFieldEnum;
-use Kanvas\Connectors\ESim\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Connectors\ESim\Enums\ProductTypeEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -49,14 +48,10 @@ class CMLinkProductService
 
             // Construct the variant
             $variantAttributes = $this->mapVariantAttributes($bundle);
-            $variants = ! $useCalendarVariants ? $this->getVariant(
-                $fullName,
-                $sku,
-                $price,
-                $originalPrice,
-                $variantAttributes,
-                $bundle
-            ) : $this->getCalendarVariants(
+            /**
+             * @todo look for a way to do calendars for the variants
+             */
+            $variants = $this->getVariant(
                 $fullName,
                 $sku,
                 $price,
@@ -162,74 +157,6 @@ class CMLinkProductService
         ];
 
         return $variant;
-    }
-
-    protected function getCalendarVariants(
-        string $fullName,
-        string $sku,
-        float $price,
-        float $originalPrice,
-        array $variantAttributes,
-        array $bundle
-    ) {
-        $period = $bundle['period'] ?? 0;
-
-        if ($period == 0) {
-            return $this->getVariant(
-                $fullName,
-                $sku,
-                $price,
-                $originalPrice,
-                $variantAttributes,
-                $bundle
-            );
-        }
-
-        $i = 1;
-        while ($i <= $period) {
-            $variant = $this->getVariant(
-                $fullName,
-                $sku,
-                $price,
-                $originalPrice,
-                $variantAttributes,
-                $bundle
-            );
-            // Add the updated 'esim_days' entry
-            $attributes[] = [
-                'name' => 'esim_days',
-                'value' => $period,
-            ];
-            $attributes[] = [
-                'name' => 'Variant Duration',
-                'value' => $period,
-            ];
-
-            $sku = Str::simpleSlug($sku . '-' . $i);
-            //$sourceId = $variant['id'] . '-' . $variantByPriceRange['days'];
-
-            $variant['name'] = $fullName . ' - ' . $period . ' Days';
-            $variant['sku'] = $sku . '-' . $period;
-            $variant['attributes'][] = [
-                'name' => 'esim_days',
-                'value' => $period,
-            ];
-
-            $variant['attributes'] = [
-                [
-                    'name' => EnumsCustomFieldEnum::VARIANT_ESIM_ID->value,
-                    'data' => $sku,
-                ],[
-                    'name' => 'parent_sku',
-                    'data' => $sku,
-                ],
-            ];
-
-            $variants[] = $variant;
-            $i++;
-        }
-
-        return $variants;
     }
 
     protected function mapVariantAttributes(array $bundle): array
