@@ -50,7 +50,7 @@ extend type Query {
     ): [LeadReceiver!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\LeadReceiver"
-            scopes: ["fromCompany", "notDeleted"]
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
             defaultCount: 10
         )
 }

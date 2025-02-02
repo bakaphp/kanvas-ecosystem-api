@@ -58,6 +58,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\LeadRotation"
             defaultCount: 10
-            scopes: ["fromCompany", "fromApp"]
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
 }
