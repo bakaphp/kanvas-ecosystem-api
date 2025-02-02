@@ -6,6 +6,10 @@ namespace Kanvas\Connectors\CMLink\Services;
 
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum;
+use Kanvas\Connectors\CMLink\Enums\CustomFieldEnum;
+use Kanvas\Connectors\ESim\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
+use Kanvas\Connectors\ESim\Enums\ProductTypeEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Locations\Models\Countries;
@@ -32,6 +36,7 @@ class CMLinkProductService
     public function mapProductToImport(array $bundles): array
     {
         $groupedProducts = [];
+        $useCalendarVariants = (bool) $this->region->app->get(ConfigurationEnum::USE_CALENDAR_VARIANTS->value);
 
         foreach ($bundles['dataBundles'] as $bundle) {
             // Extract the base product name
@@ -44,23 +49,21 @@ class CMLinkProductService
 
             // Construct the variant
             $variantAttributes = $this->mapVariantAttributes($bundle);
-            $variant = [
-                'name' => $fullName,
-                'description' => $bundle['desc'][0]['value'] ?? '',
-                'sku' => $sku,
-                'price' => $price,
-                'discountPrice' => $originalPrice,
-                'is_published' => $bundle['status'] === 1,
-                'slug' => $sku,
-                'attributes' => $variantAttributes,
-                'warehouse' => [
-                    'id' => $this->warehouses->id,
-                    'price' => $price,
-                    'quantity' => 100000,
-                    'sku' => $sku,
-                    'is_new' => true,
-                ],
-            ];
+            $variants = ! $useCalendarVariants ? $this->getVariant(
+                $fullName,
+                $sku,
+                $price,
+                $originalPrice,
+                $variantAttributes,
+                $bundle
+            ) : $this->getCalendarVariants(
+                $fullName,
+                $sku,
+                $price,
+                $originalPrice,
+                $variantAttributes,
+                $bundle
+            );
 
             // Map product attributes
             $productAttributes = $this->mapProductAttributes($bundle);
@@ -80,15 +83,15 @@ class CMLinkProductService
                     'status' => $bundle['status'] ?? 0,
                     'files' => [
                         [
-                            'name' => 'product_image',
+                            'name' => 'logo.jpg',
                             'url' => $bundle['imgurl'] ?? '',
                         ],
                     ],
-                    'source' => 'cmlink_product',
+                    'source' => CustomFieldEnum::CMLINK_SOURCE_ID->value,
                     'sourceId' => $sku,
                     'customFields' => [
                         [
-                            'name' => 'cmlink_product_id',
+                            'name' => CustomFieldEnum::CMLINK_PRODUCT_ID->value,
                             'data' => $sku,
                         ],
                     ],
@@ -98,10 +101,15 @@ class CMLinkProductService
                             'code' => crc32('cmlink'),
                             'is_published' => true,
                             'position' => 1,
+                        ],[
+                            'name' => 'esim',
+                            'code' => crc32('esim'),
+                            'is_published' => true,
+                            'position' => 1,
                         ],
                     ],
                     'productType' => [
-                        'name' => 'CMLink',
+                        'name' => ProductTypeEnum::getTypeByName($baseName)->value,
                         'weight' => 0,
                     ],
                     'attributes' => $productAttributes,
@@ -116,11 +124,112 @@ class CMLinkProductService
             }
 
             // Add the variant to the grouped product
-            $groupedProducts[$baseName]['variants'][] = $variant;
+            if (! $useCalendarVariants) {
+                $groupedProducts[$baseName]['variants'][] = $variants;
+            } else {
+                $groupedProducts[$baseName]['variants'] = $variants;
+            }
         }
 
         // Return grouped products as an indexed array
         return array_values($groupedProducts);
+    }
+
+    protected function getVariant(
+        string $fullName,
+        string $sku,
+        float $price,
+        float $originalPrice,
+        array $variantAttributes,
+        array $bundle
+    ): array {
+        $variant = [
+            'name' => $fullName,
+            'description' => $bundle['desc'][0]['value'] ?? '',
+            'sku' => $sku,
+            'price' => $price,
+            'discountPrice' => $originalPrice,
+            'is_published' => $bundle['status'] === 1,
+            'slug' => $sku,
+            'attributes' => $variantAttributes,
+            'warehouse' => [
+                'id' => $this->warehouses->id,
+                'price' => $price,
+                'quantity' => 100000,
+                'sku' => $sku,
+                'is_new' => true,
+            ],
+        ];
+
+        return $variant;
+    }
+
+    protected function getCalendarVariants(
+        string $fullName,
+        string $sku,
+        float $price,
+        float $originalPrice,
+        array $variantAttributes,
+        array $bundle
+    ) {
+        $period = $bundle['period'] ?? 0;
+
+        if ($period == 0) {
+            return $this->getVariant(
+                $fullName,
+                $sku,
+                $price,
+                $originalPrice,
+                $variantAttributes,
+                $bundle
+            );
+        }
+
+        $i = 1;
+        while ($i <= $period) {
+            $variant = $this->getVariant(
+                $fullName,
+                $sku,
+                $price,
+                $originalPrice,
+                $variantAttributes,
+                $bundle
+            );
+            // Add the updated 'esim_days' entry
+            $attributes[] = [
+                'name' => 'esim_days',
+                'value' => $period,
+            ];
+            $attributes[] = [
+                'name' => 'Variant Duration',
+                'value' => $period,
+            ];
+
+            $sku = Str::simpleSlug($sku . '-' . $i);
+            //$sourceId = $variant['id'] . '-' . $variantByPriceRange['days'];
+
+            $variant['name'] = $fullName . ' - ' . $period . ' Days';
+            $variant['sku'] = $sku . '-' . $period;
+            $variant['attributes'][] = [
+                'name' => 'esim_days',
+                'value' => $period,
+            ];
+
+            $variant['attributes'] = [
+                [
+                    'name' => EnumsCustomFieldEnum::VARIANT_ESIM_ID->value,
+                    'data' => $sku,
+                ],[
+                    'name' => 'parent_sku',
+                    'data' => $sku,
+                ],
+            ];
+
+            $variants[] = $variant;
+            $i++;
+        }
+
+        return $variants;
     }
 
     protected function mapVariantAttributes(array $bundle): array
@@ -172,7 +281,7 @@ class CMLinkProductService
         $attributes = [
             [
                 'name' => 'product-provider',
-                'value' => 'CMLink',
+                'value' => ConfigurationEnum::NAME->value,
             ],
         ];
 
@@ -181,7 +290,7 @@ class CMLinkProductService
 
         if (! empty($mccs)) {
             $attributes[] = [
-                'name' => 'Countries',
+                'name' => 'countries',
                 'value' => $this->mapCountriesAttribute($mccs),
             ];
             $attributes[] = [
@@ -196,6 +305,15 @@ class CMLinkProductService
                   'value' => $bundle['recommendedPlans'],
               ]; */
         }
+
+        $attributes[] = [
+            'name' => 'max_unlimited_days',
+            'value' => $bundle['period'] ?? 0,
+        ];
+        $attributes[] = [
+            'name' => 'refueling_package',
+            'value' => $bundle['refuelingPackage'] ?? null,
+        ];
 
         return $attributes;
     }
