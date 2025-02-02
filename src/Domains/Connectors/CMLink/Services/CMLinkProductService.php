@@ -36,7 +36,7 @@ class CMLinkProductService
     public function mapProductToImport(array $bundles): array
     {
         $groupedProducts = [];
-        $useCalendarVariants = (bool) $this->region->app->get('use_calendar_variants');
+        $useCalendarVariants = (bool) $this->region->app->get(ConfigurationEnum::USE_CALENDAR_VARIANTS->value);
 
         foreach ($bundles['dataBundles'] as $bundle) {
             // Extract the base product name
