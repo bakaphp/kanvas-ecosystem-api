@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CMLink\Enums\CustomFieldEnum;
+use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
 use Kanvas\Connectors\ESim\Enums\ProductTypeEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -45,6 +46,8 @@ class CMLinkProductService
             $sku = $bundle['id'];
             $price = ($bundle['priceInfo'][0]['price'] / 100);
             $originalPrice = ($bundle['originalPriceInfo'][0]['price'] / 100);
+            //$variantType = isset($bundle['desc'][0]['value']) && str_contains(strtolower($bundle['desc'][0]['value']), 'unlimited') ? 'unlimited' : 'basic';
+            $variantType = $this->getVariantType($bundle['name'][0]['value'] ?? 'basic');
 
             // Construct the variant
             $variantAttributes = $this->mapVariantAttributes($bundle);
@@ -57,6 +60,7 @@ class CMLinkProductService
                 $price,
                 $originalPrice,
                 $variantAttributes,
+                $variantType,
                 $bundle
             );
 
@@ -136,8 +140,10 @@ class CMLinkProductService
         float $price,
         float $originalPrice,
         array $variantAttributes,
+        string $variantType,
         array $bundle
     ): array {
+        $fullName = $variantType == 'basic' ? $this->getDataSize($fullName) : $fullName;
         $variant = [
             'name' => $fullName,
             'description' => $bundle['desc'][0]['value'] ?? '',
@@ -172,7 +178,7 @@ class CMLinkProductService
             ],
             [
                 'name' => 'Variant Type',
-                'value' => isset($bundle['desc'][0]['value']) && str_contains(strtolower($bundle['desc'][0]['value']), 'unlimited') ? 'unlimited' : 'basic',
+                'value' => $this->getVariantType($bundle['name'][0]['value'] ?? 'basic'),
             ],
             [
                 'name' => 'Variant Duration',
@@ -197,10 +203,20 @@ class CMLinkProductService
             [
                 'name' => 'Data',
                 'value' => isset($bundle['name'][0]['value'])
-                            ? (preg_match('/\b(\d+)(MB|GB)\b/i', $bundle['name'][0]['value'], $matches) ? $matches[0] : 'unknown')
+                            ? $this->getDataSize($bundle['name'][0]['value'])
                             : 'unknown',
             ],
         ];
+    }
+
+    protected function getVariantType(string $value): string
+    {
+        return str_contains(strtolower($value), PlanTypeEnum::UNLIMITED->value) ? PlanTypeEnum::UNLIMITED->value : PlanTypeEnum::BASIC->value;
+    }
+
+    protected function getDataSize(string $value): string
+    {
+        return preg_match('/\b(\d+)(MB|GB)\b/i', $value, $matches) ? $matches[0] : 'unknown';
     }
 
     protected function mapProductAttributes(array $bundle): array
