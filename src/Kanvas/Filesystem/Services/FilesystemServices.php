@@ -179,6 +179,7 @@ class FilesystemServices
         if ($imageContent !== false) {
             // Save the image locally
             file_put_contents($tempFilePath, $imageContent);
+
             return $tempFilePath;
         }
 
