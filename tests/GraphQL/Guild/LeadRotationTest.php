@@ -171,7 +171,7 @@ class LeadRotationTest extends TestCase
                         leads_rotations_email
                         hits, 
                         agents {
-                            users {
+                            user {
                                 id
                             }
                         }
@@ -190,7 +190,7 @@ class LeadRotationTest extends TestCase
                             'hits' => $input['hits'],
                             'agents' => [
                                 [
-                                    "users" => [
+                                    "user" => [
                                         "id" => $input['agents'][0]['users_id']
                                     ]
                                 ]
