@@ -1,18 +1,24 @@
 type LeadRotation {
     id: ID!
-    companies: Company! @belongsTo(relation: "companies")
+    company: Company! @belongsTo(relation: "companies")
     name: String!
     leads_rotations_email: String
     hits: Int
     agents: [LeadRotationAgent!] @hasMany(relation: "agents")
+    created_at: DateTime!
+    updated_at: DateTime
 }
+
 type LeadRotationAgent {
     id: ID!
-    users: User! @belongsTo(relation: "users")
+    user: User! @belongsTo(relation: "user")
     phone: String!
     percent: Float!
     hits: Int
+    created_at: DateTime!
+    updated_at: DateTime
 }
+
 input LeadRotationAgentInput {
     users_id: ID!
     phone: String!

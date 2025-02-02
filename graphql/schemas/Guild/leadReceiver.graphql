@@ -1,16 +1,17 @@
 type LeadReceiver {
     id: ID!
-    users: User! @belongsTo(relation: "users")
-    companies: Company! @belongsTo(relation: "companies")
-    branches: CompanyBranch! @belongsTo(relation: "branch")
+    user: User! @belongsTo(relation: "user")
+    company: Company! @belongsTo(relation: "company")
+    branch: CompanyBranch! @belongsTo(relation: "branch")
     agent: User! @belongsTo(relation: "agent")
     name: String!
-    agent: User!
     source_name: String
     is_default: Boolean!
     template: String
     leadSource: LeadSource @belongsTo(relation: "leadSource")
     leadType: LeadType @belongsTo(relation: "leadType")
+    updated_at: DateTime!
+    created_at: DateTime
 }
 
 input LeadReceiverInput {
