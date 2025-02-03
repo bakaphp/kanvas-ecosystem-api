@@ -26,7 +26,7 @@ use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
 class ProductsTypes extends BaseModel
 {
     use SlugTrait;
-    
+
     protected $table = 'products_types';
     protected $guarded = [];
 
