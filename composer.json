@@ -15,6 +15,7 @@
         "algolia/scout-extended": "^3.1",
         "automattic/woocommerce": "^3.1",
         "awobaz/compoships": "^2.2",
+        "bacon/bacon-qr-code": "^3.0",
         "berkayk/onesignal-laravel": "^2.0",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
