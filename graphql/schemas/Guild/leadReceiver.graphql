@@ -1,5 +1,6 @@
 type LeadReceiver {
     id: ID!
+    uuid: String!
     user: User! @belongsTo(relation: "user")
     company: Company! @belongsTo(relation: "company")
     branch: CompanyBranch! @belongsTo(relation: "branch")
@@ -43,10 +44,13 @@ extend type Mutation {
 extend type Query {
     leadReceivers(
         where: _
-            @whereConditions(columns: ["name", "source_name", "is_default"])
+            @whereConditions(
+                columns: ["id", "uuid", "name", "source_name", "is_default"]
+            )
     ): [LeadReceiver!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\LeadReceiver"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
             defaultCount: 10
         )
 }

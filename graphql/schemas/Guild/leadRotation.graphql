@@ -51,11 +51,13 @@ extend type Mutation @guard {
 extend type Query @guard {
     leadsRotations(
         where: _
-            @whereConditions(columns: ["name", "leads_rotations_email", "hits"])
+            @whereConditions(
+                columns: ["id", "name", "leads_rotations_email", "hits"]
+            )
     ): [LeadRotation!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\LeadRotation"
             defaultCount: 10
-            scopes: ["fromCompany", "fromApp"]
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
 }
