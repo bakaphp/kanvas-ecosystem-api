@@ -77,6 +77,8 @@ class SyncLeadToZohoAction
                         $scope->setContext('Lead Zoho Data', [
                             'zohoData' => $zohoData,
                             'leadId' => $lead->getId(),
+                            'details' => $e->details(),
+                            'message' => (string) $e->response()->getBody(),
                         ]);
 
                         captureException($e);

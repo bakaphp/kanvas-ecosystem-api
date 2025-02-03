@@ -40,6 +40,13 @@ return [
         Spatie\LaravelData\RuleInferrers\AttributesRuleInferrer::class,
     ],
 
+    /*
+     * A data object can be validated when created using a factory or when calling the from
+     * method. By default, only when a request is passed the data is being validated. This
+     * behaviour can be changed to always validate or to completely disable validation.
+     */
+    'validation_strategy' => \Spatie\LaravelData\Support\Creation\ValidationStrategy::OnlyRequests->value,
+
     /**
      * Normalizers return an array representation of the payload, or null if
      * it cannot normalize the payload. The normalizers below are used for

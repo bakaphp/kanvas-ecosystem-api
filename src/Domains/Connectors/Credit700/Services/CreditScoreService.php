@@ -57,11 +57,17 @@ class CreditScoreService
             );
 
             $scores = [];
+            $pullCreditPass = false;
 
             foreach ($bureauTypes as $bureauType) {
                 // Check if risk_models exist in the response
                 if (isset($responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report'])) {
                     $scores[$bureauType] = $responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report'];
+
+                    // Check if ScoreRange is not empty to determine pass status
+                    if (! empty($scores[$bureauType]['ScoreRange'])) {
+                        $pullCreditPass = true;
+                    }
                 }
             }
 
@@ -71,13 +77,15 @@ class CreditScoreService
 
             try {
                 $fileSystem = new FilesystemServices($this->app);
-                $pdf = ! empty($pdfBase64) ? $fileSystem->createFileSystemFromBase64($pdfBase64, 'credit-app.pdf', $userRequestingReport) : null;
+                $fileName = 'credit-pull-' . Str::replace(':', '-', $bureau) . '.pdf';
+                $pdf = ! empty($pdfBase64) ? $fileSystem->createFileSystemFromBase64($pdfBase64, $fileName, $userRequestingReport) : null;
             } catch (Exception $e) {
                 $pdf = null;
             }
 
             return [
                 'scores' => $scores,
+                'pull_credit_pass' => $pullCreditPass, // New field added
                 'iframe_url' => $iframeUrl,
                 'iframe_url_signed' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
                 'iframe_url_digital_jacket' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,

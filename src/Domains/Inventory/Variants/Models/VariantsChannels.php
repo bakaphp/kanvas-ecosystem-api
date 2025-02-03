@@ -54,12 +54,12 @@ class VariantsChannels extends BaseModel
         ];
     }
 
-    public function getPriceAttribute(string|int $value): float
+    public function getPriceAttribute(string|float $value): float
     {
         return (float) $value;
     }
 
-    public function getDiscountPriceAttribute(string|int $value): float
+    public function getDiscountPriceAttribute(string|float $value): float
     {
         return (float) $value;
     }

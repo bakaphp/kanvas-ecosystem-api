@@ -22,6 +22,7 @@ class UpdateToChannelAction
         $variantsChannelsDto->price = $variantsChannelsDto->price ?? $variantsChannels->price; // Set your default value
         $variantsChannelsDto->discounted_price = $variantsChannelsDto->discounted_price ?? $variantsChannels->discounted_price;
         $variantsChannelsDto->is_published = $variantsChannelsDto->is_published ?? $variantsChannels->is_published;
+        $variantsChannelsDto->config = $variantsChannelsDto->config ?? $variantsChannels->config;
         $this->variantsChannelsDto = $variantsChannelsDto;
     }
 
@@ -36,6 +37,7 @@ class UpdateToChannelAction
                 'price' => $this->variantsChannelsDto->price,
                 'discounted_price' => $this->variantsChannelsDto->discounted_price,
                 'is_published' => $this->variantsChannelsDto->is_published,
+                'config' => $this->variantsChannelsDto->config,
             ]
         );
 

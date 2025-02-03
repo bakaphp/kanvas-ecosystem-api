@@ -31,8 +31,10 @@ class SavePeopleToIPlusAction
             return $this->people->get(CustomFieldEnum::I_PLUS_CUSTOMER_ID->value);
         }
 
+        $company = $this->people->company;
+        $branchLocationId = $company->branch->get(ConfigurationEnum::COMPANY_BRANCH_ID->value);
         $clientData = [
-            'companiaID' => $this->people->company->get(ConfigurationEnum::COMPANY_ID->value),
+            'companiaID' => $company->get(ConfigurationEnum::COMPANY_ID->value),
             'contrasena' => Str::random(10),
             'referencia' => $this->people->app->get(ConfigurationEnum::CUSTOMER_DEFAULT_REFERENCE->value) ?? 'Kanvas',
             'clienteNombre' => $this->people->firstname,
@@ -42,6 +44,10 @@ class SavePeopleToIPlusAction
             'telCelular' => $this->people->getPhones()->count() ? $this->people->getPhones()->first()->value : null,
             'email' => $this->people->getEmails()->count() ? $this->people->getEmails()->first()->value : null,
         ];
+
+        if ($branchLocationId) {
+            $clientData['localidadID'] = $branchLocationId;
+        }
 
         $createCustomer = $this->client->post(
             '/v2/Ventas/Clientes',

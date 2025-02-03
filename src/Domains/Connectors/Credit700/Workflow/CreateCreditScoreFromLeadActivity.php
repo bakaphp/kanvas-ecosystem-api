@@ -59,15 +59,23 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
 
         $creditApplicant = $this->processCreditScore($messageData, $lead, $app, $params);
         $leadPullCreditHistory = $lead->get(CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value) ?? [];
+        $digitalJacketUrl = $app->get(ConfigurationEnum::DIGITAL_JACKET_DOMAIN->value) . '/pull-credit?leadId=' . $lead->getId() . '&bcid=' . $lead->company->branch->uuid;
+
+        //override the iframe url with the digital jacket url
+        $creditApplicant['digital_jacket_url'] = $digitalJacketUrl;
+
         $history = [
             'date' => date('Y-m-d H:i:s'),
             'detail' => $creditApplicant,
             'iframe_url' => $creditApplicant['iframe_url'],
             'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
-            'passed' => $creditApplicant['iframe_url'] ? true : false,
+            'passed' => (bool) $creditApplicant['pull_credit_pass'],
         ];
 
-        $lead->set(CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value, array_merge($leadPullCreditHistory, [$history]));
+        $lead->set(
+            CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value,
+            array_merge($leadPullCreditHistory, [$history])
+        );
 
         if (empty($creditApplicant['iframe_url'])) {
             // return $this->errorResponse('Credit score not found', $lead, $creditApplicant);
@@ -89,15 +97,17 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
 
         $this->distributeMessages($lead, $app, $parentMessage, $childMessage);
         $this->createEngagements($lead, $app, $parentMessage, $childMessage, $engagement->message);
+        //pull_credit_pass
 
         //pull-credit?leadId=<Lead ID>&bcid=<Branch ID>
-        $digitalJacketUrl = $app->get(ConfigurationEnum::DIGITAL_JACKET_DOMAIN->value) . '/pull-credit?leadId=' . $lead->getId() . '&bcid=' . $lead->company->branch->uuid;
+        $lead->set('pull_credit_pass', (int) $creditApplicant['pull_credit_pass']);
 
         return [
             'scores' => $creditApplicant['scores'],
             'iframe_url' => $creditApplicant['iframe_url'],
             'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
-            'iframe_url_digital_jacket' => $digitalJacketUrl,
+            'iframe_url_digital_jacket' => $creditApplicant['digital_jacket_url'],
+            'pull_credit_pass' => $creditApplicant['pull_credit_pass'],
             'pdf' => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
             'message_id' => $parentMessage->getId(),
             'message' => 'Credit score created successfully',

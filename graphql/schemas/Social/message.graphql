@@ -13,10 +13,13 @@ type Message {
     total_liked: Int
     total_disliked: Int
     is_public: Int
+    is_locked: Int
+    is_premium: Int
     total_saved: Int
     total_shared: Int
     total_view: Int
     total_children: Int
+    total_purchase: Int
     parent: Message @cacheRedis
     user: User! @cacheRedis
     children: [Message!] @hasMany(type: PAGINATOR)

@@ -17,9 +17,9 @@ class ForgotPassword
 {
     protected Apps $app;
 
-    public function __construct()
+    public function __construct(?Apps $app = null)
     {
-        $this->app = app(Apps::class);
+        $this->app = $app ?? app(Apps::class);
     }
 
     /**
