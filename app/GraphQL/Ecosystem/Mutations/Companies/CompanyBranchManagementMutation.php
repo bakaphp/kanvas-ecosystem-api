@@ -34,7 +34,7 @@ class CompanyBranchManagementMutation
     public function createCompaniesBranch(mixed $root, array $request): CompaniesBranches
     {
         $request['input']['users_id'] = Auth::user()->getKey();
-        $dto = CompaniesBranchPostData::fromArray($request['input']);
+        $dto = CompaniesBranchPostData::from($request['input']);
         $action = new CreateCompanyBranchActions(Auth::user(), $dto);
 
         return $action->execute();
@@ -47,7 +47,7 @@ class CompanyBranchManagementMutation
      */
     public function updateCompanyBranch(mixed $root, array $request): CompaniesBranches
     {
-        $dto = CompaniesBranchPutData::fromArray($request['input']);
+        $dto = CompaniesBranchPutData::from($request['input']);
         $action = new UpdateCompanyBranchActions(Auth::user(), $dto);
 
         return $action->execute((int) $request['id']);

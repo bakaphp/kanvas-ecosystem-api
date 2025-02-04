@@ -69,6 +69,7 @@ class CompaniesBranches extends BaseModel
         'state',
         'city',
         'zipcode',
+        'zip',
         'address_2',
         'is_default',
         'is_active',
