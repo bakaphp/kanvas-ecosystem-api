@@ -1,10 +1,49 @@
 type Language {
     id: ID!
     name: String!
+    title: String
+    code: String!
     order: Int
 }
 
 type LanguageDisplay {
     code: String
     language: String
+}
+
+input TranslationInput {
+    name: String
+    description: String
+}
+
+
+extend type Query @guard {
+    languages(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "title"
+                    "code"
+                    "created_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "title"
+                    "code"
+                ]
+            )
+    ): [Language!]!
+        @paginate(
+            model: "Kanvas\\Languages\\Models\\Languages"
+            defaultCount: 25
+        )
 }
