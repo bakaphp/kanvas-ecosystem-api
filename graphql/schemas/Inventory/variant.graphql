@@ -14,6 +14,7 @@ type Variant {
     status: Status
     rating: Float
     weight: Float
+    translation(languageCode: String!): ProductTranslation @field (resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation")
     files: [Filesystem]
         @cacheRedis
         @paginate(
@@ -109,6 +110,13 @@ input VariantsUpdateInput {
     custom_fields: [CustomFieldEntityInput!]
 }
 
+input VariantTranslationInput {
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+}
+
 extend type Mutation @guard {
     createVariant(input: VariantsInput!): Variant
         @field(
@@ -117,6 +125,10 @@ extend type Mutation @guard {
     updateVariant(input: VariantsUpdateInput!, id: ID!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update"
+        )
+    updateVariantTranslations(id: ID!, input: VariantTranslationInput!, code: String): Variant!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantTranslation"
         )
     uploadFileToVariant(id: ID!, file: Upload!): Product!
         @field(
