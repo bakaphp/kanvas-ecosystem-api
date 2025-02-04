@@ -28,9 +28,15 @@ use Laravel\Scout\Searchable;
  * @property int $users_id
  * @property string $name
  * @property string $address
+ * @property string $address_2
  * @property string $email
  * @property string $phone
  * @property string $zipcode
+ * @property int $cities_id
+ * @property int $states_id
+ * @property int $countries_id
+ * @property string $state
+ * @property string $city
  * @property int $is_default
  * @property int $is_active
  */
@@ -50,7 +56,23 @@ class CompaniesBranches extends BaseModel
      */
     protected $table = 'companies_branches';
 
-    protected $guarded = ['email', 'users_id', 'companies_id'];
+    protected $guarded = ['users_id', 'companies_id'];
+
+    protected $fillable = [
+        'name',
+        'address',
+        'email',
+        'phone',
+        'cities_id',
+        'states_id',
+        'countries_id',
+        'state',
+        'city',
+        'zipcode',
+        'address_2',
+        'is_default',
+        'is_active',
+    ];
 
     /**
      * Create a new factory instance for the model.
