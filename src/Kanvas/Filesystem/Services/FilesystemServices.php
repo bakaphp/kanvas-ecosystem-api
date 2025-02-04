@@ -158,4 +158,31 @@ class FilesystemServices
             $user
         );
     }
+
+    public static function downloadImageFromUrl(string $imageUrl): ?string
+    {
+        $fileInfo = pathinfo($imageUrl);
+        $extension = $fileInfo['extension'] ?? null;
+
+        if (is_null($extension)) {
+            $parsedUrl = parse_url($imageUrl);
+            $path = $parsedUrl['path'];
+
+            $extension = pathinfo($path, PATHINFO_EXTENSION);
+        }
+
+        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $extension;
+
+        // Get the image content
+        $imageContent = file_get_contents($imageUrl);
+
+        if ($imageContent !== false) {
+            // Save the image locally
+            file_put_contents($tempFilePath, $imageContent);
+
+            return $tempFilePath;
+        }
+
+        return null;
+    }
 }

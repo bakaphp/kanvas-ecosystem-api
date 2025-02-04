@@ -79,7 +79,6 @@ class AuthenticationService
             $userRegisterInApp = new RegisterUsersAppAction($user);
             $authentically = $userRegisterInApp->execute($user->password);
         }
-
         $this->loginAttemptsValidation($authentically);
 
         //password verification
