@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Branches\DataTransferObject;
 
-use Illuminate\Http\Request;
 use Spatie\LaravelData\Data;
 
 /**
@@ -39,23 +38,6 @@ class CompaniesBranchPutData extends Data
     }
 
     /**
-     * Create new instance of DTO from request.
-     *
-     * @param Request $request Request Input data
-     */
-    public static function viaRequest(Request $request): self
-    {
-        // send the same amount of fields as the other function or just leave one.
-        return new self(
-            name: $request->get('name'),
-            companies_id: (int) $request->get('companies_id'),
-            is_default: $request->get('is_default') ?? null,
-            email : $request->get('email'),
-            files : $request->get('files'),
-        );
-    }
-
-    /**
      * Create new instance of DTO from array of data.
      *
      * @param array $data Input data
@@ -66,12 +48,21 @@ class CompaniesBranchPutData extends Data
         return new self(
             name: $data['name'],
             companies_id : (int) $data['companies_id'],
-            is_default : null,
+            is_default : $data['is_default'] ?? false,
             email : $data['email'] ?? null,
             phone : $data['phone'] ?? null,
             address : $data['address'] ?? null,
             zipcode : $data['zipcode'] ?? null,
             files : $data['files'] ?? null,
+            countries_id : isset($data['countries_id']) ? (int) $data['countries_id'] : null,
+            states_id : isset($data['states_id']) ? (int) $data['states_id'] : null,
+            cities_id : isset($data['cities_id']) ? (int) $data['cities_id'] : null,
+            address_2 : $data['address_2'] ?? null,
+            city : $data['city'] ?? null,
+            state : $data['state'] ?? null,
+            country : $data['country'] ?? null,
+            zip : $data['zip'] ?? null,
+            is_active : $data['is_active'] ?? true
         );
     }
 }
