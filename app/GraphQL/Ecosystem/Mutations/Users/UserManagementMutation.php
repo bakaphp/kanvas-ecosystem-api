@@ -294,4 +294,49 @@ class UserManagementMutation
     {
         return (new RequestDeleteAction(app(Apps::class), auth()->user()))->execute();
     }
+
+    public function checkUsersContactsMatch(mixed $rootValue, array $request): ?array
+    {
+        $contacts = $request['contacts'];
+        $emails = function ($contactsData) {
+            $seenEmails = [];
+        
+            foreach ($contactsData as $contact) {
+                foreach ($contact['emails'] as $email) {
+                    if (!isset($seenEmails[$email['email']])) {
+                        $seenEmails[$email['email']] = true;
+                        yield $email['email'];
+                    }
+                }
+            }
+        };
+
+        $contactsEmails = [];
+        foreach ($emails($contacts) as $email) {
+            $contactsEmails[] = $email;
+        }
+
+        $authUser = auth()->user();
+        $app = app(Apps::class);
+
+        $appUsers = UsersAssociatedApps::where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->whereNotNull('email')
+            ->whereNotIn('email', [$authUser->email])
+            ->with('user')
+            ->lazy();
+
+
+        $contactsEmails = array_flip($contactsEmails);
+        $matchingContacts = [];
+
+        // Efficient lookup using isset()
+        foreach ($appUsers as $appUser) {
+            if (isset($contactsEmails[$appUser->email])) {
+                $matchingContacts[] = $appUser->user;
+            }
+        }
+
+        return $matchingContacts ?? null;
+    }
 }
