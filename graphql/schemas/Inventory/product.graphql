@@ -104,6 +104,14 @@ input ProductAttributeOrderBy {
     format: FormatSortAttribute!
 }
 
+input ProductTranslationInput {
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+}
+
 enum FormatSortAttribute {
     NUMERIC
     STRING
@@ -118,6 +126,10 @@ extend type Mutation @guard {
     updateProduct(id: ID!, input: ProductInputUpdate): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
+        )
+    updateProductTranslations(id: ID!, input: ProductTranslationInput!, code: String!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductTranslation"
         )
     uploadFileToProduct(id: ID!, file: Upload!): Product!
         @field(
