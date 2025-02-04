@@ -300,10 +300,9 @@ class UserManagementMutation
         $contacts = $request['contacts'];
         $emails = function ($contactsData) {
             $seenEmails = [];
-        
             foreach ($contactsData as $contact) {
                 foreach ($contact['emails'] as $email) {
-                    if (!isset($seenEmails[$email['email']])) {
+                    if (! isset($seenEmails[$email['email']])) {
                         $seenEmails[$email['email']] = true;
                         yield $email['email'];
                     }
