@@ -16,6 +16,7 @@ use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Inventory\Products\Models\Products;
+use Spatie\Translatable\HasTranslations;
 
 class Categories extends BaseModel
 {
@@ -23,9 +24,12 @@ class Categories extends BaseModel
     use SlugTrait;
     use ScopesTrait;
     use DatabaseSearchableTrait;
+    use HasTranslations;
 
     protected $table = 'categories';
     protected $guarded = [];
+
+    public $translatable = ['name'];
 
     /**
      *
