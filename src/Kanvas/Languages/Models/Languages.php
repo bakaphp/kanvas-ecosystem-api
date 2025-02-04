@@ -33,4 +33,9 @@ class Languages extends BaseModel
     {
         return LanguagesFactory::new();
     }
+
+    public static function getByCode(String $code) : Languages
+    {
+        return Languages::where('code', $code)->firstOrFail();
+    }
 }
