@@ -96,6 +96,11 @@ type UserSocialInfo {
     is_blocked: Boolean
 }
 
+type UserContactsMatchesFindings {
+    matched_contacts: [User!]!
+    unmatched_contacts: [String!]!
+}
+
 input LoginInput {
     email: String!
     password: String!
@@ -177,7 +182,6 @@ input EmailInput {
   type: String! # personal, work, other
   email: String!
 }
-
 
 extend type Mutation {
     login(data: LoginInput!): TokenResponse!
@@ -283,10 +287,10 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@requestDeleteAccount"
         )
-    checkUsersContactsMatch(contacts: [UserContactInput!]!): [User]!
+    checkUsersContactsMatch(contacts: [UserContactInput!]!): UserContactsMatchesFindings!
         @guard
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@checkUsersContactsMatch"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserContactsManagementMutation@checkUsersContactsMatch"
         )
 }
 
