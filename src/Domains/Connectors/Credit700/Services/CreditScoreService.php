@@ -12,8 +12,10 @@ use GuzzleHttp\Exception\RequestException;
 use Kanvas\Connectors\Credit700\Client;
 use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Credit700\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Guild\Leads\Models\Lead;
 
 class CreditScoreService
 {
@@ -109,5 +111,29 @@ class CreditScoreService
         } catch (Exception $e) {
             throw new ValidationException('Failed to generate signed URL: ' . $e->getMessage());
         }
+    }
+
+    public function regenerateLeadCreditHistoryUrl(Lead $lead): array
+    {
+        $leadPullCreditHistory = $lead->get(CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value);
+
+        if (empty($leadPullCreditHistory)) {
+            return [];
+        }
+
+        foreach ($leadPullCreditHistory as $key => $history) {
+            if (empty($history['iframe_url'])) {
+                continue;
+            }
+
+            $leadPullCreditHistory[$key]['iframe_url_signed'] = $this->generateSignedIframeUrl($history['iframe_url'], $lead->user->firstname);
+        }
+
+        $lead->set(
+            CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value,
+            $leadPullCreditHistory
+        );
+
+        return $leadPullCreditHistory;
     }
 }

@@ -69,6 +69,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
             'detail' => $creditApplicant,
             'iframe_url' => $creditApplicant['iframe_url'],
             'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
+            'digital_jacket_url' => $creditApplicant['digital_jacket_url'],
             'passed' => (bool) $creditApplicant['pull_credit_pass'],
         ];
 
