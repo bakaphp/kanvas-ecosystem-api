@@ -75,7 +75,7 @@ class Category
         $language = Languages::getByCode($req['code']);
 
         $category = CategoriesRepository::getById((int) $req['id'], $company);
-        $categoryTranslateDto = CategoryTranslateDto::viaRequest($req['input'], $category->company);
+        $categoryTranslateDto = new CategoryTranslateDto(name: $req['input']);
 
         foreach ($categoryTranslateDto->toArray() as $key => $value) {
             $category->setTranslation($key, $language->code, $value);
