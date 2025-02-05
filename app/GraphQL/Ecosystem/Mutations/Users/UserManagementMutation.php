@@ -303,7 +303,6 @@ class UserManagementMutation
         $app = app(Apps::class);
         $contacts = $request['contacts'];
         $contactsEmails = [];
-        
         foreach (UserContactsService::extractEmailsFromContactsList($contacts) as $email) {
             $contactsEmails[] = $email;
         }
@@ -326,6 +325,10 @@ class UserManagementMutation
             }
         }
 
-        return $matchingContacts ?? null;
+        // Return alse the contacts that are not in the app
+        return [
+            "matching_contacts" => $matchingContacts,
+            "nonmatching_contacts" => array_diff_key($contactsEmails, array_flip($matchingContacts))
+        ];
     }
 }
