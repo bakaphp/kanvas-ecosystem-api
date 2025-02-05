@@ -1,0 +1,33 @@
+extend type Mutation @guard {
+    createCustomFieldModule(input: CustomFieldModuleInput): CustomFieldModule
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldsModulesMutation@create"
+        )
+    updateCustomFieldModule(
+        id: ID!
+        input: CustomFieldModuleInput
+    ): CustomFieldModule
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldsModulesMutation@update"
+        )
+    deleteCustomFieldModule(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldsModulesMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    customFieldModules(
+        where: _
+            @whereConditions(
+                columns: ["name", "model_name", "system_modules_id"]
+            )
+        orderBy: _
+            @orderBy(columns: ["name", "model_name", "system_modules_id", "id"])
+    ): [CustomFieldModule]
+        @paginate(
+            model: "Kanvas\\CustomFields\\Models\\CustomFieldsModules"
+            defaultCount: 10
+            scopes: ["fromApp"]
+        )
+}
