@@ -26,7 +26,7 @@
 
 #### Souk
 
-#### Subscription
+#### [Subscription](./Subscriptions/main.md)
 
-#### Workflow
+#### [Workflow](./Workflows/main.md)
 
