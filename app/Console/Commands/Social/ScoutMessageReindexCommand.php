@@ -17,7 +17,7 @@ class ScoutMessageReindexCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-social:scout-message-reindex {app_id}';
+    protected $signature = 'kanvas-social:scout-message-reindex {app_id} {message_types_id}';
 
     /**
      * The console command description.
@@ -44,7 +44,10 @@ class ScoutMessageReindexCommand extends Command
     public function reindex(Apps $app)
     {
         $this->info('Reindex scout index for message App ' . $app->name);
-        $messages = Message::fromApp($app)->where('is_public', 1)->where('is_deleted', 0);
+        $messages = Message::fromApp($app)
+            ->where('is_public', 1)
+            ->where('message_types_id', $this->argument('message_types_id'))
+            ->where('is_deleted', 0);
 
         $this->info('Total messages to reindexed: ' . $messages->count());
         $messages->searchable();
