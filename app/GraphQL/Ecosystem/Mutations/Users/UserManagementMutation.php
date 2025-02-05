@@ -12,6 +12,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
+use Kanvas\Auth\Socialite\DataTransferObject\User;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
@@ -34,6 +35,7 @@ use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Users\Services\UserContactsService;
 
 class UserManagementMutation
 {
@@ -297,26 +299,14 @@ class UserManagementMutation
 
     public function checkUsersContactsMatch(mixed $rootValue, array $request): ?array
     {
-        $contacts = $request['contacts'];
-        $emails = function ($contactsData) {
-            $seenEmails = [];
-            foreach ($contactsData as $contact) {
-                foreach ($contact['emails'] as $email) {
-                    if (! isset($seenEmails[$email['email']])) {
-                        $seenEmails[$email['email']] = true;
-                        yield $email['email'];
-                    }
-                }
-            }
-        };
-
-        $contactsEmails = [];
-        foreach ($emails($contacts) as $email) {
-            $contactsEmails[] = $email;
-        }
-
         $authUser = auth()->user();
         $app = app(Apps::class);
+        $contacts = $request['contacts'];
+        $contactsEmails = [];
+        
+        foreach (UserContactsService::extractEmailsFromContactsList($contacts) as $email) {
+            $contactsEmails[] = $email;
+        }
 
         $appUsers = UsersAssociatedApps::where('apps_id', $app->getId())
             ->where('is_deleted', 0)
