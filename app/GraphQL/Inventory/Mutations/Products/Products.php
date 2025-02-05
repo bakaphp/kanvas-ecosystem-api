@@ -156,7 +156,7 @@ class Products
         $language = Languages::getByCode($req['code']);
 
         $product = ProductsRepository::getById((int) $req['id'], $company);
-        $productTranslateDto = ProductTranslateDto::viaRequest($req['input'], $product->company);
+        $productTranslateDto = ProductTranslateDto::fromMultiple($req['input'], $product->company);
 
         foreach ($productTranslateDto->toArray() as $key => $value) {
             $product->setTranslation($key, $language->code, $value);

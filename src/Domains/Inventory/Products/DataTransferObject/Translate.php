@@ -30,7 +30,7 @@ class Translate extends Data
      * @throws BindingResolutionException
      * @throws ModelNotFoundException
      */
-    public static function viaRequest(array $request, CompanyInterface $company): self
+    public static function fromMultiple(array $request, CompanyInterface $company): self
     {
         return new self(
             $request['name'] ?? null,

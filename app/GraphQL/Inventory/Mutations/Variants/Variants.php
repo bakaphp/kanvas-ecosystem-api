@@ -287,7 +287,7 @@ class Variants
         $language = Languages::getByCode($req['code']);
 
         $variant = VariantsRepository::getById((int) $req['id'], $company);
-        $variantTranslateDto = VariantTranslateDto::viaRequest($req['input'], $variant->company);
+        $variantTranslateDto = VariantTranslateDto::fromMultiple($req['input'], $variant->company);
 
         foreach ($variantTranslateDto->toArray() as $key => $value) {
             $variant->setTranslation($key, $language->code, $value);
