@@ -63,12 +63,14 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
 
         //override the iframe url with the digital jacket url
         $creditApplicant['digital_jacket_url'] = $digitalJacketUrl;
+        $creditApplicant['iframe_url_digital_jacket'] = $digitalJacketUrl;
 
         $history = [
             'date' => date('Y-m-d H:i:s'),
             'detail' => $creditApplicant,
             'iframe_url' => $creditApplicant['iframe_url'],
             'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
+            'iframe_url_digital_jacket' => $creditApplicant['digital_jacket_url'],
             'digital_jacket_url' => $creditApplicant['digital_jacket_url'],
             'passed' => (bool) $creditApplicant['pull_credit_pass'],
         ];

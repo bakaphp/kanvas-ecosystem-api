@@ -123,12 +123,15 @@ class CreditScoreService
 
         foreach ($leadPullCreditHistory as $key => $history) {
             if (empty($history['iframe_url'])) {
+                unset($leadPullCreditHistory[$key]);
+
                 continue;
             }
 
             $leadPullCreditHistory[$key]['iframe_url_signed'] = $this->generateSignedIframeUrl($history['iframe_url'], $lead->user->firstname);
         }
 
+        $leadPullCreditHistory = array_values($leadPullCreditHistory);
         $lead->set(
             CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value,
             $leadPullCreditHistory
