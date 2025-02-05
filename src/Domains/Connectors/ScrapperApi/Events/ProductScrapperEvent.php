@@ -34,6 +34,7 @@ class ProductScrapperEvent implements ShouldBroadcast
             'title' => mb_substr($this->shopifyProduct['title'], 0, 255),
             'image' => $this->shopifyProduct['image'],
             'price' => $this->shopifyProduct['variants'][0]['price'],
+            'images' => $this->shopifyProduct['images'],
             'discounted_price' => 0
         ];
     }
