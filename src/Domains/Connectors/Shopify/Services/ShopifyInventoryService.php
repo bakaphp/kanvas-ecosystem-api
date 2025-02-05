@@ -129,8 +129,8 @@ class ShopifyInventoryService
                 //do nothing
             }
 
-            $allResponse[] = $response;
             $this->shopifyImageService->processEntityImage($product);
+            $allResponse[] = $this->shopifySdk->Product($shopifyProductId)->get();
         }
 
         return count($allResponse) > 1 ? $allResponse : $allResponse[0];
