@@ -7,9 +7,11 @@ namespace App\GraphQL\Inventory\Mutations\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\Actions\UpdateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsTypesDto;
+use Kanvas\Inventory\ProductsTypes\DataTransferObject\Translate  as ProductsTypesTranslateDto;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
+use Kanvas\Languages\Models\Languages;
 
 class ProductsTypes
 {
@@ -134,5 +136,25 @@ class ProductsTypes
     {
         $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         return $productType->delete();
+    }
+
+    /**
+     * update.
+     */
+    public function updateProductTypeTranslation(mixed $root, array $req): ProductsTypesModel
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $language = Languages::getByCode($req['code']);
+        $input = $req['input'];
+
+        $productType = ProductsTypesRepository::getById((int) $req['id'], $company);
+        $productTypeTranslateDto = new ProductsTypesTranslateDto(name: $input['name'] ?? null, description: $input['description'] ?? null);
+
+        foreach ($productTypeTranslateDto->toArray() as $key => $value) {
+            $productType->setTranslation($key, $language->code, $value);
+            $productType->save();
+        }
+
+        return $productType;
     }
 }
