@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ESim\WorkflowActivities;
 
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\CMLink\Actions\CreateEsimOrderAction;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
@@ -37,9 +38,20 @@ class CreateOrderInESimActivity extends KanvasActivity
             ];
         }
 
+        $provider = $order->items()->first()->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+        $providerValue = strtolower($provider->value);
+
         try {
-            $createOrder = new OrderService($order);
-            $response = $createOrder->createOrder();
+            /**
+             * @todo move this to a factory
+             */
+            if ($providerValue == strtolower(ProviderEnum::CMLINK->value)) {
+                $createOrder = new CreateEsimOrderAction($order);
+                $response = $createOrder->execute()->toArray();
+            } else {
+                $createOrder = new OrderService($order);
+                $response = $createOrder->createOrder();
+            }
         } catch (ClientException $e) {
             return [
                 'status' => 'error',
@@ -51,8 +63,6 @@ class CreateOrderInESimActivity extends KanvasActivity
         $order->metadata = array_merge(($order->metadata ?? []), $response);
         $order->saveOrFail();
         $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $response);
-
-        $provider = $order->items()->first()->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
 
         $response['order_id'] = $order->id;
         $response['order'] = $order->toArray();
@@ -67,7 +77,6 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         try {
-            $providerValue = strtolower($provider->value);
             if ($providerValue === strtolower(ProviderEnum::E_SIM_GO->value)) {
                 $esimGo = new ESimService($app);
                 $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);

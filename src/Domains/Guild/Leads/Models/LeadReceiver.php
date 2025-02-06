@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Rotations\Models\Rotation;
+use Kanvas\Users\Models\Users;
 
 /**
  * Class LeadReceiver.
@@ -53,5 +54,20 @@ class LeadReceiver extends BaseModel
     public function branch(): BelongsTo
     {
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
+    }
+
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'agents_id');
+    }
+
+    public function leadSource(): BelongsTo
+    {
+        return $this->belongsTo(LeadSource::class, 'leads_sources_id');
+    }
+
+    public function leadType(): BelongsTo
+    {
+        return $this->belongsTo(LeadType::class, 'lead_types_id');
     }
 }
