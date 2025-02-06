@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\CustomFields\Models;
@@ -24,7 +25,6 @@ use Kanvas\SystemModules\Models\SystemModules;
  */
 class CustomFieldEntityValue extends BaseModel
 {
-
     protected $table = 'custom_fields_entity_values';
 
     protected $fillable = [];

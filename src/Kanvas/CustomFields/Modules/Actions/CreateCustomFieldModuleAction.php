@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\CustomFields\Modules\Actions;
@@ -9,7 +10,6 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class CreateCustomFieldModuleAction
 {
-
     public function __construct(
         public CustomFieldModule $customFieldModule,
     ) {

@@ -9,7 +9,6 @@ use Kanvas\CustomFields\Models\CustomFields;
 
 class CreateCustomFieldAction
 {
-
     public function __construct(
         public CustomField $customField
     ) {
