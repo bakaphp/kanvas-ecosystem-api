@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\CustomFields\Actions;
@@ -8,7 +9,6 @@ use Kanvas\CustomFields\Models\CustomFieldEntityValue;
 
 class CreateEntityValueAction
 {
-
     public function __construct(
         public CustomFieldEntityValueDTO $customFieldEntityValue
     ) {
@@ -27,5 +27,4 @@ class CreateEntityValueAction
             'value' => $this->customFieldEntityValue->value
         ]);
     }
-
 }

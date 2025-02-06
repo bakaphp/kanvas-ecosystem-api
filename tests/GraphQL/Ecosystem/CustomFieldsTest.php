@@ -295,7 +295,7 @@ class CustomFieldsTest extends TestCase
                 }
             }',
             [
-                'input' =>$data
+                'input' => $data
             ],
         )->assertJson([
             'data' => [
