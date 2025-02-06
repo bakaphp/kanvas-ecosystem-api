@@ -7,8 +7,10 @@ namespace App\GraphQL\Inventory\Mutations\Status;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status as StatusDto;
+use Kanvas\Inventory\Status\DataTransferObject\Translate as StatusTranslateDto;
 use Kanvas\Inventory\Status\Models\Status as StatusModel;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
+use Kanvas\Languages\Models\Languages;
 
 class StatusMutation
 {
@@ -66,5 +68,25 @@ class StatusMutation
         $status = StatusRepository::getById((int) $id, auth()->user()->getCurrentCompany());
 
         return $status->delete();
+    }
+
+    /**
+     * update.
+     */
+    public function updateStatusTranslation(mixed $root, array $req): StatusModel
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $language = Languages::getByCode($req['code']);
+        $input = $req['input'];
+
+        $status = StatusRepository::getById((int) $req['id'], $company);
+        $statusTranslateDto = new StatusTranslateDto(name: $input['name']);
+
+        foreach ($statusTranslateDto->toArray() as $key => $value) {
+            $status->setTranslation($key, $language->code, $value);
+            $status->save();
+        }
+
+        return $status;
     }
 }
