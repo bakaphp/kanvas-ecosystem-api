@@ -1,0 +1,7 @@
+input customFieldEntityValueInput {
+    custom_fields_id: ID!
+    system_modules_id: ID!
+    entity_id: ID!
+    value: Mixed
+}
+

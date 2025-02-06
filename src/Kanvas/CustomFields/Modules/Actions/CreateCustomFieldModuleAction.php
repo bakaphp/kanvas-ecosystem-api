@@ -21,10 +21,8 @@ class CreateCustomFieldModuleAction
             'apps_id' => $this->customFieldModule->app->getId(),
             'system_modules_id' => $this->customFieldModule->systemModules ?
                 $this->customFieldModule->systemModules->getId() : null,
-            'name' => $this->customFieldModule->systemModules ?
-                $this->customFieldModule->systemModules->name : $this->customFieldModule->name,
-            'model_name' => $this->customFieldModule->systemModules ?
-                $this->customFieldModule->systemModules->model_name : $this->customFieldModule->model_name
+            'name' => $this->customFieldModule->name,
+            'model_name' => $this->customFieldModule->model_name
         ];
         return CustomFieldsModules::firstOrCreate($data);
     }

@@ -11,6 +11,7 @@ input CustomFieldInput {
     value: Mixed
     system_module_uuid: String!
     entity_id: ID!
+    field_type_id: ID
 }
 
 input CustomFieldEntityInput {
@@ -39,6 +40,10 @@ extend type Mutation @guard {
         @deprecated(reason: "use the query customFields")
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@getAll"
+        )
+    createCustomFields(input: CustomFieldInput): CustomField
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldManagementMutation@create"
         )
 }
 

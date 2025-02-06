@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Tests\TestCase;
+use Kanvas\CustomFields\Models\CustomFieldsTypes;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class CustomFieldsTest extends TestCase
 {
@@ -272,5 +275,45 @@ class CustomFieldsTest extends TestCase
                 'deleteCustomField' => true,
             ],
         ]);
+    }
+
+    public function testCreateCustomFields(): void
+    {
+        $products = Products::factory()->create();
+        $systemModule = SystemModulesRepository::getByModelName(Products::class);
+        $data = [
+            'name' => fake()->word,
+            'model_name' => fake()->word,
+            'system_modules_id' => $systemModule->id,
+        ];
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldModuleInput!) {
+                createCustomFieldModule(input: $input){
+                    name,
+                    model_name,
+                }
+            }',
+            [
+                'input' =>$data
+            ],
+        )->assertJson([
+            'data' => [
+                'createCustomFieldModule' => [
+                    'name' => $data['name'],
+                    'model_name' => $data['model_name'],
+                ],
+            ],
+        ]);
+        $customFieldModules = $response->json('data.createCustomFieldModule.id');
+        $data = [
+            'name' => fake()->word,
+            'data' => [
+                'hellos' => fake()->numberBetween(1, 100),
+            ],
+            'system_module_uuid' => $systemModule->uuid,
+            'entity_id' => $products->getId(),
+            'field_type_id' => CustomFieldsTypes::findFirst()->getId(),
+        ];
     }
 }

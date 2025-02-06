@@ -16,8 +16,8 @@ class CustomFieldsModulesMutation
     public function create(mixed $root, array $request): CustomFieldsModules
     {
         $app = app(Apps::class);
-        if (isset($request['input']['system_module_uuid'])) {
-            $systemModules = SystemModules::getByUuid($request['input']['system_module_uuid'], $app);
+        if (isset($request['input']['system_modules_id'])) {
+            $systemModules = SystemModules::getById($request['input']['system_modules_id']);
         } else {
             $systemModules = null;
         }
@@ -34,8 +34,8 @@ class CustomFieldsModulesMutation
     public function update(mixed $root, array $request): CustomFieldsModules
     {
         $app = app(Apps::class);
-        if (isset($request['input']['system_module_uuid'])) {
-            $systemModules = SystemModules::getByUuid($request['input']['system_module_uuid'], $app);
+        if (isset($request['input']['system_module_id'])) {
+            $systemModules = SystemModules::getByUuid($request['input']['system_modules_id'], $app);
         } else {
             $systemModules = null;
         }
