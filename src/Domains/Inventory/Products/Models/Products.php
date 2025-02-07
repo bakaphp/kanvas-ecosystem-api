@@ -143,7 +143,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     /**
      * attributes.
      */
-    public function attributes(): BelongsToMany
+    public function attributes(): HasMany
     {
         return $this->buildAttributesQuery();
     }
@@ -151,27 +151,29 @@ class Products extends BaseModel implements EntityIntegrationInterface
     /**
      * @todo add integration and graph test
      */
-    public function visibleAttributes(): BelongsToMany
+    public function visibleAttributes(): array
     {
-        return $this->buildAttributesQuery(['is_visible' => true]);
+        return $this->mapAttributes(
+            $this->buildAttributesQuery(['is_visible' => true])->get()
+        );
     }
 
-    public function searchableAttributes(): BelongsToMany
+    public function searchableAttributes(): array
     {
-        return $this->buildAttributesQuery(['is_searchable' => true]);
+        return $this->mapAttributes(
+            $this->buildAttributesQuery(['is_searchable' => true])->get()
+        );
     }
 
-    private function buildAttributesQuery(array $conditions = []): BelongsToMany
+    private function buildAttributesQuery(array $conditions = []): HasMany
     {
-        $query = $this->belongsToMany(
-            Attributes::class,
-            'products_attributes',
-            'products_id',
-            'attributes_id'
-        )->withPivot('value');
+        //We need to manually query product attribute by this relation so the translate can work for both.
+        $query = $this->hasMany(ProductsAttributes::class, 'products_id')
+            ->join('attributes', 'products_attributes.attributes_id', '=', 'attributes.id')
+            ->select('products_attributes.*', 'attributes.*');
 
         foreach ($conditions as $column => $value) {
-            $query->where($column, $value);
+            $query->where("attributes.$column", $value);
         }
 
         $query->orderBy('attributes.weight', 'asc');
@@ -488,5 +490,20 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->variants->count() > $limit
             ? $this->variants->take($limit)->map(fn ($variant) => $variant->toSearchableArraySummary())
             : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
+    }
+
+
+    public function mapAttributes(Collection $attributesValue): array
+    {
+        $productAttributes = [];
+        foreach ($attributesValue as $attributeValue) {
+            $productAttributes[] = [
+                'id' => $attributeValue->attributes_id,
+                'name' => $attributeValue->attribute->name,
+                'slug' => $attributeValue->attribute->slug,
+                'value' => $attributeValue->value,
+            ];
+        }
+        return $productAttributes;
     }
 }
