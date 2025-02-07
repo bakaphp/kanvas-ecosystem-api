@@ -24,7 +24,7 @@ type Product {
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
     attributes: [ProductAttribute!]!
-        @BelongsToMany(relation: "visibleAttributes")
+        @method(name: "visibleAttributes")
     variants: [Variant!]! @HasMany
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")
