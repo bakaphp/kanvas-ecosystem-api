@@ -22,6 +22,26 @@ input EngagementFilterInput {
     status: String!
 }
 
+input CreateEngagementInput {
+    lead_id: ID!
+    people_id: ID!
+    request_id: ID!
+    task_id: ID
+    action: String!
+    data: Mixed
+    source: String!
+    status: String!
+    description: String
+    via: String
+}
+
+extend type Mutation @guard {
+    startLeadEngagement(input: CreateEngagementInput!): Engagement!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\EngagementMutation@startEngagement"
+        )
+}
+
 # Query definition
 extend type Query @guard {
     engagementByFilter(filter: EngagementFilterInput!): Engagement
