@@ -14,7 +14,7 @@ class TranslationResolver
         $languageCode = $args['languageCode'];
         $language = Languages::where('code', $languageCode)->first();
 
-        $response = array_reduce($entity->getTranslatableAttributes(), function($result, $attribute) use ($entity, $language) {
+        $response = array_reduce($entity->getTranslatableAttributes(), function ($result, $attribute) use ($entity, $language) {
             //WithoutFallback Allow the translation to try get a non-existed locale.
             $result[$attribute] = $entity->getTranslationWithoutFallback($attribute, strtolower($language->code)) ?? null;
             return $result;

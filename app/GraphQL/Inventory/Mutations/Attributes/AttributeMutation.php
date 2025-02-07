@@ -88,7 +88,6 @@ class AttributeMutation
 
         try {
             $attributeTranslateDto = new AttributeTranslateDto(name: $input['name']);
-    
             foreach ($attributeTranslateDto->toArray() as $key => $value) {
                 $attribute->setTranslation($key, $language->code, $value);
                 $attribute->save();

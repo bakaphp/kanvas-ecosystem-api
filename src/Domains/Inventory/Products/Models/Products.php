@@ -496,7 +496,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     public function mapAttributes(Collection $attributesValue): array
     {
         $productAttributes = [];
-        foreach($attributesValue as $attributeValue) {
+        foreach ($attributesValue as $attributeValue) {
             $productAttributes[] = [
                 'id' => $attributeValue->attributes_id,
                 'name' => $attributeValue->attribute->name,
