@@ -1349,16 +1349,16 @@
         },
         {
             "name": "berkayk/onesignal-laravel",
-            "version": "v2.4",
+            "version": "v2.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/berkayk/laravel-onesignal.git",
-                "reference": "b9cd06cf3c9b30158beb38e4e70d02adaad264a2"
+                "reference": "7ad1254499f515517f8e01fd31cdd02b1de6b67d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/berkayk/laravel-onesignal/zipball/b9cd06cf3c9b30158beb38e4e70d02adaad264a2",
-                "reference": "b9cd06cf3c9b30158beb38e4e70d02adaad264a2",
+                "url": "https://api.github.com/repos/berkayk/laravel-onesignal/zipball/7ad1254499f515517f8e01fd31cdd02b1de6b67d",
+                "reference": "7ad1254499f515517f8e01fd31cdd02b1de6b67d",
                 "shasum": ""
             },
             "require": {
@@ -1411,9 +1411,9 @@
             ],
             "support": {
                 "issues": "https://github.com/berkayk/laravel-onesignal/issues",
-                "source": "https://github.com/berkayk/laravel-onesignal/tree/v2.4"
+                "source": "https://github.com/berkayk/laravel-onesignal/tree/v2.4.1"
             },
-            "time": "2025-02-03T08:52:39+00:00"
+            "time": "2025-02-05T09:21:12+00:00"
         },
         {
             "name": "brick/math",
@@ -2830,16 +2830,16 @@
         },
         {
             "name": "google/cloud-discoveryengine",
-            "version": "v1.3.3",
+            "version": "v1.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-discoveryengine.git",
-                "reference": "dac73803ef4638d718f49816a83042dc90987015"
+                "reference": "ac0a75b5c4424fa2378403ccbb79413633ce8982"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/dac73803ef4638d718f49816a83042dc90987015",
-                "reference": "dac73803ef4638d718f49816a83042dc90987015",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/ac0a75b5c4424fa2378403ccbb79413633ce8982",
+                "reference": "ac0a75b5c4424fa2378403ccbb79413633ce8982",
                 "shasum": ""
             },
             "require": {
@@ -2873,9 +2873,9 @@
             ],
             "description": "Google Cloud Discovery Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.3.3"
+                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.4.0"
             },
-            "time": "2025-01-24T21:24:06+00:00"
+            "time": "2025-02-03T23:47:57+00:00"
         },
         {
             "name": "google/cloud-recommendations-ai",
@@ -2986,16 +2986,16 @@
         },
         {
             "name": "google/common-protos",
-            "version": "4.9.0",
+            "version": "4.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/common-protos-php.git",
-                "reference": "a2d1a583819286db5ef9403c6a2bfa29c9636c46"
+                "reference": "88bb76504910ddfe8fec457b622145c5731ab8ea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/a2d1a583819286db5ef9403c6a2bfa29c9636c46",
-                "reference": "a2d1a583819286db5ef9403c6a2bfa29c9636c46",
+                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/88bb76504910ddfe8fec457b622145c5731ab8ea",
+                "reference": "88bb76504910ddfe8fec457b622145c5731ab8ea",
                 "shasum": ""
             },
             "require": {
@@ -3039,9 +3039,9 @@
                 "google"
             ],
             "support": {
-                "source": "https://github.com/googleapis/common-protos-php/tree/v4.9.0"
+                "source": "https://github.com/googleapis/common-protos-php/tree/v4.10.0"
             },
-            "time": "2025-01-11T02:14:50+00:00"
+            "time": "2025-02-03T23:47:57+00:00"
         },
         {
             "name": "google/gax",
@@ -9927,16 +9927,16 @@
         },
         {
             "name": "sentry/sentry-laravel",
-            "version": "4.11.0",
+            "version": "4.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-laravel.git",
-                "reference": "ad7d59652f6fb2934b54ef9d469abeaaf5f4eb96"
+                "reference": "da1ee3417dfb3576a6aaa0f8b25892ebdb98fdb0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/ad7d59652f6fb2934b54ef9d469abeaaf5f4eb96",
-                "reference": "ad7d59652f6fb2934b54ef9d469abeaaf5f4eb96",
+                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/da1ee3417dfb3576a6aaa0f8b25892ebdb98fdb0",
+                "reference": "da1ee3417dfb3576a6aaa0f8b25892ebdb98fdb0",
                 "shasum": ""
             },
             "require": {
@@ -10000,7 +10000,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-laravel/issues",
-                "source": "https://github.com/getsentry/sentry-laravel/tree/4.11.0"
+                "source": "https://github.com/getsentry/sentry-laravel/tree/4.12.0"
             },
             "funding": [
                 {
@@ -10012,7 +10012,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2025-01-23T12:35:37+00:00"
+            "time": "2025-02-05T13:13:03+00:00"
         },
         {
             "name": "shish/safe",
@@ -16287,16 +16287,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "11.5.6",
+            "version": "11.5.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "3c3ae14c90f244cdda95028c3e469028e8d1c02c"
+                "reference": "e1cb706f019e2547039ca2c839898cd5f557ee5d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/3c3ae14c90f244cdda95028c3e469028e8d1c02c",
-                "reference": "3c3ae14c90f244cdda95028c3e469028e8d1c02c",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/e1cb706f019e2547039ca2c839898cd5f557ee5d",
+                "reference": "e1cb706f019e2547039ca2c839898cd5f557ee5d",
                 "shasum": ""
             },
             "require": {
@@ -16368,7 +16368,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.5.6"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.5.7"
             },
             "funding": [
                 {
@@ -16384,7 +16384,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-01-31T07:03:30+00:00"
+            "time": "2025-02-06T16:10:05+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -17417,12 +17417,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": [],
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "platform-dev": [],
+    "plugin-api-version": "2.3.0"
 }
