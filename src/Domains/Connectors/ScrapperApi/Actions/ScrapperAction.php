@@ -86,8 +86,7 @@ class ScrapperAction
                 )->execute();
 
                 $syncProductWithShopify = new SyncProductWithShopifyAction($product);
-                $syncProductWithShopify->execute();
-
+                $response = $syncProductWithShopify->execute();
                 $this->setCustomFieldAmazonPrice($product);
                 $importerProducts++;
 
@@ -96,7 +95,8 @@ class ScrapperAction
                         $this->app,
                         $this->uuid,
                         $product,
-                        $product->getShopifyId($this->region)
+                        $product->getShopifyId($this->region),
+                        $response[0]
                     );
                 }
 

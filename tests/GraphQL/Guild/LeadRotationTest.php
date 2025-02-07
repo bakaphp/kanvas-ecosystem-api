@@ -143,7 +143,11 @@ class LeadRotationTest extends TestCase
                 createLeadRotation(input: $input){
                     name,
                     leads_rotations_email,
-                    hits
+                    hits,
+                    company {
+                        id
+                    }
+
                 }
             }
             ',
@@ -156,6 +160,9 @@ class LeadRotationTest extends TestCase
                     'name' => $input['name'],
                     'leads_rotations_email' => $input['leads_rotations_email'],
                     'hits' => $input['hits'],
+                    'company' => [
+                        'id' => auth()->user()->getCurrentCompany()->id
+                    ]
                 ],
             ],
         ]);

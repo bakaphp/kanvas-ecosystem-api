@@ -29,41 +29,34 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-<<<<<<< HEAD
-          IMAGE_TAG=latest,${{ github.run_number }},
-=======
           IMAGE_TAG=latest
->>>>>>> ae180dcbd996dca178ad105a5354077eaab7df26
           REPOSITORY_URI=${{ secrets.AWS_ECR_REPOSITORY }}
 
           docker build -t $REPOSITORY_URI:$IMAGE_TAG -f ${{ github.ref_name }}.Dockerfile .
           docker push $REPOSITORY_URI:$IMAGE_TAG
-  # deploy:
-  #   runs-on: ubuntu-latest
+  Deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+    needs: Build
+    permissions:
+      id-token: write
+      contents: read
 
-  #   steps:
-  #     # Checkout code
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  #     # Log in to ECR
-  #     - name: Log in to Amazon ECR
-  #       uses: aws-actions/amazon-ecr-login@v1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ECR_ECS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-  #     # Build and push Docker image
-  #     - name: Build and push Docker image
-  #       run: |
-  #         IMAGE_TAG=latest
-  #         REPOSITORY_URI=${{ secrets.ECR_REPOSITORY }}
-
-  #         docker build -t $REPOSITORY_URI:$IMAGE_TAG .
-  #         docker push $REPOSITORY_URI:$IMAGE_TAG
-
-  #     # Deploy to ECS
-  #     - name: Deploy to Amazon ECS
-  #       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-  #       with:
-  #         task-definition: ecs-task-def.json
-  #         service: <SERVICE_NAME>
-  #         cluster: <CLUSTER_NAME>
-  #         wait-for-service-stability: true
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ github.ref_name }}-td.json
+          service: ${{secrets.AWS_ECS_SERVICE}}
+          cluster: ${{secrets.AWS_ECS_CLUSTER}}
+          image: ${{ secrets.AWS_ECR_REPOSITORY }}:latest
+          wait-for-service-stability: true
