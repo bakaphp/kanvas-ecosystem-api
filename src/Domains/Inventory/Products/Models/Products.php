@@ -338,9 +338,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
         ];
-        $attributes = $this->searchableAttributes()->get();
+        $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
-            $product['attributes'][$attribute->name] = $attribute->value;
+            $product['attributes'][$attribute['name']] = $attribute['value'];
         }
 
         $customFields = $this->getAllCustomFields();
