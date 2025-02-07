@@ -28,7 +28,7 @@ class AddAttributeAction
                             ->first();
 
         if ($productAttribute) {
-            $productAttribute->value = is_array($this->value) ? json_encode($this->value) : $this->value;
+            $productAttribute->value = $this->value;
             $productAttribute->update();
         } else {
             $productAttribute = new ProductsAttributes();
