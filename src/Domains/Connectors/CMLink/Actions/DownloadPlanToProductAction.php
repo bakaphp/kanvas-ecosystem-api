@@ -26,15 +26,11 @@ class DownloadPlanToProductAction
         $this->channel = $channel ?? Channels::fromCompany($this->region->company)->where('is_default', 1)->firstOrFail();
     }
 
-    public function execute(string $language = '2'): void
+    public function execute(string $language = '2', int $totalPages = 12): array
     {
         $carrierService = new CarrierService($this->region->app, $this->region->company);
 
         $productsToImport = [];
-
-        $bundles = $carrierService->getAllDataBundle($language);
-        $jobUuid = Str::uuid()->toString();
-
         $productService = new CMLinkProductService(
             $this->region,
             $this->user,
@@ -42,15 +38,29 @@ class DownloadPlanToProductAction
             $this->channel
         );
 
-        $productsToImport = $productService->mapProductToImport($bundles);
+        $allImports = [];
+        for ($i = 0; $i <= $totalPages; $i++) {
+            $bundles = $carrierService->getAllDataBundle($language, $i);
 
-        ProductImporterJob::dispatch(
-            $jobUuid,
-            $productsToImport,
-            $this->region->company->defaultBranch,
-            $this->user,
-            $this->warehouses->region,
-            $this->region->app
-        );
+            if (empty($bundles)) {
+                continue;
+            }
+
+            $jobUuid = Str::uuid()->toString();
+
+            $productsToImport = $productService->mapProductToImport($bundles);
+            $allImports[] = $productsToImport;
+
+            ProductImporterJob::dispatch(
+                $jobUuid,
+                $productsToImport,
+                $this->region->company->defaultBranch,
+                $this->user,
+                $this->warehouses->region,
+                $this->region->app
+            );
+        }
+
+        return $allImports;
     }
 }

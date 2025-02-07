@@ -15,7 +15,7 @@ use Kanvas\Connectors\ESim\DataTransferObject\ESim;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Inventory\Products\Models\ProductsTypes;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Orders\Models\Order;
@@ -43,7 +43,7 @@ class CreateEsimOrderAction
             ->where('slug', $productTypeSlug)
             ->firstOrFail();
 
-        $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse()->get();
+        $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
 
         $availableVariant = VariantsRepository::getAvailableVariant($productType, $warehouse);
 
