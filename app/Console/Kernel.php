@@ -11,6 +11,7 @@ use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
 use Spatie\Health\Commands\ScheduleCheckHeartbeatCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
+use App\Console\Commands\Social\ScoutMessageReindexCommand;
 
 class Kernel extends ConsoleKernel
 {
@@ -26,6 +27,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(ScheduleCheckHeartbeatCommand::class)->everyMinute();
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
+        $schedule->command(ScoutMessageReindexCommand::class, ['13'])->everyTenMinutes();
         #$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron
         #$schedule->command(ImportPromptsFromDocsCommand::class)->weeklyOn(1, '00:00');
 

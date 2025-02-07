@@ -1,6 +1,6 @@
 type LeadRotation {
     id: ID!
-    company: Company! @belongsTo(relation: "companies")
+    company: Company! @belongsTo(relation: "company")
     name: String!
     leads_rotations_email: String
     hits: Int
