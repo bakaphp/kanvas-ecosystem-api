@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
  * Filesystem Model.
@@ -58,5 +59,12 @@ class Filesystem extends BaseModel
     public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
+    }
+
+    public function url(): Attribute
+    {
+        return Attribute::make(function ($value) {
+            return $value;
+        });
     }
 }
