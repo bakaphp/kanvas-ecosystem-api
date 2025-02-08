@@ -165,12 +165,12 @@ input UpdateUserInput {
 }
 
 input UserContactInput {
-  firstName: String!
-  lastName: String!
-  phoneNumbers: [PhoneNumberInput!]!
+  first_name: String!
+  last_name: String!
+  phone_numbers: [PhoneNumberInput!]!
   emails: [EmailInput!]!
   company: String
-  jobTitle: String
+  job_title: String
 }
 
 input PhoneNumberInput {
@@ -180,7 +180,7 @@ input PhoneNumberInput {
 
 input EmailInput {
   type: String! # personal, work, other
-  email: String!
+  email: Email!
 }
 
 extend type Mutation {
