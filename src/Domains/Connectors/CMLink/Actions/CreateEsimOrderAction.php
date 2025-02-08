@@ -9,6 +9,7 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum;
+use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
 use Kanvas\Connectors\CMLink\Services\CustomerService;
 use Kanvas\Connectors\CMLink\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESim;
@@ -124,7 +125,7 @@ class CreateEsimOrderAction
                 $esimData['data']['installTime'] ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $esimData['data']['activationCode'],
                 $esimData['data']['state'],
-                $orderVariant->getAttributeBySlug('variant-type')?->value,
+                $orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
             )
         );
 
