@@ -47,6 +47,7 @@ class CreateEsimOrderAction
         $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
 
         $availableVariant = VariantsRepository::getAvailableVariant($productType, $warehouse);
+        $availableVariant->reduceQuantityInWarehouse($warehouse, 1);
 
         $orderService = new OrderService($this->order->app, $this->order->company);
         $cmLinkOrder = $orderService->createOrder(
@@ -108,13 +109,13 @@ class CreateEsimOrderAction
             $esimData['data']['downloadUrl'],
             $availableVariant->sku,
             $esimData['data']['state'],
-            $cmLinkOrder['quantity'],
-            $cmLinkOrder['price'],
+            (int) $cmLinkOrder['quantity'],
+            (float) $cmLinkOrder['price'],
             'bundle',
-            $availableVariant->sku,
+            $orderVariant->sku,
             $esimData['data']['smdpAddress'],
             $esimData['data']['activationCode'],
-            $esimData['data']['installTime'],
+            ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time(),
             $esimData['data']['installDevice'],
             $qrCodeBase64,
             new ESimStatus(

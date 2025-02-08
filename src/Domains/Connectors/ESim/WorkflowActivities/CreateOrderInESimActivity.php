@@ -46,8 +46,16 @@ class CreateOrderInESimActivity extends KanvasActivity
              * @todo move this to a factory
              */
             if ($providerValue == strtolower(ProviderEnum::CMLINK->value)) {
-                $createOrder = new CreateEsimOrderAction($order);
-                $response = $createOrder->execute()->toArray();
+                $esim = (new CreateEsimOrderAction($order))->execute();
+
+                $response = [
+                    'success' => true,
+                    'data' => [
+                        ...array_diff_key($esim->toArray(), ['esim_status' => '']),
+                        'plan_origin' => $esim->plan,
+                    ],
+                    'esim_status' => $esim->esimStatus->toArray(),
+                ];
             } else {
                 $createOrder = new OrderService($order);
                 $response = $createOrder->createOrder();
