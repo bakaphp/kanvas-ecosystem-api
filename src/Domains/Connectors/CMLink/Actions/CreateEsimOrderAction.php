@@ -68,6 +68,8 @@ class CreateEsimOrderAction
 
         $qrCode = $writer->writeString($esimData['data']['downloadUrl']);
         $qrCodeBase64 = 'data:image/png;base64,' . base64_encode($qrCode);
+        $orderVariant = $this->order->items()->first()->variant;
+
         /*
         data from cmlink
             Array
@@ -122,7 +124,7 @@ class CreateEsimOrderAction
                 $esimData['data']['installTime'] ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $esimData['data']['activationCode'],
                 $esimData['data']['state'],
-                $availableVariant->getAttributeBySlug('variant-type')->value,
+                $orderVariant->getAttributeBySlug('variant-type')?->value,
             )
         );
 
