@@ -66,11 +66,11 @@ class CreateEsimOrderAction
 
         $orderService = new OrderService($this->order->app, $this->order->company);
         $cmLinkOrder = $orderService->createOrder(
-            (string) $this->order->order_number,
-            $availableVariant->sku,
-            1,
-            $this->order->items()->first()->variant->sku,
-            $this->order->created_at->format('Y-m-d')
+            thirdOrderId: (string) $this->order->order_number,
+            iccid: $availableVariant->sku,
+            quantity: 1,
+            dataBundleId: $this->order->items()->first()->variant->sku,
+            activeDate: $this->order->created_at->format('Y-m-d')
         );
 
         $customerService = new CustomerService($this->order->app, $this->order->company);
