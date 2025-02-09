@@ -15,6 +15,7 @@ use Kanvas\Connectors\CMLink\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESim;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
+use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
@@ -120,6 +121,8 @@ class CreateEsimOrderAction
                 [msg] => Success
             )
          */
+        $totalData = $orderVariant->getAttributeBySlug('data')?->value ?? 0;
+
         $esim = new ESim(
             $esimData['data']['downloadUrl'],
             $availableVariant->sku,
@@ -136,8 +139,8 @@ class CreateEsimOrderAction
             new ESimStatus(
                 $esimData['data']['activationCode'],
                 'data',
-                0,
-                1000,
+                FileSizeConverter::toBytes($totalData),
+                FileSizeConverter::toBytes($totalData),
                 $esimData['data']['installTime'] ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $esimData['data']['activationCode'],
                 $esimData['data']['state'],

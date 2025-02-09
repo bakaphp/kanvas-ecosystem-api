@@ -16,6 +16,7 @@ use Kanvas\Connectors\CMLink\Services\CustomerService;
 use Kanvas\Connectors\EasyActivation\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
+use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Social\Messages\Models\Message;
@@ -180,25 +181,25 @@ class SyncEsimWithProviderCommand extends Command
         $installedDate = $response['installTime'] ?? (! empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
+        $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
+
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
             callTypeGroup: 'data',
-            initialQuantity: 0,
-            remainingQuantity: 1000,
+            initialQuantity: FileSizeConverter::toBytes($totalData),
+            remainingQuantity: FileSizeConverter::toBytes($totalData),
             assignmentDateTime: $installedDate,
             assignmentReference: $response['activationCode'],
-            bundleState: $response['state'],
+            bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
             unlimited: $variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED->value,
             expirationDate: Carbon::parse($installedDate)->addDays($variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
             imei: $message->message['data']['imei_number'] ?? null,
             esimStatus: $response['state'],
             message: $response['installDevice'],
+            installedDate: $installedDate,
         );
 
-        return [
-            ...$esimStatus->toArray(),
-            'bundleState' => IccidStatusEnum::getStatus(strtolower($response['state'])),
-        ];
+        return $esimStatus->toArray();
     }
 
     private function updateMessageStatus(Message $message, array $response, string $network): void
