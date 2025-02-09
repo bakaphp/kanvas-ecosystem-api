@@ -177,7 +177,7 @@ class SyncEsimWithProviderCommand extends Command
 
     private function formatCmLinkResponse(Message $message, array $response): array
     {
-        $installedDate = $response['installTime'] ?? ($message->message['order']['created_at'] ? strtotime($message->message['order']['created_at']) : now()->format('Y-m-d H:i:s'));
+        $installedDate = $response['installTime'] ?? (! empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
         $esimStatus = new ESimStatus(
@@ -192,7 +192,7 @@ class SyncEsimWithProviderCommand extends Command
             expirationDate: Carbon::parse($installedDate)->addDays($variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
             imei: $message->message['data']['imei_number'] ?? null,
             esimStatus: $response['state'],
-            message: $response['state'],
+            message: $response['installDevice'],
         );
 
         return [
