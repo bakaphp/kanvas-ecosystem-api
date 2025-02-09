@@ -61,7 +61,7 @@ class CreateEsimOrderAction
             price: $availableVariant->price,
             tax: 0,
             discount: 0,
-            currency: Currencies::getDefaultCurrency(),
+            currency: Currencies::getBaseCurrency(),
         ));
 
         $orderService = new OrderService($this->order->app, $this->order->company);

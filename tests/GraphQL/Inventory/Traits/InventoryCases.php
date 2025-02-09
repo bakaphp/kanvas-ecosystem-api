@@ -169,7 +169,7 @@ trait InventoryCases
                 $company,
                 $app,
                 $user,
-                Currencies::where('code', 'USD')->firstOrFail(),
+                Currencies::getBaseCurrency(),
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_NAME->getValue(),
                 null,
