@@ -76,7 +76,7 @@ class Filesystem extends BaseModel
                     $path,
                     now()->addDays(7),
                     [
-                        'ResponseContentDisposition' => 'attachment; filename='.$fileName,
+                        'ResponseContentDisposition' => 'attachment; filename=' . $fileName,
                     ]
                 );
                 return $url;
