@@ -15,10 +15,12 @@ use Kanvas\Connectors\CMLink\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESim;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order;
 
 class CreateEsimOrderAction
@@ -48,6 +50,19 @@ class CreateEsimOrderAction
 
         $availableVariant = VariantsRepository::getAvailableVariant($productType, $warehouse);
         $availableVariant->reduceQuantityInWarehouse($warehouse, 1);
+
+        //add this variant to the order so we have a history of the iccid
+        $this->order->addItem(new OrderItem(
+            app: $this->order->app,
+            variant: $availableVariant,
+            name: $availableVariant->name,
+            sku: $availableVariant->sku,
+            quantity: 1,
+            price: $availableVariant->price,
+            tax: 0,
+            discount: 0,
+            currency: Currencies::getDefaultCurrency(),
+        ));
 
         $orderService = new OrderService($this->order->app, $this->order->company);
         $cmLinkOrder = $orderService->createOrder(
@@ -116,7 +131,7 @@ class CreateEsimOrderAction
             $esimData['data']['smdpAddress'],
             $esimData['data']['activationCode'],
             ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time(),
-            $esimData['data']['installDevice'],
+            json_encode(['order' => $this->order->getId(), 'install_device' => $esimData['data']['installDevice'] ?? '']),
             $qrCodeBase64,
             new ESimStatus(
                 $esimData['data']['activationCode'],
