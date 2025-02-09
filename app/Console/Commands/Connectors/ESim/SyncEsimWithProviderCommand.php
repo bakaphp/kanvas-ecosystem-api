@@ -215,8 +215,8 @@ class SyncEsimWithProviderCommand extends Command
             IccidStatusEnum::EXPIRED->value,
             IccidStatusEnum::COMPLETED->value,
             IccidStatusEnum::DELETED->value,
-            IccidStatusEnum::DISABLED->value,
-            IccidStatusEnum::DISABLE->value,
+            //IccidStatusEnum::DISABLED->value,
+            //IccidStatusEnum::DISABLE->value,
         ];
 
         if (in_array(strtolower($response['bundleState']), $inactiveStatuses, true)) {
