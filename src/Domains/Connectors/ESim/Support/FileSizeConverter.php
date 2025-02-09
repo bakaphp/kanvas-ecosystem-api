@@ -34,7 +34,8 @@ class FileSizeConverter
         ];
 
         if (! preg_match('/^([\d.]+)(B|KB|MB|GB|TB)$/i', $size, $matches)) {
-            throw new InvalidArgumentException("Invalid size format: $size");
+            //throw new InvalidArgumentException("Invalid size format: $size");
+            return 0;
         }
 
         [$fullMatch, $number, $unit] = $matches;
