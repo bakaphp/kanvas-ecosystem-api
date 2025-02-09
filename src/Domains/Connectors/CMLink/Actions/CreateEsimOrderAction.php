@@ -58,7 +58,7 @@ class CreateEsimOrderAction
             name: $availableVariant->name,
             sku: $availableVariant->sku,
             quantity: 1,
-            price: $availableVariant->price,
+            price: $availableVariant->getPrice($warehouse),
             tax: 0,
             discount: 0,
             currency: Currencies::getBaseCurrency(),

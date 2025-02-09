@@ -215,13 +215,16 @@ class SyncEsimWithProviderCommand extends Command
             IccidStatusEnum::EXPIRED->value,
             IccidStatusEnum::COMPLETED->value,
             IccidStatusEnum::DELETED->value,
-            //IccidStatusEnum::DISABLED->value,
-            //IccidStatusEnum::DISABLE->value,
+            IccidStatusEnum::DISABLED->value,
+            IccidStatusEnum::DISABLE->value,
         ];
 
         if (in_array(strtolower($response['bundleState']), $inactiveStatuses, true)) {
             $message->setPrivate();
             $this->info("Message ID: {$message->id} has been set to private.");
+        } else {
+            $message->setPublic();
+            $this->info("Message ID: {$message->id} has been set to public.");
         }
     }
 }
