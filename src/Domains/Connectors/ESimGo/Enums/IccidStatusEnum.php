@@ -18,6 +18,8 @@ enum IccidStatusEnum: string
     case RELEASED = 'released';
     case DELETED = 'delete';
     case INSTALLED = 'installed';
+    case DISABLED = 'disabled';
+    case DISABLE = 'disable';
 
     /**
      * Check if a given status matches this enum case.
@@ -50,6 +52,7 @@ enum IccidStatusEnum: string
             'deleted' => self::RELEASED->value,
             'not_active' => self::INACTIVE->value,
             'expired' => self::EXPIRED->value,
+            'disable', 'disabled' => self::DISABLED->value,
             default => '',
         };
     }
