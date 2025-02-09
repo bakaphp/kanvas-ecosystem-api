@@ -24,6 +24,10 @@ class ESimStatus extends Data
         public readonly bool $unlimited,
         public readonly ?string $expirationDate = null,
         public readonly ?string $phoneNumber = null,
+        public readonly ?string $imei = null,
+        public readonly ?string $esimStatus = null,
+        public readonly ?string $message = null,
+        public readonly ?string $installedDate = null
     ) {
     }
 }
