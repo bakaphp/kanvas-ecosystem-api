@@ -103,14 +103,13 @@ class RedistributePromptsCommand extends Command
         }
     }
 
-    private function redistributePrompts(array $redistributionInformation, int $appId, int $messageType, int $nuggetMessageType, int $companyId): void 
+    private function redistributePrompts(array $redistributionInformation, int $appId, int $messageType, int $nuggetMessageType, int $companyId): void
     {
         foreach ($redistributionInformation as $redistribution) {
             $promptId = $redistribution['prompt_id'];
             $userId = $redistribution['user_id'];
             $category = $redistribution['category'];
             $displayname = $redistribution['displayname'];
-
 
             // Update parent information
             $prompt = Message::query()
@@ -154,7 +153,7 @@ class RedistributePromptsCommand extends Command
                 ->where('message_types_id', $nuggetMessageType)
                 ->where('is_deleted', 0)
                 ->get();
-            
+
             if (! $childMessages) {
                 continue;
                 Log::error("No child messages found for prompt $promptId");
@@ -171,7 +170,6 @@ class RedistributePromptsCommand extends Command
                 Log::info("Assigned tag $tagId to child message $childMessage->id");
             }
         }
-
     }
 
 
