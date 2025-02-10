@@ -103,8 +103,8 @@ class RedistributePromptsCommand extends Command
         }
     }
 
-    private function redistributePrompts(array $redistributionInformation, int $appId, int $messageType, int $nuggetMessageType, int $companyId): void {
-
+    private function redistributePrompts(array $redistributionInformation, int $appId, int $messageType, int $nuggetMessageType, int $companyId): void 
+    {
         foreach ($redistributionInformation as $redistribution) {
             $promptId = $redistribution['prompt_id'];
             $userId = $redistribution['user_id'];
@@ -122,7 +122,7 @@ class RedistributePromptsCommand extends Command
                 ->where('is_deleted', 0)
                 ->firstOrFail();
 
-            if (!$prompt) {
+            if (! $prompt) {
                 continue;
                 Log::error("No message found for prompt $promptId");
             }
@@ -155,7 +155,7 @@ class RedistributePromptsCommand extends Command
                 ->where('is_deleted', 0)
                 ->get();
             
-            if (!$childMessages) {
+            if (! $childMessages) {
                 continue;
                 Log::error("No child messages found for prompt $promptId");
             }
