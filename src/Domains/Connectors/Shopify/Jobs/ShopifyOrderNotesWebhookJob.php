@@ -27,8 +27,8 @@ class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
             warehouses: $warehouses,
         );
 
-        $orderId = $this->webhookRequest->payload['orderId'];
-        $note = $this->webhookRequest->payload['note'];
+        $orderId = $this->webhookRequest->payload['orderId'] ?? null;
+        $note = $this->webhookRequest->payload['note'] ?? null;
 
         if (! $orderId || ! $note) {
             return [
