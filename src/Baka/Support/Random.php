@@ -37,7 +37,7 @@ class Random
     {
         $app = app(Apps::class);
         if (str_ends_with($email, '@privaterelay.appleid.com')) {
-            $displayname = (new Username)
+            $displayname = (new Username())
                 ->withAdjectiveCount(1)
                 ->withNounCount(1)
                 ->withDigitCount(0)
