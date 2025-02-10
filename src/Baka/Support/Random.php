@@ -33,9 +33,9 @@ class Random
     /**
      * Given a email generate a displayname.
      */
-    public static function generateDisplayNameFromEmail(string $email, $randNo = 200): string
+    public static function generateDisplayNameFromEmail(string $email, Apps $app, $randNo = 200): string
     {
-        $app = app(Apps::class);
+        $app = $app ?? app(Apps::class);
         if (str_ends_with($email, '@privaterelay.appleid.com')) {
             $displayname = (new Username())
                 ->withAdjectiveCount(1)
