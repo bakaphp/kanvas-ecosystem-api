@@ -33,7 +33,7 @@ class Random
     /**
      * Given a email generate a displayname.
      */
-    public static function generateDisplayNameFromEmail(string $email, ?Apps $app = null, int $randNo = 200): string
+    public static function generateDisplayNameFromEmail(string $email, int $randNo = 200, ?Apps $app = null): string
     {
         $app = $app ?? app(Apps::class);
         if (str_ends_with($email, '@privaterelay.appleid.com')) {
