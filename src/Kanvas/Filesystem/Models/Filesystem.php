@@ -11,9 +11,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
-use Illuminate\Database\Eloquent\Casts\Attribute;
-use Kanvas\Enums\AppEnums;
-use Kanvas\Filesystem\Services\FilesystemServices;
 
 /**
  * Filesystem Model.
@@ -61,28 +58,5 @@ class Filesystem extends BaseModel
     public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
-    }
-
-    public function url(): Attribute
-    {
-        $app = $this->app;
-        $path = $this->path;
-        $fileName = $this->name;
-        return Attribute::make(function ($value) use ($app, $path, $fileName) {
-            if ((bool)$app->get(AppEnums::DOWNLOAD_FILESYSTEM_WITH_NAME->getValue())) {
-                $fileSystemService = new FilesystemServices($app);
-                $disk = $fileSystemService->getStorageByDisk();
-                $url = $disk->temporaryUrl(
-                    $path,
-                    now()->addDays(7),
-                    [
-                        'ResponseContentDisposition' => 'attachment; filename='.$fileName,
-                    ]
-                );
-                return $url;
-            }
-
-            return $value;
-        });
     }
 }

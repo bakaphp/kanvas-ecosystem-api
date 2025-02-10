@@ -59,4 +59,8 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@uploadCsv"
         )
+    generateTemporaryUrl(id: ID!): String!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\GenerateUrlMutation"
+        )
 }
