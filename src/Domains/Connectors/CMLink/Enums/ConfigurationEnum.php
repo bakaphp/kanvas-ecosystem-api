@@ -12,4 +12,5 @@ enum ConfigurationEnum: string
     case APP_TYPE = 'CM_LINK_APP_TYPE';
     case USE_CALENDAR_VARIANTS = 'CM_LINK_USE_CALENDAR_VARIANTS';
     case NAME = 'CMLink';
+    case ICCID_INVENTORY_PRODUCT_TYPE = 'cmlink-iccid';
 }

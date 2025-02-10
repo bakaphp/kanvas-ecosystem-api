@@ -50,6 +50,7 @@ class CustomerService
             'iccid' => $iccid,
             'beginIndex' => $beginIndex,
             'count' => $count,
+            'language' => '2',
             'accessToken' => $this->client->getAccessToken(),
         ];
 
