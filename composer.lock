@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "228c440741478c81aea8216bd3d19e90",
+    "content-hash": "4803e5019a20faccb3471bba2e65e282",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -3294,6 +3294,78 @@
                 }
             ],
             "time": "2024-07-20T21:45:45+00:00"
+        },
+        {
+            "name": "grantholle/laravel-username-generator",
+            "version": "2.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/grantholle/laravel-username-generator.git",
+                "reference": "a5f0a453d97ae6cbbfc0d98ee8e6458b9c0b147f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/grantholle/laravel-username-generator/zipball/a5f0a453d97ae6cbbfc0d98ee8e6458b9c0b147f",
+                "reference": "a5f0a453d97ae6cbbfc0d98ee8e6458b9c0b147f",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/contracts": "^10.0|^11.0",
+                "illuminate/support": "^10.0|^11.0",
+                "php": "^8.1",
+                "spatie/laravel-package-tools": "^1.9.2"
+            },
+            "require-dev": {
+                "nunomaduro/collision": "^8.1",
+                "orchestra/testbench": "^9.0",
+                "pestphp/pest": "^2.0",
+                "pestphp/pest-plugin-laravel": "^2.0",
+                "spatie/laravel-ray": "^1.26"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Username": "GrantHolle\\UsernameGenerator\\Facades\\Username"
+                    },
+                    "providers": [
+                        "GrantHolle\\UsernameGenerator\\UsernameServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "GrantHolle\\UsernameGenerator\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grant Holle",
+                    "email": "hollegrant@gmail.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Generate a random, kid-safe username.",
+            "homepage": "https://github.com/grantholle/laravel-username-generator",
+            "keywords": [
+                "username",
+                "username generator"
+            ],
+            "support": {
+                "issues": "https://github.com/grantholle/laravel-username-generator/issues",
+                "source": "https://github.com/grantholle/laravel-username-generator/tree/2.1.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/grantholle",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-03-28T15:54:58+00:00"
         },
         {
             "name": "grpc/grpc",
@@ -17334,12 +17406,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": [],
-    "plugin-api-version": "2.3.0"
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
 }
