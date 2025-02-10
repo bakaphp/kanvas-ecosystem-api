@@ -65,6 +65,13 @@ class LeadRotationTest extends TestCase
             'name' => fake()->word,
             'leads_rotations_email' => fake()->email,
             'hits' => fake()->numberBetween(1, 100),
+            'agents' => [
+                [
+                    "users_id" => auth()->user()->getId(),
+                    "phone" => fake()->phoneNumber,
+                    "percent" => 100,
+                ]
+            ]
         ];
         $this->graphQL(
             '
