@@ -2703,16 +2703,16 @@
         },
         {
             "name": "google/auth",
-            "version": "v1.45.3",
+            "version": "v1.45.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-auth-library-php.git",
-                "reference": "000d9439f430c6e56cba105c5ab750f5f7d69ea8"
+                "reference": "c70b987a3c2685c78e5e86280f9d259d4603839b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-auth-library-php/zipball/000d9439f430c6e56cba105c5ab750f5f7d69ea8",
-                "reference": "000d9439f430c6e56cba105c5ab750f5f7d69ea8",
+                "url": "https://api.github.com/repos/googleapis/google-auth-library-php/zipball/c70b987a3c2685c78e5e86280f9d259d4603839b",
+                "reference": "c70b987a3c2685c78e5e86280f9d259d4603839b",
                 "shasum": ""
             },
             "require": {
@@ -2756,11 +2756,11 @@
                 "oauth2"
             ],
             "support": {
-                "docs": "https://googleapis.github.io/google-auth-library-php/main/",
+                "docs": "https://cloud.google.com/php/docs/reference/auth/latest",
                 "issues": "https://github.com/googleapis/google-auth-library-php/issues",
-                "source": "https://github.com/googleapis/google-auth-library-php/tree/v1.45.3"
+                "source": "https://github.com/googleapis/google-auth-library-php/tree/v1.45.4"
             },
-            "time": "2025-01-29T18:17:08+00:00"
+            "time": "2025-02-10T18:04:06+00:00"
         },
         {
             "name": "google/cloud-core",
@@ -3957,16 +3957,16 @@
         },
         {
             "name": "imdhemy/laravel-purchases",
-            "version": "1.15.0",
+            "version": "1.16.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/imdhemy/laravel-in-app-purchases.git",
-                "reference": "b03fac928f80591ea16ac90dfeebf7e9b73d5744"
+                "reference": "91da08e5f87a07c6fb13113a424ca95773ff2e5e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/b03fac928f80591ea16ac90dfeebf7e9b73d5744",
-                "reference": "b03fac928f80591ea16ac90dfeebf7e9b73d5744",
+                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/91da08e5f87a07c6fb13113a424ca95773ff2e5e",
+                "reference": "91da08e5f87a07c6fb13113a424ca95773ff2e5e",
                 "shasum": ""
             },
             "require": {
@@ -4023,7 +4023,7 @@
             ],
             "support": {
                 "issues": "https://github.com/imdhemy/laravel-in-app-purchases/issues",
-                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.15.0"
+                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.16.0"
             },
             "funding": [
                 {
@@ -4031,7 +4031,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-01-28T21:39:37+00:00"
+            "time": "2025-02-08T22:31:12+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
