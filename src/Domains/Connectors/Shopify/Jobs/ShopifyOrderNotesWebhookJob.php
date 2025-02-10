@@ -36,11 +36,23 @@ class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
             ];
         }
 
+        $note = is_array($note) ? json_encode($note) : $note;
+        $orderId = $this->extractShopifyId($orderId);
+
         $order = $shopifyOrderService->addNoteToOrder($orderId, $note);
 
         return [
             'message' => 'Note added to order ' . $orderId,
             'order' => $order,
         ];
+    }
+
+    public function extractShopifyId(string $orderId): string
+    {
+        if (preg_match('/gid:\/\/shopify\/\w+\/(\d+)/', $orderId, $matches)) {
+            return $matches[1];
+        }
+
+        return $orderId;
     }
 }
