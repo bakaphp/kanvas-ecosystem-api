@@ -87,6 +87,7 @@ class ProductImporterAction
                 'status_id' => $status ? $status->getId() : null,
                 'is_published' => $this->importedProduct->isPublished,
                 'attributes' => $this->importedProduct->attributes,
+                'vendor' => $this->importedProduct->vendor,
             ]);
             $createAction = new CreateProductAction($productDto, $this->user);
             $createAction->setRunWorkflow($this->runWorkflow);
@@ -110,6 +111,9 @@ class ProductImporterAction
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
+            }
+            if ($this->importedProduct->tags) {
+                $this->product->syncTags($this->importedProduct->tags);
             }
             DB::connection('inventory')->commit();
             $this->product->fireWorkflow(WorkflowEnum::SYNC_SHOPIFY->value);

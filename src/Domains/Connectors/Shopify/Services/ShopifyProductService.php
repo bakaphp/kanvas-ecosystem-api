@@ -73,6 +73,7 @@ class ShopifyProductService
                    'data' => $productId,
                ],
            ],
+           'vendor' => $shopifyProduct['vendor'],
            'categories' => [
                [
                    'name' => $productCategory,
@@ -93,6 +94,7 @@ class ShopifyProductService
                      'channel' => $this->channel->name,
                 ],
            ],
+           'tags' => $productTags,
         ];
     }
 
