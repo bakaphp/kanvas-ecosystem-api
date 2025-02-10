@@ -19,7 +19,7 @@ class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
         $warehouses = Warehouses::where('regions_id', $integrationCompany->region_id)
                                 ->fromCompany($integrationCompany->company)
                                 ->fromApp($this->receiver->app)
-                                ->get();
+                                ->firstOrFail();
 
         $shopifyOrderService = new ShopifyOrderService(
             app: $this->receiver->app,
