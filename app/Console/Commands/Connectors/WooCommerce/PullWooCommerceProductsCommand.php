@@ -48,6 +48,7 @@ class PullWooCommerceProductsCommand extends Command
         $products = $woocommerce->client->get('products', [
             'per_page' => 100,
             'page' => $page,
+            'status' => 'publish',
         ]);
         $totalPage = $woocommerce->client->http->getResponse()->getHeaders()['X-WP-TotalPages'][0] ?? 1;
         while ($page <= $totalPage) {
