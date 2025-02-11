@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use finfo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -30,7 +31,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($message->message['ai_image']['image']);
         $fileName = basename($tempFilePath);
 
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->file($tempFilePath);
 
         $uploadedFile = new UploadedFile(
