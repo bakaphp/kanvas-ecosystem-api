@@ -320,7 +320,7 @@ class ProductsTest extends TestCase
         $response = $this->createProduct();
 
         $this->assertArrayHasKey('id', $response['data']['createProduct']);
-        $language = Languages::getByCode('en')->first();
+        $language = Languages::first();
         $id = $response->json()['data']['createProduct']['id'];
 
         $dataUpdate = [
@@ -334,7 +334,7 @@ class ProductsTest extends TestCase
                     id,
                     name,
                     description,
-                    translation(languageCode: "en"){
+                    translation(languageCode: $code){
                         name
                         description
                         language{

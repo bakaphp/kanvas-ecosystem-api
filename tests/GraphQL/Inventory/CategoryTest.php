@@ -142,7 +142,7 @@ class CategoryTest extends TestCase
     public function testUpdateCategoryTranslation(): void
     {
         $response = $this->createCategory();
-        $language = Languages::getByCode('en')->first();
+        $language = Languages::first();
         $id = $response['data']['createCategory']['id'];
 
         $dataUpdate = [
@@ -155,7 +155,7 @@ class CategoryTest extends TestCase
                 {
                     id
                     name,
-                    translation(languageCode: "en"){
+                    translation(languageCode: $code){
                         name
                         language{
                             code

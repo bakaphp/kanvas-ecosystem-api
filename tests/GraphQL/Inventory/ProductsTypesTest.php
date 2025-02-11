@@ -94,7 +94,7 @@ class ProductsTypesTest extends TestCase
     public function testUpdateProductTypeTranslation(): void
     {
         $response = $this->createProductType();
-        $language = Languages::getByCode('en')->first();
+        $language = Languages::first();
         $id = $response['data']['createProductType']['id'];
 
         $dataUpdate = [
@@ -107,7 +107,7 @@ class ProductsTypesTest extends TestCase
                 {
                     id
                     name,
-                    translation(languageCode: "en"){
+                    translation(languageCode: $code){
                         name
                         language{
                             code
