@@ -100,7 +100,7 @@ class ProductsTypesTest extends TestCase
         $dataUpdate = [
             'name' => fake()->name . ' en'
         ];
-        
+
         $response = $this->graphQL('
             mutation($dataUpdate: TranslationInput!, $id: ID!, $code: String!) {
                 updateProductTypeTranslations(id: $id, input: $dataUpdate, code: $code)

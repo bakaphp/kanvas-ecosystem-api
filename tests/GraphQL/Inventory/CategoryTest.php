@@ -148,7 +148,7 @@ class CategoryTest extends TestCase
         $dataUpdate = [
             'name' => fake()->name . ' en'
         ];
-        
+
         $response = $this->graphQL('
             mutation($dataUpdate: TranslationInput!, $id: ID!, $code: String!) {
                 updateCategoryTranslations(id: $id, input: $dataUpdate, code: $code)

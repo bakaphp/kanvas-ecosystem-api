@@ -349,7 +349,7 @@ class ProductsTest extends TestCase
                 'code' => $language->code
             ]);
 
-            $this->assertEquals(
+        $this->assertEquals(
             $dataUpdate['name'],
             $response['data']['updateProductTranslations']['translation']['name']
         );
