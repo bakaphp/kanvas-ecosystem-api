@@ -6,7 +6,12 @@ namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
+use Spatie\Translatable\HasTranslations;
 
 /**
  * Class Variants Attributes.
@@ -21,6 +26,9 @@ use Kanvas\Inventory\Models\BaseModel;
 class VariantsAttributes extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
+    use HasTranslations;
+    use NoAppRelationshipTrait;
+    use NoCompanyRelationshipTrait;
 
     protected $table = 'products_variants_attributes';
     protected $guarded = [
@@ -33,4 +41,26 @@ class VariantsAttributes extends BaseModel
     protected $casts = [
         'value' => Json::class
     ];
+
+    public $translatable = ['value'];
+
+        /**
+     * Get the product.
+     *
+     * @return BelongsTo
+     */
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(Variants::class, 'products_variants_id');
+    }
+
+    /**
+     * Get the attribute.
+     *
+     * @return BelongsTo
+     */
+    public function attribute(): BelongsTo
+    {
+        return $this->belongsTo(Attributes::class, 'attributes_id');
+    }
 }
