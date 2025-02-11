@@ -24,8 +24,9 @@ input EngagementFilterInput {
 
 input CreateEngagementInput {
     lead_id: ID!
-    people_id: ID!
     request_id: ID!
+    people_id: ID
+    receiver_id: ID
     task_id: ID
     action: String!
     data: Mixed
