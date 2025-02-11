@@ -78,7 +78,7 @@ class AttributesTest extends TestCase
     public function testUpdateTranslation(): void
     {
         $response = $this->createAttribute();
-        $language = Languages::getByCode('en')->first();
+        $language = Languages::first();
         $id = $response['data']['createAttribute']['id'];
 
         $dataUpdate = [
@@ -91,7 +91,7 @@ class AttributesTest extends TestCase
                 {
                     id
                     name
-                    translation(languageCode: "en"){
+                    translation(languageCode: $code){
                         name
                         language{
                             code
