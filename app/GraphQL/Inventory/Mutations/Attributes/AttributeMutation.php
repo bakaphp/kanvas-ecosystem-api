@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Attributes;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Actions\AddAttributeValue;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -14,7 +15,6 @@ use Kanvas\Inventory\Attributes\Models\Attributes as AttributeModel;
 use Kanvas\Inventory\Attributes\Models\AttributesValues;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Languages\Models\Languages;
-use Throwable;
 
 class AttributeMutation
 {
@@ -100,7 +100,7 @@ class AttributeMutation
                     $attributeValue->save();
                 }
             }
-        } catch (Throwable $e) {
+        } catch (Exception $e) {
             throw $e;
         }
 
