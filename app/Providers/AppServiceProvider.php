@@ -34,8 +34,7 @@ class AppServiceProvider extends ServiceProvider
         Cashier::useCustomerModel(AppsStripeCustomer::class);
 
         RateLimiter::for('graphql', function (Request $request) {
-            return Limit::perMinute(getenv('API_LIMIT_ATTEMPTS_PER_MINUTE',60))->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(getenv('API_LIMIT_ATTEMPTS_PER_MINUTE', 60))->by($request->user()?->id ?: $request->ip());
         });
-        
     }
 }
