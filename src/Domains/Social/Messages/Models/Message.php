@@ -125,6 +125,12 @@ class Message extends BaseModel
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
 
+    public function children()
+    {
+        return $this->hasMany(self::class, 'parent_id')
+            ->where('is_deleted', '0');
+    }
+
     public function getMessage(): array
     {
         /**
