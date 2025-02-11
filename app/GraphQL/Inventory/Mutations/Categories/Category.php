@@ -6,10 +6,10 @@ namespace App\GraphQL\Inventory\Mutations\Categories;
 
 use Kanvas\Inventory\Categories\Actions\CreateCategory as CreateCategoryAction;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
-use Kanvas\Inventory\Categories\DataTransferObject\Translate as CategoryTranslateDto;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
-use Kanvas\Languages\Models\Languages;
+use Kanvas\Languages\DataTransferObject\Translate;
+use Kanvas\Languages\Services\Translation as TranslationService;
 
 class Category
 {
@@ -72,16 +72,16 @@ class Category
     public function updateCategoryTranslation(mixed $root, array $req): Categories
     {
         $company = auth()->user()->getCurrentCompany();
-        $language = Languages::getByCode($req['code']);
 
         $category = CategoriesRepository::getById((int) $req['id'], $company);
-        $categoryTranslateDto = new CategoryTranslateDto(name: $req['input']);
+        $categoryTranslateDto = Translate::fromMultiple($req['input'], $company);
 
-        foreach ($categoryTranslateDto->toArray() as $key => $value) {
-            $category->setTranslation($key, $language->code, $value);
-            $category->save();
-        }
+        $response = TranslationService::updateTranslation(
+            model: $category,
+            dto: $categoryTranslateDto,
+            code: $req['code']
+        );
 
-        return $category;
+        return $response;
     }
 }

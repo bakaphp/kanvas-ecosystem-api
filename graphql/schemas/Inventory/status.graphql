@@ -29,10 +29,6 @@ input StatusReferenceInput {
     name: String
 }
 
-input StatusTranslationInput {
-    name: String
-}
-
 extend type Mutation @guard {
     createStatus(input: StatusInput!): Status!
         @field(
@@ -42,7 +38,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@update"
         )
-    updateStatusTranslations(id: ID!, input: StatusTranslationInput!, code: String!): Status!
+    updateStatusTranslations(id: ID!, input: TranslationInput!, code: String!): Status!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@updateStatusTranslation"
         )

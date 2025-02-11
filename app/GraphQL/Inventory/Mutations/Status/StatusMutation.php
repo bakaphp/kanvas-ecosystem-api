@@ -10,7 +10,8 @@ use Kanvas\Inventory\Status\DataTransferObject\Status as StatusDto;
 use Kanvas\Inventory\Status\DataTransferObject\Translate as StatusTranslateDto;
 use Kanvas\Inventory\Status\Models\Status as StatusModel;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
-use Kanvas\Languages\Models\Languages;
+use Kanvas\Languages\DataTransferObject\Translate;
+use Kanvas\Languages\Services\Translation as TranslationService;
 
 class StatusMutation
 {
@@ -76,17 +77,16 @@ class StatusMutation
     public function updateStatusTranslation(mixed $root, array $req): StatusModel
     {
         $company = auth()->user()->getCurrentCompany();
-        $language = Languages::getByCode($req['code']);
-        $input = $req['input'];
 
         $status = StatusRepository::getById((int) $req['id'], $company);
-        $statusTranslateDto = new StatusTranslateDto(name: $input['name']);
+        $statusTranslateDto = Translate::fromMultiple($req['input'], $company);
 
-        foreach ($statusTranslateDto->toArray() as $key => $value) {
-            $status->setTranslation($key, $language->code, $value);
-            $status->save();
-        }
+        $response = TranslationService::updateTranslation(
+            model: $status,
+            dto: $statusTranslateDto,
+            code: $req['code']
+        );
 
-        return $status;
+        return $response;
     }
 }

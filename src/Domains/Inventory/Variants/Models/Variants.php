@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -172,7 +173,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     /**
      * attributes.
      */
-    public function attributes(): BelongsToMany
+    public function attributes(): HasMany
     {
         return $this->buildAttributesQuery();
     }
@@ -180,16 +181,18 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     /**
      * @todo add integration and graph test
      */
-    public function visibleAttributes(): BelongsToMany
+    public function visibleAttributes(): array
     {
-        return $this->buildAttributesQuery(['is_visible' => true]);
+        return $this->mapAttributes(
+            $this->buildAttributesQuery(['is_visible' => true])->get()
+        );
     }
 
-    public function getAttributeByName(string $name): ?Attributes
+    public function getAttributeByName(string $name): ?VariantsAttributes
     {
-        return $this->attributes()
-            ->where('attributes.name', $name)
-            ->first();
+        $locale = $locale ?? app()->getLocale(); // Use app locale if not passed.
+
+        return $this->buildAttributesQuery(["name->{$locale}" => $name])->first();
     }
 
     public function getAttributeBySlug(string $slug): ?Attributes
@@ -199,22 +202,22 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             ->first();
     }
 
-    public function searchableAttributes(): BelongsToMany
+    public function searchableAttributes(): array
     {
-        return $this->buildAttributesQuery(['is_searchable' => true]);
+        return $this->mapAttributes(
+            $this->buildAttributesQuery(['is_searchable' => true])->get()
+        );
     }
 
-    private function buildAttributesQuery(array $conditions = []): BelongsToMany
+    private function buildAttributesQuery(array $conditions = []): HasMany
     {
-        $query = $this->belongsToMany(
-            Attributes::class,
-            VariantsAttributes::class,
-            'products_variants_id',
-            'attributes_id'
-        )->withPivot('value');
+        //We need to manually query product attribute by this relation so the translate can work for both.
+        $query = $this->hasMany(VariantsAttributes::class, 'products_variants_id')
+            ->join('attributes', 'products_variants_attributes.attributes_id', '=', 'attributes.id')
+            ->select('products_variants_attributes.*', 'attributes.*');
 
         foreach ($conditions as $column => $value) {
-            $query->where($column, $value);
+            $query->where("attributes.$column", $value);
         }
 
         $query->orderBy('attributes.weight', 'asc');
@@ -553,5 +556,19 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             ->fromCompany($company)
             ->where('sku', $sku)
             ->firstOrFail();
+    }
+
+    public function mapAttributes(Collection $attributesValue): array
+    {
+        $variantAttributes = [];
+        foreach ($attributesValue as $attributeValue) {
+            $productAttributes[] = [
+                'id' => $attributeValue->attributes_id,
+                'name' => $attributeValue->attribute->name,
+                'slug' => $attributeValue->attribute->slug,
+                'value' => $attributeValue->value,
+            ];
+        }
+        return $variantAttributes;
     }
 }

@@ -16,7 +16,6 @@ input TranslationInput {
     description: String
 }
 
-
 extend type Query @guard {
     languages(
         search: String @search

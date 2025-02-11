@@ -38,10 +38,6 @@ input ProductCategoriesReferenceInput {
     id: ID!
 }
 
-input CategoryTranslationInput {
-    name: String
-}
-
 extend type Mutation @guard {
     createCategory(input: CategoryInput!): Category!
         @field(
@@ -51,7 +47,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@update"
         )
-    updateCategoryTranslations(id: ID!, input: CategoryTranslationInput!, code: String!): Category!
+    updateCategoryTranslations(id: ID!, input: TranslationInput!, code: String!): Category!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@updateCategoryTranslation"
         )

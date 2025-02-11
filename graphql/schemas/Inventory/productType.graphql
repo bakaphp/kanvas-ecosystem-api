@@ -43,11 +43,6 @@ input ProductTypeAttributesAssignInput {
     variants_attributes: [ProductTypeAttributesInput!]
 }
 
-input ProductTypeTranslationInput {
-    name: String
-    description: String
-}
-
 extend type Mutation @guard {
     createProductType(input: ProductTypeInput!): ProductType!
         @field(
@@ -57,7 +52,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@update"
         )
-    updateProductTypeTranslations(id: ID!, input: ProductTypeTranslationInput!, code: String!): ProductType!
+    updateProductTypeTranslations(id: ID!, input: TranslationInput!, code: String!): ProductType!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@updateProductTypeTranslation"
         )

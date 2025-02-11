@@ -126,11 +126,10 @@ class Products extends BaseModel implements EntityIntegrationInterface
         );
     }
 
-    public function getAttributeByName(string $name): ?Attributes
+    public function getAttributeByName(string $name, ?string $locale = null): ?ProductsAttributes
     {
-        return $this->attributes()
-            ->where('attributes.name', $name)
-            ->first();
+        $locale = $locale ?? app()->getLocale(); // Use app locale if not passed.
+        return $this->buildAttributesQuery(["name->{$locale}" => $name])->first();
     }
 
     public function getAttributeBySlug(string $slug): ?Attributes
