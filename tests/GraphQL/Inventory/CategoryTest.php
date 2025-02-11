@@ -173,7 +173,6 @@ class CategoryTest extends TestCase
             $dataUpdate['name'],
             $response['data']['updateCategoryTranslations']['translation']['name']
         );
-
     }
 
     /**
