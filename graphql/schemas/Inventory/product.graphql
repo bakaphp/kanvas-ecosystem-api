@@ -103,7 +103,7 @@ enum FormatSortAttribute {
     DATE
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAdmin {
     createProduct(input: ProductInput!): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"

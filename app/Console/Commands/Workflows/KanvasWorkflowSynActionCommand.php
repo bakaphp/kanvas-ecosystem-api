@@ -35,6 +35,7 @@ use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
+use Kanvas\Connectors\Shopify\Jobs\ShopifyOrderNotesWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateShopifyDraftOrderActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateUserActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\DeleteVariantFromShopifyActivity;
@@ -123,6 +124,7 @@ class KanvasWorkflowSynActionCommand extends Command
             MessageOwnerChildNotificationActivity::class,
             SwitchZohoLeadOwnerReceiverJob::class,
             OptimizeImageFromMessageActivity::class,
+            ShopifyOrderNotesWebhookJob::class,
         ];
 
         $createdActions = [];

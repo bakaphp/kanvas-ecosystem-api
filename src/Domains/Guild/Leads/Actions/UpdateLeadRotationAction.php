@@ -28,7 +28,7 @@ class UpdateLeadRotationAction
             'hits' => $this->leadRotationDto->hits
         ]);
         if ($this->leadRotationDto->agents) {
-            $this->leadRotation->agents()->dissociate();
+            $this->leadRotation->agents()->delete();
             foreach ($this->leadRotationDto->agents as $agent) {
                 $user = Users::getById($agent['users_id'], $this->leadRotationDto->app);
                 $leadRotationAgent = new LeadRotationAgent();
