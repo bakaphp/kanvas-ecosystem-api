@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Variants\Actions;
 
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 
 class AddAttributeAction
 {
@@ -22,15 +23,19 @@ class AddAttributeAction
             return $this->variant;
         }
 
-        if ($this->variant->attributes()->find($this->attribute->getId())) {
-            $this->variant->attributes()->syncWithoutDetaching(
-                [$this->attribute->getId() => ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]]
-            );
+        $variantAttribute = VariantsAttributes::where('products_variants_id', $this->variant->getId())
+        ->where('attributes_id', $this->attribute->getId())
+        ->first();
+
+        if ($variantAttribute) {
+            $variantAttribute->value = $this->value;
+            $variantAttribute->update();
         } else {
-            $this->variant->attributes()->attach(
-                $this->attribute->getId(),
-                ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]
-            );
+            $variantAttribute = new VariantsAttributes();
+            $variantAttribute->products_variants_id = $this->variant->getId();
+            $variantAttribute->attributes_id = $this->attribute->getId();
+            $variantAttribute->value = is_array($this->value) ? json_encode($this->value) : $this->value;
+            $variantAttribute->save();
         }
 
         return $this->variant;
