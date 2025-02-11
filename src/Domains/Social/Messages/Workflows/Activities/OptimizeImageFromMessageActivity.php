@@ -48,7 +48,10 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             $tempMessageArray = $message->message;
             $tempMessageArray['ai_image'] = array_merge($message->message['ai_image'], ['image' => $fileSystemRecord->url]);
             $message->message = $tempMessageArray;
+            $message->addTag('image');
             $message->saveOrFail();
+        } else {
+            $message->addTag('text');
         }
 
         // Clean up the temporary file
