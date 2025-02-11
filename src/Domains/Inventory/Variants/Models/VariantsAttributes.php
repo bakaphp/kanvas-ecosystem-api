@@ -44,7 +44,7 @@ class VariantsAttributes extends BaseModel
 
     public $translatable = ['value'];
 
-        /**
+    /**
      * Get the product.
      *
      * @return BelongsTo
