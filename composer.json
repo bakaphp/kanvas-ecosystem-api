@@ -85,7 +85,6 @@
         "psr-4": {
             "App\\": "app/",
             "Kanvas\\": "src/Kanvas",
-            "Kanvas\\Enums\\": "src/Kanvas/Enums",
             "Baka\\": "src/Baka",
             "Kanvas\\Inventory\\": "src/Domains/Inventory",
             "Kanvas\\Subscription\\": "src/Domains/Subscription",
