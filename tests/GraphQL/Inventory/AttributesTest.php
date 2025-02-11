@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Kanvas\Languages\Models\Languages;
 use Tests\TestCase;
 
 class AttributesTest extends TestCase
@@ -71,6 +72,42 @@ class AttributesTest extends TestCase
         $this->assertEquals(
             $dataUpdate['name'],
             $response['data']['updateAttribute']['name']
+        );
+    }
+
+    public function testUpdateTranslation(): void
+    {
+        $response = $this->createAttribute();
+        $language = Languages::getByCode('en')->first();
+        $id = $response['data']['createAttribute']['id'];
+
+        $dataUpdate = [
+            'name' => fake()->name." es"
+        ];
+
+        $response = $this->graphQL('
+            mutation($dataUpdate: AttributeTranslationInput! $id: ID!, $code: String!) {
+                updateAttributeTranslations(id: $id, input: $dataUpdate, code: $code)
+                {
+                    id
+                    name
+                    translation(languageCode: "en"){
+                        name
+                        language{
+                            code
+                            language
+                        }
+                    }
+                }
+            }', [
+                'dataUpdate' => $dataUpdate,
+                'id' => $id,
+                'code' => $language->code
+            ]);
+
+        $this->assertEquals(
+            $dataUpdate['name'],
+            $response['data']['updateAttributeTranslations']['translation']['name']
         );
     }
 
