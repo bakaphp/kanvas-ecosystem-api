@@ -8,6 +8,8 @@ use Baka\Contracts\AppInterface;
 use finfo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Workflow\KanvasActivity;
@@ -44,15 +46,24 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
 
         $filesystem = new FilesystemServices($app);
         $fileSystemRecord = $filesystem->upload($uploadedFile, $message->user);
+        $defaultCompany = null;
+        $defaultUser = null;
+
+        $defaultCompanyBranchId = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+        if ($defaultCompanyBranchId) {
+            //to avoid duplicate tags for each message company
+            $defaultCompany = CompaniesBranches::getById($defaultCompanyBranchId)->company;
+            $defaultUser = $defaultCompany->user;
+        }
 
         if (array_key_exists('image', $message->message['ai_image'])) {
             $tempMessageArray = $message->message;
             $tempMessageArray['ai_image'] = array_merge($message->message['ai_image'], ['image' => $fileSystemRecord->url]);
             $message->message = $tempMessageArray;
-            $message->addTag('image');
+            $message->addTag('image', $app, $defaultUser, $defaultCompany);
             $message->saveOrFail();
         } else {
-            $message->addTag('text');
+            $message->addTag('text', $app, $defaultUser, $defaultCompany);
         }
 
         // Clean up the temporary file
