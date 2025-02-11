@@ -312,7 +312,7 @@ class ProductsTest extends TestCase
         $this->assertNull($deleteResponse->json()['data']['deleteVariant']);
     }
 
-        /**
+    /**
      * test update product.
      */
     public function testUpdateProductTranslate(): void
@@ -324,8 +324,8 @@ class ProductsTest extends TestCase
         $id = $response->json()['data']['createProduct']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name .' en',
-            'description' => fake()->text .' en'
+            'name' => fake()->name . ' en',
+            'description' => fake()->text . ' en'
         ];
         $response = $this->graphQL('
             mutation($dataUpdate: ProductTranslationInput!, $id: ID!, $code: String!) {

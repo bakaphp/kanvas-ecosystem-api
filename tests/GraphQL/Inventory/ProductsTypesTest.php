@@ -98,7 +98,7 @@ class ProductsTypesTest extends TestCase
         $id = $response['data']['createProductType']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name.' en'
+            'name' => fake()->name . ' en'
         ];
         
         $response = $this->graphQL('

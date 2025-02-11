@@ -82,7 +82,7 @@ class AttributesTest extends TestCase
         $id = $response['data']['createAttribute']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name." es"
+            'name' => fake()->name . " es"
         ];
 
         $response = $this->graphQL('

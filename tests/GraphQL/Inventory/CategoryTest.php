@@ -146,7 +146,7 @@ class CategoryTest extends TestCase
         $id = $response['data']['createCategory']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name.' en'
+            'name' => fake()->name . ' en'
         ];
         
         $response = $this->graphQL('
