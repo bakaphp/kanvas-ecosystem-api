@@ -112,7 +112,7 @@ class ImportImagePromptsFromSheetsCommand extends Command
                 ->first();
 
             if ($result) {
-                echo ($title . ' message already exists with id: ' . $result->id . PHP_EOL);
+                echo($title . ' message already exists with id: ' . $result->id . PHP_EOL);
                 Log::info($title . ' message already exists with id: ' . $result->id);
 
                 continue;
@@ -152,7 +152,7 @@ class ImportImagePromptsFromSheetsCommand extends Command
             $categoryId = $this->fetchOrCreateCategory($category, $appId, $companyId, $userId);
             $this->assignTagToEntity($categoryId, $lastId, $userId);
 
-            echo ($title . ' message inserted with id: ' . $lastId . PHP_EOL);
+            echo($title . ' message inserted with id: ' . $lastId . PHP_EOL);
             Log::info($title . ' message inserted with id: ' . $lastId);
         }
     }
