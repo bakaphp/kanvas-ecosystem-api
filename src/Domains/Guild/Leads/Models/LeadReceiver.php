@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Rotations\Models\Rotation;
+use Kanvas\Traits\DefaultTrait;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -35,6 +36,7 @@ use Kanvas\Users\Models\Users;
 class LeadReceiver extends BaseModel
 {
     use UuidTrait;
+    use DefaultTrait;
 
     protected $table = 'leads_receivers';
     protected $guarded = [];

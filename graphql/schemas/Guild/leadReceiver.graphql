@@ -11,6 +11,7 @@ type LeadReceiver {
     template: String
     leadSource: LeadSource @belongsTo(relation: "leadSource")
     leadType: LeadType @belongsTo(relation: "leadType")
+    leadRotation: LeadRotation @belongsTo(relation: "rotation")
     created_at: DateTime!
     updated_at: DateTime
 }

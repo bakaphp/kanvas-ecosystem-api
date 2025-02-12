@@ -36,10 +36,11 @@ class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $note = is_array($note) ? json_encode($note) : $note;
+        $note = ! is_array($note) ? $note : '';
+        $notesAttributes = is_array($note) ? $note : [];
         $orderId = $this->extractShopifyId($orderId);
 
-        $order = $shopifyOrderService->addNoteToOrder($orderId, $note);
+        $order = $shopifyOrderService->addNoteToOrder($orderId, $note, $notesAttributes);
 
         return [
             'message' => 'Note added to order ' . $orderId,
