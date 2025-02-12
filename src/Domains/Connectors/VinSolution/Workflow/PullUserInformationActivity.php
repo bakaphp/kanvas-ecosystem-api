@@ -23,8 +23,8 @@ class PullUserInformationActivity extends KanvasActivity
             ];
         }
 
-        $dealer = Dealer::getById($company->get(ConfigurationEnum::COMPANY->value));
-        $vinUsers = $dealer->getUsers($dealer);
+        $dealer = Dealer::getById($company->get(ConfigurationEnum::COMPANY->value), $app);
+        $vinUsers = $dealer->getUsers($dealer, $app);
 
         foreach ($vinUsers as $vinUser) {
             if ($vinUser->email == $user->email) {
