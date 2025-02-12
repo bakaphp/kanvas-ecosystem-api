@@ -99,7 +99,6 @@ class ImportImagePromptsFromSheetsCommand extends Command
     public function insertImagePrompts(array $promptsCollection, int $appId, int $messageType, int $companyId)
     {
         foreach ($promptsCollection as $prompt) {
-
             $title = $prompt['title'];
             $promptText = $prompt['prompt'];
             $username = $prompt['username'];
