@@ -6,5 +6,4 @@ namespace Kanvas\Connectors\VinSolution\Enums;
 
 enum CustomFieldEnum: string
 {
-   
 }
