@@ -31,7 +31,7 @@ class UpdateLeadReceiverAction
             'source_name' => $this->leadReceiverDto->source,
             'leads_sources_id' => $this->leadReceiverDto->lead_sources_id,
             'lead_types_id' => $this->leadReceiverDto->lead_types_id,
-            'template' => $this->leadReceiver->template,
+            'template' => $this->leadReceiverDto->template,
         ]);
         return $this->leadReceiver;
     }
