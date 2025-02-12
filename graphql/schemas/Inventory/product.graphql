@@ -43,7 +43,7 @@ type Product {
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
 }
-
+### @todo extract this into its own type.
 type EntityExport {
     url: String!
     message: Mixed!

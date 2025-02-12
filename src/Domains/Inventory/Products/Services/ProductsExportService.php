@@ -71,6 +71,10 @@ class ProductsExportService
         //insert all the records
         $csv->insertAll($records->map(fn ($variant) => $this->map($variant))->toArray());
 
+        /*
+        // @todo: use the file system service to upload the file to the s3 bucket
+        */
+
         Storage::disk($disk)->put($path, $csv->toString());
 
         return Storage::disk($disk)->url($path);
