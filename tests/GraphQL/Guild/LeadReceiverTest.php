@@ -91,6 +91,55 @@ class LeadReceiverTest extends TestCase
                 ],
             ],
         ]);
+        $input = [
+            'name' => fake()->word,
+            'agents_id' => auth()->user()->getId(),
+            'is_default' => true,
+            'source_name' => 'source',
+            'lead_sources_id' => $leadSource->getId(),
+            'lead_types_id' => $leadType->getId(),
+            'template' => 'template',
+        ];
+        $this->graphQL(
+            'mutation createLeadReceiver($input: LeadReceiverInput!) {
+                createLeadReceiver(input: $input){
+                    name,
+                    agent{
+                        id
+                    },
+                    is_default,
+                    source_name,
+                    leadSource{
+                        id
+                    },
+                    leadType{
+                        id
+                    },
+                    template
+                }
+            }',
+            [
+                'input' => $input,
+            ]
+        )->assertJson([
+            'data' => [
+                'createLeadReceiver' => [
+                    'name' => $input['name'],
+                    'agent' => [
+                        'id' => $input['agents_id'],
+                    ],
+                    'is_default' => $input['is_default'],
+                    'source_name' => $input['source_name'],
+                    'leadSource' => [
+                        'id' => $input['lead_sources_id'],
+                    ],
+                    'leadType' => [
+                        'id' => $input['lead_types_id'],
+                    ],
+                    'template' => 'template'
+                ],
+            ],
+        ]);
     }
 
     public function testUpdateLeadReceiver(): void
@@ -117,6 +166,36 @@ class LeadReceiverTest extends TestCase
         );
         $id = $response->json('data.createLeadReceiver.id');
         $input['name'] = 'new name';
+        $this->graphQL(
+            'mutation updateLeadReceiver($id: ID!, $input: LeadReceiverInput!) {
+                updateLeadReceiver(id: $id, input: $input){
+                    name,
+                    agent{
+                        id
+                    },
+                    is_default,
+                    source_name,
+                    template
+                }
+            }',
+            [
+                'id' => $id,
+                'input' => $input,
+            ]
+        )->assertJson([
+            'data' => [
+                'updateLeadReceiver' => [
+                    'name' => $input['name'],
+                    'agent' => [
+                        'id' => $input['agents_id'],
+                    ],
+                    'is_default' => $input['is_default'],
+                    'source_name' => $input['source_name'],
+                    'template' => $input['template'],
+                ],
+            ],
+        ]);
+        unset($input['rotations_id']);
         $this->graphQL(
             'mutation updateLeadReceiver($id: ID!, $input: LeadReceiverInput!) {
                 updateLeadReceiver(id: $id, input: $input){
