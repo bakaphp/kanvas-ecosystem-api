@@ -6,7 +6,7 @@ namespace Kanvas\Inventory\Products\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Inventory\Products\Exports\ProductsExport;
+use Kanvas\Inventory\Products\Services\ProductsExportService;
 
 class ExportProductsAction
 {
@@ -18,9 +18,9 @@ class ExportProductsAction
 
     public function execute()
     {
-        $export = new ProductsExport($this->app);
+        $export = new ProductsExportService($this->app);
         $path = 'products.csv';
-    
+
         return $export->toCsv($path, 'public');
     }
 }

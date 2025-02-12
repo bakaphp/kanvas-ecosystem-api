@@ -2,19 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Souk\Orders\Imports;
+namespace Kanvas\Souk\Orders\Services;
 
 use Kanvas\Apps\Models\Apps;
 use League\Csv\Reader;
 
-class OrderItemImport
+class OrderItemImportService
 {
     public function __construct(
         protected Apps $app,
     ) {
     }
 
-    public function getRecords($file): array {
+    public function getRecords($file): array
+    {
         $csv = Reader::createFromPath($file->getRealPath());
         $csv->setHeaderOffset(0);
         $records = $csv->getRecords();
@@ -34,5 +35,4 @@ class OrderItemImport
         }
         return $results;
     }
-    
 }

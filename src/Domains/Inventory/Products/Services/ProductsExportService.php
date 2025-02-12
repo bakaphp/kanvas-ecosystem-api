@@ -2,21 +2,23 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Inventory\Products\Exports;
+namespace Kanvas\Inventory\Products\Services;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use League\Csv\Writer;
 
-class ProductsExport
+class ProductsExportService
 {
     public function __construct(
         protected Apps $app,
     ) {
     }
 
-       /**
+    /**
      * @return array<string>
      */
     public function headings(): array
@@ -33,7 +35,7 @@ class ProductsExport
         ];
     }
 
-    public function map($variant): array
+    public function map(Variants $variant): array
     {
         return [
             $variant->id,
@@ -47,7 +49,8 @@ class ProductsExport
         ];
     }
 
-    public function collection(): Collection {
+    public function collection(): Collection
+    {
         $products = Products::where([
             'apps_id' => $this->app->getId(),
         ])->with(['variants'])->get();
@@ -57,7 +60,8 @@ class ProductsExport
         });
     }
 
-    public function toCsv() {
+    public function toCsv(string $path, string $disk = 'public')
+    {
         $header = $this->headings();
         $records = $this->collection();
         $csv = Writer::createFromString();
@@ -67,6 +71,8 @@ class ProductsExport
         //insert all the records
         $csv->insertAll($records->map(fn ($variant) => $this->map($variant))->toArray());
 
-        return $csv->toString(); 
+        Storage::disk($disk)->put($path, $csv->toString());
+
+        return Storage::disk($disk)->url($path);
     }
 }

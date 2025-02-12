@@ -10,9 +10,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Inventory\Products\Actions\ExportProductsAction;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Users\Models\UserCompanyApps;
+use Kanvas\Inventory\Products\Actions\ExportProductsAction;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class ProductBuilder
@@ -54,11 +54,12 @@ class ProductBuilder
         return $query;
     }
 
-    public function getProductsExport(mixed $root, array $request, GraphQLContext $contex): array {
+    public function getProductsExport(mixed $root, array $request, GraphQLContext $contex): array
+    {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $app = app(Apps::class);       
-        
+        $app = app(Apps::class);
+
         /**
          * @todo for now for b2b store clients
          * change this to use company group?
@@ -68,16 +69,15 @@ class ProductBuilder
                 $company = Companies::getById($app->get('B2B_GLOBAL_COMPANY'));
             }
         }
-        
+
         try {
             $exportProducts = new ExportProductsAction($app, $company);
             $url = $exportProducts->execute();
-                
-        return [
-            'url' => $url,
-            'message' => 'Products exported successfully',
-        ];
 
+            return [
+                'url' => $url,
+                'message' => 'Products exported successfully'
+            ];
         } catch (Exception $e) {
             Log::error('productExportError', [
                 'error' => $e->getMessage(),
