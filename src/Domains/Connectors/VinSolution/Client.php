@@ -10,6 +10,7 @@ use Illuminate\Redis\Connections\PhpRedisConnection;
 use Illuminate\Support\Facades\Redis as FacadesRedis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ValidationException;
 use Redis;
 
 /**
@@ -45,6 +46,10 @@ class Client
         $this->clientSecret = $app->get(ConfigurationEnum::CLIENT_SECRET->value);
         $this->apiKey = $app->get(ConfigurationEnum::API_KEY->value);
         $this->apiKeyDigitalShowRoom = $app->get(ConfigurationEnum::API_KEY_DIGITAL_SHOWROOM->value);
+
+        if (! $this->clientId || ! $this->clientSecret || ! $this->apiKey) {
+            throw new ValidationException('VinSolutions API keys not set');
+        }
 
         $this->redis = FacadesRedis::connection('default');
 
