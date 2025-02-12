@@ -6,7 +6,6 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Imports\OrderItemImport;
-use Maatwebsite\Excel\Excel as ExcelExcel;
 
 class ImportOrderItemAction
 {
@@ -18,7 +17,7 @@ class ImportOrderItemAction
 
     public function execute()
     {
-        $items = (new OrderItemImport($this->app))->toArray($this->request['input']['file'], null, ExcelExcel::CSV);
-        return $items[0];
+        $items = (new OrderItemImport($this->app))->getRecords($this->request['input']['file']);
+        return $items;
     }
 }

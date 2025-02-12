@@ -19,7 +19,8 @@ use Laravel\Scout\Searchable;
  * @property string name
  * @property string slug
  * @property string color
- * @property float weight
+ * @property int status
+ * @property int is_feature
  */
 class Tag extends BaseModel
 {

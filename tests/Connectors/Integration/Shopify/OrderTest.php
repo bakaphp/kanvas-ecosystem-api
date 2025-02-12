@@ -10,6 +10,7 @@ use Kanvas\Connectors\Shopify\Actions\CreateShopifyDraftOrderAction;
 use Kanvas\Connectors\Shopify\Actions\SyncShopifyOrderAction;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
+use Kanvas\Connectors\Shopify\Services\ShopifyOrderService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
@@ -118,5 +119,33 @@ final class OrderTest extends TestCase
         $shopifyOrderId = $createShopifyDraftOrder->execute();
 
         $this->assertNotNull($shopifyOrderId);
+    }
+
+    public function testAddOrderNotes()
+    {
+        $product = Products::first();
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
+
+        $shopifyOrderService = new ShopifyOrderService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
+
+        $order = $shopifyOrderService->addNoteToOrder(
+            getenv('TEST_SHOPIFY_ORDER_ID'),
+            'This is a t3est note',
+            ['key' => 'value', 'key2' => 'value2']
+        );
+
+        $this->assertArrayHasKey('note', $order);
+        $this->assertArrayHasKey('note_attributes', $order);
+        $this->assertStringContainsString('This is a t3est note', $order['note']);
+        $this->assertEquals('key', $order['note_attributes'][0]['name']);
+        $this->assertEquals('value', $order['note_attributes'][0]['value']);
+        $this->assertEquals('key2', $order['note_attributes'][1]['name']);
+        $this->assertEquals('value2', $order['note_attributes'][1]['value']);
     }
 }

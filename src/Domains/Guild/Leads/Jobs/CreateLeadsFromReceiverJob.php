@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Jobs;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use JsonException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Enums\AppEnum;
@@ -36,6 +37,11 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         $attempt = $leadAttempt->execute();
 
         $payload = $this->webhookRequest->payload;
+
+        if (isset($this->receiver->configuration['double_encoded_json'])) {
+            $payload = $this->parseDoubleEncodedJsonToArray($payload);
+        }
+
         $user = $this->getUserByMemberNumber($payload, $this->receiver->company);
         $payload['branch_id'] = $leadReceiver->companies_branches_id;
 
@@ -118,5 +124,35 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         } catch (ModelNotFoundException $e) {
             return null;
         }
+    }
+
+    /**
+    * Converts a double-escaped JSON string with a nested JSON structure into a PHP array.
+    * This is particularly useful when dealing with nested JSON that has been double-encoded,
+    * such as when a JSON string is used as a key in another JSON object.
+    *
+    * Example input:
+    * {
+    *   "{\"First_Name\":\"OttoIoqORO\",\"Last_Name\":\"TesterIoqORO\",\"Phone\":\"4079393463\",
+    *   \"Email\":\"ottoIoqORO01242025202316@lendingtree_com\",\"Company\":\"LendingTree_AWE_Testing_Corp\",
+    *   \"Street\":\"Not_Provided\",\"City\":\"Bat_Cave\",\"State\":\"NC\",\"Zip_Code\":\"28710\",
+    *   \"Type_of_Incorporation\":\"CORPORATION\",\"Business_Founded\":\"7/1/2015\",\"Credit_Score\":\"Good\",
+    *   \"SubID\":\"867347\",\"Other\":{\"QForm_Name\":\"6294JBZYPB\"},\"Amount_Requested\":10000,
+    *   \"Annual_Revenue\":250000}": null
+    * }
+    */
+    public function parseDoubleEncodedJsonToArray(array $doubleEscapedJson): array
+    {
+        // Extract the first key which contains our actual JSON data
+        $jsonString = array_key_first($doubleEscapedJson);
+
+        // Second decode: Convert the inner JSON string to array
+        $finalJson = json_decode($jsonString, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new JsonException('Failed to decode inner JSON: ' . json_last_error_msg());
+        }
+
+        return $finalJson;
     }
 }

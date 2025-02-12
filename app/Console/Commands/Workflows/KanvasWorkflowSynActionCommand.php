@@ -35,6 +35,7 @@ use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
+use Kanvas\Connectors\Shopify\Jobs\ShopifyOrderNotesWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateShopifyDraftOrderActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateUserActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\DeleteVariantFromShopifyActivity;
@@ -46,6 +47,7 @@ use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
@@ -56,6 +58,7 @@ use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationAct
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
+use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
@@ -121,6 +124,9 @@ class KanvasWorkflowSynActionCommand extends Command
             MessageOwnerInteractionNotifierActivity::class,
             MessageOwnerChildNotificationActivity::class,
             SwitchZohoLeadOwnerReceiverJob::class,
+            OptimizeImageFromMessageActivity::class,
+            ShopifyOrderNotesWebhookJob::class,
+            PullUserInformationActivity::class,
         ];
 
         $createdActions = [];

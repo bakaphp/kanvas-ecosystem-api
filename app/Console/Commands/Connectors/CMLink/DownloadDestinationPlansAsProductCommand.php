@@ -48,7 +48,9 @@ class DownloadDestinationPlansAsProductCommand extends Command
             $region->company->user
         );
 
-        $downloadPlanProducts->execute($language);
+        $imports = $downloadPlanProducts->execute($language);
+
+        $this->info('Downloaded ' . count($imports) . ' products');
 
         return;
     }

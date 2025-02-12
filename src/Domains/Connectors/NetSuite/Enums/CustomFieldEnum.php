@@ -7,4 +7,5 @@ namespace Kanvas\Connectors\NetSuite\Enums;
 enum CustomFieldEnum: string
 {
     case NET_SUITE_CUSTOMER_ID = 'NET_SUITE_CUSTOMER_ID';
+    case NET_SUITE_LOCATION_ID = 'NET_SUITE_LOCATION_ID';
 }

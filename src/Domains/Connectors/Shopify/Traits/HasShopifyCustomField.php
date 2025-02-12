@@ -13,21 +13,21 @@ use Kanvas\Souk\Orders\Models\Order;
 
 trait HasShopifyCustomField
 {
-    public function getShopifyId(Regions $region): int|string|null
+    public function getShopifyId(Regions $region, ?string $part = null): int|string|null
     {
         return match (true) {
             $this instanceof Variants => $this->get(ShopifyConfigurationService::getVariantKey($this, $region)),
             $this instanceof Order => $this->get(ShopifyConfigurationService::getOrderKey($region)),
-            default => $this->get(ShopifyConfigurationService::getProductKey($this, $region)),
+            default => $this->get(ShopifyConfigurationService::getProductKey($this, $region) . $part),
         };
     }
 
-    public function setShopifyId(Regions $region, int|string $shopifyId): void
+    public function setShopifyId(Regions $region, int|string $shopifyId, ?string $part = null): void
     {
         match (true) {
             $this instanceof Variants => $this->set(ShopifyConfigurationService::getVariantKey($this, $region), $shopifyId),
             $this instanceof Order => $this->set(ShopifyConfigurationService::getOrderKey($region), $shopifyId),
-            default => $this->set(ShopifyConfigurationService::getProductKey($this, $region), $shopifyId),
+            default => $this->set(ShopifyConfigurationService::getProductKey($this, $region) . $part, $shopifyId),
         };
     }
 

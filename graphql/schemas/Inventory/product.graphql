@@ -44,6 +44,11 @@ type Product {
         )
 }
 
+type ProductsExport {
+    url: String!
+    message: String!
+}
+
 input ProductInput {
     products_types_id: ID
     sku: String @rules(apply: ["required_without:variants"])
@@ -103,7 +108,7 @@ enum FormatSortAttribute {
     DATE
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAdmin {
     createProduct(input: ProductInput!): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"
@@ -207,5 +212,9 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
             defaultCount: 25
+        )
+    productsExport: ProductsExport!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"
         )
 }

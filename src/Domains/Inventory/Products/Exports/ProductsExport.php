@@ -2,21 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Inventory\Variants\Exports;
+namespace Kanvas\Inventory\Products\Exports;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Currencies\Models\Currencies;
-use Kanvas\Inventory\Variants\Models\Variants;
-use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\Exportable;
-use Maatwebsite\Excel\Concerns\WithMapping;
 use Illuminate\Support\Collection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Products\Models\Products;
+use League\Csv\Writer;
 
-class VariantsExport implements FromCollection, WithMapping, WithHeadings
+class ProductsExport
 {
-    use Exportable;
-
     public function __construct(
         protected Apps $app,
     ) {
@@ -39,9 +33,6 @@ class VariantsExport implements FromCollection, WithMapping, WithHeadings
         ];
     }
 
-    /**
-     * @param Variants $variants
-     */
     public function map($variant): array
     {
         return [
@@ -57,8 +48,25 @@ class VariantsExport implements FromCollection, WithMapping, WithHeadings
     }
 
     public function collection(): Collection {
-        return Variants::where([
+        $products = Products::where([
             'apps_id' => $this->app->getId(),
-        ])->get();
+        ])->with(['variants'])->get();
+
+        return $products->flatMap(function ($product) {
+            return $product->variants;
+        });
+    }
+
+    public function toCsv() {
+        $header = $this->headings();
+        $records = $this->collection();
+        $csv = Writer::createFromString();
+
+        //insert the header
+        $csv->insertOne($header);
+        //insert all the records
+        $csv->insertAll($records->map(fn ($variant) => $this->map($variant))->toArray());
+
+        return $csv->toString(); 
     }
 }

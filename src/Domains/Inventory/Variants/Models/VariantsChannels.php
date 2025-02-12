@@ -50,16 +50,21 @@ class VariantsChannels extends BaseModel
         return [
             'price' => 'decimal:2',
             'discount_price' => 'decimal:2',
-            'config' => Json::class
+            'config' => Json::class,
         ];
     }
 
-    public function getPriceAttribute(string|int $value): float
+    public function getPriceAttribute(string|float $value): float
     {
         return (float) $value;
     }
 
-    public function getDiscountPriceAttribute(string|int $value): float
+    public function getDiscountPriceAttribute(string|float $value): float
+    {
+        return (float) $value;
+    }
+
+    public function getDiscountedPriceAttribute(string|float $value): float
     {
         return (float) $value;
     }

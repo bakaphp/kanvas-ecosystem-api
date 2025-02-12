@@ -43,6 +43,7 @@ use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
+use Kanvas\Regions\Models\Regions as KanvasRegions;
 
 class ProductImporterAction
 {
@@ -55,7 +56,7 @@ class ProductImporterAction
         public ProductImporter $importedProduct,
         public Companies $company,
         public UserInterface $user,
-        public Regions $region,
+        public KanvasRegions|Regions $region,
         public ?AppInterface $app = null,
         public bool $runWorkflow = true
     ) {

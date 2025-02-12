@@ -20,7 +20,8 @@ class ProductScrapperEvent implements ShouldBroadcast
         protected AppInterface $app,
         protected string $uuid,
         protected Products $product,
-        protected ?string $shopifyProductId = null
+        protected ?string $shopifyProductId = null,
+        protected ?array $shopifyProduct = null
     ) {
     }
 
@@ -29,6 +30,12 @@ class ProductScrapperEvent implements ShouldBroadcast
         return [
             'kanvas_product_id' => $this->product->getId(),
             'shopify_product_id' => $this->shopifyProductId,
+            'sku' => $this->product->variants()->first()->sku,
+            'title' => mb_substr($this->shopifyProduct['title'], 0, 255),
+            'image' => $this->shopifyProduct['image'],
+            'price' => $this->shopifyProduct['variants'][0]['price'],
+            'images' => $this->shopifyProduct['images'],
+            'discounted_price' => 0
         ];
     }
 

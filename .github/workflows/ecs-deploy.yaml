@@ -1,0 +1,62 @@
+name: Deploy to ECS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4 # More information on this action can be found below in the 'AWS Credentials' section
+        with:
+          role-to-assume: ${{ secrets.AWS_ECR_ECS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE_TAG=latest
+          REPOSITORY_URI=${{ secrets.AWS_ECR_REPOSITORY }}
+
+          docker build -t $REPOSITORY_URI:$IMAGE_TAG -f ${{ github.ref_name }}.Dockerfile .
+          docker push $REPOSITORY_URI:$IMAGE_TAG
+  Deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+    needs: Build
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ECR_ECS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ github.ref_name }}-td.json
+          service: ${{secrets.AWS_ECS_SERVICE}}
+          cluster: ${{secrets.AWS_ECS_CLUSTER}}
+          image: ${{ secrets.AWS_ECR_REPOSITORY }}:latest
+          wait-for-service-stability: true
