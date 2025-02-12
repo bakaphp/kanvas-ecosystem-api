@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Social;
+namespace App\Console\Commands\Connectors\PromptMine;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
@@ -17,7 +17,7 @@ class ScoutMessageReindexCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-social:scout-message-reindex {app_id} {message_types_id}';
+    protected $signature = 'kanvas:scout-message-prompts-reindex {app_id} {message_types_id}';
 
     /**
      * The console command description.

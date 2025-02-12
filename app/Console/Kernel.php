@@ -11,7 +11,7 @@ use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
 use Spatie\Health\Commands\ScheduleCheckHeartbeatCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
-use App\Console\Commands\Social\ScoutMessageReindexCommand;
+use App\Console\Commands\Connectors\PromptMine\ScoutMessageReindexCommand;
 
 class Kernel extends ConsoleKernel
 {
