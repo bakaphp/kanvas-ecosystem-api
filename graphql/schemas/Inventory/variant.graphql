@@ -58,6 +58,11 @@ type VariantPricingInfo {
     config: Mixed
 }
 
+type VariantExport {
+    url: String!
+    message: String!
+}
+
 #@deprecated(reason: "Use the ProductAttributesInput type instead")
 input VariantsAttributesInput {
     id: ID
@@ -189,5 +194,9 @@ extend type Query @guard {
             defaultCount: 25
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@getVariants"
+        )
+    variantsExport: VariantExport!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@getVariantsExport"
         )
 }
