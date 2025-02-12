@@ -102,7 +102,12 @@ class CreateProductAction
 
             throw $e;
         }
-        $products->searchable();
+
+        if ($products->isPublished()) {
+            $products->searchable();
+        } else {
+            $products->unsearchable();
+        }
 
         if ($this->runWorkflow) {
             $products->fireWorkflow(
