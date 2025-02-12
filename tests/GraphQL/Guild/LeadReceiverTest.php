@@ -166,6 +166,7 @@ class LeadReceiverTest extends TestCase
         );
         $id = $response->json('data.createLeadReceiver.id');
         $input['name'] = 'new name';
+        $input['template'] = 'new template';
         $this->graphQL(
             'mutation updateLeadReceiver($id: ID!, $input: LeadReceiverInput!) {
                 updateLeadReceiver(id: $id, input: $input){
