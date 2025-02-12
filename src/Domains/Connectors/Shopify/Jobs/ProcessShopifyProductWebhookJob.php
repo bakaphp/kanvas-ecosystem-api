@@ -10,6 +10,7 @@ use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Illuminate\Support\Facades\Log;
 
 class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
 {
