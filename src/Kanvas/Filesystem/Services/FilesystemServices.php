@@ -96,7 +96,6 @@ class FilesystemServices
         if (empty($aws['key']) || empty($aws['secret']) || empty($aws['region'])) {
             throw new ValidationException('Missing AWS credentials');
         }
-
         return Storage::build([
             'driver' => 's3',
             'key' => $aws['key'],

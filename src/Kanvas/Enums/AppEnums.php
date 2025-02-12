@@ -51,9 +51,8 @@ enum AppEnums implements EnumsInterface
     case ANONYMOUS_USER_ID;
     case DEFAULT_APP_JWT_TOKEN_NAME;
     case CSV_DATE_FORMAT;
-
     case DEFAULT_PUBLIC_SEARCH_USER_ID;
-
+    case DOWNLOAD_FILESYSTEM_WITH_NAME;
     /**
      * Get value.
      */
@@ -104,6 +103,7 @@ enum AppEnums implements EnumsInterface
             self::DEFAULT_APP_JWT_TOKEN_NAME => 'kanvas-login',
             self::CSV_DATE_FORMAT => 'csv_date_format',
             self::DEFAULT_PUBLIC_SEARCH_USER_ID => 'public_search_user_id',
+            self::DOWNLOAD_FILESYSTEM_WITH_NAME => 'download_filesystem_with_name',
         };
     }
 
