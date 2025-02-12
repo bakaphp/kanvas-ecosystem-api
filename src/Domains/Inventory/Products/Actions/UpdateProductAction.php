@@ -80,7 +80,13 @@ class UpdateProductAction
 
             throw $e;
         }
-        $this->product->searchable();
+
+        if ($this->product->isPublished()) {
+            $this->product->searchable();
+        } else {
+            $this->product->unsearchable();
+        }
+
         if ($this->runWorkflow) {
             $this->product->fireWorkflow(
                 WorkflowEnum::UPDATED->value,
