@@ -52,7 +52,7 @@ class Client
         }
 
         $this->redis = FacadesRedis::connection('default');
-
+        $this->redisKey .= '-' . $this->$app->getId();
         $this->client = new GuzzleClient(
             [
                 'base_uri' => $this->baseUrl,
@@ -98,7 +98,7 @@ class Client
             $this->redis->set(
                 $this->redisKey,
                 $token,
-                3300
+                1800
             );
         }
 
