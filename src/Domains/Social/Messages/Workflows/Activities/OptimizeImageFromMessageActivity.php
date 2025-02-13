@@ -66,9 +66,13 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             // Update child messages too
 
             foreach ($message->children as $childMessage) {
-                $tempChildMessageArray = $childMessage->message;
+                $childMessageArray = json_decode($childMessage->message, true);
+                if (! is_array($childMessageArray) || ! array_key_exists('image', $childMessageArray)) {
+                    continue;
+                }
+                $tempChildMessageArray = $childMessageArray;
                 $tempChildMessageArray['image'] = $fileSystemRecord->url;
-                $childMessage->message = $tempChildMessageArray;
+                $childMessage->message = json_encode($tempChildMessageArray);
                 $childMessage->addTag('image', $app, $defaultUser, $defaultCompany);
                 $childMessage->saveOrFail();
             }
