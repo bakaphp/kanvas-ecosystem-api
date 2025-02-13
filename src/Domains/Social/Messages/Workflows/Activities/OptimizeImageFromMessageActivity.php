@@ -70,7 +70,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     continue;
                 }
                 $tempChildMessageArray = $childMessage->message;
-                $tempChildMessageArray['ai_image'] = array_merge($childMessage->message['ai_image'], ['image' => $fileSystemRecord->url]);
+                $tempChildMessageArray['image'] = $fileSystemRecord->url;
                 $childMessage->message = $tempChildMessageArray;
                 $childMessage->addTag('image', $app, $defaultUser, $defaultCompany);
                 $childMessage->saveOrFail();
