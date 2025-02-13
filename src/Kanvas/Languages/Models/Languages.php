@@ -18,7 +18,7 @@ use Kanvas\Languages\Factories\LanguagesFactory;
  */
 class Languages extends BaseModel
 {
-    use Cachable;
+    // use Cachable;
     use HasFactory;
     //public $incrementing = false;
 
