@@ -21,6 +21,9 @@ enum ConfigEnum: string
 
     case SCRAPPER_SECONDS = 'scrapper_seconds';
 
+    case SCRAPPER_SHIPPING = 'scrapper_shipping';
+    case SCRAPPER_SHIPPING_AMAZON = 'scrapper_shipping_amazon';
+
     public static function getWordEnum(AppInterface $app): string
     {
         return ConfigEnum::WORDLIST->value . "{$app->getId()}";

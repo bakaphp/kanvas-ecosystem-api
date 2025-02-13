@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Services;
 
+use DateTime;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
@@ -60,6 +61,10 @@ class ProductService
                 [
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
                     'value' => $this->calcWeight($product),
+                ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_SHIPPING->value,
+                    'value' => $this->formatShipping($product),
                 ],
             ],
             'custom_fields' => [
@@ -204,5 +209,21 @@ class ProductService
     public function getDescription(array $product): string
     {
         return $product['full_description'] ?? $product['short_description'] ?? '';
+    }
+
+    public function formatShipping(array $product): ?string
+    {
+        if (! isset($product['shipping_time'])) {
+            return null;
+        }
+        $date = DateTime::createFromFormat('l, F j', $product['shipping_time']);
+
+        if ($date) {
+            $date->modify('+5 days');
+
+            return $date->format('Y-m-d');
+        } else {
+            return null;
+        }
     }
 }
