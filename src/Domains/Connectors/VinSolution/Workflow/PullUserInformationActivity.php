@@ -23,6 +23,12 @@ class PullUserInformationActivity extends KanvasActivity
             ];
         }
 
+        if (! $company->get(ConfigurationEnum::COMPANY->value)) {
+            return [
+                'error' => 'Company not found in VinSolution',
+            ];
+        }
+
         $dealer = Dealer::getById($company->get(ConfigurationEnum::COMPANY->value), $app);
         $vinUsers = $dealer->getUsers($dealer, $app);
         $match = false;
