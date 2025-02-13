@@ -66,7 +66,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             // Update child messages too
 
             foreach ($message->children as $childMessage) {
-                if (! array_key_exists('image', $childMessage->message['ai_image'])) {
+                if (! array_key_exists('image', $childMessage->message)) {
                     continue;
                 }
                 $tempChildMessageArray = $childMessage->message;
