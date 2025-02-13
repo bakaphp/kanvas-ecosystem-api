@@ -13,29 +13,28 @@ class LocaleMiddleware
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
-     *
      * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
      */
     public function handle(Request $request, Closure $next)
     {
         $localeHeader = AppEnums::KANVAS_APP_CURRENT_LOCALE_CODE->getValue();
+        $requestedLocale = $request->header($localeHeader);
 
-        if ($request->hasHeader($localeHeader)) {
-            $language = Languages::where('code', $request->header($localeHeader))->firstOrFail();
+        if ($requestedLocale) {
+            $language = Languages::where('code', $requestedLocale)->first();
 
-            app()->setLocale(strtolower($language->code));
+            if ($language) {
+                app()->setLocale(strtolower($language->code));
 
-            return $next($request);
+                return $next($request);
+            }
         }
-        //$company = auth()->user()->getCurrentCompany();
-        $app = app(Apps::class);
-        //$locale = $company->get(AppEnums::DEFAULT_COMPANY_LOCALE->getValue());
-        //if (! $locale) {
-        $locale = $app->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) ?? app()->getLocale() ?? 'en';
-        //}
 
-        app()->setLocale($locale);
+        // Retrieve default locale from the app settings
+        $app = app(Apps::class);
+        $defaultLocale = $app->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) ?? 'en';
+
+        app()->setLocale($defaultLocale);
 
         return $next($request);
     }
