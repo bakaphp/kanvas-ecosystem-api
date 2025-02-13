@@ -1,6 +1,7 @@
 type Status {
     id: ID!
     name: String!
+    translation(languageCode: String!): ProductTranslation @field (resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation")
     company: Company! @belongsTo(relation: "company")
     is_default: Boolean
     is_published: Boolean
@@ -11,6 +12,12 @@ type StatusHistoryRelationship {
     name: String
     from_date: String!
 }
+
+type StatusTranslation {
+    name: String
+    language: LanguageDisplay!
+}
+
 input StatusInput {
     name: String!
     is_default: Boolean
@@ -30,6 +37,10 @@ extend type Mutation @guard {
     updateStatus(id: ID!, input: StatusInput!): Status!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@update"
+        )
+    updateStatusTranslations(id: ID!, input: TranslationInput!, code: String!): Status!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@updateStatusTranslation"
         )
     deleteStatus(id: ID!): Boolean!
         @field(

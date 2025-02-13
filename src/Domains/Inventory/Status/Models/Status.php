@@ -12,6 +12,7 @@ use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Spatie\Translatable\HasTranslations;
 
 /**
  * Class Attributes.
@@ -28,9 +29,12 @@ class Status extends BaseModel
     use SlugTrait;
     use DatabaseSearchableTrait;
     use DefaultTrait;
+    use HasTranslations;
 
     protected $table = 'status';
     protected $guarded = [];
+
+    public $translatable = ['name'];
 
     /**
      * Get the user that owns the Variants.

@@ -5,6 +5,7 @@ type Product {
     name: String!
     slug: String!
     description: String
+    translation(languageCode: String!): ProductTranslation @field (resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation")
     short_description: String
     html_description: String
     warranty_terms: String
@@ -23,7 +24,7 @@ type Product {
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
     attributes: [ProductAttribute!]!
-        @BelongsToMany(relation: "visibleAttributes")
+        @method(name: "visibleAttributes")
     variants: [Variant!]! @HasMany
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")
@@ -47,6 +48,12 @@ type Product {
 type EntityExport {
     url: String!
     message: Mixed!
+}
+
+type ProductTranslation {
+    name: String
+    description: String
+    language: LanguageDisplay!
 }
 
 input ProductInput {
@@ -102,6 +109,14 @@ input ProductAttributeOrderBy {
     format: FormatSortAttribute!
 }
 
+input ProductTranslationInput {
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+}
+
 enum FormatSortAttribute {
     NUMERIC
     STRING
@@ -116,6 +131,10 @@ extend type Mutation @guardByAdmin {
     updateProduct(id: ID!, input: ProductInputUpdate): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
+        )
+    updateProductTranslations(id: ID!, input: ProductTranslationInput!, code: String!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductTranslation"
         )
     uploadFileToProduct(id: ID!, file: Upload!): Product!
         @field(

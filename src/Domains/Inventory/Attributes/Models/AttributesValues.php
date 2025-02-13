@@ -8,6 +8,7 @@ use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Models\BaseModel;
+use Spatie\Translatable\HasTranslations;
 
 /**
  * Class Attributes.
@@ -20,9 +21,11 @@ class AttributesValues extends BaseModel
 {
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
+    use HasTranslations;
 
     public $table = 'attributes_values';
     public $guarded = [];
+    public $translatable = ['value'];
 
     /**
      * attribute.

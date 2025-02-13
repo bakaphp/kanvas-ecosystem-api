@@ -6,9 +6,12 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
+use Spatie\Translatable\HasTranslations;
 
 /**
  * Class Products.
@@ -23,6 +26,9 @@ use Kanvas\Inventory\Models\BaseModel;
 class ProductsAttributes extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
+    use HasTranslations;
+    use NoAppRelationshipTrait;
+    use NoCompanyRelationshipTrait;
 
     protected $table = 'products_attributes';
     protected $forceDeleting = true;
@@ -37,6 +43,8 @@ class ProductsAttributes extends BaseModel
     ];
 
     protected $primaryKey = ['products_id', 'attributes_id'];
+
+    public $translatable = ['value'];
 
     /**
      * Get the product.

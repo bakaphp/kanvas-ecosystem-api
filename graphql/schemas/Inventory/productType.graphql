@@ -6,6 +6,7 @@ type ProductType {
     description: String
     slug: String!
     weight: Int
+    translation(languageCode: String!): ProductTranslation @field (resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation")
     companies: Company!
     is_published: Boolean
     total_products: Int! @method(name: "getTotalProducts")
@@ -50,6 +51,10 @@ extend type Mutation @guard {
     updateProductType(id: ID!, input: ProductTypeUpdateInput!): ProductType!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@update"
+        )
+    updateProductTypeTranslations(id: ID!, input: TranslationInput!, code: String!): ProductType!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@updateProductTypeTranslation"
         )
     deleteProductType(id: ID!): Boolean!
         @field(
