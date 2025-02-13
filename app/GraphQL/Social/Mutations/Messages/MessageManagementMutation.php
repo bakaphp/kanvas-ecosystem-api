@@ -64,7 +64,7 @@ class MessageManagementMutation
         }
 
         $systemModuleId = $messageData['system_modules_id'] ?? null;
-        
+
         if (Str::isUuid($systemModuleId)) {
             $systemModule = SystemModules::getByUuid($systemModuleId, $app);
         } else {
