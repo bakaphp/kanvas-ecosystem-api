@@ -78,7 +78,7 @@ class SyncEsimWithProviderCommand extends Command
         $network = strtolower($message->message['items'][0]['variant']['attributes']['Variant Network'] ?? '');
 
         if (empty($network) && $message->appModuleMessage && $message->appModuleMessage->entity instanceof Order) {
-            $network = strtolower($message->appModuleMessage->entity->items()->first()->variant?->product?->getAttributeBySlug('product-provider')?->value ?? '');
+            $network = strtolower($message->appModuleMessage->entity->items()->first()->variant->product->getAttributeBySlug('product-provider')?->value ?? '');
         }
 
         if (! $iccid) {
