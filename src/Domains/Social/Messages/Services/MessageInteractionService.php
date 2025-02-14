@@ -75,7 +75,6 @@ class MessageInteractionService
         $userMessage = $this->addToUserMessage($who);
         $userMessage->is_disliked = $userMessage->is_disliked == 1 ? 0 : 1; //turn off the dislike if it was already disliked
         $userMessage->is_liked = 0;
-        $userMessage->is_deleted = 1;
         $userMessage->saveOrFail();
 
         if ($userMessage->is_disliked == 1) {
