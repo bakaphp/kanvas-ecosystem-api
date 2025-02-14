@@ -68,6 +68,8 @@ class UserMessage extends BaseModel
                 ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
                 ->where('user_messages.users_id', $user->getId())
                 ->where('user_messages.apps_id', $app->getId())
+                ->where('user_messages.is_liked', 0) //for now we are not showing liked messages
+                ->where('user_messages.is_disliked', 0) //for now we are not showing disliked messages
                 ->orderBy('user_messages.created_at', 'desc') //for now always order by created_at in the user feed
                 ->select('messages.*');
     }
