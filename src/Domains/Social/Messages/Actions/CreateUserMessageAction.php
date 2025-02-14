@@ -34,11 +34,18 @@ class CreateUserMessageAction
             ])->lockForUpdate()->first();
 
             if (! $userMessage) {
-                $userMessage = UserMessage::create([
-                    'messages_id' => $this->message->getId(),
-                    'users_id' => $this->user->getId(),
-                    'apps_id' => $this->message->apps_id,
-                ]);
+                $userMessage = UserMessage::updateOrCreate(
+                    [
+                        'messages_id' => $this->message->getId(),
+                        'users_id' => $this->user->getId(),
+                        'apps_id' => $this->message->apps_id,
+                    ],
+                    [
+                        'messages_id' => $this->message->getId(),
+                        'users_id' => $this->user->getId(),
+                        'apps_id' => $this->message->apps_id,
+                    ]
+                );
             }
 
             if ($this->message->appModuleMessage && ! empty($this->activity)) {
