@@ -34,7 +34,7 @@ class CreateUserMessageAction
             ])->lockForUpdate()->first();
 
             if (! $userMessage) {
-                $userMessage = UserMessage::create([
+                $userMessage = UserMessage::updateOrCreate([
                     'messages_id' => $this->message->getId(),
                     'users_id' => $this->user->getId(),
                     'apps_id' => $this->message->apps_id,
