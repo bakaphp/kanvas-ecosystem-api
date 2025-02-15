@@ -80,44 +80,47 @@ class CreateOrderAction
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);
+            
+            // Run after commit
+            DB::afterCommit(function () use ($order) {
+                if ($this->runWorkflow) {
+                    $order->fireWorkflow(
+                        WorkflowEnum::CREATED->value,
+                        true,
+                        [
+                            'app' => $this->orderData->app,
+                        ]
+                    );
+                }
 
-            if ($this->runWorkflow) {
-                $order->fireWorkflow(
-                    WorkflowEnum::CREATED->value,
-                    true,
-                    [
+                try {
+                    $order->user->notify(new NewOrderNotification($order, [
                         'app' => $this->orderData->app,
-                    ]
-                );
-            }
+                        'company' => $this->orderData->company,
+                    ]));
+                } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                    // Handle notification failure
+                }
 
-            try {
-                $order->user->notify(new NewOrderNotification($order, [
-                    'app' => $this->orderData->app,
-                    'company' => $this->orderData->company,
-                ]));
-            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
-                // Handle notification failure
-            }
-
-            try {
-                /**
-                 * @todo move to workflow
-                 */
-                /*  UserRoleNotificationService::notify(
-                     RolesEnums::ADMIN->value,
-                     new NewOrderStoreOwnerNotification(
-                         $order,
-                         [
-                             'app' => $this->orderData->app,
-                             'company' => $this->orderData->company,
-                         ]
-                     ),
-                     $this->orderData->app
-                 ); */
-            } catch (ModelNotFoundException $e) {
-                // Handle admin notification failure
-            }
+                try {
+                    /**
+                     * @todo move to workflow
+                     */
+                    /*  UserRoleNotificationService::notify(
+                         RolesEnums::ADMIN->value,
+                         new NewOrderStoreOwnerNotification(
+                             $order,
+                             [
+                                 'app' => $this->orderData->app,
+                                 'company' => $this->orderData->company,
+                             ]
+                         ),
+                         $this->orderData->app
+                     ); */
+                } catch (ModelNotFoundException $e) {
+                    // Handle admin notification failure
+                }
+            });
 
             return $order;
         });
