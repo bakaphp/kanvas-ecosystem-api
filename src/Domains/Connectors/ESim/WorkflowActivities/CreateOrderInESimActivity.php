@@ -135,6 +135,7 @@ class CreateOrderInESimActivity extends KanvasActivity
         );
 
         $message = $createMessage->execute();
+        $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
 
         return [
             'status' => 'success',
