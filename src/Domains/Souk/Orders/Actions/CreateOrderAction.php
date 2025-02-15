@@ -80,7 +80,7 @@ class CreateOrderAction
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);
-            
+
             // Run after commit
             DB::afterCommit(function () use ($order) {
                 if ($this->runWorkflow) {
