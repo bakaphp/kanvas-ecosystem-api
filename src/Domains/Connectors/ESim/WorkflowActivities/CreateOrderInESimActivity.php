@@ -77,7 +77,8 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         $order->metadata = array_merge(($order->metadata ?? []), $response);
-        $order->saveOrFail();
+        $order->completed();
+        //$order->saveOrFail();
         $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $response);
 
         $response['order_id'] = $order->id;
