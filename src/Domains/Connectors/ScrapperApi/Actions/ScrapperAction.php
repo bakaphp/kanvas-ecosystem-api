@@ -48,7 +48,7 @@ class ScrapperAction
     {
         Log::info('Scrapper Started');
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
-        
+
         $channels = Channels::getDefault($this->companyBranch->company);
 
         $repository = new ScrapperRepository($this->app);
@@ -60,7 +60,6 @@ class ScrapperAction
             $scrapperProducts++;
 
             try {
-
                 if (preg_match('/(?:asin=|dp\/)([A-Z0-9]{10})/', $result['url'], $matches)) {
                     $asin = $matches[1];
                 } else {
@@ -91,7 +90,7 @@ class ScrapperAction
                 $response = $syncProductWithShopify->execute();
                 $this->setCustomFieldAmazonPrice($product);
                 $importerProducts++;
-                
+
                 if ($this->uuid) {
                     ProductScrapperEvent::dispatch(
                         $this->app,
