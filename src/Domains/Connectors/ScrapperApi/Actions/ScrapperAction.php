@@ -41,7 +41,6 @@ class ScrapperAction
         public string $search,
         ?string $uuid = null
     ) {
-        $this->uuid = $uuid ?? Str::uuid();
     }
 
     public function execute(): array
