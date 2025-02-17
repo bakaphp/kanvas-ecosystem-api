@@ -22,6 +22,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use PHPShopify\Exception\CurlException;
+
 use function Sentry\captureException;
 
 use Throwable;
@@ -83,7 +84,7 @@ class ScrapperAction
                         true
                     )
                 )->execute();
-                
+
                 $syncProductWithShopify = new SyncProductWithShopifyAction($product);
                 try {
                     $response = $syncProductWithShopify->execute();
