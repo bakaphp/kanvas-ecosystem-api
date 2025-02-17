@@ -60,7 +60,6 @@ class CreateProductAction
                 'is_published' => $this->productDto->is_published,
                 'published_at' => Carbon::now(),
                 'weight' => $this->productDto->weight,
-                'vendor' => $this->productDto->vendor,
             ];
 
             if ($productType == null) {
