@@ -41,6 +41,7 @@ class ScrapperAction
         public string $search,
         ?string $uuid = null
     ) {
+        $this->uuid = $uuid;
     }
 
     public function execute(): array
@@ -73,6 +74,7 @@ class ScrapperAction
                 if ($mappedProduct['price'] >= 230) {
                     continue;
                 }
+
                 $product = (
                     new ProductImporterAction(
                         ProductImporter::from($mappedProduct),
