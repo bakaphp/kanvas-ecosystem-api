@@ -41,6 +41,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\EngagementMutation@startEngagement"
         )
+    continueLeadEngagement(input: CreateEngagementInput!): Engagement!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\EngagementMutation@continueEngagement"
+        )
 }
 
 # Query definition
