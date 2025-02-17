@@ -91,7 +91,7 @@ class ProductImporterAction
             $createAction = new CreateProductAction($productDto, $this->user);
             $createAction->setRunWorkflow($this->runWorkflow);
             $this->product = $createAction->execute();
-            
+
             if (isset($this->importedProduct->customFields) && ! empty($this->importedProduct->customFields)) {
                 $this->product->setAllCustomFields($this->importedProduct->customFields);
             }
