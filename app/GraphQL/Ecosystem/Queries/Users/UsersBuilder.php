@@ -21,5 +21,4 @@ class UsersBuilder
     ): Builder {
         return Users::query();
     }
-    
 }
