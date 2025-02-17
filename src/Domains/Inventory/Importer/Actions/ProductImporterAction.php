@@ -87,12 +87,11 @@ class ProductImporterAction
                 'status_id' => $status ? $status->getId() : null,
                 'is_published' => $this->importedProduct->isPublished,
                 'attributes' => $this->importedProduct->attributes,
-                'vendor' => $this->importedProduct->vendor,
             ]);
             $createAction = new CreateProductAction($productDto, $this->user);
             $createAction->setRunWorkflow($this->runWorkflow);
             $this->product = $createAction->execute();
-
+            
             if (isset($this->importedProduct->customFields) && ! empty($this->importedProduct->customFields)) {
                 $this->product->setAllCustomFields($this->importedProduct->customFields);
             }
@@ -105,6 +104,9 @@ class ProductImporterAction
 
             $this->productWarehouse();
 
+            $this->product->warehouses()->newPivotStatement()->update([
+                'vendor' => $this->importedProduct->vendor,
+            ]);
             //$this->variants();
             // @todo to be removed
             $this->variantsLocation($this->product);
