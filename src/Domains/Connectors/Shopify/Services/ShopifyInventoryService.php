@@ -92,11 +92,13 @@ class ShopifyInventoryService
                 'handle' => $this->getPartHandle($product->slug, $partNumber),
                 'body_html' => $product->description,
                 'product_type' => $product->productsTypes?->name ?? 'default',
-                'vendor' => $this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value) ?? ($productWarehouse->vendor ?? "default") , //$product->categ->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
                 'status' => $product->hasPrice($this->warehouses, $channel) ? $status->value : StatusEnum::ARCHIVED->value,
                 'published_scope' => 'web',
                 'tags' => $product->tags->pluck('name')->implode(','),
             ];
+            if ($this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value)) {
+                $productInfo['vendor'] = $this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value) ?? "default"; //$product->categ->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
+            }
 
             //$limitedVariants = $product->variants()->limit($variantLimit)->get();
             //ignore deleted variants
