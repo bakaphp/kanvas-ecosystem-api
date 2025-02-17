@@ -18,6 +18,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use PHPShopify\ShopifySDK;
 use Kanvas\Inventory\Products\Models\ProductsWarehouses;
+
 use function Sentry\captureException;
 
 use Throwable;
