@@ -41,14 +41,24 @@ class MessageBuilder
             );
         }
 
-        //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
-        if (! $user->isAppOwner()) {
-            $messages = Message::fromCompany($user->getCurrentCompany());
+        $query = Message::query();
 
-            return $messages;
+        if (! empty($args['requiredTags'])) {
+            $tagSlugs = $args['requiredTags'];
+
+            // Enforce messages to have *all* specified tags
+            $query->whereHas('tags', function (Builder $q) use ($tagSlugs) {
+                $q->whereIn('slug', $tagSlugs);
+            }, '>=', count($tagSlugs)); // Ensures all tags exist
         }
 
-        return Message::query();
+        //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
+        if (! $user->isAppOwner()) {
+            //$messages = Message::fromCompany($user->getCurrentCompany());
+            return $query->fromCompany($user->getCurrentCompany());
+        }
+
+        return $query;
     }
 
     public function getUserFeed(
