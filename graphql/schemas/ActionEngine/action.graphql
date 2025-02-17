@@ -10,8 +10,8 @@ type Action {
     is_published: Boolean!
     collects_info: Boolean!
     config: Mixed
-    parent: Action
-    children: [Action!]
+    parent: Action @belongsTo(relation: "parent")
+    children: [Action!] @hasMany(relation: "children")
 }
 
 type CompanyAction {
