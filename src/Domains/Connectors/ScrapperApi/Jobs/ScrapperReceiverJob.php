@@ -24,7 +24,7 @@ class ScrapperReceiverJob extends ProcessWebhookJob
             $branch,
             $regions,
             $request['search'],
-            $request['uuid']
+            key_exists('uuid', $request) ? $request['uuid'] : null
         ))->execute();
     }
 }
