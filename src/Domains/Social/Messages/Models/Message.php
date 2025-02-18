@@ -40,6 +40,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
+use Carbon\Carbon;
 
 /**
  *  Class Message
@@ -283,5 +284,15 @@ class Message extends BaseModel
         }
 
         return (bool)$this->is_locked;
+    }
+
+    public static function getUserMessageCountInTimeFrame(int $userId, Apps $app, int $hours, ?int $messageTypesId = null, bool $getChildrenCount = false): int
+    {
+        return self::fromApp($app)
+        ->where('users_id', $userId)
+        ->when($messageTypesId, fn ($query) => $query->where('message_types_id', $messageTypesId))
+        ->where('created_at', '>=', Carbon::now()->subHours($hours))
+        ->when($getChildrenCount, fn ($query) => $query->whereNotNull('parent_id'), fn ($query) => $query->whereNull('parent_id'))
+        ->count();
     }
 }
