@@ -17,7 +17,6 @@ class MessageObserver
         $user = $message->user;
         $messageData = json_decode($message->message, true);
 
-
         if (array_key_exists('type', $messageData) && $messageData['type'] == 'image-format') {
             $messageCount = Message::getUserMessageCountInTimeFrame(
                 $user->getId(),
@@ -26,7 +25,6 @@ class MessageObserver
                 null,
                 true
             );
-    
             if ($messageCount >= 5) {
                 throw new Exception('You have reached the limit of messages you can post in a day');
             }
