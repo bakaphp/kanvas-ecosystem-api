@@ -21,19 +21,19 @@ trait HasTranslationsDefaultFallback
             $fallbackLocale = config('app.fallback_locale');
 
             // Asegurar que siempre haya una traducción en el idioma de fallback
-            if (!isset($decodedValue[$fallbackLocale])) {
+            if (! isset($decodedValue[$fallbackLocale])) {
                 $decodedValue[$fallbackLocale] = $attributeValue;
             }
 
             return array_filter(
                 $decodedValue,
-                fn($value, $locale) => $this->filterTranslations($value, $locale, $allowedLocales),
+                fn ($value, $locale) => $this->filterTranslations($value, $locale, $allowedLocales),
                 ARRAY_FILTER_USE_BOTH
             );
         }
 
         return array_map(
-            fn($attribute) => $this->getTranslations($attribute, $allowedLocales),
+            fn ($attribute) => $this->getTranslations($attribute, $allowedLocales),
             $this->getTranslatableAttributes()
         );
     }
