@@ -46,7 +46,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
 
         $messageType = MessageType::getById($messageType, $app);
 
-        $query = Message::fromApp($app)->where('message_types_id', $messageType->getId());
+        $query = Message::fromApp($app)->where('message_types_id', $messageType->getId())->orderBy('id', 'desc');
         $cursor = $query->cursor();
         $totalMessages = $query->count();
 
