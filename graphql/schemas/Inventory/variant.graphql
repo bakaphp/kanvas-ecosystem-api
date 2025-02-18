@@ -28,7 +28,7 @@ type Variant {
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]!
-        @BelongsToMany(relation: "visibleAttributes")
+        @method(name: "visibleAttributes")
     companies: Company! @belongsTo(relation: "company")
     channels: [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")
