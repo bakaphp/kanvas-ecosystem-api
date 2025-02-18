@@ -62,7 +62,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             $message->message = $tempMessageArray;
             $message->addTag('image', $app, $defaultUser, $defaultCompany);
             $message->saveOrFail();
-
+            $imageTitle = $message->message['title'];
             // Update child messages too
 
             foreach ($message->children as $childMessage) {
@@ -72,6 +72,8 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 }
                 $tempChildMessageArray = $childMessageArray;
                 $tempChildMessageArray['image'] = $fileSystemRecord->url;
+                $tempChildMessageArray['title'] = $imageTitle;
+
                 $childMessage->message = json_encode($tempChildMessageArray);
                 $childMessage->addTag('image', $app, $defaultUser, $defaultCompany);
                 $childMessage->saveOrFail();
