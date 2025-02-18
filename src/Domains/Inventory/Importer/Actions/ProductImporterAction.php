@@ -97,7 +97,7 @@ class ProductImporterAction
             }
 
             if (! empty($this->importedProduct->files)) {
-                $this->product->overWriteFiles($this->importedProduct->files);
+                $this->product->overWriteFiles($this->importedProduct->files, $this->product->app);
             }
 
             $this->categories();

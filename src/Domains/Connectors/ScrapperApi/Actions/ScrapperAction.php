@@ -23,6 +23,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 
 use function Sentry\captureException;
+use Baka\Traits\KanvasJobsTrait;
 
 use Throwable;
 
@@ -31,6 +32,8 @@ use Throwable;
  */
 class ScrapperAction
 {
+    use KanvasJobsTrait;
+
     public ?string $uuid = null;
 
     public function __construct(
@@ -42,6 +45,8 @@ class ScrapperAction
         ?string $uuid = null
     ) {
         $this->uuid = $uuid;
+        $this->overwriteAppService($app);
+
     }
 
     public function execute(): array
