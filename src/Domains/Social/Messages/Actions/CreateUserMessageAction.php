@@ -27,18 +27,24 @@ class CreateUserMessageAction
     {
         return DB::connection('social')->transaction(function () {
             // Search with a lock to prevent race conditions
-            $userMessage = UserMessage::where([
+            $userMessage = UserMessage::withTrashed()
+            ->where([
                 'messages_id' => $this->message->getId(),
                 'users_id' => $this->user->getId(),
                 'apps_id' => $this->message->apps_id,
-            ])->lockForUpdate()->first();
+            ])
+            ->lockForUpdate()
+            ->first();
 
             if (! $userMessage) {
-                $userMessage = UserMessage::updateOrCreate([
+                $userMessage = UserMessage::create([
                     'messages_id' => $this->message->getId(),
                     'users_id' => $this->user->getId(),
                     'apps_id' => $this->message->apps_id,
+                    'is_deleted' => 0,
                 ]);
+            } elseif ($userMessage->trashed()) {
+                $userMessage->restore();
             }
 
             if ($this->message->appModuleMessage && ! empty($this->activity)) {
