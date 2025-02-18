@@ -14,6 +14,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -161,7 +162,7 @@ class EngagementMutation
             'total_disliked' => 0,
             'total_saved' => 0,
             'total_shared' => 0,
-            'ip_address' => '127.0.0.1',
+            'ip_address' => request()->ip(),
         ];
 
         $messageTypeDto = MessageTypeInput::from([
@@ -185,6 +186,119 @@ class EngagementMutation
 
         $pipeline = Pipeline::getBySlug($action, $app, $company);
         $stage = $pipeline->stages()->where('slug', ActionStatusEnum::SENT->value)->firstOrFail();
+
+        $leadChannel = $lead->socialChannel?->count() ? $lead->socialChannel->first() : null;
+        if ($leadChannel) {
+            $leadChannel->addMessage($createMessage, $user);
+        }
+
+        //save share history en company action history
+        //generate link
+        //create msg
+        //create engagement
+        //return engagement
+        $engagement = Engagement::firstOrCreate([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'leads_id' => $lead->getId(),
+            'people_id' => $people->getId(),
+            'companies_actions_id' => $companyAction->getId(),
+            'message_id' => $createMessage->getId(),
+            'slug' => $action,
+            'entity_uuid' => $requestId,
+            'pipelines_stages_id' => $stage->getId(),
+        ]);
+
+        return $engagement;
+    }
+
+    /**
+     * @todo add test
+     */
+    public function continueEngagement(mixed $rootValue, array $request): Engagement
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $request = $request['input'];
+
+        if (! ActionStatusEnum::validate($request['status'])) {
+            throw new ValidationException('Invalid Engagement Status');
+        }
+
+        $lead = Lead::getByIdFromCompanyApp($request['lead_id'], $company, $app);
+        $people = ! empty($request['people_id']) ? People::getByIdFromCompanyApp($request['people_id'], $company, $app) : $lead->people;
+        $receiver = ! empty($request['receiver_id']) ? LeadReceiver::getByIdFromCompanyApp($request['receiver_id'], $company, $app) : ($lead->receiver ?? LeadReceiver::getDefault($company, $app));
+        $requestId = $request['request_id'];
+        $action = $request['action'];
+        $checkListId = $request['task_id'] ?? 0;
+        $source = $request['source'];
+        $via = $request['via'] ?? 'copy';
+        $data = $request['data'] ?? [];
+        $status = $request['status'];
+
+        $companyAction = CompanyAction::getByAction(
+            Action::getBySlug($action, $company),
+            $company,
+            $app,
+            $lead->branch
+        );
+
+        $engagementMessage = new EngagementMessage(
+            data: $data,
+            text: $data['text'] ?? '',
+            verb: $action,
+            status: $status,
+            actionLink: $data['link'] ?? '',
+            source: $source,
+            linkPreview: $data['link_preview'] ?? '',
+            engagementStatus: $status,
+            visitorId: $requestId,
+            hashtagVisited: $companyAction->name,
+            userUuid: $user->uuid,
+            contactUuid: $people->uuid,
+            checkListId: $checkListId,
+            preFill: [],
+            via: $via,
+        );
+
+        $messageInput = [
+            'message' => $engagementMessage->toArray(),
+            'reactions_count' => 0,
+            'comments_count' => 0,
+            'total_liked' => 0,
+            'total_disliked' => 0,
+            'total_saved' => 0,
+            'total_shared' => 0,
+            'ip_address' => request()->ip(),
+        ];
+
+        $messageTypeDto = MessageTypeInput::from([
+            'apps_id' => $app->getId(),
+            'name' => $action,
+            'verb' => $action,
+        ]);
+        $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
+
+        $createMessage = (new CreateMessageAction(
+            MessageInput::fromArray(
+                $messageInput,
+                $user,
+                $messageType,
+                $company,
+                $app
+            ),
+            SystemModulesRepository::getByModelName(Lead::class, $app),
+            $lead->getId()
+        ))->execute();
+
+        $pipeline = Pipeline::getBySlug($action, $app, $company);
+        $stage = $pipeline->stages()->where('slug', $status)->firstOrFail();
+        $leadChannel = $lead->socialChannel?->count() ? $lead->socialChannel->first() : null;
+        if ($leadChannel) {
+            $leadChannel->addMessage($createMessage, $user);
+        }
 
         //save share history en company action history
         //generate link
