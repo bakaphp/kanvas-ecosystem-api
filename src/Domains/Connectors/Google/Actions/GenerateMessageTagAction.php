@@ -18,15 +18,18 @@ class GenerateMessageTagAction
     public function execute(
         ?string $textLookupKey = null,
         bool $limitByCompany = false,
-        int $totalTags = 3
+        int $totalTags = 3,
+        array $tags = []
     ): Message {
-        $tags = Tag::fromApp($this->message->app)->notDeleted();
+        if (empty($tags)) {
+            $tags = Tag::fromApp($this->message->app)->notDeleted();
 
-        if ($limitByCompany) {
-            $tags->fromCompany($this->message->company);
+            if ($limitByCompany) {
+                $tags->fromCompany($this->message->company);
+            }
+
+            $tags = $tags->get()->pluck('name')->toArray();
         }
-
-        $tags = $tags->get()->pluck('name')->toArray();
 
         $messageData = $this->message->message;
 
