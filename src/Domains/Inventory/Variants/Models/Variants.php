@@ -32,13 +32,13 @@ use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
-use Spatie\Translatable\HasTranslations;
 
 /**
  * Class Attributes.
@@ -74,7 +74,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     use Compoships;
     use CanUseWorkflow;
     use HasRating;
-    use HasTranslations;
+    use HasTranslationsDefaultFallback;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];

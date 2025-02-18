@@ -18,7 +18,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
-use Spatie\Translatable\HasTranslations;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 
 /**
  * Class Attributes.
@@ -39,7 +39,7 @@ class Attributes extends BaseModel
     use SlugTrait;
     use CascadeSoftDeletes;
     use DatabaseSearchableTrait;
-    use HasTranslations;
+    use HasTranslationsDefaultFallback;
 
     public $table = 'attributes';
     public $translatable = ['name'];
