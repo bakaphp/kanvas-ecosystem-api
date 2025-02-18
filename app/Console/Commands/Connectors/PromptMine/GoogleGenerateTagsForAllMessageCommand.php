@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Connectors\Google;
+namespace App\Console\Commands\Connectors\PromptMine;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Google\Actions\GenerateMessageTagAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\Tags\Models\Tag;
 
 class GoogleGenerateTagsForAllMessageCommand extends Command
 {
@@ -21,7 +22,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:google-generate-tags-message {app_id} {company_id} {message_type_id}';
+    protected $signature = 'kanvas:prompt-google-generate-tags-message {app_id} {company_id} {message_type_id}';
 
     /**
      * The console command description.
@@ -50,13 +51,26 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
         $totalMessages = $query->count();
 
         $this->output->progressStart($totalMessages);
+        $featureTags = Tag::fromApp($app)->where('is_feature', 1)->get()->pluck('name')->toArray();
+        $tagsToIgnore = ['text', 'image', 'openai', 'gemini', 'claude', 'xai', 'groq', 'flux', 'dalle3', 'deepseekai'];
+        $allTags = Tag::fromApp($app)->notDeleted()->whereNotIn('slug', $tagsToIgnore)->get()->pluck('name')->toArray();
 
         foreach ($cursor as $message) {
             $generateMessageTagAction = new GenerateMessageTagAction($message);
             $messageTags = $generateMessageTagAction->execute(
-                totalTags: 3
+                textLookupKey: 'ai_nugged.nugget',
+                totalTags: 3,
+                tags: $allTags
             );
 
+            //also from the features
+            if (! empty($featureTags)) {
+                $messageTags = $generateMessageTagAction->execute(
+                    textLookupKey: 'ai_nugged.nugget',
+                    tags: $featureTags,
+                    totalTags: 3
+                );
+            }
             $this->info('Message ID: ' . $message->getId() . ' Tags: ' . json_encode($messageTags->tags->pluck('name'), JSON_PRETTY_PRINT));
             //$this->newLine();
             $this->output->progressAdvance();
