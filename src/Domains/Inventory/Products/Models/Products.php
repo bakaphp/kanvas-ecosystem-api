@@ -35,6 +35,7 @@ use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
@@ -42,7 +43,6 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
-use Spatie\Translatable\HasTranslations;
 
 /**
  * Class Products.
@@ -81,8 +81,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use Compoships;
     use CanUseWorkflow;
     use HasRating;
-    use HasTranslations;
-
+    use HasTranslationsDefaultFallback;
     protected $table = 'products';
     protected $guarded = [];
     protected $cascadeDeletes = ['variants'];
