@@ -63,6 +63,7 @@ class GenerateGoogleUserMessageAction
                         ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
                             return $query->where('message_types_id', $messageTypeId);
                         })
+                        ->where('users_id', '!=', $this->user->getId())
                         ->exists()
                 ) {
                     continue;
