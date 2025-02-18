@@ -33,7 +33,11 @@ class GenerateMessageTagAction
 
         $messageData = $this->message->message;
 
-        $messageText = $textLookupKey !== null ? data_get($messageData, $textLookupKey) : $messageData; //ai_nugget.nugget
+        $messageText = $textLookupKey !== null ? data_get($messageData, $textLookupKey) : $messageData; //ai_nugged.nugget
+
+        if (empty($messageText) || ! is_string($messageText)) {
+            return $this->message;
+        }
 
         $geminiTagService = new GeminiTagService();
         $tags = $geminiTagService->generateTags($messageText, $tags, $totalTags);
