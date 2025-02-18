@@ -10,7 +10,7 @@ trait HasTranslationsDefaultFallback
 {
     use HasTranslations;
 
-    public function getTranslations(?string $key, array $allowedLocales): array
+    public function getTranslations(string $key = null, array $allowedLocales = null): array
     {
         if ($key !== null) {
             $this->guardAgainstNonTranslatableAttribute($key);
