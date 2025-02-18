@@ -10,12 +10,15 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Laravel\Octane\Facades\Octane;
+use Baka\Traits\KanvasJobsTrait;
 
 class ScrapperReceiverJob extends ProcessWebhookJob
 {
+    use KanvasJobsTrait;
     public function execute(): array
     {
         $app = $this->receiver->app;
+        $this->overwriteAppService($app);
         $branch = CompaniesBranches::getById($this->receiver->configuration['branch_id']);
         $regions = Regions::getById($this->receiver->configuration['region_id']);
         $request = $this->webhookRequest->payload;
