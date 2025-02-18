@@ -42,12 +42,11 @@ class GoogleDeleteMessageDocumentCommand extends Command
         $this->overwriteAppService($app);
 
         $company = Companies::getById((int) $this->argument('company_id'));
-        $user = Users::getById((int) $this->argument('user_id'));
 
         $messageType = (int) $this->argument('message_type_id');
 
         $messageType = MessageType::getById($messageType, $app);
-        $query = Message::fromApp($app)->where('message_types_id', $messageType->getId())->orderBy('id', 'DESC');
+        $query = Message::fromApp($app)->notDeleted()->where('message_types_id', $messageType->getId())->orderBy('id', 'DESC');
         $cursor = $query->cursor();
 
         $totalMessages = $query->count();
