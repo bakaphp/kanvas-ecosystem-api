@@ -20,7 +20,6 @@ trait HasTranslationsDefaultFallback
             $decodedValue = json_decode($attributeValue ?: '{}', true) ?? [];
             $fallbackLocale = config('app.fallback_locale');
 
-            // Asegurar que siempre haya una traducción en el idioma de fallback
             if (! isset($decodedValue[$fallbackLocale])) {
                 $decodedValue[$fallbackLocale] = $attributeValue;
             }
