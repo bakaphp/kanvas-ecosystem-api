@@ -30,7 +30,7 @@ class MessageBuilder
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid' || $args['where']['column'] === 'slug') && isset($args['where']['value']);
+        $viewingOneMessage = isset($args['where']['column'], $args['where']['value']) && in_array($args['where']['column'], ['id', 'uuid', 'slug'], true);
         //if enable home-view interaction , remove once , moved to getUserFeed
         if ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
             UserInteractionJob::dispatch(
@@ -46,10 +46,11 @@ class MessageBuilder
         if (! empty($args['requiredTags'])) {
             $tagSlugs = $args['requiredTags'];
 
-            // Enforce messages to have *all* specified tags
-            $query->whereHas('tags', function (Builder $q) use ($tagSlugs) {
-                $q->whereIn('slug', $tagSlugs);
-            }, '>=', count($tagSlugs)); // Ensures all tags exist
+            foreach ($tagSlugs as $slug) {
+                $query->whereHas('tags', function (Builder $q) use ($slug) {
+                    $q->where('slug', $slug);
+                });
+            }
         }
 
         //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
