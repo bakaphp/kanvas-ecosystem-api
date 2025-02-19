@@ -9,6 +9,7 @@ use Google\Cloud\DiscoveryEngine\V1\Client\RecommendationServiceClient;
 use Google\Cloud\DiscoveryEngine\V1\RecommendRequest;
 use Google\Cloud\DiscoveryEngine\V1\RecommendResponse;
 use Google\Cloud\DiscoveryEngine\V1\UserEvent;
+use Google\Protobuf\Timestamp;
 use Kanvas\Connectors\Google\Enums\UserEventEnum;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -27,10 +28,15 @@ class DiscoveryUserRecommendationService extends DiscoveryEngineService
             $this->googleRecommendationConfig['servingConfig']
         );
 
+        // Add timestamp to make each request unique
+        $currentTime = new Timestamp();
+        $currentTime->setSeconds(time());
+
         // Prepare the request message.
         $userEvent = (new UserEvent())
             ->setEventType($userEventEventType->value)
-            ->setUserPseudoId((string) $user->getId());
+            ->setUserPseudoId((string) $user->getId())
+            ->setEventTime($currentTime); // Add timestamp
 
         $request = (new RecommendRequest())
             ->setPageSize($pageSize)
