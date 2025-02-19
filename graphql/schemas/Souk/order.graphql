@@ -74,18 +74,12 @@ type PaymentResult {
 
 type OrderItemImport {
     variant_id: Int
-    name: String
-    sku: String
     quantity: Int
-    price: Float
-    tax: Float
-    discount: Float
-    currency: String
 }
 
 type ImportOrderCsvResult {
-    items: [OrderItemImport!]!
-    message: String!
+    status: String!
+    message: Mixed
 }
 
 type GeneratePaymentIntentResult {
@@ -178,7 +172,8 @@ input ProcessPaymentInput {
 
 input ImportOrderCsvInput {
     file: Upload!
-    company_id: ID!
+    channel_id: ID!
+    app_id: ID!
 }
 
 input AppleInAppPurchaseReceipt {
