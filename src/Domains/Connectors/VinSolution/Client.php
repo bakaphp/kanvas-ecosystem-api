@@ -10,6 +10,7 @@ use Illuminate\Redis\Connections\PhpRedisConnection;
 use Illuminate\Support\Facades\Redis as FacadesRedis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ValidationException;
 use Redis;
 
 /**
@@ -46,8 +47,12 @@ class Client
         $this->apiKey = $app->get(ConfigurationEnum::API_KEY->value);
         $this->apiKeyDigitalShowRoom = $app->get(ConfigurationEnum::API_KEY_DIGITAL_SHOWROOM->value);
 
-        $this->redis = FacadesRedis::connection('default');
+        if (! $this->clientId || ! $this->clientSecret || ! $this->apiKey) {
+            throw new ValidationException('VinSolutions API keys not set');
+        }
 
+        $this->redis = FacadesRedis::connection('default');
+        $this->redisKey .= '-' . $app->getId();
         $this->client = new GuzzleClient(
             [
                 'base_uri' => $this->baseUrl,
@@ -93,7 +98,7 @@ class Client
             $this->redis->set(
                 $this->redisKey,
                 $token,
-                3300
+                1800
             );
         }
 

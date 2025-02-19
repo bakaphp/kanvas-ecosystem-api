@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Dealers;
 
+use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\VinSolution\Client;
 
 class Dealer
@@ -27,9 +28,9 @@ class Dealer
     /**
      * Get all the dealers who we have permission for the current app Key.
      */
-    public static function getAll(): array
+    public static function getAll(AppInterface $app): array
     {
-        $client = new Client(0, 0);
+        $client = new Client(0, 0, $app);
         $response = $client->get('/gateway/v1/organization/dealers');
 
         $dealers = [];
@@ -45,17 +46,17 @@ class Dealer
     /**
      * Get a dealer by its ID.
      */
-    public static function getById(int $id): Dealer
+    public static function getById(int $id, AppInterface $app): Dealer
     {
-        return self::getAll()[$id];
+        return self::getAll($app)[$id];
     }
 
     /**
      * Get all users fro the given dealer.
      */
-    public static function getUsers(Dealer $dealer): array
+    public static function getUsers(Dealer $dealer, AppInterface $app): array
     {
-        $client = new Client($dealer->id, 0);
+        $client = new Client($dealer->id, 0, $app);
         $response = $client->get('/gateway/v1/tenant/user?dealerId=' . $dealer->id);
 
         $users = [];
@@ -71,9 +72,9 @@ class Dealer
     /**
      * Get a individual user by its ID.
      */
-    public static function getUser(Dealer $dealer, int $userId): User
+    public static function getUser(Dealer $dealer, int $userId, AppInterface $app): User
     {
-        $client = new Client($dealer->id, 0);
+        $client = new Client($dealer->id, 0, $app);
         $response = $client->get('/gateway/v1/tenant/user/id/' . $userId . '?dealerId=' . $dealer->id);
 
         return new User($response);

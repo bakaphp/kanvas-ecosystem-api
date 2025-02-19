@@ -23,8 +23,15 @@ class PullUserInformationActivity extends KanvasActivity
             ];
         }
 
-        $dealer = Dealer::getById($company->get(ConfigurationEnum::COMPANY->value));
-        $vinUsers = $dealer->getUsers($dealer);
+        if (! $company->get(ConfigurationEnum::COMPANY->value)) {
+            return [
+                'error' => 'Company not found in VinSolution',
+            ];
+        }
+
+        $dealer = Dealer::getById($company->get(ConfigurationEnum::COMPANY->value), $app);
+        $vinUsers = $dealer->getUsers($dealer, $app);
+        $match = false;
 
         foreach ($vinUsers as $vinUser) {
             if ($vinUser->email == $user->email) {
@@ -33,12 +40,22 @@ class PullUserInformationActivity extends KanvasActivity
                     $vinUser->id
                 );
 
+                $match = true;
+
                 break;
             }
         }
 
+        if (! $match) {
+            return [
+                'error' => 'User not found in VinSolution',
+                'looking' => $user->email,
+                'vinUsers' => $vinUser,
+            ];
+        }
+
         return [
-            'success' => true,
+            'success' => $match,
             'message' => 'User information pulled successfully',
             'user' => $user,
             'vinUsers' => $vinUser,

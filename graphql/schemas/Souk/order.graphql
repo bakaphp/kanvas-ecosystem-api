@@ -27,7 +27,7 @@ type Order {
     display_gross_prices: Boolean
     translated_discount_name: String
     customer_note: String
-    weight: Money!
+    weight: Money
     checkout_token: String
     currency: String
     metadata: Mixed

@@ -23,8 +23,8 @@ final class UserTest extends TestCase
         $company = Companies::first();
         $company->set(ConfigurationEnum::COMPANY->value, getenv('TEST_VINSOLUTIONS_COMPANY_ID'));
 
-        $dealer = Dealer::getById($company->get(ConfigurationEnum::COMPANY->value));
-        $vinUsers = $dealer->getUsers($dealer);
+        $dealer = Dealer::getById($company->get(ConfigurationEnum::COMPANY->value), $app);
+        $vinUsers = Dealer::getUsers($dealer, $app);
 
         $this->assertTrue(count($vinUsers) > 0);
     }

@@ -8,7 +8,7 @@ type LeadReceiver {
     name: String!
     source_name: String
     is_default: Boolean!
-    template: String
+    template: Mixed
     leadSource: LeadSource @belongsTo(relation: "leadSource")
     leadType: LeadType @belongsTo(relation: "leadType")
     leadRotation: LeadRotation @belongsTo(relation: "rotation")
@@ -20,11 +20,11 @@ input LeadReceiverInput {
     name: String!
     agents_id: ID!
     is_default: Boolean!
-    rotations_id: ID!
+    rotations_id: ID
     source_name: String
     lead_sources_id: ID!
     lead_types_id: ID!
-    template: String
+    template: Mixed
 }
 
 extend type Mutation {
