@@ -31,8 +31,9 @@ class OneSignalService
         $oneSignalRestApiKey = $app->get(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue());
         $this->oneSignalClient = new OneSignalClient(
             $this->oneSignalAppId,
-            'https://api.onesignal.com',
             $oneSignalRestApiKey,
+            '',
+            0,
         );
     }
 
