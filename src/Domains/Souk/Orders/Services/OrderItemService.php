@@ -97,7 +97,8 @@ class OrderItemService
             ];
         }
 
+        $cart = app('cart')->session($this->user->getId());
         $addToCartAction = new AddToCartAction($this->app, $this->user, $this->currentUsercompany);
-        $addToCartAction->execute($cartItems);
+        $addToCartAction->execute($cart, $cartItems);
     }
 }

@@ -16,15 +16,14 @@ class AddToCartAction
     public function __construct(
         protected Apps $app,
         protected Users $user,
+        protected Companies $company
     ) {
     }
 
-    public function execute(array $items): array
+    public function execute(mixed $cart, array $items): array
     {
-        $user = $this->user;
-        $company = $user->getCurrentCompany();
+        $company = $this->company;
         $currentUserCompany = $company;
-        $cart = app('cart')->session($user->getId());
         $app = app(Apps::class);
 
         /**

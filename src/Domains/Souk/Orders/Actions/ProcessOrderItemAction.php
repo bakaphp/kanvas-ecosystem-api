@@ -21,7 +21,7 @@ class ProcessOrderItemAction
     ) {
     }
 
-    public function execute($file, int $channelId)
+    public function execute(UploadedFile $file, int $channelId, mixed $cart): array
     {
         $orderItemService = new OrderItemService($this->app, $this->user, $this->currentUsercompany);
         $items = $orderItemService->getOrderItemsFromCsv($file);
@@ -45,7 +45,7 @@ class ProcessOrderItemAction
         }
 
         // Process the order items and add to cart.
-        $orderItemService->processOrderItems($validOrderItems, $channelId);
+        $orderItemService->processOrderItems($validOrderItems, $channelId, $cart);
         return [
             'status' => 'success',
             'message' => 'Items processed successfully',

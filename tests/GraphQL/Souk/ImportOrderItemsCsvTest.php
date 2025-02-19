@@ -54,6 +54,8 @@ class ImportOrderItemsCsvTest extends TestCase
 
     public function testImportOrderItemsCsv(): void
     {
+        $user = $this->createUser();
+        $cart = app('cart')->session($user->getId());
         $regionResponse = $this->createRegion()->json()['data']['createRegion'];
         $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct()->json()['data']['createProduct'];
@@ -146,6 +148,10 @@ class ImportOrderItemsCsvTest extends TestCase
                 ]
             ]
         ]);
+
+
+        $cartItems = $cart->getContent()->toArray();
+        $this->assertCount(2, $cartItems);
     }
 
     public function testImportOrderItemsWithoutAvailableStock(): void

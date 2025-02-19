@@ -19,9 +19,10 @@ class CartManagementMutation
         $company = $user->getCurrentCompany();
         $currentUserCompany = $company;
         $app = app(Apps::class);
+        $cart = app('cart')->session($user->getId());
 
         $addToCartAction = new AddToCartAction($app, $user, $currentUserCompany);
-        return $addToCartAction->execute($request['items']);
+        return $addToCartAction->execute($cart, $request['items']);
     }
 
     public function update(mixed $root, array $request): array
