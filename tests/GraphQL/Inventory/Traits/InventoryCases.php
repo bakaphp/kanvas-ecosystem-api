@@ -136,7 +136,7 @@ trait InventoryCases
         ', $data);
     }
 
-    public function addVariantToWarehouse(string $variantId, string $warehouseId, int $amount = null, array $data = []): TestResponse
+    public function addVariantToWarehouse(string $variantId, string $warehouseId, int $amount = 0, array $data = []): TestResponse
     {
         if (empty($data)) {
             $data = [

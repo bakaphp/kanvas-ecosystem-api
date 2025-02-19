@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use Illuminate\Http\UploadedFile;
+use Kanvas\Apps\Models\Apps;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
@@ -14,12 +15,14 @@ class ImportOrderItemsCsvTest extends TestCase
 
     public function testImportOrderWithoutValidItemsCsv(): void
     {
+        $app = app(Apps::class);
+
         $operations = [
             'query' =>
             /** @lang GraphQL */
             '
-                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
-                    importOrderCsv(input: {file: $file, channel_id: $channel_id})
+                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!, $app_id: ID!) {
+                    importOrderCsv(input: {file: $file, channel_id: $channel_id, app_id: $app_id})
                     { 
                         status, 
                         message 
@@ -29,6 +32,7 @@ class ImportOrderItemsCsvTest extends TestCase
             'variables' => [
                 'file' => null,
                 'channel_id' => 1,
+                'app_id' => $app->getId(),
             ],
         ];
 
@@ -55,6 +59,7 @@ class ImportOrderItemsCsvTest extends TestCase
     public function testImportOrderItemsCsv(): void
     {
         $user = $this->createUser();
+        $app = app(Apps::class);
         $cart = app('cart')->session($user->getId());
         $regionResponse = $this->createRegion()->json()['data']['createRegion'];
         $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
@@ -104,8 +109,8 @@ class ImportOrderItemsCsvTest extends TestCase
             'query' =>
             /** @lang GraphQL */
             '
-                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
-                    importOrderCsv(input: {file: $file, channel_id: $channel_id})
+                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!, $app_id: ID!) {
+                    importOrderCsv(input: {file: $file, channel_id: $channel_id, app_id: $app_id})
                     { 
                         status, 
                         message 
@@ -115,6 +120,7 @@ class ImportOrderItemsCsvTest extends TestCase
             'variables' => [
                 'file' => null,
                 'channel_id' => $channelResponse['id'],
+                'app_id' => $app->getId(),
             ],
         ];
 
@@ -156,6 +162,7 @@ class ImportOrderItemsCsvTest extends TestCase
 
     public function testImportOrderItemsWithoutAvailableStock(): void
     {
+        $app = app(Apps::class);
         $regionResponse = $this->createRegion()->json()['data']['createRegion'];
         $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct()->json()['data']['createProduct'];
@@ -204,8 +211,8 @@ class ImportOrderItemsCsvTest extends TestCase
             'query' =>
             /** @lang GraphQL */
             '
-                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
-                    importOrderCsv(input: {file: $file, channel_id: $channel_id})
+                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!, $app_id: ID!) {
+                    importOrderCsv(input: {file: $file, channel_id: $channel_id, app_id: $app_id})
                     { 
                         status, 
                         message 
@@ -215,6 +222,7 @@ class ImportOrderItemsCsvTest extends TestCase
             'variables' => [
                 'file' => null,
                 'channel_id' => $channelResponse['id'],
+                'app_id' => $app->getId(),
             ],
         ];
 

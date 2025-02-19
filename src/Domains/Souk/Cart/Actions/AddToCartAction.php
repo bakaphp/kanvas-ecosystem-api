@@ -10,6 +10,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantPriceService;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
+use Wearepixel\Cart\Cart;
 
 class AddToCartAction
 {
@@ -20,26 +21,25 @@ class AddToCartAction
     ) {
     }
 
-    public function execute(mixed $cart, array $items): array
+    public function execute(Cart $cart, array $items): array
     {
         $company = $this->company;
         $currentUserCompany = $company;
-        $app = app(Apps::class);
 
         /**
          * @todo for now for b2b store clients
          * change this to use company group?
          */
-        if ($app->get('USE_B2B_COMPANY_GROUP')) {
-            if (UserCompanyApps::where('companies_id', $app->get('B2B_GLOBAL_COMPANY'))->where('apps_id', $app->getId())->first()) {
-                $company = Companies::getById($app->get('B2B_GLOBAL_COMPANY'));
+        if ($this->app->get('USE_B2B_COMPANY_GROUP')) {
+            if (UserCompanyApps::where('companies_id', $this->app->get('B2B_GLOBAL_COMPANY'))->where('apps_id', $this->app->getId())->first()) {
+                $company = Companies::getById($this->app->get('B2B_GLOBAL_COMPANY'));
             }
         }
 
         //@todo send warehouse via header
         //$useCompanySpecificPrice = $app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false;
 
-        $variantPriceService = new VariantPriceService($app, $currentUserCompany);
+        $variantPriceService = new VariantPriceService($this->app, $currentUserCompany);
         foreach ($items as $item) {
             $variant = Variants::getByIdFromCompany($item['variant_id'], $company);
             $channelId = $item['channel_id'] ?? null;

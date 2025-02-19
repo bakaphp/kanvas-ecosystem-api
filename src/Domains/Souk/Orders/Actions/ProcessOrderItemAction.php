@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Jobs\ProcessOrderItemJob;
 use Kanvas\Souk\Orders\Services\OrderItemService;
 use Kanvas\Users\Models\Users;
+use Wearepixel\Cart\Cart;
 
 class ProcessOrderItemAction
 {
@@ -21,7 +22,7 @@ class ProcessOrderItemAction
     ) {
     }
 
-    public function execute(UploadedFile $file, int $channelId, mixed $cart): array
+    public function execute(UploadedFile $file, int $channelId, Cart $cart): array
     {
         $orderItemService = new OrderItemService($this->app, $this->user, $this->currentUsercompany);
         $items = $orderItemService->getOrderItemsFromCsv($file);
