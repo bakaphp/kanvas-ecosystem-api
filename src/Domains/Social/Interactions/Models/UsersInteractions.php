@@ -45,4 +45,9 @@ class UsersInteractions extends BaseModel
     {
         return Str::simpleSlug($this->entity_namespace) . '-' . $this->entity_id;
     }
+
+    public function entity(): BelongsTo
+    {
+        return $this->belongsTo($this->entity_namespace, 'entity_id');
+    }
 }
