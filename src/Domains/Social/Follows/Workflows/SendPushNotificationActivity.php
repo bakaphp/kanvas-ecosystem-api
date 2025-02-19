@@ -19,7 +19,7 @@ use Workflow\Activity;
 class SendPushNotificationActivity extends Activity implements WorkflowActivityInterface
 {
     use KanvasJobsTrait;
-    public $tries = 3;
+    //public $tries = 3;
 
     public function execute(Model $entity, AppInterface $app, array $params = []): array
     {

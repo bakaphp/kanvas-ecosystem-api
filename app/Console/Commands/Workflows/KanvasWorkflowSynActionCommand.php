@@ -12,6 +12,7 @@ use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
+use Kanvas\Connectors\Google\Activities\GenerateMessageTagsWithAiActivity;
 use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
@@ -35,6 +36,7 @@ use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
+use Kanvas\Connectors\Shopify\Jobs\ShopifyOrderNotesWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateShopifyDraftOrderActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateUserActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\DeleteVariantFromShopifyActivity;
@@ -46,6 +48,7 @@ use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
@@ -123,6 +126,9 @@ class KanvasWorkflowSynActionCommand extends Command
             MessageOwnerChildNotificationActivity::class,
             SwitchZohoLeadOwnerReceiverJob::class,
             OptimizeImageFromMessageActivity::class,
+            ShopifyOrderNotesWebhookJob::class,
+            PullUserInformationActivity::class,
+            GenerateMessageTagsWithAiActivity::class,
         ];
 
         $createdActions = [];

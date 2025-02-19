@@ -9,7 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Products\Models\ProductsTypes;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 

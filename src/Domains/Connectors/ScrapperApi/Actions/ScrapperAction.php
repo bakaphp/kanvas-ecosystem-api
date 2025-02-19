@@ -21,6 +21,7 @@ use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
+use PHPShopify\Exception\CurlException;
 
 use function Sentry\captureException;
 
@@ -41,7 +42,7 @@ class ScrapperAction
         public string $search,
         ?string $uuid = null
     ) {
-        $this->uuid = $uuid ?? Str::uuid();
+        $this->uuid = $uuid;
     }
 
     public function execute(): array
@@ -74,6 +75,7 @@ class ScrapperAction
                 if ($mappedProduct['price'] >= 230) {
                     continue;
                 }
+
                 $product = (
                     new ProductImporterAction(
                         ProductImporter::from($mappedProduct),
@@ -86,8 +88,12 @@ class ScrapperAction
                 )->execute();
 
                 $syncProductWithShopify = new SyncProductWithShopifyAction($product);
-                $response = $syncProductWithShopify->execute();
-                $this->setCustomFieldAmazonPrice($product);
+                try {
+                    $response = $syncProductWithShopify->execute();
+                } catch (CurlException $e) {
+                    continue;
+                }
+                $this->setCustomFieldAmazonPrice(product: $product);
                 $importerProducts++;
 
                 if ($this->uuid) {

@@ -43,6 +43,11 @@ type Product {
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
 }
+### @todo extract this into its own type.
+type EntityExport {
+    url: String!
+    message: Mixed!
+}
 
 input ProductInput {
     products_types_id: ID
@@ -103,7 +108,7 @@ enum FormatSortAttribute {
     DATE
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAdmin {
     createProduct(input: ProductInput!): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"
@@ -207,5 +212,9 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
             defaultCount: 25
+        )
+    productsExport: EntityExport
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"
         )
 }
