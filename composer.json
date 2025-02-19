@@ -47,6 +47,7 @@
         "phpclassic/php-shopify": "^1.2",
         "powersync/authorizenet-sdk-php": "^2.0",
         "pusher/pusher-php-server": "^7.2",
+        "recombee/php-api-client": "^5.0",
         "ryanwinchester/netsuite-php": "^2024.2",
         "sentry/sentry-laravel": "^4.2",
         "shish/safe": "^2.6",

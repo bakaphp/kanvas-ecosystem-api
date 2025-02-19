@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "228c440741478c81aea8216bd3d19e90",
+    "content-hash": "103fa28cdd96582d05328ddb3450a73b",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -9592,6 +9592,52 @@
             "time": "2024-05-24T10:39:05+00:00"
         },
         {
+            "name": "recombee/php-api-client",
+            "version": "v5.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/recombee/php-api-client.git",
+                "reference": "dbeb2843e305c7f7fd14f257fed477067c635318"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/dbeb2843e305c7f7fd14f257fed477067c635318",
+                "reference": "dbeb2843e305c7f7fd14f257fed477067c635318",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^6.0.0 || ^7.0.0",
+                "php": ">=7.2 || ^8.0"
+            },
+            "require-dev": {
+                "phpdocumentor/phpdocumentor": "^3.0",
+                "phpunit/phpunit": "^9.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Recombee\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ondřej Fiedler",
+                    "email": "ondrej.fiedler@recombee.com"
+                }
+            ],
+            "description": "PHP client for easy use of the Recombee recommendation API.",
+            "homepage": "https://recombee.com",
+            "support": {
+                "issues": "https://github.com/recombee/php-api-client/issues",
+                "source": "https://github.com/recombee/php-api-client/tree/v5.0.0"
+            },
+            "time": "2025-01-14T12:33:00+00:00"
+        },
+        {
             "name": "revolt/event-loop",
             "version": "v1.0.6",
             "source": {
@@ -17336,12 +17382,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": [],
-    "plugin-api-version": "2.3.0"
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
 }
