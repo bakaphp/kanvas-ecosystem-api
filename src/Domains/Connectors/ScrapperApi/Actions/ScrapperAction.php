@@ -45,12 +45,11 @@ class ScrapperAction
         ?string $uuid = null
     ) {
         $this->uuid = $uuid;
-        $this->overwriteAppService($app);
-
     }
 
     public function execute(): array
     {
+        $this->overwriteAppService($this->app);
         Log::info('Scrapper Started');
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
 
@@ -106,12 +105,14 @@ class ScrapperAction
                     );
                 }
 
-                if (App::environment('local')) {
-                    break;
-                }
-                if ($this->app->get('limit-product-scrapper')
-                    && ($importerProducts > $this->app->get('limit-product-scrapper'))
+                // if (App::environment('local')) {
+                //     break;
+                // }
+                $limit = (int) $this->app->get('limit-product-scrapper');
+                if ($limit
+                    && ($importerProducts > $limit)
                 ) {
+                    Log::info('Scrapper limit reached');
                     break;
                 }
             } catch (Throwable $e) {
