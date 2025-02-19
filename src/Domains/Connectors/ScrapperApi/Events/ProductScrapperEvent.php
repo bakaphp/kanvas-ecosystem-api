@@ -15,6 +15,7 @@ class ProductScrapperEvent implements ShouldBroadcast
 {
     use Dispatchable;
     use InteractsWithSockets;
+    public $connection = 'sync';
 
     public function __construct(
         protected AppInterface $app,
