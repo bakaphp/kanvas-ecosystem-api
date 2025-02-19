@@ -33,7 +33,6 @@ class OneSignalService
             $this->oneSignalAppId,
             'https://api.onesignal.com',
             $oneSignalRestApiKey,
-            ''
         );
     }
 
