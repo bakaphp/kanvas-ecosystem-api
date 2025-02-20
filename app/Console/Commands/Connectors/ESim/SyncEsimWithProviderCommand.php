@@ -217,6 +217,12 @@ class SyncEsimWithProviderCommand extends Command
         $message->message = $messageData;
         $message->saveOrFail();
 
+        $order = $message->appModuleMessage;
+        $metadata = is_array($order->metadata) ? $order->metadata : [];
+        $metadata['esim_status'] = $response;
+        $order->metadata = $metadata;
+        $order->saveOrFail();
+
         $this->info("Message ID: {$message->id} has been updated with the eSIM status.");
 
         $inactiveStatuses = [
