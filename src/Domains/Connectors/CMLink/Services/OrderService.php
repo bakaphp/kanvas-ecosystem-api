@@ -49,6 +49,30 @@ class OrderService
         ]);
     }
 
+    public function getOrderStatus(string $thirdOrderId): array
+    {
+        $response = $this->client->post('/aep/APP_getSubscriberAllQuota_SBO/v1', [
+            'thirdOrderId' => $thirdOrderId,
+            'accessToken' => $this->client->getAccessToken(),
+        ]);
+
+        // Check if quotaList and historyQuota exist
+        if (! isset($response['quotaList'][0]['historyQuota'])) {
+            return ['total' => 0]; // No data usage available
+        }
+
+        // Calculate total qtaconsumption in MB
+        $totalConsumptionMB = array_sum(array_column($response['quotaList'][0]['historyQuota'], 'qtaconsumption'));
+
+        // Convert MB to required format (MB * 1,000,000 to match 500MB = 500000000)
+        $totalConsumptionFormatted = (int) ($totalConsumptionMB * 1000000);
+
+        return [
+            'total' => $totalConsumptionFormatted,
+            'original_response' => $response, // Keep original response for debugging
+        ];
+    }
+
     /**
      * Create an order and ensure activation.
      *
