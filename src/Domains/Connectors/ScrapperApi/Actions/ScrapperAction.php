@@ -26,7 +26,6 @@ use Laravel\Octane\Facades\Octane;
 
 use function Sentry\captureException;
 
-
 use Throwable;
 
 /**
@@ -34,7 +33,6 @@ use Throwable;
  */
 class ScrapperAction
 {
-
     public ?string $uuid = null;
 
     public function __construct(
@@ -82,5 +80,4 @@ class ScrapperAction
             'results' => $results
         ];
     }
-
 }
