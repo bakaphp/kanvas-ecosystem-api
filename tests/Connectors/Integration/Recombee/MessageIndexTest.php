@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Recombee;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
