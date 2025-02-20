@@ -59,6 +59,7 @@ use Carbon\Carbon;
  *  @property int $total_disliked
  *  @property int $total_view
  *  @property int $is_public
+ *  @property int $is_premium
  *  @property int $total_children
  *  @property int $total_saved
  *  @property int $total_shared

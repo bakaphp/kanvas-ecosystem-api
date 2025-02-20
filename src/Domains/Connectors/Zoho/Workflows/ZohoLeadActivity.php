@@ -18,7 +18,7 @@ use Kanvas\Workflow\KanvasActivity;
  */
 class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    public $tries = 5;
+    //public $tries = 5;
 
     /**
      * @param Lead $lead

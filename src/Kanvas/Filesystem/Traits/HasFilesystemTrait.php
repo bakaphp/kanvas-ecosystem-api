@@ -40,7 +40,7 @@ trait HasFilesystemTrait
      *
      * @throws Exception
      */
-    public function addFileFromUrl(string $url, string $fieldName): bool
+    public function addFileFromUrl(string $url, string $fieldName, ?Apps $app = null): bool
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
@@ -59,7 +59,7 @@ trait HasFilesystemTrait
 
             $extension = $fileInfo['extension'] ?? 'unknown';
             $fileSystem->companies_id = $companyId;
-            $fileSystem->apps_id = app(Apps::class)->getId();
+            $fileSystem->apps_id = $app ? $app->getId() : app(Apps::class)->getId();
             $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
             $fileSystem->path = $fileInfo['dirname'] . '/' . $fileInfo['basename'];
             $fileSystem->url = $url;
@@ -87,7 +87,7 @@ trait HasFilesystemTrait
         return true;
     }
 
-    public function overWriteFiles(array $files): bool
+    public function overWriteFiles(array $files, ?Apps $app = null): bool
     {
         $existingFiles = $this->getFiles();
         $newFiles = collect($files);
@@ -104,7 +104,7 @@ trait HasFilesystemTrait
 
         // Add or update new files
         foreach ($newFiles as $file) {
-            $this->addFileFromUrl($file['url'], $file['name']);
+            $this->addFileFromUrl($file['url'], $file['name'], $app);
         }
 
         return true;

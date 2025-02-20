@@ -24,7 +24,7 @@ use Throwable;
 
 class CreateOrderInESimActivity extends KanvasActivity
 {
-    public $tries = 2;
+    //public $tries = 2;
 
     public function execute(Order $order, Apps $app, array $params): array
     {
@@ -39,6 +39,14 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         $provider = $order->items()->first()->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+
+        if (! $provider) {
+            return [
+                'status' => 'error',
+                'message' => 'Provider not found',
+            ];
+        }
+
         $providerValue = strtolower($provider->value);
 
         try {
@@ -69,7 +77,8 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         $order->metadata = array_merge(($order->metadata ?? []), $response);
-        $order->saveOrFail();
+        $order->completed();
+        //$order->saveOrFail();
         $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $response);
 
         $response['order_id'] = $order->id;
@@ -126,6 +135,7 @@ class CreateOrderInESimActivity extends KanvasActivity
         );
 
         $message = $createMessage->execute();
+        $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
 
         return [
             'status' => 'success',

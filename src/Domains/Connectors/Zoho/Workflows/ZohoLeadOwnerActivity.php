@@ -12,7 +12,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class ZohoLeadOwnerActivity extends KanvasActivity
 {
-    public $tries = 10;
+    //public $tries = 10;
 
     public function execute(
         string $zohoLeadId,
