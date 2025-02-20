@@ -24,7 +24,7 @@ use Laravel\Octane\Listeners\StopWorkerIfNecessary;
 use Laravel\Octane\Octane;
 
 return [
-    
+
     'host' => '0.0.0.0',
     'port' => '8000',
     'swoole' => [
