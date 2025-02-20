@@ -10,7 +10,7 @@ use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Throwable;
 
-class IndexPromptRecombeeCommand extends Command
+class IndexUserInteractionRecombeeCommand extends Command
 {
     /**
      * The name and signature of the console command.
