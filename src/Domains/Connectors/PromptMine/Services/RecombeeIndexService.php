@@ -6,26 +6,38 @@ namespace Kanvas\Connectors\PromptMine\Services;
 
 use Baka\Contracts\AppInterface;
 use InvalidArgumentException;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Recombee\Client;
 use Kanvas\Social\Enums\InteractionEnum;
+use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Users\Models\Users;
 use Recombee\RecommApi\Client as RecommApiClient;
 use Recombee\RecommApi\Requests\AddBookmark;
 use Recombee\RecommApi\Requests\AddDetailView;
 use Recombee\RecommApi\Requests\AddItemProperty;
+use Recombee\RecommApi\Requests\AddUserProperty;
+use Recombee\RecommApi\Requests\SetUserValues;
 use Recombee\RecommApi\Requests\AddPurchase;
 use Recombee\RecommApi\Requests\AddRating;
 use Recombee\RecommApi\Requests\ListItemProperties;
+use Recombee\RecommApi\Requests\ListUserProperties;
 use Recombee\RecommApi\Requests\SetItemValues;
+use Kanvas\Users\Repositories\UsersInteractionsRepository;
 
 class RecombeeIndexService
 {
     protected RecommApiClient $client;
 
-    public function __construct(protected AppInterface $app)
-    {
-        $this->client = (new Client($app))->getClient();
+    public function __construct(
+        protected AppInterface $app,
+        ?string $recombeeDatabase = null,
+        ?string $recombeeApiKey = null,
+        string $recombeeRegion = 'ca-east'
+    ) {
+        $this->client = (new Client($app, $recombeeDatabase, $recombeeApiKey, $recombeeRegion))->getClient();
     }
 
     public function createPromptMessageDatabase(): void
@@ -53,6 +65,27 @@ class RecombeeIndexService
             if (! in_array($property, $existingPropertyNames)) {
                 // Property does not exist, add it
                 $this->client->send(new AddItemProperty($property, $type));
+            }
+        }
+    }
+
+
+    public function createUsersDatabase(): void
+    {
+        $properties = [
+            'firstname' => 'string',
+            'lastname' => 'string',
+            'email' => 'string',
+            'displayname' => 'string',
+            'liked_categories' => 'set',
+        ];
+        $existingProperties = $this->client->send(new ListUserProperties());
+        $existingPropertyNames = array_column($existingProperties, 'name');
+
+        foreach ($properties as $property => $type) {
+            if (! in_array($property, $existingPropertyNames)) {
+                // Property does not exist, add it
+                $this->client->send(new AddUserProperty($property, $type));
             }
         }
     }
@@ -123,6 +156,59 @@ class RecombeeIndexService
         } else {
             $request = new $interactionClass($userInteraction->users_id, $userInteraction->entity_id, $parameters);
         }
+
+        return $this->client->send($request);
+    }
+
+    public function indexUsers(Users $user, Companies $company): mixed
+    {
+        $userLikedCategories = UsersInteractionsRepository::getUserLikedTagsByInteractions(
+            Message::class,
+            [InteractionEnum::LIKE->getValue()],
+            $user,
+            $company,
+            $this->app
+        );
+
+        $request = new SetUserValues(
+            $user->getId(),
+            [
+                'firstname' => $user->firstname,
+                'lastname' => $user->lastname,
+                'email' => $user->email,
+                'displayname' => $user->displayname,
+                'liked_categories' => json_encode(array_values(array_unique($userLikedCategories))),
+            ],
+            ['cascadeCreate' => true]
+        );
+
+        return $this->client->send($request);
+    }
+
+    public function indexTags(Tag $tag): mixed
+    {
+        $request = new SetItemValues(
+            'tag_' . $tag->slug,
+            [
+                'type' => 'tag',
+                'item_value' => $tag->slug
+            ],
+            ['cascadeCreate' => true]
+        );
+
+        return $this->client->send($request);
+    }
+
+    public function indexUsersFollows(UsersFollows $usersFollow): mixed
+    {
+        $request = new SetItemValues(
+            'follow_' . $usersFollow->users_id,
+            [
+                'type' => 'follow',
+                'item_value' => $usersFollow->entity_id
+            ],
+            ['cascadeCreate' => true]
+        );
 
         return $this->client->send($request);
     }

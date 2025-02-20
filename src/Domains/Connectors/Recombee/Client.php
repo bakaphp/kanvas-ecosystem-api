@@ -13,11 +13,16 @@ class Client
 {
     protected RecommApiClient $client;
 
-    public function __construct(protected AppInterface $app)
+    public function __construct(
+        protected AppInterface $app,
+        ?string $recombeeDatabase = null,
+        ?string $recombeeApiKey = null,
+        string $recombeeRegion = 'ca-east'
+        )
     {
-        $recombeeDatabase = $app->get(ConfigurationEnum::RECOMBEE_DATABASE->value);
-        $recombeeApiKey = $app->get(ConfigurationEnum::RECOMBEE_API_KEY->value);
-        $recombeeRegion = $app->get(ConfigurationEnum::RECOMBEE_REGION->value) ?? 'us-east';
+        $recombeeDatabase ?? $app->get(ConfigurationEnum::RECOMBEE_DATABASE->value);
+        $recombeeApiKey ?? $app->get(ConfigurationEnum::RECOMBEE_API_KEY->value);
+        $recombeeRegion ?? $app->get(ConfigurationEnum::RECOMBEE_REGION->value);
 
         if (empty($recombeeDatabase) || empty($recombeeApiKey)) {
             throw new ValidationException('Recombee database and api key are required');
