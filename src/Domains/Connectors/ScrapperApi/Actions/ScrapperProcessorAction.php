@@ -90,13 +90,13 @@ class ScrapperProcessorAction
                 $this->setCustomFieldAmazonPrice(product: $product);
 
                 if ($this->uuid) {
-                    // ProductScrapperEvent::dispatch(
-                    //     $this->app,
-                    //     $this->uuid,
-                    //     $product,
-                    //     $product->getShopifyId($this->region),
-                    //     $response[0]
-                    // );
+                    ProductScrapperEvent::dispatch(
+                        $this->app,
+                        $this->uuid,
+                        $product,
+                        $product->getShopifyId($this->region),
+                        $response[0]
+                    );
                 }
                 $shopifyData = [
                     'shopify_id' => $product->getShopifyId($this->region),
