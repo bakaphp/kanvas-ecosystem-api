@@ -14,6 +14,7 @@ use Swoole\Server;
 use Swoole\Coroutine;
 
 use Illuminate\Support\Facades\Log;
+
 class ScrapperReceiverJob extends ProcessWebhookJob
 {
     public function execute(): array
@@ -30,7 +31,7 @@ class ScrapperReceiverJob extends ProcessWebhookJob
             $request['search'],
             key_exists('uuid', $request) ? $request['uuid'] : null
         );
-       
+
 
         return [
             'message' => 'Scrapper started',

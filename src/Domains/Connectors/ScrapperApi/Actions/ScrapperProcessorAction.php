@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
 use Baka\Contracts\AppInterface;
@@ -33,7 +35,6 @@ class ScrapperProcessorAction
         public ?string $uuid = null
     ) {
         $this->uuid = $uuid;
-
     }
 
     public function execute()
@@ -72,7 +73,6 @@ class ScrapperProcessorAction
                             true
                         )
                     )->execute();
-
                 } catch (\Throwable $e) {
                     Log::error($e->getMessage());
                     Log::debug($e->getTraceAsString());
@@ -129,5 +129,4 @@ class ScrapperProcessorAction
 
         $sdk->Product($shopifyProductId)->Metafield->post($metafieldData);
     }
-
 }
