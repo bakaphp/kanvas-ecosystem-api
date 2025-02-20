@@ -10,7 +10,10 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Laravel\Octane\Facades\Octane;
+use Swoole\Server;
+use Swoole\Coroutine;
 
+use Illuminate\Support\Facades\Log;
 class ScrapperReceiverJob extends ProcessWebhookJob
 {
     public function execute(): array
@@ -27,12 +30,12 @@ class ScrapperReceiverJob extends ProcessWebhookJob
             $request['search'],
             key_exists('uuid', $request) ? $request['uuid'] : null
         );
-        Octane::concurrently([function () use ($action) {
-            return $action->execute();
-        }]);
+       
+
         return [
             'message' => 'Scrapper started',
-            'search' => $request['search']
+            'search' => $request['search'],
+            'results' => $action->execute()
         ];
     }
 }

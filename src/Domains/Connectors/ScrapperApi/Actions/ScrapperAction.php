@@ -22,10 +22,10 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use PHPShopify\Exception\CurlException;
+use Laravel\Octane\Facades\Octane;
 
 use function Sentry\captureException;
 
-use Baka\Traits\KanvasJobsTrait;
 
 use Throwable;
 
@@ -34,7 +34,6 @@ use Throwable;
  */
 class ScrapperAction
 {
-    use KanvasJobsTrait;
 
     public ?string $uuid = null;
 
@@ -47,102 +46,41 @@ class ScrapperAction
         ?string $uuid = null
     ) {
         $this->uuid = $uuid;
-        $this->overwriteAppService($app);
     }
 
     public function execute(): array
     {
         Log::info('Scrapper Started');
-        $warehouse = $this->region->warehouses()->where('is_default', true)->first();
-
-        $channels = Channels::getDefault($this->companyBranch->company);
-
         $repository = new ScrapperRepository($this->app);
         $results = $repository->getSearch($this->search);
-        $service = new ProductService($channels, $warehouse);
         $scrapperProducts = 0;
         $importerProducts = 0;
-        foreach ($results as $i => $result) {
-            $scrapperProducts++;
-
-            try {
-                if (preg_match('/(?:asin=|dp\/)([A-Z0-9]{10})/', $result['url'], $matches)) {
-                    $asin = $matches[1];
-                } else {
-                    continue;
-                }
-                $product = $repository->getByAsin($asin);
-                $product = array_merge($product, $result);
-                if (empty($product['price']) && empty($product['original_price']['price'])) {
-                    continue;
-                }
-                $mappedProduct = $service->mapProduct($product);
-                if ($mappedProduct['price'] >= 230) {
-                    continue;
-                }
-
-                $product = (
-                    new ProductImporterAction(
-                        ProductImporter::from($mappedProduct),
-                        $this->companyBranch->company,
-                        $this->user,
-                        $this->region,
-                        $this->app,
-                        true
-                    )
-                )->execute();
-
-                $syncProductWithShopify = new SyncProductWithShopifyAction($product);
-                try {
-                    $response = $syncProductWithShopify->execute();
-                } catch (CurlException $e) {
-                    continue;
-                }
-                $this->setCustomFieldAmazonPrice(product: $product);
-                $importerProducts++;
-
-                if ($this->uuid) {
-                    ProductScrapperEvent::dispatch(
-                        $this->app,
-                        $this->uuid,
-                        $product,
-                        $product->getShopifyId($this->region),
-                        $response[0]
-                    );
-                }
-
-                if (App::environment('local')) {
-                    break;
-                }
-                if ($this->app->get('limit-product-scrapper')
-                    && ($importerProducts > $this->app->get('limit-product-scrapper'))
-                ) {
-                    break;
-                }
-            } catch (Throwable $e) {
-                Log::error($e->getMessage());
-                captureException($e);
-            }
+        $limit = (int) $this->app->get('limit-product-scrapper');
+        $results = array_slice($results, 0, $limit);
+        $app = $this->app;
+        $user = $this->user;
+        $companyBranch = $this->companyBranch;
+        $region = $this->region;
+        $uuid = $this->uuid;
+        $classConcurrently = [];
+        foreach ($results as $result) {
+            $action = (new ScrapperProcessorAction(
+                $app,
+                $user,
+                $companyBranch,
+                $region,
+                [$result],
+                $uuid
+            ));
+            $classConcurrently[] = fn () => $action->execute();
         }
-
+        Log::debug(json_encode(value: $classConcurrently));
+        Octane::concurrently($classConcurrently);
         return [
             'scrapperProducts' => $scrapperProducts,
             'importerProducts' => $importerProducts,
+            'results' => $results
         ];
     }
 
-    public function setCustomFieldAmazonPrice(Products $product): void
-    {
-        $sdk = Client::getInstance($this->app, $this->companyBranch->company, $this->region);
-        $shopifyProductId = $product->getShopifyId($this->region);
-        $attribute = $product->attributes()->where('name', ScrapperConfigEnum::AMAZON_PRICE->value)->first();
-        $metafieldData = [
-            'namespace' => 'custom',
-            'key' => 'amazon_price',
-            'value' => json_encode(['amount' => $attribute->value, 'currency_code' => 'USD']),
-            'type' => 'money',
-        ];
-
-        $sdk->Product($shopifyProductId)->Metafield->post($metafieldData);
-    }
 }
