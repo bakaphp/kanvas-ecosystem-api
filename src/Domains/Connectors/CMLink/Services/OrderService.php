@@ -49,6 +49,14 @@ class OrderService
         ]);
     }
 
+    public function getOrderStatus(string $thirdOrderId): array
+    {
+        return $this->client->post('/aep/APP_getSubscriberAllQuota_SBO/v1', [
+            'thirdOrderId' => $thirdOrderId,
+            'accessToken' => $this->client->getAccessToken(),
+        ]);
+    }
+
     /**
      * Create an order and ensure activation.
      *
