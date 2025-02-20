@@ -217,7 +217,7 @@ class SyncEsimWithProviderCommand extends Command
         $message->message = $messageData;
         $message->saveOrFail();
 
-        $order = $message->appModuleMessage;
+        $order = $message->appModuleMessage->entity;
         $metadata = is_array($order->metadata) ? $order->metadata : [];
         $metadata['esim_status'] = $response;
         $order->metadata = $metadata;
