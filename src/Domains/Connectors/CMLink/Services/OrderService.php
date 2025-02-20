@@ -49,7 +49,7 @@ class OrderService
         ]);
     }
 
-    public function getOrderStatus(string $thirdOrderId): array
+    public function getOrderStatus(string|int $thirdOrderId): array
     {
         $response = $this->client->post('/aep/APP_getSubscriberAllQuota_SBO/v1', [
             'thirdOrderId' => $thirdOrderId,
