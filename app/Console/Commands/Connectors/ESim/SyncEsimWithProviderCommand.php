@@ -13,6 +13,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
 use Kanvas\Connectors\CMLink\Services\CustomerService;
+use Kanvas\Connectors\CMLink\Services\OrderService as ServicesOrderService;
 use Kanvas\Connectors\EasyActivation\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
@@ -182,12 +183,19 @@ class SyncEsimWithProviderCommand extends Command
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
         $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
+        $orderId = $message->message['order_id'] ?? null;
+        $dataUsage = 0;
+        $totalBytesData = FileSizeConverter::toBytes($totalData);
+        if ($orderId) {
+            $orderService = new ServicesOrderService($message->app, $message->company);
+            $dataUsage = $orderService->getOrderStatus($orderId)['total'];
+        }
 
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
             callTypeGroup: 'data',
-            initialQuantity: FileSizeConverter::toBytes($totalData),
-            remainingQuantity: FileSizeConverter::toBytes($totalData),
+            initialQuantity: $totalBytesData,
+            remainingQuantity: $dataUsage > 0 ? $totalBytesData - $dataUsage : $totalBytesData,
             assignmentDateTime: $installedDate,
             assignmentReference: $response['activationCode'],
             bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
@@ -208,6 +216,12 @@ class SyncEsimWithProviderCommand extends Command
         $messageData['esim_status'] = $response;
         $message->message = $messageData;
         $message->saveOrFail();
+
+        $order = $message->appModuleMessage->entity;
+        $metadata = is_array($order->metadata) ? $order->metadata : [];
+        $metadata['esim_status'] = $response;
+        $order->metadata = $metadata;
+        $order->saveOrFail();
 
         $this->info("Message ID: {$message->id} has been updated with the eSIM status.");
 
