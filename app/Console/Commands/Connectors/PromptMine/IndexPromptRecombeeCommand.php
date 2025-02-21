@@ -52,7 +52,7 @@ class IndexPromptRecombeeCommand extends Command
         $messageIndex->createPromptMessageDatabase();
 
         foreach ($cursor as $message) {
-            try{
+            try {
                 $result = $messageIndex->indexPromptMessage($message);
 
                 $this->info('Message ID: ' . $message->getId() . ' indexed with result: ' . $result);
@@ -60,7 +60,6 @@ class IndexPromptRecombeeCommand extends Command
             } catch (Throwable $e) {
                 $this->output->error($e->getMessage());
             }
-           
         }
 
         $this->output->progressFinish();
