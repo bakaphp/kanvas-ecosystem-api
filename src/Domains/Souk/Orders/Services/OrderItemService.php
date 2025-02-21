@@ -17,7 +17,7 @@ class OrderItemService
     public function __construct(
         protected Apps $app,
         protected Users $user,
-        protected Companies $currentUsercompany,
+        protected Companies $currentUserCompany,
     ) {
     }
 
@@ -98,7 +98,7 @@ class OrderItemService
         }
 
         $cart = app('cart')->session($this->user->getId());
-        $addToCartAction = new AddToCartAction($this->app, $this->user, $this->currentUsercompany);
+        $addToCartAction = new AddToCartAction($this->app, $this->user, $this->currentUserCompany);
         $addToCartAction->execute($cart, $cartItems);
     }
 }
