@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\PromptMine;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Throwable;
 
 class IndexPromptRecombeeCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -37,7 +41,6 @@ class IndexPromptRecombeeCommand extends Command
         $this->overwriteAppService($app);
 
         $messageType = (int) $this->argument('message_type_id');
-
         $messageType = MessageType::getById($messageType, $app);
 
         $query = Message::fromApp($app)->where('message_types_id', $messageType->getId())->orderBy('id', 'asc');
@@ -49,10 +52,15 @@ class IndexPromptRecombeeCommand extends Command
         $messageIndex->createPromptMessageDatabase();
 
         foreach ($cursor as $message) {
-            $result = $messageIndex->indexPromptMessage($message);
+            try{
+                $result = $messageIndex->indexPromptMessage($message);
 
-            $this->info('Message ID: ' . $message->getId() . ' indexed with result: ' . $result);
-            $this->output->progressAdvance();
+                $this->info('Message ID: ' . $message->getId() . ' indexed with result: ' . $result);
+                $this->output->progressAdvance();
+            } catch (Throwable $e) {
+                $this->output->error($e->getMessage());
+            }
+           
         }
 
         $this->output->progressFinish();

@@ -99,6 +99,7 @@ class RecombeeIndexService
 
         $interactionMap = [
             InteractionEnum::VIEW->getValue() => AddDetailView::class,
+            InteractionEnum::SHARE->getValue() => AddDetailView::class,
             InteractionEnum::LIKE->getValue() => AddRating::class,
             InteractionEnum::DISLIKE->getValue() => AddRating::class,
             InteractionEnum::SAVE->getValue() => AddBookmark::class,
