@@ -90,6 +90,25 @@ class RecombeeIndexService
         }
     }
 
+    public function createUsersFollowsItemsDatabase(): void
+    {
+        $properties = [
+            'users_id' => 'int',
+            'entity_id' => 'int',
+            // 'entity_messages_posts_categories' => 'set',
+            'entity_liked_categories' => 'set'
+        ];
+        $existingProperties = $this->client->send(new ListItemProperties());
+        $existingPropertyNames = array_column($existingProperties, 'name');
+
+        foreach ($properties as $property => $type) {
+            if (! in_array($property, $existingPropertyNames)) {
+                // Property does not exist, add it
+                $this->client->send(new AddItemProperty($property, $type));
+            }
+        }
+    }
+
     public function indexPromptMessage(Message $message): mixed
     {
         $messageData = $message->message;
@@ -199,17 +218,38 @@ class RecombeeIndexService
         return $this->client->send($request);
     }
 
-    public function indexUsersFollows(UsersFollows $usersFollow): mixed
+    public function indexUsersFollows(UsersFollows $usersFollow,Companies $company): mixed
     {
+        $userLikedCategories = UsersInteractionsRepository::getUserLikedTagsByInteractions(
+            Message::class,
+            [InteractionEnum::LIKE->getValue()],
+            $usersFollow->entity,
+            $company,
+            $this->app
+        );
+
+        $userMessagesCategories = UsersInteractionsRepository::getUserLikedTagsByInteractions(
+            Message::class,
+            [InteractionEnum::LIKE->getValue()],
+            $usersFollow->entity,
+            $company,
+            $this->app
+        );
+        
+
         $request = new SetItemValues(
-            'follow_' . $usersFollow->users_id,
+            $usersFollow->getId(),
             [
-                'type' => 'follow',
-                'item_value' => $usersFollow->entity_id
+                'users_id' => $usersFollow->users_id,
+                'entity_id' => $usersFollow->entity_id,
+                // 'entity_messages_posts_categories' => $usersFollow->entity->tags->pluck('name')->toArray(),
+                'entity_liked_categories' => json_encode(array_values(array_unique($userLikedCategories))),
             ],
             ['cascadeCreate' => true]
         );
 
         return $this->client->send($request);
     }
+
+
 }

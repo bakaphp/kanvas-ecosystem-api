@@ -19,7 +19,7 @@ class IndexUsersFollowsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:recombee-index-users-follows {app_id}';
+    protected $signature = 'kanvas:recombee-index-users-follows {app_id} {companies_id}';
 
     /**
      * The console command description.
@@ -35,7 +35,7 @@ class IndexUsersFollowsCommand extends Command
     public function handle()
     {
         $app = Apps::getById((int) $this->argument('app_id'));
-        // $company = Companies::find($this->argument('companies_id'));
+        $company = Companies::find($this->argument('companies_id'));
         // $this->overwriteAppService($app);
 
         $query = UsersFollows::fromApp($app)
@@ -51,9 +51,10 @@ class IndexUsersFollowsCommand extends Command
             $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_DATABASE->value),
             $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_API_KEY->value)
         );
+        $usersFollowsIndex->createUsersFollowsItemsDatabase();
 
         foreach ($cursor as $userFollow) {
-            $result = $usersFollowsIndex->indexUsersFollows($userFollow);
+            $result = $usersFollowsIndex->indexUsersFollows($userFollow, $company);
 
             $this->info('Users Follows ID: ' . $userFollow->getId() . ' indexed with result: ' . $result);
             $this->output->progressAdvance();

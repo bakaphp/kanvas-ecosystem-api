@@ -8,21 +8,54 @@ use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Recombee\Client;
 use Recombee\RecommApi\Client as RecommApiClient;
+use Recombee\RecommApi\Requests\GetUserValues;
 use Recombee\RecommApi\Requests\RecommendItemsToUser;
 
 class RecombeeUserRecommendationService
 {
     protected RecommApiClient $client;
 
-    public function __construct(protected AppInterface $app)
+    public function __construct(protected AppInterface $app, protected string $recombeeDatabase, protected string $recombeeApiKey, $recombeeRegion = 'ca-east')
     {
-        $this->client = (new Client($app))->getClient();
+        $this->client = (new Client(
+            $app,
+            $recombeeDatabase,
+            $recombeeApiKey,
+            $recombeeRegion
+        ))->getClient();
     }
 
     public function getUserForYouFeed(UserInterface $user, int $count = 100, string $scenario = 'for-you-feed'): array
     {
         $options = [
             'scenario' => $scenario,
+        ];
+
+        return $this->client->send(new RecommendItemsToUser($user->getId(), $count, $options))['recomms'] ?? [];
+    }
+
+    public function getUsersFromSimilarInterestByFollow(UserInterface $user, int $count = 100, string $scenario = '​user-folllow-suggetion-similar-interest'): array
+    {
+        $userData = $this->client->send(new GetUserValues($user->getId()));
+
+        $likedCategories = $userData['liked_categories'] ?? [];
+
+        foreach ($likedCategories as $category) {
+            $conditions[] = sprintf('"%s" IN \'entity_liked_categories\'', $category);
+        }
+        $filter = implode(" OR ", $conditions);
+
+        $filter = sprintf(
+            '\'entity_id\' != %d AND \'users_id\' != %d AND (%s)',
+            $user->getId(),
+            $user->getId(),
+            $filter
+        );
+
+        $options = [
+            'scenario' => $scenario,
+            'filter' => $filter,
+            'returnProperties' => true,
         ];
 
         return $this->client->send(new RecommendItemsToUser($user->getId(), $count, $options))['recomms'] ?? [];
