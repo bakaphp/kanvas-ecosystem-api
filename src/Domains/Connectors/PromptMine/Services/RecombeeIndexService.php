@@ -218,7 +218,7 @@ class RecombeeIndexService
         return $this->client->send($request);
     }
 
-    public function indexUsersFollows(UsersFollows $usersFollow,Companies $company): mixed
+    public function indexUsersFollows(UsersFollows $usersFollow, Companies $company): mixed
     {
         $userLikedCategories = UsersInteractionsRepository::getUserLikedTagsByInteractions(
             Message::class,
@@ -228,14 +228,13 @@ class RecombeeIndexService
             $this->app
         );
 
-        $userMessagesCategories = UsersInteractionsRepository::getUserLikedTagsByInteractions(
-            Message::class,
-            [InteractionEnum::LIKE->getValue()],
-            $usersFollow->entity,
-            $company,
-            $this->app
-        );
-        
+        // $userMessagesCategories = UsersInteractionsRepository::getUserLikedTagsByInteractions(
+        //     Message::class,
+        //     [InteractionEnum::LIKE->getValue()],
+        //     $usersFollow->entity,
+        //     $company,
+        //     $this->app
+        // );
 
         $request = new SetItemValues(
             $usersFollow->getId(),
