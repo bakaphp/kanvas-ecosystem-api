@@ -35,8 +35,9 @@ class ProcessOrderItemJob implements ShouldQueue
     public function handle(): void
     {
         $this->overwriteAppService($this->app);
+        $cart = app('cart')->session($this->user->getId());
 
         $orderItemService = new OrderItemService($this->app, $this->user, $this->currentUsercompany);
-        $orderItemService->processOrderItems($this->orderItems, $this->channelId);
+        $orderItemService->processOrderItems($this->orderItems, $this->channelId, $cart);
     }
 }
