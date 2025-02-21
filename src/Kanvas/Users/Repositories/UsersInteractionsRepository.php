@@ -13,7 +13,6 @@ use Kanvas\Users\Models\Users;
 
 class UsersInteractionsRepository
 {
-
     public static function getUserLikedTagsByInteractions(string $entityNamespace, array $interactionNamesArray, Users $user, Companies $company, ?AppInterface $app = null): array
     {
         $interactionIdsArray = Interactions::fromApp($app)
