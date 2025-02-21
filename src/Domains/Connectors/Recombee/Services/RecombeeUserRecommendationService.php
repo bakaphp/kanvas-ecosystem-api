@@ -21,6 +21,11 @@ class RecombeeUserRecommendationService
 
     public function getUserForYouFeed(UserInterface $user, int $count = 100, string $scenario = 'for-you-feed'): array
     {
+        return $this->getUserRecommendation($user, $count, $scenario);
+    }
+
+    public function getUserRecommendation(UserInterface $user, int $count = 100, string $scenario = 'for-you-feed'): array
+    {
         $options = [
             'scenario' => $scenario,
             //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
