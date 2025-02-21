@@ -246,9 +246,6 @@ class RecombeeIndexService
             ],
             ['cascadeCreate' => true]
         );
-
         return $this->client->send($request);
     }
-
-
 }

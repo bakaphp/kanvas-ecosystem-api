@@ -43,7 +43,7 @@ class UsersInteractionsRepository
         // We need to get the liked messages and get the tags from them to know what the user is following and what it likes
         foreach ($userInteraction as $likeInteraction) {
 
-            if (!$likeInteraction->entity) {
+            if (! $likeInteraction->entity) {
                 continue;
             }
 

@@ -18,8 +18,7 @@ class Client
         ?string $recombeeDatabase = null,
         ?string $recombeeApiKey = null,
         string $recombeeRegion = 'ca-east'
-        )
-    {
+    ) {
         $recombeeDatabase ?? $app->get(ConfigurationEnum::RECOMBEE_DATABASE->value);
         $recombeeApiKey ?? $app->get(ConfigurationEnum::RECOMBEE_API_KEY->value);
         $recombeeRegion ?? $app->get(ConfigurationEnum::RECOMBEE_REGION->value);

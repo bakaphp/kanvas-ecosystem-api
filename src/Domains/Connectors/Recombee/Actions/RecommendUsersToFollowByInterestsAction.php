@@ -35,18 +35,16 @@ class RecommendUsersToFollowByInterestsAction
         $response = $recommendationService->getUsersFromSimilarInterestByFollow($this->user, $pageSize, 'user-folllow-suggetion-similar-interests');
 
         $entityIds = collect($response)
-        ->pluck('values.entity_id')
-        ->unique()
-        ->filter() // Remove null values
-        ->toArray();
+            ->pluck('values.entity_id')
+            ->unique()
+            ->filter()
+            ->toArray();
 
         if (empty($entityIds)) {
             return [];
         }
-    
-        // Fetch all users in one query (avoid N+1 queries)
+
         $usersToFollow = Users::whereIn('id', $entityIds)->get();
-    
         return $usersToFollow->toArray();
     }
 }
