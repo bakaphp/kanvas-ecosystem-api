@@ -41,7 +41,7 @@ class GenerateRecombeeUserMessageAction
                             ->where('is_shared', 0);
                     })
                     ->lockForUpdate()
-                    ->delete();
+                    ->forceDelete();
             }
 
             $totalSeconds = 200;
