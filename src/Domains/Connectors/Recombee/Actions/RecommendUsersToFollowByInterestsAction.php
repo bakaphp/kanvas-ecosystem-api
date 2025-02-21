@@ -22,7 +22,8 @@ class RecommendUsersToFollowByInterestsAction
         protected CompanyInterface $company,
         protected UserInterface $user,
         protected bool $cleanUserFeed = false
-    ) {}
+    ) {
+    }
 
     public function execute(int $pageSize = 350): array
     {
