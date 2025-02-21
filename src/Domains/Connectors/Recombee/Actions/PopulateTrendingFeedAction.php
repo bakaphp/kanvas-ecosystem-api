@@ -29,9 +29,11 @@ class PopulateTrendingFeedAction
         $trendingSlug = 'trending';
         $userForYouFeed = $recommendationService->getUserRecommendation($this->user, $pageSize, $trendingSlug);
 
-        Message::whereHas('tags', function ($query) use ($trendingSlug) {
+        Message::fromApp($this->app)->whereHas('tags', function ($query) use ($trendingSlug) {
             $query->where('slug', $trendingSlug);
-        })->forceDelete();
+        })->get()->each(function ($message) use ($trendingSlug) {
+            $message->removeTag($trendingSlug);
+        });
 
         foreach ($userForYouFeed as $index => $messageId) {
             $messageId = $messageId['id'];
