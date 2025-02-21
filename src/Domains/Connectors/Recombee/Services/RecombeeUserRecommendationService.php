@@ -40,8 +40,39 @@ class RecombeeUserRecommendationService
 
         $likedCategories = $userData['liked_categories'] ?? [];
 
+        if (empty($likedCategories)) {
+            return [];
+        }
+
         foreach ($likedCategories as $category) {
             $conditions[] = sprintf('"%s" IN \'entity_liked_categories\'', $category);
+        }
+        $filter = implode(" OR ", $conditions);
+
+        $filter = sprintf(
+            '\'entity_id\' != %d AND \'users_id\' != %d AND (%s)',
+            $user->getId(),
+            $user->getId(),
+            $filter
+        );
+
+        $options = [
+            'scenario' => $scenario,
+            'filter' => $filter,
+            'returnProperties' => true,
+        ];
+
+        return $this->client->send(new RecommendItemsToUser($user->getId(), $count, $options))['recomms'] ?? [];
+    }
+
+    public function getUsersFromSimilarPostsCategories(UserInterface $user, int $count = 100, string $scenario = 'user-folllow-suggetion-similar-posts-categories'): array
+    {
+        $userData = $this->client->send(new GetUserValues($user->getId()));
+
+        $likedCategories = $userData['liked_categories'] ?? [];
+
+        foreach ($likedCategories as $category) {
+            $conditions[] = sprintf('"%s" IN \'entity_messages_posts_categories\'', $category);
         }
         $filter = implode(" OR ", $conditions);
 

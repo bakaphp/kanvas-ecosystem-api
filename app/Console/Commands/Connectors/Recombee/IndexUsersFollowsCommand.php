@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Social\Follows\Models\UsersFollows;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 
 class IndexUsersFollowsCommand extends Command
@@ -19,7 +20,7 @@ class IndexUsersFollowsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:recombee-index-users-follows {app_id} {companies_id}';
+    protected $signature = 'kanvas:recombee-index-users-follows {app_id} {companies_id} {message_types_id}';
 
     /**
      * The console command description.
@@ -36,6 +37,7 @@ class IndexUsersFollowsCommand extends Command
     {
         $app = Apps::getById((int) $this->argument('app_id'));
         $company = Companies::find($this->argument('companies_id'));
+        $messageType = MessageType::find($this->argument('message_types_id'));
         // $this->overwriteAppService($app);
 
         $query = UsersFollows::fromApp($app)
@@ -54,7 +56,7 @@ class IndexUsersFollowsCommand extends Command
         $usersFollowsIndex->createUsersFollowsItemsDatabase();
 
         foreach ($cursor as $userFollow) {
-            $result = $usersFollowsIndex->indexUsersFollows($userFollow, $company);
+            $result = $usersFollowsIndex->indexUsersFollows($userFollow, $company, $messageType);
 
             $this->info('Users Follows ID: ' . $userFollow->getId() . ' indexed with result: ' . $result);
             $this->output->progressAdvance();

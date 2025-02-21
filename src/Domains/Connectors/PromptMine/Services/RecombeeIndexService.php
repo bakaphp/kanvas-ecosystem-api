@@ -12,6 +12,8 @@ use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Repositories\MessagesRepository;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Users\Models\Users;
 use Recombee\RecommApi\Client as RecommApiClient;
@@ -95,7 +97,7 @@ class RecombeeIndexService
         $properties = [
             'users_id' => 'int',
             'entity_id' => 'int',
-            // 'entity_messages_posts_categories' => 'set',
+            'entity_messages_posts_categories' => 'set',
             'entity_liked_categories' => 'set'
         ];
         $existingProperties = $this->client->send(new ListItemProperties());
@@ -218,7 +220,7 @@ class RecombeeIndexService
         return $this->client->send($request);
     }
 
-    public function indexUsersFollows(UsersFollows $usersFollow, Companies $company): mixed
+    public function indexUsersFollows(UsersFollows $usersFollow, Companies $company, MessageType $messageType): mixed
     {
         $userLikedCategories = UsersInteractionsRepository::getUserLikedTagsByInteractions(
             Message::class,
@@ -228,20 +230,14 @@ class RecombeeIndexService
             $this->app
         );
 
-        // $userMessagesCategories = UsersInteractionsRepository::getUserLikedTagsByInteractions(
-        //     Message::class,
-        //     [InteractionEnum::LIKE->getValue()],
-        //     $usersFollow->entity,
-        //     $company,
-        //     $this->app
-        // );
+        $userMessagesCategories = MessagesRepository::getUserAllMessagesTags($usersFollow->user, $company, $this->app, $messageType->getId());
 
         $request = new SetItemValues(
             $usersFollow->getId(),
             [
                 'users_id' => $usersFollow->users_id,
                 'entity_id' => $usersFollow->entity_id,
-                // 'entity_messages_posts_categories' => $usersFollow->entity->tags->pluck('name')->toArray(),
+                'entity_messages_posts_categories' => json_encode($userMessagesCategories),
                 'entity_liked_categories' => json_encode(array_values(array_unique($userLikedCategories))),
             ],
             ['cascadeCreate' => true]
