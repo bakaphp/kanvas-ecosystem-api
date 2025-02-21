@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\PromptMine;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
@@ -12,6 +13,8 @@ use Throwable;
 
 class IndexUserInteractionRecombeeCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
