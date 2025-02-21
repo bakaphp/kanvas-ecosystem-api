@@ -16,7 +16,7 @@ class OrderItemService
     public function __construct(
         protected Apps $app,
         protected Users $user,
-        protected Companies $currentUsercompany,
+        protected Companies $currentUserCompany,
     ) {
     }
 

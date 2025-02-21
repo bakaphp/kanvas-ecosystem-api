@@ -23,6 +23,7 @@ class RecombeeUserRecommendationService
     {
         $options = [
             'scenario' => $scenario,
+            //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
         ];
 
         return $this->client->send(new RecommendItemsToUser($user->getId(), $count, $options))['recomms'] ?? [];
