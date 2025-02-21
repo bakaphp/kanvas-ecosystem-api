@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Jobs;
 
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Kanvas\Apps\Models\Apps;
+use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
-use Laravel\Octane\Facades\Octane;
-use Swoole\Server;
-use Swoole\Coroutine;
-
-use Illuminate\Support\Facades\Log;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
 class ScrapperReceiverJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;
+
     public function execute(): array
     {
         $app = $this->receiver->app;
@@ -34,11 +30,10 @@ class ScrapperReceiverJob extends ProcessWebhookJob
             key_exists('uuid', $request) ? $request['uuid'] : null
         );
 
-
         return [
             'message' => 'Scrapper started',
             'search' => $request['search'],
-            'results' => $action->execute()
+            'results' => $action->execute(),
         ];
     }
 }
