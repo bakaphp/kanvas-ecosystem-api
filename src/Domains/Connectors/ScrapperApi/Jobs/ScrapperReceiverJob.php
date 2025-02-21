@@ -17,9 +17,11 @@ use Illuminate\Support\Facades\Log;
 
 class ScrapperReceiverJob extends ProcessWebhookJob
 {
+    use KanvasJobsTrait;
     public function execute(): array
     {
         $app = $this->receiver->app;
+        $this->overwriteAppService($app);
         $branch = CompaniesBranches::getById($this->receiver->configuration['branch_id']);
         $regions = Regions::getById($this->receiver->configuration['region_id']);
         $request = $this->webhookRequest->payload;
