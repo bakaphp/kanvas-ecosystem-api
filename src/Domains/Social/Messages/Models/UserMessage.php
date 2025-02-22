@@ -75,9 +75,9 @@ class UserMessage extends BaseModel
                     return $query->where('messages.message_types_id', $messageTypeId);
                 })
                 ->where('messages.users_id', '<>', $user->getId()) //for now we are not showing liked messages
-                ->where('user_messages.is_liked', 0) //for now we are not showing liked messages
+                #->where('user_messages.is_liked', 0) //for now we are not showing liked messages
                 ->where('user_messages.is_disliked', 0) //for now we are not showing disliked messages
-                ->where('user_messages.is_shared', 0) //for now we are not showing disliked messages
+                #->where('user_messages.is_shared', 0) //for now we are not showing disliked messages
                 ->where('user_messages.is_deleted', 0) //for now we are not showing saved messages
                 ->orderBy('user_messages.created_at', 'asc') //top recommendation , we are now listing last
                 ->select('messages.*');

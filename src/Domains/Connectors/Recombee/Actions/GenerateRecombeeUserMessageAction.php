@@ -94,6 +94,20 @@ class GenerateRecombeeUserMessageAction
                     })
                     ->lockForUpdate()
                     ->delete();
+
+                // Update the created_at timestamp for the messages we didnt process
+                UserMessage::fromApp($this->app)
+                    ->where('users_id', $this->user->getId())
+                    ->whereNotIn('messages_id', $processedIds)
+                    ->where(function ($query) {
+                        $query->where('is_liked', 1)
+                            ->orWhere('is_disliked', 1)
+                            ->orWhere('is_saved', 1)
+                            ->orWhere('is_purchased', 1)
+                            ->orWhere('is_shared', 1);
+                    })
+                    ->lockForUpdate()
+                    ->update(['created_at' => Carbon::now()]);
             }
         });
 
