@@ -22,17 +22,22 @@ class RecombeeUserRecommendationService
 
     public function getUserForYouFeed(UserInterface $user, int $count = 100, string $scenario = 'for-you-feed'): array
     {
-        return $this->getUserRecommendation($user, $count, $scenario);
+        return $this->getUserRecommendation($user, $count, $scenario, [
+            'rotationRate' => 0.0,
+          //  'rotationTime' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value) ??  7200.0,
+        ]);
     }
 
-    public function getUserRecommendation(UserInterface $user, int $count = 100, string $scenario = 'for-you-feed'): array
-    {
-        $options = [
+    public function getUserRecommendation(
+        UserInterface $user,
+        int $count = 100,
+        string $scenario = 'for-you-feed',
+        array $additionalOptions = []
+    ): array {
+        $options = array_merge([
             'scenario' => $scenario,
-            'rotationRate' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_RATE->value ?? 0.5),
-            'rotationTime' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value ?? 7200.0),
             //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
-        ];
+        ], $additionalOptions);
 
         return $this->client->send(new RecommendItemsToUser($user->getId(), $count, $options))['recomms'] ?? [];
     }
