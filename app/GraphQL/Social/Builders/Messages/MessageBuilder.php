@@ -73,7 +73,7 @@ class MessageBuilder
 
         $currentPage = (int) ($args['page'] ?? 1);
         //generate home-view interaction
-        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 1) {
+        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 2) {
             UserInteractionJob::dispatch(
                 $app,
                 $user,

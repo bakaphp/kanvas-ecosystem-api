@@ -28,28 +28,16 @@ class GenerateRecombeeUserMessageAction
         $recommendationService = new RecombeeUserRecommendationService($this->app);
         $userForYouFeed = $recommendationService->getUserForYouFeed($this->user, $pageSize, 'for-you-feed');
 
-        DB::transaction(function () use ($userForYouFeed) {
-            if ($this->cleanUserFeed) {
-                // Lock the user messages for this app and user to avoid concurrent jobs
-                UserMessage::fromApp($this->app)
-                    ->where('users_id', $this->user->getId())
-                    ->where(function ($query) {
-                        $query->where('is_liked', 0)
-                            ->where('is_disliked', 0)
-                            ->where('is_saved', 0)
-                            ->where('is_purchased', 0)
-                            ->where('is_shared', 0);
-                    })
-                    ->lockForUpdate()
-                    ->delete();
-            }
+        $messageTypeId = $this->app->get('social-user-message-filter-message-type');
+        $processedIds = [];
 
+        DB::transaction(function () use ($userForYouFeed, $messageTypeId, &$processedIds) {
             $totalSeconds = 200;
             $secondsInterval = $totalSeconds / count($userForYouFeed);
-            $messageTypeId = $this->app->get('social-user-message-filter-message-type');
 
-            foreach ($userForYouFeed as $index => $messageId) {
-                $messageId = $messageId['id'];
+            // First process all new messages
+            foreach ($userForYouFeed as $index => $messageData) {
+                $messageId = $messageData['id'];
 
                 // Check if the message still exists
                 if (! Message::fromApp($this->app)
@@ -62,6 +50,8 @@ class GenerateRecombeeUserMessageAction
                 ) {
                     continue;
                 }
+
+                $processedIds[] = $messageId;
 
                 $existingUserMessage = UserMessage::withTrashed()->where([
                     'messages_id' => $messageId,
@@ -85,6 +75,22 @@ class GenerateRecombeeUserMessageAction
                         'created_at' => Carbon::now()->subSeconds($totalSeconds - ($index * $secondsInterval)),
                     ]);
                 }
+            }
+
+            // Then clean up old messages, excluding the ones we just processed
+            if ($this->cleanUserFeed && ! empty($processedIds)) {
+                UserMessage::fromApp($this->app)
+                    ->where('users_id', $this->user->getId())
+                    ->whereNotIn('messages_id', $processedIds) // Don't delete messages we just processed
+                    ->where(function ($query) {
+                        $query->where('is_liked', 0)
+                            ->where('is_disliked', 0)
+                            ->where('is_saved', 0)
+                            ->where('is_purchased', 0)
+                            ->where('is_shared', 0);
+                    })
+                    ->lockForUpdate()
+                    ->delete();
             }
         });
 
