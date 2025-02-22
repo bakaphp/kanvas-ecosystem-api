@@ -14,6 +14,7 @@ use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\GenerateMessageTagsWithAiActivity;
 use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
+use Kanvas\Connectors\Google\Activities\PushMessageToItemActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
@@ -131,6 +132,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PullUserInformationActivity::class,
             GenerateMessageTagsWithAiActivity::class,
             PushUserInteractionToEventActivity::class,
+            PushMessageToItemActivity::class,
         ];
 
         $createdActions = [];
