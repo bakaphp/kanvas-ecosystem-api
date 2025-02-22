@@ -27,6 +27,9 @@ class GenerateRecombeeUserMessageAction
     {
         $recommendationService = new RecombeeUserRecommendationService($this->app);
         $userForYouFeed = $recommendationService->getUserForYouFeed($this->user, $pageSize, 'for-you-feed');
+        if (count($userForYouFeed) === 0) {
+            $userForYouFeed = $recommendationService->getUserForYouFeed($this->user, $pageSize, 'trending');
+        }
 
         $messageTypeId = $this->app->get('social-user-message-filter-message-type');
         $processedIds = [];
