@@ -10,6 +10,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Recombee\Actions\PopulateTrendingFeedAction;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\Tags\Actions\CreateTagAction;
+use Kanvas\Social\Tags\DataTransferObjects\Tag;
 
 class PopulateTrendingFeedCommand extends Command
 {
@@ -43,6 +45,16 @@ class PopulateTrendingFeedCommand extends Command
         //$messageType = (int) $this->argument('message_type_id');
 
         //$messageType = MessageType::getById($messageType, $app);
+        $tag = (new CreateTagAction(
+            new Tag(
+                $app,
+                $company->user,
+                $company,
+                'Trending'
+            )
+        ))->execute();
+        $tag->is_feature = 1;
+        $tag->save();
 
         $populateTrendingFeedAction = new PopulateTrendingFeedAction($app, $company, true);
         $populateTrendingFeedAction->execute();
