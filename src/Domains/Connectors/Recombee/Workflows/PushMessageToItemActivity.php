@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Google\Activities;
+namespace Kanvas\Connectors\Recombee\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
