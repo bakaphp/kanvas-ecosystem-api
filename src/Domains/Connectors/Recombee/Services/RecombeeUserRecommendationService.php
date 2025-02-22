@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Recombee\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Recombee\Client;
+use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Recombee\RecommApi\Client as RecommApiClient;
 use Recombee\RecommApi\Requests\RecommendItemsToUser;
 
@@ -28,6 +29,8 @@ class RecombeeUserRecommendationService
     {
         $options = [
             'scenario' => $scenario,
+            'rotationRate' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_RATE->value ?? 0.5),
+            'rotationTime' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value ?? 7200.0),
             //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
         ];
 
