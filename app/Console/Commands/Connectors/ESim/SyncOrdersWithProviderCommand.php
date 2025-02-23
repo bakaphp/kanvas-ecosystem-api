@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\CMLink\Services\CustomerService;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
@@ -47,6 +48,7 @@ class SyncOrdersWithProviderCommand extends Command
         $orders = Order::fromApp($app)->fromCompany($company)->notDeleted()->whereNotFulfilled()->orderBy('id', 'desc')->get();
 
         $eSimService = new ESimService($app);
+        $cmLinkCustomerService = new CustomerService($app, $company);
 
         foreach ($orders as $order) {
             $iccid = $order->metadata['data']['iccid'] ?? null;
@@ -74,11 +76,31 @@ class SyncOrdersWithProviderCommand extends Command
             match (strtolower($provider->value)) {
                 strtolower(ProviderEnum::E_SIM_GO->value) => $this->esimGoFulfillment($eSimService, $order, $iccid, $bundle),
                 strtolower(ProviderEnum::EASY_ACTIVATION->value) => [],
+                strtolower(ProviderEnum::CMLINK->value) => $this->cmLinkFulfillment($cmLinkCustomerService, $order, $iccid),
                 default => [],
             };
         }
 
         return;
+    }
+
+    protected function cmLinkFulfillment(CustomerService $customerService, Order $order, string $iccid): void
+    {
+        try {
+            $response = $customerService->getEsimInfo($iccid);
+        } catch (Exception $e) {
+            $this->info("Order ID: {$order->id} does not have an ICCID.");
+            $order->cancel();
+            $order->fulfillCancelled();
+
+            return;
+        }
+
+        if (! empty($response)) {
+            $order->fulfill();
+            $order->completed();
+            $this->info("Syncing order ID: {$order->id}");
+        }
     }
 
     protected function esimGoFulfillment(ESimService $eSimService, Order $order, string $iccid, string $bundle): void

@@ -16,7 +16,7 @@ use Stripe\Stripe;
 
 class GenerateStripeSignupLinkForUserActivity extends KanvasActivity
 {
-    public $tries = 5;
+    //public $tries = 5;
 
     public function execute(UserInterface $user, Apps $app, array $params): array
     {

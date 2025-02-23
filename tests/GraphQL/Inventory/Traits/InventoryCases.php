@@ -90,6 +90,83 @@ trait InventoryCases
             }', ['data' => $data]);
     }
 
+    public function createChannel(array $data = []): TestResponse
+    {
+        if (empty($data)) {
+            $data = [
+                'name' => fake()->name,
+                'description' => fake()->text,
+                'is_default' => true,
+            ];
+        }
+
+        return $this->graphQL('
+        mutation($data: CreateChannelInput!) {
+            createChannel(input: $data)
+            {
+                id
+                name
+                description,
+                is_default
+            }
+        }', ['data' => $data]);
+    }
+
+    public function addVariantToChannel(string $variantId, string $channelId, array $warehouseData, array $data = []): TestResponse
+    {
+        if (empty($data)) {
+            $data = [
+                'variants_id' => $variantId,
+                'channels_id' => $channelId,
+                'warehouses_id' => $warehouseData['id'],
+                'input' => [
+                    'price' => 100,
+                    'discounted_price' => 10,
+                    'is_published' => true,
+                ]
+            ];
+        }
+
+        return $this->graphQL('
+        mutation addVariantToChannel($variants_id: ID! $channels_id: ID! $warehouses_id: ID! $input: VariantChannelInput!){
+            addVariantToChannel(variants_id: $variants_id channels_id:$channels_id warehouses_id:$warehouses_id input:$input){
+                id
+            } 
+        }
+        ', $data);
+    }
+
+    public function addVariantToWarehouse(string $variantId, string $warehouseId, int $amount = 0, array $data = []): TestResponse
+    {
+        if (empty($data)) {
+            $data = [
+                'data' => [
+                    'id' => $warehouseId,
+                    'price' => rand(1, 1000),
+                    'quantity' => $amount ?? rand(1, 5),
+                    'position' => rand(1, 4),
+                ],
+                'id' => $variantId,
+            ];
+        }
+
+        return $this->graphQL('
+        mutation addVariantToWarehouse($data: WarehouseReferenceInput! $id: ID!) {
+            addVariantToWarehouse(input: $data id: $id)
+            {
+                id
+                name
+                description
+                products_id
+                warehouses{
+                    warehouseinfo{
+                        id
+                    }
+                }
+            }
+        }', $data);
+    }
+
     public function createRegion(array $data = []): TestResponse
     {
         if (empty($data)) {
@@ -169,7 +246,7 @@ trait InventoryCases
                 $company,
                 $app,
                 $user,
-                Currencies::where('code', 'USD')->firstOrFail(),
+                Currencies::getBaseCurrency(),
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_NAME->getValue(),
                 null,

@@ -25,14 +25,15 @@ class LocaleMiddleware
             $language = Languages::where('code', $request->header($localeHeader))->firstOrFail();
 
             app()->setLocale(strtolower($language->code));
+
             return $next($request);
         }
-        $company = auth()->user()->getCurrentCompany();
+        //$company = auth()->user()->getCurrentCompany();
         $app = app(Apps::class);
-        $locale = $company->get(AppEnums::DEFAULT_COMPANY_LOCALE->getValue());
-        if (! $locale) {
-            $locale = $app->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) ?? app()->getLocale();
-        }
+        //$locale = $company->get(AppEnums::DEFAULT_COMPANY_LOCALE->getValue());
+        //if (! $locale) {
+        $locale = $app->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) ?? app()->getLocale();
+        //}
 
         app()->setLocale($locale);
 

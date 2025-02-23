@@ -14,7 +14,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class GenerateUserForYouFeedActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    public $tries = 10;
+    //public $tries = 10;
 
     public function execute(Model $user, AppInterface $app, array $params): array
     {
