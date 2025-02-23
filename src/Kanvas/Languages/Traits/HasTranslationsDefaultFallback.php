@@ -34,7 +34,7 @@ trait HasTranslationsDefaultFallback
             (substr($attributeValue, -1) === '}');
 
         $decodedValue = $isJson ? json_decode($attributeValue, true) : [$fallbackLocale => $attributeValue];
-        
+
         // Only filter if we have allowedLocales
         if ($allowedLocales === null) {
             return $decodedValue;

@@ -82,7 +82,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use CanUseWorkflow;
     use HasRating;
     use HasTranslationsDefaultFallback;
-    
+
     protected $table = 'products';
     protected $guarded = [];
     protected $cascadeDeletes = ['variants'];
