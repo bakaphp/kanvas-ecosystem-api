@@ -194,7 +194,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         return $this->buildAttributesQuery(["name->{$locale}" => $name])->first();
     }
 
-    public function getAttributeBySlug(string $slug): ?Attributes
+    public function getAttributeBySlug(string $slug): ?VariantsAttributes
     {
         return $this->attributes()
             ->where('attributes.slug', $slug)
