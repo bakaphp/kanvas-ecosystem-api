@@ -45,19 +45,21 @@ class PopulateTrendingFeedCommand extends Command
         //$messageType = (int) $this->argument('message_type_id');
 
         //$messageType = MessageType::getById($messageType, $app);
+
+        $populateTrendingFeedAction = new PopulateTrendingFeedAction($app, $company, true);
+        $populateTrendingFeedAction->execute();
+
         $tag = (new CreateTagAction(
             new Tag(
                 $app,
                 $company->user,
                 $company,
-                'Trending'
+                'trending'
             )
         ))->execute();
+        $tag->name = 'Trending';
         $tag->is_feature = 1;
-        $tag->save();
-
-        $populateTrendingFeedAction = new PopulateTrendingFeedAction($app, $company, true);
-        $populateTrendingFeedAction->execute();
+        $tag->saveOrFail();
 
         return;
     }

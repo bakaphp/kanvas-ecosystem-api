@@ -19,11 +19,16 @@ class ImportOrderCsvMutation
 
         try {
             $processOrderItemAction = new ProcessOrderItemAction($app, $user, $currentUserCompany);
-            return $processOrderItemAction->execute($request['input']['file'], (int) $request['input']['channel_id'], $cart);
+
+            return $processOrderItemAction->execute(
+                $request['input']['file'],
+                (int) $request['input']['channel_id'],
+                $cart
+            );
         } catch (Exception $e) {
             return [
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }

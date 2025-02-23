@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Models;
 
 use Baka\Traits\KanvasModelTrait;
 use Baka\Traits\KanvasScopesTrait;
+use Baka\Traits\SoftDeletesTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
@@ -14,7 +15,7 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
 use Kanvas\Inventory\Traits\SourceTrait;
-use Baka\Traits\SoftDeletesTrait;
+use Illuminate\Support\Collection;
 
 class BaseModel extends EloquentModel
 {
@@ -35,7 +36,6 @@ class BaseModel extends EloquentModel
 
     /**
      * Prevent laravel from cast is_deleted as date using carbon.
-     *
      */
     protected $casts = [
         'is_deleted' => 'boolean',
@@ -53,5 +53,20 @@ class BaseModel extends EloquentModel
     public function trashed()
     {
         return $this->{$this->getDeletedAtColumn()};
+    }
+
+    public function mapAttributes(Collection $attributesValue): array
+    {
+        $productAttributes = [];
+        foreach ($attributesValue as $attributeValue) {
+            $productAttributes[] = [
+                'id' => $attributeValue->attributes_id,
+                'name' => $attributeValue->attribute->name,
+                'slug' => $attributeValue->attribute->slug,
+                'value' => $attributeValue->value,
+            ];
+        }
+
+        return $productAttributes;
     }
 }
