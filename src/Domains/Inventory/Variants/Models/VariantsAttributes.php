@@ -38,7 +38,7 @@ class VariantsAttributes extends BaseModel
 
     protected $primaryKey = ['products_variants_id', 'attributes_id'];
 
-    public function casts(): array
+    protected function casts(): array
     {
         return [
             'value' => Json::class,

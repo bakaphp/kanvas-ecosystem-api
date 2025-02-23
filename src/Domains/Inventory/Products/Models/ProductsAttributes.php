@@ -59,7 +59,7 @@ class ProductsAttributes extends BaseModel
         return $this->belongsTo(Attributes::class, 'attributes_id');
     }
 
-    public function casts(): array
+    protected function casts(): array
     {
         return [
             'value' => Json::class,

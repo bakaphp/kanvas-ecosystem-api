@@ -23,7 +23,7 @@ type VariantChannel {
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]!
+    attributes: [VariantsAttributes!]! @hasMany(relation: "attributes")
 }
 type ChannelsPricesHistoryRelationship {
     price: Money!

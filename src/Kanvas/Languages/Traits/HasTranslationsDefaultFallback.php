@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Languages\Traits;
 
+use Baka\Support\Str;
 use Spatie\Translatable\HasTranslations;
 
 trait HasTranslationsDefaultFallback
@@ -33,7 +34,9 @@ trait HasTranslationsDefaultFallback
             ($attributeValue[0] ?? '') === '{' &&
             (substr($attributeValue, -1) === '}');
 
-        $decodedValue = $isJson ? json_decode($attributeValue, true) : [$fallbackLocale => $attributeValue];
+        $decodedValue = $isJson
+            ? json_decode($attributeValue, true)
+            : [$fallbackLocale => (Str::isJson($attributeValue) ? json_decode($attributeValue, true) : $attributeValue)];
 
         // Only filter if we have allowedLocales
         if ($allowedLocales === null) {
