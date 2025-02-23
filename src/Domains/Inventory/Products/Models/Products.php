@@ -82,6 +82,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use CanUseWorkflow;
     use HasRating;
     use HasTranslationsDefaultFallback;
+
     protected $table = 'products';
     protected $guarded = [];
     protected $cascadeDeletes = ['variants'];
@@ -128,6 +129,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     public function getAttributeByName(string $name, ?string $locale = null): ?ProductsAttributes
     {
         $locale = $locale ?? app()->getLocale(); // Use app locale if not passed.
+
         return $this->buildAttributesQuery(["name->{$locale}" => $name])->first();
     }
 
@@ -488,20 +490,5 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->variants->count() > $limit
             ? $this->variants->take($limit)->map(fn ($variant) => $variant->toSearchableArraySummary())
             : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
-    }
-
-
-    public function mapAttributes(Collection $attributesValue): array
-    {
-        $productAttributes = [];
-        foreach ($attributesValue as $attributeValue) {
-            $productAttributes[] = [
-                'id' => $attributeValue->attributes_id,
-                'name' => $attributeValue->attribute->name,
-                'slug' => $attributeValue->attribute->slug,
-                'value' => $attributeValue->value,
-            ];
-        }
-        return $productAttributes;
     }
 }

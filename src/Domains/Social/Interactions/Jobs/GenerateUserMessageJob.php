@@ -18,6 +18,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Google\Actions\GenerateGoogleUserMessageAction;
+use Kanvas\Connectors\Recombee\Actions\GenerateRecombeeUserMessageAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
 
@@ -77,6 +78,14 @@ class GenerateUserMessageJob implements ShouldQueue
                 $cleanUserFeed
             );
             $generateUserMessage->execute($pageSize);
+        } elseif ($recommendationEngine == 'recombee') {
+            $generateUserMessage = new GenerateRecombeeUserMessageAction(
+                $this->app,
+                $this->company,
+                $this->user,
+                $cleanUserFeed
+            );
+            $generateUserMessage->execute($pageSize);
         } elseif ($isDevelopment && $recommendationEngine == 'local') {
             $this->executeRandomMessages($pageSize);
         }
@@ -107,7 +116,7 @@ class GenerateUserMessageJob implements ShouldQueue
                     $query->where('is_liked', 0)
                           ->where('is_disliked', 0)
                           ->where('is_saved', 0)
-                            ->where('is_purchased', 0)
+                          ->where('is_purchased', 0)
                           ->where('is_shared', 0);
                 })
                 ->lockForUpdate()

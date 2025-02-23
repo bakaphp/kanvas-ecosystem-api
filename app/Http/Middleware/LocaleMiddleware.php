@@ -22,20 +22,24 @@ class LocaleMiddleware
         $localeHeader = AppEnums::KANVAS_APP_CURRENT_LOCALE_CODE->getValue();
 
         if ($request->hasHeader($localeHeader)) {
-            $language = Languages::where('code', $request->header($localeHeader))->firstOrFail();
-
-            app()->setLocale(strtolower($language->code));
-            return $next($request);
+            $this->setLocaleFromHeader($request, $localeHeader);
+        } else {
+            $this->setLocaleFromApp();
         }
-        $company = auth()->user()->getCurrentCompany();
-        $app = app(Apps::class);
-        $locale = $company->get(AppEnums::DEFAULT_COMPANY_LOCALE->getValue());
-        if (! $locale) {
-            $locale = $app->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) ?? app()->getLocale();
-        }
-
-        app()->setLocale($locale);
 
         return $next($request);
+    }
+
+    protected function setLocaleFromHeader(Request $request, string $localeHeader): void
+    {
+        $language = Languages::where('code', $request->header($localeHeader))->firstOrFail();
+        app()->setLocale(strtolower($language->code));
+    }
+
+    protected function setLocaleFromApp(): void
+    {
+        $app = app(Apps::class);
+        $locale = $app->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) ?? app()->getLocale();
+        app()->setLocale($locale);
     }
 }

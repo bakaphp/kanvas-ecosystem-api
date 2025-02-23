@@ -109,8 +109,8 @@ class VariantChannelBuilder
         //@todo doesnt work with search
         return [
             'name' => $root->channel_name,
-            'price' => $root->price,
-            'discounted_price' => $root->discounted_price,
+            'price' => $root->price ?? 0.00,
+            'discounted_price' => $root->discounted_price ?? 0.00,
             'is_published' => $root->is_published,
         ];
     }

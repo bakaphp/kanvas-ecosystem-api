@@ -20,13 +20,12 @@ class UserContactsManagementMutation
             $contactsEmails[] = $email;
         }
 
-        $appUsers = UsersAssociatedApps::where('apps_id', $app->getId())
-            ->where('is_deleted', 0)
+        $appUsers = UsersAssociatedApps::fromApp($app)
+            ->notDeleted()
             ->whereNotNull('email')
             ->whereNotIn('email', [$authUser->email])
             ->with('user')
             ->lazy();
-
 
         $contactsEmails = array_flip($contactsEmails);
         $matchingContacts = [];
@@ -40,8 +39,8 @@ class UserContactsManagementMutation
         }
 
         return [
-            "matched_contacts" => $matchingContacts,
-            "unmatched_contacts" => array_flip($contactsEmails)
+            'matched_contacts' => $matchingContacts,
+            'unmatched_contacts' => array_flip($contactsEmails),
         ];
     }
 }

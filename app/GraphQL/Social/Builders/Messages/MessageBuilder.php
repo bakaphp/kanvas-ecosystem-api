@@ -30,7 +30,7 @@ class MessageBuilder
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid' || $args['where']['column'] === 'slug') && isset($args['where']['value']);
+        $viewingOneMessage = isset($args['where']['column'], $args['where']['value']) && in_array($args['where']['column'], ['id', 'uuid', 'slug'], true);
         //if enable home-view interaction , remove once , moved to getUserFeed
         if ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
             UserInteractionJob::dispatch(
@@ -41,14 +41,25 @@ class MessageBuilder
             );
         }
 
-        //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
-        if (! $user->isAppOwner()) {
-            $messages = Message::fromCompany($user->getCurrentCompany());
+        $query = Message::query();
 
-            return $messages;
+        if (! empty($args['requiredTags'])) {
+            $tagSlugs = $args['requiredTags'];
+
+            foreach ($tagSlugs as $slug) {
+                $query->whereHas('tags', function (Builder $q) use ($slug) {
+                    $q->where('slug', $slug);
+                });
+            }
         }
 
-        return Message::query();
+        //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
+        if (! $user->isAppOwner()) {
+            //$messages = Message::fromCompany($user->getCurrentCompany());
+            return $query->fromCompany($user->getCurrentCompany());
+        }
+
+        return $query;
     }
 
     public function getUserFeed(
@@ -62,7 +73,7 @@ class MessageBuilder
 
         $currentPage = (int) ($args['page'] ?? 1);
         //generate home-view interaction
-        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 1) {
+        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 2) {
             UserInteractionJob::dispatch(
                 $app,
                 $user,

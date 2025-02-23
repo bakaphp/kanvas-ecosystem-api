@@ -52,4 +52,12 @@ class Currencies extends BaseModel
     {
         return self::where('code', $code)->firstOrFail();
     }
+
+    /**
+     * Base currency for kanvas is USD.
+     */
+    public static function getBaseCurrency(): self
+    {
+        return self::where('code', 'USD')->firstOrFail();
+    }
 }

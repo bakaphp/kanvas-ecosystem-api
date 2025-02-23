@@ -16,6 +16,18 @@ class SyncMessageToDocumentActivity extends KanvasActivity implements WorkflowAc
     {
         $this->overwriteAppService($app);
 
+        $messageType = $params['message_type_id'] ?? null;
+
+        if ($messageType !== null) {
+            if ((int) $message->message_types_id !== (int) $messageType) {
+                return [
+                    'result' => false,
+                    'message' => 'Message type does not match the expected ' . $messageType . ' but found ' . $message->message_types_id,
+                    'id' => $message->id,
+                ];
+            }
+        }
+
         $syncMessageToDocument = new SyncMessageToDocumentAction(
             $app,
             $message->company,

@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Status\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Inventory\Models\BaseModel;
-use Baka\Traits\DatabaseSearchableTrait;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
-use Spatie\Translatable\HasTranslations;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 
 /**
  * Class Attributes.
@@ -29,7 +29,7 @@ class Status extends BaseModel
     use SlugTrait;
     use DatabaseSearchableTrait;
     use DefaultTrait;
-    use HasTranslations;
+    use HasTranslationsDefaultFallback;
 
     protected $table = 'status';
     protected $guarded = [];

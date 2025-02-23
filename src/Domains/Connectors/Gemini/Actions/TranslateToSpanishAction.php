@@ -39,12 +39,8 @@ class TranslateToSpanishAction
 
             return $response['producto_es'];
         } catch (ServerException $e) {
-            captureException($e);
-
             return null;
         } catch (Exception $e) {
-            captureException($e);
-
             return null;
         }
     }

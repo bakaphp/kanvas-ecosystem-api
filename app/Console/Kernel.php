@@ -27,7 +27,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(ScheduleCheckHeartbeatCommand::class)->everyMinute();
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
-        $schedule->command(ScoutMessageReindexCommand::class, ['13'])->everyTenMinutes();
+        $schedule->command(ScoutMessageReindexCommand::class, [env('MESSAGE_REINDEX_SCOUT_APP_ID', '13'), env('MESSAGE_REINDEX_SCOUT_MESSAGE_TYPES_ID', '572')])->everyTenMinutes();
         #$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron
         #$schedule->command(ImportPromptsFromDocsCommand::class)->weeklyOn(1, '00:00');
 
