@@ -5,7 +5,10 @@ type Product {
     name: String!
     slug: String!
     description: String
-    translation(languageCode: String!): ProductTranslation @field (resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation")
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     short_description: String
     html_description: String
     warranty_terms: String
@@ -23,8 +26,7 @@ type Product {
     updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
-    attributes: [ProductAttribute!]!
-        @method(name: "visibleAttributes")
+    attributes: [ProductAttribute!]! @method(name: "visibleAttributes")
     variants: [Variant!]! @HasMany
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")
@@ -132,7 +134,11 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
         )
-    updateProductTranslations(id: ID!, input: ProductTranslationInput!, code: String!): Product!
+    updateProductTranslations(
+        id: ID!
+        input: ProductTranslationInput!
+        code: String!
+    ): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductTranslation"
         )

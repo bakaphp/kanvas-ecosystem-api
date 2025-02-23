@@ -7,7 +7,10 @@ type Category {
     slug: String!
     code: String
     position: Int
-    translation(languageCode: String!): ProductTranslation @field (resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation")
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     is_published: Boolean!
     companies: Company!
     weight: Int
@@ -47,7 +50,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@update"
         )
-    updateCategoryTranslations(id: ID!, input: TranslationInput!, code: String!): Category!
+    updateCategoryTranslations(
+        id: ID!
+        input: TranslationInput!
+        code: String!
+    ): Category!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@updateCategoryTranslation"
         )

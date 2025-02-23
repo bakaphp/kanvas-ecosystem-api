@@ -1,4 +1,4 @@
-input AttributesTypeInput{
+input AttributesTypeInput {
     name: String!
     slug: String
     is_default: Boolean
@@ -10,8 +10,8 @@ input AttributeTypeUpdateInput {
     is_default: Boolean
 }
 
-input AttributeTypeReferenceInput{
-    id: ID!,
+input AttributeTypeReferenceInput {
+    id: ID!
     name: String
 }
 
@@ -23,7 +23,6 @@ type AttributesType {
     created_at: String
     updated_at: String
 }
-
 
 # extend type Mutation @guardByAdmin {
 #     createAttributeType(input: AttributesTypeInput!): AttributesType!
@@ -42,23 +41,8 @@ type AttributesType {
 extend type Query @guard {
     attributesTypes(
         search: String @search
-        where: _ 
-            @whereConditions(
-                columns: [
-                    "uuid",
-                    "id",
-                    "name"
-                ]
-            )
-        orderBy: _
-            @orderBy(
-                columns: [
-                    "id"
-                    "created_at"
-                    "updated_at"
-                    "name"
-                ]
-            )
+        where: _ @whereConditions(columns: ["uuid", "id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [AttributesType!]!
         @paginate(
             defaultCount: 25

@@ -1,7 +1,10 @@
 type Status {
     id: ID!
     name: String!
-    translation(languageCode: String!): ProductTranslation @field (resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation")
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     company: Company! @belongsTo(relation: "company")
     is_default: Boolean
     is_published: Boolean
@@ -38,7 +41,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@update"
         )
-    updateStatusTranslations(id: ID!, input: TranslationInput!, code: String!): Status!
+    updateStatusTranslations(
+        id: ID!
+        input: TranslationInput!
+        code: String!
+    ): Status!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@updateStatusTranslation"
         )

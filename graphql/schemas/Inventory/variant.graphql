@@ -14,7 +14,10 @@ type Variant {
     status: Status
     rating: Float
     weight: Float
-    translation(languageCode: String!): ProductTranslation @field (resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation")
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     files: [Filesystem]
         @cacheRedis
         @paginate(
@@ -27,8 +30,7 @@ type Variant {
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]!
-        @method(name: "visibleAttributes")
+    attributes: [VariantsAttributes!]! @method(name: "visibleAttributes")
     companies: Company! @belongsTo(relation: "company")
     channels: [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")
@@ -126,7 +128,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update"
         )
-    updateVariantTranslations(id: ID!, input: VariantTranslationInput!, code: String): Variant!
+    updateVariantTranslations(
+        id: ID!
+        input: VariantTranslationInput!
+        code: String
+    ): Variant!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantTranslation"
         )
