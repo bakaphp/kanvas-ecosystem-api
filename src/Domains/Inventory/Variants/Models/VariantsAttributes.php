@@ -11,7 +11,7 @@ use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
-use Spatie\Translatable\HasTranslations;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 
 /**
  * Class Variants Attributes.
@@ -26,28 +26,29 @@ use Spatie\Translatable\HasTranslations;
 class VariantsAttributes extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
-    use HasTranslations;
+    use HasTranslationsDefaultFallback;
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
 
     protected $table = 'products_variants_attributes';
     protected $guarded = [
         'products_variants_id',
-        'attributes_id'
+        'attributes_id',
     ];
 
     protected $primaryKey = ['products_variants_id', 'attributes_id'];
 
-    protected $casts = [
-        'value' => Json::class
-    ];
+    public function casts(): array
+    {
+        return [
+            'value' => Json::class,
+        ];
+    }
 
     public $translatable = ['value'];
 
     /**
      * Get the product.
-     *
-     * @return BelongsTo
      */
     public function variant(): BelongsTo
     {
@@ -56,8 +57,6 @@ class VariantsAttributes extends BaseModel
 
     /**
      * Get the attribute.
-     *
-     * @return BelongsTo
      */
     public function attribute(): BelongsTo
     {

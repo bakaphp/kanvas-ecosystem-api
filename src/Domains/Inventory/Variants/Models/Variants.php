@@ -18,7 +18,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -566,19 +565,5 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             ->fromCompany($company)
             ->where('sku', $sku)
             ->firstOrFail();
-    }
-
-    public function mapAttributes(Collection $attributesValue): array
-    {
-        $variantAttributes = [];
-        foreach ($attributesValue as $attributeValue) {
-            $productAttributes[] = [
-                'id' => $attributeValue->attributes_id,
-                'name' => $attributeValue->attribute->name,
-                'slug' => $attributeValue->attribute->slug,
-                'value' => $attributeValue->value,
-            ];
-        }
-        return $variantAttributes;
     }
 }

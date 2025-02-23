@@ -491,19 +491,4 @@ class Products extends BaseModel implements EntityIntegrationInterface
             ? $this->variants->take($limit)->map(fn ($variant) => $variant->toSearchableArraySummary())
             : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
     }
-
-    public function mapAttributes(Collection $attributesValue): array
-    {
-        $productAttributes = [];
-        foreach ($attributesValue as $attributeValue) {
-            $productAttributes[] = [
-                'id' => $attributeValue->attributes_id,
-                'name' => $attributeValue->attribute->name,
-                'slug' => $attributeValue->attribute->slug,
-                'value' => $attributeValue->value,
-            ];
-        }
-
-        return $productAttributes;
-    }
 }
