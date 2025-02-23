@@ -202,7 +202,7 @@ class SyncEsimWithProviderCommand extends Command
             assignmentReference: $response['activationCode'],
             bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
             unlimited: $variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED->value,
-            expirationDate: Carbon::parse($installedDate)->addDays($variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
+            expirationDate: Carbon::parse($installedDate)->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
             imei: $message->message['data']['imei_number'] ?? null,
             esimStatus: $response['state'],
             message: $response['installDevice'],
