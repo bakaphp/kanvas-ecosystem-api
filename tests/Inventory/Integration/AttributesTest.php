@@ -45,4 +45,40 @@ final class AttributesTest extends TestCase
 
         $this->assertEquals($product->getAttributeByName($attributeName)->value, $attributeValue);
     }
+
+    public function testGetAttributesByValue()
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $setupInventory = new Setup($app, $user, $company);
+        $setupInventory->run();
+
+        $region = Regions::fromApp($app)->fromCompany($company)->first();
+
+        $sku = 'model_price_01';
+
+        $productData = new Product(
+            app: $app,
+            company: $company,
+            user: $user,
+            name: fake()->name,
+            sku: $sku,
+            warehouses: [[
+                'quantity' => 10,
+                'price' => 0.29,
+            ],
+            ]
+        );
+
+        $product = (new CreateProductAction($productData, $user))->execute();
+        $attributeName = 'test_attribute';
+        $attributeValue = 'test_value';
+        $product->addAttribute($attributeName, $attributeValue);
+
+        $product->variants->first()->addAttribute($attributeName, $attributeValue);
+
+        $this->assertEquals($product->getAttributeBySlug('test-attribute')->value, $attributeValue);
+        $this->assertEquals($product->variants->first()->getAttributeBySlug('test-attribute')->value, $attributeValue);
+    }
 }
