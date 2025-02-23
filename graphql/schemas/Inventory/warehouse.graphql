@@ -6,6 +6,7 @@ type Warehouse {
     uuid: String!
     name: String!
     location: String
+    vendor: String
     is_default: Boolean!
     is_published: Boolean!
     total_products: Int! @method(name: "getTotalProducts")

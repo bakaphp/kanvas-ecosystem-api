@@ -104,12 +104,18 @@ class ProductImporterAction
 
             $this->productWarehouse();
 
+            $this->product->warehouses()->newPivotStatement()->update([
+                'vendor' => $this->importedProduct->vendor,
+            ]);
             //$this->variants();
             // @todo to be removed
             $this->variantsLocation($this->product);
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
+            }
+            if ($this->importedProduct->tags) {
+                $this->product->syncTags($this->importedProduct->tags);
             }
             DB::connection('inventory')->commit();
             $this->product->fireWorkflow(WorkflowEnum::SYNC_SHOPIFY->value);
