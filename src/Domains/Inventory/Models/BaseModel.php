@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Traits\KanvasScopesTrait;
 use Baka\Traits\SoftDeletesTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Illuminate\Support\Collection;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
 use Kanvas\Inventory\Traits\SourceTrait;
-use Illuminate\Support\Collection;
 
 class BaseModel extends EloquentModel
 {
@@ -63,7 +64,7 @@ class BaseModel extends EloquentModel
                 'id' => $attributeValue->attributes_id,
                 'name' => $attributeValue->attribute->name,
                 'slug' => $attributeValue->attribute->slug,
-                'value' => $attributeValue->value,
+                'value' => Str::isJson($attributeValue->value) ? json_decode($attributeValue->value, true) : $attributeValue->value,
             ];
         }
 
