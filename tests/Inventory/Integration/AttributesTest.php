@@ -76,9 +76,19 @@ final class AttributesTest extends TestCase
         $attributeValue = 'test_value';
         $product->addAttribute($attributeName, $attributeValue);
 
+        $attributeNameJson = 'test_attribute_json';
+        $attributeValueJson = ['test_value_json', 'test_value_json_2'];
+        $product->addAttribute($attributeNameJson, $attributeValueJson);
+
         $product->variants->first()->addAttribute($attributeName, $attributeValue);
+        $product->variants->first()->addAttribute($attributeNameJson, $attributeValueJson);
 
         $this->assertEquals($product->getAttributeBySlug('test-attribute')->value, $attributeValue);
         $this->assertEquals($product->variants->first()->getAttributeBySlug('test-attribute')->value, $attributeValue);
+        $this->assertIsArray($product->getAttributeBySlug('test-attribute-json')->value);
+
+        $this->assertEquals($product->getAttributeBySlug('test-attribute-json')->value, $attributeValueJson);
+        $this->assertEquals($product->variants->first()->getAttributeBySlug('test-attribute-json')->value, $attributeValueJson);
+        $this->assertIsArray($product->getAttributeBySlug('test-attribute-json')->value);
     }
 }

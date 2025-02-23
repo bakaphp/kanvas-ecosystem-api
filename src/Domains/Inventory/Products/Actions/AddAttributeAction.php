@@ -34,7 +34,7 @@ class AddAttributeAction
             $productAttribute = new ProductsAttributes();
             $productAttribute->products_id = $this->product->getId();
             $productAttribute->attributes_id = $this->attribute->getId();
-            $productAttribute->value = is_array($this->value) ? json_encode($this->value) : $this->value;
+            $productAttribute->value = $this->value; //is_array($this->value) ? json_encode($this->value) : $this->value;
             $productAttribute->save();
         }
 

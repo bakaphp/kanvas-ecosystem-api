@@ -34,7 +34,7 @@ class AddAttributeAction
             $variantAttribute = new VariantsAttributes();
             $variantAttribute->products_variants_id = $this->variant->getId();
             $variantAttribute->attributes_id = $this->attribute->getId();
-            $variantAttribute->value = is_array($this->value) ? json_encode($this->value) : $this->value;
+            $variantAttribute->value = $this->value; //is_array($this->value) ? json_encode($this->value) : $this->value;
             $variantAttribute->save();
         }
 
