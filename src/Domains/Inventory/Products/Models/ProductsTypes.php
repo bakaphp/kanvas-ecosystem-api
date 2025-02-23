@@ -22,6 +22,7 @@ use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
+ * @deprecated v2 (use ProductsTypes instead)
  */
 class ProductsTypes extends BaseModel
 {

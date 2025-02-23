@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ESimGo\Enums;
 
+/**
+ * @todo move to global esim
+ */
 enum IccidStatusEnum: string
 {
     case PENDING = 'pending';
@@ -13,6 +16,10 @@ enum IccidStatusEnum: string
     case INACTIVE = 'inactive';
     case EXPIRED = 'expired';
     case RELEASED = 'released';
+    case DELETED = 'delete';
+    case INSTALLED = 'installed';
+    case DISABLED = 'disabled';
+    case DISABLE = 'disable';
 
     /**
      * Check if a given status matches this enum case.
@@ -37,13 +44,15 @@ enum IccidStatusEnum: string
 
     public static function getStatus(string $string): string
     {
-        return match (ucfirst($string)) {
-            'Released' => self::PENDING->value,
-            'Downloaded', 'FINISHED' => self::COMPLETED->value,
-            'Installed', 'ACTIVE' => self::ACTIVE->value,
-            'Unavailable', 'UNKNOWN' => self::UNAVAILABLE->value,
-            'NOT_ACTIVE' => self::INACTIVE->value,
-            'EXPIRED' => self::EXPIRED->value,
+        return match (strtolower($string)) {
+            'released' => self::PENDING->value,
+            'downloaded', 'finished' => self::COMPLETED->value,
+            'installed', 'active', 'enable' => self::ACTIVE->value,
+            'unavailable', 'UNKNOWN' => self::UNAVAILABLE->value,
+            'deleted' => self::RELEASED->value,
+            'not_active' => self::INACTIVE->value,
+            'expired' => self::EXPIRED->value,
+            'disable', 'disabled' => self::DISABLED->value,
             default => '',
         };
     }

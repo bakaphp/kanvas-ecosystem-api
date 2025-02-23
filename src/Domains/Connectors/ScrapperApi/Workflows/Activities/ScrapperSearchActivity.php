@@ -18,7 +18,7 @@ use Throwable;
 
 class ScrapperSearchActivity extends KanvasActivity
 {
-    public $tries = 3;
+    //public $tries = 3;
     public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
 
     public function execute(Model $model, AppInterface $app, array $params): array

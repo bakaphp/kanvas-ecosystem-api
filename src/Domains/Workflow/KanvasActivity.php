@@ -14,7 +14,7 @@ use Workflow\Activity;
 class KanvasActivity extends Activity
 {
     use KanvasJobsTrait;
-    public $tries = 3;
-    public $timeout = 60;
+    //public $tries = 3;
+    //public $timeout = 60;
     public $queue = 'workflow';
 }

@@ -97,7 +97,7 @@ class Setup
                 $this->company,
                 $this->app,
                 $this->user,
-                Currencies::where('code', 'USD')->firstOrFail(),
+                Currencies::getBaseCurrency(),
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_NAME->getValue(),
                 null,

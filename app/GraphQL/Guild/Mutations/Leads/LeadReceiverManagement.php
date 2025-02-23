@@ -17,6 +17,7 @@ class LeadReceiverManagement
 {
     public function create(mixed $root, array $request): LeadReceiverModel
     {
+        $rotation = key_exists('rotations_id', $request['input']) ? LeadRotation::getById($request['input']['rotations_id']) : null;
         $dto = LeadReceiver::from([
             'branch' => auth()->user()->getCurrentBranch(),
             'app' => app(Apps::class),
@@ -24,7 +25,7 @@ class LeadReceiverManagement
             'user' => auth()->user(),
             'agent' => Users::getById($request['input']['agents_id'], app(Apps::class)),
             'isDefault' => $request['input']['is_default'],
-            'rotation' => LeadRotation::getById($request['input']['rotations_id']),
+            'rotation' => $rotation,
             'source' => $request['input']['source_name'],
             'lead_sources_id' => $request['input']['lead_sources_id'],
             'lead_types_id' => $request['input']['lead_types_id'],
@@ -35,6 +36,7 @@ class LeadReceiverManagement
 
     public function update(mixed $root, array $request): LeadReceiverModel
     {
+        $rotation = key_exists('rotations_id', $request['input']) ? LeadRotation::getById($request['input']['rotations_id']) : null;
         $dto = LeadReceiver::from([
             'branch' => auth()->user()->getCurrentBranch(),
             'app' => app(Apps::class),
@@ -42,7 +44,7 @@ class LeadReceiverManagement
             'user' => auth()->user(),
             'agent' => Users::getById($request['input']['agents_id'], app(Apps::class)),
             'isDefault' => $request['input']['is_default'],
-            'rotation' => LeadRotation::getById($request['input']['rotations_id']),
+            'rotation' => $rotation,
             'source' => $request['input']['source_name'],
             'lead_sources_id' => $request['input']['lead_sources_id'],
             'lead_types_id' => $request['input']['lead_types_id'],

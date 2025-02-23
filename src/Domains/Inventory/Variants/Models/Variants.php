@@ -513,6 +513,16 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         }
     }
 
+    public function reduceQuantityInWarehouse(Warehouses $warehouse, float $quantity): void
+    {
+        $warehouseInfo = $this->variantWarehouses()->where('warehouses_id', $warehouse->getId())->first();
+
+        if ($warehouseInfo) {
+            $warehouseInfo->quantity -= $quantity;
+            $warehouseInfo->saveOrFail();
+        }
+    }
+
     public function updatePriceInWarehouse(Warehouses $warehouse, float $price): void
     {
         $warehouseInfo = $this->variantWarehouses()->where('warehouses_id', $warehouse->getId())->first();

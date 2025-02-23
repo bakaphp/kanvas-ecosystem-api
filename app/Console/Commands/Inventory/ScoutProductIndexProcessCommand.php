@@ -67,18 +67,27 @@ class ScoutProductIndexProcessCommand extends Command
     public function reindex(Apps $app)
     {
         $this->info('Reindex scout index for products App ' . $app->name);
-        $products = Products::fromApp($app)->where('is_published', 1)->where('is_deleted', 0);
+        $products = Products::fromApp($app)->where('is_published', 1)->where('is_deleted', 0)->cursor();
 
-        $this->info('Total products to reindexed: ' . $products->count());
-        $products->searchable();
+        $i = 0;
+        //need to iterate so custom index take effect
+        foreach ($products as $product) {
+            $product->searchable();
+            $i++;
+        }
+        $this->info('Total products to reindexed: ' . $i);
     }
 
     public function delete(Apps $app)
     {
         $this->info('Cleaning up scout index for deleted products App ' . $app->name);
-        $products = Products::fromApp($app)->withTrashed()->where('is_published', 0)->orWhere('is_deleted', 1);
+        $products = Products::fromApp($app)->withTrashed()->where('is_published', 0)->orWhere('is_deleted', 1)->cursor();
 
-        $this->info('Total products to clean up: ' . $products->count());
-        $products->unsearchable();
+        $i = 0;
+        foreach ($products as $product) {
+            $product->unsearchable();
+            $i++;
+        }
+        $this->info('Total products to clean up: ' . $i);
     }
 }

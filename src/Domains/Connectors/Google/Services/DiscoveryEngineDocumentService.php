@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Google\Services;
 use Google\ApiCore\ApiException;
 use Google\Cloud\DiscoveryEngine\V1\Client\DocumentServiceClient;
 use Google\Cloud\DiscoveryEngine\V1\CreateDocumentRequest;
+use Google\Cloud\DiscoveryEngine\V1\DeleteDocumentRequest;
 use Google\Cloud\DiscoveryEngine\V1\Document;
 use Google\Cloud\DiscoveryEngine\V1\Document\Content;
 use Google\Cloud\DiscoveryEngine\V1\GetDocumentRequest;
@@ -66,6 +67,36 @@ class DiscoveryEngineDocumentService extends DiscoveryEngineService
         $request = (new UpdateDocumentRequest())->setDocument($document);
 
         return $documentServiceClient->updateDocument($request);
+    }
+
+    public function deleteDocument(Message $message): bool
+    {
+        try {
+            // Create a client
+            $documentServiceClient = new DocumentServiceClient([
+                'credentials' => $this->googleClientConfig,
+            ]);
+
+            // Get the full document name
+            $documentName = $this->getDocumentName($message->getId());
+
+            // Create delete request
+            $request = (new DeleteDocumentRequest())
+                ->setName($documentName);
+
+            // Execute the delete operation
+            $documentServiceClient->deleteDocument($request);
+
+            return true;
+        } catch (ApiException $e) {
+            // Handle the case where the document doesn't exist
+            if ($e->getStatus() === 'NOT_FOUND') {
+                return false;
+            }
+
+            // Re-throw other exceptions
+            throw $e;
+        }
     }
 
     protected function buildDocument(Message $message): Document

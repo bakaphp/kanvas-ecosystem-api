@@ -165,12 +165,12 @@ input UpdateUserInput {
 }
 
 input UserContactInput {
-  firstName: String!
-  lastName: String!
-  phoneNumbers: [PhoneNumberInput!]!
+  first_name: String!
+  last_name: String!
+  phone_numbers: [PhoneNumberInput!]!
   emails: [EmailInput!]!
   company: String
-  jobTitle: String
+  job_title: String
 }
 
 input PhoneNumberInput {
@@ -180,7 +180,7 @@ input PhoneNumberInput {
 
 input EmailInput {
   type: String! # personal, work, other
-  email: String!
+  email: Email!
 }
 
 extend type Mutation {
@@ -303,5 +303,47 @@ type Query @guard {
     userByDisplayName(displayname: String!): User!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersListQuery@getByDisplayNameFromApp"
+        )
+}
+
+extend type Query @guard {
+    users(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "description"
+                    "dob"
+                    "email"
+                    "is_active"
+                    "verify_two_factor"
+                    "sex"
+                    "user_active"
+                    "timezone"
+                    "mainRole"
+                    "welcome"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                ]
+            )
+        search: String @search
+    ): [User!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersBuilder@getAll"
+            scopes: ["fromApp", "notDeleted"]
         )
 }

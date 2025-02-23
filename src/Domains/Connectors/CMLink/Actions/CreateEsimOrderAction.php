@@ -9,15 +9,19 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum;
+use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
 use Kanvas\Connectors\CMLink\Services\CustomerService;
 use Kanvas\Connectors\CMLink\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESim;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
+use Kanvas\Connectors\ESim\Support\FileSizeConverter;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Inventory\Products\Models\ProductsTypes;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order;
 
 class CreateEsimOrderAction
@@ -43,17 +47,31 @@ class CreateEsimOrderAction
             ->where('slug', $productTypeSlug)
             ->firstOrFail();
 
-        $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse()->get();
+        $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
 
         $availableVariant = VariantsRepository::getAvailableVariant($productType, $warehouse);
+        $availableVariant->reduceQuantityInWarehouse($warehouse, 1);
+
+        //add this variant to the order so we have a history of the iccid
+        $this->order->addItem(new OrderItem(
+            app: $this->order->app,
+            variant: $availableVariant,
+            name: $availableVariant->name,
+            sku: $availableVariant->sku,
+            quantity: 1,
+            price: $availableVariant->getPrice($warehouse),
+            tax: 0,
+            discount: 0,
+            currency: Currencies::getBaseCurrency(),
+        ));
 
         $orderService = new OrderService($this->order->app, $this->order->company);
         $cmLinkOrder = $orderService->createOrder(
-            (string) $this->order->order_number,
-            $availableVariant->sku,
-            1,
-            $this->order->items()->first()->variant->sku,
-            $this->order->created_at->format('Y-m-d')
+            thirdOrderId: (string) $this->order->order_number,
+            iccid: $availableVariant->sku,
+            quantity: 1,
+            dataBundleId: $this->order->items()->first()->variant->sku,
+            activeDate: $this->order->created_at->format('Y-m-d')
         );
 
         $customerService = new CustomerService($this->order->app, $this->order->company);
@@ -68,6 +86,8 @@ class CreateEsimOrderAction
 
         $qrCode = $writer->writeString($esimData['data']['downloadUrl']);
         $qrCodeBase64 = 'data:image/png;base64,' . base64_encode($qrCode);
+        $orderVariant = $this->order->items()->first()->variant;
+
         /*
         data from cmlink
             Array
@@ -101,28 +121,30 @@ class CreateEsimOrderAction
                 [msg] => Success
             )
          */
+        $totalData = $orderVariant->getAttributeBySlug('data')?->value ?? 0;
+
         $esim = new ESim(
             $esimData['data']['downloadUrl'],
             $availableVariant->sku,
             $esimData['data']['state'],
-            $cmLinkOrder['quantity'],
-            $cmLinkOrder['price'],
+            (int) $cmLinkOrder['quantity'],
+            (float) $cmLinkOrder['price'],
             'bundle',
-            $availableVariant->sku,
+            $orderVariant->sku,
             $esimData['data']['smdpAddress'],
             $esimData['data']['activationCode'],
-            $esimData['data']['installTime'],
-            $esimData['data']['installDevice'],
+            ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time(),
+            json_encode(['order' => $this->order->getId(), 'install_device' => $esimData['data']['installDevice'] ?? '']),
             $qrCodeBase64,
             new ESimStatus(
                 $esimData['data']['activationCode'],
                 'data',
-                0,
-                1000,
+                FileSizeConverter::toBytes($totalData),
+                FileSizeConverter::toBytes($totalData),
                 $esimData['data']['installTime'] ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $esimData['data']['activationCode'],
                 $esimData['data']['state'],
-                $availableVariant->getAttributeBySlug('variant-type')->value,
+                $orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
             )
         );
 
