@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Shopify\Clients\Graphql;
 use Kanvas\Connectors\Shopify\Client;
 
-class CreateProductGraphql
+class UpdateProductGraphql
 {
     public function __construct(
         protected Apps $app,
@@ -28,11 +28,11 @@ class CreateProductGraphql
 
         try {
             $graphQL = <<<QUERY
-            mutation productCreate(\$product: ProductCreateInput, \$media: [CreateMediaInput!]) {
-                productCreate(product: \$product, media: \$media) {
+            mutation UpdateProductWithNewMedia(\$product: ProductUpdateInput, \$media: [CreateMediaInput!]) {
+                productUpdate(product: \$product, media: \$media) {
                     product {
                         id,
-                        featuredMedia {
+                           featuredMedia {
                             id,
                             preview {
                                 image {
@@ -62,24 +62,29 @@ class CreateProductGraphql
                     'mediaContentType' => 'IMAGE',
                 ];
             }
-
+            $id = $this->products->getShopifyId($this->warehouse->regions);
             $variables = [
                 "product" => [
                     "title" => $this->products->name,
                     "descriptionHtml" => $this->products->description,
+                    "id" => "gid://shopify/Product/{$id}",
                 ],
             ];
-            if(!empty($this->metafields)) {
+            if (!empty($this->metafields)) {
                 $variables['product']['metafields'] = $this->metafields;
             }
+            Log::debug("ShopifySaveAction variables", ['variables' => $variables]);
             if (!empty($media)) {
                 $variables['media'] = $media;
             }
             $client = Client::getInstance($this->app, $this->branch->company, $this->warehouse->regions);
+
             $response = $client->GraphQL->post($graphQL, null, null, $variables);
-            $id = $response['data']['productCreate']['product']['id'];
+            Log::debug("ShopifySaveAction response", ['response' => $response]);
+            $id = $response['data']['productUpdate']['product']['id'];
             $id = basename($id);
             $this->products->setShopifyId($this->warehouse->regions, $id);
+
         } catch (\Throwable $e) {
             Log::error('ShopifySaveAction failed', ['error' => $e->getMessage()]);
             return ['error' => $e->getMessage()];
