@@ -16,6 +16,7 @@ type IntegrationsCompanies {
     integration: Integrations
     status: Status
     region: Region
+    is_active: Boolean
     updated_at: DateTime
 }
 
@@ -60,6 +61,11 @@ input IntegrationsReferenceInput {
     name: String
 }
 
+input IntegrationCompanyActive {
+    id: ID!
+    is_active: Boolean
+}
+
 extend type Mutation @guard {
     integrationCompany(
         input: IntegrationsCompaniesInput!
@@ -74,6 +80,10 @@ extend type Mutation @guard {
     removeIntegrationCompany(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@removeIntegrationCompany"
+        )
+    integrationCompanyIsActive(input: IntegrationCompanyActive!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@integrationCompanyIsActive"
         )
 }
 
