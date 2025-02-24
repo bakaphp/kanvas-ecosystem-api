@@ -10,7 +10,6 @@ use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Illuminate\Support\Facades\Log;
 
 class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
 {
@@ -51,7 +50,7 @@ class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
         return [
             'message' => 'Product synced successfully',
             'shopify_id' => $this->webhookRequest->payload['id'],
-            'product_name' => $mappedProduct['name']
+            'product_name' => $mappedProduct['name'],
         ];
     }
 }

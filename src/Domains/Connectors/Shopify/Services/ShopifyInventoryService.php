@@ -13,11 +13,11 @@ use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Models\ProductsWarehouses;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use PHPShopify\ShopifySDK;
-use Kanvas\Inventory\Products\Models\ProductsWarehouses;
 
 use function Sentry\captureException;
 
@@ -97,7 +97,7 @@ class ShopifyInventoryService
                 'tags' => $product->tags->pluck('name')->implode(','),
             ];
             if ($this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value)) {
-                $productInfo['vendor'] = $this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value) ?? "default"; //$product->categ->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
+                $productInfo['vendor'] = $this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value) ?? 'default'; //$product->category->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
             }
 
             //$limitedVariants = $product->variants()->limit($variantLimit)->get();
@@ -125,7 +125,7 @@ class ShopifyInventoryService
             }
 
             try {
-                $productListing = $this->shopifySdk->ProductListinShopifyVariantMetafieldServicg($shopifyProductId);
+                $productListing = $this->shopifySdk->ProductListingShopifyVariantMetafieldService($shopifyProductId);
 
                 $productListing->put([
                     'product_id' => $shopifyProductId,
