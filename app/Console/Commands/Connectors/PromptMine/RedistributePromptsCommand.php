@@ -94,9 +94,7 @@ class RedistributePromptsCommand extends Command
             }
 
             if (! empty($redistributeCollection)) {
-                print_r($redistributeCollection);
-                die();
-                $this->redistributePrompts($promptsCollection, $appId, $messageType, $nuggetMessageType, $companyId);
+                $this->redistributePrompts($redistributeCollection, $appId, $messageType, $nuggetMessageType, $companyId);
             }
 
             $redistributeCollection = [];
@@ -115,7 +113,6 @@ class RedistributePromptsCommand extends Command
             $prompt = Message::query()
                 ->where('id', $promptId)
                 ->where('apps_id', $appId)
-                ->where('users_id', $userId)
                 ->where('companies_id', $companyId)
                 ->where('message_types_id', $messageType)
                 ->where('is_deleted', 0)
@@ -128,7 +125,7 @@ class RedistributePromptsCommand extends Command
 
             $newPromptUser = UsersAssociatedApps::query()
                 ->where('apps_id', $appId)
-                ->where('companies_id', $companyId)
+                ->where('companies_id', 0)
                 ->where('displayname', $displayname)
                 ->firstOrFail();
 
@@ -141,7 +138,7 @@ class RedistributePromptsCommand extends Command
 
             // Update tags
             $tagId = $this->createTags($category, $newPromptUserId, $appId, $companyId);
-            $this->assignTagsToMessage($promptId, $tagId, $newPromptUserId);
+            $this->assignTagsToMessage($prompt->getId(), $tagId, $newPromptUserId);
 
             Log::info("Assigned tag $tagId to prompt $promptId");
 
@@ -161,7 +158,7 @@ class RedistributePromptsCommand extends Command
 
             foreach ($childMessages as $childMessage) {
                 $childMessage->users_id = $newPromptUserId;
-                $childMessages->saveOrFail();
+                $childMessage->saveOrFail();
 
                 Log::info("Updated child message $childMessage->id to user $newPromptUserId from user $userId");
 
