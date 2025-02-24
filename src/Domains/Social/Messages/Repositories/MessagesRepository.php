@@ -26,7 +26,6 @@ class MessagesRepository
         $cursor = $query->cursor();
 
         foreach ($cursor as $message) {
-
             $userPostsTags = array_merge($message->tags()->pluck('slug')->toArray(), $userPostsTags);
         }
 
