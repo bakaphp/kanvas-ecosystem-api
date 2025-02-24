@@ -16,7 +16,7 @@ type IntegrationsCompanies {
     integration: Integrations
     status: Status
     region: Region
-    is_active: Boolean
+    is_active: Boolean!
     updated_at: DateTime
 }
 
@@ -63,7 +63,7 @@ input IntegrationsReferenceInput {
 
 input IntegrationCompanyActive {
     id: ID!
-    is_active: Boolean
+    is_active: Boolean!
 }
 
 extend type Mutation @guard {
