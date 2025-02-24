@@ -80,9 +80,11 @@ class MessageBuilder
             $query = match ($option) {
                 'SHOW_OWN_PARENT_MESSAGES_ONLY' => $query->where(function ($q) use ($user) {
                     $q->whereNull('parent_id')
-                      ->orWhereHas('parent', function ($query) use ($user) {
-                          $query->where('users_id', $user->id);
-                      });
+                    ->orWhereRaw('NOT EXISTS (
+                        SELECT 1 FROM messages AS parent 
+                        WHERE parent.id = messages.parent_id 
+                        AND parent.users_id = messages.users_id
+                    )');
                 }),
                 // Add future options here
                 default => $query
