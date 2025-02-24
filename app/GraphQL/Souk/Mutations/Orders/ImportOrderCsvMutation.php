@@ -14,7 +14,7 @@ class ImportOrderCsvMutation
     {
         $user = auth()->user();
         $currentUserCompany = $user->getCurrentCompany();
-        $app = Apps::getById($request['input']['app_id']);
+        $app = app(Apps::class);
         $cart = app('cart')->session($user->getId());
 
         try {
