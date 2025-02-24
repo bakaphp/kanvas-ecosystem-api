@@ -18,19 +18,18 @@ class MessagesRepository
     {
         $userPostsTags = [];
         $query = Message::fromApp($app)
-            ->where('users_id',$user->getId())
-            ->where('companies_id',$company->getId())
-            ->where('message_types_id',$messageTypesId)
-            ->where('is_deleted',0);
+            ->where('users_id', $user->getId())
+            ->where('companies_id', $company->getId())
+            ->where('message_types_id', $messageTypesId)
+            ->where('is_deleted', 0);
 
         $cursor = $query->cursor();
 
         foreach ($cursor as $message) {
-            
-            $userPostsTags = array_merge($message->tags()->pluck('slug')->toArray(),$userPostsTags);
+
+            $userPostsTags = array_merge($message->tags()->pluck('slug')->toArray(), $userPostsTags);
         }
 
         return array_values(array_unique($userPostsTags));
-
     }
 }
