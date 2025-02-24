@@ -86,7 +86,7 @@ class ScrapperProcessorAction
                 $metafields = $this->getMetaFields(product: $product);
 
                 $shopifyProductId = $product->getShopifyId($warehouse->regions);
-                if (!$shopifyProductId) {
+                if (! $shopifyProductId) {
                     $shopifyProduct = (new CreateProductGraphql(
                         $this->app,
                         $this->companyBranch,

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Actions;
@@ -8,7 +9,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Connectors\Shopify\Actions\ImagesGraphql;
 use Kanvas\Companies\Models\CompaniesBranches;
-use \Exception;
+use Exception;
 
 class SaveCustomFieldDataAction
 {
@@ -21,11 +22,11 @@ class SaveCustomFieldDataAction
         protected ?CompaniesBranches $branch = null
     ) {
     }
-    
+
     public function execute(): void
     {
-        if (!$this->images) {
-            if (!$this->branch) {
+        if (! $this->images) {
+            if (! $this->branch) {
                 throw new Exception('Branch is required');
             }
             $images = (new ImagesGraphql(

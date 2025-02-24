@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
@@ -15,7 +16,6 @@ use PHPShopify\ShopifySDK;
 
 class CreateProductVariantGraphql
 {
-
     public function __construct(
         protected Apps $app,
         protected CompaniesBranches $branch,
@@ -35,7 +35,7 @@ class CreateProductVariantGraphql
                 $price = $variant->getPrice($this->warehouse);
                 $productVariantId = $this->products->getShopifyId($this->warehouse->regions);
                 $variantShopifyId = $variant->getShopifyId($this->warehouse->regions);
-                if (!$variantShopifyId) {
+                if (! $variantShopifyId) {
                     $graphql = <<<QUERY
                     mutation productVariantsBulkCreate(\$variants: [ProductVariantsBulkInput!]!, \$productId: ID!) {
                         productVariantsBulkCreate(productId: \$productId, variants: \$variants) {
@@ -96,12 +96,12 @@ class CreateProductVariantGraphql
                     'productId' => "gid://shopify/Product/{$productVariantId}",
                 ];
                 if ($variantShopifyId) {
-                    $variables['variants']['id'] = "gid://shopify/ProductVariant/".$variantShopifyId;
+                    $variables['variants']['id'] = "gid://shopify/ProductVariant/" . $variantShopifyId;
                     unset($variables['variants']['optionValues']);
                     unset($variables['variants']['inventoryQuantities']);
                 }
                 $response = $client->GraphQL->post($graphql, null, null, $variables);
-                $id = $variantShopifyId ? $response['data']['productVariantsBulkUpdate']['productVariants'][0]['id']: $response['data']['productVariantsBulkCreate']['productVariants'][0]['id'];
+                $id = $variantShopifyId ? $response['data']['productVariantsBulkUpdate']['productVariants'][0]['id'] : $response['data']['productVariantsBulkCreate']['productVariants'][0]['id'];
                 $id = basename($id);
                 $variant->setShopifyId($this->warehouse->regions, $id);
                 $variantsResponses[] = $response;

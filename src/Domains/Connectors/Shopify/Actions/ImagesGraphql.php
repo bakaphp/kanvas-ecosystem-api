@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
@@ -49,7 +50,7 @@ class ImagesGraphql
             QUERY;
             $client = Client::getInstance($this->app, $this->branch->company, $this->warehouse->regions);
             $response = $client->GraphQL->post($graphQL, null, null, [
-                'ownerId' => "gid://shopify/Product/".$this->products->getShopifyId($this->warehouse->regions),
+                'ownerId' => "gid://shopify/Product/" . $this->products->getShopifyId($this->warehouse->regions),
             ]);
             $imagesResponse = $response['data']['product']['media']['nodes'] ?? [];
             foreach ($imagesResponse as $image) {
