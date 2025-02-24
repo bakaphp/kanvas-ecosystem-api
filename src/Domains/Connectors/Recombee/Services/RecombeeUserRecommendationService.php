@@ -10,6 +10,7 @@ use Kanvas\Connectors\Recombee\Client;
 use Recombee\RecommApi\Client as RecommApiClient;
 use Recombee\RecommApi\Requests\GetUserValues;
 use Recombee\RecommApi\Requests\RecommendItemsToUser;
+use Recombee\RecommApi\Requests\AddRating;
 
 class RecombeeUserRecommendationService
 {
@@ -90,5 +91,10 @@ class RecombeeUserRecommendationService
         ];
 
         return $this->client->send(new RecommendItemsToUser($user->getId(), $count, $options))['recomms'] ?? [];
+    }
+
+    public function addRatingToItemFromUser(UserInterface $user, int $itemId, float $rating): string
+    {
+        return $this->client->send(new AddRating($user->getId(), $itemId, $rating));
     }
 }
