@@ -13,6 +13,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Connectors\ScrapperApi\Actions\SaveCustomFieldDataAction;
 use Kanvas\Inventory\Products\Models\Products;
+
 class ScrapperCustomFieldCommand extends Command
 {
     protected $signature = 'kanvas:scrapper-custom-field {app_id} {warehouse_id} {branch_id} {region_id}';
@@ -38,6 +39,5 @@ class ScrapperCustomFieldCommand extends Command
             );
             $action->execute();
         }
-
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
@@ -70,11 +71,11 @@ class UpdateProductGraphql
                     "id" => "gid://shopify/Product/{$id}",
                 ],
             ];
-            if (!empty($this->metafields)) {
+            if (! empty($this->metafields)) {
                 $variables['product']['metafields'] = $this->metafields;
             }
             Log::debug("ShopifySaveAction variables", ['variables' => $variables]);
-            if (!empty($media)) {
+            if (! empty($media)) {
                 $variables['media'] = $media;
             }
             $client = Client::getInstance($this->app, $this->branch->company, $this->warehouse->regions);
@@ -84,7 +85,6 @@ class UpdateProductGraphql
             $id = $response['data']['productUpdate']['product']['id'];
             $id = basename($id);
             $this->products->setShopifyId($this->warehouse->regions, $id);
-
         } catch (\Throwable $e) {
             Log::error('ShopifySaveAction failed', ['error' => $e->getMessage()]);
             return ['error' => $e->getMessage()];

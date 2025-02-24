@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
@@ -69,10 +70,10 @@ class CreateProductGraphql
                     "descriptionHtml" => $this->products->description,
                 ],
             ];
-            if(!empty($this->metafields)) {
+            if (! empty($this->metafields)) {
                 $variables['product']['metafields'] = $this->metafields;
             }
-            if (!empty($media)) {
+            if (! empty($media)) {
                 $variables['media'] = $media;
             }
             $client = Client::getInstance($this->app, $this->branch->company, $this->warehouse->regions);
