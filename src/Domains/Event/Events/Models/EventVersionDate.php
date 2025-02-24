@@ -22,7 +22,7 @@ class EventVersionDate extends BaseModel
         return $this->belongsTo(EventVersion::class);
     }
 
-    public function casts(): array
+    protected function casts(): array
     {
         return [
             'event_date' => 'datetime',

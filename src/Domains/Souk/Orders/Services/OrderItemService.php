@@ -8,7 +8,6 @@ use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Users\Models\Users;
 use League\Csv\Reader;
 
@@ -17,7 +16,7 @@ class OrderItemService
     public function __construct(
         protected Apps $app,
         protected Users $user,
-        protected Companies $currentUsercompany,
+        protected Companies $currentUserCompany,
     ) {
     }
 
@@ -44,7 +43,7 @@ class OrderItemService
             }
 
             $results[] = [
-                'variant_sku' => $variantEAN,
+                'variant_ean' => $variantEAN,
                 'quantity' => $quantity,
             ];
         }
@@ -56,23 +55,28 @@ class OrderItemService
     {
         $validOrderItems = [];
         foreach ($orderItems as $orderItem) {
-            $variant = Variants::where('sku', $orderItem['variant_sku'])->first();
+            $variant = Variants::where('ean', $orderItem['variant_ean'])
+                ->orWhere('barcode', $orderItem['variant_ean'])
+                ->first();
 
             if (empty($variant)) {
                 continue;
             }
 
-            $validOrderItems[] = $orderItem;
+            $validOrderItems[] = [
+                ...$orderItem,
+                'variant_id' => $variant->id
+            ];
         }
 
         return $validOrderItems;
     }
 
-    public function processOrderItems(array $orderItems, int $channelId): void
+    public function processOrderItems(array $orderItems, int $channelId): array
     {
         $cartItems = [];
         foreach ($orderItems as $orderItem) {
-            $variant = Variants::where('sku', $orderItem['variant_sku'])->first();
+            $variant = Variants::where('id', $orderItem['variant_id'])->first();
             $channel = $variant->variantChannels()->where('channels_id', $channelId)->first();
 
             if (empty($variant)) {
@@ -97,8 +101,6 @@ class OrderItemService
             ];
         }
 
-        $cart = app('cart')->session($this->user->getId());
-        $addToCartAction = new AddToCartAction($this->app, $this->user, $this->currentUsercompany);
-        $addToCartAction->execute($cart, $cartItems);
+        return $cartItems;
     }
 }

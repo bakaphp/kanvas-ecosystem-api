@@ -13,6 +13,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
 use Kanvas\Connectors\CMLink\Services\CustomerService;
+use Kanvas\Connectors\CMLink\Services\OrderService as ServicesOrderService;
 use Kanvas\Connectors\EasyActivation\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
@@ -182,17 +183,26 @@ class SyncEsimWithProviderCommand extends Command
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
         $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
+        $orderId = $message->message['order_id'] ?? null;
+        $dataUsage = 0;
+        $totalBytesData = FileSizeConverter::toBytes($totalData);
+        if ($orderId) {
+            $orderService = new ServicesOrderService($message->app, $message->company);
+            $dataUsage = $orderService->getOrderStatus($orderId)['total'];
+        }
+        // Calculate remaining data usage, ensuring it doesn't go negative
+        $remainingData = max(0, $totalBytesData - max(0, $dataUsage));
 
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
             callTypeGroup: 'data',
-            initialQuantity: FileSizeConverter::toBytes($totalData),
-            remainingQuantity: FileSizeConverter::toBytes($totalData),
+            initialQuantity: $totalBytesData,
+            remainingQuantity: $remainingData,
             assignmentDateTime: $installedDate,
             assignmentReference: $response['activationCode'],
             bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
             unlimited: $variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED->value,
-            expirationDate: Carbon::parse($installedDate)->addDays($variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
+            expirationDate: Carbon::parse($installedDate)->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
             imei: $message->message['data']['imei_number'] ?? null,
             esimStatus: $response['state'],
             message: $response['installDevice'],
@@ -208,6 +218,12 @@ class SyncEsimWithProviderCommand extends Command
         $messageData['esim_status'] = $response;
         $message->message = $messageData;
         $message->saveOrFail();
+
+        $order = $message->appModuleMessage->entity;
+        $metadata = is_array($order->metadata) ? $order->metadata : [];
+        $metadata['esim_status'] = $response;
+        $order->metadata = $metadata;
+        $order->saveOrFail();
 
         $this->info("Message ID: {$message->id} has been updated with the eSIM status.");
 

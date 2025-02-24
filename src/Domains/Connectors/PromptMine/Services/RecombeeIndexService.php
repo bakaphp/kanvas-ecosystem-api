@@ -153,6 +153,10 @@ class RecombeeIndexService
 
         $interactionMap = [
             InteractionEnum::VIEW->getValue() => AddDetailView::class,
+            InteractionEnum::VIEW_ITEM->getValue() => AddDetailView::class,
+            InteractionEnum::VIEW_HOME_PAGE->getValue() => AddDetailView::class,
+            InteractionEnum::VIEW_ITEM_LIST->getValue() => AddDetailView::class,
+            InteractionEnum::SHARE->getValue() => AddRating::class,
             InteractionEnum::LIKE->getValue() => AddRating::class,
             InteractionEnum::DISLIKE->getValue() => AddRating::class,
             InteractionEnum::SAVE->getValue() => AddBookmark::class,
@@ -170,9 +174,13 @@ class RecombeeIndexService
             'cascadeCreate' => true,
         ];
 
+        $likeStyleInteraction = [
+            InteractionEnum::LIKE->getValue(),
+            InteractionEnum::SHARE->getValue(),
+        ];
         // Handle rating values
         if ($interactionClass === AddRating::class) {
-            $value = ($interactionType === InteractionEnum::LIKE->getValue()) ? 1 : -1;
+            $value = in_array($interactionType, $likeStyleInteraction) ? 1 : -1;
             $request = new $interactionClass($userInteraction->users_id, $userInteraction->entity_id, $value, $parameters);
         } else {
             $request = new $interactionClass($userInteraction->users_id, $userInteraction->entity_id, $parameters);
