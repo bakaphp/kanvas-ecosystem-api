@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Builders\Messages;
 
 use Algolia\AlgoliaSearch\SearchClient;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
@@ -43,6 +44,10 @@ class MessageBuilder
 
         $query = Message::query();
 
+        if (! empty($args['customFilters'])) {
+            $query = $this->applyCustomFilters($query, $args, $user);
+        }
+
         if (! empty($args['requiredTags'])) {
             $tagSlugs = $args['requiredTags'];
 
@@ -57,6 +62,31 @@ class MessageBuilder
         if (! $user->isAppOwner()) {
             //$messages = Message::fromCompany($user->getCurrentCompany());
             return $query->fromCompany($user->getCurrentCompany());
+        }
+
+        return $query;
+    }
+
+    /**
+     * Apply options to the query.
+     *  customFilters: [
+     *      "SHOW_OWN_PARENT_MESSAGES_ONLY"
+     *  ]
+     * @throws InvalidArgumentException
+     */
+    protected function applyCustomFilters(Builder $query, array $args, UserInterface $user): Builder
+    {
+        foreach ($args['customFilters'] as $option) {
+            $query = match ($option) {
+                'SHOW_OWN_PARENT_MESSAGES_ONLY' => $query->where(function ($q) use ($user) {
+                    $q->whereNull('parent_id')
+                      ->orWhereHas('parent', function ($query) use ($user) {
+                          $query->where('users_id', $user->id);
+                      });
+                }),
+                // Add future options here
+                default => $query
+            };
         }
 
         return $query;
