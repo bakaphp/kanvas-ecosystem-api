@@ -195,12 +195,6 @@ class RedistributePromptsCommand extends Command
         ]);
     }
 
-        /**
-     * Generate a slug from a string.
-     *
-     * @param string $text The string to generate a slug from.
-     * @return string The generated slug.
-     */
     public function slugify(string $text): string
     {
         $text = preg_replace('~[^\pL\d]+~u', '-', $text);
