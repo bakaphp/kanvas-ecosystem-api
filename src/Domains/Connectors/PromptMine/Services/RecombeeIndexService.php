@@ -27,7 +27,7 @@ use Recombee\RecommApi\Requests\AddRating;
 use Recombee\RecommApi\Requests\ListItemProperties;
 use Recombee\RecommApi\Requests\ListUserProperties;
 use Recombee\RecommApi\Requests\SetItemValues;
-use Kanvas\Users\Repositories\UsersInteractionsRepository;
+use Kanvas\Social\Interactions\Repositories\UsersInteractionsRepository;
 
 class RecombeeIndexService
 {

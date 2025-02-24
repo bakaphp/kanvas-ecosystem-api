@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Users\Repositories;
+namespace Kanvas\Social\Interactions\Repositories;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
