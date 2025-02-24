@@ -7,7 +7,6 @@ namespace Kanvas\Social\Interactions\Repositories;
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
-use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Users\Models\Users;
 

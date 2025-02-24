@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
+use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 
 class GenerateRecombeeUserMessageAction
 {
@@ -25,7 +26,11 @@ class GenerateRecombeeUserMessageAction
 
     public function execute(int $pageSize = 350): int
     {
-        $recommendationService = new RecombeeUserRecommendationService($this->app);
+        $recommendationService = new RecombeeUserRecommendationService(
+            $this->app,
+            $this->app->get(ConfigurationEnum::RECOMBEE_DATABASE->value),
+            $this->app->get(ConfigurationEnum::RECOMBEE_API_KEY->value)
+        );
         $userForYouFeed = $recommendationService->getUserForYouFeed($this->user, $pageSize, 'for-you-feed');
         if (count($userForYouFeed) === 0) {
             $userForYouFeed = $recommendationService->getUserForYouFeed($this->user, $pageSize, 'trending');
