@@ -104,9 +104,11 @@ class ProductImporterAction
 
             $this->productWarehouse();
 
-            $this->product->warehouses()->newPivotStatement()->update([
-                'vendor' => $this->importedProduct->vendor,
-            ]);
+            if($this->importedProduct->vendor) {
+                $this->product->warehouses()->newPivotStatement()->update([
+                    'vendor' => $this->importedProduct->vendor,
+                ]);
+            }
             //$this->variants();
             // @todo to be removed
             $this->variantsLocation($this->product);
