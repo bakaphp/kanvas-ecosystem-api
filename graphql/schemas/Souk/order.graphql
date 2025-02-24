@@ -27,7 +27,7 @@ type Order {
     display_gross_prices: Boolean
     translated_discount_name: String
     customer_note: String
-    weight: Money!
+    weight: Money
     checkout_token: String
     currency: String
     metadata: Mixed
@@ -69,6 +69,16 @@ type PaymentResult {
     status: String!
     transaction_id: ID!
     order_status: String
+    message: Mixed
+}
+
+type OrderItemImport {
+    variant_id: Int
+    quantity: Int
+}
+
+type ImportOrderCsvResult {
+    status: String!
     message: Mixed
 }
 
@@ -160,6 +170,11 @@ input ProcessPaymentInput {
     payment_provider: String! # e.g., "stripe", "paypal"
 }
 
+input ImportOrderCsvInput {
+    file: Upload!
+    channel_id: ID!
+}
+
 input AppleInAppPurchaseReceipt {
     product_id: ID!
     transaction_id: String!
@@ -192,6 +207,10 @@ extend type Mutation @guard {
     processOrderPayment(input: ProcessPaymentInput!): PaymentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@processPayment"
+        )
+    importOrderCsv(input: ImportOrderCsvInput!): ImportOrderCsvResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\ImportOrderCsvMutation@create"
         )
     generateOrderPaymentIntent(id: ID!): GeneratePaymentIntentResult!
         @field(

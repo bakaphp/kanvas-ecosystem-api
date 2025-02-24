@@ -18,6 +18,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 
 /**
  * Class Attributes.
@@ -38,8 +39,11 @@ class Attributes extends BaseModel
     use SlugTrait;
     use CascadeSoftDeletes;
     use DatabaseSearchableTrait;
+    use HasTranslationsDefaultFallback;
 
     public $table = 'attributes';
+    public $translatable = ['name'];
+
     public $guarded = [];
     protected $cascadeDeletes = ['variantAttributes','defaultValues'];
 

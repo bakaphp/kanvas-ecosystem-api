@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Builders\Messages;
 
 use Algolia\AlgoliaSearch\SearchClient;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,7 +31,7 @@ class MessageBuilder
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid' || $args['where']['column'] === 'slug') && isset($args['where']['value']);
+        $viewingOneMessage = isset($args['where']['column'], $args['where']['value']) && in_array($args['where']['column'], ['id', 'uuid', 'slug'], true);
         //if enable home-view interaction , remove once , moved to getUserFeed
         if ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
             UserInteractionJob::dispatch(
@@ -41,14 +42,56 @@ class MessageBuilder
             );
         }
 
-        //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
-        if (! $user->isAppOwner()) {
-            $messages = Message::fromCompany($user->getCurrentCompany());
+        $query = Message::query();
 
-            return $messages;
+        if (! empty($args['customFilters'])) {
+            $query = $this->applyCustomFilters($query, $args, $user);
         }
 
-        return Message::query();
+        if (! empty($args['requiredTags'])) {
+            $tagSlugs = $args['requiredTags'];
+
+            foreach ($tagSlugs as $slug) {
+                $query->whereHas('tags', function (Builder $q) use ($slug) {
+                    $q->where('slug', $slug);
+                });
+            }
+        }
+
+        //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
+        if (! $user->isAppOwner()) {
+            //$messages = Message::fromCompany($user->getCurrentCompany());
+            return $query->fromCompany($user->getCurrentCompany());
+        }
+
+        return $query;
+    }
+
+    /**
+     * Apply options to the query.
+     *  customFilters: [
+     *      "SHOW_OWN_PARENT_MESSAGES_ONLY"
+     *  ]
+     * @throws InvalidArgumentException
+     */
+    protected function applyCustomFilters(Builder $query, array $args, UserInterface $user): Builder
+    {
+        foreach ($args['customFilters'] as $option) {
+            $query = match ($option) {
+                'SHOW_OWN_PARENT_MESSAGES_ONLY' => $query->where(function ($q) use ($user) {
+                    $q->whereNull('parent_id')
+                    ->orWhereRaw('NOT EXISTS (
+                        SELECT 1 FROM messages AS parent 
+                        WHERE parent.id = messages.parent_id 
+                        AND parent.users_id = messages.users_id
+                    )');
+                }),
+                // Add future options here
+                default => $query
+            };
+        }
+
+        return $query;
     }
 
     public function getUserFeed(
@@ -62,7 +105,7 @@ class MessageBuilder
 
         $currentPage = (int) ($args['page'] ?? 1);
         //generate home-view interaction
-        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 1) {
+        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 2) {
             UserInteractionJob::dispatch(
                 $app,
                 $user,

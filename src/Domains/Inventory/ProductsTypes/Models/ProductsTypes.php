@@ -18,6 +18,7 @@ use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
 use Kanvas\Inventory\Products\Models\Products;
 use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 
 /**
  * Class ProductsTypes.
@@ -39,9 +40,11 @@ class ProductsTypes extends BaseModel
     use ScopesTrait;
     use DatabaseSearchableTrait;
     use CascadeSoftDeletes;
+    use HasTranslationsDefaultFallback;
 
     protected $table = 'products_types';
     protected $guarded = [];
+    public $translatable = ['name', 'description'];
 
     /**
      * Get the user that owns the ProductsTypes.

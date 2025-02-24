@@ -44,6 +44,11 @@ class ShopifyOrderService
         // Convert back to indexed array
         $formattedNoteAttributes = array_map(fn ($name, $value) => ['name' => $name, 'value' => $value], array_keys($updatedNoteAttributes), $updatedNoteAttributes);
 
+        if (strlen($updatedNote) > 5000) {
+            //trim to avoid   note - is too long (maximum is 5000 characters)
+            $updatedNote = substr($updatedNote, 0, 5000);
+        }
+
         $payload = [
             'note' => $updatedNote,
             'note_attributes' => $formattedNoteAttributes,

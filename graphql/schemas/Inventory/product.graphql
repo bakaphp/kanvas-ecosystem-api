@@ -5,6 +5,10 @@ type Product {
     name: String!
     slug: String!
     description: String
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     short_description: String
     html_description: String
     warranty_terms: String
@@ -22,8 +26,7 @@ type Product {
     updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
-    attributes: [ProductAttribute!]!
-        @BelongsToMany(relation: "visibleAttributes")
+    attributes: [ProductAttribute!]! @method(name: "visibleAttributes")
     variants: [Variant!]! @HasMany
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")
@@ -42,6 +45,17 @@ type Product {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+}
+### @todo extract this into its own type.
+type EntityExport {
+    url: String!
+    message: Mixed!
+}
+
+type ProductTranslation {
+    name: String
+    description: String
+    language: LanguageDisplay!
 }
 
 input ProductInput {
@@ -97,6 +111,14 @@ input ProductAttributeOrderBy {
     format: FormatSortAttribute!
 }
 
+input ProductTranslationInput {
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+}
+
 enum FormatSortAttribute {
     NUMERIC
     STRING
@@ -111,6 +133,14 @@ extend type Mutation @guardByAdmin {
     updateProduct(id: ID!, input: ProductInputUpdate): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
+        )
+    updateProductTranslations(
+        id: ID!
+        input: ProductTranslationInput!
+        code: String!
+    ): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductTranslation"
         )
     uploadFileToProduct(id: ID!, file: Upload!): Product!
         @field(
@@ -207,5 +237,9 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
             defaultCount: 25
+        )
+    productsExport: EntityExport
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"
         )
 }

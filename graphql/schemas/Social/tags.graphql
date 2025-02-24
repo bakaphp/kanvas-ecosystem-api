@@ -10,6 +10,7 @@ type Tag {
     name: String!
     slug: String
     weight: Int
+    is_feature: Int
     created_at: String
     updated_at: String
     taggables: [TagEntity!]! @hasMany(method: "taggables")
@@ -57,7 +58,17 @@ extend type Mutation @guard {
 extend type Query @guard {
     tags(
         search: String @search
-        where: _ @whereConditions(columns: ["id", "name", "slug", "weight"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "weight"
+                    "status"
+                    "is_feature"
+                ]
+            )
         orderBy: _
             @orderBy(columns: ["id", "name", "slug", "weight", "created_at"])
     ): [Tag!]!

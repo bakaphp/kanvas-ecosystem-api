@@ -9,18 +9,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Traits\SearchProductWorkflowTrait;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Repositories\VariantsChannelRepository;
-use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use stdClass;
 
@@ -109,8 +103,8 @@ class VariantChannelBuilder
         //@todo doesnt work with search
         return [
             'name' => $root->channel_name,
-            'price' => $root->price,
-            'discounted_price' => $root->discounted_price,
+            'price' => $root->price ?? 0.00,
+            'discounted_price' => $root->discounted_price ?? 0.00,
             'is_published' => $root->is_published,
         ];
     }
