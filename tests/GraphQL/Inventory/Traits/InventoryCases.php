@@ -65,6 +65,8 @@ trait InventoryCases
                 'description' => fake()->text,
                 'products_id' => $productId,
                 'sku' => fake()->time,
+                'ean' => fake()->ean13,
+                'barcode' => fake()->ean13,
                 'weight' => 1,
                 'warehouses' => [$warehouseData],
                 'attributes' => [
@@ -83,6 +85,8 @@ trait InventoryCases
                     id
                     name
                     sku
+                    ean
+                    barcode
                     description
                     products_id
                     weight

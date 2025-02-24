@@ -173,7 +173,6 @@ input ProcessPaymentInput {
 input ImportOrderCsvInput {
     file: Upload!
     channel_id: ID!
-    app_id: ID!
 }
 
 input AppleInAppPurchaseReceipt {

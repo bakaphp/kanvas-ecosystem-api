@@ -59,6 +59,7 @@
         "spatie/laravel-health": "^1.27",
         "spatie/laravel-image-optimizer": "^1.8",
         "spatie/laravel-queueable-action": "^2.15",
+        "spatie/laravel-translatable": "^6.9",
         "spatie/laravel-webhook-server": "^3.8",
         "stripe/stripe-php": "^13.0",
         "swoole/ide-helper": "*",

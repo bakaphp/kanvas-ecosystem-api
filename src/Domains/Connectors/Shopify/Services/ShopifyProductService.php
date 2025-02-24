@@ -43,7 +43,10 @@ class ShopifyProductService
         $this->mapFilesForImport($files);
 
         //attributes
-        $productTags = ! empty($shopifyProduct['tags']) ? explode($shopifyProduct['tags'], ',') : [];
+        $productTags = ! empty($shopifyProduct['tags']) ? explode(',', $shopifyProduct['tags']) : [];
+        $productTags = array_map(function ($tag) {
+            return ['name' => $tag];
+        }, $productTags);
         $productAttributes = [];
 
         $productType = $shopifyProduct['product_type'] ?? 'Default';
@@ -73,6 +76,7 @@ class ShopifyProductService
                    'data' => $productId,
                ],
            ],
+           'vendor' => $shopifyProduct['vendor'],
            'categories' => [
                [
                    'name' => $productCategory,
@@ -93,6 +97,7 @@ class ShopifyProductService
                      'channel' => $this->channel->name,
                 ],
            ],
+           'tags' => $productTags,
         ];
     }
 
