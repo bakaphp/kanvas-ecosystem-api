@@ -190,17 +190,19 @@ class SyncEsimWithProviderCommand extends Command
             $orderService = new ServicesOrderService($message->app, $message->company);
             $dataUsage = $orderService->getOrderStatus($orderId)['total'];
         }
+        // Calculate remaining data usage, ensuring it doesn't go negative
+        $remainingData = max(0, $totalBytesData - max(0, $dataUsage));
 
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
             callTypeGroup: 'data',
             initialQuantity: $totalBytesData,
-            remainingQuantity: $dataUsage > 0 ? $totalBytesData - $dataUsage : $totalBytesData,
+            remainingQuantity: $remainingData,
             assignmentDateTime: $installedDate,
             assignmentReference: $response['activationCode'],
             bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
             unlimited: $variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED->value,
-            expirationDate: Carbon::parse($installedDate)->addDays($variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
+            expirationDate: Carbon::parse($installedDate)->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
             imei: $message->message['data']['imei_number'] ?? null,
             esimStatus: $response['state'],
             message: $response['installDevice'],

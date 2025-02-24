@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Builders\Messages;
 
 use Algolia\AlgoliaSearch\SearchClient;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
@@ -43,6 +44,10 @@ class MessageBuilder
 
         $query = Message::query();
 
+        if (! empty($args['customFilters'])) {
+            $query = $this->applyCustomFilters($query, $args, $user);
+        }
+
         if (! empty($args['requiredTags'])) {
             $tagSlugs = $args['requiredTags'];
 
@@ -62,6 +67,33 @@ class MessageBuilder
         return $query;
     }
 
+    /**
+     * Apply options to the query.
+     *  customFilters: [
+     *      "SHOW_OWN_PARENT_MESSAGES_ONLY"
+     *  ]
+     * @throws InvalidArgumentException
+     */
+    protected function applyCustomFilters(Builder $query, array $args, UserInterface $user): Builder
+    {
+        foreach ($args['customFilters'] as $option) {
+            $query = match ($option) {
+                'SHOW_OWN_PARENT_MESSAGES_ONLY' => $query->where(function ($q) use ($user) {
+                    $q->whereNull('parent_id')
+                    ->orWhereRaw('NOT EXISTS (
+                        SELECT 1 FROM messages AS parent 
+                        WHERE parent.id = messages.parent_id 
+                        AND parent.users_id = messages.users_id
+                    )');
+                }),
+                // Add future options here
+                default => $query
+            };
+        }
+
+        return $query;
+    }
+
     public function getUserFeed(
         mixed $root,
         array $args,
@@ -73,7 +105,7 @@ class MessageBuilder
 
         $currentPage = (int) ($args['page'] ?? 1);
         //generate home-view interaction
-        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 1) {
+        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 2) {
             UserInteractionJob::dispatch(
                 $app,
                 $user,

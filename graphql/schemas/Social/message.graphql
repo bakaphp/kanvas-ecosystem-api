@@ -206,6 +206,7 @@ extend type Query @guard {
                 columns: ["id", "name", "slug"]
             )
         requiredTags: [String!]
+        customFilters: [String!]
         hasType: _
             @whereHasConditions(
                 relation: "messageType"

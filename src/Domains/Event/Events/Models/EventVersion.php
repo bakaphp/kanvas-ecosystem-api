@@ -52,7 +52,7 @@ class EventVersion extends BaseModel
         );
     }
 
-    public function casts(): array
+    protected function casts(): array
     {
         return [
             'metadata' => Json::class,
