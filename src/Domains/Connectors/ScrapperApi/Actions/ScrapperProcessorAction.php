@@ -21,6 +21,11 @@ use Kanvas\Users\Models\Users;
 use Illuminate\Support\Facades\Log;
 use PHPShopify\Exception\CurlException;
 use Baka\Traits\KanvasJobsTrait;
+use Kanvas\Connectors\Shopify\Actions\CreateProductGraphql;
+use Kanvas\Connectors\Shopify\Actions\UpdateProductGraphql;
+use Kanvas\Connectors\Shopify\Actions\CreateProductVariantGraphql;
+use Kanvas\Connectors\Shopify\Actions\ImagesGraphql;
+use Kanvas\Connectors\ScrapperApi\Actions\SaveCustomFieldDataAction;
 
 class ScrapperProcessorAction
 {
@@ -78,55 +83,72 @@ class ScrapperProcessorAction
                     Log::debug($e->getTraceAsString());
                     continue;
                 }
-                Log::info(message: "Product name: " . $result['name']);
+                $metafields = $this->getMetaFields(product: $product);
 
-                $syncProductWithShopify = new SyncProductWithShopifyAction($product);
-                try {
-                    $response = $syncProductWithShopify->execute();
-                } catch (CurlException $e) {
-                    continue;
+                $shopifyProductId = $product->getShopifyId($warehouse->regions);
+                if (! $shopifyProductId) {
+                    $shopifyProduct = (new CreateProductGraphql(
+                        $this->app,
+                        $this->companyBranch,
+                        $warehouse,
+                        $product,
+                        $metafields
+                    ))->execute();
+                } else {
+                    $shopifyProduct = (new UpdateProductGraphql(
+                        $this->app,
+                        $this->companyBranch,
+                        $warehouse,
+                        $product,
+                        $metafields
+                    ))->execute();
                 }
-                Log::info(message: "Product synced with Shopify");
-                $this->setCustomFieldAmazonPrice(product: $product);
+                $variants = (new CreateProductVariantGraphql(
+                    $this->app,
+                    $this->companyBranch,
+                    $warehouse,
+                    $product
+                ))->execute();
+                $images = (new ImagesGraphql(
+                    $this->app,
+                    $this->companyBranch,
+                    $warehouse,
+                    $product
+                ))->execute();
 
+                Log::info(message: "Product synced with Shopify");
                 if ($this->uuid) {
                     ProductScrapperEvent::dispatch(
                         $this->app,
                         $this->uuid,
                         $product,
+                        $product->variants()->first()->getPrice($warehouse),
                         $product->getShopifyId($this->region),
-                        $response[0]
+                        $images,
                     );
                 }
-                $shopifyData = [
-                    'shopify_id' => $product->getShopifyId($this->region),
-                    'shopify_product_id' => $response[0]['id'],
-                    'shopify_variant_id' => $response[1]['id'],
-                    'image' => $response[0]['image'],
-                    'price' => $response[0]['variants'][0]['price'],
-                    'discounted_price' => 0,
-                    'title' => mb_substr($response[0]['title'], 0, 255),
-                    'images' => $response[0]['images'],
-                    'en_title' => $originalName,
-                ];
-                $product->set('shopify_data', $shopifyData);
+                (new SaveCustomFieldDataAction(
+                    $warehouse,
+                    $product,
+                    $this->region,
+                    $originalName
+                ))->execute();
             } catch (\Throwable $e) {
                 continue;
             }
         }
     }
-    public function setCustomFieldAmazonPrice(Products $product): void
+    public function getMetaFields(Products $product): array
     {
-        $sdk = Client::getInstance($this->app, $this->companyBranch->company, $this->region);
-        $shopifyProductId = $product->getShopifyId($this->region);
-        $attribute = $product->attributes()->where('name', ScrapperConfigEnum::AMAZON_PRICE->value)->first();
+        $attribute = $product->attributes()->where('name', operator: ScrapperConfigEnum::AMAZON_PRICE->value)->first();
         $metafieldData = [
-            'namespace' => 'custom',
-            'key' => 'amazon_price',
-            'value' => json_encode(['amount' => $attribute->value, 'currency_code' => 'USD']),
-            'type' => 'money',
+            [
+                'namespace' => 'custom',
+                'key' => 'amazon_price',
+                'value' => json_encode(['amount' => $attribute->value, 'currency_code' => 'USD']),
+                'type' => 'money',
+            ]
         ];
-
-        $sdk->Product($shopifyProductId)->Metafield->post($metafieldData);
+        return $metafieldData;
     }
 }
