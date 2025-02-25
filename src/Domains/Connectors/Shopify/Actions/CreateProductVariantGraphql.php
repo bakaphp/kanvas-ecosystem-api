@@ -14,6 +14,8 @@ use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use PHPShopify\ShopifySDK;
 
+// to do: rename to standard push variant product graphql
+
 class CreateProductVariantGraphql
 {
     public function __construct(

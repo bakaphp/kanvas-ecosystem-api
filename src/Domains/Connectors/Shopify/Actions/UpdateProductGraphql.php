@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Shopify\Clients\Graphql;
 use Kanvas\Connectors\Shopify\Client;
 
+// to do: rename to standard push product graphql
 class UpdateProductGraphql
 {
     public function __construct(

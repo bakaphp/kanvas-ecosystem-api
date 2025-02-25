@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Log;
 use Shopify\Clients\Graphql;
 use Kanvas\Connectors\Shopify\Client;
 
+// to do: rename to standard push product graphql
+// to do: create variant into the method execute
 class CreateProductGraphql
 {
     public function __construct(
