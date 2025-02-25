@@ -65,7 +65,6 @@ class OrderService
         int $quantity,
         string $activeDate,
         string $refuelingId
-
     ): array {
         return $this->client->post('/aep/APP_createOrder_SBO/v1', [
             'thirdOrderId' => $thirdOrderId,
