@@ -46,7 +46,7 @@ class ShopifyOrderService
 
         if (strlen($updatedNote) > 5000) {
             //trim to avoid   note - is too long (maximum is 5000 characters)
-            $updatedNote = substr($updatedNote, 0, 5000);
+            $updatedNote = substr($updatedNote, 0, 4999);
         }
 
         $payload = [
