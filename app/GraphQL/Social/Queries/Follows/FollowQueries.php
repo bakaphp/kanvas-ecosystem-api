@@ -44,15 +44,15 @@ class FollowQueries
         $app = Apps::find(78);
         $company = Companies::find(2626);
         $user = Users::find($request['user_id']);
-    
-        $entityIdsByInterests = (new RecommendUsersToFollowByInterestsAction($app,$company,$user))->execute();
-        $entityIdsUsersPostSimilarCategories = (new RecommendUsersToFollowByPostsCategoriesAction($app,$company,$user))->execute();
+
+        $entityIdsByInterests = (new RecommendUsersToFollowByInterestsAction($app, $company, $user))->execute();
+        $entityIdsUsersPostSimilarCategories = (new RecommendUsersToFollowByPostsCategoriesAction($app, $company, $user))->execute();
 
         $entityIds = array_unique(array_merge($entityIdsByInterests, $entityIdsUsersPostSimilarCategories));
 
         $usersToFollow = Users::query()
             ->whereIn('id', $entityIds)
-            ->where('is_deleted',0);
+            ->where('is_deleted', 0);
 
         return $usersToFollow;
     }
