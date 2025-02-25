@@ -30,12 +30,10 @@ class TemplatesRepository
                 ->orderByRaw('
                     CASE 
                         WHEN companies_id = ? AND apps_id = ? THEN 1  -- Exact match (Company + App)
-                        WHEN companies_id = ? AND apps_id = ? THEN 2  -- Company match but global app
-                        WHEN companies_id = ? AND apps_id = ? THEN 3  -- Global company but app-specific
-                        ELSE 4                                       -- Default (Neither company nor app-specific)
+                        WHEN companies_id = ? AND apps_id = ? THEN 2  -- Global company but app-specific
+                        ELSE 3                                       -- Default (Neither company nor app-specific)
                     END', [
                         $companyId, $app->getId(),
-                        $companyId, AppEnums::LEGACY_APP_ID->getValue(),
                         AppEnums::GLOBAL_COMPANY_ID->getValue(), $app->getId(),
                     ])
                 ->firstOrFail();
