@@ -44,8 +44,7 @@ class RecommendUsersToFollowByPostsCategoriesAction
         if (empty($entityIds)) {
             return [];
         }
-
-        $usersToFollow = Users::whereIn('id', $entityIds)->get();
-        return $usersToFollow->toArray();
+        
+        return $entityIds;
     }
 }

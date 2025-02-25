@@ -35,6 +35,11 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getTotalFollowers"
         )
+    getRecommendedUsers(user_id: ID!): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getRecommendedUsers"
+            defaultCount: 25
+        )
 }
 
 extend type Mutation @guard {

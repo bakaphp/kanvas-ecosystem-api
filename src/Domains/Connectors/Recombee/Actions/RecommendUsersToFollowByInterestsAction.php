@@ -45,7 +45,6 @@ class RecommendUsersToFollowByInterestsAction
             return [];
         }
 
-        $usersToFollow = Users::whereIn('id', $entityIds)->get();
-        return $usersToFollow->toArray();
+        return $entityIds;
     }
 }
