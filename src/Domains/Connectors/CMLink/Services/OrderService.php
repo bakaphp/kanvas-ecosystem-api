@@ -49,6 +49,38 @@ class OrderService
         ]);
     }
 
+    /**
+     * Refuel an order.
+     *
+     * @param string $thirdOrderId Unique order ID from the client.
+     * @param string $iccid ICCID of the target SIM card.
+     * @param int $quantity Number of bundles to purchase.
+     * @param int $isRefuel Indicates whether this is an add-on package (0 = yes, 1 = no).
+     * @param int $refuelingId Add-on package ID, it is required if is_Refuel is 0
+     * @param string $dataBundleId ID of the data package to purchase.
+     */
+    public function refuelOrder(
+        string $thirdOrderId,
+        string $iccid,
+        int $quantity,
+        string $activeDate,
+        int $isRefuel = 0,
+        string $refuelingId
+
+    ): array {
+        return $this->client->post('/aep/APP_createOrder_SBO/v1', [
+            'thirdOrderId' => $thirdOrderId,
+            'ICCID' => $iccid,
+            'quantity' => $quantity,
+            'is_Refuel' => (string) $isRefuel,
+            'refuelingId' => (string) $refuelingId,
+            'includeCard' => 0, // Assuming 0 means no physical card
+            'sendLang' => 2,
+            //'setActiveTime' => date('Ymd', strtotime($activeDate)),
+            'accessToken' => $this->client->getAccessToken(),
+        ]);
+    }
+
     public function getOrderStatus(string|int $thirdOrderId): array
     {
         $response = $this->client->post('/aep/APP_getSubscriberAllQuota_SBO/v1', [
