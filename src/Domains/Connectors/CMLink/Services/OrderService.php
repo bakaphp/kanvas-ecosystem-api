@@ -64,7 +64,6 @@ class OrderService
         string $iccid,
         int $quantity,
         string $activeDate,
-        int $isRefuel = 0,
         string $refuelingId
 
     ): array {
@@ -72,7 +71,7 @@ class OrderService
             'thirdOrderId' => $thirdOrderId,
             'ICCID' => $iccid,
             'quantity' => $quantity,
-            'is_Refuel' => (string) $isRefuel,
+            'is_Refuel' => '0',
             'refuelingId' => (string) $refuelingId,
             'includeCard' => 0, // Assuming 0 means no physical card
             'sendLang' => 2,
