@@ -44,7 +44,6 @@ class RecommendUsersToFollowByPostsCategoriesAction
         if (empty($entityIds)) {
             return [];
         }
-        
         return $entityIds;
     }
 }
