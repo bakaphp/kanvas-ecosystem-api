@@ -34,7 +34,7 @@ class UsersInteractionsRepository
                 continue;
             }
 
-            $userLikedTags = $likeInteraction->entity->tags()->where('companies_id', $company->getId())->pluck('slug')->toArray();
+            $userLikedTags = $likeInteraction->entityData->tags()->where('companies_id', $company->getId())->pluck('slug')->toArray();
             foreach ($userLikedTags as $tagArray) {
                 if ($tagArray == null) {
                     continue;
