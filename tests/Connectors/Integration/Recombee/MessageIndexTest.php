@@ -157,7 +157,11 @@ class MessageIndexTest extends TestCase
         $messageIndex->createPromptMessageDatabase();
         $indexMessage = $messageIndex->indexPromptMessage($this->message);
 
-        $userRecommendation = new RecombeeUserRecommendationService($app);
+        $userRecommendation = new RecombeeUserRecommendationService(
+            $app,
+            $app->get(ConfigurationEnum::RECOMBEE_DATABASE->value),
+            $app->get(ConfigurationEnum::RECOMBEE_API_KEY->value)
+        );
         $createUserInteraction = new CreateUserInteractionAction(
             new UserInteraction(
                 $user,
@@ -173,7 +177,11 @@ class MessageIndexTest extends TestCase
             )
         );
 
-        $messageIndex = new RecombeeIndexService($app);
+        $messageIndex = new RecombeeIndexService(
+            $app,
+            $app->get(ConfigurationEnum::RECOMBEE_DATABASE->value),
+            $app->get(ConfigurationEnum::RECOMBEE_API_KEY->value)
+        );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
 
