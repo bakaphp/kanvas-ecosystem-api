@@ -27,7 +27,7 @@ class MessageIndexTest extends TestCase
         $app = app(Apps::class);
         $app->set(ConfigurationEnum::RECOMBEE_DATABASE->value, getenv('TEST_RECOMBEE_DATABASE'));
         $app->set(ConfigurationEnum::RECOMBEE_API_KEY->value, getenv('TEST_RECOMBEE_API_KEY'));
-        $app->set(ConfigurationEnum::RECOMBEE_REGION->value, getenv('TEST_RECOMBEE_REGION'));
+        $app->set(ConfigurationEnum::RECOMBEE_REGION->value, getenv('TEST_RECOMBEE_REGIONTEST_RECOMBEE_REGION'));
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
@@ -89,7 +89,8 @@ class MessageIndexTest extends TestCase
         $messageIndex = new RecombeeIndexService(
             $app,
             getenv('TEST_RECOMBEE_DATABASE'),
-            getenv('TEST_RECOMBEE_API_KEY')
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
         );
         $messageIndex->createPromptMessageDatabase();
         $indexMessage = $messageIndex->indexPromptMessage($this->message);
