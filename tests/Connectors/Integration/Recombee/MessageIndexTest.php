@@ -168,7 +168,12 @@ class MessageIndexTest extends TestCase
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $messageIndex = new RecombeeIndexService($app);
+        $messageIndex = new RecombeeIndexService(
+            $app,
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
+        );
         $messageIndex->createPromptMessageDatabase();
         $indexMessage = $messageIndex->indexPromptMessage($this->message);
 
