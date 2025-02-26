@@ -121,7 +121,8 @@ class MessageIndexTest extends TestCase
         $messageIndex = new RecombeeIndexService(
             $app,
             getenv('TEST_RECOMBEE_DATABASE'),
-            getenv('TEST_RECOMBEE_API_KEY')
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
         );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
@@ -153,7 +154,8 @@ class MessageIndexTest extends TestCase
         $messageIndex = new RecombeeIndexService(
             $app,
             getenv('TEST_RECOMBEE_DATABASE'),
-            getenv('TEST_RECOMBEE_API_KEY')
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
         );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
@@ -172,7 +174,8 @@ class MessageIndexTest extends TestCase
         $userRecommendation = new RecombeeUserRecommendationService(
             $app,
             getenv('TEST_RECOMBEE_DATABASE'),
-            getenv('TEST_RECOMBEE_API_KEY')
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
         );
         $createUserInteraction = new CreateUserInteractionAction(
             new UserInteraction(
@@ -192,7 +195,8 @@ class MessageIndexTest extends TestCase
         $messageIndex = new RecombeeIndexService(
             $app,
             getenv('TEST_RECOMBEE_DATABASE'),
-            getenv('TEST_RECOMBEE_API_KEY')
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
         );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
