@@ -86,7 +86,11 @@ class MessageIndexTest extends TestCase
     {
         $app = app(Apps::class);
 
-        $messageIndex = new RecombeeIndexService($app);
+        $messageIndex = new RecombeeIndexService(
+            $app,
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY')
+        );
         $messageIndex->createPromptMessageDatabase();
         $indexMessage = $messageIndex->indexPromptMessage($this->message);
 
@@ -114,7 +118,11 @@ class MessageIndexTest extends TestCase
             )
         );
 
-        $messageIndex = new RecombeeIndexService($app);
+        $messageIndex = new RecombeeIndexService(
+            $app,
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY')
+        );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
 
@@ -142,7 +150,11 @@ class MessageIndexTest extends TestCase
             )
         );
 
-        $messageIndex = new RecombeeIndexService($app);
+        $messageIndex = new RecombeeIndexService(
+            $app,
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY')
+        );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
 
@@ -159,8 +171,8 @@ class MessageIndexTest extends TestCase
 
         $userRecommendation = new RecombeeUserRecommendationService(
             $app,
-            $app->get(ConfigurationEnum::RECOMBEE_DATABASE->value),
-            $app->get(ConfigurationEnum::RECOMBEE_API_KEY->value)
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY')
         );
         $createUserInteraction = new CreateUserInteractionAction(
             new UserInteraction(
@@ -179,8 +191,8 @@ class MessageIndexTest extends TestCase
 
         $messageIndex = new RecombeeIndexService(
             $app,
-            $app->get(ConfigurationEnum::RECOMBEE_DATABASE->value),
-            $app->get(ConfigurationEnum::RECOMBEE_API_KEY->value)
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY')
         );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
