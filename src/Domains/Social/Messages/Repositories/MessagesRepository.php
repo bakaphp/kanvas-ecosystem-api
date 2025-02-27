@@ -11,11 +11,12 @@ use Kanvas\Users\Models\Users;
 
 class MessagesRepository
 {
-    /**
-     * getById
-     */
-    public static function getUserAllMessagesTags(Users $user, Companies $company, AppInterface $app, int $messageTypesId): array
-    {
+    public static function getUserAllMessagesTags(
+        Users $user,
+        Companies $company,
+        AppInterface $app,
+        int $messageTypesId
+    ): array {
         $userPostsTags = [];
         $query = Message::fromApp($app)
             ->where('users_id', $user->getId())

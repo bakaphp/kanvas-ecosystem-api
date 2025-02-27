@@ -6,14 +6,19 @@ namespace Kanvas\Social\Interactions\Repositories;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Interactions\Models\Interactions;
+use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Users\Models\Users;
 
 class UsersInteractionsRepository
 {
-    public static function getUserLikedTagsByInteractions(string $entityNamespace, array $interactionNamesArray, Users $user, Companies $company, ?AppInterface $app = null): array
-    {
+    public static function getUserLikedTagsByInteractions(
+        string $entityNamespace,
+        array $interactionNamesArray,
+        Users $user,
+        Companies $company,
+        ?AppInterface $app = null
+    ): array {
         $interactionIdsArray = Interactions::fromApp($app)
             ->whereIn('name', $interactionNamesArray)
             ->where('is_deleted', 0)
@@ -23,7 +28,7 @@ class UsersInteractionsRepository
         $userLikedTagsArray = [];
         $userInteraction = UsersInteractions::fromApp($app)
             ->where('users_id', $user->getId())
-            ->where("entity_namespace", $entityNamespace)
+            ->where('entity_namespace', $entityNamespace)
             ->where('is_deleted', 0)
             ->where('interactions_id', $interactionIdsArray)
             ->get();

@@ -11,6 +11,7 @@ use Kanvas\Connectors\Recombee\Client;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
+use Kanvas\Social\Interactions\Repositories\UsersInteractionsRepository;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -20,14 +21,13 @@ use Recombee\RecommApi\Client as RecommApiClient;
 use Recombee\RecommApi\Requests\AddBookmark;
 use Recombee\RecommApi\Requests\AddDetailView;
 use Recombee\RecommApi\Requests\AddItemProperty;
-use Recombee\RecommApi\Requests\AddUserProperty;
-use Recombee\RecommApi\Requests\SetUserValues;
 use Recombee\RecommApi\Requests\AddPurchase;
 use Recombee\RecommApi\Requests\AddRating;
+use Recombee\RecommApi\Requests\AddUserProperty;
 use Recombee\RecommApi\Requests\ListItemProperties;
 use Recombee\RecommApi\Requests\ListUserProperties;
 use Recombee\RecommApi\Requests\SetItemValues;
-use Kanvas\Social\Interactions\Repositories\UsersInteractionsRepository;
+use Recombee\RecommApi\Requests\SetUserValues;
 
 class RecombeeIndexService
 {
@@ -71,7 +71,6 @@ class RecombeeIndexService
         }
     }
 
-
     public function createUsersDatabase(): void
     {
         $properties = [
@@ -98,7 +97,7 @@ class RecombeeIndexService
             'users_id' => 'int',
             'entity_id' => 'int',
             'entity_messages_posts_categories' => 'set',
-            'entity_liked_categories' => 'set'
+            'entity_liked_categories' => 'set',
         ];
         $existingProperties = $this->client->send(new ListItemProperties());
         $existingPropertyNames = array_column($existingProperties, 'name');
@@ -147,7 +146,7 @@ class RecombeeIndexService
     {
         $interactionType = $userInteraction->interaction->name ?? null;
 
-        if (! $interactionType) {
+        if ($interactionType !== null) {
             throw new InvalidArgumentException('Missing interaction type.');
         }
 
@@ -220,7 +219,7 @@ class RecombeeIndexService
             'tag_' . $tag->slug,
             [
                 'type' => 'tag',
-                'item_value' => $tag->slug
+                'item_value' => $tag->slug,
             ],
             ['cascadeCreate' => true]
         );
@@ -250,6 +249,7 @@ class RecombeeIndexService
             ],
             ['cascadeCreate' => true]
         );
+
         return $this->client->send($request);
     }
 }

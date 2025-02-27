@@ -7,13 +7,8 @@ namespace Kanvas\Connectors\Recombee\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
-use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
-use Kanvas\Users\Models\Users;
+use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 
 class RecommendUsersToFollowByInterestsAction
 {
@@ -33,7 +28,7 @@ class RecommendUsersToFollowByInterestsAction
             $this->app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_API_KEY->value)
         );
 
-        $response = $recommendationService->getUsersFromSimilarInterestByFollow($this->user, $pageSize, 'user-folllow-suggetion-similar-interests');
+        $response = $recommendationService->getUsersFromSimilarInterestByFollow($this->user, $pageSize, 'user-follow-suggestion-similar-interests');
 
         $entityIds = collect($response)
             ->pluck('values.entity_id')

@@ -7,9 +7,9 @@ namespace App\Console\Commands\Connectors\Recombee;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
+use Kanvas\Social\Tags\Models\Tag;
 
 class IndexTagsCommand extends Command
 {
@@ -27,7 +27,6 @@ class IndexTagsCommand extends Command
      */
     protected $description = 'Index tags to the recommendation engine';
 
-
     /**
      * Execute the console command.
      */
@@ -38,9 +37,9 @@ class IndexTagsCommand extends Command
         // $this->overwriteAppService($app);
 
         $query = Tag::fromApp($app)
-        ->where('is_deleted', 0)
-        ->where('companies_id', $company->getId())
-        ->orderBy('id', 'DESC');
+            ->where('is_deleted', 0)
+            ->where('companies_id', $company->getId())
+            ->orderBy('id', 'DESC');
         $cursor = $query->cursor();
         $totalTags = $query->count();
 

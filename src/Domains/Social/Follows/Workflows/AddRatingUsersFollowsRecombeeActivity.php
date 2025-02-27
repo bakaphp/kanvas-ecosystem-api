@@ -7,16 +7,21 @@ namespace Kanvas\Social\Follows\Workflows;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Connectors\Recombee\Actions\AddRatingUserItemAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Override;
 use Workflow\Activity;
-use Kanvas\Connectors\Recombee\Actions\AddRatingUserItemAction;
 
 class AddRatingUsersFollowsRecombeeActivity extends Activity implements WorkflowActivityInterface
 {
     use KanvasJobsTrait;
     //public $tries = 3;
 
+    /**
+     * @param \Kanvas\Social\Interactions\Models\UsersInteractions $entity
+     */
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
@@ -24,11 +29,16 @@ class AddRatingUsersFollowsRecombeeActivity extends Activity implements Workflow
 
         $rating = $entity->is_deleted ? -1.0 : 1.0;
 
-        (new AddRatingUserItemAction($app, $user, $entity->entity_id, $rating))->execute();
+        (new AddRatingUserItemAction(
+            $app,
+            $user,
+            (int) $entity->entity_id,
+            $rating
+        ))->execute();
 
         return [
             'result' => true,
-            'message' => "Rating Added succesfully from user $user->getId() that follows $entity->entity_id",
+            'message' => "Rating Added successfully from user {$user->getId()} that follows" . $entity->entity_id,
             'entity' => [
                 get_class($entity),
                 $entity->getId(),

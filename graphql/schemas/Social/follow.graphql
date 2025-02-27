@@ -28,7 +28,7 @@ extend type Query @guard {
         )
     getFollowingEntity(user_id: ID!): [Following!]!
         @paginate(
-        builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"
             defaultCount: 25
         )
     getTotalFollowers(user_id: ID!): Int!

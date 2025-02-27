@@ -9,16 +9,20 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Recombee\Client;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Recombee\RecommApi\Client as RecommApiClient;
+use Recombee\RecommApi\Requests\AddRating;
 use Recombee\RecommApi\Requests\GetUserValues;
 use Recombee\RecommApi\Requests\RecommendItemsToUser;
-use Recombee\RecommApi\Requests\AddRating;
 
 class RecombeeUserRecommendationService
 {
     protected RecommApiClient $client;
 
-    public function __construct(protected AppInterface $app, protected string $recombeeDatabase, protected string $recombeeApiKey, $recombeeRegion = 'ca-east')
-    {
+    public function __construct(
+        protected AppInterface $app,
+        protected string $recombeeDatabase,
+        protected string $recombeeApiKey,
+        $recombeeRegion = 'ca-east'
+    ) {
         $this->client = (new Client(
             $app,
             $recombeeDatabase,
@@ -49,7 +53,7 @@ class RecombeeUserRecommendationService
         return $this->client->send(new RecommendItemsToUser($user->getId(), $count, $options))['recomms'] ?? [];
     }
 
-    public function getUsersFromSimilarInterestByFollow(UserInterface $user, int $count = 100, string $scenario = '​user-folllow-suggetion-similar-interest'): array
+    public function getUsersFromSimilarInterestByFollow(UserInterface $user, int $count = 100, string $scenario = '​user-follow-suggestion-similar-interest'): array
     {
         $userData = $this->client->send(new GetUserValues($user->getId()));
 
@@ -62,7 +66,7 @@ class RecombeeUserRecommendationService
         foreach ($likedCategories as $category) {
             $conditions[] = sprintf('"%s" IN \'entity_liked_categories\'', $category);
         }
-        $filter = implode(" OR ", $conditions);
+        $filter = implode(' OR ', $conditions);
 
         $filter = sprintf(
             '\'entity_id\' != %d AND \'users_id\' != %d AND (%s)',
@@ -89,7 +93,7 @@ class RecombeeUserRecommendationService
         foreach ($likedCategories as $category) {
             $conditions[] = sprintf('"%s" IN \'entity_messages_posts_categories\'', $category);
         }
-        $filter = implode(" OR ", $conditions);
+        $filter = implode(' OR ', $conditions);
 
         $filter = sprintf(
             '\'entity_id\' != %d AND \'users_id\' != %d AND (%s)',

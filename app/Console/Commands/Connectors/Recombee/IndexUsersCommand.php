@@ -6,11 +6,10 @@ namespace App\Console\Commands\Connectors\Recombee;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
-use Kanvas\Users\Models\UsersAssociatedApps;
-use Recombee\RecommApi\Client;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 class IndexUsersCommand extends Command
 {
@@ -52,7 +51,6 @@ class IndexUsersCommand extends Command
             $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_API_KEY->value)
         );
         $usersIndex->createUsersDatabase();
-
 
         foreach ($cursor as $userAssociatedApp) {
             $result = $usersIndex->indexUsers($userAssociatedApp->user, $company);

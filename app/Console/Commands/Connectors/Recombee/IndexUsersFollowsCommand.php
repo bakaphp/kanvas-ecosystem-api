@@ -29,7 +29,6 @@ class IndexUsersFollowsCommand extends Command
      */
     protected $description = 'Index users follows to the recommendation engine';
 
-
     /**
      * Execute the console command.
      */

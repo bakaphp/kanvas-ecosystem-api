@@ -7,9 +7,9 @@ namespace App\Console\Commands\Connectors\Recombee;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
+use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 
 class IndexMessagesRecombeeCommand extends Command
 {
@@ -48,8 +48,8 @@ class IndexMessagesRecombeeCommand extends Command
         $this->output->progressStart($totalMessages);
         $messageIndex = new RecombeeIndexService(
             $app,
-            $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_DATABASE->value),
-            $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_API_KEY->value)
+            (string) $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_DATABASE->value),
+            (string) $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_API_KEY->value)
         );
         $messageIndex->createPromptMessageDatabase();
 
