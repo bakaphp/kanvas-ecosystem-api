@@ -19,7 +19,7 @@ class FollowQueries
      */
     public function isFollowing(mixed $root, array $request): bool
     {
-        $app = apps(Apps::class);
+        $app = app(Apps::class);
         $whoIsFollowing = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
         $user = auth()->user();
 
@@ -31,7 +31,7 @@ class FollowQueries
      */
     public function getTotalFollowers(mixed $root, array $request): int
     {
-        $app = apps(Apps::class);
+        $app = app(Apps::class);
         $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
 
         return UsersFollowsRepository::getTotalFollowers($user);
@@ -42,7 +42,7 @@ class FollowQueries
      */
     public function getRecommendedUsers(mixed $root, array $request): Builder
     {
-        $app = apps(Apps::class);
+        $app = app(Apps::class);
         $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
         $company = $user->getCurrentCompany();
 
