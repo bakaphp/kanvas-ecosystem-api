@@ -48,7 +48,7 @@ class FollowQueries
 
         /**
          * @todo
-         * 
+         *
          * this right now is tied to recombee, we need to make it more generic
          * and allow to use other recommendation engines
          */
