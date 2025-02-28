@@ -8,7 +8,7 @@ use Kanvas\Connectors\Shopify\Actions\SyncShopifyOrderAction;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
-class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
+class ProcessShopifyOrderB2CWebhookJob extends ProcessWebhookJob
 {
     public function execute(): array
     {
@@ -18,7 +18,7 @@ class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
             $this->receiver->company,
             Regions::getById($regionId),
             $this->webhookRequest->payload,
-            ['B2B']
+            ['B2C']
         );
 
         $order = $syncShopifyOrder->execute();

@@ -51,6 +51,8 @@ class CreateDraftOrderAction
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);
+            $orderTags = $this->orderData->app->hasGlobalCompany() ? ['B2C'] : ['B2B'];
+            $order->addTags($orderTags);
 
             // Run after commit
             DB::afterCommit(function () use ($order) {

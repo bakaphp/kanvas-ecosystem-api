@@ -291,4 +291,15 @@ class Apps extends BaseModel implements AppInterface
                 'apps.updated_at'
             );
     }
+
+    public function hasGlobalCompany(string $groupName = 'USE_B2B_COMPANY_GROUP', string $companyIdKey = 'B2B_GLOBAL_COMPANY'): bool
+    {
+        if ($this->get($groupName)) {
+            if (UserCompanyApps::where('companies_id', $this->get($companyIdKey))->where('apps_id', $this->getId())->first()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

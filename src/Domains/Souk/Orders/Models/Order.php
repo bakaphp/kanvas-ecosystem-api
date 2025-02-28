@@ -24,6 +24,7 @@ use Laravel\Scout\Searchable;
 use Spatie\LaravelData\DataCollection;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
 /**
  * Class Order
@@ -77,6 +78,7 @@ class Order extends BaseModel
     use Searchable;
     use CanUseWorkflow;
     use HasShopifyCustomField;
+    use HasTagsTrait;
 
     protected $table = 'orders';
     protected $guarded = [];
