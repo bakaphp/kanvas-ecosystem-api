@@ -23,7 +23,7 @@ class RecombeeInteractionService
         protected AppInterface $app,
         ?string $recombeeDatabase = null,
         ?string $recombeeApiKey = null,
-        ?string $recombeeRegion = 'ca-east'
+        ?string $recombeeRegion = null
     ) {
         $this->client = (new Client(
             $app,

@@ -6,15 +6,12 @@ namespace App\GraphQL\Social\Queries\Follows;
 
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Recombee\Actions\GenerateRecommendUsersToFollowAction;
+use Kanvas\Connectors\Recombee\Actions\GenerateRecommendUserWhoToFollowAction;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class FollowQueries
 {
-    /**
-     * isFollowing
-     */
     public function isFollowing(mixed $root, array $request): bool
     {
         $app = app(Apps::class);
@@ -24,9 +21,6 @@ class FollowQueries
         return $user->isFollowing($whoIsFollowing);
     }
 
-    /**
-     * getTotalFollowers
-     */
     public function getTotalFollowers(mixed $root, array $request): int
     {
         $app = app(Apps::class);
@@ -49,8 +43,12 @@ class FollowQueries
             $user = $auth;
         }
 
-        $generateUserToUserRecommendation = new GenerateRecommendUsersToFollowAction($app, $company, $user);
+        /**
+         * @todo this right now is tied to one service (recombee) but we should make it more generic
+         * so we can use any service to get the recommendation , and change it by app
+         */
+        $generateUserToUserRecommendation = new GenerateRecommendUserWhoToFollowAction($app, $company);
 
-        return $generateUserToUserRecommendation->execute(10);
+        return $generateUserToUserRecommendation->execute($user, 10);
     }
 }

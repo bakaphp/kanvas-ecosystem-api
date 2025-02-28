@@ -21,7 +21,7 @@ class RecombeeUserRecommendationService
         protected AppInterface $app,
         protected ?string $recombeeDatabase = null,
         protected ?string $recombeeApiKey = null,
-        protected string $recombeeRegion = 'ca-east'
+        protected ?string $recombeeRegion = null
     ) {
         $this->client = (new Client(
             $app,
@@ -64,12 +64,13 @@ class RecombeeUserRecommendationService
 
     public function getUserToUserRecommendation(
         UserInterface $user,
-        int $count = 100,
+        int $count = 10,
         string $scenario = 'user-follow-suggestion-similar-interests',
         array $additionalOptions = []
     ): array {
         $options = array_merge([
             'scenario' => $scenario,
+            'cascadeCreate' => true,
             //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
         ], $additionalOptions);
 

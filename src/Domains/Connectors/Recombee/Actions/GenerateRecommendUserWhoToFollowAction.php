@@ -11,20 +11,19 @@ use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Users\Models\Users;
 
-class GenerateRecommendUsersToFollowAction
+class GenerateRecommendUserWhoToFollowAction
 {
     public function __construct(
         protected AppInterface $app,
-        protected CompanyInterface $company,
-        protected UserInterface $user
+        protected CompanyInterface $company
     ) {
     }
 
-    public function execute(int $pageSize = 10): Builder
+    public function execute(UserInterface $user, int $pageSize = 10): Builder
     {
         $recommendationService = new RecombeeUserRecommendationService($this->app);
 
-        $response = $recommendationService->getUserToUserRecommendation($this->user, $pageSize, 'user-follow-suggestion-similar-interests');
+        $response = $recommendationService->getUserToUserRecommendation($user, $pageSize, 'user-follow-suggestion-similar-interests');
 
         $entityIds = collect($response)
             ->pluck('id')
