@@ -12,12 +12,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Recombee\Actions\GenerateRecommendForYourFeedAction;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Jobs\UserInteractionJob;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\UserMessage;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class MessageBuilder
@@ -102,6 +102,7 @@ class MessageBuilder
     ): Builder {
         $user = auth()->user();
         $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
 
         $currentPage = (int) ($args['page'] ?? 1);
         //generate home-view interaction
@@ -114,7 +115,13 @@ class MessageBuilder
             );
         }
 
-        return UserMessage::getUserFeed($user, $app);
+        /**
+         * @todo this is tied to recombee, we need to move it to a per application
+         * configuration
+         */
+        $recombeeUserRecommendationService = new GenerateRecommendForYourFeedAction($app, $company);
+
+        return $recombeeUserRecommendationService->execute($user, $currentPage, $args['first'] ?? 25);
     }
 
     public function getChannelMessages(

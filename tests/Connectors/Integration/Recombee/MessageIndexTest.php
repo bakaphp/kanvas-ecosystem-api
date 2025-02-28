@@ -222,6 +222,6 @@ class MessageIndexTest extends TestCase
         );
 
         $recombeeIndex->addUserInteraction($createUserInteraction->execute());
-        $this->assertCount(1, $userRecommendation->getUserForYouFeed($user, 1, 'for-you-feed'));
+        $this->assertCount(1, $userRecommendation->getUserForYouFeed($user, 1, 'for-you-feed')['recomms']);
     }
 }

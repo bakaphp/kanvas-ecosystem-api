@@ -11,6 +11,7 @@ use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Recombee\RecommApi\Client as RecommApiClient;
 use Recombee\RecommApi\Requests\RecommendItemsToUser;
+use Recombee\RecommApi\Requests\RecommendNextItems;
 use Recombee\RecommApi\Requests\RecommendUsersToUser;
 
 class RecombeeUserRecommendationService
@@ -31,12 +32,23 @@ class RecombeeUserRecommendationService
         ))->getClient();
     }
 
-    public function getUserForYouFeed(UserInterface $user, int $count = 100, string $scenario = 'for-you-feed'): array
+    public function getUserForYouFeed(UserInterface $user, int $count = 100, string $scenario = 'for-you-feed', ?string $recommId = null): array
     {
+        if ($recommId !== null) {
+            return $this->getUserForYouFeedPagination($user, $recommId, $count);
+        }
+
         return $this->getUserRecommendation($user, $count, $scenario, [
             'rotationRate' => 0.0,
           //  'rotationTime' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value) ??  7200.0,
         ]);
+    }
+
+    public function getUserForYouFeedPagination(UserInterface $user, string $recommId, int $limit): array
+    {
+        return $this->client->send(
+            new RecommendNextItems($recommId, $limit)
+        );
     }
 
     public function getUserRecommendation(
@@ -47,6 +59,7 @@ class RecombeeUserRecommendationService
     ): array {
         $options = array_merge([
             'scenario' => $scenario,
+            'cascadeCreate' => true,
             //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
         ], $additionalOptions);
 
@@ -59,7 +72,7 @@ class RecombeeUserRecommendationService
             $recommendation['recommId']
         );
 
-        return $recommendation['recomms'] ?? [];
+        return $recommendation;
     }
 
     public function getUserToUserRecommendation(
@@ -83,6 +96,6 @@ class RecombeeUserRecommendationService
             (string) $recommendation['recommId']
         );
 
-        return $recommendation['recomms'] ?? [];
+        return $recommendation;
     }
 }

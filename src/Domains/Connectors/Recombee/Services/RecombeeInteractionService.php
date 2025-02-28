@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Recombee\Services;
 use Baka\Contracts\AppInterface;
 use InvalidArgumentException;
 use Kanvas\Connectors\Recombee\Client;
+use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Recombee\RecommApi\Client as RecommApiClient;
@@ -58,12 +59,19 @@ class RecombeeInteractionService
             throw new InvalidArgumentException('Invalid interaction type: ' . $interactionType);
         }
 
+        $userRecommendationKey = $interactionType !== InteractionEnum::FOLLOW->getValue() ? CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID : CustomFieldEnum::USER_WHO_TO_FOLLOW_RECOMM_ID;
+        $userRecommendationId = $userInteraction->user->get($userRecommendationKey->value) ?? null;
+
         $interactionClass = $interactionMap[$interactionType];
 
         $parameters = [
             'timestamp' => $userInteraction->created_at->timestamp,
             'cascadeCreate' => true,
         ];
+
+        if ($userRecommendationId !== null) {
+            $parameters['recommId'] = $userRecommendationId;
+        }
 
         $likeStyleInteraction = [
             InteractionEnum::LIKE->getValue(),
