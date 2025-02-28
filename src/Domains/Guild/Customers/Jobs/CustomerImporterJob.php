@@ -14,7 +14,6 @@ use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Imports\AbstractImporterJob;
 use Override;
 
@@ -25,7 +24,6 @@ use Throwable;
 
 class CustomerImporterJob extends AbstractImporterJob
 {
-   
     #[Override]
     public function handle()
     {
