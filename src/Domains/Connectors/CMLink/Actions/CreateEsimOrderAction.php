@@ -53,7 +53,7 @@ class CreateEsimOrderAction
         $availableVariant->reduceQuantityInWarehouse($warehouse, 1);
 
         if (! empty($availableVariant->getAttributeBySlug('father-sku')?->value)) {
-            $sku = $availableVariant->getAttributeBySlug('father-sku')?->value;
+            $sku = $availableVariant->getAttributeBySlug('father-sku')->value;
         } else {
             $sku = $availableVariant->sku;
         }
