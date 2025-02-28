@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Users\Models\Users;
 
-class GenerateRecommendUserWhoToFollowAction
+class GenerateWhoToFollowRecommendationsAction
 {
     public function __construct(
         protected AppInterface $app,

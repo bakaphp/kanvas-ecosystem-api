@@ -7,6 +7,7 @@ namespace App\GraphQL\Social\Queries\Follows;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Recombee\Actions\GenerateRecommendUserWhoToFollowAction;
+use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -47,7 +48,7 @@ class FollowQueries
          * @todo this right now is tied to one service (recombee) but we should make it more generic
          * so we can use any service to get the recommendation , and change it by app
          */
-        $generateUserToUserRecommendation = new GenerateRecommendUserWhoToFollowAction($app, $company);
+        $generateUserToUserRecommendation = new GenerateWhoToFollowRecommendationsAction($app, $company);
 
         return $generateUserToUserRecommendation->execute($user, $request['first'] ?? 10);
     }
