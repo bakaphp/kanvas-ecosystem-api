@@ -91,6 +91,7 @@ class Message extends BaseModel
 
     protected $casts = [
         'message' => Json::class,
+        'message_types_id' => 'integer',
     ];
 
     #[Override]

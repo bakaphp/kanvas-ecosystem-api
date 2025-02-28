@@ -10,7 +10,6 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 
 class PopulateTrendingFeedAction
 {
@@ -26,11 +25,7 @@ class PopulateTrendingFeedAction
 
     public function execute(int $pageSize = 350): int
     {
-        $recommendationService = new RecombeeUserRecommendationService(
-            $this->app,
-            $this->app->get(ConfigurationEnum::RECOMBEE_DATABASE->value),
-            $this->app->get(ConfigurationEnum::RECOMBEE_API_KEY->value)
-        );
+        $recommendationService = new RecombeeUserRecommendationService($this->app);
         $trendingSlug = 'trending';
         $userForYouFeed = $recommendationService->getUserRecommendation($this->user, $pageSize, $trendingSlug);
 

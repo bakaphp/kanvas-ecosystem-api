@@ -9,9 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    /**
+     * @param \Kanvas\Social\Messages\Models\Message $message
+     */
+    #[Override]
     public function execute(Model $message, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
@@ -19,7 +24,7 @@ class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivi
         $messageType = $params['message_type_id'] ?? null;
 
         if ($messageType !== null) {
-            if ((int) $message->message_types_id !== (int) $messageType) {
+            if ($message->message_types_id !== (int) $messageType) {
                 return [
                     'result' => false,
                     'message' => 'Message type does not match the expected ' . $messageType . ' but found ' . $message->message_types_id,

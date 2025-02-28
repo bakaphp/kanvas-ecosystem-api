@@ -4,37 +4,30 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\Recombee;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
-use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Social\Tags\Models\Tag;
 
 class IndexTagsCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
+    use KanvasJobsTrait;
+
     protected $signature = 'kanvas:recombee-index-tags {app_id} {companies_id}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Index tags to the recommendation engine';
 
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): void
     {
+        /** @var Apps $app  */
         $app = Apps::getById((int) $this->argument('app_id'));
+        $this->overwriteAppService($app);
         $company = Companies::find($this->argument('companies_id'));
-        // $this->overwriteAppService($app);
 
         $query = Tag::fromApp($app)
             ->where('is_deleted', 0)
@@ -46,8 +39,6 @@ class IndexTagsCommand extends Command
         $this->output->progressStart($totalTags);
         $tagsIndex = new RecombeeIndexService(
             $app,
-            $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_DATABASE->value),
-            $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_API_KEY->value),
         );
 
         foreach ($cursor as $tag) {

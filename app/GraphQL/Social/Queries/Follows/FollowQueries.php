@@ -6,10 +6,8 @@ namespace App\GraphQL\Social\Queries\Follows;
 
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Recombee\Actions\RecommendUsersToFollowByInterestsAction;
-use Kanvas\Connectors\Recombee\Actions\RecommendUsersToFollowByPostsCategoriesAction;
+use Kanvas\Connectors\Recombee\Actions\GenerateRecommendUsersToFollowAction;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
-use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class FollowQueries
@@ -43,24 +41,16 @@ class FollowQueries
     public function getRecommendedUsers(mixed $root, array $request): Builder
     {
         $app = app(Apps::class);
+        $auth = auth()->user();
         $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
         $company = $user->getCurrentCompany();
 
-        /**
-         * @todo
-         *
-         * this right now is tied to recombee, we need to make it more generic
-         * and allow to use other recommendation engines
-         */
-        $entityIdsByInterests = (new RecommendUsersToFollowByInterestsAction($app, $company, $user))->execute();
-        $entityIdsUsersPostSimilarCategories = (new RecommendUsersToFollowByPostsCategoriesAction($app, $company, $user))->execute();
+        if (! $auth->isAdmin()) {
+            $user = $auth;
+        }
 
-        $entityIds = array_unique(array_merge($entityIdsByInterests, $entityIdsUsersPostSimilarCategories));
+        $generateUserToUserRecommendation = new GenerateRecommendUsersToFollowAction($app, $company, $user);
 
-        $usersToFollow = Users::query()
-            ->whereIn('id', $entityIds)
-            ->where('is_deleted', 0);
-
-        return $usersToFollow;
+        return $generateUserToUserRecommendation->execute(10);
     }
 }

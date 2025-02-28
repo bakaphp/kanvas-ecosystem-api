@@ -8,10 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Recombee\Client;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Recombee\RecommApi\Client as RecommApiClient;
-use Recombee\RecommApi\Requests\AddRating;
-use Recombee\RecommApi\Requests\GetUserValues;
 use Recombee\RecommApi\Requests\RecommendItemsToUser;
+use Recombee\RecommApi\Requests\RecommendUsersToUser;
 
 class RecombeeUserRecommendationService
 {
@@ -19,9 +19,9 @@ class RecombeeUserRecommendationService
 
     public function __construct(
         protected AppInterface $app,
-        protected string $recombeeDatabase,
-        protected string $recombeeApiKey,
-        $recombeeRegion = 'ca-east'
+        protected ?string $recombeeDatabase = null,
+        protected ?string $recombeeApiKey = null,
+        protected string $recombeeRegion = 'ca-east'
     ) {
         $this->client = (new Client(
             $app,
@@ -50,69 +50,38 @@ class RecombeeUserRecommendationService
             //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
         ], $additionalOptions);
 
-        return $this->client->send(new RecommendItemsToUser($user->getId(), $count, $options))['recomms'] ?? [];
-    }
-
-    public function getUsersFromSimilarInterestByFollow(UserInterface $user, int $count = 100, string $scenario = '​user-follow-suggestion-similar-interest'): array
-    {
-        $userData = $this->client->send(new GetUserValues($user->getId()));
-
-        $likedCategories = $userData['liked_categories'] ?? [];
-
-        if (empty($likedCategories)) {
-            return [];
-        }
-
-        foreach ($likedCategories as $category) {
-            $conditions[] = sprintf('"%s" IN \'entity_liked_categories\'', $category);
-        }
-        $filter = implode(' OR ', $conditions);
-
-        $filter = sprintf(
-            '\'entity_id\' != %d AND \'users_id\' != %d AND (%s)',
-            $user->getId(),
-            $user->getId(),
-            $filter
+        $recommendation = $this->client->send(
+            new RecommendItemsToUser((string) $user->getId(), $count, $options)
         );
 
-        $options = [
-            'scenario' => $scenario,
-            'filter' => $filter,
-            'returnProperties' => true,
-        ];
-
-        return $this->client->send(new RecommendItemsToUser($user->getId(), $count, $options))['recomms'] ?? [];
-    }
-
-    public function getUsersFromSimilarPostsCategories(UserInterface $user, int $count = 100, string $scenario = 'user-folllow-suggetion-similar-posts-categories'): array
-    {
-        $userData = $this->client->send(new GetUserValues($user->getId()));
-
-        $likedCategories = $userData['liked_categories'] ?? [];
-
-        foreach ($likedCategories as $category) {
-            $conditions[] = sprintf('"%s" IN \'entity_messages_posts_categories\'', $category);
-        }
-        $filter = implode(' OR ', $conditions);
-
-        $filter = sprintf(
-            '\'entity_id\' != %d AND \'users_id\' != %d AND (%s)',
-            $user->getId(),
-            $user->getId(),
-            $filter
+        $user->set(
+            CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID->value,
+            $recommendation['recommId']
         );
 
-        $options = [
-            'scenario' => $scenario,
-            'filter' => $filter,
-            'returnProperties' => true,
-        ];
-
-        return $this->client->send(new RecommendItemsToUser($user->getId(), $count, $options))['recomms'] ?? [];
+        return $recommendation['recomms'] ?? [];
     }
 
-    public function addRatingToItemFromUser(UserInterface $user, int $itemId, float $rating): string
-    {
-        return $this->client->send(new AddRating($user->getId(), $itemId, $rating));
+    public function getUserToUserRecommendation(
+        UserInterface $user,
+        int $count = 100,
+        string $scenario = 'user-follow-suggestion-similar-interests',
+        array $additionalOptions = []
+    ): array {
+        $options = array_merge([
+            'scenario' => $scenario,
+            //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
+        ], $additionalOptions);
+
+        $recommendation = $this->client->send(
+            new RecommendUsersToUser((string) $user->getId(), $count, $options)
+        );
+
+        $user->set(
+            CustomFieldEnum::USER_WHO_TO_FOLLOW_RECOMM_ID->value,
+            (string) $recommendation['recommId']
+        );
+
+        return $recommendation['recomms'] ?? [];
     }
 }

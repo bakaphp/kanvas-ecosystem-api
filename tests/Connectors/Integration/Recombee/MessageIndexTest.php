@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Recombee;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Recombee\Services\RecombeeInteractionService;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
@@ -128,7 +129,12 @@ class MessageIndexTest extends TestCase
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
 
-        $this->assertEquals('ok', $messageIndex->indexUserInteraction($createUserInteraction->execute()));
+        $recombeeIndex = new RecombeeInteractionService(
+            app: $app,
+            recombeeRegion: getenv('TEST_RECOMBEE_REGION'),
+        );
+
+        $this->assertEquals('ok', $recombeeIndex->addUserInteraction($createUserInteraction->execute()));
     }
 
     public function testIndexViewUserInteraction(): void
@@ -160,8 +166,12 @@ class MessageIndexTest extends TestCase
         );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
+        $recombeeIndex = new RecombeeInteractionService(
+            app: $app,
+            recombeeRegion: getenv('TEST_RECOMBEE_REGION'),
+        );
 
-        $this->assertEquals('ok', $messageIndex->indexUserInteraction($createUserInteraction->execute()));
+        $this->assertEquals('ok', $recombeeIndex->addUserInteraction($createUserInteraction->execute()));
     }
 
     public function testGetUserRecommendation(): void
@@ -206,8 +216,12 @@ class MessageIndexTest extends TestCase
         );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
+        $recombeeIndex = new RecombeeInteractionService(
+            app: $app,
+            recombeeRegion: getenv('TEST_RECOMBEE_REGION'),
+        );
 
-        $messageIndex->indexUserInteraction($createUserInteraction->execute());
+        $recombeeIndex->addUserInteraction($createUserInteraction->execute());
         $this->assertCount(1, $userRecommendation->getUserForYouFeed($user, 1, 'for-you-feed'));
     }
 }
