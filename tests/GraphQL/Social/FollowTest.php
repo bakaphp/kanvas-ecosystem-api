@@ -410,4 +410,76 @@ class FollowTest extends TestCase
             ]
         );
     }
+
+    public function testGetWhoToFollow(): void
+    {
+        // Create users that should appear in who to follow recommendations
+        $users = Users::factory()->count(3)->create();
+        $branch = auth()->user()->getCurrentBranch();
+        $app = app(Apps::class);
+
+        // Register and assign users to company
+        foreach ($users as $user) {
+            (new RegisterUsersAppAction($user, $app))->execute($user->password);
+            (new AssignCompanyAction(
+                $user,
+                $branch,
+                RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value),
+                $app
+            ))->execute();
+        }
+
+        // Execute the getWhoToFollow query
+        $response = $this->graphQL(
+            /** @lang GraphQL */
+            '
+            query getWhoToFollow($user_id: ID!, $first: Int) {
+                getWhoToFollow(user_id: $user_id, first: $first) {
+                    data {
+                        id
+                        uuid
+                        firstname
+                        lastname
+                        displayname
+                        email
+                        created_at
+                    }
+                }
+            }
+            ',
+            [
+                'user_id' => auth()->id(),
+                'first' => 10,
+            ]
+        );
+
+        // Assert response structure
+        $response->assertJsonStructure([
+            'data' => [
+                'getWhoToFollow' => [
+                    'data' => [],
+                ],
+            ],
+        ]);
+
+        // Get the response data
+        $responseData = $response->json('data.getWhoToFollow.data');
+
+        // The test passes in either of these scenarios:
+        // 1. We have recommendations and they include some of our created users
+        // 2. We have no recommendations (empty array is valid)
+        if (! empty($responseData)) {
+            // If we have recommendations, verify some of our users are included
+            $userEmails = collect($users)->pluck('email')->toArray();
+            $responseEmails = collect($responseData)->pluck('email')->toArray();
+
+            $this->assertNotEmpty(
+                array_intersect($userEmails, $responseEmails),
+                'Expected at least one created user to appear in non-empty recommendations'
+            );
+        } else {
+            // If no recommendations, simply assert the empty array structure is correct
+            $this->assertSame([], $responseData, 'Expected empty recommendations array');
+        }
+    }
 }

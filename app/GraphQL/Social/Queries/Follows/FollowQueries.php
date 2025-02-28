@@ -49,6 +49,6 @@ class FollowQueries
          */
         $generateUserToUserRecommendation = new GenerateRecommendUserWhoToFollowAction($app, $company);
 
-        return $generateUserToUserRecommendation->execute($user, 10);
+        return $generateUserToUserRecommendation->execute($user, $request['first'] ?? 10);
     }
 }
