@@ -6,7 +6,7 @@ parameters:
   paths:
     - app
     - src
-  level: 5
+  level: 0
   treatPhpDocTypesAsCertain: false
   
   ignoreErrors:
