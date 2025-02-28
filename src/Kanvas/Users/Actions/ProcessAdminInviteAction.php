@@ -49,7 +49,7 @@ class ProcessAdminInviteAction
 
         try {
             $user = $this->user ?? (new CreateUserAction($dto))->execute();
-            $app = $invite->app()->get()->first();
+            $app = $invite->app;
             $company = $user->getCurrentCompany();
 
             $appDefault = Apps::getByUuid(config('kanvas.app.id'));

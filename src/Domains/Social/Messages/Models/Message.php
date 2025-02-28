@@ -10,6 +10,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Exception;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
@@ -40,7 +41,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
-use Carbon\Carbon;
+use Override;
 
 /**
  *  Class Message
@@ -90,8 +91,10 @@ class Message extends BaseModel
 
     protected $casts = [
         'message' => Json::class,
+        'message_types_id' => 'integer',
     ];
 
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'Message';
@@ -165,6 +168,7 @@ class Message extends BaseModel
         return $legacyClassMap::getById($this->appModuleMessage->entity_id);
     }
 
+    #[Override]
     public function user(): BelongsTo
     {
         return $this->belongsTo(
@@ -216,6 +220,7 @@ class Message extends BaseModel
         return config('scout.prefix') . ($customIndex ?? 'message_index');
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         if ($this->isDeleted()) {
@@ -287,8 +292,13 @@ class Message extends BaseModel
         return (bool)$this->is_locked;
     }
 
-    public static function getUserMessageCountInTimeFrame(int $userId, Apps $app, int $hours, ?int $messageTypesId = null, bool $getChildrenCount = false): int
-    {
+    public static function getUserMessageCountInTimeFrame(
+        int $userId,
+        Apps $app,
+        int $hours,
+        ?int $messageTypesId = null,
+        bool $getChildrenCount = false
+    ): int {
         return self::fromApp($app)
         ->where('users_id', $userId)
         ->when($messageTypesId, fn ($query) => $query->where('message_types_id', $messageTypesId))

@@ -10,24 +10,19 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Recombee\Client;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Follows\Models\UsersFollows;
-use Kanvas\Social\Interactions\Models\UsersInteractions;
+use Kanvas\Social\Interactions\Repositories\UsersInteractionsRepository;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Users\Models\Users;
 use Recombee\RecommApi\Client as RecommApiClient;
-use Recombee\RecommApi\Requests\AddBookmark;
-use Recombee\RecommApi\Requests\AddDetailView;
 use Recombee\RecommApi\Requests\AddItemProperty;
 use Recombee\RecommApi\Requests\AddUserProperty;
-use Recombee\RecommApi\Requests\SetUserValues;
-use Recombee\RecommApi\Requests\AddPurchase;
-use Recombee\RecommApi\Requests\AddRating;
 use Recombee\RecommApi\Requests\ListItemProperties;
 use Recombee\RecommApi\Requests\ListUserProperties;
 use Recombee\RecommApi\Requests\SetItemValues;
-use Kanvas\Social\Interactions\Repositories\UsersInteractionsRepository;
+use Recombee\RecommApi\Requests\SetUserValues;
 
 class RecombeeIndexService
 {
@@ -39,7 +34,12 @@ class RecombeeIndexService
         ?string $recombeeApiKey = null,
         string $recombeeRegion = 'ca-east'
     ) {
-        $this->client = (new Client($app, $recombeeDatabase, $recombeeApiKey, $recombeeRegion))->getClient();
+        $this->client = (new Client(
+            $app,
+            $recombeeDatabase,
+            $recombeeApiKey,
+            $recombeeRegion
+        ))->getClient();
     }
 
     public function createPromptMessageDatabase(): void
@@ -71,7 +71,6 @@ class RecombeeIndexService
         }
     }
 
-
     public function createUsersDatabase(): void
     {
         $properties = [
@@ -98,7 +97,7 @@ class RecombeeIndexService
             'users_id' => 'int',
             'entity_id' => 'int',
             'entity_messages_posts_categories' => 'set',
-            'entity_liked_categories' => 'set'
+            'entity_liked_categories' => 'set',
         ];
         $existingProperties = $this->client->send(new ListItemProperties());
         $existingPropertyNames = array_column($existingProperties, 'name');
@@ -143,52 +142,6 @@ class RecombeeIndexService
         return $this->client->send($request);
     }
 
-    public function indexUserInteraction(UsersInteractions $userInteraction): mixed
-    {
-        $interactionType = $userInteraction->interaction->name ?? null;
-
-        if (! $interactionType) {
-            throw new InvalidArgumentException('Missing interaction type.');
-        }
-
-        $interactionMap = [
-            InteractionEnum::VIEW->getValue() => AddDetailView::class,
-            InteractionEnum::VIEW_ITEM->getValue() => AddDetailView::class,
-            InteractionEnum::VIEW_HOME_PAGE->getValue() => AddDetailView::class,
-            InteractionEnum::VIEW_ITEM_LIST->getValue() => AddDetailView::class,
-            InteractionEnum::SHARE->getValue() => AddRating::class,
-            InteractionEnum::LIKE->getValue() => AddRating::class,
-            InteractionEnum::DISLIKE->getValue() => AddRating::class,
-            InteractionEnum::SAVE->getValue() => AddBookmark::class,
-            InteractionEnum::PURCHASE->getValue() => AddPurchase::class,
-        ];
-
-        if (! isset($interactionMap[$interactionType])) {
-            throw new InvalidArgumentException('Invalid interaction type: ' . $interactionType);
-        }
-
-        $interactionClass = $interactionMap[$interactionType];
-
-        $parameters = [
-            'timestamp' => $userInteraction->created_at?->timestamp ?? time(),
-            'cascadeCreate' => true,
-        ];
-
-        $likeStyleInteraction = [
-            InteractionEnum::LIKE->getValue(),
-            InteractionEnum::SHARE->getValue(),
-        ];
-        // Handle rating values
-        if ($interactionClass === AddRating::class) {
-            $value = in_array($interactionType, $likeStyleInteraction) ? 1 : -1;
-            $request = new $interactionClass($userInteraction->users_id, $userInteraction->entity_id, $value, $parameters);
-        } else {
-            $request = new $interactionClass($userInteraction->users_id, $userInteraction->entity_id, $parameters);
-        }
-
-        return $this->client->send($request);
-    }
-
     public function indexUsers(Users $user, Companies $company): mixed
     {
         $userLikedCategories = UsersInteractionsRepository::getUserLikedTagsByInteractions(
@@ -200,7 +153,7 @@ class RecombeeIndexService
         );
 
         $request = new SetUserValues(
-            $user->getId(),
+            (string) $user->getId(),
             [
                 'firstname' => $user->firstname,
                 'lastname' => $user->lastname,
@@ -220,7 +173,7 @@ class RecombeeIndexService
             'tag_' . $tag->slug,
             [
                 'type' => 'tag',
-                'item_value' => $tag->slug
+                'item_value' => $tag->slug,
             ],
             ['cascadeCreate' => true]
         );
@@ -238,7 +191,12 @@ class RecombeeIndexService
             $this->app
         );
 
-        $userMessagesCategories = MessagesRepository::getUserAllMessagesTags($usersFollow->user, $company, $this->app, $messageType->getId());
+        $userMessagesCategories = MessagesRepository::getUserAllMessagesTags(
+            $usersFollow->user,
+            $company,
+            $this->app,
+            $messageType->getId()
+        );
 
         $request = new SetItemValues(
             $usersFollow->getId(),
@@ -250,6 +208,7 @@ class RecombeeIndexService
             ],
             ['cascadeCreate' => true]
         );
+
         return $this->client->send($request);
     }
 }

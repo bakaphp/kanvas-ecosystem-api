@@ -2,33 +2,35 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Follows\Workflows;
+namespace Kanvas\Connectors\Recombee\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Users\Models\Users;
+use Kanvas\Connectors\Recombee\Services\RecombeeInteractionService;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Override;
 use Workflow\Activity;
-use Kanvas\Connectors\Recombee\Actions\AddRatingUserItemAction;
 
-class AddRatingUsersFollowsRecombeeActivity extends Activity implements WorkflowActivityInterface
+class PushUserInteractionRecombeeActivity extends Activity implements WorkflowActivityInterface
 {
     use KanvasJobsTrait;
     //public $tries = 3;
 
+    /**
+     * @param \Kanvas\Social\Interactions\Models\UsersInteractions $entity
+     */
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
-        $user = Users::getById($entity->users_id);
 
-        $rating = $entity->is_deleted ? -1.0 : 1.0;
-
-        (new AddRatingUserItemAction($app, $user, $entity->entity_id, $rating))->execute();
+        $recombeeInteractionService = new RecombeeInteractionService($app);
+        $recombeeInteractionService->addUserInteraction($entity);
 
         return [
             'result' => true,
-            'message' => "Rating Added succesfully from user $user->getId() that follows $entity->entity_id",
+            'message' => 'User interaction added ID ' . $entity->getId(),
             'entity' => [
                 get_class($entity),
                 $entity->getId(),

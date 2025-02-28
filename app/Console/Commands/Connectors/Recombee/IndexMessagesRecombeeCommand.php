@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\Recombee;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 
 class IndexMessagesRecombeeCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -20,22 +22,13 @@ class IndexMessagesRecombeeCommand extends Command
      */
     protected $signature = 'kanvas:recombee-index-messages {app_id} {message_type_id}';
 
-    /**
-     * The console command description.
-     *
-     * @var string|null
-     */
     protected $description = 'Index messages to recombee';
 
-    /**
-     * Execute the console command.
-     *
-     * @return void
-     */
-    public function handle()
+    public function handle(): void
     {
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
-        // $this->overwriteAppService($app);
+        $this->overwriteAppService($app);
 
         $messageType = (int) $this->argument('message_type_id');
 
@@ -46,11 +39,7 @@ class IndexMessagesRecombeeCommand extends Command
         $totalMessages = $query->count();
 
         $this->output->progressStart($totalMessages);
-        $messageIndex = new RecombeeIndexService(
-            $app,
-            $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_DATABASE->value),
-            $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_API_KEY->value)
-        );
+        $messageIndex = new RecombeeIndexService($app);
         $messageIndex->createPromptMessageDatabase();
 
         foreach ($cursor as $message) {

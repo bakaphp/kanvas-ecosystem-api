@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\Recombee;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -15,27 +16,20 @@ use Kanvas\Users\Models\Users;
 
 class IndexUsersFollowsCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
+    use KanvasJobsTrait;
+
     protected $signature = 'kanvas:recombee-index-users-follows {app_id} {companies_id} {message_types_id}';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Index users follows to the recommendation engine';
-
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
+        $this->overwriteAppService($app);
+
         $company = Companies::find($this->argument('companies_id'));
         $messageType = MessageType::find($this->argument('message_types_id'));
         // $this->overwriteAppService($app);
@@ -50,8 +44,8 @@ class IndexUsersFollowsCommand extends Command
         $this->output->progressStart($totalTags);
         $usersFollowsIndex = new RecombeeIndexService(
             $app,
-            $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_DATABASE->value),
-            $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_API_KEY->value)
+            (string) $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_DATABASE->value),
+            (string) $app->get(ConfigurationEnum::FOLLOWS_ENGINE_RECOMBEE_API_KEY->value)
         );
         $usersFollowsIndex->createUsersFollowsItemsDatabase();
 

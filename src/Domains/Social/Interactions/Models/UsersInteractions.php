@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Social\Interactions\Observers\UserInteractionObserver;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 
 /**
  * @property int $id
@@ -20,8 +21,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  * @property string $entity_namespace
  * @property int $interactions_id
  * @property string $notes
- * @property string $created_at
- * @property string $updated_at
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
  * @property bool $is_deleted
  */
 #[ObservedBy([UserInteractionObserver::class])]
@@ -38,16 +39,9 @@ class UsersInteractions extends BaseModel
         return $this->belongsTo(Interactions::class, 'interactions_id', 'id');
     }
 
-    /**
-     * @override
-     */
+    #[Override]
     public function getCacheKey(): string
     {
         return Str::simpleSlug($this->entity_namespace) . '-' . $this->entity_id;
-    }
-
-    public function entity(): BelongsTo
-    {
-        return $this->belongsTo($this->entity_namespace, 'entity_id');
     }
 }
