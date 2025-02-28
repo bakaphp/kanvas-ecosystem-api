@@ -52,12 +52,18 @@ class CreateEsimOrderAction
         $availableVariant = VariantsRepository::getAvailableVariant($productType, $warehouse);
         $availableVariant->reduceQuantityInWarehouse($warehouse, 1);
 
+        if (! empty($availableVariant->getAttributeBySlug('father-sku'))) {
+            $sku = $availableVariant->getAttributeBySlug('father-sku');
+        } else {
+            $sku = $availableVariant->sku;
+        }
+
         //add this variant to the order so we have a history of the iccid
         $this->order->addItem(new OrderItem(
             app: $this->order->app,
             variant: $availableVariant,
             name: $availableVariant->name,
-            sku: $availableVariant->sku,
+            sku: $sku,
             quantity: 1,
             price: $availableVariant->getPrice($warehouse),
             tax: 0,
