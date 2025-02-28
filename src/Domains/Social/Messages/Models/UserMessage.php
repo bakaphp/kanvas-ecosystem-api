@@ -83,8 +83,12 @@ class UserMessage extends BaseModel
                 ->select('messages.*');
     }
 
-    public static function getFirstMessageFromPage(UserInterface $user, AppInterface $app, int $pageNumber, int $limit = 25): ?UserMessage
-    {
+    public static function getFirstMessageFromPage(
+        UserInterface $user,
+        AppInterface $app,
+        int $pageNumber,
+        int $limit = 25
+    ): ?UserMessage {
         $offset = ($pageNumber - 1) * $limit;
 
         return self::fromApp($app)

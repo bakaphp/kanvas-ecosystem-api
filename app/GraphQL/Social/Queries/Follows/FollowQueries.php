@@ -4,28 +4,52 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Queries\Follows;
 
+use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Recombee\Actions\GenerateRecommendUserWhoToFollowAction;
+use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class FollowQueries
 {
-    /**
-     * isFollowing
-     */
     public function isFollowing(mixed $root, array $request): bool
     {
-        $whoIsFollowing = UsersRepository::getUserOfAppById((int) $request['user_id']);
+        $app = app(Apps::class);
+        $whoIsFollowing = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
         $user = auth()->user();
+
         return $user->isFollowing($whoIsFollowing);
+    }
+
+    public function getTotalFollowers(mixed $root, array $request): int
+    {
+        $app = app(Apps::class);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
+
+        return UsersFollowsRepository::getTotalFollowers($user);
     }
 
     /**
      * getTotalFollowers
      */
-    public function getTotalFollowers(mixed $root, array $request): int
+    public function getRecommendedUsers(mixed $root, array $request): Builder
     {
-        $user = UsersRepository::getUserOfAppById((int) $request['user_id']);
+        $app = app(Apps::class);
+        $auth = auth()->user();
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
+        $company = $user->getCurrentCompany();
 
-        return UsersFollowsRepository::getTotalFollowers($user);
+        if (! $auth->isAdmin()) {
+            $user = $auth;
+        }
+
+        /**
+         * @todo this right now is tied to one service (recombee) but we should make it more generic
+         * so we can use any service to get the recommendation , and change it by app
+         */
+        $generateUserToUserRecommendation = new GenerateWhoToFollowRecommendationsAction($app, $company);
+
+        return $generateUserToUserRecommendation->execute($user, $request['first'] ?? 10);
     }
 }

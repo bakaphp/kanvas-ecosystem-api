@@ -205,6 +205,11 @@ class Lead extends BaseModel
         return $this->belongsTo(LeadAttempt::class, 'id', 'leads_id');
     }
 
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(LeadAttempt::class, 'leads_id', 'id');
+    }
+
     public function branch(): BelongsTo
     {
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
