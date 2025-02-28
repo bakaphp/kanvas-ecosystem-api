@@ -453,33 +453,44 @@ class FollowTest extends TestCase
             ]
         );
 
-        // Assert response structure
-        $response->assertJsonStructure([
-            'data' => [
-                'getWhoToFollow' => [
-                    'data' => [],
+        // Debug - print the actual response content
+        $this->assertTrue(true, 'Response: ' . json_encode($response->json()));
+
+        // Try a more lenient assertion first
+        $response->assertStatus(200);
+
+        // If we get here, check the structure more specifically
+        if ($response->json('data.getWhoToFollow')) {
+            $response->assertJsonStructure([
+                'data' => [
+                    'getWhoToFollow' => [
+                        'data' => [],
+                    ],
                 ],
-            ],
-        ]);
+            ]);
 
-        // Get the response data
-        $responseData = $response->json('data.getWhoToFollow.data');
+            // Get the response data
+            $responseData = $response->json('data.getWhoToFollow.data');
 
-        // The test passes in either of these scenarios:
-        // 1. We have recommendations and they include some of our created users
-        // 2. We have no recommendations (empty array is valid)
-        if (! empty($responseData)) {
-            // If we have recommendations, verify some of our users are included
-            $userEmails = collect($users)->pluck('email')->toArray();
-            $responseEmails = collect($responseData)->pluck('email')->toArray();
+            // The test passes in either of these scenarios:
+            // 1. We have recommendations and they include some of our created users
+            // 2. We have no recommendations (empty array is valid)
+            if (! empty($responseData)) {
+                // If we have recommendations, verify some of our users are included
+                $userEmails = collect($users)->pluck('email')->toArray();
+                $responseEmails = collect($responseData)->pluck('email')->toArray();
 
-            $this->assertNotEmpty(
-                array_intersect($userEmails, $responseEmails),
-                'Expected at least one created user to appear in non-empty recommendations'
-            );
+                $this->assertNotEmpty(
+                    array_intersect($userEmails, $responseEmails),
+                    'Expected at least one created user to appear in non-empty recommendations'
+                );
+            } else {
+                // If no recommendations, simply assert the empty array structure is correct
+                $this->assertSame([], $responseData, 'Expected empty recommendations array');
+            }
         } else {
-            // If no recommendations, simply assert the empty array structure is correct
-            $this->assertSame([], $responseData, 'Expected empty recommendations array');
+            // Handle error response
+            $this->fail('GraphQL query failed: ' . json_encode($response->json()));
         }
     }
 }
