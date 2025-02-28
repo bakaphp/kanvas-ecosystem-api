@@ -8,6 +8,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
+use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -417,6 +418,12 @@ class FollowTest extends TestCase
         $users = Users::factory()->count(3)->create();
         $branch = auth()->user()->getCurrentBranch();
         $app = app(Apps::class);
+        /**
+         * @todo This should be moved to a more appropriate location
+         */
+        $app->set(ConfigurationEnum::RECOMBEE_DATABASE->value, getenv('TEST_RECOMBEE_DATABASE'));
+        $app->set(ConfigurationEnum::RECOMBEE_API_KEY->value, getenv('TEST_RECOMBEE_API_KEY'));
+        $app->set(ConfigurationEnum::RECOMBEE_REGION->value, getenv('TEST_RECOMBEE_REGION'));
 
         // Register and assign users to company
         foreach ($users as $user) {
