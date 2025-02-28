@@ -52,8 +52,8 @@ class CreateEsimOrderAction
         $availableVariant = VariantsRepository::getAvailableVariant($productType, $warehouse);
         $availableVariant->reduceQuantityInWarehouse($warehouse, 1);
 
-        if (! empty($availableVariant->getAttributeBySlug('father-sku'))) {
-            $sku = $availableVariant->getAttributeBySlug('father-sku');
+        if (! empty($availableVariant->getAttributeBySlug('father-sku')?->value)) {
+            $sku = $availableVariant->getAttributeBySlug('father-sku')?->value;
         } else {
             $sku = $availableVariant->sku;
         }
