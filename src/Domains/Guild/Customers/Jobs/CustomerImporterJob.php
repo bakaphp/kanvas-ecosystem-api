@@ -16,6 +16,7 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Imports\AbstractImporterJob;
+use Override;
 
 use function Sentry\captureException;
 
@@ -24,11 +25,8 @@ use Throwable;
 
 class CustomerImporterJob extends AbstractImporterJob
 {
-    /**
-     * handle.
-     *
-     * @return void
-     */
+   
+    #[Override]
     public function handle()
     {
         config(['laravel-model-caching.disabled' => true]);

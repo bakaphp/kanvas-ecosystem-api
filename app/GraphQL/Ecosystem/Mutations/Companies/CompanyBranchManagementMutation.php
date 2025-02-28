@@ -59,7 +59,7 @@ class CompanyBranchManagementMutation
         $user = auth()->user();
         $companyBranch = CompaniesBranches::getById((int) $request['id']);
 
-        $company = $companyBranch->company()->first();
+        $company = $companyBranch->company;
 
         CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $user);
 
@@ -77,7 +77,7 @@ class CompanyBranchManagementMutation
         $user = auth()->user();
         $companyBranch = CompaniesBranches::getById((int) $request['id']);
 
-        $company = $companyBranch->company()->first();
+        $company = $companyBranch->company;
 
         CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $user);
 
