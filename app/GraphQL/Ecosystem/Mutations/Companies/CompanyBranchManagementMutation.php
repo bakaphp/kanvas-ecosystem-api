@@ -116,7 +116,7 @@ class CompanyBranchManagementMutation
     {
         $user = Users::getById($request['user_id']);
         $branch = CompaniesBranches::getById($request['id']);
-        $company = $branch->company()->get()->first();
+        $company = $branch->company;
 
         CompaniesRepository::userAssociatedToCompany(
             $company,
@@ -144,7 +144,7 @@ class CompanyBranchManagementMutation
     {
         $user = Users::getById($request['user_id']);
         $branch = CompaniesBranches::getById($request['id']);
-        $company = $branch->company()->get()->first();
+        $company = $branch->company;
 
         if ($company->users_id == $user->getId()) {
             throw new AuthenticationException('You can not remove yourself from the company');
