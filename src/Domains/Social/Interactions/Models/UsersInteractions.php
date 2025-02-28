@@ -12,6 +12,7 @@ use Kanvas\Social\Interactions\Observers\UserInteractionObserver;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
+
 /**
  * @property int $id
  * @property int $apps_id
