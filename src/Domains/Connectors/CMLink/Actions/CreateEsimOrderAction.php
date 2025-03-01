@@ -56,7 +56,7 @@ class CreateEsimOrderAction
         $this->order->addItem(new OrderItem(
             app: $this->order->app,
             variant: $availableVariant,
-            name: $availableVariant->name,
+            name: (string) $availableVariant->name,
             sku: $availableVariant->sku,
             quantity: 1,
             price: $availableVariant->getPrice($warehouse),
