@@ -123,7 +123,7 @@ class MessageBuilder
          */
         $recombeeUserRecommendationService = new GenerateRecommendForYourFeedAction($app, $company);
 
-        return $recombeeUserRecommendationService->execute($user, $currentPage, $args['first'] ?? 25);
+        return $recombeeUserRecommendationService->execute($user, $currentPage, $args['first'] ?? 15);
     }
 
     public function getChannelMessages(
