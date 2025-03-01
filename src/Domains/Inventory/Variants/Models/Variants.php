@@ -103,7 +103,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
-    
+
     #[Override]
     public function getGraphTypeName(): string
     {
