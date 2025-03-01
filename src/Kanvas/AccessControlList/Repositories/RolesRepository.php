@@ -77,10 +77,10 @@ class RolesRepository
             ->leftJoinSub($subQuery, 'permissions', function ($join) {
                 $join->on('abilities.id', '=', 'permissions.ability_id');
             })
+            ->join('modules', 'modules.id', '=', 'abilities_modules.module_id')
             ->orderBy('module_id')
-            ->select('abilities.*', 'permissions.entity_id as roleId', 'abilities_modules.module_id as module')
-        ->get();
-
+            ->select('abilities.*', 'abilities_modules.system_modules_id', 'permissions.entity_id as roleId', 'modules.id', 'modules.name')
+            ->get();
         return self::mapPermissionsToStructure($abilities);
     }
 

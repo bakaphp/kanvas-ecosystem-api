@@ -1,0 +1,9 @@
+type Module {
+    id: ID!
+    name: String!
+    systemModules: [SystemModule!] @belongsTo(relation: "systemModules")
+}
+
+extend type Query @guardByAdmin {
+    modules: [Module!]! @all(model: "Kanvas\\Modules\\Models\\Module")
+}
