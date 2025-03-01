@@ -85,7 +85,7 @@ class CreateProductGraphql
             $id = basename($id);
             $this->products->setShopifyId($this->warehouse->regions, $id);
             (new PublishProductGraphqlAction(
-                $this->app, 
+                $this->app,
                 $this->branch,
                 $this->warehouse,
                 $this->products
