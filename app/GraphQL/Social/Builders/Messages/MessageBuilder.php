@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
@@ -99,11 +100,12 @@ class MessageBuilder
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ): Builder {
+    ): LengthAwarePaginator {
         $user = auth()->user();
         $app = app(Apps::class);
         $company = $user->getCurrentCompany();
 
+        unset($args['orderBy']);
         $currentPage = (int) ($args['page'] ?? 1);
         //generate home-view interaction
         if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 2) {

@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\Recombee\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
@@ -21,7 +21,7 @@ class GenerateRecommendForYourFeedAction
     ) {
     }
 
-    public function execute(UserInterface $user, int $page = 1, int $pageSize = 25): Builder
+    public function execute(UserInterface $user, int $page = 1, int $pageSize = 25): LengthAwarePaginator
     {
         $recommendationService = new RecombeeUserRecommendationService($this->app);
 
@@ -46,12 +46,31 @@ class GenerateRecommendForYourFeedAction
             ->filter()
             ->toArray();
 
+        $totalRecords = $this->app->get('social-user-message-filter-total-records') ?? 500;
         if (empty($entityIds)) {
-            return UserMessage::getUserFeed($user, $this->app);
+            //return UserMessage::getUserFeed($user, $this->app);
+            return new LengthAwarePaginator(
+                [],
+                $totalRecords,
+                $pageSize,
+                $page
+            );
         }
 
-        return Message::fromApp($this->app)
-                ->whereIn('id', $entityIds)
-                ->where('is_deleted', 0);
+        $messageTypeId = $this->app->get('social-user-message-filter-message-type');
+        $builder = Message::fromApp($this->app)
+            ->whereIn('id', $entityIds)
+            ->where('is_deleted', 0)
+            ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
+                return $query->where('messages.message_types_id', $messageTypeId);
+            })
+            ->orderByRaw('FIELD(id, ' . implode(',', $entityIds) . ')');
+
+        return new LengthAwarePaginator(
+            $builder->get(),
+            $totalRecords,
+            $pageSize,
+            $page
+        );
     }
 }
