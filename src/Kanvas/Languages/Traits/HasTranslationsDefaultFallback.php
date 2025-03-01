@@ -24,7 +24,7 @@ trait HasTranslationsDefaultFallback
 
         $attributeValue = $this->attributes[$key] ?? null;
 
-        if (! $attributeValue) {
+        if ($attributeValue === null) {
             return [];
         }
 
@@ -34,8 +34,27 @@ trait HasTranslationsDefaultFallback
             ($attributeValue[0] ?? '') === '{' &&
             (substr($attributeValue, -1) === '}');
 
-        $decodedValue = $isJson
-            ? json_decode($attributeValue, true)
+        $decodedValue = null;
+        if ($isJson) {
+            // Check if any first-level key looks like a language code
+            // Pattern matches ISO language codes (2-3 letter codes, with optional country/script extensions)
+            $languagePattern = '/^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$/';
+
+            $decodedValue = json_decode($attributeValue, true);
+            $hasLanguageKey = false;
+            foreach (array_keys($decodedValue) as $key) {
+                if (preg_match($languagePattern, $key)) {
+                    $hasLanguageKey = true;
+
+                    break;
+                }
+            }
+
+            $isJson = $hasLanguageKey;
+        }
+
+        $decodedValue = $isJson && is_array($decodedValue)
+            ? $decodedValue
             : [$fallbackLocale => (Str::isJson($attributeValue) ? json_decode($attributeValue, true) : $attributeValue)];
 
         // Only filter if we have allowedLocales
