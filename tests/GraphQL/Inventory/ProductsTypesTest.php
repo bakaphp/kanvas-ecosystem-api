@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Kanvas\Languages\Models\Languages;
 use Tests\TestCase;
 
 class ProductsTypesTest extends TestCase
@@ -71,32 +72,13 @@ class ProductsTypesTest extends TestCase
      */
     public function testUpdate(): void
     {
+        $response = $this->createProductType();
+        $id = $response['data']['createProductType']['id'];
+
         $data = [
             'name' => fake()->name,
-            'weight' => 1,
+            'weight' => 2,
         ];
-        $this->graphQL('
-            mutation($data: ProductTypeInput!) {
-                createProductType(input: $data)
-                {
-                    name
-                    weight
-                }
-            }', ['data' => $data])->assertJson([
-            'data' => ['createProductType' => $data]
-        ]);
-        $response = $this->graphQL('
-            query {
-                productTypes {
-                    data {
-                        id,
-                        name
-                        weight
-                    }
-                }
-            }');
-        $id = $response['data']['productTypes']['data'][0]['id'];
-        $data['weight'] = 2;
         $this->graphQL('
             mutation($data: ProductTypeUpdateInput! $id: ID!) {
                 updateProductType(input: $data id: $id)
@@ -109,6 +91,42 @@ class ProductsTypesTest extends TestCase
         ]);
     }
 
+    public function testUpdateProductTypeTranslation(): void
+    {
+        $response = $this->createProductType();
+        $language = Languages::first();
+        $id = $response['data']['createProductType']['id'];
+
+        $dataUpdate = [
+            'name' => fake()->name . ' en'
+        ];
+
+        $response = $this->graphQL('
+            mutation($dataUpdate: TranslationInput!, $id: ID!, $code: String!) {
+                updateProductTypeTranslations(id: $id, input: $dataUpdate, code: $code)
+                {
+                    id
+                    name,
+                    translation(languageCode: $code){
+                        name
+                        language{
+                            code
+                            language
+                        }
+                    }
+                }
+            }', [
+                'dataUpdate' => $dataUpdate,
+                'id' => $id,
+                'code' => $language->code
+            ]);
+
+        $this->assertEquals(
+            $dataUpdate['name'],
+            $response['data']['updateProductTypeTranslations']['translation']['name']
+        );
+    }
+
     /**
      * testDelete.
      *
@@ -116,36 +134,31 @@ class ProductsTypesTest extends TestCase
      */
     public function testDelete(): void
     {
-        $data = [
-            'name' => fake()->name,
-            'weight' => 1,
-        ];
-        $this->graphQL('
-            mutation($data: ProductTypeInput!) {
-                createProductType(input: $data)
-                {
-                    name
-                    weight
-                }
-            }', ['data' => $data])->assertJson([
-            'data' => ['createProductType' => $data]
-        ]);
-        $response = $this->graphQL('
-            query {
-                productTypes {
-                    data {
-                        id,
-                        name
-                        weight
-                    }
-                }
-            }');
-        $id = $response['data']['productTypes']['data'][0]['id'];
+        $response = $this->createProductType();
+        $id = $response['data']['createProductType']['id'];
         $this->graphQL('
             mutation($id: ID!) {
                 deleteProductType(id: $id)
             }', ['id' => $id])->assertJson([
             'data' => ['deleteProductType' => true]
         ]);
+    }
+
+    private function createProductType()
+    {
+        $data = [
+            'name' => fake()->name,
+            'weight' => 1,
+        ];
+
+        return $this->graphQL('
+            mutation($data: ProductTypeInput!) {
+                createProductType(input: $data)
+                {
+                    id
+                    name
+                    weight
+                }
+            }', ['data' => $data])->json();
     }
 }

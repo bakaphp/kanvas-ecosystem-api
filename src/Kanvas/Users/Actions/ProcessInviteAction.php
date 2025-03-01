@@ -47,8 +47,8 @@ class ProcessInviteAction
         try {
             $user = (new CreateUserAction($dto))->execute();
 
-            $company = $invite->company()->get()->first();
-            $branch = $invite->branch()->get()->first();
+            $company = $invite->company;
+            #$branch = $invite->branch;
 
             $company->associateUserApp(
                 $user,

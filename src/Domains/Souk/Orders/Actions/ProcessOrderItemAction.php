@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Orders\Jobs\ProcessOrderItemJob;
 use Kanvas\Souk\Orders\Services\OrderItemService;
 use Kanvas\Users\Models\Users;
@@ -47,8 +48,13 @@ class ProcessOrderItemAction
         }
 
         // Process the order items and add to cart.
-        $orderItemService->processOrderItems($validOrderItems, $channelId, $cart);
+        $itemsProcessed = $orderItemService->processOrderItems($validOrderItems, $channelId);
 
+        // Add the items to the cart.
+        $addToCartAction = new AddToCartAction($this->app, $this->user, $this->currentUserCompany);
+        $addToCartAction->execute($cart, $itemsProcessed);
+
+        // Return the items processed.
         return [
             'status' => 'success',
             'message' => 'Items processed successfully',

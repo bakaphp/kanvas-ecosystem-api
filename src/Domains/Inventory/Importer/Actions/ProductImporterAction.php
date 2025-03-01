@@ -41,9 +41,9 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehou
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
+use Kanvas\Regions\Models\Regions as KanvasRegions;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
-use Kanvas\Regions\Models\Regions as KanvasRegions;
 
 class ProductImporterAction
 {
@@ -104,12 +104,20 @@ class ProductImporterAction
 
             $this->productWarehouse();
 
+            if ($this->importedProduct->vendor) {
+                $this->product->warehouses()->newPivotStatement()->update([
+                    'vendor' => $this->importedProduct->vendor,
+                ]);
+            }
             //$this->variants();
             // @todo to be removed
             $this->variantsLocation($this->product);
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
+            }
+            if ($this->importedProduct->tags) {
+                $this->product->syncTags($this->importedProduct->tags);
             }
             DB::connection('inventory')->commit();
             $this->product->fireWorkflow(WorkflowEnum::SYNC_SHOPIFY->value);

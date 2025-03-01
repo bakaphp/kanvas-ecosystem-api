@@ -7,15 +7,20 @@ namespace Kanvas\Connectors\Recombee\Workflows;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
+use Kanvas\Connectors\Recombee\Services\RecombeeInteractionService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 use Throwable;
 
 class PushUserInteractionToEventActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    /**
+     * @param \Kanvas\Social\Interactions\Models\UsersInteractions $userInteraction
+     */
+    #[Override]
     public function execute(Model $userInteraction, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
@@ -34,7 +39,7 @@ class PushUserInteractionToEventActivity extends KanvasActivity implements Workf
         $globalAppCompany = CompaniesBranches::where('id', $companyBranchId)->first();
 
         $company = $interactionEntity->company ?? ($globalAppCompany ? $globalAppCompany->company : null);
-        if (! $company) {
+        if ($company === null) {
             return [
                 'result' => false,
                 'message' => 'Company not found',
@@ -42,10 +47,10 @@ class PushUserInteractionToEventActivity extends KanvasActivity implements Workf
             ];
         }
 
-        $recombeeIndex = new RecombeeIndexService($app);
+        $recombeeIndex = new RecombeeInteractionService($app);
 
         try {
-            $result = $recombeeIndex->indexUserInteraction($userInteraction);
+            $result = $recombeeIndex->addUserInteraction($userInteraction);
         } catch (Throwable $e) {
             return [
                 'result' => false,

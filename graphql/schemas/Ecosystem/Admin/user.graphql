@@ -52,6 +52,7 @@ enum UserAppEnumColumn {
     DISPLAYNAME @enum(value: "users_associated_apps.displayname")
     EMAIL @enum(value: "users_associated_apps.email")
     IS_ACTIVE @enum(value: "users_associated_apps.is_active")
+    ROLE_ID @enum(value: "users_associated_apps.user_role")
 }
 
 extend type Query @guardByAppKey {
@@ -66,6 +67,7 @@ extend type Query @guardByAppKey {
                     "lastname"
                     "displayname"
                     "email"
+                    "lastvisit"
                     "created_at"
                 ]
             )

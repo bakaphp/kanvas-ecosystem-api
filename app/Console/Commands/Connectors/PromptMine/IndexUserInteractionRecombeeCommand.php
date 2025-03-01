@@ -7,7 +7,7 @@ namespace App\Console\Commands\Connectors\PromptMine;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
+use Kanvas\Connectors\Recombee\Services\RecombeeInteractionService;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Throwable;
 
@@ -36,6 +36,7 @@ class IndexUserInteractionRecombeeCommand extends Command
      */
     public function handle()
     {
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
@@ -44,11 +45,11 @@ class IndexUserInteractionRecombeeCommand extends Command
         $totalMessages = $query->count();
 
         $this->output->progressStart($totalMessages);
-        $messageIndex = new RecombeeIndexService($app);
+        $recommendationService = new RecombeeInteractionService($app);
 
         foreach ($cursor as $userInteraction) {
             try {
-                $messageIndex->indexUserInteraction($userInteraction);
+                $recommendationService->addUserInteraction($userInteraction);
                 $this->output->progressAdvance();
             } catch (Throwable $e) {
                 $this->output->error($e->getMessage());

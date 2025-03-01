@@ -23,7 +23,7 @@ type VariantChannel {
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]!
+    attributes: [VariantsAttributes!]! @hasMany(relation: "attributes")
 }
 type ChannelsPricesHistoryRelationship {
     price: Money!
@@ -33,7 +33,7 @@ type VariantChannelRelationship {
     channels_id: ID! @rename(attribute: "id")
     name: String
     description: String
-    price: Money! 
+    price: Money!
     discounted_price: Money!
     warehouses_id: ID
     slug: String
