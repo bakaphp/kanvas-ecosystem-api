@@ -100,7 +100,7 @@ class MessageBuilder
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ): Builder|LengthAwarePaginator {
+    ): LengthAwarePaginator {
         $user = auth()->user();
         $app = app(Apps::class);
         $company = $user->getCurrentCompany();

@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\Recombee\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
@@ -22,7 +21,7 @@ class GenerateRecommendForYourFeedAction
     ) {
     }
 
-    public function execute(UserInterface $user, int $page = 1, int $pageSize = 25): Builder|LengthAwarePaginator
+    public function execute(UserInterface $user, int $page = 1, int $pageSize = 25): LengthAwarePaginator
     {
         $recommendationService = new RecombeeUserRecommendationService($this->app);
 
