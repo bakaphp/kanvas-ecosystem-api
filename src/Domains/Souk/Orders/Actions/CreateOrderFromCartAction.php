@@ -134,7 +134,7 @@ class CreateOrderFromCartAction
             $orderItems[] = new OrderItem(
                 app: $app,
                 variant: $variant,
-                name: $lineItem['name'],
+                name: (string) $lineItem['name'],
                 sku: (string) ($variant->sku ?? $lineItem['id']),
                 quantity: (int) $lineItem['quantity'],
                 price: (float) $lineItem['price'],

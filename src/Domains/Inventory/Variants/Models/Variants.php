@@ -38,6 +38,7 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Override;
 
 /**
  * Class Attributes.
@@ -102,7 +103,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
-
+    
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'Variant';
@@ -113,6 +115,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return $this->isPublished() && $this->product;

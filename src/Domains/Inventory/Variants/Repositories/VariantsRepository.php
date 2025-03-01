@@ -9,11 +9,13 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Override;
 
 class VariantsRepository
 {
     use SearchableTrait;
 
+    #[Override]
     public static function getModel(): Variants
     {
         return new Variants();
