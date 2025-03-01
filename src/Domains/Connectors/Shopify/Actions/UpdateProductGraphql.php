@@ -11,6 +11,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Illuminate\Support\Facades\Log;
 use Shopify\Clients\Graphql;
 use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Connectors\Shopify\Actions\PublishProductGraphqlAction;
 
 // to do: rename to standard push product graphql
 class UpdateProductGraphql
@@ -75,17 +76,22 @@ class UpdateProductGraphql
             if (! empty($this->metafields)) {
                 $variables['product']['metafields'] = $this->metafields;
             }
-            Log::debug("ShopifySaveAction variables", ['variables' => $variables]);
             if (! empty($media)) {
                 $variables['media'] = $media;
             }
             $client = Client::getInstance($this->app, $this->branch->company, $this->warehouse->regions);
 
             $response = $client->GraphQL->post($graphQL, null, null, $variables);
-            Log::debug("ShopifySaveAction response", ['response' => $response]);
             $id = $response['data']['productUpdate']['product']['id'];
             $id = basename($id);
             $this->products->setShopifyId($this->warehouse->regions, $id);
+            (new PublishProductGraphqlAction(
+                $this->app,
+                $this->branch,
+                $this->warehouse,
+                $this->products
+            ))->execute();
+
         } catch (\Throwable $e) {
             Log::error('ShopifySaveAction failed', ['error' => $e->getMessage()]);
             return ['error' => $e->getMessage()];
