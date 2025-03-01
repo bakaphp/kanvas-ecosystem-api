@@ -13,6 +13,7 @@ use Recombee\RecommApi\Client as RecommApiClient;
 use Recombee\RecommApi\Requests\RecommendItemsToUser;
 use Recombee\RecommApi\Requests\RecommendNextItems;
 use Recombee\RecommApi\Requests\RecommendUsersToUser;
+use Throwable;
 
 class RecombeeUserRecommendationService
 {
@@ -34,14 +35,21 @@ class RecombeeUserRecommendationService
 
     public function getUserForYouFeed(UserInterface $user, int $count = 100, string $scenario = 'for-you-feed', ?string $recommId = null): array
     {
-        if ($recommId !== null) {
-            return $this->getUserForYouFeedPagination($user, $recommId, $count);
-        }
-
-        return $this->getUserRecommendation($user, $count, $scenario, [
+        $recommendationOptions = [
             'rotationRate' => 0.0,
-          //  'rotationTime' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value) ??  7200.0,
-        ]);
+            // Uncomment when ready to use configuration
+            // 'rotationTime' => $this->config->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value, 7200.0),
+        ];
+
+        try {
+            if ($recommId !== null) {
+                return $this->getUserForYouFeedPagination($user, $recommId, $count);
+            }
+
+            return $this->getUserRecommendation($user, $count, $scenario, $recommendationOptions);
+        } catch (Throwable $e) {
+            return $this->getUserRecommendation($user, $count, $scenario, $recommendationOptions);
+        }
     }
 
     public function getUserForYouFeedPagination(UserInterface $user, string $recommId, int $limit): array
