@@ -33,7 +33,6 @@ use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
-use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionRecombeeActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
@@ -55,15 +54,14 @@ use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
-use Kanvas\Social\Follows\Workflows\AddRatingUsersFollowsRecombeeActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
+use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
-use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
@@ -135,7 +133,6 @@ class KanvasWorkflowSynActionCommand extends Command
             GenerateMessageTagsWithAiActivity::class,
             PushUserInteractionToEventActivity::class,
             PushMessageToItemActivity::class,
-            PushUserInteractionRecombeeActivity::class,
         ];
 
         $createdActions = [];

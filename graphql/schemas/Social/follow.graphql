@@ -37,7 +37,7 @@ extend type Query @guard {
         )
     getWhoToFollow(user_id: ID!): [User!]!
         @paginate(
-            builder: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getRecommendedUsers"
+            builder: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getWhoToFollow"
             defaultCount: 25
         )
 }

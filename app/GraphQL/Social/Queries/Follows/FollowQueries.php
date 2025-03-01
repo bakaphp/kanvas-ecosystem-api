@@ -6,7 +6,6 @@ namespace App\GraphQL\Social\Queries\Follows;
 
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Recombee\Actions\GenerateRecommendUserWhoToFollowAction;
 use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -30,10 +29,7 @@ class FollowQueries
         return UsersFollowsRepository::getTotalFollowers($user);
     }
 
-    /**
-     * getTotalFollowers
-     */
-    public function getRecommendedUsers(mixed $root, array $request): Builder
+    public function getWhoToFollow(mixed $root, array $request): Builder
     {
         $app = app(Apps::class);
         $auth = auth()->user();

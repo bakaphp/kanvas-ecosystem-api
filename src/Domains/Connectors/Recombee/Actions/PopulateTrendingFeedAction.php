@@ -35,7 +35,7 @@ class PopulateTrendingFeedAction
             $message->removeTag($trendingSlug);
         });
 
-        foreach ($userForYouFeed as $index => $messageId) {
+        foreach ($userForYouFeed as $messageId) {
             $messageId = $messageId['id'];
 
             try {
