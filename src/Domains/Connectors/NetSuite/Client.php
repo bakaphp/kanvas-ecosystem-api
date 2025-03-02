@@ -41,7 +41,7 @@ class Client
             'tokenSecret' => $config['tokenSecret'],
             // optional -------------------------------------
             'signatureAlgorithm' => 'sha256', // Defaults to 'sha256'
-            'logging' => env('APP_DEBUG', false), // Only enable logging if in debug mode
+            'logging' => config('app.debug', false), // Only enable logging if in debug mode
             'log_path' => storage_path('logs/netsuite.log'),
             'log_format' => 'netsuite-php-%date-%operation',
             'log_dateformat' => 'Ymd.His.u',

@@ -11,6 +11,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
+use Override;
 
 /**
  * Class OrderItem
@@ -57,6 +58,7 @@ class OrderItem extends BaseModel
         return $this->belongsTo(Variants::class, 'variant_id', 'id');
     }
 
+    #[Override]
     public function casts(): array
     {
         return [
