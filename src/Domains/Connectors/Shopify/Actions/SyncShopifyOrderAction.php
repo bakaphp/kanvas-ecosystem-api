@@ -31,7 +31,8 @@ class SyncShopifyOrderAction
         protected AppInterface $app,
         protected CompanyInterface $company,
         protected Regions $region,
-        protected array $orderData
+        protected array $orderData,
+        protected ?array $validTags = null
     ) {
     }
 
