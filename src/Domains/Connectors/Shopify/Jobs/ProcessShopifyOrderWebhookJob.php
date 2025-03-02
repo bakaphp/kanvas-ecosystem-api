@@ -29,7 +29,7 @@ class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
         $order = $syncShopifyOrder->execute();
 
         if ($isB2BOrder) {
-            $order->addTags(['B2B']);
+            $order->addTag('B2B');
         }
 
         return [
