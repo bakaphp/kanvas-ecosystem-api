@@ -12,8 +12,10 @@ use Kanvas\Users\Models\UserCompanyApps;
 
 class B2BConfigurationService
 {
-    public static function getConfiguredB2BCompany(AppInterface $app, Companies|CompanyInterface $company): Companies|CompanyInterface
-    {
+    public static function getConfiguredB2BCompany(
+        AppInterface $app,
+        Companies|CompanyInterface $company
+    ): Companies|CompanyInterface {
         if ($app->get(ConfigurationEnum::USE_B2B_COMPANY_GROUP->value)) {
             $b2bGlobalCompanyId = $app->get(ConfigurationEnum::B2B_GLOBAL_COMPANY->value);
             $userCompanyApp = UserCompanyApps::where('companies_id', $b2bGlobalCompanyId)
