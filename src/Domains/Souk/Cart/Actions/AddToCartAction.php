@@ -9,6 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantPriceService;
 use Kanvas\Souk\Enums\ConfigurationEnum;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Wearepixel\Cart\Cart;
@@ -24,18 +25,8 @@ class AddToCartAction
 
     public function execute(Cart $cart, array $items): array
     {
-        $company = $this->company;
+        $company = B2BConfigurationService::getConfiguredB2BCompany($this->app, $this->company);
         $currentUserCompany = $company;
-
-        /**
-         * @todo for now for b2b store clients
-         * change this to use company group?
-         */
-        if ($this->app->get(ConfigurationEnum::USE_B2B_COMPANY_GROUP->value)) {
-            if (UserCompanyApps::where('companies_id', $this->app->get(ConfigurationEnum::B2B_GLOBAL_COMPANY->value))->where('apps_id', $this->app->getId())->first()) {
-                $company = Companies::getById($this->app->get(ConfigurationEnum::B2B_GLOBAL_COMPANY->value));
-            }
-        }
 
         //@todo send warehouse via header
         //$useCompanySpecificPrice = $app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false;
