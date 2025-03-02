@@ -55,6 +55,14 @@ class IntegrationsCompany extends BaseModel
         $this->saveOrFail();
     }
 
+    public function isActive(bool $isActive): bool
+    {
+        $this->is_active = $isActive;
+        $this->saveOrFail();
+
+        return $this->is_active;
+    }
+
     /**
      * Get the integration company using the integration name
      *
@@ -72,6 +80,7 @@ class IntegrationsCompany extends BaseModel
                                 ->where('integrations_id', $integration->getId())
                                 ->where('status_id', $status->getId())
                                 ->where('region_id', $region->getId())
+                                ->where('is_active', 1)
                                 ->first();
     }
 }

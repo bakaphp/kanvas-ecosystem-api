@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Orders\Jobs\ProcessOrderItemJob;
 use Kanvas\Souk\Orders\Services\OrderItemService;
 use Kanvas\Users\Models\Users;
@@ -15,16 +16,17 @@ use Wearepixel\Cart\Cart;
 class ProcessOrderItemAction
 {
     private const LIMIT_ITEMS_PER_REQUEST = 100;
+
     public function __construct(
         protected Apps $app,
         protected Users $user,
-        protected Companies $currentUsercompany
+        protected Companies $currentUserCompany
     ) {
     }
 
     public function execute(UploadedFile $file, int $channelId, Cart $cart): array
     {
-        $orderItemService = new OrderItemService($this->app, $this->user, $this->currentUsercompany);
+        $orderItemService = new OrderItemService($this->app, $this->user, $this->currentUserCompany);
         $items = $orderItemService->getOrderItemsFromCsv($file);
 
         // Get the valid order items.
@@ -37,7 +39,7 @@ class ProcessOrderItemAction
 
         // If the number of valid order items is greater than the limit, dispatch a job to process the order items.
         if ($validOrderItemsCount > self::LIMIT_ITEMS_PER_REQUEST) {
-            ProcessOrderItemJob::dispatch($this->app, $this->user, $this->currentUsercompany, $validOrderItems, $channelId);
+            ProcessOrderItemJob::dispatch($this->app, $this->user, $this->currentUserCompany, $validOrderItems, $channelId);
 
             return [
                 'status' => 'pending',
@@ -46,7 +48,13 @@ class ProcessOrderItemAction
         }
 
         // Process the order items and add to cart.
-        $orderItemService->processOrderItems($validOrderItems, $channelId, $cart);
+        $itemsProcessed = $orderItemService->processOrderItems($validOrderItems, $channelId);
+
+        // Add the items to the cart.
+        $addToCartAction = new AddToCartAction($this->app, $this->user, $this->currentUserCompany);
+        $addToCartAction->execute($cart, $itemsProcessed);
+
+        // Return the items processed.
         return [
             'status' => 'success',
             'message' => 'Items processed successfully',

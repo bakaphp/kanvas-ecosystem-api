@@ -97,4 +97,16 @@ class IntegrationsMutation
 
         return $integrationCompany->delete();
     }
+
+    public function integrationCompanyIsActive(mixed $root, array $request): bool
+    {
+        $integrationCompany = ModelsIntegrationsCompany::getById((int) $request['input']['id']);
+
+        CompaniesRepository::userAssociatedToCompany(
+            $integrationCompany->company,
+            auth()->user()
+        );
+
+        return $integrationCompany->isActive((bool) $request['input']['is_active']);
+    }
 }

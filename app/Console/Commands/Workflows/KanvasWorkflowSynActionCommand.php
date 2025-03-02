@@ -32,6 +32,8 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
+use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
+use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
@@ -57,9 +59,9 @@ use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
+use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
-use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
@@ -129,6 +131,8 @@ class KanvasWorkflowSynActionCommand extends Command
             ShopifyOrderNotesWebhookJob::class,
             PullUserInformationActivity::class,
             GenerateMessageTagsWithAiActivity::class,
+            PushUserInteractionToEventActivity::class,
+            PushMessageToItemActivity::class,
         ];
 
         $createdActions = [];

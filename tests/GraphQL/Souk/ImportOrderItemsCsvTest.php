@@ -12,27 +12,27 @@ use Tests\TestCase;
 class ImportOrderItemsCsvTest extends TestCase
 {
     use InventoryCases;
+    /** @lang GraphQL */
+
+    private const IMPORT_ORDER_CSV_MUTATION = '
+                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
+                    importOrderCsv(input: {file: $file, channel_id: $channel_id})
+                    { 
+                        status, 
+                        message 
+                    } 
+                }
+            ';
 
     public function testImportOrderWithoutValidItemsCsv(): void
     {
         $app = app(Apps::class);
 
         $operations = [
-            'query' =>
-            /** @lang GraphQL */
-            '
-                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!, $app_id: ID!) {
-                    importOrderCsv(input: {file: $file, channel_id: $channel_id, app_id: $app_id})
-                    { 
-                        status, 
-                        message 
-                    } 
-                }
-            ',
+            'query' => self::IMPORT_ORDER_CSV_MUTATION,
             'variables' => [
                 'file' => null,
                 'channel_id' => 1,
-                'app_id' => $app->getId(),
             ],
         ];
 
@@ -106,21 +106,10 @@ class ImportOrderItemsCsvTest extends TestCase
         );
 
         $operations = [
-            'query' =>
-            /** @lang GraphQL */
-            '
-                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!, $app_id: ID!) {
-                    importOrderCsv(input: {file: $file, channel_id: $channel_id, app_id: $app_id})
-                    { 
-                        status, 
-                        message 
-                    } 
-                }
-            ',
+            'query' => self::IMPORT_ORDER_CSV_MUTATION,
             'variables' => [
                 'file' => null,
                 'channel_id' => $channelResponse['id'],
-                'app_id' => $app->getId(),
             ],
         ];
 
@@ -132,12 +121,12 @@ class ImportOrderItemsCsvTest extends TestCase
             [
                 'id' => $variantResponse['id'],
                 'name' => $variantResponse['name'],
-                'sku' => $variantResponse['sku'],
+                'ean' => $variantResponse['ean'],
             ],
             [
                 'id' => $variantResponse2['id'],
                 'name' => $variantResponse2['name'],
-                'sku' => $variantResponse2['sku'],
+                'ean' => $variantResponse2['ean'],
             ],
         ], 5);
 
@@ -211,8 +200,8 @@ class ImportOrderItemsCsvTest extends TestCase
             'query' =>
             /** @lang GraphQL */
             '
-                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!, $app_id: ID!) {
-                    importOrderCsv(input: {file: $file, channel_id: $channel_id, app_id: $app_id})
+                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
+                    importOrderCsv(input: {file: $file, channel_id: $channel_id})
                     { 
                         status, 
                         message 
@@ -234,12 +223,12 @@ class ImportOrderItemsCsvTest extends TestCase
             [
                 'id' => $variantResponse['id'],
                 'name' => $variantResponse['name'],
-                'sku' => $variantResponse['sku'],
+                'ean' => $variantResponse['ean'],
             ],
             [
                 'id' => $variantResponse2['id'],
                 'name' => $variantResponse2['name'],
-                'sku' => $variantResponse2['sku'],
+                'ean' => $variantResponse2['ean'],
             ],
         ], 5);
 
@@ -278,7 +267,7 @@ class ImportOrderItemsCsvTest extends TestCase
             '"Variant ID",Name,"Copic Item No/ UPC",Order Qty,"Min Quantity",Price,Tax,Discount,Currency' . "\n" .
             collect($products)->map(
                 fn ($product) =>
-                "{$product['id']},\"{$product['name']}\",\"{$product['sku']}\",{$qty},0,0,0,0,0,USD"
+                "{$product['id']},\"{$product['name']}\",\"{$product['ean']}\",{$qty},0,0,0,0,0,USD"
             )->join("\n");
     }
 }

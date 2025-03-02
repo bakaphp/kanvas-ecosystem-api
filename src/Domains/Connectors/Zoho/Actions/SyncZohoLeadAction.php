@@ -77,18 +77,27 @@ class SyncZohoLeadAction
 
         $status = ! empty($zohoLead->Lead_Status) ? strtolower($zohoLead->Lead_Status) : '';
 
+        $leadStatus = LeadStatus::firstOrCreate(
+            [
+                'name' => $status,
+            ],
+            [
+                'is_default' => 0,
+            ]
+        );
+
         /**
          * @todo if we don't have it create the status
          */
-        $leadStatus = match (true) {
-            Str::contains($status, 'close') => LeadStatus::getByName('bad'),
-            Str::contains($status, 'bad') => LeadStatus::getByName('bad'),
-            Str::contains($status, 'junk') => LeadStatus::getByName('bad'),
-            Str::contains($status, 'lost') => LeadStatus::getByName('close'),
-            Str::contains($status, 'won') => LeadStatus::getByName('complete'),
-            Str::contains($status, 'duplicate') => LeadStatus::getByName('complete'),
-            default => LeadStatus::getByName('active'),
-        };
+        /*         $leadStatus = match (true) {
+                    Str::contains($status, 'close') => LeadStatus::getByName('bad'),
+                    Str::contains($status, 'bad') => LeadStatus::getByName('bad'),
+                    Str::contains($status, 'junk') => LeadStatus::getByName('bad'),
+                    Str::contains($status, 'lost') => LeadStatus::getByName('close'),
+                    Str::contains($status, 'won') => LeadStatus::getByName('complete'),
+                    Str::contains($status, 'duplicate') => LeadStatus::getByName('complete'),
+                    default => LeadStatus::getByName('active'),
+                }; */
 
         $ownerUser = UsersAssociatedApps::query()->fromApp($this->app)->where('email', $zohoLead->Owner['email'])->first()?->user;
         $user = $agent?->user ?? $this->company->user;

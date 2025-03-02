@@ -59,7 +59,7 @@ class AddToCartAction
                 'quantity' => $item['quantity'],
                 'attributes' => $variant->product->attributes ? $variant->product->attributes->map(function ($attribute) {
                     return [
-                        $attribute->name => $attribute->pivot->value,
+                        $attribute->name => $attribute->value,
                     ];
                 })->collapse()->all() : [],
                 //'associatedModel' => $Product,

@@ -29,7 +29,7 @@ class CompanyActionVisitor extends BaseModel
     protected $table = 'companies_actions_visitors';
     protected $guarded = [];
 
-    public function casts(): array
+    protected function casts(): array
     {
         return [
             'request' => Json::class,

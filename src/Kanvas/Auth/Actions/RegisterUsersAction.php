@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
-use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Services\SetupService;
@@ -12,15 +11,11 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Override;
 
 class RegisterUsersAction extends CreateUserAction
 {
-    /**
-     * Invoke function.
-     * @todo improve duplicate code
-     *
-     * @param RegisterInput $data
-     */
+    #[Override]
     public function execute(): Users
     {
         $newUser = false;
