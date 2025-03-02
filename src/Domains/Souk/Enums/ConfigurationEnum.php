@@ -11,5 +11,4 @@ enum ConfigurationEnum: string
     case SEND_NEW_ORDER_TO_OWNER_NOTIFICATION = 'souk_send_new_order_to_owner_notification';
     case USE_B2B_COMPANY_GROUP = 'USE_B2B_COMPANY_GROUP';
     case B2B_GLOBAL_COMPANY = 'B2B_GLOBAL_COMPANY';
-
 }
