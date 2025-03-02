@@ -29,7 +29,7 @@
         "imdhemy/laravel-purchases": "^1.14",
         "knplabs/knp-snappy": "^1.5",
         "laravel-workflow/laravel-workflow": "^1.0.24",
-        "laravel/cashier": "^15.4.0",
+        "laravel/cashier": "^15.6.0",
         "laravel/framework": "^12.0",
         "laravel/octane": "^2.3",
         "laravel/sanctum": "^4.0",
