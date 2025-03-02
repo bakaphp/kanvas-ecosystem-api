@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Shopify\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Exception;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
@@ -39,10 +38,6 @@ class SyncShopifyOrderAction
 
     public function execute(): ModelsOrder
     {
-        if ($this->validTags && ! in_array($this->validTags[0], $this->orderData['tags'])) {
-            throw new Exception('Invalid tags');
-        }
-
         $customer = $this->syncCustomer();
         $this->syncProducts();
 
