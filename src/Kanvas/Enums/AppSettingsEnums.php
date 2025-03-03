@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Enums;
 
 use Baka\Contracts\EnumsInterface;
+use Override;
 
 enum AppSettingsEnums implements EnumsInterface
 {
@@ -40,9 +41,7 @@ enum AppSettingsEnums implements EnumsInterface
     case USE_LEGACY_ROLES;
     case DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE;
 
-    /**
-     * Get value.
-     */
+    #[Override]
     public function getValue(): mixed
     {
         return match ($this) {

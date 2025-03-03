@@ -450,7 +450,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
             if ($attributeModel) {
                 (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
 
-                if ($this?->productsType) {
+                if ($this?->productsType !== null) {
                     ProductTypeService::addAttributes(
                         $this->productsType,
                         $this->user,

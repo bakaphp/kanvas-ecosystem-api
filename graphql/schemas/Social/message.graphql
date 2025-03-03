@@ -283,12 +283,11 @@ extend type Query @guard {
                     "total_disliked"
                 ]
             )
-        search: String @search
     ): [Message!]!
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getUserFeed"
-            scopes: ["notDeleted"]
+            resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getUserFeed"
+            scopes: ["fromApp", "notDeleted"]
         )
 
     channelMessages(

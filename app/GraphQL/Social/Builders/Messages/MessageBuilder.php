@@ -9,15 +9,16 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Recombee\Actions\GenerateRecommendForYourFeedAction;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Jobs\UserInteractionJob;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\UserMessage;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class MessageBuilder
@@ -99,10 +100,12 @@ class MessageBuilder
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ): Builder {
+    ): LengthAwarePaginator {
         $user = auth()->user();
         $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
 
+        unset($args['orderBy']);
         $currentPage = (int) ($args['page'] ?? 1);
         //generate home-view interaction
         if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 2) {
@@ -114,7 +117,13 @@ class MessageBuilder
             );
         }
 
-        return UserMessage::getUserFeed($user, $app);
+        /**
+         * @todo this is tied to recombee, we need to move it to a per application
+         * configuration
+         */
+        $recombeeUserRecommendationService = new GenerateRecommendForYourFeedAction($app, $company);
+
+        return $recombeeUserRecommendationService->execute($user, $currentPage, $args['first'] ?? 15);
     }
 
     public function getChannelMessages(

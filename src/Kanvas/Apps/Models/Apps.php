@@ -134,6 +134,7 @@ class Apps extends BaseModel implements AppInterface
 
             return (int) $this->get('total_companies');
         }
+
         return (int) $totalCompanies;
     }
 

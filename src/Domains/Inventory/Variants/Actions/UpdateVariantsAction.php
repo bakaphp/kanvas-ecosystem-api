@@ -34,7 +34,7 @@ class UpdateVariantsAction
     public function execute(): Variants
     {
         CompaniesRepository::userAssociatedToCompany(
-            $this->variantDto->product->company()->get()->first(),
+            $this->variantDto->product->company,
             $this->user
         );
 

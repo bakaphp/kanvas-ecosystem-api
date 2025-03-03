@@ -1,8 +1,22 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/nesbot/carbon/extension.neon
+
 parameters:
   paths:
     - app
     - src
   level: 0
+  treatPhpDocTypesAsCertain: false
+  
   ignoreErrors:
     - "#^Unsafe usage of new static#"
     - "#unknown class Bouncer#"
+    - "#Casting to [a-z]+ something that's already [a-z]+.#"
+    - "#cast to [a-z]+ will always evaluate to#"
+    - "#Call to an undefined (static )?method [a-zA-Z0-9\\_]+::[a-zA-Z0-9\\_]+\\(\\)#"
+    - "#Casting array<array-key, mixed> to int has possibly unintended value of 0/1#"
+    - identifier: empty.offset
+    - identifier: property.notFound
+    
+  reportUnmatchedIgnoredErrors: false

@@ -52,12 +52,18 @@ class CreateEsimOrderAction
         $availableVariant = VariantsRepository::getAvailableVariant($productType, $warehouse);
         $availableVariant->reduceQuantityInWarehouse($warehouse, 1);
 
+        /**
+         * if it has a parent SKU its means its a fake product we created to sell the same product
+         * at a diff price
+         */
+        $sku = $availableVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $availableVariant->sku;
+
         //add this variant to the order so we have a history of the iccid
         $this->order->addItem(new OrderItem(
             app: $this->order->app,
             variant: $availableVariant,
-            name: $availableVariant->name,
-            sku: $availableVariant->sku,
+            name: (string) $availableVariant->name,
+            sku: $sku,
             quantity: 1,
             price: $availableVariant->getPrice($warehouse),
             tax: 0,
