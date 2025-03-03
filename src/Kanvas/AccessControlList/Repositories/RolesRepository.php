@@ -78,47 +78,55 @@ class RolesRepository
                 $join->on('abilities.id', '=', 'permissions.ability_id');
             })
             ->join('modules', 'modules.id', '=', 'abilities_modules.module_id')
-            ->orderBy('module_id')
+            ->orderBy('modules.id')
+            ->orderBy('system_modules_id')
             ->select('abilities.*', 'abilities_modules.system_modules_id', 'permissions.entity_id as roleId', 'modules.id', 'modules.name')
             ->get();
-        return self::mapPermissionsToStructure($abilities);
+        $roles =  self::mapPermissionsToStructure($abilities);
+        return $roles;
     }
 
     protected static function mapPermissionsToStructure($permissions): array
     {
-        $mappedPermissions = [];
+        $modules = [];
 
         foreach ($permissions as $permission) {
-            $module = $permission->module;
-            $entityType = $permission->entity_type;
-            if (! isset($mappedPermissions[$module])) {
-                $mappedPermissions[$module] = [
-                    'name' => $module,
-                    'entities' => [],
-                ];
-            }
-
-            if (! isset($mappedPermissions[$module]['entities'][$entityType])) {
-                $mappedPermissions[$module]['entities'][$entityType] = [
-                    'name' => $entityType,
-                    'abilities' => [],
-                ];
-            }
-
-            $mappedPermissions[$module]['entities'][$entityType]['abilities'][] = [
-                'name' => $permission['name'],
-                'description' => $permission['title'],
-                'entity_id' => $permission['roleId'],
-                'module' => $permission['module'],
+            $moduleId = (string) $permission['id'];
+            $moduleName = $permission['name'];
+            $systemModuleId = (string) $permission['system_modules_id'];
+            $entityType = $permission['entity_type'];
+            $ability = [
+                "name" => $permission['title'],
+                'roleId' => $permission['roleId']
             ];
-        }
-        foreach ($mappedPermissions as &$module) {
-            $module['entities'] = array_values($module['entities']);
-            foreach ($module['entities'] as &$entity) {
-                $entity['abilities'] = array_values($entity['abilities']);
+
+            if (!isset($modules[$moduleId])) {
+                $modules[$moduleId] = [
+                    "id" => $moduleId,
+                    "name" => $moduleName,
+                    "systemModules" => []
+                ];
+            }
+
+            $found = false;
+            foreach ($modules[$moduleId]['systemModules'] as &$systemModule) {
+                if ($systemModule['name'] === $entityType) {
+                    $systemModule['abilities'][] = $ability;
+                    $found = true;
+                    break;
+                }
+            }
+
+            if (!$found) {
+                $modules[$moduleId]['systemModules'][] = [
+                    "id" => $systemModuleId,
+                    "name" => $entityType,
+                    "abilities" => [$ability]
+                ];
             }
         }
 
-        return $mappedPermissions;
+        return $modules;
+
     }
 }

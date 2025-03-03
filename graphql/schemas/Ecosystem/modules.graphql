@@ -1,6 +1,6 @@
 type Module {
-    id: ID!
-    name: String!
+    id: ID
+    name: String
     systemModules: [SystemModule!] @belongsTo(relation: "systemModules")
 }
 

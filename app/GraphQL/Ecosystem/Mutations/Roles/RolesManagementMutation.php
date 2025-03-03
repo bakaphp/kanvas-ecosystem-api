@@ -147,7 +147,7 @@ class RolesManagementMutation
     public function createRole(mixed $rootValue, array $request): SilberRole
     {
         $user = auth()->user();
-
+        $input = $request['input'];
         if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not allowed to perform this action');
         }
@@ -157,12 +157,14 @@ class RolesManagementMutation
         }
 
         $role = new CreateRoleAction(
-            $request['name'],
-            $request['title'] ?? null
+            $input['name'],
+            $input['title'] ?? null
         );
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
-
+        foreach ($input['permissions'] as $permission) {
+            Bouncer::allow($role->name)->to($permission['permission'], $permission['model_name']);
+        }
         return KanvasRole::find($role->id);
     }
 
@@ -176,12 +178,18 @@ class RolesManagementMutation
         if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not allowed to perform this action');
         }
+        $input = $request['input'];
 
         $role = new UpdateRoleAction(
             (int) $request['id'],
-            $request['name'] ?? null,
-            $request['title'] ?? null
+            $input['name'] ?? null,
+            $input['title'] ?? null
         );
+        Bouncer::disallow($role)->to($role->abilities->pluck('name')->toArray());
+
+        foreach ($input['permissions'] as $permission) {
+            Bouncer::allow($role->name)->to($permission['permission'], $permission['model_name']);
+        }
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
 
