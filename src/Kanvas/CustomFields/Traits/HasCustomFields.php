@@ -447,4 +447,11 @@ trait HasCustomFields
             //$this->clearLightHouseCacheJob();
         }
     }
+
+    public function reGenerateRedisCustomFields(): void
+    {
+        foreach ($this->getAll(fromRedis: false) as $key => $value) {
+            $this->setInRedis((string) $key, $value);
+        }
+    }
 }
