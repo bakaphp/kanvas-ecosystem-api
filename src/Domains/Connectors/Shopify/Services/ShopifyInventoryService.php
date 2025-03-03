@@ -119,8 +119,13 @@ class ShopifyInventoryService
                 $response = $shopifyProduct->put($productInfo);
 
                 foreach ($limitedVariants as $variant) {
-                    $this->saveVariant($variant, $channel);
-                    $this->setStock($variant, $channel);
+                    try {
+                        $this->saveVariant($variant, $channel);
+                        $this->setStock($variant, $channel);
+                    } catch (Throwable $e) {
+                        Log::error($e->getMessage());
+                        captureException($e);
+                    }
                 }
             }
 
