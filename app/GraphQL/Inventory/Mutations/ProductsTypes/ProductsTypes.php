@@ -10,6 +10,8 @@ use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsT
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
+use Kanvas\Languages\DataTransferObject\Translate;
+use Kanvas\Languages\Services\Translation as TranslationService;
 
 class ProductsTypes
 {
@@ -134,5 +136,24 @@ class ProductsTypes
     {
         $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         return $productType->delete();
+    }
+
+    /**
+     * update.
+     */
+    public function updateProductTypeTranslation(mixed $root, array $req): ProductsTypesModel
+    {
+        $company = auth()->user()->getCurrentCompany();
+
+        $productType = ProductsTypesRepository::getById((int) $req['id'], $company);
+        $productTypeTranslateDto = Translate::fromMultiple($req['input'], $company);
+
+        $response = TranslationService::updateTranslation(
+            model: $productType,
+            dto: $productTypeTranslateDto,
+            code: $req['code']
+        );
+
+        return $response;
     }
 }

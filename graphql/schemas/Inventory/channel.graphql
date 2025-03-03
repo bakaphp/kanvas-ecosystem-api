@@ -85,7 +85,7 @@ extend type Query {
             )
         whereRating: _
             @whereConditions(
-                columns: ["rating"], 
+                columns: ["rating"]
                 handler: "App\\GraphQL\\Social\\Handlers\\UsersRatingsHandler"
             )
         orderBy: _
@@ -97,7 +97,7 @@ extend type Query {
                     "name"
                     "products_id"
                     "status_id"
-                    "is_published",
+                    "is_published"
                     "rating"
                 ]
             )

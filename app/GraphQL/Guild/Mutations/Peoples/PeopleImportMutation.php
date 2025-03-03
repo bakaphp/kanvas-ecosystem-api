@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Guild\Customers\Jobs\CustomerImporterJob;
+use Kanvas\Regions\Models\Regions;
 
 class PeopleImportMutation
 {
@@ -19,6 +20,7 @@ class PeopleImportMutation
     {
         $user = auth()->user();
         $company = isset($req['companyId']) ? Companies::getById($req['companyId']) : $user->getCurrentCompany();
+        $app = app(Apps::class);
 
         CompaniesRepository::userAssociatedToCompany(
             $company,
@@ -26,14 +28,17 @@ class PeopleImportMutation
         );
 
         $jobUuid = Str::uuid()->toString();
+        $region = Regions::getDefault($company, $app);
 
         CustomerImporterJob::dispatch(
             $jobUuid,
             $req['input'],
             $company->branch,
             $user,
+            $region,
             app(Apps::class)
         );
+
         return $jobUuid;
     }
 }

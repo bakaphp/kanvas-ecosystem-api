@@ -187,7 +187,7 @@ class SyncShopifyOrderAction
             $orderItems[] = new OrderItem(
                 app: $this->app,
                 variant: $variant,
-                name: $lineItem['name'],
+                name: (string) $lineItem['name'],
                 sku: (string) ($lineItem['sku'] ?? $lineItem['variant_id']),
                 quantity: $lineItem['quantity'],
                 price: (float) $lineItem['price'],

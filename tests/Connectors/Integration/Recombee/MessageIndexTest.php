@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Recombee;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Recombee\Services\RecombeeInteractionService;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
@@ -27,7 +28,7 @@ class MessageIndexTest extends TestCase
         $app = app(Apps::class);
         $app->set(ConfigurationEnum::RECOMBEE_DATABASE->value, getenv('TEST_RECOMBEE_DATABASE'));
         $app->set(ConfigurationEnum::RECOMBEE_API_KEY->value, getenv('TEST_RECOMBEE_API_KEY'));
-        $app->set(ConfigurationEnum::RECOMBEE_REGION->value, getenv('TEST_RECOMBEE_REGION'));
+        $app->set(ConfigurationEnum::RECOMBEE_REGION->value, getenv('TEST_RECOMBEE_REGIONTEST_RECOMBEE_REGION'));
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
@@ -86,7 +87,12 @@ class MessageIndexTest extends TestCase
     {
         $app = app(Apps::class);
 
-        $messageIndex = new RecombeeIndexService($app);
+        $messageIndex = new RecombeeIndexService(
+            $app,
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
+        );
         $messageIndex->createPromptMessageDatabase();
         $indexMessage = $messageIndex->indexPromptMessage($this->message);
 
@@ -114,11 +120,21 @@ class MessageIndexTest extends TestCase
             )
         );
 
-        $messageIndex = new RecombeeIndexService($app);
+        $messageIndex = new RecombeeIndexService(
+            $app,
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
+        );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
 
-        $this->assertEquals('ok', $messageIndex->indexUserInteraction($createUserInteraction->execute()));
+        $recombeeIndex = new RecombeeInteractionService(
+            app: $app,
+            recombeeRegion: getenv('TEST_RECOMBEE_REGION'),
+        );
+
+        $this->assertEquals('ok', $recombeeIndex->addUserInteraction($createUserInteraction->execute()));
     }
 
     public function testIndexViewUserInteraction(): void
@@ -142,22 +158,41 @@ class MessageIndexTest extends TestCase
             )
         );
 
-        $messageIndex = new RecombeeIndexService($app);
+        $messageIndex = new RecombeeIndexService(
+            $app,
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
+        );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
+        $recombeeIndex = new RecombeeInteractionService(
+            app: $app,
+            recombeeRegion: getenv('TEST_RECOMBEE_REGION'),
+        );
 
-        $this->assertEquals('ok', $messageIndex->indexUserInteraction($createUserInteraction->execute()));
+        $this->assertEquals('ok', $recombeeIndex->addUserInteraction($createUserInteraction->execute()));
     }
 
     public function testGetUserRecommendation(): void
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $messageIndex = new RecombeeIndexService($app);
+        $messageIndex = new RecombeeIndexService(
+            $app,
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
+        );
         $messageIndex->createPromptMessageDatabase();
         $indexMessage = $messageIndex->indexPromptMessage($this->message);
 
-        $userRecommendation = new RecombeeUserRecommendationService($app);
+        $userRecommendation = new RecombeeUserRecommendationService(
+            $app,
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
+        );
         $createUserInteraction = new CreateUserInteractionAction(
             new UserInteraction(
                 $user,
@@ -173,11 +208,20 @@ class MessageIndexTest extends TestCase
             )
         );
 
-        $messageIndex = new RecombeeIndexService($app);
+        $messageIndex = new RecombeeIndexService(
+            $app,
+            getenv('TEST_RECOMBEE_DATABASE'),
+            getenv('TEST_RECOMBEE_API_KEY'),
+            getenv('TEST_RECOMBEE_REGION')
+        );
         $messageIndex->createPromptMessageDatabase();
         $messageIndex->indexPromptMessage($this->message);
+        $recombeeIndex = new RecombeeInteractionService(
+            app: $app,
+            recombeeRegion: getenv('TEST_RECOMBEE_REGION'),
+        );
 
-        $messageIndex->indexUserInteraction($createUserInteraction->execute());
-        $this->assertCount(1, $userRecommendation->getUserForYouFeed($user, 1, 'for-you-feed'));
+        $recombeeIndex->addUserInteraction($createUserInteraction->execute());
+        $this->assertCount(1, $userRecommendation->getUserForYouFeed($user, 1, 'for-you-feed')['recomms']);
     }
 }

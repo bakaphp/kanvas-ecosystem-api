@@ -59,9 +59,9 @@ use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
+use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
-use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
