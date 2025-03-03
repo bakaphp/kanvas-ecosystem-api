@@ -71,6 +71,7 @@ class CreateProductGraphql
                 "product" => [
                     "title" => $this->products->name,
                     "descriptionHtml" => $this->products->description,
+                    'handle' => $this->products->slug,
                 ],
             ];
             if (! empty($this->metafields)) {
