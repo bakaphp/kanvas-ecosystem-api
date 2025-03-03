@@ -20,6 +20,7 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -76,7 +77,8 @@ class SyncEsimWithProviderCommand extends Command
     ): void {
         $iccid = $message->message['data']['iccid'] ?? null;
         $bundle = $message->message['data']['plan'] ?? null;
-        $network = strtolower($message->message['items'][0]['variant']['attributes']['Variant Network'] ?? '');
+        //$network = strtolower($message->message['items'][0]['variant']['attributes']['Variant Network'] ?? '');
+        $network = strtolower(Products::getById($message->message['items'][0]['variant']['products_id'])->getAttributeBySlug('product-provider')?->value ?? ''); //strtolower($message->message['items'][0]['variant']['attributes']['product-provider'] ?? '');
 
         if (empty($network) && $message->appModuleMessage && $message->appModuleMessage->entity instanceof Order) {
             $network = strtolower($message->appModuleMessage->entity->items()->first()->variant?->product?->getAttributeBySlug('product-provider')?->value ?? '');
