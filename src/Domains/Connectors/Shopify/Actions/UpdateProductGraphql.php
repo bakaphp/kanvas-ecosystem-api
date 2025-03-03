@@ -92,7 +92,6 @@ class UpdateProductGraphql
                 $this->warehouse,
                 $this->products
             ))->execute();
-
         } catch (\Throwable $e) {
             Log::error('ShopifySaveAction failed', ['error' => $e->getMessage()]);
             return ['error' => $e->getMessage()];

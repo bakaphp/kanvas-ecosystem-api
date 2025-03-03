@@ -1,5 +1,6 @@
 <?php
-declare(strict_types= 1);
+
+declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
 
@@ -8,13 +9,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Connectors\Shopify\Client;
-use \Throwable;
-use \Exception;
+use Throwable;
+use Exception;
 use Illuminate\Support\Facades\Log;
 
 class PublishProductGraphqlAction
 {
-
     public function __construct(
         protected Apps $app,
         protected CompaniesBranches $branch,
