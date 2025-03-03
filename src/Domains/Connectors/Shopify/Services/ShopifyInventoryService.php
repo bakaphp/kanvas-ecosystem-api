@@ -123,7 +123,8 @@ class ShopifyInventoryService
                         $this->saveVariant($variant, $channel);
                         $this->setStock($variant, $channel);
                     } catch (Throwable $e) {
-                        //do nothing
+                        Log::error($e->getMessage());
+                        captureException($e);
                     }
                 }
             }
