@@ -15,7 +15,7 @@ class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
     public function execute(): array
     {
         $regionId = $this->receiver->configuration['region_id'];
-        $tags = $this->receiver->configuration['tag'] ?? null;
+        //$tags = $this->receiver->configuration['tag'] ?? null;
         $isB2BOrder = (bool) ($this->receiver->configuration['is_b2b_order'] ?? false);
 
         $syncShopifyOrder = new SyncShopifyOrderAction(
@@ -23,7 +23,6 @@ class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
             $this->receiver->company,
             Regions::getById($regionId),
             $this->webhookRequest->payload,
-            $tags
         );
 
         $order = $syncShopifyOrder->execute();
