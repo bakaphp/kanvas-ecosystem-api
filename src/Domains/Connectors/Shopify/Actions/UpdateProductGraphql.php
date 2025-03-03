@@ -71,6 +71,7 @@ class UpdateProductGraphql
                     "title" => $this->products->name,
                     "descriptionHtml" => $this->products->description,
                     "id" => "gid://shopify/Product/{$id}",
+                    'handle' => $this->products->slug,
                 ],
             ];
             if (! empty($this->metafields)) {
