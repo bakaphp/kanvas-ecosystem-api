@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Languages\Traits;
 
 use Baka\Support\Str;
+use Kanvas\Inventory\Attributes\Models\AttributesValues;
+use Kanvas\Inventory\Products\Models\ProductsAttributes;
+use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Spatie\Translatable\HasTranslations;
 
 trait HasTranslationsDefaultFallback
@@ -83,7 +86,9 @@ trait HasTranslationsDefaultFallback
          * so we need to check if the value is an array and is not a list or is empty and the key is not an array cast
          * then we will set the translations.
          */
-        if (is_array($value) && (! array_is_list($value) || count($value) === 0) && ! $this->hasCast($key, 'array')) {
+        $attributeClass = in_array(get_called_class(), [ProductsAttributes::class, VariantsAttributes::class, AttributesValues::class]);
+
+        if (is_array($value) && (! array_is_list($value) || count($value) === 0) && ! $attributeClass) {
             return $this->setTranslations($key, $value);
         }
 
