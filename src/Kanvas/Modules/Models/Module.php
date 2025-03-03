@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Modules\Models;
@@ -9,7 +10,6 @@ use Kanvas\SystemModules\Models\SystemModules;
 
 class Module extends BaseModel
 {
-
     protected $table = "modules";
 
     protected $guarded = [];
@@ -23,5 +23,4 @@ class Module extends BaseModel
             'system_modules_id'
         )->groupBy('system_modules_id');
     }
-
 }

@@ -100,7 +100,7 @@ class RolesRepository
                 'roleId' => $permission['roleId']
             ];
 
-            if (!isset($modules[$moduleId])) {
+            if (! isset($modules[$moduleId])) {
                 $modules[$moduleId] = [
                     "id" => $moduleId,
                     "name" => $moduleName,
@@ -117,7 +117,7 @@ class RolesRepository
                 }
             }
 
-            if (!$found) {
+            if (! $found) {
                 $modules[$moduleId]['systemModules'][] = [
                     "id" => $systemModuleId,
                     "name" => $entityType,
@@ -127,6 +127,5 @@ class RolesRepository
         }
 
         return $modules;
-
     }
 }
