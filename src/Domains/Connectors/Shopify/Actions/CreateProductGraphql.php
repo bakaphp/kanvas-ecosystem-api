@@ -71,6 +71,7 @@ class CreateProductGraphql
                 "product" => [
                     "title" => $this->products->name,
                     "descriptionHtml" => $this->products->description,
+                    'handle' => $this->products->slug,
                 ],
             ];
             if (! empty($this->metafields)) {
@@ -85,7 +86,7 @@ class CreateProductGraphql
             $id = basename($id);
             $this->products->setShopifyId($this->warehouse->regions, $id);
             (new PublishProductGraphqlAction(
-                $this->app, 
+                $this->app,
                 $this->branch,
                 $this->warehouse,
                 $this->products
