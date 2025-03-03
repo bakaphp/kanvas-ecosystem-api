@@ -81,6 +81,7 @@ class CreateProductVariantGraphql
                         ],
                         'inventoryItem' => [
                             'tracked' => true,
+                            'sku' => $variant->sku,
                             'measurement' => [
                                 'weight' => [
                                     'unit' => 'GRAMS',
