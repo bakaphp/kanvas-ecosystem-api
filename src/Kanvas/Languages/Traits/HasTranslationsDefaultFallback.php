@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Languages\Traits;
 
 use Baka\Support\Str;
+use Kanvas\Inventory\Attributes\Models\AttributesValues;
+use Kanvas\Inventory\Products\Models\ProductsAttributes;
+use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Spatie\Translatable\HasTranslations;
 
 trait HasTranslationsDefaultFallback
@@ -36,14 +39,17 @@ trait HasTranslationsDefaultFallback
 
         $decodedValue = null;
         if ($isJson) {
-            // Check if any first-level key looks like a language code
-            // Pattern matches ISO language codes (2-3 letter codes, with optional country/script extensions)
-            $languagePattern = '/^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$/';
+            // Only accept these specific language codes: EN, ES, FR
+            $allowedLanguageCodes = ['en', 'es', 'fr'];
 
             $decodedValue = json_decode($attributeValue, true);
             $hasLanguageKey = false;
+
             foreach (array_keys($decodedValue) as $key) {
-                if (preg_match($languagePattern, $key)) {
+                // Convert to lowercase for case-insensitive comparison
+                $keyLower = strtolower($key);
+
+                if (in_array($keyLower, $allowedLanguageCodes)) {
                     $hasLanguageKey = true;
 
                     break;
@@ -67,5 +73,25 @@ trait HasTranslationsDefaultFallback
             fn ($value, $locale) => $this->filterTranslations($value, $locale, $allowedLocales),
             ARRAY_FILTER_USE_BOTH
         );
+    }
+
+    public function setAttribute($key, $value)
+    {
+        if (! $this->isTranslatableAttribute($key)) {
+            return parent::setAttribute($key, $value);
+        }
+
+        /**
+         * The issue with type array , it will save it as {"en":{"open":"06:00"},"close":"22:00"} instead of {"open":"06:00","close":"22:00"}
+         * so we need to check if the value is an array and is not a list or is empty and the key is not an array cast
+         * then we will set the translations.
+         */
+        $attributeClass = in_array(get_called_class(), [ProductsAttributes::class, VariantsAttributes::class, AttributesValues::class]);
+
+        if (is_array($value) && (! array_is_list($value) || count($value) === 0) && ! $attributeClass) {
+            return $this->setTranslations($key, $value);
+        }
+
+        return $this->setTranslation($key, $this->getLocale(), $value);
     }
 }

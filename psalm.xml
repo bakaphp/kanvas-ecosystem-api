@@ -37,6 +37,7 @@
         <MixedArgument errorLevel="suppress" />
         <MixedPropertyFetch errorLevel="suppress" />
         <UndefinedMagicMethod errorLevel="suppress" />
+        <UndefinedThisPropertyFetch errorLevel="suppress" />
         <MixedReturnStatement errorLevel="suppress" />
         <UndefinedMagicPropertyFetch errorLevel="suppress" />
         <MixedAssignment errorLevel="suppress" />
