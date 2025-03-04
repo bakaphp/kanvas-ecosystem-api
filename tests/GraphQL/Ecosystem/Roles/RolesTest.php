@@ -80,7 +80,8 @@ class RolesTest extends TestCase
             }"
         );
         $modules = $response->json("data.modules");
-        $modelName = $modules[0]["systemModules"][0]["model_name"];
+        $systemModules = $modules[0]["systemModules"];
+        $modelName = $systemModules[0]["model_name"];
         $permissions = collect($modules[0]["systemModules"][0]["abilities"]);
         $permissions = $permissions->pluck("name")->toArray();
         $permissions = [
