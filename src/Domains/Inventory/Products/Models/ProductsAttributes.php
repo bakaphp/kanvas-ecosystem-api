@@ -20,7 +20,7 @@ use Spatie\Translatable\HasTranslations;
  *
  * @property int $products_id
  * @property int $attributes_id
- * @property string $value
+ * @property ?string $value = null
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
