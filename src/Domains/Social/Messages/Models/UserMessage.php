@@ -83,6 +83,24 @@ class UserMessage extends BaseModel
                 ->select('messages.*');
     }
 
+    public static function getFollowingFeed(UserInterface $user, AppInterface $app): EloquentBuilder
+    {
+        $messageTypeId = $app->get('social-user-message-filter-message-type');
+
+        return Message::query()
+                ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
+                ->where('user_messages.users_id', $user->getId())
+                ->where('user_messages.apps_id', $app->getId())
+                ->where('messages.is_deleted', 0)
+                ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
+                    return $query->where('messages.message_types_id', $messageTypeId);
+                })
+                ->where('messages.users_id', '<>', $user->getId())
+                ->where('user_messages.is_deleted', 0)
+                ->orderBy('messages.created_at', 'desc') 
+                ->select('messages.*');
+    }
+
     public static function getFirstMessageFromPage(
         UserInterface $user,
         AppInterface $app,
