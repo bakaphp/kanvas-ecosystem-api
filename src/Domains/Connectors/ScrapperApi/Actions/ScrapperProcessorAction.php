@@ -64,9 +64,9 @@ class ScrapperProcessorAction
                 $originalName = $product['name'];
                 $mappedProduct = $service->mapProduct($product);
 
-                if ($mappedProduct['price'] >= 230) {
-                    continue;
-                }
+                // if ($mappedProduct['price'] >= 230) {
+                //     continue;
+                // }
                 try {
                     $product = (
                         new ProductImporterAction(
