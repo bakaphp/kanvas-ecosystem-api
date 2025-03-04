@@ -53,9 +53,6 @@ class KanvasSyncUserMessagesCommand extends Command
                 foreach ($messages as $message) {
                     echo('-Working on message: ' . $message->getId() . PHP_EOL);
 
-
-                    //Get likes 
-
                     UsersAssociatedApps::where('apps_id', $app_id->getId())
                         ->where('companies_id', 0)
                         ->where('is_active', 1)
@@ -74,14 +71,12 @@ class KanvasSyncUserMessagesCommand extends Command
                                     ->where('is_deleted', 0)
                                     ->first();
                                 
-                                if (!$userFollow) {
+                                if (! $userFollow) {
                                     continue;
                                 }
 
                                 echo('--Found user follow: ' . $user->users_id . ' with entity id: ' . $userFollow->entity_id . ' on message: ' . $message->getId() . PHP_EOL);
 
-
-                                //Check if users_interactions exist
                                 $userInteraction = UsersInteractions::fromApp($app_id)
                                     ->where('users_id', $user->users_id)
                                     ->where('interactions_id',1642)
@@ -93,8 +88,7 @@ class KanvasSyncUserMessagesCommand extends Command
                                     echo('--Found user interaction: ' . $userInteraction->getId() . ' on message: ' . $message->getId() . "from user: " . $user->users_id . PHP_EOL);
                                 }
     
-                                //Lets add all entity messages to the user via users_messages table
-                                $userMessage = UserMessage::updateOrCreate(
+                                UserMessage::updateOrCreate(
                                     [
                                         'users_id' => $user->users_id,
                                         'apps_id' => $app_id->getId(),

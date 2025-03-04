@@ -10,7 +10,6 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Kanvas\Social\Messages\Jobs\DistributeMessagesToUsersJob;
 
-
 class DistributeMessageActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public function execute(Model $entity, AppInterface $app, array $params): array

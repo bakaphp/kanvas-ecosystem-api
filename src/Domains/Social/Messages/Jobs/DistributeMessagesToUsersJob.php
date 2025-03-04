@@ -29,7 +29,8 @@ class DistributeMessagesToUsersJob implements ShouldQueue
         protected Message $message,
         protected Apps $app,
         protected array $params = [],
-    ) {}
+    ) {
+    }
 
     /**
      * Send message notifications to all followers of a user.
