@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\VinSolution;
 
 use Baka\Contracts\AppInterface;
 use GuzzleHttp\Client as GuzzleClient;
-use Illuminate\Redis\Connections\PhpRedisConnection;
+use Illuminate\Redis\Connections\Connection;
 use Illuminate\Support\Facades\Redis as FacadesRedis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
@@ -29,7 +29,7 @@ class Client
     protected string $clientSecret;
     protected string $apiKey;
     protected string $apiKeyDigitalShowRoom;
-    protected PhpRedisConnection $redis;
+    protected Connection $redis;
     protected string $redisKey = 'vinSolutionAuthToken';
     protected bool $useDigitalShowRoomKey = false;
 
@@ -51,7 +51,7 @@ class Client
             throw new ValidationException('VinSolutions API keys not set');
         }
 
-        $this->redis = FacadesRedis::connection('default')->client();
+        $this->redis = FacadesRedis::connection('default');
         $this->redisKey .= '-v2-' . $app->getId();
         $this->client = new GuzzleClient(
             [
