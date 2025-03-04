@@ -286,7 +286,7 @@ extend type Query @guard {
     ): [Message!]!
         @paginate(
             defaultCount: 25
-            resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getUserFeed"
+            resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getForYouFeed"
             scopes: ["fromApp", "notDeleted"]
         )
 

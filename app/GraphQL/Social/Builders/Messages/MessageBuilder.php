@@ -95,7 +95,7 @@ class MessageBuilder
         return $query;
     }
 
-    public function getUserFeed(
+    public function getForYouFeed(
         mixed $root,
         array $args,
         GraphQLContext $context,
