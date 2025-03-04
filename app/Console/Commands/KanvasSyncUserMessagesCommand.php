@@ -51,8 +51,7 @@ class KanvasSyncUserMessagesCommand extends Command
             ->where('is_deleted', 0)
             ->chunk(50, function ($messages) use ($app_id, $company_id) {
                 foreach ($messages as $message) {
-                    echo('-Working on message: ' . $message->getId() . PHP_EOL);
-
+                    echo ('-Working on message: ' . $message->getId() . PHP_EOL);
                     UsersAssociatedApps::where('apps_id', $app_id->getId())
                         ->where('companies_id', 0)
                         ->where('is_active', 1)
@@ -70,24 +69,22 @@ class KanvasSyncUserMessagesCommand extends Command
                                     ->where('entity_namespace', Users::class)
                                     ->where('is_deleted', 0)
                                     ->first();
-                                
                                 if (! $userFollow) {
                                     continue;
                                 }
 
-                                echo('--Found user follow: ' . $user->users_id . ' with entity id: ' . $userFollow->entity_id . ' on message: ' . $message->getId() . PHP_EOL);
+                                echo ('--Found user follow: ' . $user->users_id . ' with entity id: ' . $userFollow->entity_id . ' on message: ' . $message->getId() . PHP_EOL);
 
                                 $userInteraction = UsersInteractions::fromApp($app_id)
                                     ->where('users_id', $user->users_id)
-                                    ->where('interactions_id',1642)
+                                    ->where('interactions_id', 1642)
                                     ->where('entity_namespace', Message::class)
                                     ->where('entity_id', $message->getId())
                                     ->first();
-
                                 if ($userInteraction) {
-                                    echo('--Found user interaction: ' . $userInteraction->getId() . ' on message: ' . $message->getId() . "from user: " . $user->users_id . PHP_EOL);
+                                    echo ('--Found user interaction: ' . $userInteraction->getId() . ' on message: ' . $message->getId() . "from user: " . $user->users_id . PHP_EOL);
                                 }
-    
+
                                 UserMessage::updateOrCreate(
                                     [
                                         'users_id' => $user->users_id,
@@ -104,7 +101,7 @@ class KanvasSyncUserMessagesCommand extends Command
                                     ]
                                 );
 
-                                echo('---Added user message: ' . $user->users_id . ' - ' . $message->getId() . PHP_EOL);
+                                echo ('---Added user message: ' . $user->users_id . ' - ' . $message->getId() . PHP_EOL);
                             }
                         });
                 }
