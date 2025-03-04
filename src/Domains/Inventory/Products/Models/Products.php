@@ -35,6 +35,7 @@ use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
@@ -80,6 +81,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use Compoships;
     use CanUseWorkflow;
     use HasRating;
+    use HasTranslationsDefaultFallback;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -90,6 +92,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
     ];
 
     protected $is_deleted;
+
+    public $translatable = ['name','description','short_description','html_description','warranty_terms'];
 
     public function getGraphTypeName(): string
     {
@@ -122,14 +126,14 @@ class Products extends BaseModel implements EntityIntegrationInterface
         );
     }
 
-    public function getAttributeByName(string $name): ?Attributes
+    public function getAttributeByName(string $name, ?string $locale = null): ?ProductsAttributes
     {
-        return $this->attributes()
-            ->where('attributes.name', $name)
-            ->first();
+        $locale = $locale ?? app()->getLocale(); // Use app locale if not passed.
+
+        return $this->buildAttributesQuery(["name->{$locale}" => $name])->first();
     }
 
-    public function getAttributeBySlug(string $slug): ?Attributes
+    public function getAttributeBySlug(string $slug): ?ProductsAttributes
     {
         return $this->attributes()
             ->where('attributes.slug', $slug)
@@ -139,7 +143,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     /**
      * attributes.
      */
-    public function attributes(): BelongsToMany
+    public function attributes(): HasMany
     {
         return $this->buildAttributesQuery();
     }
@@ -147,27 +151,29 @@ class Products extends BaseModel implements EntityIntegrationInterface
     /**
      * @todo add integration and graph test
      */
-    public function visibleAttributes(): BelongsToMany
+    public function visibleAttributes(): array
     {
-        return $this->buildAttributesQuery(['is_visible' => true]);
+        return $this->mapAttributes(
+            $this->buildAttributesQuery(['is_visible' => true])->get()
+        );
     }
 
-    public function searchableAttributes(): BelongsToMany
+    public function searchableAttributes(): array
     {
-        return $this->buildAttributesQuery(['is_searchable' => true]);
+        return $this->mapAttributes(
+            $this->buildAttributesQuery(['is_searchable' => true])->get()
+        );
     }
 
-    private function buildAttributesQuery(array $conditions = []): BelongsToMany
+    private function buildAttributesQuery(array $conditions = []): HasMany
     {
-        $query = $this->belongsToMany(
-            Attributes::class,
-            'products_attributes',
-            'products_id',
-            'attributes_id'
-        )->withPivot('value');
+        //We need to manually query product attribute by this relation so the translate can work for both.
+        $query = $this->hasMany(ProductsAttributes::class, 'products_id')
+            ->join('attributes', 'products_attributes.attributes_id', '=', 'attributes.id')
+            ->select('products_attributes.*', 'attributes.*');
 
         foreach ($conditions as $column => $value) {
-            $query->where($column, $value);
+            $query->where("attributes.$column", $value);
         }
 
         $query->orderBy('attributes.weight', 'asc');
@@ -332,9 +338,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
         ];
-        $attributes = $this->searchableAttributes()->get();
+        $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
-            $product['attributes'][$attribute->name] = $attribute->value;
+            $product['attributes'][$attribute['name']] = $attribute['value'];
         }
 
         $customFields = $this->getAllCustomFields();
@@ -444,7 +450,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
             if ($attributeModel) {
                 (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
 
-                if ($this?->productsType) {
+                if ($this?->productsType !== null) {
                     ProductTypeService::addAttributes(
                         $this->productsType,
                         $this->user,

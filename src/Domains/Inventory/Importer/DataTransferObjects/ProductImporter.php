@@ -38,6 +38,8 @@ class ProductImporter extends Data
                 'channel' => 'default',
             ],
         ],
+        public array $tags = [],
+        public ?string $vendor = null,
     ) {
     }
 

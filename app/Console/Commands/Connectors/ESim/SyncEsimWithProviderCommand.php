@@ -13,12 +13,14 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
 use Kanvas\Connectors\CMLink\Services\CustomerService;
+use Kanvas\Connectors\CMLink\Services\OrderService as ServicesOrderService;
 use Kanvas\Connectors\EasyActivation\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -49,7 +51,7 @@ class SyncEsimWithProviderCommand extends Command
         $messages = Message::fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
-            ->whereIsPublic()
+            //->whereIsPublic()
             ->orderBy('id', 'desc')
             ->get();
 
@@ -75,13 +77,23 @@ class SyncEsimWithProviderCommand extends Command
     ): void {
         $iccid = $message->message['data']['iccid'] ?? null;
         $bundle = $message->message['data']['plan'] ?? null;
-        $network = strtolower($message->message['items'][0]['variant']['attributes']['Variant Network'] ?? '');
+        //$network = strtolower($message->message['items'][0]['variant']['attributes']['Variant Network'] ?? '');
+        $network = '';
+        if (isset($message->message['items'][0]['variant']['products_id'])) {
+            $network = strtolower(Products::getById($message->message['items'][0]['variant']['products_id'])->getAttributeBySlug('product-provider')?->value ?? '');
+        }
 
         if (empty($network) && $message->appModuleMessage && $message->appModuleMessage->entity instanceof Order) {
             $network = strtolower($message->appModuleMessage->entity->items()->first()->variant?->product?->getAttributeBySlug('product-provider')?->value ?? '');
         }
 
-        if (! $iccid) {
+        if (empty($network)) {
+            $this->info("Message ID: {$message->id} does not have a network.");
+
+            return;
+        }
+
+        if ($iccid === null) {
             $this->info("Message ID: {$message->id} does not have an ICCID.");
 
             return;
@@ -182,17 +194,26 @@ class SyncEsimWithProviderCommand extends Command
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
         $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
+        $orderId = $message->message['order_id'] ?? null;
+        $dataUsage = 0;
+        $totalBytesData = FileSizeConverter::toBytes($totalData);
+        if ($orderId) {
+            $orderService = new ServicesOrderService($message->app, $message->company);
+            $dataUsage = $orderService->getOrderStatus($orderId)['total'];
+        }
+        // Calculate remaining data usage, ensuring it doesn't go negative
+        $remainingData = max(0, $totalBytesData - max(0, $dataUsage));
 
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
             callTypeGroup: 'data',
-            initialQuantity: FileSizeConverter::toBytes($totalData),
-            remainingQuantity: FileSizeConverter::toBytes($totalData),
+            initialQuantity: $totalBytesData,
+            remainingQuantity: $remainingData,
             assignmentDateTime: $installedDate,
             assignmentReference: $response['activationCode'],
             bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
             unlimited: $variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED->value,
-            expirationDate: Carbon::parse($installedDate)->addDays($variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
+            expirationDate: Carbon::parse($installedDate)->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
             imei: $message->message['data']['imei_number'] ?? null,
             esimStatus: $response['state'],
             message: $response['installDevice'],
@@ -208,6 +229,12 @@ class SyncEsimWithProviderCommand extends Command
         $messageData['esim_status'] = $response;
         $message->message = $messageData;
         $message->saveOrFail();
+
+        $order = $message->appModuleMessage->entity;
+        $metadata = is_array($order->metadata) ? $order->metadata : [];
+        $metadata['esim_status'] = $response;
+        $order->metadata = $metadata;
+        $order->saveOrFail();
 
         $this->info("Message ID: {$message->id} has been updated with the eSIM status.");
 

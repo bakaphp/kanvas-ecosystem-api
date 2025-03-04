@@ -18,6 +18,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Google\Actions\GenerateGoogleUserMessageAction;
+use Kanvas\Connectors\Recombee\Actions\GenerateRecombeeUserMessageAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
 
@@ -71,6 +72,14 @@ class GenerateUserMessageJob implements ShouldQueue
 
         if ($recommendationEngine == 'google') {
             $generateUserMessage = new GenerateGoogleUserMessageAction(
+                $this->app,
+                $this->company,
+                $this->user,
+                $cleanUserFeed
+            );
+            $generateUserMessage->execute($pageSize);
+        } elseif ($recommendationEngine == 'recombee') {
+            $generateUserMessage = new GenerateRecombeeUserMessageAction(
                 $this->app,
                 $this->company,
                 $this->user,

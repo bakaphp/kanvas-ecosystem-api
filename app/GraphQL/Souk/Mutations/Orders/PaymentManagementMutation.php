@@ -6,12 +6,11 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Users\Models\UserCompanyApps;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use Stripe\PaymentIntent;
 use Stripe\Stripe;
 
@@ -35,14 +34,8 @@ class PaymentManagementMutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
         $orderId = $request['id'];
-
-        if ($app->get('USE_B2B_COMPANY_GROUP')) {
-            if (UserCompanyApps::where('companies_id', $app->get('B2B_GLOBAL_COMPANY'))->where('apps_id', $app->getId())->first()) {
-                $company = Companies::getById($app->get('B2B_GLOBAL_COMPANY'));
-            }
-        }
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
 
         $order = Order::getByIdFromCompanyApp($orderId, $company, $app);
 

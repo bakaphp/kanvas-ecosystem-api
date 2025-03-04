@@ -47,9 +47,12 @@ extend type Mutation @guardByAppKey {
 enum UserAppEnumColumn {
     ID @enum(value: "users.id")
     UUID @enum(value: "users.uuid")
+    FIRSTNAME @enum(value: "users_associated_apps.firstname")
+    LASTNAME @enum(value: "users_associated_apps.lastname")
     DISPLAYNAME @enum(value: "users_associated_apps.displayname")
     EMAIL @enum(value: "users_associated_apps.email")
     IS_ACTIVE @enum(value: "users_associated_apps.is_active")
+    ROLE_ID @enum(value: "users_associated_apps.user_role")
 }
 
 extend type Query @guardByAppKey {
@@ -64,6 +67,7 @@ extend type Query @guardByAppKey {
                     "lastname"
                     "displayname"
                     "email"
+                    "lastvisit"
                     "created_at"
                 ]
             )

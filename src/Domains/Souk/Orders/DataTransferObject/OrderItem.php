@@ -17,7 +17,7 @@ class OrderItem extends Data
     public function __construct(
         public readonly Apps $app,
         public readonly Variants $variant,
-        public readonly string $name,
+        public readonly string|int|float $name,
         public readonly string $sku,
         public readonly int $quantity,
         public readonly float $price,
