@@ -5,7 +5,6 @@ type Role {
     scope: String
     userCount: Int!
     abilitiesCount: Int!
-    abilities: [AppModule!]
     systemRole: Boolean! @method(name: "isSystemRole")
 }
 type Abilities {

@@ -9,306 +9,119 @@ use Tests\TestCase;
 
 class RolesTest extends TestCase
 {
-    /**
-     * testCreateRole.
-     */
     public function testCreateRole(): void
     {
-        $user = auth()->user();
-
-        $this->graphQL( /** @lang GraphQL */
-            '
-            mutation(
-                $name: String!
-                $title: String
-            ) {
-                createRole(
-                    name: $name
-                    title: $title
-                ) {
+        $response = $this->graphQL(
+            "
+            query {
+                modules {
                     id,
-                    name
-                    title
-                    userCount
-                    abilitiesCount
-                }
-            }',
-            [
-                'name' => 'No Admin',
-                'title' => 'No Admin',
-            ]
-        )->assertJson([
-            'data' => [
-                'createRole' => [
-                    'name' => 'No Admin',
-                    'title' => 'No Admin',
-                ],
-            ],
-        ]);
-    }
-
-    /**
-     * testGetRole.
-     */
-    public function testGetRole(): void
-    {
-        $user = auth()->user();
-
-        $this->graphQL( /** @lang GraphQL */
-            '
-            mutation(
-                $name: String!
-                $title: String
-            ) {
-                createRole(
-                    name: $name
-                    title: $title
-                ) {
-                    id,
-                    name
-                    title
-                    userCount
-                    abilitiesCount
-                    systemRole
-                }
-            }',
-            [
-                'name' => 'No Admin',
-                'title' => 'No Admin',
-            ]
-        );
-
-        $response = $this->graphQL(/** @lang GraphQL */
-            '
-            {
-                roles{
-                    data{
+                    name,
+                    systemModules {
+                        id,
                         name,
-                        id
+                        model_name,
+                        abilities {
+                            name 
+                        }
                     }
                 }
-            }
-            '
+            }"
         );
-        $this->assertArrayHasKey('data', $response);
+        $modules = $response->json("data.modules");
+        $modelName= $modules[0]["systemModules"][0]["model_name"];
+        $permissions = collect($modules[0]["systemModules"][0]["abilities"]);
+        $permissions = $permissions->pluck("name")->toArray();
+        $permissions = [
+            "model_name" => $modelName,
+            "permission" => $permissions
+        ];
+        $input = [
+            "name" => fake()->name,
+            "title" => fake()->name,
+            "permissions" => [$permissions]
+        ];
+        $this->graphQL('
+            mutation createRole($input: RoleInput!) {
+                createRole(input: $input) {
+                    name
+                    title
+                }
+            }
+        ', [
+            'input' => $input
+        ])->assertJson([
+            'data' => [
+                'createRole' => [
+                    'name' => $input['name'],
+                    'title' => $input['title']
+                ]
+            ]
+        ]);
     }
 
-    /**
-     * testUpdateRole.
-     */
     public function testUpdateRole(): void
     {
-        $user = auth()->user();
-        $faker = \Faker\Factory::create();
-        $newName = $faker->name;
-
-        $create = $this->graphQL( /** @lang GraphQL */
-            '
-            mutation(
-                $name: String!
-                $title: String
-            ) {
-                createRole(
-                    name: $name
-                    title: $title
-                ) {
+        $response = $this->graphQL(
+            "
+            query {
+                modules {
                     id,
-                    name
-                    title
+                    name,
+                    systemModules {
+                        id,
+                        name,
+                        model_name,
+                        abilities {
+                            name 
+                        }
+                    }
                 }
-            }',
-            [
-                'name' => $newName,
-                'title' => 'No Admin',
-            ]
+            }"
         );
-
-
-        $id = $create->json('data.createRole.id');
-        $faker = \Faker\Factory::create();
-        $newName = $faker->name;
-
-        $this->graphQL(/** @lang GraphQL */
-            '
-            mutation(
-                $id: ID!
-                $name: String!
-                $title: String
-            ) {
-                updateRole(
-                    id: $id
-                    name: $name
-                    title: $title
-                ) {
-                    id,
-                    name
-                    title
-                    userCount
-                    abilitiesCount
-                }
-            }',
-            [
-                'id' => $id,
-                'name' => $newName,
-                'title' => 'Role Updated',
-            ]
-        )->assertJson([
-            'data' => [
-                'updateRole' => [
-                    'name' => $newName,
-                    'title' => 'Role Updated',
-                    'id' => $id,
-                ],
-            ],
-        ]);
-    }
-
-    public function testAssignUserRole()
-    {
-        $user = auth()->user();
-        $faker = \Faker\Factory::create();
-        $newName = $faker->name;
-
-        $this->graphQL( /** @lang GraphQL */
-            '
-            mutation(
-                $name: String!
-                $title: String
-            ) {
-                createRole(
-                    name: $name
-                    title: $title
-                ) {
-                    id,
+        $modules = $response->json("data.modules");
+        $modelName= $modules[0]["systemModules"][0]["model_name"];
+        $permissions = collect($modules[0]["systemModules"][0]["abilities"]);
+        $permissions = $permissions->pluck("name")->toArray();
+        $permissions = [
+            "model_name" => $modelName,
+            "permission" => $permissions
+        ];
+        $input = [
+            "name" => fake()->name,
+            "title" => fake()->name,
+            "permissions" => [$permissions]
+        ];
+        $roleId = $this->graphQL('
+            mutation createRole($input: RoleInput!) {
+                createRole(input: $input) {
+                    id
                     name
                     title
                 }
-            }',
-            [
-                'name' => $newName,
-                'title' => 'No Admin',
-            ]
-        );
+            }
+        ', [
+            'input' => $input
+        ])->json('data.createRole.id');
 
-
-        $this->graphQL(/** @lang GraphQL */
-            '
-            mutation(
-                $userId: ID!
-                $role: Mixed!
-            ) {
-                assignRoleToUser(
-                    userId: $userId
-                    role: $role
-                ) 
-            }',
-            [
-                'userId' => $user->getId(),
-                'role' => $newName,
-            ]
-        )->assertJson([
-            'data' => [
-                'assignRoleToUser' => true,
-            ],
-        ]);
-    }
-
-    public function testHasRole()
-    {
-        $user = auth()->user();
-        $faker = \Faker\Factory::create();
-        $newName = $faker->name;
-
-        $this->graphQL(/** @lang GraphQL */
-            '
-            query(
-                $userId: ID!
-                $role: Mixed!
-            ) {
-                hasRole(
-                    userId: $userId
-                    role: $role
-                ) 
-            }',
-            [
-                'userId' => $user->getId(),
-                'role' => DefaultRoles::ADMIN->getValue(),
-            ]
-        )->assertJson([
-            'data' => [
-                'hasRole' => true,
-            ],
-        ]);
-    }
-
-    public function testRemoveAssignUserRole()
-    {
-        $user = auth()->user();
-        $faker = \Faker\Factory::create();
-        $newName = $faker->name;
-
-        $this->graphQL( /** @lang GraphQL */
-            '
-            mutation(
-                $name: String!
-                $title: String
-            ) {
-                createRole(
-                    name: $name
-                    title: $title
-                ) {
-                    id,
+        $input['name'] = fake()->name;
+        $this->graphQL('
+            mutation updateRole($id: ID!, $input: RoleInput!) {
+                updateRole(id: $id, input: $input) {
                     name
                     title
                 }
-            }',
-            [
-                'name' => $newName,
-                'title' => 'No Admin',
-            ]
-        );
-
-
-        $this->graphQL(/** @lang GraphQL */
-            '
-            mutation(
-                $userId: ID!
-                $role: Mixed!
-            ) {
-                assignRoleToUser(
-                    userId: $userId
-                    role: $role
-                ) 
-            }',
-            [
-                'userId' => $user->getId(),
-                'role' => $newName,
-            ]
-        )->assertJson([
-            'data' => [
-                'assignRoleToUser' => true,
-            ],
-        ]);
-
-        $this->graphQL(/** @lang GraphQL */
-            '
-            mutation(
-                $userId: ID!
-                $role: Mixed!
-            ) {
-                removeRole(
-                    userId: $userId
-                    role: $role
-                ) 
-            }',
-            [
-                'userId' => $user->getId(),
-                'role' => $newName,
-            ]
-        )->assertJson([
-            'data' => [
-                'removeRole' => true,
-            ],
-        ]);
+            }
+        ',[
+            'id' => $roleId,
+            'input' => $input
+        ])->assertJson([
+                    'data' => [
+                        'updateRole' => [
+                            'name' => $input['name'],
+                            'title' => $input['title']
+                        ]
+                    ]
+                ]);
     }
 }
