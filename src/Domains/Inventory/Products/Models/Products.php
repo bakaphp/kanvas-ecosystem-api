@@ -75,7 +75,6 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use HasTagsTrait;
     use IntegrationEntityTrait;
     use HasLightHouseCache;
-    use HasProductTypeAttributeTrait;
     use Searchable {
         search as public traitSearch;
     }

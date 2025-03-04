@@ -70,7 +70,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     use HasShopifyCustomField;
     use HasLightHouseCache;
     use IntegrationEntityTrait;
-    use HasProductTypeAttributeTrait;
     use Searchable {
         search as public traitSearch;
     }
