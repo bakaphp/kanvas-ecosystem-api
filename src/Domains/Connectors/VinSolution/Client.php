@@ -51,7 +51,7 @@ class Client
             throw new ValidationException('VinSolutions API keys not set');
         }
 
-        $this->redis = FacadesRedis::connection('default');
+        $this->redis = FacadesRedis::connection('default')->client();
         $this->redisKey .= '-' . $app->getId();
         $this->client = new GuzzleClient(
             [
@@ -76,7 +76,7 @@ class Client
      */
     public function auth(): array
     {
-        if (! $token = $this->redis->get($this->redisKey)) {
+        if (($token = $this->redis->get($this->redisKey)) === null) {
             $response = $this->client->post(
                 $this->authBaseUrl . '/connect/token',
                 [
@@ -98,6 +98,7 @@ class Client
             $this->redis->set(
                 $this->redisKey,
                 $token,
+                'EX',
                 1800
             );
         }
