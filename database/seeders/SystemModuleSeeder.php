@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+
 
 class SystemModuleSeeder extends Seeder
 {
