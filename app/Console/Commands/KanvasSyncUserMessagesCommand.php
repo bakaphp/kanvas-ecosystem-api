@@ -58,7 +58,6 @@ class KanvasSyncUserMessagesCommand extends Command
                         ->where('is_deleted', 0)
                         ->chunk(100, function ($users) use ($message, $app_id) {
                             foreach ($users as $user) {
-
                                 if ($message->users_id === $user->users_id) {
                                     continue;
                                 }
