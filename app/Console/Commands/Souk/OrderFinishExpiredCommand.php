@@ -29,7 +29,7 @@ class OrderFinishExpiredCommand extends Command
 
     public function handle(): void
     {
-        $appsId = $this->argument('apps_id');
+        $appsId = $this->argument('app_id');
         if (! $appsId) {
             $this->info('No app id provided, skipping');
             return;
@@ -38,13 +38,15 @@ class OrderFinishExpiredCommand extends Command
         $app = Apps::getById($appsId);
         $this->overwriteAppService($app);
 
-        $ordersInProgress = Order::fromApp($app)->notDeleted()->whereNotFulfilled()->orderBy('id', 'desc')->get();
+        $ordersInProgress = Order::fromApp($app)->notDeleted()
+        ->whereNotFulfilled()
+        ->whereNotNull('metadata')
+        ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
+        ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_date')) < ?", [now()->toDateTimeString()])
+        ->orderBy('id', 'desc')->get();
 
         foreach ($ordersInProgress as $order) {
-            $endDate = $order->metadata['data']['end_date'] ?? null;
-            if ($endDate && $endDate < now()->toDateTimeString()) {
-                $this->finishOrdersExpiredOrder($order);
-            }
+            $this->finishOrdersExpiredOrder($order);
         }
     }
 
