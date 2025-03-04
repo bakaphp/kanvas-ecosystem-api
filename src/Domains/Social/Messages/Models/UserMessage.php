@@ -62,7 +62,7 @@ class UserMessage extends BaseModel
         return $this->hasMany(UserMessageActivity::class, 'user_messages_id');
     }
 
-    public static function getUserFeed(UserInterface $user, AppInterface $app): EloquentBuilder
+    public static function getForYouFeed(UserInterface $user, AppInterface $app): EloquentBuilder
     {
         $messageTypeId = $app->get('social-user-message-filter-message-type');
 
