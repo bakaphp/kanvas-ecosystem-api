@@ -38,6 +38,7 @@ class VariantsAttributes extends BaseModel
     ];
 
     protected $primaryKey = ['products_variants_id', 'attributes_id'];
+    public $translatable = ['value'];
 
     #[Override]
     protected function casts(): array
@@ -46,8 +47,6 @@ class VariantsAttributes extends BaseModel
             'value' => Json::class,
         ];
     }
-
-    public $translatable = ['value'];
 
     /**
      * Get the product.
