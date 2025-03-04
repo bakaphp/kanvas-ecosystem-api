@@ -14,6 +14,7 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -29,7 +30,9 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\HasProductTypeAttributeTrait;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
+use Kanvas\Inventory\Variants\Observers\VariantObserver;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
@@ -58,6 +61,7 @@ use Override;
  * @property string barcode
  * @property string serial_number
  */
+#[ObservedBy(VariantObserver::class)]
 class Variants extends BaseModel implements EntityIntegrationInterface
 {
     use SlugTrait;
@@ -190,7 +194,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         );
     }
 
-    public function getAttributeByName(string $name): ?VariantsAttributes
+    public function getAttributeByName(string $name, ?string $locale = null): ?VariantsAttributes
     {
         $locale = $locale ?? app()->getLocale(); // Use app locale if not passed.
 

@@ -13,4 +13,5 @@ enum ConfigurationEnum: string
     case USE_CALENDAR_VARIANTS = 'CM_LINK_USE_CALENDAR_VARIANTS';
     case NAME = 'CMLink';
     case ICCID_INVENTORY_PRODUCT_TYPE = 'cmlink-iccid';
+    case PRODUCT_FATHER_SKU = 'cmlink-father-sku';
 }

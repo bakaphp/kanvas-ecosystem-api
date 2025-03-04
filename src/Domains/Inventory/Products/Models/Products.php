@@ -31,6 +31,7 @@ use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\HasProductTypeAttributeTrait;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
@@ -43,6 +44,7 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Override;
 
 /**
  * Class Products.
@@ -95,6 +97,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public $translatable = ['name','description','short_description','html_description','warranty_terms'];
 
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'Product';
@@ -285,6 +288,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->belongsTo(Status::class, 'status_id');
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return $this->isPublished();
@@ -391,6 +395,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return VariantService::createVariantsFromArray($this, $variants, $this->user);
     }
 
+    #[Override]
     public static function newFactory()
     {
         return new ProductFactory();
@@ -450,7 +455,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
             if ($attributeModel) {
                 (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
 
-                if ($this?->productsType) {
+                if ($this?->productsType !== null) {
                     ProductTypeService::addAttributes(
                         $this->productsType,
                         $this->user,

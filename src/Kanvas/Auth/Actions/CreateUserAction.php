@@ -23,7 +23,6 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Enums\StatusEnums;
-use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserNotificationService;
@@ -35,9 +34,6 @@ class CreateUserAction
     protected Apps $app;
     protected bool $runWorkflow = true;
 
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected RegisterInput $data,
         ?Apps $app = null
@@ -45,10 +41,6 @@ class CreateUserAction
         $this->app = $app ?? app(Apps::class);
     }
 
-    /**
-     * Invoke function.
-     * @psalm-suppress MixedArgument
-     */
     public function execute(): Users
     {
         $newUser = false;
@@ -79,7 +71,7 @@ class CreateUserAction
             $this->assignUserRole($user);
         }
 
-        if (! $company) {
+        if ($company === null) {
             $company = $this->createCompany($user);
         }
 
@@ -171,7 +163,7 @@ class CreateUserAction
         $roles = $this->data->role_ids;
         if (empty($roles)) {
             $defaultAppSettingsRole = $this->app->get(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue());
-            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::ADMIN->value)];
+            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::USER->value)];
         }
 
         foreach ($roles as $role) {
