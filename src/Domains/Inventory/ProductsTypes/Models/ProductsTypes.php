@@ -8,7 +8,6 @@ use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -18,7 +17,6 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Products\Observers\ProductTypeObserver;
 use Kanvas\Inventory\Traits\ScopesTrait;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 
@@ -35,7 +33,6 @@ use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
  * @property string $description
  * @property int $weight
  */
-#[ObservedBy(ProductTypeObserver::class)]
 class ProductsTypes extends BaseModel
 {
     use UuidTrait;
