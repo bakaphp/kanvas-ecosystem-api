@@ -20,7 +20,7 @@ class AddAttributeValue
         foreach ($this->values as $value) {
             AttributesValues::firstOrCreate([
                 'attributes_id' => $this->attributeModel->getId(),
-                'value' => $value['value'],
+                'value' => $value['value'] ?? null,
             ]);
         }
     }
