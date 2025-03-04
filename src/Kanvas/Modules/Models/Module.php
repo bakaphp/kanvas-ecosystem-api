@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Modules\Models;
@@ -10,7 +11,6 @@ use Kanvas\Apps\Models\Apps;
 
 class Module extends BaseModel
 {
-
     protected $table = "modules";
 
     protected $guarded = [];
@@ -26,5 +26,4 @@ class Module extends BaseModel
         )->where('abilities_modules.apps_id', $app->id)
         ->groupBy('system_modules_id');
     }
-
 }
