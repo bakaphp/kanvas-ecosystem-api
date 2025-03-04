@@ -97,7 +97,7 @@ class UserMessage extends BaseModel
                 })
                 ->where('messages.users_id', '<>', $user->getId())
                 ->where('user_messages.is_deleted', 0)
-                ->orderBy('messages.created_at', 'desc') 
+                ->orderBy('messages.created_at', 'desc')
                 ->select('messages.*');
     }
 
