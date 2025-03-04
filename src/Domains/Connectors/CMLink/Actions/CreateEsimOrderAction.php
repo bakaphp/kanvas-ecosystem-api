@@ -74,14 +74,14 @@ class CreateEsimOrderAction
         $orderService = new OrderService($this->order->app, $this->order->company);
         $cmLinkOrder = $orderService->createOrder(
             thirdOrderId: (string) $this->order->order_number,
-            iccid: $availableVariant->sku,
+            iccid: $sku,
             quantity: 1,
             dataBundleId: $this->order->items()->first()->variant->sku,
             activeDate: $this->order->created_at->format('Y-m-d')
         );
 
         $customerService = new CustomerService($this->order->app, $this->order->company);
-        $esimData = $customerService->getEsimInfo($availableVariant->sku);
+        $esimData = $customerService->getEsimInfo($sku);
 
         $writer = new Writer(
             new ImageRenderer(
@@ -131,7 +131,7 @@ class CreateEsimOrderAction
 
         $esim = new ESim(
             $esimData['data']['downloadUrl'],
-            $availableVariant->sku,
+            $sku,
             $esimData['data']['state'],
             (int) $cmLinkOrder['quantity'],
             (float) $cmLinkOrder['price'],
