@@ -29,7 +29,7 @@ class RolesTest extends TestCase
             }"
         );
         $modules = $response->json("data.modules");
-        $modelName= $modules[0]["systemModules"][0]["model_name"];
+        $modelName = $modules[0]["systemModules"][0]["model_name"];
         $permissions = collect($modules[0]["systemModules"][0]["abilities"]);
         $permissions = $permissions->pluck("name")->toArray();
         $permissions = [
@@ -80,7 +80,7 @@ class RolesTest extends TestCase
             }"
         );
         $modules = $response->json("data.modules");
-        $modelName= $modules[0]["systemModules"][0]["model_name"];
+        $modelName = $modules[0]["systemModules"][0]["model_name"];
         $permissions = collect($modules[0]["systemModules"][0]["abilities"]);
         $permissions = $permissions->pluck("name")->toArray();
         $permissions = [
@@ -112,7 +112,7 @@ class RolesTest extends TestCase
                     title
                 }
             }
-        ',[
+        ', [
             'id' => $roleId,
             'input' => $input
         ])->assertJson([
