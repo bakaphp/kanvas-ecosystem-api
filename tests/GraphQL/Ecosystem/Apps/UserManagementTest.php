@@ -532,4 +532,72 @@ class UserManagementTest extends TestCase
         );
         $this->assertArrayHasKey('data', $response);
     }
+
+    public function testDeactivateUser()
+    {
+        $app = app(Apps::class);
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email,
+                    uuid
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                    'custom_fields' => [],
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $user = Users::getByEmail($email);
+
+        // //  login with user
+        // $this->actingAs($user);
+
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appDeactivateUser($user_id: ID!) {
+                appDeActiveUser(user_id: $user_id) 
+            }',
+            [
+                'user_id' => $user->getId(),
+            ]
+        );
+
+        $response->assertJson([
+            'data' => [
+                'appDeActiveUser' => true,
+            ],
+        ]);
+
+        dd($user->refresh()->isActive());
+        $this->assertFalse($user->refresh()->isActive());
+
+        // $response = $this->graphQL(/** @lang GraphQL */ '
+        //     mutation appActivateUser($user_id: ID!) {
+        //         appActivateUser(user_id: $user_id) 
+        //     }',
+        //     [
+        //         'user_id' => $user->getId(),
+        //     ]
+        // );
+
+        // $response->assertJson([
+        //     'data' => [
+        //         'appActivateUser' => true,
+        //     ],
+        // ]);
+    }
 }
