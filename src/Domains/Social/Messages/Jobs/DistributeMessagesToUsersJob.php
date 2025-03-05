@@ -16,6 +16,7 @@ use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Users\Models\Users;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 
 class DistributeMessagesToUsersJob implements ShouldQueue
 {
@@ -38,24 +39,6 @@ class DistributeMessagesToUsersJob implements ShouldQueue
     public function handle(): void
     {
         $this->overwriteAppService($this->app);
-
-        UsersFollows::fromApp($this->app)
-            ->where('entity_id', $this->message->users_id)
-            ->where('entity_namespace', Users::class)
-            ->where('is_deleted', 0)
-            ->chunk(100, function ($userFollows) {
-                foreach ($userFollows as $userFollow) {
-                    $userMessage = UserMessage::updateOrCreate(
-                        [
-                            'apps_id' => $this->app->getId(),
-                            'message_id' => $this->message->getId(),
-                            'users_id' => $userFollow->users_id,
-                            'is_deleted' => 0
-                        ]
-                    );
-
-                    Log::info('Distributed message: ' . $this->message->getId() . ' to user: ' . $userMessage->users_id);
-                }
-            });
+        (new DistributeMessagesToUsersAction($this->message,$this->app))->execute();
     }
 }
