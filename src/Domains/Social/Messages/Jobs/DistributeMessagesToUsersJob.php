@@ -39,6 +39,6 @@ class DistributeMessagesToUsersJob implements ShouldQueue
     public function handle(): void
     {
         $this->overwriteAppService($this->app);
-        (new DistributeMessagesToUsersAction($this->message,$this->app))->execute();
+        (new DistributeMessagesToUsersAction($this->message, $this->app))->execute();
     }
 }

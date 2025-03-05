@@ -59,7 +59,7 @@ class DistributeMessagesTest extends TestCase
             )
         );
         $message = $createMessage->execute();
-        $distributeMessagesToUsers = (new DistributeMessagesToUsersAction($message,$app))->execute();
+        $distributeMessagesToUsers = (new DistributeMessagesToUsersAction($message, $app))->execute();
         $this->assertTrue($distributeMessagesToUsers);
     }
 }
