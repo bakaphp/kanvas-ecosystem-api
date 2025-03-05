@@ -25,7 +25,6 @@ class ImagesGraphql
 
     public function execute(): array
     {
-        Log::debug("ShopifySaveAction started");
         $images = [];
 
         try {

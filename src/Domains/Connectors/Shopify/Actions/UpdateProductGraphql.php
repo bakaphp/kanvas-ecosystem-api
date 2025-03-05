@@ -27,8 +27,6 @@ class UpdateProductGraphql
 
     public function execute(): array
     {
-        Log::debug("ShopifySaveAction started");
-
         try {
             $graphQL = <<<QUERY
             mutation UpdateProductWithNewMedia(\$product: ProductUpdateInput, \$media: [CreateMediaInput!]) {

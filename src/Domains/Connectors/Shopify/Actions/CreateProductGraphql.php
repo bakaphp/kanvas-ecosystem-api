@@ -28,8 +28,6 @@ class CreateProductGraphql
 
     public function execute(): array
     {
-        Log::debug("ShopifySaveAction started");
-
         try {
             $graphQL = <<<QUERY
             mutation productCreate(\$product: ProductCreateInput, \$media: [CreateMediaInput!]) {

@@ -116,7 +116,6 @@ class ScrapperProcessorAction
                     $product
                 ))->execute();
 
-                Log::info(message: "Product synced with Shopify");
                 if ($this->uuid) {
                     ProductScrapperEvent::dispatch(
                         $this->app,
