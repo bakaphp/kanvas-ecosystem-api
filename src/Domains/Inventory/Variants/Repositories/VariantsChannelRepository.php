@@ -12,6 +12,9 @@ class VariantsChannelRepository
     /**
      * this is a temp solution to filter variants / product by attributes
      * we should aim for shopify query implementation in the future.
+     * @psalm-suppress MissingClosureParamType
+     * @psalm-suppress UndefinedMethod
+     * @psalm-suppress InvalidArgument
      */
     public static function filterByAttributes(string $channelId, array $attributes, array $priceRange = []): Builder
     {
@@ -94,7 +97,7 @@ class VariantsChannelRepository
                 });
             });
 
-            $index++;
+            //$index++;
         }
 
         $query->join(
@@ -118,7 +121,7 @@ class VariantsChannelRepository
                 $priceQuery->whereBetween('pvc.price', $priceRange)
                 // Handle JSON price format
                 ->orWhere(function ($jsonPriceQuery) use ($priceRange) {
-                    $jsonPriceQuery->whereRaw("JSON_VALID(pvc.price) = 1")
+                    $jsonPriceQuery->whereRaw('JSON_VALID(pvc.price) = 1')
                                   ->whereRaw("CAST(JSON_EXTRACT(pvc.price, '$.en') AS DECIMAL(10,2)) >= ?", [$priceRange[0]])
                                   ->whereRaw("CAST(JSON_EXTRACT(pvc.price, '$.en') AS DECIMAL(10,2)) <= ?", [$priceRange[1]]);
                 });
