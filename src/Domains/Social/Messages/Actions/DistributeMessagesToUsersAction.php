@@ -31,7 +31,7 @@ class DistributeMessagesToUsersAction
                     $userMessage = UserMessage::updateOrCreate(
                         [
                             'apps_id' => $this->app->getId(),
-                            'message_id' => $this->message->getId(),
+                            'messages_id' => $this->message->getId(),
                             'users_id' => $userFollow->users_id,
                             'is_deleted' => 0
                         ]
