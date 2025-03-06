@@ -127,7 +127,7 @@ class CreateUserAction
                 'lastname' => 'required|different:firstname',
             ]
         );
-    
+
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
