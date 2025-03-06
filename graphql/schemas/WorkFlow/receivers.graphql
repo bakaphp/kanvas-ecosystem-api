@@ -30,7 +30,7 @@ enum ReceiverStatusEnum {
 }
 
 extend type Query @guard {
-    receiversHistory(
+    workflowReceiverHistory(
         where: _
             @whereConditions(
                 columnsEnum: ReceiversHistoryEnumColumn

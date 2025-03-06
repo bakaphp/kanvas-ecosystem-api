@@ -27,7 +27,7 @@ class ReceiversTest extends TestCase
 
         $response = $this->graphQL('
             query {
-                receiversHistory {
+                workflowReceiverHistory {
                     data {
                         id
                         uuid
@@ -41,7 +41,7 @@ class ReceiversTest extends TestCase
                 }
             }');
 
-        $this->assertArrayHasKey('id', $response->json()['data']['receiversHistory']['data'][0]);
+        $this->assertArrayHasKey('id', $response->json()['data']['workflowReceiverHistory']['data'][0]);
     }
 
     protected function createReceiver(): ReceiverWebhook
