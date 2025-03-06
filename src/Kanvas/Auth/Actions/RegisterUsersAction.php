@@ -48,7 +48,7 @@ class RegisterUsersAction extends CreateUserAction
             $user = $this->createNewUser();
 
             // if company is not set we create a new company
-            if (! $company) {
+            if ($company === null) {
                 $company = $this->createCompany($user);
             } else {
                 $this->assignCompany($user);

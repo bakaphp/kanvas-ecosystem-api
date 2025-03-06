@@ -119,15 +119,15 @@ class CreateUserAction
     {
         $validator = Validator::make(
             [
-                'first_name' => $this->data->firstname,
-                'last_name' => $this->data->lastname,
+                'firstname' => $this->data->firstname,
+                'lastname' => $this->data->lastname,
             ],
             [
-                'first_name' => 'required|different:firstname',
-                'last_name' => 'required|different:lastname',
+                'firstname' => 'required|different:lastname',
+                'lastname' => 'required|different:firstname',
             ]
         );
-
+    
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
