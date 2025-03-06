@@ -94,8 +94,10 @@ class SyncNetSuiteCustomerItemsListAction
                         $variantWarehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value) ?? $defaultWarehouse
                     );
                     $netsuiteProductPrice = $this->productService->getProductPrice($netsuiteProductInfo);
+                    $netsuiteProductMapPrice = $this->productService->getProductMapPrice($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
                     $config = [
                         'minimum_quantity' => $netsuiteProductInfo->minimumQuantity,
+                        'map_price' => $netsuiteProductMapPrice,
                     ];
                 } catch (Exception $e) {
                     //$config['minimum_quantity'] = 0;
