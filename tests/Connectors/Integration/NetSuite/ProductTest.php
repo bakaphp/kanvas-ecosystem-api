@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\NetSuite;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite;
+use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
 use Tests\TestCase;
@@ -79,8 +80,24 @@ final class ProductTest extends TestCase
 
         $productService = new NetSuiteProductService($app, $company);
         $product = $productService->searchProductByItemNumber(getenv('NET_SUITE_ITEM_NUMBER'));
+
         $product = $productService->getProductById($product[0]->internalId);
         $price = $productService->getProductPrice($product);
+
+        $this->assertIsFloat($price);
+        $this->assertGreaterThan(0, $price);
+    }
+
+    public function testGetProductMapPrice()
+    {
+        $company = Companies::first();
+        $app = app(Apps::class);
+
+        $productService = new NetSuiteProductService($app, $company);
+        $product = $productService->searchProductByItemNumber(getenv('NET_SUITE_ITEM_NUMBER'));
+
+        $product = $productService->getProductById($product[0]->internalId);
+        $price = $productService->getProductMapPrice($product, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
 
         $this->assertIsFloat($price);
         $this->assertGreaterThan(0, $price);
