@@ -6,13 +6,12 @@ namespace Tests\Social\Integration;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
+use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
-use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 
 class DistributeMessagesTest extends TestCase
 {
@@ -58,8 +57,13 @@ class DistributeMessagesTest extends TestCase
                 $data,
             )
         );
+
+        $totalBefore = UserMessage::fromApp($app)->count();
         $message = $createMessage->execute();
         $distributeMessagesToUsers = (new DistributeMessagesToUsersAction($message, $app))->execute();
+        
+        $totalAfter = UserMessage::fromApp($app)->count();
         $this->assertTrue($distributeMessagesToUsers);
+        $this->assertEquals($totalBefore + 1, $totalAfter);
     }
 }
