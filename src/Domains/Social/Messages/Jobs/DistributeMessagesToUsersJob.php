@@ -10,13 +10,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
-use Kanvas\Social\Follows\Models\UsersFollows;
-use Kanvas\Social\Messages\Models\UserMessage;
-use Kanvas\Users\Models\Users;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
+use Kanvas\Social\Messages\Models\Message;
 
 class DistributeMessagesToUsersJob implements ShouldQueue
 {
