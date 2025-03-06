@@ -35,6 +35,7 @@ class WooCommerceImportOrder extends OrderDto
             $variant = Variants::where('sku', $item->sku)
                       ->where('apps_id', $app->getId())
                       ->first();
+            
             if (! $variant) {
                 $wooCommerce = new WooCommerce($app);
                 $product = $wooCommerce->client->get('products/' . $item->product_id);

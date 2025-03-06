@@ -65,6 +65,8 @@ class PullWooCommerceOrdersCommand extends Command
                     ))->execute();
                 } catch (Exception $e) {
                     echo $e->getMessage() . PHP_EOL;
+                    echo $e->getTraceAsString() . PHP_EOL;
+                    break;
                 }
             }
             $page++;
