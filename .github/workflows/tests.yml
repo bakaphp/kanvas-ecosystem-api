@@ -202,6 +202,9 @@ jobs:
       - name: Setup Kanvas Integrations
         run: php artisan kanvas:create-integration shopify --config='{"client_id":{"type":"text","required":true},"client_secret":{"type":"text","required":true},"shop_url":{"type":"text","required":true}}' --handler='Kanvas\Connectors\Shopify\Handlers\ShopifyHandler'
 
+      - name: Setup Kanvas Workflow Actions
+        run: php artisan kanvas:workflow-sync-actions'
+
       - name: create .env file
         run: echo '' > .env
 
