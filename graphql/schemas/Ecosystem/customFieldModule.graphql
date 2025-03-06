@@ -13,7 +13,7 @@ type CustomFieldModule {
     created_at: DateTime!
     updated_at: DateTime!
 }
-extend type Mutation @guard {
+extend type Mutation @guardByAdmin {
     createCustomFieldModule(input: CustomFieldModuleInput): CustomFieldModule
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldsModulesMutation@create"
@@ -31,7 +31,7 @@ extend type Mutation @guard {
         )
 }
 
-extend type Query @guard {
+extend type Query @guardByAdmin {
     customFieldModules(
         where: _
             @whereConditions(

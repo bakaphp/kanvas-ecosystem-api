@@ -20,9 +20,7 @@ class CreateEntityValueAction
             'apps_id' => $this->customFieldEntityValue->app->getId(),
             'companies_id' => $this->customFieldEntityValue->companies->getId(),
             'users_id' => $this->customFieldEntityValue->users->getId(),
-            'system_modules_id' => $this->customFieldEntityValue->customFieldsModules->system_modules_id,
             'custom_modules_id' => $this->customFieldEntityValue->customFields->getId(),
-            'custom_fields_modules_id' => $this->customFieldEntityValue->customFieldsModules->getId(),
             'entity_id' => $this->customFieldEntityValue->entity_id,
             'value' => $this->customFieldEntityValue->value
         ]);

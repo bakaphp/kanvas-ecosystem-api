@@ -36,7 +36,7 @@ class CustomFieldManagementMutation
             $input['field_type_id']
         );
         $customFieldDto = CustomField::from([
-            'app' => app(Apps::class),
+            'app' => $app,
             'companies' => $companies,
             'users' => $user,
             'customFieldsModules' => $customFieldModules,
@@ -62,7 +62,7 @@ class CustomFieldManagementMutation
             $input['field_type_id']
         );
         $customFieldDto = CustomField::from([
-            'app' => app(Apps::class),
+            'app' => $app,
             'companies' => $companies,
             'users' => $user,
             'customFieldsModules' => $customFieldModules,
@@ -70,8 +70,8 @@ class CustomFieldManagementMutation
             'name' => $input['name'],
             'label' => $input['label'] ?? null,
         ]);
-
-        return (new UpdateCustomFieldAction($req['id'], $customFieldDto))->execute();
+        $customField = CustomFields::getByIdFromCompanyApp($req['id'], $companies, $app);
+        return (new UpdateCustomFieldAction($customFieldDto, $customField))->execute();
     }
 
     public function delete(mixed $root, array $req): bool

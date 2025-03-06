@@ -17,7 +17,6 @@ class CustomFieldEntityValue extends Data
         public Apps $app,
         public Companies $companies,
         public Users $users,
-        public CustomFieldsModules $customFieldsModules,
         public CustomFields $customFields,
         public int $entity_id,
         public int $value

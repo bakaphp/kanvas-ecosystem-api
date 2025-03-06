@@ -14,9 +14,7 @@ use Kanvas\SystemModules\Models\SystemModules;
  * @property int $apps_id
  * @property int $companies_id
  * @property int $users_id
- * @property int $system_modules_id
  * @property int $custom_fields_id
- * @property int $custom_fields_modules_id
  * @property int $entity_id
  * @property string $value
  * @property string $created_at
@@ -32,15 +30,5 @@ class CustomFieldEntityValue extends BaseModel
     public function customField()
     {
         return $this->belongsTo(CustomFields::class, 'custom_fields_id');
-    }
-
-    public function systemModule()
-    {
-        return $this->belongsTo(SystemModules::class, 'system_modules_id');
-    }
-
-    public function customFieldModule()
-    {
-        return $this->belongsTo(CustomFieldsModules::class, 'custom_fields_modules_id');
     }
 }

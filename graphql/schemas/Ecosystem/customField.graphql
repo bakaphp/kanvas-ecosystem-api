@@ -41,9 +41,17 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@getAll"
         )
-    createCustomFields(input: CustomFieldInput): CustomField
+    createCustomFields(input: CustomFieldInput): CustomField!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldManagementMutation@create"
+        )
+    updateCustomFields(id: ID!, input: CustomFieldInput): CustomField!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldManagementMutation@update"
+        )
+    deleteCustomFields(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldManagementMutation@delete"
         )
 }
 
@@ -55,7 +63,7 @@ extend type Query @guard {
     ): Mixed
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@get"
-        )
+        ) 
     customFields(
         name: String!
         system_module_uuid: String!
