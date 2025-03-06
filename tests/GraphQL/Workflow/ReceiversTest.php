@@ -41,7 +41,7 @@ class ReceiversTest extends TestCase
                 }
             }');
 
-            $this->assertArrayHasKey('id', $response->json()['data']['receiversHistory']['data'][0]);
+        $this->assertArrayHasKey('id', $response->json()['data']['receiversHistory']['data'][0]);
     }
 
     protected function createReceiver(): ReceiverWebhook
