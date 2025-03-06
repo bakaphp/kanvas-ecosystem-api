@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Actions;
 
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Models\Users;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Follows\Models\UsersFollows;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
-use Illuminate\Support\Facades\Log;
+use Kanvas\Users\Models\Users;
 
 class DistributeMessagesToUsersAction
 {
@@ -33,7 +33,7 @@ class DistributeMessagesToUsersAction
                             'apps_id' => $this->app->getId(),
                             'messages_id' => $this->message->getId(),
                             'users_id' => $userFollow->users_id,
-                            'is_deleted' => 0
+                            'is_deleted' => 0,
                         ]
                     );
 
