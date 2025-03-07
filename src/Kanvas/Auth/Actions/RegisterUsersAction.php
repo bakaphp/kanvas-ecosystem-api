@@ -23,7 +23,7 @@ class RegisterUsersAction extends CreateUserAction
 
         $this->validateEmail();
 
-        if (true){ //this->app->get('register_user_additional_fields_validation')) {
+        if ($this->app->get('register_user_additional_fields_validation')) {
             $this->validateNames();
             $this->validatePhoneNumber();
         }
