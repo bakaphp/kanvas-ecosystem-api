@@ -62,7 +62,7 @@ class UserMessage extends BaseModel
         return $this->hasMany(UserMessageActivity::class, 'user_messages_id');
     }
 
-    public static function getUserFeed(UserInterface $user, AppInterface $app): EloquentBuilder
+    public static function getForYouFeed(UserInterface $user, AppInterface $app): EloquentBuilder
     {
         $messageTypeId = $app->get('social-user-message-filter-message-type');
 
@@ -80,6 +80,24 @@ class UserMessage extends BaseModel
                 #->where('user_messages.is_shared', 0) //for now we are not showing disliked messages
                 ->where('user_messages.is_deleted', 0) //for now we are not showing saved messages
                 ->orderBy('user_messages.created_at', 'asc') //top recommendation , we are now listing last
+                ->select('messages.*');
+    }
+
+    public static function getFollowingFeed(UserInterface $user, AppInterface $app): EloquentBuilder
+    {
+        $messageTypeId = $app->get('social-user-message-filter-message-type');
+
+        return Message::query()
+                ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
+                ->where('user_messages.users_id', $user->getId())
+                ->where('user_messages.apps_id', $app->getId())
+                ->where('messages.is_deleted', 0)
+                ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
+                    return $query->where('messages.message_types_id', $messageTypeId);
+                })
+                ->where('messages.users_id', '<>', $user->getId())
+                ->where('user_messages.is_deleted', 0)
+                ->orderBy('messages.created_at', 'desc')
                 ->select('messages.*');
     }
 

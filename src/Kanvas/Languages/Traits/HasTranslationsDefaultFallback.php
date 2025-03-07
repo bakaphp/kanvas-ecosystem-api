@@ -39,20 +39,27 @@ trait HasTranslationsDefaultFallback
 
         $decodedValue = null;
         if ($isJson) {
-            // Only accept these specific language codes: EN, ES, FR
-            $allowedLanguageCodes = ['en', 'es', 'fr'];
-
             $decodedValue = json_decode($attributeValue, true);
+
+            if (is_array($decodedValue)) {
+                // Detect stringified array inside JSON and fix it
+                foreach ($decodedValue as $locale => $value) {
+                    if (is_string($value) && Str::isJson($value)) {
+                        $decodedValue[$locale] = json_decode($value, true);
+                    }
+                }
+            }
+
+            $allowedLanguageCodes = ['en', 'es', 'fr'];
             $hasLanguageKey = false;
 
-            foreach (array_keys($decodedValue) as $key) {
-                // Convert to lowercase for case-insensitive comparison
-                $keyLower = strtolower($key);
+            if (is_array($decodedValue)) {
+                foreach (array_keys($decodedValue) as $key) {
+                    if (in_array(strtolower($key), $allowedLanguageCodes)) {
+                        $hasLanguageKey = true;
 
-                if (in_array($keyLower, $allowedLanguageCodes)) {
-                    $hasLanguageKey = true;
-
-                    break;
+                        break;
+                    }
                 }
             }
 
