@@ -33,6 +33,7 @@ class CreateUserAction
 {
     protected Apps $app;
     protected bool $runWorkflow = true;
+    protected bool $extraValidation = false;
 
     public function __construct(
         protected RegisterInput $data,
@@ -125,6 +126,31 @@ class CreateUserAction
             [
                 'firstname' => 'required|different:lastname',
                 'lastname' => 'required|different:firstname',
+            ],
+            [
+                'firstname.different' => 'Registration information appears to be invalid.',
+                'lastname.different' => 'Registration information appears to be invalid.',
+            ]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+    }
+
+    protected function validatePhoneNumber(): void
+    {
+        $totalDigits = $this->app->get('register_user_phone_number_digits') ?? 10;
+
+        $validator = Validator::make(
+            [
+                'phone_number' => $this->data->phone_number,
+            ],
+            [
+                'phone_number' => ['nullable', 'numeric', 'digits_between:1,' . $totalDigits],
+            ],
+            [
+                'phone_number.digits_between' => 'Invalid phone number.',
             ]
         );
 
@@ -253,5 +279,10 @@ class CreateUserAction
     public function disableWorkflow(): void
     {
         $this->runWorkflow = false;
+    }
+
+    public function enableExtraValidation(): void
+    {
+        $this->extraValidation = true;
     }
 }
