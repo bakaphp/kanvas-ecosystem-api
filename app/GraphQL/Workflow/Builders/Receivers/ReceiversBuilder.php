@@ -34,7 +34,7 @@ class ReceiversBuilder
 
         $root->select([
             'receiver_webhook_calls.*',
-            'receiver_webhook_calls.id as id'
+            'receiver_webhook_calls.id as id',
         ])
         ->join($receiversWebhookTable, $receiversWebhookCallsTable . '.receiver_webhooks_id', '=', $receiversWebhookTable . '.id')
         ->join($actionTable, $receiversWebhookTable . '.action_id', '=', $actionTable . '.id')

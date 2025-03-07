@@ -1,4 +1,3 @@
-
 type WorkflowReceiversHistory {
     id: ID!
     uuid: String!
@@ -7,7 +6,7 @@ type WorkflowReceiversHistory {
     created_at: DateTime
 }
 
-type WorkflowReceiver{
+type WorkflowReceiver {
     id: ID!
     uuid: String!
     name: String!
@@ -32,15 +31,10 @@ enum WorkflowReceiverStatusEnum {
 extend type Query @guard {
     workflowReceiverHistory(
         where: _
-            @whereConditions(
-                columnsEnum: WorkflowReceiversHistoryEnumColumn
-            )
-    hasAction: _
+            @whereConditions(columnsEnum: WorkflowReceiversHistoryEnumColumn)
+        hasAction: _
             @whereHasConditions(
-                columns: [
-                    "id",
-                    "name"
-                ]
+                columns: ["id", "name"]
                 handler: "App\\GraphQL\\Workflow\\Builders\\Receivers\\ReceiversBuilder@getHasAction"
             )
         orderBy: _ @orderBy(columns: ["id", "name", "created_at", "status"])
@@ -50,5 +44,6 @@ extend type Query @guard {
             scopes: ["notDeleted"]
             defaultCount: 25
         )
-    receiverStatus: [WorkflowReceiverStatusEnum!]! @field (resolver: "App\\GraphQL\\Workflow\\Queries\\ReceiverStatusQuery")
+    receiverStatus: [WorkflowReceiverStatusEnum!]!
+        @field(resolver: "App\\GraphQL\\Workflow\\Queries\\ReceiverStatusQuery")
 }
