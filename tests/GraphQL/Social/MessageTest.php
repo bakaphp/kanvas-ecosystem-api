@@ -760,6 +760,43 @@ class MessageTest extends TestCase
         )->assertSuccessful();
     }
 
+    public function testFollowingMessages()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $this->graphQL(
+            '
+                query {
+                    followingFeedMessages {
+                        data {
+                            message
+                            message_types_id
+                        }
+                    }
+                }
+            '
+        )->assertSuccessful();
+    }
+
     public function testFilterMessageByTags()
     {
         $messageType = MessageType::factory()->create();
