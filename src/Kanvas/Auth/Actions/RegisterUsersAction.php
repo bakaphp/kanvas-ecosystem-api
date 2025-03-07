@@ -23,6 +23,10 @@ class RegisterUsersAction extends CreateUserAction
 
         $this->validateEmail();
 
+        if ($this->app->get('register_user_additional_fields_validation')) {
+            $this->validateNames();
+        }
+
         try {
             /**
              * If the user exist we have to verify if it exist in this app
@@ -44,7 +48,7 @@ class RegisterUsersAction extends CreateUserAction
             $user = $this->createNewUser();
 
             // if company is not set we create a new company
-            if (! $company) {
+            if ($company === null) {
                 $company = $this->createCompany($user);
             } else {
                 $this->assignCompany($user);
