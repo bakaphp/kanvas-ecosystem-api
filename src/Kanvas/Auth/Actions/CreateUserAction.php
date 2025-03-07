@@ -115,6 +115,24 @@ class CreateUserAction
         }
     }
 
+    protected function validateNames(): void
+    {
+        $validator = Validator::make(
+            [
+                'firstname' => $this->data->firstname,
+                'lastname' => $this->data->lastname,
+            ],
+            [
+                'firstname' => 'required|different:lastname',
+                'lastname' => 'required|different:firstname',
+            ]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+    }
+
     protected function createNewUser(): Users
     {
         $user = new Users();
