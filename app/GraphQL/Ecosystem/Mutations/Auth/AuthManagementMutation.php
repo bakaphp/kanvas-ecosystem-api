@@ -6,7 +6,6 @@ namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
-use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Apps\Models\Apps;
@@ -19,14 +18,13 @@ use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class AuthManagementMutation
@@ -126,6 +124,7 @@ class AuthManagementMutation
         $branch = AuthenticationService::getAppDefaultAssignCompanyBranch($app);
         $data = RegisterInput::fromArray($request['data'], $branch);
         $user = new RegisterUsersAction($data, $app);
+        $user->enableExtraValidation();
         $request = request();
 
         $registeredUser = $user->execute();

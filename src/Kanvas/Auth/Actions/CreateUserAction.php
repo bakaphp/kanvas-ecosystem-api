@@ -33,6 +33,7 @@ class CreateUserAction
 {
     protected Apps $app;
     protected bool $runWorkflow = true;
+    protected bool $extraValidation = false;
 
     public function __construct(
         protected RegisterInput $data,
@@ -278,5 +279,10 @@ class CreateUserAction
     public function disableWorkflow(): void
     {
         $this->runWorkflow = false;
+    }
+
+    public function enableExtraValidation(): void
+    {
+        $this->extraValidation = true;
     }
 }
