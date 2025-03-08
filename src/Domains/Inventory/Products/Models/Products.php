@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
+use Baka\Search\SearchEngineResolver;
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
@@ -31,7 +33,6 @@ use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
-use Kanvas\Inventory\Traits\HasProductTypeAttributeTrait;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
@@ -75,7 +76,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use HasTagsTrait;
     use IntegrationEntityTrait;
     use HasLightHouseCache;
-    use Searchable {
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
 
@@ -159,6 +160,11 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->mapAttributes(
             $this->buildAttributesQuery(['is_visible' => true])->get()
         );
+    }
+
+    public function searchableUsing()
+    {
+        return app(SearchEngineResolver::class)->resolveEngine();
     }
 
     public function searchableAttributes(): array
