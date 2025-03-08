@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -28,7 +29,6 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 
 /**
  * Class Leads.
@@ -62,7 +62,7 @@ use Laravel\Scout\Searchable;
 class Lead extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use HasTagsTrait;
     use FollowersTrait;
     use CanUseWorkflow;
