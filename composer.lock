@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ab8f6344b5940c2b4a3b858a3ec9d021",
+    "content-hash": "e061718dd8db8a36d2d3fd8e0b8c370d",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -7020,16 +7020,16 @@
         },
         {
             "name": "nevadskiy/laravel-tree",
-            "version": "0.5.1",
+            "version": "0.5.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/xalaida/laravel-tree.git",
-                "reference": "99a122f0c843497a14ad7f7d754c31e604599506"
+                "reference": "1de1a5c83650422155a63cf62c0ef9e8109ac0f3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/xalaida/laravel-tree/zipball/99a122f0c843497a14ad7f7d754c31e604599506",
-                "reference": "99a122f0c843497a14ad7f7d754c31e604599506",
+                "url": "https://api.github.com/repos/xalaida/laravel-tree/zipball/1de1a5c83650422155a63cf62c0ef9e8109ac0f3",
+                "reference": "1de1a5c83650422155a63cf62c0ef9e8109ac0f3",
                 "shasum": ""
             },
             "require": {
@@ -7076,9 +7076,9 @@
             ],
             "support": {
                 "issues": "https://github.com/xalaida/laravel-tree/issues",
-                "source": "https://github.com/xalaida/laravel-tree/tree/0.5.1"
+                "source": "https://github.com/xalaida/laravel-tree/tree/0.5.2"
             },
-            "time": "2024-10-05T14:38:54+00:00"
+            "time": "2025-03-08T12:02:58+00:00"
         },
         {
             "name": "nikic/php-parser",
@@ -10640,16 +10640,16 @@
         },
         {
             "name": "spatie/laravel-google-cloud-storage",
-            "version": "2.3.2",
+            "version": "2.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-google-cloud-storage.git",
-                "reference": "9ae07164537d049cc68b8289433957d1b5be0e4f"
+                "reference": "4da917de13dc4c7fc23b38ae18ff11a952360c0f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-google-cloud-storage/zipball/9ae07164537d049cc68b8289433957d1b5be0e4f",
-                "reference": "9ae07164537d049cc68b8289433957d1b5be0e4f",
+                "url": "https://api.github.com/repos/spatie/laravel-google-cloud-storage/zipball/4da917de13dc4c7fc23b38ae18ff11a952360c0f",
+                "reference": "4da917de13dc4c7fc23b38ae18ff11a952360c0f",
                 "shasum": ""
             },
             "require": {
@@ -10701,7 +10701,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-google-cloud-storage/issues",
-                "source": "https://github.com/spatie/laravel-google-cloud-storage/tree/2.3.2"
+                "source": "https://github.com/spatie/laravel-google-cloud-storage/tree/2.3.3"
             },
             "funding": [
                 {
@@ -10709,20 +10709,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-03-05T09:22:09+00:00"
+            "time": "2025-03-08T06:44:51+00:00"
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.32.4",
+            "version": "1.32.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "6510025255c04fa2bd37c2a6611095c5129b53c2"
+                "reference": "afd55006d1ffe312b1e81cd0b6417f6a5226ae82"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/6510025255c04fa2bd37c2a6611095c5129b53c2",
-                "reference": "6510025255c04fa2bd37c2a6611095c5129b53c2",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/afd55006d1ffe312b1e81cd0b6417f6a5226ae82",
+                "reference": "afd55006d1ffe312b1e81cd0b6417f6a5226ae82",
                 "shasum": ""
             },
             "require": {
@@ -10794,7 +10794,7 @@
                 "spatie"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-health/tree/1.32.4"
+                "source": "https://github.com/spatie/laravel-health/tree/1.32.5"
             },
             "funding": [
                 {
@@ -10802,7 +10802,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-03-03T08:40:12+00:00"
+            "time": "2025-03-08T12:16:07+00:00"
         },
         {
             "name": "spatie/laravel-image-optimizer",
