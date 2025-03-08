@@ -4,6 +4,6 @@ input customFieldEntityValueInput {
     value: Mixed
 }
 
-extend type Mutation @guardByAdmin {
-    
-}
+# extend type Mutation @guardByAdmin {
+
+# }
