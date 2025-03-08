@@ -97,11 +97,26 @@ class Interest
     public function getVehicleByIndex(int $index): array
     {
         $id = str_replace('https://api.vinsolutions.com/vehicles/interest/id/', '', $this->items[$index]['href']);
-        unset($this->items[$index]['href'], $this->items[$index]['lead'], $this->items[$index]['downPaymentRequested'], $this->items[$index]['monthlyPaymentRequested'], $this->items[$index]['reservationPaymentRequested'], $this->items[$index]['paymentMethod']);
+
+        // Create a new array with only the fields we want to keep
+        $filteredVehicle = [];
+        foreach ($this->items[$index] as $key => $value) {
+            // Skip the fields we want to exclude
+            if ($key === 'href' ||
+                $key === 'lead' ||
+                $key === 'downPaymentRequested' ||
+                $key === 'monthlyPaymentRequested' ||
+                $key === 'reservationPaymentRequested' ||
+                $key === 'paymentMethod') {
+                continue;
+            }
+
+            $filteredVehicle[$key] = $value;
+        }
 
         return [
             'id' => $id,
-            'vehicle' => $this->items[$index],
+            'vehicle' => $filteredVehicle,
         ];
     }
 }
