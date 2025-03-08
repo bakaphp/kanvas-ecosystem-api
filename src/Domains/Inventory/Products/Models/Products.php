@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
-use Baka\Search\SearchEngineResolver;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -44,7 +43,6 @@ use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
-use Laravel\Scout\Searchable;
 use Override;
 
 /**
@@ -160,11 +158,6 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->mapAttributes(
             $this->buildAttributesQuery(['is_visible' => true])->get()
         );
-    }
-
-    public function searchableUsing()
-    {
-        return app(SearchEngineResolver::class)->resolveEngine();
     }
 
     public function searchableAttributes(): array
@@ -304,7 +297,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     {
         $product = [
             'objectID' => $this->uuid,
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'name' => $this->name,
             'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
@@ -348,6 +341,12 @@ class Products extends BaseModel implements EntityIntegrationInterface
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
         ];
+
+        if ($this->isTypesense()) {
+            $product['created_at'] = $this->created_at->timestamp;
+            $product['custom_fields'] = [];
+        }
+
         $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
             $product['attributes'][$attribute['name']] = $attribute['value'];
@@ -375,8 +374,15 @@ class Products extends BaseModel implements EntityIntegrationInterface
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
+
         if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name, description', // Use just 'message' instead of 'message.name'
+            ]);
         }
 
         return $query;
@@ -501,5 +507,100 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->variants->count() > $limit
             ? $this->variants->take($limit)->map(fn ($variant) => $variant->toSearchableArraySummary())
             : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
+    }
+
+    /**
+    * The Typesense schema to be created.
+    */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'files',
+                    'type' => 'object[]',
+                ],
+                [
+                    'name' => 'company',
+                    'type' => 'object',
+                ],
+                [
+                    'name' => 'user',
+                    'type' => 'object',
+                ],
+                [
+                    'name' => 'categories',
+                    'type' => 'object[]',
+                ],
+                [
+                    'name' => 'variants',
+                    'type' => 'object[]', // Adjust based on what getVariantsData() returns
+                ],
+                [
+                    'name' => 'status',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'slug',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'is_published',
+                    'type' => 'bool',
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'short_description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'attributes',
+                    'type' => 'object',
+                ],
+                [
+                    'name' => 'custom_fields',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'published_at',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+        ];
     }
 }
