@@ -20,7 +20,7 @@ return [
     |
     */
 
-    'driver' => env('SCOUT_DRIVER', 'algolia'),
+    'driver' => env('SCOUT_DRIVER', 'dynamic'),
 
     /*
     |--------------------------------------------------------------------------

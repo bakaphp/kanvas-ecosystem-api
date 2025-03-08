@@ -7,6 +7,7 @@ namespace Baka\Search;
 use Algolia\AlgoliaSearch\SearchClient;
 use Algolia\ScoutExtended\Engines\AlgoliaEngine;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\EngineManager;
 use Laravel\Scout\Engines\Engine;
@@ -23,12 +24,26 @@ class SearchEngineResolver
     ) {
         $this->app = $app;
         $this->engineManager = $engineManager;
+
+        $this->registerDynamicEngine();
     }
 
-    public function resolveEngine(): Engine
+    protected function registerDynamicEngine(): void
     {
-        $app = $this->app->get(Apps::class);
-        $engine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
+        $this->engineManager->extend('dynamic', function () {
+            return $this->resolveEngine();
+        });
+    }
+
+    public function resolveEngine(?Model $model = null, ?Apps $app = null): Engine
+    {
+        $app ??= app(Apps::class);
+        $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
+        // If there's a model, try to get model-specific engine setting
+        $modelSpecificEngine = $model !== null ? $app->get($model->getTable() . '_search_engine') : null;
+        // Use model-specific engine if available, otherwise use default
+        $engine = $modelSpecificEngine ?? $defaultEngine;
+
         $searchSettings = $app->get($engine . '_search_settings') ?? [];
 
         return match ($engine) {

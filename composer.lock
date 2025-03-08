@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9b479db616d842be0527846305bb85ec",
+    "content-hash": "ab8f6344b5940c2b4a3b858a3ec9d021",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -14718,17 +14718,104 @@
             "time": "2025-02-20T14:18:17+00:00"
         },
         {
-            "name": "typesense/typesense-php",
-            "version": "v5.0.2",
+            "name": "typesense/laravel-scout-typesense-driver",
+            "version": "v5.2.9",
             "source": {
                 "type": "git",
-                "url": "https://github.com/typesense/typesense-php.git",
-                "reference": "513270e6a124101c25b03ee27598efd6b87fbec0"
+                "url": "https://github.com/typesense/laravel-scout-typesense-driver.git",
+                "reference": "2032523072a10d5afd12108e2975ba4bc6edb504"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/typesense/typesense-php/zipball/513270e6a124101c25b03ee27598efd6b87fbec0",
-                "reference": "513270e6a124101c25b03ee27598efd6b87fbec0",
+                "url": "https://api.github.com/repos/typesense/laravel-scout-typesense-driver/zipball/2032523072a10d5afd12108e2975ba4bc6edb504",
+                "reference": "2032523072a10d5afd12108e2975ba4bc6edb504",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/bus": "^7.0|^8.0|^9.0|^10.0|^11.0",
+                "illuminate/contracts": "^7.0|^8.0|^9.0|^10.0|^11.0",
+                "illuminate/database": "^7.0|^8.0|^9.0|^10.0|^11.0",
+                "illuminate/pagination": "^7.0|^8.0|^9.0|^10.0|^11.0",
+                "illuminate/queue": "^7.0|^8.0|^9.0|^10.0|^11.0",
+                "illuminate/support": "^7.0|^8.0|^9.0|^10.0|^11.0",
+                "laravel/scout": "^8.0|^9.0|^10.0",
+                "php": "^8.0",
+                "typesense/typesense-php": "^4.2"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.3",
+                "orchestra/testbench": "^6.17|^7.0|^8.0|^9.0",
+                "phpunit/phpunit": "^8.0|^9.0|^10.5",
+                "symfony/http-client": "^5.4|^7.0"
+            },
+            "suggest": {
+                "typesense/typesense-php": "Required to use the Typesense php client."
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Typesense": "Typesense\\LaravelTypesense\\TypesenseFacade"
+                    },
+                    "providers": [
+                        "Typesense\\LaravelTypesense\\TypesenseServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Typesense\\LaravelTypesense\\": "src/",
+                    "Typesense\\LaravelTypesense\\Tests\\": "tests/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Abdullah Al-Faqeir",
+                    "email": "abdullah@devloops.net",
+                    "homepage": "https://www.devloops.net",
+                    "role": "Developer"
+                },
+                {
+                    "name": "hi019",
+                    "homepage": "https://github.com/hi019",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Laravel Scout Driver for Typesense",
+            "homepage": "https://typesense.org",
+            "keywords": [
+                "laravel",
+                "search",
+                "typesense"
+            ],
+            "support": {
+                "issues": "https://github.com/typesense/laravel-scout-typesense-driver/issues",
+                "source": "https://github.com/typesense/laravel-scout-typesense-driver/tree/v5.2.9"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/typesense",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-04-07T13:33:52+00:00"
+        },
+        {
+            "name": "typesense/typesense-php",
+            "version": "v4.9.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/typesense/typesense-php.git",
+                "reference": "50fc2089ff4829c8e0e11d8c674e9da085b49998"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/typesense/typesense-php/zipball/50fc2089ff4829c8e0e11d8c674e9da085b49998",
+                "reference": "50fc2089ff4829c8e0e11d8c674e9da085b49998",
                 "shasum": ""
             },
             "require": {
@@ -14744,8 +14831,6 @@
                 "psr/http-message": "^1.0 || ^2.0"
             },
             "require-dev": {
-                "mockery/mockery": "^1.6",
-                "phpunit/phpunit": "^11.2",
                 "squizlabs/php_codesniffer": "3.*",
                 "symfony/http-client": "^5.2"
             },
@@ -14786,7 +14871,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-02-24T21:13:28+00:00"
+            "time": "2024-04-29T15:34:34+00:00"
         },
         {
             "name": "vladimir-yuldashev/laravel-queue-rabbitmq",
