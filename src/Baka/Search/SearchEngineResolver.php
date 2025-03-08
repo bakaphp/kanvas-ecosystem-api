@@ -10,7 +10,9 @@ use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\EngineManager;
 use Laravel\Scout\Engines\Algolia3Engine;
 use Laravel\Scout\Engines\Engine;
+use Laravel\Scout\Engines\MeilisearchEngine;
 use Laravel\Scout\Engines\TypesenseEngine as EnginesTypesenseEngine;
+use Meilisearch\Client as MeiliSearchClient;
 use Typesense\Client as TypesenseClient;
 
 class SearchEngineResolver
@@ -32,6 +34,7 @@ class SearchEngineResolver
         return match ($engine) {
             'algolia' => $this->createAlgoliaEngine($searchSettings),
             'typesense' => $this->createTypesenseEngine($searchSettings),
+            'meilisearch' => $this->createMeiliSearchEngine($searchSettings),
             default => $this->createAlgoliaEngine($searchSettings),
         };
     }
@@ -73,5 +76,15 @@ class SearchEngineResolver
 
         // Assuming the constructor takes a client and a chunk size
         return new EnginesTypesenseEngine($client, $maxItemsPerPage);
+    }
+
+    protected function createMeiliSearchEngine(array $searchSettings): MeilisearchEngine
+    {
+        $host = $searchSettings['meilisearch_host'] ?? config('scout.meilisearch.host', 'http://localhost:7700');
+        $key = $searchSettings['meilisearch_key'] ?? config('scout.meilisearch.key', null);
+
+        $client = new MeiliSearchClient($host, $key);
+
+        return new MeiliSearchEngine($client);
     }
 }
