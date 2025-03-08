@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Baka\Search;
 
 use Algolia\AlgoliaSearch\SearchClient;
-use Algolia\AlgoliaSearch\SearchClient as AlgoliaClient;
 use Algolia\ScoutExtended\Engines\AlgoliaEngine;
 use Illuminate\Contracts\Foundation\Application;
 use Kanvas\Apps\Models\Apps;
-#use Laravel\Scout\Engines\Algolia3Engine;
 use Laravel\Scout\EngineManager;
 use Laravel\Scout\Engines\Engine;
 use Laravel\Scout\Engines\MeilisearchEngine;
