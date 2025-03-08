@@ -24,13 +24,9 @@ class CustomFieldManagementMutation
         $app = app(Apps::class);
         $companies = auth()->user()->getCurrentCompany();
         $user = auth()->user();
-        $systemModules = SystemModules::getByUuid(
-            $input['system_module_uuid'],
-            $app
-        );
         $customFieldModules = CustomFieldsModules::where(
             'system_modules_id',
-            $systemModules->getId()
+            $input['custom_field_module_id']
         )->first();
         $customFieldsTypes = CustomFieldsTypes::getById(
             $input['field_type_id']
@@ -54,10 +50,10 @@ class CustomFieldManagementMutation
         $app = app(Apps::class);
         $companies = auth()->user()->getCurrentCompany();
         $user = auth()->user();
-        $customFieldModules = CustomFieldsModules::getById(
-            $input['custom_fields_modules_id'],
-            $app
-        );
+        $customFieldModules = CustomFieldsModules::where(
+            'system_modules_id',
+            $input['custom_field_module_id']
+        )->first();
         $customFieldsTypes = CustomFieldsTypes::getById(
             $input['field_type_id']
         );

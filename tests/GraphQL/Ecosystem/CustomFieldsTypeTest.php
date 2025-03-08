@@ -28,11 +28,11 @@ class CustomFieldsTypeTest extends TestCase
                         '*' => [
                             'id',
                             'name',
-                            'description'
-                        ]
-                    ]
-                ]
-            ]
+                            'description',
+                        ],
+                    ],
+                ],
+            ],
         ]);
     }
 }

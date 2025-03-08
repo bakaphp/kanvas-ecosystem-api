@@ -12,6 +12,7 @@ input CustomFieldInput {
     system_module_uuid: String!
     entity_id: ID!
     field_type_id: ID
+    custom_field_module_id: ID
 }
 
 input CustomFieldEntityInput {

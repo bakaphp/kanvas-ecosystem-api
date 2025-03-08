@@ -31,7 +31,6 @@ class KanvasAppsProvider extends ServiceProvider
         }
 
         $appIdentifier = config('kanvas.app.id');
-
         try {
             $app = AppsRepository::findFirstByKey($appIdentifier);
 
