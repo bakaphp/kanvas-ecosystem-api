@@ -4,18 +4,20 @@ declare(strict_types=1);
 
 namespace Baka\Search;
 
+use Algolia\AlgoliaSearch\SearchClient;
 use Algolia\AlgoliaSearch\SearchClient as AlgoliaClient;
+use Algolia\ScoutExtended\Engines\AlgoliaEngine;
 use Illuminate\Contracts\Foundation\Application;
 use Kanvas\Apps\Models\Apps;
+#use Laravel\Scout\Engines\Algolia3Engine;
 use Laravel\Scout\EngineManager;
-use Laravel\Scout\Engines\Algolia3Engine;
 use Laravel\Scout\Engines\Engine;
 use Laravel\Scout\Engines\MeilisearchEngine;
 use Laravel\Scout\Engines\TypesenseEngine as EnginesTypesenseEngine;
 use Meilisearch\Client as MeiliSearchClient;
 use Typesense\Client as TypesenseClient;
 
-class SearchEngineResolver
+class SearchEngineResolver extends EngineManager
 {
     public function __construct(
         protected Application $app,
@@ -39,14 +41,13 @@ class SearchEngineResolver
         };
     }
 
-    protected function createAlgoliaEngine(array $searchSettings): Algolia3Engine
+    protected function createAlgoliaEngine(array $searchSettings): AlgoliaEngine
     {
         $appId = $searchSettings['algolia_app_id'] ?? config('scout.algolia.id');
         $apiKey = $searchSettings['algolia_api_key'] ?? config('scout.algolia.secret');
 
-        $client = AlgoliaClient::create($appId, $apiKey);
-
-        return new Algolia3Engine($client);
+        //$client = AlgoliaClient::create($appId, $apiKey);
+        return new AlgoliaEngine(SearchClient::create($appId, $apiKey));
     }
 
     protected function createTypesenseEngine(array $searchSettings): EnginesTypesenseEngine
