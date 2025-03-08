@@ -13,6 +13,7 @@ use Kanvas\Models\BaseModel;
  *
  * @property int $id
  * @property int $apps_id
+ * @property int $system_modules_id
  * @property string $name
  * @property string $model_name
  * @property string $created_at

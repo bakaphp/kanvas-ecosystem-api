@@ -1,0 +1,48 @@
+
+input CustomFieldModuleInput {
+    name: String!
+    model_name: String!
+    system_modules_id: ID
+}
+type CustomFieldModule {
+    id: ID!
+    name: String!
+    model_name: String!
+    system_modules_id: ID
+    system_module: SystemModule
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+extend type Mutation @guardByAdmin {
+    createCustomFieldModule(input: CustomFieldModuleInput): CustomFieldModule
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldsModulesMutation@create"
+        )
+    updateCustomFieldModule(
+        id: ID!
+        input: CustomFieldModuleInput
+    ): CustomFieldModule
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldsModulesMutation@update"
+        )
+    deleteCustomFieldModule(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldsModulesMutation@delete"
+        )
+}
+
+extend type Query @guardByAdmin {
+    customFieldModules(
+        where: _
+            @whereConditions(
+                columns: ["name", "model_name", "system_modules_id"]
+            )
+        orderBy: _
+            @orderBy(columns: ["name", "model_name", "system_modules_id", "id"])
+    ): [CustomFieldModule]
+        @paginate(
+            model: "Kanvas\\CustomFields\\Models\\CustomFieldsModules"
+            defaultCount: 10
+            scopes: ["fromApp"]
+        )
+}

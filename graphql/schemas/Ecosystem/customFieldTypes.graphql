@@ -1,0 +1,15 @@
+type CustomFieldType {
+    id: ID!
+    name: String!
+    description: String
+}
+extend type Query {
+    customFieldTypes(
+        where: _ @whereConditions(columns: ["id", "name", "description"])
+        orderBy: _ @orderBy(columns: ["id", "name", "description"])
+    ): [CustomFieldType]
+        @paginate(
+            model: "Kanvas\\CustomFields\\Models\\CustomFieldsTypes"
+            defaultCount: 25
+        )
+}
