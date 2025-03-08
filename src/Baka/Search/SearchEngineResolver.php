@@ -28,7 +28,7 @@ class SearchEngineResolver
     public function resolveEngine(): Engine
     {
         $app = $this->app->get(Apps::class);
-        $engine = $app->get('search_engine') ?? 'meilisearch';
+        $engine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
         $searchSettings = $app->get($engine . '_search_settings') ?? [];
 
         return match ($engine) {
