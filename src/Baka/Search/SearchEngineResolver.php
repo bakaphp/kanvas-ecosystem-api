@@ -17,7 +17,7 @@ use Laravel\Scout\Engines\TypesenseEngine as EnginesTypesenseEngine;
 use Meilisearch\Client as MeiliSearchClient;
 use Typesense\Client as TypesenseClient;
 
-class SearchEngineResolver extends EngineManager
+class SearchEngineResolver
 {
     public function __construct(
         protected Application $app,
