@@ -3,6 +3,8 @@ type CustomField {
     value: Mixed
     systemModule: SystemModule! @belongsTo
     entity_id: ID!
+    label: String
+    id: ID
 }
 
 input CustomFieldInput {
@@ -13,6 +15,13 @@ input CustomFieldInput {
     entity_id: ID!
     field_type_id: ID
     custom_field_module_id: ID
+}
+
+input CustomFieldsInput {
+    field_type_id: ID
+    custom_field_module_id: ID
+    name: String!
+    label: String
 }
 
 input CustomFieldEntityInput {
@@ -42,11 +51,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@getAll"
         )
-    createCustomFields(input: CustomFieldInput): CustomField!
+    createCustomFields(input: CustomFieldsInput!): CustomField!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldManagementMutation@create"
         )
-    updateCustomFields(id: ID!, input: CustomFieldInput): CustomField!
+    updateCustomFields(id: ID!, input: CustomFieldsInput!): CustomField!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldManagementMutation@update"
         )
