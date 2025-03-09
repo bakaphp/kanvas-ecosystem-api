@@ -56,6 +56,7 @@ use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
+use Kanvas\Social\Messages\Workflows\Activities\DistributeMessageActivity;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
@@ -133,6 +134,7 @@ class KanvasWorkflowSynActionCommand extends Command
             GenerateMessageTagsWithAiActivity::class,
             PushUserInteractionToEventActivity::class,
             PushMessageToItemActivity::class,
+            DistributeMessageActivity::class
         ];
 
         $createdActions = [];

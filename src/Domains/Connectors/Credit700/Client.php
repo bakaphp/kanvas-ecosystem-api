@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Credit700;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
@@ -22,12 +23,15 @@ class Client
     protected ?string $accessToken = null;
 
     public function __construct(
-        protected AppInterface $app
+        protected AppInterface $app,
+        protected ?CompanyInterface $company = null
     ) {
-        $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value);
-        $this->clientSecret = $this->app->get(ConfigurationEnum::CLIENT_SECRET->value);
+        $appOrCompany = $company ?? $app;
 
-        if (! app()->environment('production')) {
+        $this->clientId = $appOrCompany->get(ConfigurationEnum::CLIENT_ID->value);
+        $this->clientSecret = $appOrCompany->get(ConfigurationEnum::CLIENT_SECRET->value);
+
+        if (app()->environment() !== 'production') {
             $this->apiBaseUrl = 'https://gateway.700creditsolution.com';
         }
 

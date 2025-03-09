@@ -20,6 +20,7 @@ use Kanvas\Social\Interactions\Jobs\UserInteractionJob;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Kanvas\Social\Messages\Models\UserMessage;
 
 class MessageBuilder
 {
@@ -81,7 +82,7 @@ class MessageBuilder
             $query = match ($option) {
                 'SHOW_OWN_PARENT_MESSAGES_ONLY' => $query->where(function ($q) use ($user) {
                     $q->whereNull('parent_id')
-                    ->orWhereRaw('NOT EXISTS (
+                        ->orWhereRaw('NOT EXISTS (
                         SELECT 1 FROM messages AS parent 
                         WHERE parent.id = messages.parent_id 
                         AND parent.users_id = messages.users_id
@@ -95,7 +96,7 @@ class MessageBuilder
         return $query;
     }
 
-    public function getUserFeed(
+    public function getForYouFeed(
         mixed $root,
         array $args,
         GraphQLContext $context,
@@ -124,6 +125,17 @@ class MessageBuilder
         $recombeeUserRecommendationService = new GenerateRecommendForYourFeedAction($app, $company);
 
         return $recombeeUserRecommendationService->execute($user, $currentPage, $args['first'] ?? 15);
+    }
+
+    public function getFollowingFeed(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        return UserMessage::getFollowingFeed($user, $app);
     }
 
     public function getChannelMessages(
@@ -187,6 +199,7 @@ class MessageBuilder
         $results = $index->search($args['search'], [
             'hitsPerPage' => 15,
             'attributesToRetrieve' => ['name', 'description'],
+            'filters' => 'is_public:1'
         ]);
 
         return $results['hits'];
@@ -222,8 +235,8 @@ class MessageBuilder
         }
 
         $messageHistory = Message::query()->whereIn('id', explode('.', $messagePath))
-                            ->where('is_deleted', 0)
-                            ->where('is_locked', 0);
+            ->where('is_deleted', 0)
+            ->where('is_locked', 0);
 
         return $messageHistory;
     }

@@ -56,14 +56,16 @@ class CreateEsimOrderAction
          * if it has a parent SKU its means its a fake product we created to sell the same product
          * at a diff price
          */
-        $sku = $availableVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $availableVariant->sku;
+        $orderVariant = $this->order->items()->first()->variant;
+        $variantSkuIsBundleId = $orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $orderVariant->sku;
+        //$sku = $availableVariant->sku;
 
         //add this variant to the order so we have a history of the iccid
         $this->order->addItem(new OrderItem(
             app: $this->order->app,
             variant: $availableVariant,
             name: (string) $availableVariant->name,
-            sku: $sku,
+            sku: $availableVariant->sku,
             quantity: 1,
             price: $availableVariant->getPrice($warehouse),
             tax: 0,
@@ -76,7 +78,7 @@ class CreateEsimOrderAction
             thirdOrderId: (string) $this->order->order_number,
             iccid: $availableVariant->sku,
             quantity: 1,
-            dataBundleId: $this->order->items()->first()->variant->sku,
+            dataBundleId: $variantSkuIsBundleId,
             activeDate: $this->order->created_at->format('Y-m-d')
         );
 

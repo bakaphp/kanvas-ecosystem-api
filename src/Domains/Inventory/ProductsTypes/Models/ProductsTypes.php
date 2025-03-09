@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\ProductsTypes\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
@@ -16,7 +17,6 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
 use Kanvas\Inventory\Products\Models\Products;
-use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Models;
 
+use Baka\Search\SearchEngineResolver;
 use Baka\Support\Str;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Traits\KanvasScopesTrait;

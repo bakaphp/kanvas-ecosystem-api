@@ -11,6 +11,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Illuminate\Support\Facades\Log;
 use Shopify\Clients\Graphql;
 use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Connectors\Shopify\Actions\PublishProductGraphqlAction;
 
 // to do: rename to standard push product graphql
 // to do: create variant into the method execute
@@ -70,6 +71,7 @@ class CreateProductGraphql
                 "product" => [
                     "title" => $this->products->name,
                     "descriptionHtml" => $this->products->description,
+                    'handle' => $this->products->slug,
                 ],
             ];
             if (! empty($this->metafields)) {
@@ -83,6 +85,12 @@ class CreateProductGraphql
             $id = $response['data']['productCreate']['product']['id'];
             $id = basename($id);
             $this->products->setShopifyId($this->warehouse->regions, $id);
+            (new PublishProductGraphqlAction(
+                $this->app,
+                $this->branch,
+                $this->warehouse,
+                $this->products
+            ))->execute();
         } catch (\Throwable $e) {
             Log::error('ShopifySaveAction failed', ['error' => $e->getMessage()]);
             return ['error' => $e->getMessage()];

@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Products\Models;
 use Baka\Traits\SlugTrait;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
+use Override;
 
 /**
  * Class Products.
@@ -31,6 +32,7 @@ class ProductsTypes extends BaseModel
     protected $table = 'products_types';
     protected $guarded = [];
 
+    #[Override]
     protected static function newFactory()
     {
         return new ProductTypeFactory();

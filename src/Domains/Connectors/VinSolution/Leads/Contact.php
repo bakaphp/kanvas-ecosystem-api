@@ -109,8 +109,6 @@ class Contact
 
     /**
      * Create a new contact.
-     *
-     * @param array $data
      */
     public function update(Dealer $dealer, User $user): self
     {
@@ -120,37 +118,46 @@ class Contact
         $data['DealerId'] = $dealer->id;
         $data['UserId'] = $user->id;
 
+        // Initialize a new array for cleaned information
+        $cleanedInformation = $this->information;
+
         //clean information of emails
         if (! empty($this->emails)) {
+            $cleanedEmails = [];
             foreach ($this->emails as $key => $value) {
-                if ($this->information['Emails'][$key]['EmailAddress'] !== $this->emails[$key]['EmailAddress']) {
-                    $this->information['Emails'][$key] = $this->emails[$key];
-                } else {
-                    unset($this->information['Emails'][$key]);
+                if (isset($this->information['Emails'][$key]['EmailAddress']) &&
+                    $this->information['Emails'][$key]['EmailAddress'] !== $this->emails[$key]['EmailAddress']) {
+                    $cleanedEmails[$key] = $this->emails[$key];
                 }
             }
 
-            if (empty($this->information['Emails'])) {
-                unset($this->information['Emails']);
+            if (! empty($cleanedEmails)) {
+                $cleanedInformation['Emails'] = $cleanedEmails;
+            } else {
+                // Remove the emails key completely instead of unsetting
+                $cleanedInformation = array_diff_key($cleanedInformation, ['Emails' => []]);
             }
         }
 
         //clean information of phone
         if (! empty($this->phones)) {
+            $cleanedPhones = [];
             foreach ($this->phones as $key => $value) {
-                if ($this->information['Phones'][$key]['Number'] !== $this->phones[$key]['Number']) {
-                    $this->information['Phones'][$key] = $this->phones[$key];
-                } else {
-                    unset($this->information['Phones'][$key]);
+                if (isset($this->information['Phones'][$key]['Number']) &&
+                    $this->information['Phones'][$key]['Number'] !== $this->phones[$key]['Number']) {
+                    $cleanedPhones[$key] = $this->phones[$key];
                 }
             }
 
-            if (empty($this->information['Phones'])) {
-                unset($this->information['Phones']);
+            if (! empty($cleanedPhones)) {
+                $cleanedInformation['Phones'] = $cleanedPhones;
+            } else {
+                // Remove the phones key completely instead of unsetting
+                $cleanedInformation = array_diff_key($cleanedInformation, ['Phones' => []]);
             }
         }
 
-        $data['ContactInformation'] = $this->information;
+        $data['ContactInformation'] = $cleanedInformation;
 
         if (! empty($this->leadInformation)) {
             $data['LeadInformation'] = $this->leadInformation;
@@ -165,14 +172,15 @@ class Contact
         }
 
         if (! empty($this->addresses)) {
+            $cleanedAddresses = [];
             foreach ($this->addresses as $key => $address) {
-                if ($address['State'] !== null && empty(trim($address['State']))) {
-                    unset($this->addresses[$key]);
+                if (! ($address['State'] !== null && empty(trim($address['State'])))) {
+                    $cleanedAddresses[$key] = $address;
                 }
             }
 
-            if (! empty($this->addresses)) {
-                $data['ContactInformation']['Addresses'] = $this->addresses;
+            if (! empty($cleanedAddresses)) {
+                $data['ContactInformation']['Addresses'] = $cleanedAddresses;
             }
         }
 

@@ -204,6 +204,7 @@ return [
             'App\\GraphQL\\Subscription\\Queries',
             'App\\GraphQL\\Social\\Queries',
             'App\\GraphQL\\Event\\Queries',
+            'App\\GraphQL\\Workflow\\Queries',
         ],
         'mutations' => [
             'App\\GraphQL\\Ecosystem\\Mutations',
