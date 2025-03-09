@@ -224,7 +224,7 @@ class Message extends BaseModel
     #[Override]
     public function shouldBeSearchable(): bool
     {
-        if ($this->isDeleted() || $this->is_public === false) {
+        if ($this->isDeleted() || ! $this->isPublic()) {
             return false;
         }
 
