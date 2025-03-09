@@ -12,6 +12,7 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Exception;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
@@ -40,6 +42,7 @@ use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
+use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
@@ -345,6 +348,31 @@ class Products extends BaseModel implements EntityIntegrationInterface
         if ($this->isTypesense()) {
             $product['created_at'] = $this->created_at->timestamp;
             $product['custom_fields'] = [];
+
+            if ($this->app->get(EnumsConfigurationEnum::B2B_GLOBAL_COMPANY->value)) {
+                // Initialize prices array
+                $product['prices'] = [];
+
+                // Loop through each variant
+                $this->variants->each(function ($variant) use (&$product) {
+                    // Each variant has its own channels, so get them
+                    if ($variant->channels && $variant->channels->count() > 0) {
+                        $variant->channels->each(function ($channel) use (&$product) {
+                            // Get company by slug
+                            try {
+                                $company = Companies::getByUuid($channel->slug);
+
+                                if ($company) {
+                                    // Add price to the prices array
+                                    $product['prices']['price_b2b_' . $company->getId()] = (float) $channel->price;
+                                }
+                            } catch (Exception $e) {
+                                // Do nothing
+                            }
+                        });
+                    }
+                });
+            }
         }
 
         $attributes = $this->searchableAttributes();
@@ -528,6 +556,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 [
                     'name' => 'name',
                     'type' => 'string',
+                    'sort' => true,
+                    'facet' => true,
                 ],
                 [
                     'name' => 'files',
@@ -586,6 +616,35 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'optional' => true,
                 ],
                 [
+                    'name' => 'weight',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'prices',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'prices.regular',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'prices.sale',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'prices.msrp',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
                     'name' => 'apps_id',
                     'type' => 'int64',
                 ],
@@ -600,6 +659,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 ],
             ],
             'default_sorting_field' => 'created_at',
+            'search-parameters' => [
+                'query_by' => 'name, description', // Use just 'message' instead of 'message.name'
+            ],
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
     }
