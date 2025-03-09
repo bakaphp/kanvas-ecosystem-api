@@ -122,7 +122,7 @@ class CustomFieldTest extends TestCase
             ],
         )->json('data.createCustomFields.id');
         $data['name'] = fake()->name;
-        
+
         $this->graphQL(
             /** @lang GraphQL */
             '
@@ -137,12 +137,79 @@ class CustomFieldTest extends TestCase
                 'input' => $data,
             ]
         )->assertJson([
-            'data'=> [
+            'data' => [
                 'updateCustomFields' => [
                     'name' => $data['name'],
                     'label' => $data['label'],
                 ],
-            ]
+            ],
         ]);
+    }
+
+    public function testDeleteCustomFields(): void
+    {
+        $data = [
+                   'name' => fake()->word,
+                   'model_name' => Lead::class,
+               ];
+        $moduleId = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldModuleInput!) {
+                createCustomFieldModule(input: $input){
+                    id,
+                    name,
+                    model_name
+                }
+            }',
+            [
+            'input' => $data,
+                ],
+        )->json('data.createCustomFieldModule.id');
+
+        $customFieldTypeId = $this->graphQL( /** @lang GraphQL */
+            '
+            query {
+                customFieldTypes {
+                    data {
+                        id,
+                        name,
+                        description
+                    }
+                }
+            }'
+        )->json('data.customFieldTypes.data.0.id');
+
+        $data = [
+            'name' => fake()->name,
+            'label' => fake()->name,
+            'custom_field_module_id' => $moduleId,
+            'field_type_id' => $customFieldTypeId,
+        ];
+
+        $customFieldId = $this->graphQL(
+            '
+            mutation ($input: CustomFieldsInput!) {
+                createCustomFields(input: $input){
+                   id
+                }
+            }',
+            [
+                'input' => $data,
+            ],
+        )->json('data.createCustomFields.id');
+
+        $this->graphQL(
+            /** @lang GraphQL */
+            'mutation deleteCustomFields($id: ID!){
+                deleteCustomFields(id: $id)
+            }',
+            [
+                'id' => $customFieldId,
+            ]
+        )->assertJson([
+                    'data' => [
+                        'deleteCustomFields' => true,
+                    ],
+                ]);
     }
 }
