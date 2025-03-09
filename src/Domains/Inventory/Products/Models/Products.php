@@ -659,9 +659,6 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'search-parameters' => [
-                'query_by' => 'name, description', // Use just 'message' instead of 'message.name'
-            ],
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
     }
