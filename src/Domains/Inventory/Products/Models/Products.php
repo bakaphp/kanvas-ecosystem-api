@@ -627,6 +627,12 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'optional' => true,
                 ],
                 [
+                    'name' => 'prices.*',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
                     'name' => 'prices.regular',
                     'type' => 'float',
                     'optional' => true,
