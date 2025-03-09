@@ -92,6 +92,7 @@ class Message extends BaseModel
     protected $casts = [
         'message' => Json::class,
         'message_types_id' => 'integer',
+        'is_public' => 'integer',
     ];
 
     #[Override]
@@ -223,13 +224,18 @@ class Message extends BaseModel
     #[Override]
     public function shouldBeSearchable(): bool
     {
-        if ($this->isDeleted()) {
+        if ($this->isDeleted() || ! $this->isPublic()) {
             return false;
         }
 
         $filterByMessageType = $this->app->get('index_message_by_type');
 
         return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
+    }
+
+    public function isPublic(): bool
+    {
+        return (bool) $this->is_public;
     }
 
     public function setPublic(): void
