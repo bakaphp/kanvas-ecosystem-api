@@ -87,7 +87,7 @@ class Client
                 'expires' => time() + $tokenData['expires_in'],
             ];
 
-            Redis::set($this->redisKeyPrefix, json_encode($token), $tokenData['expires_in']);
+            Redis::set($this->redisKeyPrefix, json_encode($token), 'EX', $tokenData['expires_in']);
             // Redis::expire($this->redisKeyPrefix, $tokenData['expires_in']);
 
             return $token['access_token'];

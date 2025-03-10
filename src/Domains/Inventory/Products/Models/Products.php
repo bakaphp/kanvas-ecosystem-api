@@ -6,11 +6,13 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Exception;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -18,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
@@ -35,13 +38,15 @@ use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
+use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
-use Laravel\Scout\Searchable;
+use Override;
 
 /**
  * Class Products.
@@ -72,7 +77,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use HasTagsTrait;
     use IntegrationEntityTrait;
     use HasLightHouseCache;
-    use Searchable {
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
 
@@ -80,6 +85,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use Compoships;
     use CanUseWorkflow;
     use HasRating;
+    use HasTranslationsDefaultFallback;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -91,6 +97,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     protected $is_deleted;
 
+    public $translatable = ['name','description','short_description','html_description','warranty_terms'];
+
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'Product';
@@ -122,14 +131,14 @@ class Products extends BaseModel implements EntityIntegrationInterface
         );
     }
 
-    public function getAttributeByName(string $name): ?Attributes
+    public function getAttributeByName(string $name, ?string $locale = null): ?ProductsAttributes
     {
-        return $this->attributes()
-            ->where('attributes.name', $name)
-            ->first();
+        $locale = $locale ?? app()->getLocale(); // Use app locale if not passed.
+
+        return $this->buildAttributesQuery(["name->{$locale}" => $name])->first();
     }
 
-    public function getAttributeBySlug(string $slug): ?Attributes
+    public function getAttributeBySlug(string $slug): ?ProductsAttributes
     {
         return $this->attributes()
             ->where('attributes.slug', $slug)
@@ -139,7 +148,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     /**
      * attributes.
      */
-    public function attributes(): BelongsToMany
+    public function attributes(): HasMany
     {
         return $this->buildAttributesQuery();
     }
@@ -147,27 +156,29 @@ class Products extends BaseModel implements EntityIntegrationInterface
     /**
      * @todo add integration and graph test
      */
-    public function visibleAttributes(): BelongsToMany
+    public function visibleAttributes(): array
     {
-        return $this->buildAttributesQuery(['is_visible' => true]);
+        return $this->mapAttributes(
+            $this->buildAttributesQuery(['is_visible' => true])->get()
+        );
     }
 
-    public function searchableAttributes(): BelongsToMany
+    public function searchableAttributes(): array
     {
-        return $this->buildAttributesQuery(['is_searchable' => true]);
+        return $this->mapAttributes(
+            $this->buildAttributesQuery(['is_searchable' => true])->get()
+        );
     }
 
-    private function buildAttributesQuery(array $conditions = []): BelongsToMany
+    private function buildAttributesQuery(array $conditions = []): HasMany
     {
-        $query = $this->belongsToMany(
-            Attributes::class,
-            'products_attributes',
-            'products_id',
-            'attributes_id'
-        )->withPivot('value');
+        //We need to manually query product attribute by this relation so the translate can work for both.
+        $query = $this->hasMany(ProductsAttributes::class, 'products_id')
+            ->join('attributes', 'products_attributes.attributes_id', '=', 'attributes.id')
+            ->select('products_attributes.*', 'attributes.*');
 
         foreach ($conditions as $column => $value) {
-            $query->where($column, $value);
+            $query->where("attributes.$column", $value);
         }
 
         $query->orderBy('attributes.weight', 'asc');
@@ -279,6 +290,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->belongsTo(Status::class, 'status_id');
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return $this->isPublished();
@@ -288,7 +300,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     {
         $product = [
             'objectID' => $this->uuid,
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'name' => $this->name,
             'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
@@ -332,9 +344,40 @@ class Products extends BaseModel implements EntityIntegrationInterface
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
         ];
-        $attributes = $this->searchableAttributes()->get();
+
+        if ($this->isTypesense()) {
+            $product['created_at'] = $this->created_at->timestamp;
+            $product['custom_fields'] = [];
+
+            if ($this->app->get(EnumsConfigurationEnum::B2B_GLOBAL_COMPANY->value)) {
+                // Initialize prices array
+                $product['prices'] = [];
+
+                // Loop through each variant
+                $this->variants->each(function ($variant) use (&$product) {
+                    // Each variant has its own channels, so get them
+                    if ($variant->channels && $variant->channels->count() > 0) {
+                        $variant->channels->each(function ($channel) use (&$product) {
+                            // Get company by slug
+                            try {
+                                $company = Companies::getByUuid($channel->slug);
+
+                                if ($company) {
+                                    // Add price to the prices array
+                                    $product['prices']['price_b2b_' . $company->getId()] = (float) $channel->price;
+                                }
+                            } catch (Exception $e) {
+                                // Do nothing
+                            }
+                        });
+                    }
+                });
+            }
+        }
+
+        $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
-            $product['attributes'][$attribute->name] = $attribute->value;
+            $product['attributes'][$attribute['name']] = $attribute['value'];
         }
 
         $customFields = $this->getAllCustomFields();
@@ -359,8 +402,15 @@ class Products extends BaseModel implements EntityIntegrationInterface
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
+
         if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name, description', // Use just 'message' instead of 'message.name'
+            ]);
         }
 
         return $query;
@@ -385,6 +435,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return VariantService::createVariantsFromArray($this, $variants, $this->user);
     }
 
+    #[Override]
     public static function newFactory()
     {
         return new ProductFactory();
@@ -444,7 +495,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
             if ($attributeModel) {
                 (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
 
-                if ($this?->productsType) {
+                if ($this?->productsType !== null) {
                     ProductTypeService::addAttributes(
                         $this->productsType,
                         $this->user,
@@ -484,5 +535,138 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->variants->count() > $limit
             ? $this->variants->take($limit)->map(fn ($variant) => $variant->toSearchableArraySummary())
             : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
+    }
+
+    /**
+    * The Typesense schema to be created.
+    */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                    'sort' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'files',
+                    'type' => 'object[]',
+                ],
+                [
+                    'name' => 'company',
+                    'type' => 'object',
+                ],
+                [
+                    'name' => 'user',
+                    'type' => 'object',
+                ],
+                [
+                    'name' => 'categories',
+                    'type' => 'object[]',
+                    'facet' => true,  // Enable faceting on the whole object
+                ],
+                [
+                    'name' => 'variants',
+                    'type' => 'object[]', // Adjust based on what getVariantsData() returns
+                ],
+                [
+                    'name' => 'status',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'slug',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'is_published',
+                    'type' => 'bool',
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'short_description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'attributes',
+                    'type' => 'object',
+                ],
+                [
+                    'name' => 'custom_fields',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'weight',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'prices',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'prices.*',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'prices.regular',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'prices.sale',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'prices.msrp',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'published_at',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+        ];
     }
 }

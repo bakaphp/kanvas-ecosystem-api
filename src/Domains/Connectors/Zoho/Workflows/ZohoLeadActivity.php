@@ -12,17 +12,19 @@ use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 /**
  * @todo refactor move core logic to SyncLeadWithZohoAction
  */
 class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    public $tries = 5;
+    //public $tries = 5;
 
     /**
      * @param Lead $lead
      */
+    #[Override]
     public function execute(Model $lead, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

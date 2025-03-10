@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -15,15 +16,15 @@ use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 use Spatie\LaravelData\DataCollection;
-use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
-use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 
 /**
  * Class Order
@@ -74,9 +75,10 @@ use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 class Order extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use CanUseWorkflow;
     use HasShopifyCustomField;
+    use HasTagsTrait;
 
     protected $table = 'orders';
     protected $guarded = [];

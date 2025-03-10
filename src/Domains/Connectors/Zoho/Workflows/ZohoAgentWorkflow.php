@@ -7,8 +7,6 @@ namespace Kanvas\Connectors\Zoho\Workflows;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Generator;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Users\Models\Users;
 use Workflow\ActivityStub;
 use Workflow\Workflow;
 

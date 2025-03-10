@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Exception;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Override;
 use Spatie\LaravelData\Data;
 
 class ZohoLead extends Data
@@ -59,6 +60,7 @@ class ZohoLead extends Data
         );
     }
 
+    #[Override]
     public function toArray(): array
     {
         $data = array_merge(parent::toArray(), $this->additionalFields);
@@ -97,9 +99,13 @@ class ZohoLead extends Data
             if (strtolower($key) == 'credit_score' && $value != null) {
                 $creditScore = [
                     1 => '720-950',
+                    'Excellent' => '720-950',
                     2 => '680-719',
+                    'Great' => '680-719',
                     3 => '640-679',
+                    'Good' => '640-679',
                     4 => '639 or less',
+                    'Fair' => '639 or less',
                 ];
 
                 $value = $creditScore[(int) $value] ?? $value;

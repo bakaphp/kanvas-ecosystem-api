@@ -63,17 +63,19 @@ class CreateOrderAction
             $createPeople = new CreatePeopleAction($peopleDto);
             $people = $createPeople->execute();
         }
-        $shippingAddress = AddressModel::create([
-            'address' => $this->order->shipping->address_1,
-            'address_2' => $this->order->shipping->address_2,
-            'city' => $this->order->shipping->city,
-            'state' => $this->order->shipping->state,
-            'zip' => $this->order->shipping->postcode,
-            'countries_id' => Countries::where('code', $this->order->shipping->country)
-                        ->first()
-                        ->id,
-            'peoples_id' => $people->id,
-        ]);
+        if ($this->order->shipping->address_1 && $this->order->shipping->country) {
+            $shippingAddress = AddressModel::create([
+                'address' => $this->order->shipping->address_1,
+                'address_2' => $this->order->shipping->address_2,
+                'city' => $this->order->shipping->city,
+                'state' => $this->order->shipping->state,
+                'zip' => $this->order->shipping->postcode,
+                'countries_id' => Countries::where('code', $this->order->shipping->country)
+                    ->first()
+                    ->id,
+                'peoples_id' => $people->id,
+            ]);
+        }
         $billingAddress = AddressModel::firstOrCreate([
             'address' => $this->order->billing->address_1,
             'address_2' => $this->order->billing->address_2,
@@ -92,7 +94,7 @@ class CreateOrderAction
             $this->region,
             $people,
             $this->order,
-            $shippingAddress,
+            isset($shippingAddress) ? $shippingAddress : $billingAddress,
             $billingAddress,
         );
         $createOrder = new SoukCreateOrderAction($orderDto);

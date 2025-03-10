@@ -50,7 +50,7 @@ class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
         return [
             'message' => 'Product synced successfully',
             'shopify_id' => $this->webhookRequest->payload['id'],
-            'product_name' => $mappedProduct['name']
+            'product_name' => $mappedProduct['name'],
         ];
     }
 }

@@ -5,7 +5,7 @@ ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/do
 
 # Install PHP extensions
 RUN chmod +x /usr/local/bin/install-php-extensions && \
-    install-php-extensions mbstring pdo_mysql zip exif pcntl gd memcached redis swoole opcache curl readline sqlite3 msgpack igbinary pcov sockets bcmath soap
+    install-php-extensions mbstring pdo_mysql zip exif pcntl gd memcached redis swoole opcache curl readline sqlite3 msgpack igbinary pcov sockets bcmath soap imagick
 
 # Install required dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

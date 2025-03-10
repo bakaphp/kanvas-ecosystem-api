@@ -11,6 +11,7 @@ use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
+use Override;
 
 class ProductImportEvent implements ShouldBroadcast
 {
@@ -27,11 +28,12 @@ class ProductImportEvent implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        unset($this->result['exception']);
+        $this->result['exception'] = null;
 
         return $this->result;
     }
 
+    #[Override]
     public function broadcastOn(): Channel
     {
         return new Channel('app-' . $this->app->getId() . '-import-results-' . $this->company->getId());

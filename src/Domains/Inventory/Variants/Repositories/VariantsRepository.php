@@ -9,11 +9,13 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Override;
 
 class VariantsRepository
 {
     use SearchableTrait;
 
+    #[Override]
     public static function getModel(): Variants
     {
         return new Variants();
@@ -45,7 +47,7 @@ class VariantsRepository
             ->first();
 
         if (! $variant) {
-            throw new ModelNotFoundException('No variant available found for product type' . $productType->name);
+            throw new ModelNotFoundException('No variant available found for product type ' . $productType->name);
         }
 
         return $variant;

@@ -6,10 +6,12 @@ namespace Kanvas\Social\Messages\Models;
 
 use Baka\Casts\Json;
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Exception;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
@@ -38,8 +40,8 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
+use Override;
 
 /**
  *  Class Message
@@ -58,6 +60,7 @@ use Nevadskiy\Tree\AsTree;
  *  @property int $total_disliked
  *  @property int $total_view
  *  @property int $is_public
+ *  @property int $is_premium
  *  @property int $total_children
  *  @property int $total_saved
  *  @property int $total_shared
@@ -68,7 +71,7 @@ use Nevadskiy\Tree\AsTree;
 class Message extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use HasFactory;
     use HasTagsTrait;
     use CascadeSoftDeletes;
@@ -88,8 +91,11 @@ class Message extends BaseModel
 
     protected $casts = [
         'message' => Json::class,
+        'message_types_id' => 'integer',
+        'is_public' => 'integer',
     ];
 
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'Message';
@@ -163,6 +169,7 @@ class Message extends BaseModel
         return $legacyClassMap::getById($this->appModuleMessage->entity_id);
     }
 
+    #[Override]
     public function user(): BelongsTo
     {
         return $this->belongsTo(
@@ -214,15 +221,21 @@ class Message extends BaseModel
         return config('scout.prefix') . ($customIndex ?? 'message_index');
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
-        if ($this->isDeleted()) {
+        if ($this->isDeleted() || ! $this->isPublic()) {
             return false;
         }
 
         $filterByMessageType = $this->app->get('index_message_by_type');
 
         return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
+    }
+
+    public function isPublic(): bool
+    {
+        return (bool) $this->is_public;
     }
 
     public function setPublic(): void
@@ -283,5 +296,20 @@ class Message extends BaseModel
         }
 
         return (bool)$this->is_locked;
+    }
+
+    public static function getUserMessageCountInTimeFrame(
+        int $userId,
+        Apps $app,
+        int $hours,
+        ?int $messageTypesId = null,
+        bool $getChildrenCount = false
+    ): int {
+        return self::fromApp($app)
+        ->where('users_id', $userId)
+        ->when($messageTypesId, fn ($query) => $query->where('message_types_id', $messageTypesId))
+        ->where('created_at', '>=', Carbon::now()->subHours($hours))
+        ->when($getChildrenCount, fn ($query) => $query->whereNotNull('parent_id'), fn ($query) => $query->whereNull('parent_id'))
+        ->count();
     }
 }

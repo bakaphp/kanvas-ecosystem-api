@@ -12,6 +12,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
+use Kanvas\Auth\Socialite\DataTransferObject\User;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
@@ -34,6 +35,7 @@ use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Users\Services\UserContactsService;
 
 class UserManagementMutation
 {
@@ -293,5 +295,40 @@ class UserManagementMutation
     public function requestDeleteAccount(mixed $rootValue, array $request): bool
     {
         return (new RequestDeleteAction(app(Apps::class), auth()->user()))->execute();
+    }
+
+    public function checkUsersContactsMatch(mixed $rootValue, array $request): ?array
+    {
+        $authUser = auth()->user();
+        $app = app(Apps::class);
+        $contacts = $request['contacts'];
+        $contactsEmails = [];
+        foreach (UserContactsService::extractEmailsFromContactsList($contacts) as $email) {
+            $contactsEmails[] = $email;
+        }
+
+        $appUsers = UsersAssociatedApps::where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->whereNotNull('email')
+            ->whereNotIn('email', [$authUser->email])
+            ->with('user')
+            ->lazy();
+
+
+        $contactsEmails = array_flip($contactsEmails);
+        $matchingContacts = [];
+
+        // Efficient lookup using isset()
+        foreach ($appUsers as $appUser) {
+            if (isset($contactsEmails[$appUser->email])) {
+                $matchingContacts[] = $appUser->user;
+            }
+        }
+
+        // Return alse the contacts that are not in the app
+        return [
+            "matching_contacts" => $matchingContacts,
+            "nonmatching_contacts" => array_diff_key($contactsEmails, array_flip($matchingContacts))
+        ];
     }
 }

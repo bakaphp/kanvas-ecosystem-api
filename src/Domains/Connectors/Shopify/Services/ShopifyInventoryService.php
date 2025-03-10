@@ -13,6 +13,7 @@ use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Models\ProductsWarehouses;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -78,7 +79,9 @@ class ShopifyInventoryService
         $productParts = $this->prepareProductParts($product, $variantLimit);
         $response = [];
         $allResponse = [];
-
+        $productWarehouse = ProductsWarehouses::where('products_id', $product->getId())
+            ->where('warehouses_id', $this->warehouses->getId())
+            ->first();
         foreach ($productParts as $part) {
             $partNumber = $part['part_number'];
             $shopifyProductIdPartNumber = $partNumber > 1 ? "-part-{$partNumber}" : null;
@@ -89,11 +92,13 @@ class ShopifyInventoryService
                 'handle' => $this->getPartHandle($product->slug, $partNumber),
                 'body_html' => $product->description,
                 'product_type' => $product->productsTypes?->name ?? 'default',
-                'vendor' => $this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value) ?? 'default' , //$product->categ->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
                 'status' => $product->hasPrice($this->warehouses, $channel) ? $status->value : StatusEnum::ARCHIVED->value,
                 'published_scope' => 'web',
-                'tags' => $product->categories->pluck('name')->implode(','),
+                'tags' => $product->tags->pluck('name')->implode(','),
             ];
+            if ($this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value)) {
+                $productInfo['vendor'] = $this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value) ?? 'default'; //$product->category->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
+            }
 
             //$limitedVariants = $product->variants()->limit($variantLimit)->get();
             //ignore deleted variants
@@ -114,13 +119,18 @@ class ShopifyInventoryService
                 $response = $shopifyProduct->put($productInfo);
 
                 foreach ($limitedVariants as $variant) {
-                    $this->saveVariant($variant, $channel);
-                    $this->setStock($variant, $channel);
+                    try {
+                        $this->saveVariant($variant, $channel);
+                        $this->setStock($variant, $channel);
+                    } catch (Throwable $e) {
+                        Log::error($e->getMessage());
+                        captureException($e);
+                    }
                 }
             }
 
             try {
-                $productListing = $this->shopifySdk->ProductListinShopifyVariantMetafieldServicg($shopifyProductId);
+                $productListing = $this->shopifySdk->ProductListingShopifyVariantMetafieldService($shopifyProductId);
 
                 $productListing->put([
                     'product_id' => $shopifyProductId,
@@ -129,8 +139,8 @@ class ShopifyInventoryService
                 //do nothing
             }
 
-            $allResponse[] = $response;
             $this->shopifyImageService->processEntityImage($product);
+            $allResponse[] = $this->shopifySdk->Product($shopifyProductId)->get();
         }
 
         return count($allResponse) > 1 ? $allResponse : $allResponse[0];

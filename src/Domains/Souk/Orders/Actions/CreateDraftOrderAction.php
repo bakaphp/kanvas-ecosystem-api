@@ -10,11 +10,14 @@ use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException
 use Kanvas\Souk\Orders\DataTransferObject\DraftOrder;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 use function Sentry\captureException;
 
 class CreateDraftOrderAction
 {
+    public bool $runWorkflow = true;
+
     public function __construct(
         protected DraftOrder $orderData
     ) {
@@ -49,14 +52,27 @@ class CreateDraftOrderAction
 
             $order->addItems($this->orderData->items);
 
-            try {
-                $order->user->notify(new NewOrderNotification($order, [
-                    'app' => $this->orderData->app,
-                    'company' => $this->orderData->branch->company,
-                ]));
-            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
-                //captureException($e);
-            }
+            // Run after commit
+            DB::afterCommit(function () use ($order) {
+                if ($this->runWorkflow) {
+                    $order->fireWorkflow(
+                        WorkflowEnum::CREATED->value,
+                        true,
+                        [
+                            'app' => $this->orderData->app,
+                        ]
+                    );
+                }
+
+                try {
+                    $order->user->notify(new NewOrderNotification($order, [
+                        'app' => $this->orderData->app,
+                        'company' => $this->orderData->branch->company,
+                    ]));
+                } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                    //captureException($e);
+                }
+            });
 
             return $order;
         });

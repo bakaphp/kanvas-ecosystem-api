@@ -9,11 +9,13 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -30,13 +32,16 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
+use Kanvas\Inventory\Variants\Observers\VariantObserver;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Override;
 
 /**
  * Class Attributes.
@@ -56,6 +61,7 @@ use Laravel\Scout\Searchable;
  * @property string barcode
  * @property string serial_number
  */
+#[ObservedBy(VariantObserver::class)]
 class Variants extends BaseModel implements EntityIntegrationInterface
 {
     use SlugTrait;
@@ -64,7 +70,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     use HasShopifyCustomField;
     use HasLightHouseCache;
     use IntegrationEntityTrait;
-    use Searchable {
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
 
@@ -72,9 +78,11 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     use Compoships;
     use CanUseWorkflow;
     use HasRating;
+    use HasTranslationsDefaultFallback;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
+    public $translatable = ['name','description','short_description','html_description'];
 
     protected $table = 'products_variants';
     protected $touches = ['attributes'];
@@ -100,6 +108,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
 
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'Variant';
@@ -110,6 +119,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return $this->isPublished() && $this->product;
@@ -169,7 +179,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     /**
      * attributes.
      */
-    public function attributes(): BelongsToMany
+    public function attributes(): HasMany
     {
         return $this->buildAttributesQuery();
     }
@@ -177,41 +187,43 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     /**
      * @todo add integration and graph test
      */
-    public function visibleAttributes(): BelongsToMany
+    public function visibleAttributes(): array
     {
-        return $this->buildAttributesQuery(['is_visible' => true]);
+        return $this->mapAttributes(
+            $this->buildAttributesQuery(['is_visible' => true])->get()
+        );
     }
 
-    public function getAttributeByName(string $name): ?Attributes
+    public function getAttributeByName(string $name, ?string $locale = null): ?VariantsAttributes
     {
-        return $this->attributes()
-            ->where('attributes.name', $name)
-            ->first();
+        $locale = $locale ?? app()->getLocale(); // Use app locale if not passed.
+
+        return $this->buildAttributesQuery(["name->{$locale}" => $name])->first();
     }
 
-    public function getAttributeBySlug(string $slug): ?Attributes
+    public function getAttributeBySlug(string $slug): ?VariantsAttributes
     {
         return $this->attributes()
             ->where('attributes.slug', $slug)
             ->first();
     }
 
-    public function searchableAttributes(): BelongsToMany
+    public function searchableAttributes(): array
     {
-        return $this->buildAttributesQuery(['is_searchable' => true]);
+        return $this->mapAttributes(
+            $this->buildAttributesQuery(['is_searchable' => true])->get()
+        );
     }
 
-    private function buildAttributesQuery(array $conditions = []): BelongsToMany
+    private function buildAttributesQuery(array $conditions = []): HasMany
     {
-        $query = $this->belongsToMany(
-            Attributes::class,
-            VariantsAttributes::class,
-            'products_variants_id',
-            'attributes_id'
-        )->withPivot('value');
+        //We need to manually query product attribute by this relation so the translate can work for both.
+        $query = $this->hasMany(VariantsAttributes::class, 'products_variants_id')
+            ->join('attributes', 'products_variants_attributes.attributes_id', '=', 'attributes.id')
+            ->select('products_variants_attributes.*', 'attributes.*');
 
         foreach ($conditions as $column => $value) {
-            $query->where($column, $value);
+            $query->where("attributes.$column", $value);
         }
 
         $query->orderBy('attributes.weight', 'asc');
@@ -503,6 +515,16 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
         if ($warehouseInfo) {
             $warehouseInfo->quantity = $quantity;
+            $warehouseInfo->saveOrFail();
+        }
+    }
+
+    public function reduceQuantityInWarehouse(Warehouses $warehouse, float $quantity): void
+    {
+        $warehouseInfo = $this->variantWarehouses()->where('warehouses_id', $warehouse->getId())->first();
+
+        if ($warehouseInfo) {
+            $warehouseInfo->quantity -= $quantity;
             $warehouseInfo->saveOrFail();
         }
     }
