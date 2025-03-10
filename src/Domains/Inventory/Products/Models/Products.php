@@ -574,6 +574,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 [
                     'name' => 'categories',
                     'type' => 'object[]',
+                    'facet' => true,  // Enable faceting on the whole object
                 ],
                 [
                     'name' => 'variants',
