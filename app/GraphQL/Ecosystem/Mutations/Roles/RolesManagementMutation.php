@@ -21,6 +21,7 @@ use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Kanvas\AccessControlList\Actions\DisallowAllAbilitiesAction;
 use Silber\Bouncer\Database\Role as SilberRole;
 use Silber\Bouncer\Database\Ability as SilberAbility;
+use Kanvas\AccessControlList\Actions\BulkAllowRoleToPermissionAction;
 
 class RolesManagementMutation
 {
@@ -165,12 +166,11 @@ class RolesManagementMutation
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
         $permissions = $input['permissions'];
-        foreach ($permissions as $permission) {
-            $modelName = $permission['model_name'];
-            foreach ($permission['permission'] as $perm) {
-                Bouncer::allow($role->name)->to($perm, $modelName);
-            }
-        }
+        (new BulkAllowRoleToPermissionAction(
+            app(Apps::class),
+            $role,
+            $permissions
+        ))->execute();
         return KanvasRole::find($role->id);
     }
 
@@ -196,12 +196,11 @@ class RolesManagementMutation
         Bouncer::disallow($role)->to($role->abilities->pluck('name')->toArray());
         $permissions = $input['permissions'];
 
-        foreach ($permissions as $permission) {
-            $modelName = $permission['model_name'];
-            foreach ($permission['permission'] as $perm) {
-                Bouncer::allow($role->name)->to($perm, $modelName);
-            }
-        }
+        (new BulkAllowRoleToPermissionAction(
+            app(Apps::class),
+            $role,
+            $permissions
+        ))->execute();
 
         return KanvasRole::find($role->id);
     }
