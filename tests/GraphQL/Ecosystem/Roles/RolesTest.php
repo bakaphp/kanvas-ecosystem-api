@@ -42,7 +42,6 @@ class RolesTest extends TestCase
             "title" => fake()->name,
             "permissions" => [$permissions]
         ];
-        dump($input);
         $this->graphQL('
             mutation createRole($input: RoleInput!) {
                 createRole(input: $input) {
