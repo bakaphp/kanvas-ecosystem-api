@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\CustomFields\Actions;
@@ -9,7 +10,6 @@ use Kanvas\CustomFields\DataTransferObject\CustomFieldEntityValue as CustomField
 
 class UpdateEntityValueAction
 {
-
     public function __construct(
         protected CustomFieldEntityValueDTO $dto
     ) {

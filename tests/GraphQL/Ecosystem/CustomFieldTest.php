@@ -362,7 +362,7 @@ class CustomFieldTest extends TestCase
                 'setCustomFieldEntityValue' => true,
             ],
         ]);
-        $data['value']= fake()->word;
+        $data['value'] = fake()->word;
         $this->graphQL(/** @lang GraphQL */
             'mutation ($input: CustomFieldEntityValueInput!) {
                 updateCustomFieldEntityValue(input: $input)
