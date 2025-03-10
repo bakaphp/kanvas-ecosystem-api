@@ -9,7 +9,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 use Tests\TestCase;
 
 class UserManagementTest extends TestCase
@@ -536,16 +538,18 @@ class UserManagementTest extends TestCase
     public function testDeactivateUser()
     {
         $app = app(Apps::class);
+
         $user = $app->keys()->first()->user()->firstOrFail();
         $user->assign(RolesEnums::OWNER->value);
+        $company = $user->getCurrentCompany();
 
         $email = fake()->email();
+        $password = "12345678";
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation appCreateUser($data: CreateUserInput!) {
                 appCreateUser(data: $data) {
                     id
-                    email,
-                    uuid
+                    email
                 }
               }',
             [
@@ -553,6 +557,7 @@ class UserManagementTest extends TestCase
                     'firstname' => fake()->firstName(),
                     'lastname' => fake()->lastName(),
                     'email' => $email,
+                    'password' => $password,
                     'custom_fields' => [],
                 ],
             ],
@@ -562,19 +567,51 @@ class UserManagementTest extends TestCase
             ]
         );
 
-        $user = Users::getByEmail($email);
+        $response->assertJson([
+            'data' => [
+                'appCreateUser' => [
+                    'email' => $email,
+                ],
+            ],
+        ]);
 
-        // //  login with user
-        // $this->actingAs($user);
+        $createdUser = Users::getByEmail($email);
+        $this->assertTrue($createdUser->companies()->count() == 1);
+        $this->assertTrue($createdUser->companies()->first()->id == $company->getId());
+
+        $userAssociate = UsersRepository::belongsToThisApp($createdUser, $app);
+        $activeState = $userAssociate->isActive();
+
+
+        $this->graphQL(/** @lang GraphQL */ '
+           mutation login($data: LoginInput!) {
+                login(data: $data) {
+                  id
+                  token
+                  refresh_token
+                  token_expires
+                  refresh_token_expires
+                  time
+                  timezone
+                }
+              }
+
+        ', [
+            'data' => [
+                'email' => $email,
+                'password' => $password,
+            ],
+        ]);
 
         $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation appDeactivateUser($user_id: ID!) {
+            mutation appDeActiveUser($user_id: ID!) {
                 appDeActiveUser(user_id: $user_id) 
             }',
             [
-                'user_id' => $user->getId(),
+                'user_id' => $createdUser->getId(),
             ]
         );
+
 
         $response->assertJson([
             'data' => [
@@ -582,22 +619,10 @@ class UserManagementTest extends TestCase
             ],
         ]);
 
-        dd($user->refresh()->isActive());
-        $this->assertFalse($user->refresh()->isActive());
+        $this->assertTrue($activeState);
+        $this->assertFalse($userAssociate->refresh()->isActive());
 
-        // $response = $this->graphQL(/** @lang GraphQL */ '
-        //     mutation appActivateUser($user_id: ID!) {
-        //         appActivateUser(user_id: $user_id) 
-        //     }',
-        //     [
-        //         'user_id' => $user->getId(),
-        //     ]
-        // );
-
-        // $response->assertJson([
-        //     'data' => [
-        //         'appActivateUser' => true,
-        //     ],
-        // ]);
+        $session = new Sessions();
+        $this->assertFalse($session->end($createdUser, $app));
     }
 }
