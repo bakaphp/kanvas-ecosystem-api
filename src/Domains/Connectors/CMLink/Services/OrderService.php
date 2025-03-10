@@ -87,14 +87,14 @@ class OrderService
         ]);
 
         // Check if 'quotaList' exists and is an array
-        if (!isset($response['quotaList']) || !is_array($response['quotaList'])) {
+        if (! isset($response['quotaList']) || ! is_array($response['quotaList'])) {
             return ['total' => 0];
         }
 
         // Loop through quotaList items
         foreach ($response['quotaList'] as $quotaItem) {
             // Check if subscriberQuota exists and is not empty
-            if (!empty($quotaItem['subscriberQuota']) && isset($quotaItem['subscriberQuota']['qtabalance'])) {
+            if (! empty($quotaItem['subscriberQuota']) && isset($quotaItem['subscriberQuota']['qtabalance'])) {
                 $totalConsumptionMB = $quotaItem['subscriberQuota']['qtabalance'];
                 break;
             }
