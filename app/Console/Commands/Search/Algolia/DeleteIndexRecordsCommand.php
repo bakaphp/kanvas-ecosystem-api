@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Search\Algolia;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
@@ -19,7 +19,7 @@ class DeleteIndexRecordsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:delete-algolia-records {index_name} {filter}';
+    protected $signature = 'kanvas-search:delete-algolia-records {index_name} {filter}';
 
     /**
      * The console command description.
@@ -36,8 +36,13 @@ class DeleteIndexRecordsCommand extends Command
         $indexName = $this->argument('index_name');
         $filter = $this->argument('filter');
 
-        if (empty($indexName) || empty($filter)) {
-            $this->error('Both index name and filter are required.');
+        if (empty($indexName)) {
+            $this->error('The index name param is required.');
+            return;
+        }
+
+        if (empty($filter)) {
+            $this->error('The filter param is required.');
             return;
         }
 
