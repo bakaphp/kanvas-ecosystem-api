@@ -16,11 +16,16 @@ class ReceiversBuilder
     {
         $app = app(Apps::class);
 
-        $receiversWebhookCalls = ReceiverWebhookCall::query()->whereRelation(
-            'receiverWebhook',
-            'apps_id',
-            $app->getId()
-        );
+        $receiversWebhookCalls = ReceiverWebhookCall::query()
+        ->whereHas('receiverWebhook', function ($query) use ($app) {
+            $query->where('apps_id', $app->getId());
+        })
+        ->join('receiver_webhooks', 'receiver_webhook_calls.receiver_webhooks_id', '=', 'receiver_webhooks.id')
+        ->select([
+            'receiver_webhook_calls.*',
+            'receiver_webhooks.name'
+        ]);
+
 
         return $receiversWebhookCalls;
     }

@@ -23,6 +23,7 @@ type WorkflowReceiver {
 
 enum WorkflowReceiversHistoryEnumColumn {
     ID @enum(value: "receiver_webhook_calls.id")
+    NAME @enum(value: "receiver_webhooks.name")
     RECEIVER_STATUS @enum(value: "receiver_webhook_calls.status")
     RECEIVER_ACTION @enum(value: "actions.id")
 }
