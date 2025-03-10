@@ -184,7 +184,7 @@ input AppleInAppPurchaseReceipt {
     custom_fields: [CustomFieldEntityInput!]
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAdmin {
     # @deprecated(reason: "Use createOrderFromCart instead")
     createOrder(input: OrderInput!): Mixed!
         @field(
@@ -226,7 +226,7 @@ extend type Mutation @guard {
     #    )
 }
 
-extend type Query @guard {
+extend type Query @guardByAdmin {
     orders(
         where: _
             @whereConditions(
