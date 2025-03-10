@@ -194,12 +194,12 @@ class SyncEsimWithProviderCommand extends Command
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
         $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
-        $orderId = $message->message['order_id'] ?? null;
+        $orderNumber = $message->message['order']['order_number'] ?? null;
         $dataUsage = 0;
         $totalBytesData = FileSizeConverter::toBytes($totalData);
-        if ($orderId) {
+        if ($orderNumber !== null) {
             $orderService = new ServicesOrderService($message->app, $message->company);
-            $dataUsage = $orderService->getOrderStatus($orderId)['total'];
+            $dataUsage = $orderService->getOrderStatus($orderNumber)['total'];
         }
         // Calculate remaining data usage, ensuring it doesn't go negative
         $remainingData = max(0, $totalBytesData - max(0, $dataUsage));
