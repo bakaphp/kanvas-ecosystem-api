@@ -101,7 +101,8 @@ class CustomFieldTest extends TestCase
                     }
                 }
             }'
-        )->json('data.customFieldTypes.data.0.id');
+        );
+        $customFieldTypeId = $customFieldTypeId->json('data.customFieldTypes.data.0.id');
 
         $data = [
             'name' => fake()->name,
@@ -211,5 +212,168 @@ class CustomFieldTest extends TestCase
                         'deleteCustomFields' => true,
                     ],
                 ]);
+    }
+
+    public function testSetCustomFieldEntityValue(): void
+    {
+        $data = [
+            'name' => fake()->word,
+            'model_name' => Lead::class,
+        ];
+        $moduleId = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldModuleInput!) {
+                createCustomFieldModule(input: $input){
+                    id,
+                    name,
+                    model_name
+                }
+            }',
+            [
+            'input' => $data,
+                ],
+        )->json('data.createCustomFieldModule.id');
+
+        $customFieldTypeId = $this->graphQL( /** @lang GraphQL */
+            '
+            query {
+                customFieldTypes {
+                    data {
+                        id,
+                        name,
+                        description
+                    }
+                }
+            }'
+        )->json('data.customFieldTypes.data.0.id');
+
+        $data = [
+            'name' => fake()->name,
+            'label' => fake()->name,
+            'custom_field_module_id' => $moduleId,
+            'field_type_id' => $customFieldTypeId,
+        ];
+
+        $customFieldId = $this->graphQL(
+            '
+            mutation ($input: CustomFieldsInput!) {
+                createCustomFields(input: $input){
+                    id,
+                    name,
+                    label
+                }
+            }',
+            [
+                'input' => $data,
+            ],
+        )->json('data.createCustomFields.id');
+
+        $lead = Lead::factory()->create();
+        $data = [
+            'custom_field_id' => $customFieldId,
+            'entity_id' => $lead->id,
+            'value' => fake()->word,
+        ];
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldEntityValueInput!) {
+                setCustomFieldEntityValue(input: $input)
+            }',
+            [
+                'input' => $data,
+            ],
+        )->assertJson([
+            'data' => [
+                'setCustomFieldEntityValue' => true,
+            ],
+        ]);
+    }
+
+    public function testUpdateEntityValue(): void
+    {
+        $data = [
+           'name' => fake()->word,
+           'model_name' => Lead::class,
+       ];
+        $moduleId = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldModuleInput!) {
+                createCustomFieldModule(input: $input){
+                    id,
+                    name,
+                    model_name
+                }
+            }',
+            [
+            'input' => $data,
+                ],
+        )->json('data.createCustomFieldModule.id');
+
+        $customFieldTypeId = $this->graphQL( /** @lang GraphQL */
+            '
+            query {
+                customFieldTypes {
+                    data {
+                        id,
+                        name,
+                        description
+                    }
+                }
+            }'
+        )->json('data.customFieldTypes.data.0.id');
+
+        $data = [
+            'name' => fake()->name,
+            'label' => fake()->name,
+            'custom_field_module_id' => $moduleId,
+            'field_type_id' => $customFieldTypeId,
+        ];
+
+        $customFieldId = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldsInput!) {
+                createCustomFields(input: $input){
+                    id,
+                    name,
+                    label
+                }
+            }',
+            [
+                'input' => $data,
+            ],
+        )->json('data.createCustomFields.id');
+
+        $lead = Lead::factory()->create();
+        $data = [
+            'custom_field_id' => $customFieldId,
+            'entity_id' => $lead->id,
+            'value' => fake()->word,
+        ];
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldEntityValueInput!) {
+                setCustomFieldEntityValue(input: $input)
+            }',
+            [
+                'input' => $data,
+            ],
+        )->assertJson([
+            'data' => [
+                'setCustomFieldEntityValue' => true,
+            ],
+        ]);
+        $data['value']= fake()->word;
+        $this->graphQL(/** @lang GraphQL */
+            'mutation ($input: CustomFieldEntityValueInput!) {
+                updateCustomFieldEntityValue(input: $input)
+            }',
+            [
+                'input' => $data,
+            ],
+        )->assertJson([
+            'data' => [
+                'updateCustomFieldEntityValue' => true,
+            ],
+        ]);
     }
 }

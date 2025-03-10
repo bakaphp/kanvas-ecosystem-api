@@ -18,8 +18,8 @@ class CustomFieldEntityValue extends Data
         public Companies $companies,
         public Users $users,
         public CustomFields $customFields,
-        public int $entity_id,
-        public int $value
+        public string $entity_id,
+        public string $value
     ) {
     }
 }

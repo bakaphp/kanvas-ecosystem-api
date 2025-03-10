@@ -23,9 +23,9 @@ use Kanvas\SystemModules\Models\SystemModules;
  */
 class CustomFieldEntityValue extends BaseModel
 {
-    protected $table = 'custom_fields_entity_values';
+    protected $table = 'custom_fields_entities_values';
 
-    protected $fillable = [];
+    protected $guarded = [];
 
     public function customField()
     {

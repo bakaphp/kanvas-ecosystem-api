@@ -1,9 +1,23 @@
-input customFieldEntityValueInput {
-    custom_fields_id: ID!
+input CustomFieldEntityValueInput {
+    custom_field_id: ID!
     entity_id: ID!
     value: Mixed
 }
 
-# extend type Mutation @guardByAdmin {
+type CustomFieldEntityValue {
+    custom_field_id: ID!
+    entity_id: ID!
+    value: Mixed
+    customField: CustomField @belongsTo(relation: "customField")
+}
 
-# }
+extend type Mutation @guard {
+    setCustomFieldEntityValue(input: CustomFieldEntityValueInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldEntityValueManagement@setEntityValue"
+        )
+    updateCustomFieldEntityValue(input: CustomFieldEntityValueInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldEntityValueManagement@updateEntityValue"
+        )
+}

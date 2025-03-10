@@ -16,7 +16,7 @@ return new class () extends Migration {
             $table->bigInteger('companies_id')->unsigned()->index();
             $table->bigInteger('users_id')->unsigned()->index();
             $table->bigInteger('custom_fields_id')->unsigned()->index();
-            $table->bigInteger('entity_id')->unsigned()->index();
+            $table->string('entity_id')->index();
             $table->string('value');
             $table->dateTime('created_at')->index('created_at');
             $table->dateTime('updated_at')->nullable()->index('updated_at');
