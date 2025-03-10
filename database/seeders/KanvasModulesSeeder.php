@@ -4,10 +4,10 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Kanvas\Modules\Models\Module;
-use Kanvas\Modules\Enums\ModuleEnum as KanvasModuleEnum;
+use Kanvas\Modules\Models\KanvasModule;
+use Kanvas\KanvasModules\Enums\KanvasModuleEnum;
 
-class ModulesSeeder extends Seeder
+class KanvasModulesSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -15,37 +15,37 @@ class ModulesSeeder extends Seeder
     public function run(): void
     {
         //
-        Module::firstOrCreate(
+        KanvasModule::firstOrCreate(
             [
                 'id' => KanvasModuleEnum::ECOSYSTEM->value,
                 'name' => 'Ecosystem',
             ]
         );
-        Module::firstOrCreate(
+        KanvasModule::firstOrCreate(
             [
                 'id' => KanvasModuleEnum::INVENTORY->value,
                 'name' => 'Inventory',
             ]
         );
-        Module::firstOrCreate(
+        KanvasModule::firstOrCreate(
             [
                 'id' => KanvasModuleEnum::CRM->value,
                 'name' => 'CRM',
             ]
         );
-        Module::firstOrCreate(
+        KanvasModule::firstOrCreate(
             [
                 'id' => KanvasModuleEnum::SOCIAL->value,
                 'name' => 'Social',
             ]
         );
-        Module::firstOrCreate(
+        KanvasModule::firstOrCreate(
             [
                 'id' => KanvasModuleEnum::WORKFLOW->value,
                 'name' => 'WORKFLOW',
             ]
         );
-        Module::firstOrCreate(
+        KanvasModule::firstOrCreate(
             [
                 'id' => KanvasModuleEnum::ACTION_ENGINE->value,
                 'name' => 'Action Engine',

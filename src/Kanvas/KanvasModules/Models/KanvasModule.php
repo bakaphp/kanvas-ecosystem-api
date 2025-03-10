@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Modules\Models;
+namespace Kanvas\KanvasModules\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Apps\Models\Apps;
 
-class Module extends BaseModel
+class KanvasModule extends BaseModel
 {
     protected $table = "modules";
 

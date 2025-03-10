@@ -14,7 +14,7 @@ class RolesTest extends TestCase
         $response = $this->graphQL(
             "
             query {
-                modules {
+                kanvasModules {
                     id,
                     name,
                     systemModules {
@@ -28,7 +28,7 @@ class RolesTest extends TestCase
                 }
             }"
         );
-        $modules = $response->json("data.modules");
+        $modules = $response->json("data.kanvasModules");
         $modelName = $modules[0]["systemModules"][0]["model_name"];
         $permissions = collect($modules[0]["systemModules"][0]["abilities"]);
         $permissions = $permissions->pluck("name")->toArray();
@@ -65,7 +65,7 @@ class RolesTest extends TestCase
         $response = $this->graphQL(
             "
             query {
-                modules {
+                kanvasModules {
                     id,
                     name,
                     systemModules {
@@ -79,7 +79,7 @@ class RolesTest extends TestCase
                 }
             }"
         );
-        $modules = $response->json("data.modules");
+        $modules = $response->json("data.kanvasModules");
         $systemModules = $modules[0]["systemModules"];
         $modelName = $systemModules[0]["model_name"];
         $permissions = collect($modules[0]["systemModules"][0]["abilities"]);

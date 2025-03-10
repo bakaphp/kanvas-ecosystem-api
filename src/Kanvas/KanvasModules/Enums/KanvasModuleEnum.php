@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Modules\Enums;
+namespace Kanvas\KanvasModules\Enums;
 
-enum ModuleEnum: int
+enum KanvasModuleEnum: int
 {
     case ECOSYSTEM = 1;
     case INVENTORY = 2;
