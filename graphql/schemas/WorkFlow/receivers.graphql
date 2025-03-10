@@ -3,6 +3,11 @@ type WorkflowReceiversHistory {
     uuid: String!
     receiver: WorkflowReceiver @belongsTo(relation: "receiverWebhook")
     status: String
+    url: String
+    headers: Mixed
+    payload: Mixed
+    results: Mixed
+    exception: Mixed
     created_at: DateTime
 }
 
