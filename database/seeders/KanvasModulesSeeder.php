@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Kanvas\Modules\Models\KanvasModule;
+use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\KanvasModules\Enums\KanvasModuleEnum;
 
 class KanvasModulesSeeder extends Seeder
