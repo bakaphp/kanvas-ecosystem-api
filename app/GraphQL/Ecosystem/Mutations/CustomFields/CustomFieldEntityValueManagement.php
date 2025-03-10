@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\CustomFields;
@@ -12,10 +13,8 @@ use Kanvas\CustomFields\Models\CustomFieldEntityValue;
 
 class CustomFieldEntityValueManagement
 {
-
     public function setEntityValue(mixed $root, array $req): CustomFieldEntityValue
     {
-        
         $app = app(Apps::class);
         $companies = auth()->user()->getCurrentCompany();
         $user = auth()->user();

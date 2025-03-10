@@ -1,5 +1,6 @@
 <?php
-declare(strict_types= 1);
+
+declare(strict_types=1);
 
 namespace Kanvas\CustomFields\Actions;
 
@@ -8,12 +9,10 @@ use Kanvas\CustomFields\Models\CustomFields;
 
 class UpdateCustomFieldAction
 {
-
     public function __construct(
         protected CustomField $customField,
         protected CustomFields $customFieldModel
     ) {
-        
     }
 
     public function execute(): CustomFields
