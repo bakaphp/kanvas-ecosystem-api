@@ -199,7 +199,6 @@ class MessageBuilder
         $results = $index->search($args['search'], [
             'hitsPerPage' => 15,
             'attributesToRetrieve' => ['name', 'description'],
-            'filters' => 'is_public:1'
         ]);
 
         return $results['hits'];
