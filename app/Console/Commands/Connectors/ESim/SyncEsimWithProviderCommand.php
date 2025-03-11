@@ -195,7 +195,6 @@ class SyncEsimWithProviderCommand extends Command
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
         $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
         $orderNumber = $message->message['order']['order_number'] ?? null;
-
         $totalBytesData = FileSizeConverter::toBytes($totalData);
         $remainingData = $totalBytesData;
         if ($orderNumber !== null) {
