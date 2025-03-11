@@ -15,6 +15,7 @@ use Laravel\Scout\Engines\MeilisearchEngine;
 use Laravel\Scout\Engines\TypesenseEngine as EnginesTypesenseEngine;
 use Meilisearch\Client as MeiliSearchClient;
 use Typesense\Client as TypesenseClient;
+use Laravel\Scout\Engines\NullEngine;
 
 class SearchEngineResolver
 {
@@ -50,7 +51,7 @@ class SearchEngineResolver
             'algolia' => $this->createAlgoliaEngine($searchSettings),
             'typesense' => $this->createTypesenseEngine($searchSettings),
             'meilisearch' => $this->createMeiliSearchEngine($searchSettings),
-            default => $this->createAlgoliaEngine($searchSettings),
+            default => new NullEngine(),
         };
     }
 
