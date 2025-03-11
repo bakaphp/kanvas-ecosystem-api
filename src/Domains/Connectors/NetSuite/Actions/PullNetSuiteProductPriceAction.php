@@ -50,6 +50,7 @@ class PullNetSuiteProductPriceAction
         if (! $variant) {
             return [
             'company' => $this->mainAppCompany->getId(),
+            'app' => $this->app->getId(),
             'item' => $barcode,
             'error' => 'Product not found',
             ];
@@ -71,9 +72,10 @@ class PullNetSuiteProductPriceAction
         if (isset($warehouseOptions["quantity"]) && $warehouseOptions["quantity"] !== null) {
             $variantWarehouse->quantity = $warehouseOptions["quantity"];
             $variantWarehouse->price = $warehouseOptions["price"] ?? 0;
-            $variantWarehouse->config =  $config ?? null;
-            $variantWarehouse->saveOrFail();
         }
+
+        $variantWarehouse->config =  $config ?? null;
+        $variantWarehouse->saveOrFail();
 
         return [
             'company' => $this->mainAppCompany->getId(),
