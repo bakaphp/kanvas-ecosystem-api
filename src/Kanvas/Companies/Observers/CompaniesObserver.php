@@ -16,6 +16,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Actions\AssignRoleAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Guild\Support\Setup;
 
 class CompaniesObserver
 {
@@ -92,6 +93,7 @@ class CompaniesObserver
                 'company' => $company,
             ]
         );
+        (new Setup(app(Apps::class), $user, $company))->run();
     }
 
     public function updated(Companies $company): void
