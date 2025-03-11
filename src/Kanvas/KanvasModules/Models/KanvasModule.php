@@ -11,7 +11,7 @@ use Kanvas\Apps\Models\Apps;
 
 class KanvasModule extends BaseModel
 {
-    protected $table = "modules";
+    protected $table = "kanvas_modules";
 
     protected $guarded = [];
 
