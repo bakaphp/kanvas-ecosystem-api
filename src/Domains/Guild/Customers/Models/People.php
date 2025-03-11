@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Collection;
@@ -21,7 +22,6 @@ use Kanvas\Locations\Models\Countries;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 
 /**
  * Class People.
@@ -46,7 +46,7 @@ use Laravel\Scout\Searchable;
 class People extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use HasTagsTrait;
     use CanUseWorkflow;
     use SocialInteractionsTrait;

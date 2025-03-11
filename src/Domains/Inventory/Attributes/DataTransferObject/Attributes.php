@@ -22,7 +22,7 @@ class Attributes extends Data
         public UserInterface $user,
         public string $name,
         public string $slug,
-        public ?AttributesTypesModel $attributeType,
+        public ?AttributesTypesModel $attributeType = null,
         public bool $isVisible = true,
         public bool $isSearchable = true,
         public bool $isFiltrable = true,

@@ -20,6 +20,7 @@ type CompanyAction {
     company: Company! @belongsTo
     name: String!
     description: String
+    config: Mixed
     form_config: Mixed
     status: String
     is_active: Boolean!

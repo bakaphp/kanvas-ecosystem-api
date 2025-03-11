@@ -194,15 +194,13 @@ class SyncEsimWithProviderCommand extends Command
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
         $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
-        $orderId = $message->message['order_id'] ?? null;
-        $dataUsage = 0;
+        $orderNumber = $message->message['order']['order_number'] ?? null;
         $totalBytesData = FileSizeConverter::toBytes($totalData);
-        if ($orderId) {
+        $remainingData = $totalBytesData;
+        if ($orderNumber !== null) {
             $orderService = new ServicesOrderService($message->app, $message->company);
-            $dataUsage = $orderService->getOrderStatus($orderId)['total'];
+            $remainingData = $orderService->getOrderStatus($orderNumber)['total'];
         }
-        // Calculate remaining data usage, ensuring it doesn't go negative
-        $remainingData = max(0, $totalBytesData - max(0, $dataUsage));
 
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],

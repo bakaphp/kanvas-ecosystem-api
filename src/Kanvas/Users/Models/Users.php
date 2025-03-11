@@ -7,6 +7,7 @@ namespace Kanvas\Users\Models;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -62,7 +63,6 @@ use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -129,7 +129,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasNotificationSettings;
     use CanBlockUser;
     use CanBeNotifiedTrait;
-    use Searchable {
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
     use HasRating;

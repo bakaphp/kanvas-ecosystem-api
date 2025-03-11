@@ -18,11 +18,13 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     //public $tries = 10;
 
+    #[Override]
     public function execute(Model $user, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

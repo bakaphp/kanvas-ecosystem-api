@@ -240,7 +240,7 @@ class ImportOrderItemsCsvTest extends TestCase
         $response->assertJson([
             "data" => [
                 "importOrderCsv" => [
-                    "message" => "Not enough stock for product {$variantResponse['name']}",
+                    "message" => "Not enough stock for product {$variantResponse['name']}, Not enough stock for product {$variantResponse2['name']}",
                     "status" => "error"
                 ]
             ]
