@@ -201,14 +201,12 @@ class SyncEsimWithProviderCommand extends Command
             $orderService = new ServicesOrderService($message->app, $message->company);
             $dataUsage = $orderService->getOrderStatus($orderId)['total'];
         }
-        // Calculate remaining data usage, ensuring it doesn't go negative
-        $remainingData = max(0, $totalBytesData - max(0, $dataUsage));
 
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
             callTypeGroup: 'data',
             initialQuantity: $totalBytesData,
-            remainingQuantity: $remainingData,
+            remainingQuantity: $dataUsage,
             assignmentDateTime: $installedDate,
             assignmentReference: $response['activationCode'],
             bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
