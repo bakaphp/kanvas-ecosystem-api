@@ -9,6 +9,12 @@ type Workflow {
     updated_at: DateTime
 }
 
+type WorkflowAction {
+    id: ID!
+    name: String!
+    model_name: String!
+}
+
 type WorkflowStatus {
     id: ID!
     name: String!
@@ -30,5 +36,23 @@ extend type Mutation @guardByAppKey {
     runWorkflowFromEntity(input: runWorkflowEntityInput!): Mixed
         @field(
             resolver: "App\\GraphQL\\Workflow\\Mutations\\Workflows\\WorkflowMutationManagement@runWorkflowFromEntity"
+        )
+}
+
+extend type Query @guard {
+    actions(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at"])
+    ): [WorkflowAction!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Models\\WorkflowAction"
+            scopes: ["notDeleted"]
+            defaultCount: 25
         )
 }

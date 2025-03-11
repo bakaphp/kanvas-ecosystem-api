@@ -9,6 +9,7 @@ use Baka\Validations\PasswordValidation;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Auth\Services\AuthenticationService;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\AppSettingsEnums;
@@ -89,8 +90,9 @@ class AppUserManagementMutation
     public function appDeActivateUser(mixed $root, array $req): bool
     {
         $user = Users::find((int)$req['user_id']);
-        $userAssociate = UsersRepository::belongsToThisApp($user, app(Apps::class));
-
+        $app = app(Apps::class);
+        $userAssociate = UsersRepository::belongsToThisApp($user, $app);
+        AuthenticationService::logoutFromAllDevices($userAssociate->user, $app);
         return $userAssociate->deActive();
     }
 
