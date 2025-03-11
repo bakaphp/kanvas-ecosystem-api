@@ -95,6 +95,7 @@ class CreateEsimOrderAction
         $qrCode = $writer->writeString($esimData['data']['downloadUrl']);
         $qrCodeBase64 = 'data:image/png;base64,' . base64_encode($qrCode);
         $orderVariant = $this->order->items()->first()->variant;
+        $orderMetaData = $this->order->metadata ?? [];
 
         /*
         data from cmlink
@@ -153,7 +154,8 @@ class CreateEsimOrderAction
                 $esimData['data']['activationCode'],
                 $esimData['data']['state'],
                 $orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
-            )
+            ),
+            $orderMetaData['esimLabels'][0]['label'] ?? null,
         );
 
         /* $this->order->metadata = array_merge(($this->order->metadata ?? []), $esim->toArray());
