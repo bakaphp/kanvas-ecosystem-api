@@ -36,7 +36,6 @@ class CreateProductAction
         $productDto = WooCommerceImportProduct::fromWooCommerce(
             $this->product
         );
-
         return (new ProductImporterAction(
             $productDto,
             $this->company,
