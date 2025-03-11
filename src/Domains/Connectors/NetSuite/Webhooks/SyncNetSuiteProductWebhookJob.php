@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\NetSuite\Webhooks;
 
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
-use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
 class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
@@ -15,6 +14,7 @@ class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
     {
         $barcode = $this->webhookRequest->payload['name'];
         $mainCompanyId = $this->receiver->app->get('B2B_MAIN_COMPANY_ID');
+        $productSyncResult = [];
 
         if ($mainCompanyId) {
             $mainCompany = Companies::getById($mainCompanyId);
@@ -22,12 +22,14 @@ class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
                 $this->receiver->app,
                 $mainCompany
             );
-            $syncNetSuiteProduct->execute($barcode);
+            $productSyncResult = $syncNetSuiteProduct->execute($barcode);
         }
 
         return [
             'message' => 'NetSuite Product Synced',
             'barcode' => $barcode,
+            'mainCompanyId' => $mainCompanyId,
+            'productSyncResult' => $productSyncResult,
         ];
     }
 }
