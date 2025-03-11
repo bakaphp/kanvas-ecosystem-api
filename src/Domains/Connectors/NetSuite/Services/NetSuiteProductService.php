@@ -85,7 +85,7 @@ class NetSuiteProductService
     public function getProductMapPrice(InventoryItem $product, string $customFieldScriptId): float
     {
         if (! isset($product->customFieldList)) {
-            throw new Exception('No custom field details found for this product.');
+            return 0;
         }
 
         foreach ($product->customFieldList->customField as $customField) {

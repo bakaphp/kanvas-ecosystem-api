@@ -32,7 +32,6 @@ class PullNetSuiteProductPriceAction
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $mainAppCompany,
-        protected CompanyInterface $buyerCompany
     ) {
         $this->service = new NetSuiteCustomerService($app, $mainAppCompany);
         $this->productService = new NetSuiteProductService($app, $mainAppCompany);
@@ -40,22 +39,11 @@ class PullNetSuiteProductPriceAction
 
     public function execute(string $barcode): array
     {
-        $customerId = $this->buyerCompany->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
-
-        if (! $customerId) {
-            throw new Exception('Company not linked to NetSuite');
-        }
-
-        $customerInfo = $this->service->getCustomerById($customerId);
-        $listOrProductVariantsBarCodeIds = $customerInfo->itemPricingList?->itemPricing ?? [];
-
-        $channel = Channels::getBySlug(slug: $this->buyerCompany->uuid, company: $this->mainAppCompany);
+        $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($barcode);
+        $netsuiteProductInfo = $this->productService->getProductById($searchNetsuiteProductInfo[0]->internalId);
 
         $setMinimumQuantity = $this->app->get(ConfigurationEnum::NET_SUITE_MINIMUM_PRODUCT_QUANTITY->value);
         $defaultWarehouse = $this->mainAppCompany->get(ConfigurationEnum::NET_SUITE_DEFAULT_WAREHOUSE->value);
-        $config = null;
-
-        $barcodeId = collect($listOrProductVariantsBarCodeIds)->firstWhere('item.name', $barcode);
 
         $variant = Variants::fromApp($this->app)
                 ->fromCompany($this->mainAppCompany)
@@ -64,19 +52,16 @@ class PullNetSuiteProductPriceAction
 
         if (! $variant) {
             return [
-                'channel' => $channel->getId(),
-                'company' => $this->buyerCompany->getId(),
-                'item' => $barcodeId->item->name,
-                'error' => 'Product not found',
+            'company' => $this->mainAppCompany->getId(),
+            'item' => $barcode,
+            'error' => 'Product not found',
             ];
         }
 
         $variantWarehouse = $variant->variantWarehouses()->firstOrFail();
-        $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($variant->barcode);
-        $netsuiteProductInfo = $this->productService->getProductById($searchNetsuiteProductInfo[0]->internalId);
 
         if ($setMinimumQuantity) {
-            $warehouseOptions = $this->getWarehouseOptions($searchNetsuiteProductInfo, $variantWarehouse, $defaultWarehouse);
+            $warehouseOptions = $this->getWarehouseOptions($netsuiteProductInfo, $variantWarehouse, $defaultWarehouse);
         }
 
         $mapPrice =  $this->productService->getProductMapPrice($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
@@ -89,30 +74,18 @@ class PullNetSuiteProductPriceAction
         if (isset($warehouseOptions["quantity"]) && $warehouseOptions["quantity"] !== null) {
             $variantWarehouse->quantity = $warehouseOptions["quantity"];
             $variantWarehouse->price = $warehouseOptions["price"] ?? 0;
+            $variantWarehouse->config =  $config ?? null;
             $variantWarehouse->saveOrFail();
         }
 
-        $addVariantToChannel = new AddVariantToChannelAction(
-            $variantWarehouse,
-            $channel,
-            VariantChannel::from([
-                'price' => $barcodeId->price,
-                'discounted_price' => $barcodeId->price,
-                'is_published' => $barcodeId->price > 0,
-                'config' => $config ?? null,
-            ])
-        );
-        $addVariantToChannel->execute();
-
         return [
-            'channel' => $channel->getId(),
-            'company' => $this->buyerCompany->getId(),
-            'item' => $barcodeId->item->name,
+            'company' => $this->mainAppCompany->getId(),
+            'item' => $barcode,
         ];
     }
 
 
-    private function getWarehouseOptions($netsuiteProductInfo, $variantWarehouse, $defaultWarehouse)
+    private function getWarehouseOptions($netsuiteProductInfo, $variantWarehouse = null, $defaultWarehouse = null)
     {
         $config = [];
         try {

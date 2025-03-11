@@ -13,29 +13,14 @@ class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
 {
     public function execute(): array
     {
-        $isCompany = ! empty($this->webhookRequest->payload['fields']['companyname']);
-        $netSuiteCompanyId = $this->webhookRequest->payload['id'];
-        $barcode = $this->webhookRequest->payload['fields']['itemid'];
-
-        if (! $isCompany) {
-            return [
-                'message' => 'Not a NetSuite Company',
-            ];
-        }
-
-        $syncCompanyWithNetSuite = new SyncNetSuiteCustomerWithCompanyAction($this->receiver->app, $this->receiver->company);
-        $company = $syncCompanyWithNetSuite->execute($netSuiteCompanyId);
-
-        //update or create customer own channel prices for a product
+        $barcode = $this->webhookRequest->payload['name'];
         $mainCompanyId = $this->receiver->app->get('B2B_MAIN_COMPANY_ID');
 
-        if ($isCompany && $mainCompanyId) {
+        if ($mainCompanyId) {
             $mainCompany = Companies::getById($mainCompanyId);
-
             $syncNetSuiteProduct = new PullNetSuiteProductPriceAction(
                 $this->receiver->app,
-                $mainCompany,
-                $company
+                $mainCompany
             );
             $syncNetSuiteProduct->execute($barcode);
         }
