@@ -57,7 +57,7 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilities"
         )
-    getRoleAbilities(role: String!): JSON
+    getRoleAbilities(role: String!): Mixed
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilitiesByRoles"
         )
@@ -75,7 +75,7 @@ input RolePermissionsInput {
 }
 
 extend type Mutation @guardByAdmin {
-    createRole(input: RoleInput): Role
+    createRole(input: RoleInput!): Role
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@createRole"
         )

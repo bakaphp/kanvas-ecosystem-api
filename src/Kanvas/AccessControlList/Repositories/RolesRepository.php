@@ -13,6 +13,7 @@ use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Silber\Bouncer\Database\Ability;
+use Illuminate\Support\Facades\Log;
 
 class RolesRepository
 {
@@ -77,9 +78,8 @@ class RolesRepository
             ->leftJoinSub($subQuery, 'permissions', function ($join) {
                 $join->on('abilities.id', '=', 'permissions.ability_id');
             })
-            ->join('modules', 'modules.id', '=', 'abilities_modules.module_id')
+            ->join('kanvas_modules as modules', 'modules.id', '=', 'abilities_modules.module_id')
             ->orderBy('modules.id')
-            ->orderBy('system_modules_id')
             ->select('abilities.*', 'abilities_modules.system_modules_id', 'permissions.entity_id as roleId', 'modules.id', 'modules.name')
             ->get();
         $roles =  self::mapPermissionsToStructure($abilities);
@@ -88,44 +88,47 @@ class RolesRepository
 
     protected static function mapPermissionsToStructure($permissions): array
     {
+
         $modules = [];
-
         foreach ($permissions as $permission) {
-            $moduleId = (string) $permission['id'];
-            $moduleName = $permission['name'];
-            $systemModuleId = (string) $permission['system_modules_id'];
-            $entityType = $permission['entity_type'];
             $ability = [
-                "name" => $permission['title'],
-                'roleId' => $permission['roleId']
+                'title' => $permission->title,
+                'roleId' => (bool) $permission->roleId
             ];
-
-            if (! isset($modules[$moduleId])) {
-                $modules[$moduleId] = [
-                    "id" => $moduleId,
-                    "name" => $moduleName,
-                    "systemModules" => []
+            if (!isset($modules[$permission['name']])) {
+                $modules[$permission['name']] = [
+                    'id' => $permission->id,
+                    'name' => $permission->name,
+                    'systemModules' => []
                 ];
             }
-
+            $systemModule = $permission->entity_type;
+            if (empty($modules[$permission['name']]['systemModules'])) {
+                $modules[$permission['name']]['systemModules'][] = [
+                    'id' => $permission->system_modules_id,
+                    'name' => $systemModule,
+                    'abilities' => [$ability]
+                ];
+                continue;
+            }
+            Log::debug("Ability", $ability);
             $found = false;
-            foreach ($modules[$moduleId]['systemModules'] as &$systemModule) {
-                if ($systemModule['name'] === $entityType) {
-                    $systemModule['abilities'][] = $ability;
+            foreach ($modules[$permission['name']]['systemModules'] as $key => $systemModules) {
+                if ($systemModules['name'] == $systemModule) {
+                    $systemModules['abilities'][] = $ability;
+                    $modules[$permission['name']]['systemModules'][$key] = $systemModules;
                     $found = true;
                     break;
                 }
             }
-
-            if (! $found) {
-                $modules[$moduleId]['systemModules'][] = [
-                    "id" => $systemModuleId,
-                    "name" => $entityType,
-                    "abilities" => [$ability]
+            if (!$found) {
+                $modules[$permission['name']]['systemModules'][] = [
+                    'id' => $permission->system_modules_id,
+                    'name' => $systemModule,
+                    'abilities' => [$ability]
                 ];
             }
         }
-
         return $modules;
     }
 }
