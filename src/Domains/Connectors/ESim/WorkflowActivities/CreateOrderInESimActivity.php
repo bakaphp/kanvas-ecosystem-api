@@ -83,6 +83,11 @@ class CreateOrderInESimActivity extends KanvasActivity
 
         $response['order_id'] = $order->id;
         $response['order'] = $order->toArray();
+
+        if (! isset($response['label'])) {
+            $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
+        }
+
         $sku = null;
         foreach ($order->items as $item) {
             $variant = Variants::where('id', $item->variant_id)->first();
