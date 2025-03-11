@@ -11,9 +11,6 @@ use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
-use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
-use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 /**
@@ -81,6 +78,7 @@ class PullNetSuiteProductPriceAction
         return [
             'company' => $this->mainAppCompany->getId(),
             'item' => $barcode,
+            'config' => $config,
         ];
     }
 
