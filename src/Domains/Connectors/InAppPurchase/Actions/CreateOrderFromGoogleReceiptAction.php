@@ -55,8 +55,6 @@ class CreateOrderFromGoogleReceiptAction
         ];
 
         $verifiedReceipt = $this->verifyReceipt($receipt);
-
-        
         if ($verifiedReceipt->getPurchaseState() == GooglePlayReceiptStatusEnum::CANCELED) {
             throw new ValidationException('Invalid Receipt');
         }
@@ -70,7 +68,7 @@ class CreateOrderFromGoogleReceiptAction
 
         $order = (new CreateOrderAction($orderData))->execute();
 
-        if (! empty($this->appleInAppPurchase->custom_fields)) {
+        if (! empty($this->googlePlayInAppPurchase->custom_fields)) {
             $order->setCustomFields($this->googlePlayInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }
