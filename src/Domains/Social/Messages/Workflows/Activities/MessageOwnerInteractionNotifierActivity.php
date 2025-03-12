@@ -70,6 +70,7 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
             'interaction' => $interaction,
             'subject' => sprintf($subject, $message->user->displayname),
             'via' => $endViaList,
+            'from_user_id' => $userInteraction->user->getId(),
             'fromUser' => $userInteraction->user,
             'message_id' => $message->getId(),
             'parent_message_id' => $message->parent ? $message->parent->getId() : $message->getId(),

@@ -58,6 +58,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
             'subject' => sprintf($subject, $message->user->displayname),
             'via' => $endViaList,
             'fromUser' => $message->user,
+            'from_user_id' => $message->user->getId(),
             'message_id' => $message->getId(),
             'parent_message_id' => $message->parent ? $message->parent->getId() : $message->getId(),
             'destination_id' => $message->getId(),
