@@ -78,15 +78,13 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 $childMessage->addTag('image', $app, $defaultUser, $defaultCompany);
                 $childMessage->saveOrFail();
             }
-        } elseif ($message->parent_id && $message->message['type'] == 'image-format') 
-        {
+        } elseif ($message->parent_id && $message->message['type'] == 'image-format') {
             $tempMessageArray = $message->message;
             $tempMessageArray['image'] = array_merge($message->message['image'], ['image' => $fileSystemRecord->url]);
             $message->message = $tempMessageArray;
             $message->addTag('image', $app, $defaultUser, $defaultCompany);
             $message->saveOrFail();
-        } 
-        else {
+        } else {
             $message->addTag('text', $app, $defaultUser, $defaultCompany);
         }
 
