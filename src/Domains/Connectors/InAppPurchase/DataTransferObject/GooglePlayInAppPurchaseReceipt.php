@@ -23,8 +23,7 @@ class GooglePlayInAppPurchaseReceipt extends Data
         public readonly int $purchase_time,
         public readonly int $purchase_state, // 0 = Purchased, 1 = Canceled, 2 = Pending
         public readonly array $custom_fields = []
-    ) {
-    }
+    ) {}
 
     public static function fromMultiple(
         AppInterface $app,
