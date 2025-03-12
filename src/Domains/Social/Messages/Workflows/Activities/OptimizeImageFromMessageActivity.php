@@ -57,7 +57,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             $defaultUser = $defaultCompany->user;
         }
 
-        if (!empty($messageContent['ai_image']['image'])) {
+        if (! empty($messageContent['ai_image']['image'])) {
             $tempMessageArray = $messageContent;
             $tempMessageArray['ai_image'] = array_merge($messageContent['ai_image'], ['image' => $fileSystemRecord->url]);
             $message->message = $tempMessageArray;
@@ -79,7 +79,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 $childMessage->addTag('image', $app, $defaultUser, $defaultCompany);
                 $childMessage->saveOrFail();
             }
-        } elseif ($message->parent_id && !empty($messageContent['image'])) {
+        } elseif ($message->parent_id && ! empty($messageContent['image'])) {
             $tempMessageArray = $messageContent;
             $tempMessageArray['image'] = array_merge($messageContent['image'], ['image' => $fileSystemRecord->url]);
             $message->message = $tempMessageArray;
