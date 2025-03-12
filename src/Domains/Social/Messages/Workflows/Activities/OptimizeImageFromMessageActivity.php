@@ -29,8 +29,8 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
         //         'message' => 'Message does not have an AI image',
         //     ];
         // }
-
-        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($message->message['ai_image']['image']);
+        $imageUrl = $message->parent_id ? $message->message['image'] : $message->message['ai_image']['image'];
+        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($imageUrl);
         $fileName = basename($tempFilePath);
 
         $finfo = new finfo(FILEINFO_MIME_TYPE);
