@@ -23,12 +23,12 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        if (empty($message->message['ai_image']) || empty($message->message['ai_image']['image'])) {
-            return [
-                'result' => false,
-                'message' => 'Message does not have an AI image',
-            ];
-        }
+        // if (empty($message->message['ai_image']) || empty($message->message['ai_image']['image'])) {
+        //     return [
+        //         'result' => false,
+        //         'message' => 'Message does not have an AI image',
+        //     ];
+        // }
 
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($message->message['ai_image']['image']);
         $fileName = basename($tempFilePath);
@@ -84,7 +84,8 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             $message->message = $tempMessageArray;
             $message->addTag('image', $app, $defaultUser, $defaultCompany);
             $message->saveOrFail();
-        } else {
+        } 
+        else {
             $message->addTag('text', $app, $defaultUser, $defaultCompany);
         }
 
