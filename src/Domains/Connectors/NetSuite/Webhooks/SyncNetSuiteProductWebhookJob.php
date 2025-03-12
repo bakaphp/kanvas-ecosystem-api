@@ -6,43 +6,34 @@ namespace Kanvas\Connectors\NetSuite\Webhooks;
 
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
-use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
-        $isCompany = ! empty($this->webhookRequest->payload['fields']['companyname']);
-        $netSuiteCompanyId = $this->webhookRequest->payload['id'];
-        $barcode = $this->webhookRequest->payload['fields']['itemid'];
-
-        if (! $isCompany) {
-            return [
-                'message' => 'Not a NetSuite Company',
-            ];
-        }
-
-        $syncCompanyWithNetSuite = new SyncNetSuiteCustomerWithCompanyAction($this->receiver->app, $this->receiver->company);
-        $company = $syncCompanyWithNetSuite->execute($netSuiteCompanyId);
-
-        //update or create customer own channel prices for a product
+        $barcode = $this->webhookRequest->payload['name'];
         $mainCompanyId = $this->receiver->app->get('B2B_MAIN_COMPANY_ID');
+        $productSyncResult = [];
 
-        if ($isCompany && $mainCompanyId) {
+        $successMessage = 'NetSuite Product Not Synced';
+        if ($mainCompanyId) {
             $mainCompany = Companies::getById($mainCompanyId);
-
             $syncNetSuiteProduct = new PullNetSuiteProductPriceAction(
                 $this->receiver->app,
-                $mainCompany,
-                $company
+                $mainCompany
             );
-            $syncNetSuiteProduct->execute($barcode);
+            $productSyncResult = $syncNetSuiteProduct->execute($barcode);
+            $successMessage = 'NetSuite Product Synced';
         }
 
         return [
-            'message' => 'NetSuite Product Synced',
+            'message' => $successMessage,
             'barcode' => $barcode,
+            'mainCompanyId' => $mainCompanyId,
+            'productSyncResult' => $productSyncResult,
         ];
     }
 }

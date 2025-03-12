@@ -26,7 +26,8 @@ class ESim extends Data
         public readonly ?int $firstInstalledDatetime,
         public readonly string $orderReference,
         public readonly string $qrCode,
-        public readonly ESimStatus $esimStatus
+        public readonly ESimStatus $esimStatus,
+        public readonly ?string $label = null
     ) {
     }
 }

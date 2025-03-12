@@ -112,10 +112,6 @@ final class ProductTest extends TestCase
         $app = app(Apps::class);
         $company = Companies::first();
 
-        $companyIdToSync = getenv('NET_SUITE_CUSTOMER_ID');
-        $syncCompany = new SyncNetSuiteCustomerWithCompanyAction($app, $company);
-        $buyerCompany = $syncCompany->execute($companyIdToSync);
-
         $assignCompanyAction = new AssignCompanyAction(
             user: $company->user,
             branch: $company->defaultBranch,
@@ -125,7 +121,7 @@ final class ProductTest extends TestCase
 
         $company->associateUser($company->user, true, $company->defaultBranch);
 
-        $syncProduct = new PullNetSuiteProductPriceAction($app, $company, $buyerCompany);
+        $syncProduct = new PullNetSuiteProductPriceAction($app, $company);
         $result = $syncProduct->execute(getenv('NET_SUITE_ITEM_NUMBER'));
 
         $this->assertIsArray($result);
