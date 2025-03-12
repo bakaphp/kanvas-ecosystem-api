@@ -263,17 +263,4 @@ class GenerateEsimGenerateRegionalCountryInfoCommand extends Command
             $countryInfo = [];
         }
     }
-
-    public function getSpanishCountryName(string $countryCode, string $name): ?string
-    {
-        foreach ($this->countriesByRegion as $region => $countries) {
-            foreach ($countries as $country) {
-                if (strtolower($country['code']) === strtolower($countryCode)) {
-                    return $country['name'];
-                }
-            }
-        }
-
-        return $name; // Country not found
-    }
 }
