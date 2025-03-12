@@ -12,7 +12,7 @@ use Imdhemy\GooglePlay\ClientFactory;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Imdhemy\AppStore\Receipts\Verifier;
 use Imdhemy\AppStore\ValueObjects\LatestReceiptInfo;
-use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
+use Kanvas\Connectors\InAppPurchase\DataTransferObject\GooglePlayInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
@@ -25,6 +25,8 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Spatie\LaravelData\DataCollection;
+use \Imdhemy\Purchases\Facades\Product;
+use \Imdhemy\GooglePlay\Products\ProductPurchase;
 
 class CreateOrderFromGoogleReceiptAction
 {
@@ -35,13 +37,12 @@ class CreateOrderFromGoogleReceiptAction
     private Regions $region;
 
     public function __construct(
-        protected readonly AppleInAppPurchaseReceipt $appleInAppPurchase,
-        protected bool $runInSandbox = false
+        protected readonly GooglePlayInAppPurchaseReceipt $googlePlayInAppPurchase
     ) {
-        $this->app = $appleInAppPurchase->app;
-        $this->company = $appleInAppPurchase->company;
-        $this->user = $appleInAppPurchase->user;
-        $this->region = $appleInAppPurchase->region;
+        $this->app = $googlePlayInAppPurchase->app;
+        $this->company = $googlePlayInAppPurchase->company;
+        $this->user = $googlePlayInAppPurchase->user;
+        $this->region = $googlePlayInAppPurchase->region;
     }
 
     /**
@@ -50,48 +51,39 @@ class CreateOrderFromGoogleReceiptAction
     public function execute(): ModelsOrder
     {
         $receipt = [
-            'productId' => $this->appleInAppPurchase->product_id,
-            'transactionId' => $this->appleInAppPurchase->transaction_id,
-            'transactionReceipt' => $this->appleInAppPurchase->receipt,
-            'transactionDate' => $this->appleInAppPurchase->transaction_date,
+            'productId' => $this->googlePlayInAppPurchase->product_id,
+            'orderId' => $this->googlePlayInAppPurchase->order_id,
+            'purchaseToken' => $this->googlePlayInAppPurchase->purchase_token,
+            'purchaseState' => $this->googlePlayInAppPurchase->purchase_state,
+            'purchaseTime' => $this->googlePlayInAppPurchase->purchase_time,
         ];
 
         $verifiedReceipt = $this->verifyReceipt($receipt);
-        $receiptStatus = $verifiedReceipt->getStatus();
 
-        if (! $receiptStatus->isValid()) {
+        if (! $verifiedReceipt->getPurchaseState()) {
             throw new ValidationException('Invalid Receipt');
         }
 
         $people = $this->createPeople();
         $orderData = $this->createOrderData(
             $receipt,
-            $verifiedReceipt->getReceipt(),
+            $verifiedReceipt->toArray(),
             $people
         );
 
         $order = (new CreateOrderAction($orderData))->execute();
 
         if (! empty($this->appleInAppPurchase->custom_fields)) {
-            $order->setCustomFields($this->appleInAppPurchase->custom_fields);
+            $order->setCustomFields($this->googlePlayInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }
 
         return $order;
     }
 
-    private function verifyReceipt(array $receipt): ReceiptResponse
+    private function verifyReceipt(array $receipt): ProductPurchase
     {
-        $sharedSecret = $this->app->get(ConfigurationEnum::GOOGLE_PLAY_PACKAGE_NAME->value);
-
-        if (empty($sharedSecret)) {
-            throw new ValidationException('No Google Play package name Configured');
-        }
-
-        $client = ClientFactory::createWithJsonKey();
-        $verifier = new Verifier($client, $receipt['transactionReceipt'], $sharedSecret);
-
-        return $verifier->verify(true, $this->runInSandbox ? $client : null);
+        return Product::googlePlay()->id($receipt['productId'])->token($receipt['purchaseToken'])->get();
     }
 
     private function createPeople(): People
@@ -105,7 +97,7 @@ class CreateOrderFromGoogleReceiptAction
 
     private function createOrderData(array $allReceiptData, mixed $receipt, $people): Order
     {
-        $orderItem = $this->createOrderItem($receipt->getInApp()[0]);
+        $orderItem = $this->createOrderItem($receipt);
 
         return new Order(
             app: $this->app,
@@ -136,7 +128,7 @@ class CreateOrderFromGoogleReceiptAction
         );
     }
 
-    private function createOrderItem(LatestReceiptInfo $inAppData): OrderItem
+    private function createOrderItem(ProductPurchase $inAppData): OrderItem
     {
         $variant = $this->getVariant($inAppData->getProductId());
         $warehouse = $this->region->warehouses()->firstOrFail();
