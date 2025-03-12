@@ -88,14 +88,13 @@ class RolesRepository
 
     protected static function mapPermissionsToStructure($permissions): array
     {
-
         $modules = [];
         foreach ($permissions as $permission) {
             $ability = [
                 'title' => $permission->title,
                 'roleId' => (bool) $permission->roleId
             ];
-            if (!isset($modules[$permission['name']])) {
+            if (! isset($modules[$permission['name']])) {
                 $modules[$permission['name']] = [
                     'id' => $permission->id,
                     'name' => $permission->name,
@@ -121,7 +120,7 @@ class RolesRepository
                     break;
                 }
             }
-            if (!$found) {
+            if (! $found) {
                 $modules[$permission['name']]['systemModules'][] = [
                     'id' => $permission->system_modules_id,
                     'name' => $systemModule,
