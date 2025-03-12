@@ -84,8 +84,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             $message->message = $tempMessageArray;
             $message->addTag('image', $app, $defaultUser, $defaultCompany);
             $message->saveOrFail();
-        } 
-        else {
+        } else {
             $message->addTag('text', $app, $defaultUser, $defaultCompany);
         }
 
