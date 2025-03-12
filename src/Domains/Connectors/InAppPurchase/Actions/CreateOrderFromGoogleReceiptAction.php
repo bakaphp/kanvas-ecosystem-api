@@ -20,8 +20,9 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Spatie\LaravelData\DataCollection;
-use \Imdhemy\Purchases\Facades\Product;
-use \Imdhemy\GooglePlay\Products\ProductPurchase;
+use Imdhemy\Purchases\Facades\Product;
+use Imdhemy\GooglePlay\Products\ProductPurchase;
+use Kanvas\Connectors\InAppPurchase\Enums\GooglePlayReceiptStatusEnum;
 
 class CreateOrderFromGoogleReceiptAction
 {
@@ -55,7 +56,8 @@ class CreateOrderFromGoogleReceiptAction
 
         $verifiedReceipt = $this->verifyReceipt($receipt);
 
-        if (! $verifiedReceipt->getPurchaseState()) {
+        
+        if ($verifiedReceipt->getPurchaseState() == GooglePlayReceiptStatusEnum::CANCELED) {
             throw new ValidationException('Invalid Receipt');
         }
 

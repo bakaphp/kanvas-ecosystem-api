@@ -17,10 +17,10 @@ class GooglePlayInAppPurchaseReceipt extends Data
         public readonly CompanyInterface $company,
         public readonly UserInterface $user,
         public readonly Regions $region,
-        public readonly string $product_id, // SKU/Product ID
-        public readonly string $order_id, // Google Play Order ID
-        public readonly string $purchase_token, // Token for verifying the purchase
-        public readonly int $purchase_time, // Timestamp of purchase in milliseconds since epoch
+        public readonly string $product_id,
+        public readonly string $order_id,
+        public readonly string $purchase_token,
+        public readonly int $purchase_time,
         public readonly int $purchase_state, // 0 = Purchased, 1 = Canceled, 2 = Pending
         public readonly array $custom_fields = []
     ) {
