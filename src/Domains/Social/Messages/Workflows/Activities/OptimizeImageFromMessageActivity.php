@@ -29,7 +29,8 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
         //         'message' => 'Message does not have an AI image',
         //     ];
         // }
-        $imageUrl = $message->parent_id ? $message->message['image'] : $message->message['ai_image']['image'];
+        $messageContent = ! is_array($message->message) ? json_decode($message->message, true) : $message->message;
+        $imageUrl = $message->parent_id ? $messageContent['image'] : $messageContent['ai_image']['image'];
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($imageUrl);
         $fileName = basename($tempFilePath);
 
@@ -56,13 +57,13 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             $defaultUser = $defaultCompany->user;
         }
 
-        if (array_key_exists('image', $message->message['ai_image'])) {
-            $tempMessageArray = $message->message;
-            $tempMessageArray['ai_image'] = array_merge($message->message['ai_image'], ['image' => $fileSystemRecord->url]);
+        if (array_key_exists('image', $messageContent['ai_image'])) {
+            $tempMessageArray = $messageContent;
+            $tempMessageArray['ai_image'] = array_merge($messageContent['ai_image'], ['image' => $fileSystemRecord->url]);
             $message->message = $tempMessageArray;
             $message->addTag('image', $app, $defaultUser, $defaultCompany);
             $message->saveOrFail();
-            $imageTitle = $message->message['title'];
+            $imageTitle = $messageContent['title'];
             // Update child messages too
 
             foreach ($message->children as $childMessage) {
@@ -78,9 +79,9 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 $childMessage->addTag('image', $app, $defaultUser, $defaultCompany);
                 $childMessage->saveOrFail();
             }
-        } elseif ($message->parent_id && $message->message['type'] == 'image-format') {
-            $tempMessageArray = $message->message;
-            $tempMessageArray['image'] = array_merge($message->message['image'], ['image' => $fileSystemRecord->url]);
+        } elseif ($message->parent_id && $messageContent['type'] == 'image-format') {
+            $tempMessageArray = $messageContent;
+            $tempMessageArray['image'] = array_merge($messageContent['image'], ['image' => $fileSystemRecord->url]);
             $message->message = $tempMessageArray;
             $message->addTag('image', $app, $defaultUser, $defaultCompany);
             $message->saveOrFail();
