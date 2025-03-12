@@ -30,7 +30,7 @@ class GenerateEsimGenerateRegionalCountryInfoCommand extends Command
 
         $productType = ProductsTypes::fromApp($app)
             ->fromCompany($company)
-            ->where('name', $productTypeName)
+            ->where('slug', $productTypeName)
             ->firstOrFail();
 
         $products = Products::fromApp($app)
@@ -58,11 +58,17 @@ class GenerateEsimGenerateRegionalCountryInfoCommand extends Command
 
                 $productWithAttributes = Products::fromApp($app)
                     ->fromCompany($company)
-                    ->where('name', $product->name)
+                    ->where('slug', $product->slug)
                     ->with('attributes')
                     ->first();
 
                 $firstVariant = $productWithAttributes->variants->first();
+
+                if ($firstVariant === null) {
+                    $this->error('No variants found for product: ' . $product->name);
+
+                    continue;
+                }
 
                 $network = $firstVariant->getAttributeBySlug('variant-network')?->value;
                 $speed = $firstVariant->getAttributeBySlug('variant-speed')?->value;
