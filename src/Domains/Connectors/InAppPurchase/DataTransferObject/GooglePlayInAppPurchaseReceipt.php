@@ -46,5 +46,4 @@ class GooglePlayInAppPurchaseReceipt extends Data
             $data['custom_fields'] ?? []
         );
     }
-
 }
