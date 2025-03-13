@@ -15,7 +15,7 @@ class MapStaticApiService
      */
     public static function getImageFromCoordinates(float $latitude, float $longitude, ?string $zoom = null): string
     {
-        $apiKey = env('MAP_STATIC_API_KEY');
+        $apiKey = config('services.google.maps.api_key');
         $zoom = $zoom ?? self::DEFAULT_ZOOM;
         $size = self::DEFAULT_SIZE;
         $marker = "$latitude,$longitude";
