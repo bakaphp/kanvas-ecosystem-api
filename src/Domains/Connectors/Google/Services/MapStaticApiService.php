@@ -15,6 +15,7 @@ class MapStaticApiService
 {
     public const DEFAULT_ZOOM = '20';
     public const DEFAULT_SIZE = '600x400';
+    public const MAP_STATIC_API_URL = "https://maps.googleapis.com/maps/api/staticmap?";
     /**
      * Get the top 3 most relevant tags for a given message.
      */
@@ -27,7 +28,7 @@ class MapStaticApiService
         $marker = "$latitude,$longitude";
 
         try {
-            $url = "https://maps.googleapis.com/maps/api/staticmap?center=$latitude,$longitude&zoom=$zoom&size=$size&markers=color:red|$marker&key=$apiKey";
+            $url = self::MAP_STATIC_API_URL . "?center=$latitude,$longitude&zoom=$zoom&size=$size&markers=color:red|$marker&key=$apiKey";
             $client = new Client();
 
             $response = $client->get($url);
@@ -44,7 +45,7 @@ class MapStaticApiService
             // Fallback for any other PHP error or throwable
             Log::error("Throwable Error: " . $th->getMessage());
         }
-        
+
         return $tempFilePath;
     }
 }
