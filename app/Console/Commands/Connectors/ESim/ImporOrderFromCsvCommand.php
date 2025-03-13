@@ -82,7 +82,7 @@ class ImporOrderFromCsvCommand extends Command
             $items = $items->filter(function ($item) {
                 return Variants::where('sku', $item['sku'])->exists();
             });
-            if (!$items->count() > 0) {
+            if (! $items->count() > 0) {
                 echo "Ignoring SKU not found: {$order['sku']}\n";
                 continue;
             }
@@ -107,7 +107,7 @@ class ImporOrderFromCsvCommand extends Command
                 }
             });
             $people = PeoplesRepository::getByEmail($order['email'], $this->company, $this->app);
-            if (!$people) {
+            if (! $people) {
                 $contact = [
                     [
                         'value' => $order['email'],
@@ -154,7 +154,6 @@ class ImporOrderFromCsvCommand extends Command
                 )
             )->execute();
             echo "Order created: {$order->order_number}\n";
-
         }
     }
 }
