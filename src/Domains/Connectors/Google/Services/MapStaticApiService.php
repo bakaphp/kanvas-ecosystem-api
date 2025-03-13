@@ -5,11 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Google\Services;
 
 use GuzzleHttp\Client;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Filesystem\Services\FilesystemServices;
-use Illuminate\Http\UploadedFile;
-use finfo;
-use Kanvas\Users\Models\Users;
 
 class MapStaticApiService
 {
