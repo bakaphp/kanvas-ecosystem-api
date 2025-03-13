@@ -40,14 +40,15 @@ class ImportOrderFromCsvAction
     {
         $fileName = Str::uuid().'.csv';
 
-        $response = Http::get($this->url);
+        // $response = Http::get($this->url);
 
-        if ($response->successful()) {
-            Storage::put("downloads/{$fileName}", $response->body());
-            $path = Storage::path("downloads/{$fileName}");
-        } else {
-            echo "Error al descargar el archivo.";
-        }
+        // if ($response->successful()) {
+        //     Storage::put("downloads/{$fileName}", $response->body());
+        //     $path = Storage::path("downloads/{$fileName}");
+        // } else {
+        //     echo "Error al descargar el archivo.";
+        // }
+        $path = "/var/www/html/storage/app/downloads/c5db9f29-03e6-4fc8-b334-9755acbe4922.csv";
         $reader = Reader::createFromPath($path, 'r');
         $reader->setHeaderOffset(0);
         $reader->setEscape('');
@@ -62,15 +63,19 @@ class ImportOrderFromCsvAction
             if ($kanvasOrder) {
                 continue;
             }
-            $items = $collection->filter(function ($item, $key) use ($order, $app, $collection, $company) {
-        
+            $items = $collection->where('order_reference', $order['order_reference']);
+            $items = $items->filter(function ($item) {
+                return Variants::where('sku', $item['sku'])->exists();
+            });
+            if (!$items->count() > 0) {
+                echo "Ignoring SKU not found: {$order['sku']}\n";
+                continue;
+            }
+            $items = $items->map(function ($item) use ($order, $app, $collection, $company) {
                 if ($item['order_reference'] == $order['order_reference']) {
-                    $variant = Variants::fromApp($app)
-                                        ->fromCompany($company)
-                                        ->where('sku', $item['sku'])
-                                        ->first();
+                    $variant = Variants::getBySku($item['sku'], $company, $app);
                     if ($variant) {
-                        $item = new OrderItem(
+                        $orderItem = new OrderItem(
                             app: $app,
                             variant: $variant,
                             name: $item['name'],
@@ -82,11 +87,10 @@ class ImportOrderFromCsvAction
                             currency: Currencies::getByCode('USD'),
                             quantityShipped: 0
                         );
-                        return $item;
+                        return $orderItem;
                     }
                 }
             });
-            OrderItem::collect($items, DataCollection::class);
             $people = PeoplesRepository::getByEmail($order['email'], $this->companies, $this->apps);
             if (!$people) {
                 $contact = [
@@ -111,6 +115,7 @@ class ImportOrderFromCsvAction
                 ))->execute();
             }
             $total = $items->sum('price');
+            $items = OrderItem::collect($items, DataCollection::class);
             $dto = OrderDTO::from([
                 'app' => $this->apps,
                 'region' => $this->regions,
