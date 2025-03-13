@@ -13,8 +13,8 @@ use Kanvas\Users\Models\Users;
 
 class MapStaticApiService
 {
-    const DEFAULT_ZOOM = '20';
-    const DEFAULT_SIZE = '600x400';
+    public const DEFAULT_ZOOM = '20';
+    public const DEFAULT_SIZE = '600x400';
     /**
      * Get the top 3 most relevant tags for a given message.
      */
@@ -24,7 +24,6 @@ class MapStaticApiService
         $zoom = $zoom ?? self::DEFAULT_ZOOM;
         $size = self::DEFAULT_SIZE;
         $marker = "$latitude,$longitude";
-        
         $url = "https://maps.googleapis.com/maps/api/staticmap?center=$latitude,$longitude&zoom=$zoom&size=$size&markers=color:red|$marker&key=$apiKey";
         $client = new Client();
 
