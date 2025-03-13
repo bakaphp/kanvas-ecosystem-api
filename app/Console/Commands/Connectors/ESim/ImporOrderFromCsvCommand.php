@@ -73,9 +73,9 @@ class ImporOrderFromCsvCommand extends Command
         $app = $this->app;
         $company = $this->company;
         foreach ($collection as $order) {
-            $kanvasOrder = Order::where('order_number', $order['order_reference'])
-                ->first();
+            $kanvasOrder = Order::getByCustomField('order_reference', $order['order_reference'], $company);
             if ($kanvasOrder) {
+                $this->info('Order already exists: ' . $kanvasOrder->order_number);
                 continue;
             }
             $items = $collection->where('order_reference', $order['order_reference']);
@@ -147,12 +147,13 @@ class ImporOrderFromCsvCommand extends Command
                 'currency' => Currencies::getByCode('USD'),
                 'items' => $items
             ]);
-            $order = (
+            $kanvasOrder = (
                 new CreateOrderAction(
                     $dto
                 )
             )->execute();
-            echo $this->info("Order created: {$order->order_number}");
+            $kanvasOrder->set('order_reference', $order['order_reference']);
+            echo $this->info("Order created: {$kanvasOrder->order_number}\n");
         }
     }
 }
