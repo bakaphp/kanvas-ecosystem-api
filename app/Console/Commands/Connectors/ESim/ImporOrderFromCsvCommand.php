@@ -62,7 +62,7 @@ class ImporOrderFromCsvCommand extends Command
             Storage::put("downloads/{$fileName}", $response->body());
             $path = Storage::path("downloads/{$fileName}");
         } else {
-            echo "Error al descargar el archivo.";
+            $this->error("Error al descargar el archivo.");
         }
         $reader = Reader::createFromPath($path, 'r');
         $reader->setHeaderOffset(0);
@@ -83,7 +83,7 @@ class ImporOrderFromCsvCommand extends Command
                 return Variants::where('sku', $item['sku'])->exists();
             });
             if (!$items->count() > 0) {
-                echo "Ignoring SKU not found: {$order['sku']}\n";
+                echo $this->info("Ignoring SKU not found: {$order['sku']}\n");
                 continue;
             }
             $items = $items->map(function ($item) use ($order, $app, $collection, $company) {
@@ -153,7 +153,7 @@ class ImporOrderFromCsvCommand extends Command
                     $dto
                 )
             )->execute();
-            echo "Order created: {$order->order_number}\n";
+            echo $this->info("Order created: {$order->order_number}\n");
 
         }
     }
