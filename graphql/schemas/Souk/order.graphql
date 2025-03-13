@@ -212,6 +212,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\ImportOrderCsvMutation@create"
         )
+    generateStripePaymentIntent(amount: Money!): GeneratePaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generateStripePaymentIntent"
+        )
+        @deprecated(reason: "Use generateStripePaymentIntent instead")
     generateOrderPaymentIntent(id: ID!): GeneratePaymentIntentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntent"

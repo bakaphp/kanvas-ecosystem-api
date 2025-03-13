@@ -30,6 +30,36 @@ class PaymentManagementMutation
         ];
     }
 
+    public function generateStripePaymentIntent(mixed $root, array $request): array
+    {
+        //$user = auth()->user();
+        $app = app(Apps::class);
+        $amount = (float) $request['amount'];
+
+        $stripeApiKey = $app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value);
+        if (empty($stripeApiKey)) {
+            throw new ValidationException('Stripe is not configured for this app');
+        }
+
+        Stripe::setApiKey($stripeApiKey);
+
+        $totalAmount = $amount * 100;
+        $intent = PaymentIntent::create([
+            'amount' => $totalAmount,
+            'currency' => 'usd',
+            ]);
+
+        return [
+            'status' => 'success',
+            'client_secret' => $intent->client_secret,
+            'message' => [
+                'message' => 'Payment intent generated successfully',
+                'amount' => $amount,
+                'currency' => 'usd',
+            ],
+        ];
+    }
+
     public function generatePaymentIntent(mixed $root, array $request): array
     {
         $user = auth()->user();
