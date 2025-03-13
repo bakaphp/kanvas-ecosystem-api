@@ -44,8 +44,7 @@ class MapStaticApiService
             // Fallback for any other PHP error or throwable
             Log::error("Throwable Error: " . $th->getMessage());
         }
-
-
+        
         return $tempFilePath;
     }
 }
