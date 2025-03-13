@@ -83,7 +83,7 @@ class ImporOrderFromCsvCommand extends Command
                 return Variants::where('sku', $item['sku'])->exists();
             });
             if (! $items->count() > 0) {
-                echo $this->info("Ignoring SKU not found: {$order['sku']}\n");
+                $this->info("Ignoring SKU not found: {$order['sku']}\n");
             }
             $items = $items->map(function ($item) use ($order, $app, $collection, $company) {
                 if ($item['order_reference'] == $order['order_reference']) {
@@ -153,7 +153,7 @@ class ImporOrderFromCsvCommand extends Command
                 )
             )->execute();
             $kanvasOrder->set('order_reference', $order['order_reference']);
-            echo $this->info("Order created: {$kanvasOrder->order_number}\n");
+            $this->info("Order created: {$kanvasOrder->order_number}\n");
         }
     }
 }
