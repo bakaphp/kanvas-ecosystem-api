@@ -40,9 +40,6 @@ return [
         'client_id' => '',
         'client_secret' => '',
         'redirect' => '',
-        'maps' => [
-            'api_key' => env('MAP_STATIC_API_KEY')
-        ]
     ],
 
     'facebook' => [
