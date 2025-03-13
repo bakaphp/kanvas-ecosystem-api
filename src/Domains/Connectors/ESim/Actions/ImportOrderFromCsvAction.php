@@ -69,7 +69,7 @@ class ImportOrderFromCsvAction
             $items = $items->filter(function ($item) {
                 return Variants::where('sku', $item['sku'])->exists();
             });
-            if (!$items->count() > 0) {
+            if (! $items->count() > 0) {
                 echo "Ignoring SKU not found: {$order['sku']}\n";
                 continue;
             }
