@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Google\Services;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ConnectException;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class MapStaticApiService
 {
@@ -19,13 +23,26 @@ class MapStaticApiService
         $zoom = $zoom ?? self::DEFAULT_ZOOM;
         $size = self::DEFAULT_SIZE;
         $marker = "$latitude,$longitude";
-        $url = "https://maps.googleapis.com/maps/api/staticmap?center=$latitude,$longitude&zoom=$zoom&size=$size&markers=color:red|$marker&key=$apiKey";
-        $client = new Client();
 
-        $response = $client->get($url);
-        $body = $response->getBody();
-        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.png';
-        file_put_contents($tempFilePath, $body);
+        try {
+            $url = "https://maps.googleapis.com/maps/api/staticmap?center=$latitude,$longitude&zoom=$zoom&size=$size&markers=color:red|$marker&key=$apiKey";
+            $client = new Client();
+
+            $response = $client->get($url);
+            $body = $response->getBody();
+            $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.png';
+            file_put_contents($tempFilePath, $body);
+        } catch (RequestException $e) {
+            // Handle HTTP request errors (like 404, 500, etc.)
+            Log::error("RequestException: " . $e->getMessage());
+        } catch (ConnectException $e) {
+            // Handle connection errors (like network issues)
+            Log::error("ConnectException: " . $e->getMessage());
+        } catch (Throwable $th) {
+            // Fallback for any other PHP error or throwable
+            Log::error("Throwable Error: " . $th->getMessage());
+        }
+
 
         return $tempFilePath;
     }
