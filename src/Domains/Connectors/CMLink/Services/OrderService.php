@@ -91,18 +91,20 @@ class OrderService
             return ['total' => 0];
         }
 
+        $totalConsumptionMB = null;
         // Loop through quotaList items
         foreach ($response['quotaList'] as $quotaItem) {
             // Check if subscriberQuota exists and is not empty
             if (! empty($quotaItem['subscriberQuota']) && isset($quotaItem['subscriberQuota']['qtabalance'])) {
                 $totalConsumptionMB = $quotaItem['subscriberQuota']['qtabalance'];
+
                 break;
             }
         }
 
         if (is_null($totalConsumptionMB)) {
             // If no subscriberQuota found, return total 0
-            return ["total" => 0];
+            return ['total' => 0];
         }
 
         // Convert MB to required format (MB * 1,000,000 to match 500MB = 500000000)
