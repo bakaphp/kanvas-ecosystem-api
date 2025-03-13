@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace Kanvas\Connectors\ESim\Actions;
 
 use Kanvas\Apps\Models\Apps;
@@ -38,7 +40,7 @@ class ImportOrderFromCsvAction
 
     public function execute(): void
     {
-        $fileName = Str::uuid().'.csv';
+        $fileName = Str::uuid() . '.csv';
 
         $response = Http::get($this->url);
 
@@ -63,7 +65,6 @@ class ImportOrderFromCsvAction
                 continue;
             }
             $items = $collection->filter(function ($item, $key) use ($order, $app, $collection, $company) {
-        
                 if ($item['order_reference'] == $order['order_reference']) {
                     $variant = Variants::fromApp($app)
                                         ->fromCompany($company)
@@ -88,7 +89,7 @@ class ImportOrderFromCsvAction
             });
             OrderItem::collect($items, DataCollection::class);
             $people = PeoplesRepository::getByEmail($order['email'], $this->companies, $this->apps);
-            if (!$people) {
+            if (! $people) {
                 $contact = [
                     [
                         'value' => $order['email'],
@@ -135,8 +136,5 @@ class ImportOrderFromCsvAction
             )->execute();
             echo "Order created: {$order->order_number}\n";
         }
-
-
-
     }
 }
