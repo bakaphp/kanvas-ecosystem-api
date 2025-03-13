@@ -8,6 +8,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Apps\Models\Apps;
 use Throwable;
 
 class MapStaticApiService
@@ -19,7 +20,8 @@ class MapStaticApiService
      */
     public static function getImageFromCoordinates(float $latitude, float $longitude, ?string $zoom = null): string
     {
-        $apiKey = config('services.google.maps.api_key');
+        $app = app(Apps::class);
+        $apiKey = $app->get('google_maps_api_key');
         $zoom = $zoom ?? self::DEFAULT_ZOOM;
         $size = self::DEFAULT_SIZE;
         $marker = "$latitude,$longitude";
