@@ -81,7 +81,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             }
         } elseif ($message->parent_id && (! empty($messageContent['image']) && is_array($messageContent))) {
             $tempMessageArray = $messageContent;
-            $tempMessageArray['image'] = array_merge($messageContent['image'], ['image' => $fileSystemRecord->url]);
+            $tempMessageArray['image'] = $fileSystemRecord->url;
             $message->message = $tempMessageArray;
             $message->addTag('image', $app, $defaultUser, $defaultCompany);
             $message->saveOrFail();
