@@ -212,7 +212,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\ImportOrderCsvMutation@create"
         )
-    generateOrderPaymentIntent(id: ID!): GeneratePaymentIntentResult!
+    generateOrderPaymentIntent(amount: Money!): GeneratePaymentIntentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntent"
         )
