@@ -80,15 +80,19 @@ class SyncEsimWithProviderCommand extends Command
         $bundle = $message->message['data']['plan'] ?? null;
         //$network = strtolower($message->message['items'][0]['variant']['attributes']['Variant Network'] ?? '');
         $network = '';
+        $variantNetwork = '';
+
         if (isset($message->message['items'][0]['variant']['products_id'])) {
-            $network = strtolower(Products::getById($message->message['items'][0]['variant']['products_id'])->getAttributeBySlug('product-provider')?->value ?? '');
+            $network = strtolower(Products::getById($message->message['items'][0]['variant']['products_id'])->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value)?->value ?? '');
         }
 
         if (empty($network) && $message->appModuleMessage && $message->appModuleMessage->entity instanceof Order) {
-            $network = strtolower($message->appModuleMessage->entity->items()->first()->variant?->product?->getAttributeBySlug('product-provider')?->value ?? '');
+            $network = strtolower($message->appModuleMessage->entity->items()->first()->variant?->product?->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value)?->value ?? '');
         }
 
-        $variantNetwork = $message->appModuleMessage?->entity?->items()?->first()?->variant?->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value)?->value ?? '';
+        if ($message->appModuleMessage && $message->appModuleMessage->entity instanceof Order) {
+            $variantNetwork = $message->appModuleMessage->entity->items()->first()->variant?->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value)?->value ?? '';
+        }
 
         if ($variantNetwork !== '') {
             $network = strtolower($variantNetwork);
