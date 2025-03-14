@@ -28,6 +28,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 'message' => 'Message does not have an AI image url',
             ];
         }
+
         $imageUrl = $message->parent_id ? $messageContent['image'] : $messageContent['ai_image']['image'];
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($imageUrl);
         $fileName = basename($tempFilePath);
