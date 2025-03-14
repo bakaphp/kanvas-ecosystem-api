@@ -52,13 +52,9 @@ class OrderFinishExpiredCommand extends Command
         // get the variant
         if (count($order->items) > 0) {
             $variant = $order->items[0]->variant;
-            $channel = $variant->variantChannels()->where([
-                'is_default' => true,
-            ])->first();
+            $channel = $variant->variantChannels()->first();
 
-            $variantWarehouse = $channel?->productVariantWarehouse()->where([
-                'is_default' => true,
-            ])->first();
+            $variantWarehouse = $channel?->productVariantWarehouse()->first();
             // Mark order as completed
             $order->fulfill();
             $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $variantWarehouse->quantity + 1);
