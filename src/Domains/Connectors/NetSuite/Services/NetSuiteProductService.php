@@ -82,6 +82,22 @@ class NetSuiteProductService
         throw new Exception('Price not found for the specified criteria.');
     }
 
+    public function getProductMapPrice(InventoryItem $product, string $customFieldScriptId): float
+    {
+        if (! isset($product->customFieldList)) {
+            return 0;
+        }
+
+        foreach ($product->customFieldList->customField as $customField) {
+            $scriptId = $customField->scriptId ?? null;
+            if ($scriptId === $customFieldScriptId) {
+                return (float) $customField->value ?? 0;
+            }
+        }
+
+        return 0;
+    }
+
     /**
      * Search for products by item name.
      */

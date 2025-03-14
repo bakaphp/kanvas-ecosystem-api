@@ -1,0 +1,55 @@
+type WorkflowReceiversHistory {
+    id: ID!
+    uuid: String!
+    receiver: WorkflowReceiver @belongsTo(relation: "receiverWebhook")
+    status: String
+    url: String
+    headers: Mixed
+    payload: Mixed
+    results: Mixed
+    exception: Mixed
+    created_at: DateTime
+}
+
+type WorkflowReceiver {
+    id: ID!
+    uuid: String!
+    name: String!
+    description: String
+    company: Company
+    action: WorkflowAction!
+    created_at: DateTime
+}
+
+enum WorkflowReceiversHistoryEnumColumn {
+    ID @enum(value: "receiver_webhook_calls.id")
+    NAME @enum(value: "receiver_webhooks.name")
+    RECEIVER_STATUS @enum(value: "receiver_webhook_calls.status")
+    RECEIVER_ACTION @enum(value: "actions.id")
+}
+
+enum WorkflowReceiverStatusEnum {
+    PENDING @enum(value: "pending")
+    SUCCESS @enum(value: "success")
+    FAILED @enum(value: "failed")
+}
+
+extend type Query @guard {
+    workflowReceiverHistory(
+        where: _
+            @whereConditions(columnsEnum: WorkflowReceiversHistoryEnumColumn)
+        hasAction: _
+            @whereHasConditions(
+                columns: ["id", "name"]
+                handler: "App\\GraphQL\\Workflow\\Builders\\Receivers\\ReceiversBuilder@getHasAction"
+            )
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "status"])
+    ): [WorkflowReceiversHistory!]!
+        @paginate(
+            builder: "App\\GraphQL\\Workflow\\Builders\\Receivers\\ReceiversBuilder@getReceiversHistory"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+    receiverStatus: [WorkflowReceiverStatusEnum!]!
+        @field(resolver: "App\\GraphQL\\Workflow\\Queries\\ReceiverStatusQuery")
+}

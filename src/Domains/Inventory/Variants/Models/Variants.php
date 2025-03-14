@@ -9,6 +9,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
@@ -30,7 +31,6 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
-use Kanvas\Inventory\Traits\HasProductTypeAttributeTrait;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Observers\VariantObserver;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -70,7 +70,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     use HasShopifyCustomField;
     use HasLightHouseCache;
     use IntegrationEntityTrait;
-    use Searchable {
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
 
@@ -194,11 +194,24 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         );
     }
 
+    /**
+     * @psalm-suppress InvalidArrayOffset
+     * @psalm-suppress LessSpecificReturnStatement
+     * @psalm-suppress InvalidArrayOffset
+     */
     public function getAttributeByName(string $name, ?string $locale = null): ?VariantsAttributes
     {
         $locale = $locale ?? app()->getLocale(); // Use app locale if not passed.
 
-        return $this->buildAttributesQuery(["name->{$locale}" => $name])->first();
+        return $this->buildAttributesQuery()
+            ->whereRaw("
+                IF(
+                    JSON_VALID(attributes.name), 
+                    json_unquote(json_extract(attributes.name, '$.\"{$locale}\"')), 
+                    attributes.name
+                ) = ?
+            ", [$name])
+            ->first();
     }
 
     public function getAttributeBySlug(string $slug): ?VariantsAttributes

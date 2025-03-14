@@ -184,6 +184,16 @@ input AppleInAppPurchaseReceipt {
     custom_fields: [CustomFieldEntityInput!]
 }
 
+input GooglePlayInAppPurchaseReceipt {
+    product_id: ID!
+    order_id: String!
+    purchase_token: String!
+    purchase_time: Int!
+    purchase_state: Int!
+    region_id: ID
+    custom_fields: [CustomFieldEntityInput!]
+}
+
 extend type Mutation @guard {
     # @deprecated(reason: "Use createOrderFromCart instead")
     createOrder(input: OrderInput!): Mixed!
@@ -204,6 +214,12 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\AppleInAppPurchaseMutation@create"
         )
+    createOrderFromGooglePlayInAppPurchase(
+        input: GooglePlayInAppPurchaseReceipt!
+    ): Order!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\GooglePlayInAppPurchaseMutation@create"
+        )
     processOrderPayment(input: ProcessPaymentInput!): PaymentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@processPayment"
@@ -212,7 +228,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\ImportOrderCsvMutation@create"
         )
-    generateOrderPaymentIntent(id: ID!): GeneratePaymentIntentResult!
+    generateOrderPaymentIntent(amount: Money!): GeneratePaymentIntentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntent"
         )

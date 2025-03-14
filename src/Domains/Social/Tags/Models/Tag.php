@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Tags\Models;
 
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Models\BaseModel;
-use Laravel\Scout\Searchable;
 use Override;
 
 /**
@@ -28,7 +28,7 @@ use Override;
 class Tag extends BaseModel
 {
     use SlugTrait;
-    use Searchable {
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
 

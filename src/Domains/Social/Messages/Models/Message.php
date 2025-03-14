@@ -6,6 +6,7 @@ namespace Kanvas\Social\Messages\Models;
 
 use Baka\Casts\Json;
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
@@ -39,7 +40,6 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
@@ -71,7 +71,7 @@ use Override;
 class Message extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use HasFactory;
     use HasTagsTrait;
     use CascadeSoftDeletes;
@@ -92,6 +92,7 @@ class Message extends BaseModel
     protected $casts = [
         'message' => Json::class,
         'message_types_id' => 'integer',
+        'is_public' => 'integer',
     ];
 
     #[Override]
@@ -223,13 +224,18 @@ class Message extends BaseModel
     #[Override]
     public function shouldBeSearchable(): bool
     {
-        if ($this->isDeleted()) {
+        if ($this->isDeleted() || ! $this->isPublic()) {
             return false;
         }
 
         $filterByMessageType = $this->app->get('index_message_by_type');
 
         return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
+    }
+
+    public function isPublic(): bool
+    {
+        return (bool) $this->is_public;
     }
 
     public function setPublic(): void
