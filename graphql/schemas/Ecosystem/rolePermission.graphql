@@ -5,7 +5,6 @@ type Role {
     scope: String
     userCount: Int!
     abilitiesCount: Int!
-    abilities: [AppModule!]
     systemRole: Boolean! @method(name: "isSystemRole")
 }
 type Abilities {
@@ -58,18 +57,29 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilities"
         )
-    getRoleAbilities(role: String!): [RolesModule]
+    getRoleAbilities(role: String!): Mixed
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilitiesByRoles"
         )
 }
 
+input RoleInput {
+    name: String!
+    title: String
+    permissions: [RolePermissionsInput!]
+}
+
+input RolePermissionsInput {
+    model_name: String!
+    permission: [String!]
+}
+
 extend type Mutation @guardByAdmin {
-    createRole(name: String!, title: String): Role
+    createRole(input: RoleInput!): Role
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@createRole"
         )
-    updateRole(id: ID!, name: String, title: String): Role
+    updateRole(id: ID!, input: RoleInput): Role
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@updateRole"
         )

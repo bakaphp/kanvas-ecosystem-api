@@ -30,10 +30,10 @@ class RoleAbilitiesQuery
     public function getAllAbilitiesByRoles(mixed $root, array $request): array
     {
         $roles = RolesRepository::getMapAbilityInModules($request['role']);
-        if ($map = Redis::get(RolesEnums::KEY_MAP->value)) {
-            return $map;
-        }
-        Redis::set(RolesEnums::KEY_MAP->value, $roles);
+        // if ($map = Redis::get(RolesEnums::KEY_MAP->value)) {
+        //     return $map;
+        // }
+        // Redis::set(RolesEnums::KEY_MAP->value, $roles);
         return $roles;
     }
 }
