@@ -19,9 +19,9 @@ class MapStaticApiService
     /**
      * Get the top 3 most relevant tags for a given message.
      */
-    public static function getImageFromCoordinates(float $latitude, float $longitude, ?string $zoom = null): string
+    public static function getImageFromCoordinates(float $latitude, float $longitude, ?string $zoom = null, ?Apps $app = null): string
     {
-        $app = app(Apps::class);
+        $app = $app ?? app(Apps::class);
         $apiKey = $app->get('google_maps_api_key');
         $zoom = $zoom ?? self::DEFAULT_ZOOM;
         $size = self::DEFAULT_SIZE;

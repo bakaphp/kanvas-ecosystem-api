@@ -15,9 +15,6 @@ use Kanvas\Workflow\KanvasActivity;
 
 class CovertMapsCoordinatesToImageActivity extends KanvasActivity
 {
-    //public $tries = 3;
-    public $queue = 'default';
-
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
@@ -57,10 +54,13 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
             $message->message = $tempMessageArray;
             $message->saveOrFail();
         } catch (\Throwable $th) {
-            Log::error('Failed to save message', [
+            return [
+                'result' => false,
+                'message' => 'Failed to save message',
+                'activity' => self::class,
+                'message_id' => $message->getId(),
                 'error' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
+            ];
         }
 
         // Clean up the temporary file
