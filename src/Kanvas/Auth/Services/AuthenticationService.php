@@ -216,4 +216,14 @@ class AuthenticationService
 
         return $branch;
     }
+
+    public static function logoutFromAllDevices(Users $user, Apps $app): bool
+    {
+        $session = new Sessions();
+
+        return $session->end(
+            $user,
+            $app
+        );
+    }
 }

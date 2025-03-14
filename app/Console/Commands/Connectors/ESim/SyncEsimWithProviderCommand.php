@@ -16,6 +16,7 @@ use Kanvas\Connectors\CMLink\Services\CustomerService;
 use Kanvas\Connectors\CMLink\Services\OrderService as ServicesOrderService;
 use Kanvas\Connectors\EasyActivation\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
+use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
@@ -79,12 +80,22 @@ class SyncEsimWithProviderCommand extends Command
         $bundle = $message->message['data']['plan'] ?? null;
         //$network = strtolower($message->message['items'][0]['variant']['attributes']['Variant Network'] ?? '');
         $network = '';
+        $variantNetwork = '';
+
         if (isset($message->message['items'][0]['variant']['products_id'])) {
-            $network = strtolower(Products::getById($message->message['items'][0]['variant']['products_id'])->getAttributeBySlug('product-provider')?->value ?? '');
+            $network = strtolower(Products::getById($message->message['items'][0]['variant']['products_id'])->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value)?->value ?? '');
         }
 
         if (empty($network) && $message->appModuleMessage && $message->appModuleMessage->entity instanceof Order) {
-            $network = strtolower($message->appModuleMessage->entity->items()->first()->variant?->product?->getAttributeBySlug('product-provider')?->value ?? '');
+            $network = strtolower($message->appModuleMessage->entity->items()->first()->variant?->product?->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value)?->value ?? '');
+        }
+
+        if ($message->appModuleMessage && $message->appModuleMessage->entity instanceof Order) {
+            $variantNetwork = $message->appModuleMessage->entity->items()->first()->variant?->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value)?->value ?? '';
+        }
+
+        if ($variantNetwork !== '') {
+            $network = strtolower($variantNetwork);
         }
 
         if (empty($network)) {
@@ -194,15 +205,13 @@ class SyncEsimWithProviderCommand extends Command
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
         $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
-        $orderId = $message->message['order_id'] ?? null;
-        $dataUsage = 0;
+        $orderNumber = $message->message['order']['order_number'] ?? null;
         $totalBytesData = FileSizeConverter::toBytes($totalData);
-        if ($orderId) {
+        $remainingData = $totalBytesData;
+        if ($orderNumber !== null) {
             $orderService = new ServicesOrderService($message->app, $message->company);
-            $dataUsage = $orderService->getOrderStatus($orderId)['total'];
+            $remainingData = $orderService->getOrderStatus($orderNumber)['total'];
         }
-        // Calculate remaining data usage, ensuring it doesn't go negative
-        $remainingData = max(0, $totalBytesData - max(0, $dataUsage));
 
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],

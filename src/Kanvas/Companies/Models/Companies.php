@@ -7,6 +7,7 @@ namespace Kanvas\Companies\Models;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\AddressTraitRelationship;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -45,7 +46,6 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 /**
@@ -74,7 +74,7 @@ class Companies extends BaseModel implements CompanyInterface
     use HashTableTrait;
     use HasFilesystemTrait;
     use CanUseWorkflow;
-    use Searchable {
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
     use CascadeSoftDeletes;

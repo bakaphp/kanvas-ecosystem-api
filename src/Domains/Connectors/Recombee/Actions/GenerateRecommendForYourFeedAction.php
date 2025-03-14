@@ -49,7 +49,7 @@ class GenerateRecommendForYourFeedAction
         $totalRecords = $this->app->get('social-user-message-filter-total-records') ?? 500;
         if (empty($entityIds)) {
             return new LengthAwarePaginator(
-                UserMessage::getUserFeed($user, $this->app)->forPage($page, $pageSize)->get(),
+                UserMessage::getForYouFeed($user, $this->app)->forPage($page, $pageSize)->get(),
                 $totalRecords,
                 $pageSize,
                 $page

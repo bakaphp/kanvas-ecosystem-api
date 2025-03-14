@@ -99,13 +99,15 @@ class ZohoLead extends Data
             if (strtolower($key) == 'credit_score' && $value != null) {
                 $creditScore = [
                     1 => '720-950',
-                    'Excellent' => '720-950',
+                    'Excellent' => 'Excellent(720+)',
                     2 => '680-719',
-                    'Great' => '680-719',
+                    'Great' => 'Great(680-719)',
                     3 => '640-679',
-                    'Good' => '640-679',
+                    'Good' => 'Good(650-679)',
                     4 => '639 or less',
-                    'Fair' => '639 or less',
+                    'Fair' => 'Fair(600-649)',
+                    'Poor' => 'Poor(Below 600)',
+                    'A+' => 'A+',
                 ];
 
                 $value = $creditScore[(int) $value] ?? $value;

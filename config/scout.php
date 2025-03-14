@@ -20,7 +20,7 @@ return [
     |
     */
 
-    'driver' => env('SCOUT_DRIVER', 'algolia'),
+    'driver' => env('SCOUT_DRIVER', 'dynamic'),
 
     /*
     |--------------------------------------------------------------------------
@@ -123,6 +123,19 @@ return [
         'id' => env('ALGOLIA_APP_ID', ''),
         'secret' => env('ALGOLIA_SECRET', ''),
         'settings_path' => env('ALGOLIA_SETTINGS_PATH'),
+    ],
+
+    'typesense' => [
+        'api_key' => env('TYPESENSE_API_KEY', ''),
+        'nodes' => [
+            [
+                'host' => env('TYPESENSE_HOST', 'localhost'),
+                'port' => env('TYPESENSE_PORT', 8108),
+                'path' => env('TYPESENSE_PATH', '/'),
+                'protocol' => env('TYPESENSE_PROTOCOL', 'http'),
+            ],
+        ],
+        'connection_timeout_seconds' => env('TYPESENSE_CONNECTION_TIMEOUT_SECONDS', 2),
     ],
 
     /*

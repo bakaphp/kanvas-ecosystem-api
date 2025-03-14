@@ -20,9 +20,11 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class CreateLeadsFromReceiverJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $leadReceiver = LeadReceiver::getByIdFromCompanyApp($this->receiver->configuration['receiver_id'], $this->receiver->company, $this->receiver->app);

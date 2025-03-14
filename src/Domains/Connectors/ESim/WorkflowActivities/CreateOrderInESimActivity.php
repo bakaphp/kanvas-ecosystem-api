@@ -38,7 +38,16 @@ class CreateOrderInESimActivity extends KanvasActivity
             ];
         }
 
-        $provider = $order->items()->first()->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+        $firstItem = $order->items()->first();
+        $variant = $firstItem->variant;
+
+        // Get the variant provider attribute
+        $variantProvider = $variant->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value);
+
+        // Fall back to product provider if variant provider is empty
+        $provider = ! empty($variantProvider)
+            ? $variantProvider
+            : $variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
 
         if (! $provider) {
             return [
@@ -83,6 +92,11 @@ class CreateOrderInESimActivity extends KanvasActivity
 
         $response['order_id'] = $order->id;
         $response['order'] = $order->toArray();
+
+        if (! isset($response['label'])) {
+            $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
+        }
+
         $sku = null;
         foreach ($order->items as $item) {
             $variant = Variants::where('id', $item->variant_id)->first();

@@ -10,6 +10,7 @@ use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -23,6 +24,7 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
+use Silber\Bouncer\Database\Ability;
 
 /**
  * SystemModules Model.
@@ -134,5 +136,15 @@ class SystemModules extends BaseModel
            ];
 
         return $internalMapping[strtolower($slug)] ?? throw new InvalidArgumentException('Entity ' . $slug . ' not found');
+    }
+
+    public function abilities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Ability::class,
+            'abilities_modules',
+            'system_modules_id',
+            'abilities_id'
+        );
     }
 }

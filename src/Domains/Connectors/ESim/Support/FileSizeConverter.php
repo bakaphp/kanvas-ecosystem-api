@@ -13,8 +13,9 @@ class FileSizeConverter
     *
     * @throws InvalidArgumentException
     */
-    public static function toBytes(string $size): int
+    public static function toBytes(string|int $size): int
     {
+        $size = (string) $size;
         $size = strtoupper(trim($size));
 
         // Remove spaces between number and unit (e.g., "500 MB" -> "500MB")

@@ -13,6 +13,7 @@ use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Silber\Bouncer\Database\Ability;
+use Illuminate\Support\Facades\Log;
 
 class RolesRepository
 {
@@ -77,48 +78,56 @@ class RolesRepository
             ->leftJoinSub($subQuery, 'permissions', function ($join) {
                 $join->on('abilities.id', '=', 'permissions.ability_id');
             })
-            ->orderBy('module_id')
-            ->select('abilities.*', 'permissions.entity_id as roleId', 'abilities_modules.module_id as module')
-        ->get();
-
-        return self::mapPermissionsToStructure($abilities);
+            ->join('kanvas_modules as modules', 'modules.id', '=', 'abilities_modules.module_id')
+            ->orderBy('modules.id')
+            ->select('abilities.*', 'abilities_modules.system_modules_id', 'permissions.entity_id as roleId', 'modules.id', 'modules.name')
+            ->get();
+        $roles =  self::mapPermissionsToStructure($abilities);
+        return $roles;
     }
 
     protected static function mapPermissionsToStructure($permissions): array
     {
-        $mappedPermissions = [];
-
+        $modules = [];
         foreach ($permissions as $permission) {
-            $module = $permission->module;
-            $entityType = $permission->entity_type;
-            if (! isset($mappedPermissions[$module])) {
-                $mappedPermissions[$module] = [
-                    'name' => $module,
-                    'entities' => [],
-                ];
-            }
-
-            if (! isset($mappedPermissions[$module]['entities'][$entityType])) {
-                $mappedPermissions[$module]['entities'][$entityType] = [
-                    'name' => $entityType,
-                    'abilities' => [],
-                ];
-            }
-
-            $mappedPermissions[$module]['entities'][$entityType]['abilities'][] = [
-                'name' => $permission['name'],
-                'description' => $permission['title'],
-                'entity_id' => $permission['roleId'],
-                'module' => $permission['module'],
+            $ability = [
+                'title' => $permission->title,
+                'roleId' => (bool) $permission->roleId
             ];
-        }
-        foreach ($mappedPermissions as &$module) {
-            $module['entities'] = array_values($module['entities']);
-            foreach ($module['entities'] as &$entity) {
-                $entity['abilities'] = array_values($entity['abilities']);
+            if (! isset($modules[$permission['name']])) {
+                $modules[$permission['name']] = [
+                    'id' => $permission->id,
+                    'name' => $permission->name,
+                    'systemModules' => []
+                ];
+            }
+            $systemModule = $permission->entity_type;
+            if (empty($modules[$permission['name']]['systemModules'])) {
+                $modules[$permission['name']]['systemModules'][] = [
+                    'id' => $permission->system_modules_id,
+                    'name' => $systemModule,
+                    'abilities' => [$ability]
+                ];
+                continue;
+            }
+            Log::debug("Ability", $ability);
+            $found = false;
+            foreach ($modules[$permission['name']]['systemModules'] as $key => $systemModules) {
+                if ($systemModules['name'] == $systemModule) {
+                    $systemModules['abilities'][] = $ability;
+                    $modules[$permission['name']]['systemModules'][$key] = $systemModules;
+                    $found = true;
+                    break;
+                }
+            }
+            if (! $found) {
+                $modules[$permission['name']]['systemModules'][] = [
+                    'id' => $permission->system_modules_id,
+                    'name' => $systemModule,
+                    'abilities' => [$ability]
+                ];
             }
         }
-
-        return $mappedPermissions;
+        return $modules;
     }
 }
