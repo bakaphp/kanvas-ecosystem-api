@@ -152,6 +152,7 @@ class ImportPromptsFromSheetsCommand extends Command
             //Create a child message for the nugget(prompt results) add the prompt preview as the message
 
             $nuggestId = DB::connection('social')->table('messages')->insertGetId([
+                'parent_id' => $lastId,
                 'apps_id' => $appId,
                 'uuid' => DB::raw('uuid()'),
                 'companies_id' => $companyId,
