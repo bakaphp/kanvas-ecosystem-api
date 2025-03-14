@@ -88,9 +88,9 @@ class SyncEsimWithProviderCommand extends Command
             $network = strtolower($message->appModuleMessage->entity->items()->first()->variant?->product?->getAttributeBySlug('product-provider')?->value ?? '');
         }
 
-        $variantNetwork = $message->appModuleMessage->entity->items()->first()->variant?->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value)?->value ?? '';
+        $variantNetwork = $message->appModuleMessage?->entity?->items()?->first()?->variant?->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value)?->value ?? '';
 
-        if (! empty($variantNetwork)) {
+        if ($variantNetwork !== '') {
             $network = strtolower($variantNetwork);
         }
 
