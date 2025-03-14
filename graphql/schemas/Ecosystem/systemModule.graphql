@@ -9,6 +9,7 @@ type SystemModule {
     parent: SystemModule @belongsTo
     menu_order: Int
     show: Int!
+    abilities: [Abilities!] @belongsToMany(relation: "abilities")
 }
 
 input SystemModuleEntityInput {

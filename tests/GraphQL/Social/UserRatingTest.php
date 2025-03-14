@@ -16,7 +16,7 @@ class UserRatingTest extends TestCase
 
     public function testCreateUsersRatings()
     {
-        $systemModule = SystemModulesRepository::getByName(Products::class, app(Apps::class));
+        $systemModule = SystemModulesRepository::getByModelName(Products::class, app(Apps::class));
 
         $input = [
             'system_module_id' => $systemModule->getId(),
@@ -46,7 +46,7 @@ class UserRatingTest extends TestCase
 
     public function testUpdateUsersRatings(): void
     {
-        $systemModule = SystemModulesRepository::getByName(Products::class, app(Apps::class));
+        $systemModule = SystemModulesRepository::getByModelName(Products::class, app(Apps::class));
 
         $input = [
             'system_module_id' => $systemModule->getId(),
@@ -113,7 +113,7 @@ class UserRatingTest extends TestCase
 
         $response = $this->createProduct($data);
         $productId = $response->json('data.createProduct.id');
-        $systemModule = SystemModulesRepository::getByName(Products::class, app(Apps::class));
+        $systemModule = SystemModulesRepository::getByModelName(Products::class, app(Apps::class));
         $input = [
             'system_module_id' => $systemModule->getId(),
             'entity_id' => $productId,
@@ -185,7 +185,7 @@ class UserRatingTest extends TestCase
 
         $response = $this->createProduct($data);
         $productId = $response->json('data.createProduct.id');
-        $systemModule = SystemModulesRepository::getByName(Products::class, app(Apps::class));
+        $systemModule = SystemModulesRepository::getByModelName(Products::class, app(Apps::class));
         $input = [
             'system_module_id' => $systemModule->getId(),
             'entity_id' => $productId,
