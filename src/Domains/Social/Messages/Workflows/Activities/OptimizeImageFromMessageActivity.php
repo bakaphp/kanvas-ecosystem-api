@@ -20,14 +20,16 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        // if (empty($message->message['ai_image']) || empty($message->message['ai_image']['image'])) {
-        //     return [
-        //         'result' => false,
-        //         'message' => 'Message does not have an AI image',
-        //     ];
-        // }
         $messageContent = ! is_array($message->message) ? json_decode($message->message, true) : $message->message;
-        $imageUrl = $message->parent_id && isset($messageContent['image']) ? $messageContent['image'] : $messageContent['ai_image']['image'];
+
+        if (! isset($messageContent['image']) || ! isset($messageContent['ai_image']['image'])) {
+            return [
+                'result' => false,
+                'message' => 'Message does not have an AI image url',
+            ];
+        }
+        
+        $imageUrl = $message->parent_id ? $messageContent['image'] : $messageContent['ai_image']['image'];
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($imageUrl);
         $fileName = basename($tempFilePath);
 
