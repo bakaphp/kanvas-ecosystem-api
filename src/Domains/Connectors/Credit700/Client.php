@@ -26,10 +26,8 @@ class Client
         protected AppInterface $app,
         protected ?CompanyInterface $company = null
     ) {
-        $appOrCompany = $company ?? $app;
-
-        $this->clientId = $appOrCompany->get(ConfigurationEnum::CLIENT_ID->value);
-        $this->clientSecret = $appOrCompany->get(ConfigurationEnum::CLIENT_SECRET->value);
+        $this->clientId = $app->get(ConfigurationEnum::CLIENT_ID->value);
+        $this->clientSecret = $app->get(ConfigurationEnum::CLIENT_SECRET->value);
 
         if (app()->environment() !== 'production') {
             $this->apiBaseUrl = 'https://gateway.700creditsolution.com';
