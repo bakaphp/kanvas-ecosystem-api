@@ -77,7 +77,7 @@ class CreateOrderFromCartAction
             $totalTax = 0;
             $totalDiscount = 0;
             $lineItems = [];
-          
+
             foreach ($this->request['input']['items'] as $key => $lineItem) {
                 $lineItems[$key] = OrderItem::viaRequest($this->app, $this->company, $this->region, $lineItem);
                 $total += $lineItems[$key]->getTotal();
