@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Jobs;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Notification;
 use JsonException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Agents\Models\Agent;
@@ -14,6 +16,7 @@ use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -23,6 +26,8 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
     public function execute(): array
     {
         $leadReceiver = LeadReceiver::getByIdFromCompanyApp($this->receiver->configuration['receiver_id'], $this->receiver->company, $this->receiver->app);
+        $emailTemplate = $this->receiver->configuration['email_template'] ?? null;
+
         $ipAddresses = $this->webhookRequest->headers['x-real-ip'] ?? [];
         $realIp = is_array($ipAddresses) && ! empty($ipAddresses) ? reset($ipAddresses) : '127.0.0.1';
 
@@ -79,6 +84,18 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         );
 
         $lead = $createLead->execute();
+
+        if ($emailTemplate) {
+            $userTemplate = 'user-' . $emailTemplate;
+            $leadTemplate = 'lead-' . $emailTemplate;
+            $data = [
+                'lead' => $lead,
+                'receiver' => $leadReceiver,
+                'product' => [],
+            ];
+            $this->sendEmail($user, $userTemplate, $user->email, $data);
+            $this->sendEmail($lead, $leadTemplate, $lead->email, $data);
+        }
 
         $lead->fireWorkflow(
             WorkflowEnum::AFTER_RUNNING_RECEIVER->value,
@@ -154,5 +171,21 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         }
 
         return $finalJson;
+    }
+
+
+    /**
+    * Send email to user or lead using a custom template
+    */
+    private function sendEmail(Model $entity, string $emailTemplateName, string $email, array $leadData): void
+    {
+        $notification = new Blank(
+            $emailTemplateName,
+            $leadData,
+            ['mail'],
+            $entity
+        );
+        // $notification->setSubject($emailSubject);
+        Notification::route('mail', $email)->notify($notification);
     }
 }
