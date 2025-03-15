@@ -16,6 +16,7 @@
         "automattic/woocommerce": "^3.1",
         "awobaz/compoships": "^2.2",
         "bacon/bacon-qr-code": "^3.0",
+        "bavix/laravel-wallet": "^11.4",
         "berkayk/onesignal-laravel": "^2.0",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
@@ -27,6 +28,7 @@
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
         "imdhemy/laravel-purchases": "^1.14",
+        "joelwmale/laravel-cart": "^1.0",
         "knplabs/knp-snappy": "^1.5",
         "laravel-workflow/laravel-workflow": "^1.0.24",
         "laravel/cashier": "^15.4.0",
@@ -72,7 +74,6 @@
         "typesense/typesense-php": "^4.2",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^14.0",
         "vlucas/phpdotenv": "^5.5",
-        "joelwmale/laravel-cart": "^1.0",
         "webleit/zohocrmapi": "^5.3",
         "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5"
     },
