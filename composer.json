@@ -12,15 +12,15 @@
     "require": {
         "php": "^8.2",
         "algolia/algoliasearch-client-php": "^3.4",
-        "algolia/scout-extended": "^3.1",
+        "algolia/scout-extended": "dev-l12-compatibility",
         "automattic/woocommerce": "^3.1",
         "awobaz/compoships": "^2.2",
         "bacon/bacon-qr-code": "^3.0",
-        "berkayk/onesignal-laravel": "^2.0",
+        "berkayk/onesignal-laravel": "dev-l12-compatibility",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "echolabsdev/prism": "^0.43.0",
-        "genealabs/laravel-model-caching": "^11.0",
+        "genealabs/laravel-model-caching": "^12.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
         "google/cloud-recommendations-ai": "^0.8.0",
@@ -61,20 +61,19 @@
         "spatie/laravel-queueable-action": "^2.15",
         "spatie/laravel-translatable": "^6.9",
         "spatie/laravel-webhook-server": "^3.8",
-        "stripe/stripe-php": "^13.0",
+        "stripe/stripe-php": "^16.0",
         "swoole/ide-helper": "*",
         "symfony/expression-language": "^7.0",
         "symfony/http-client": "^7.0",
         "symfony/mailgun-mailer": "^7.0",
         "thiagoprz/eloquent-composite-key": "^1.0",
         "twilio/sdk": "^8.0",
-        "typesense/laravel-scout-typesense-driver": "^5.2",
+        "typesense/laravel-scout-typesense-driver": "dev-l12-compatibility",
         "typesense/typesense-php": "^4.2",
-        "vladimir-yuldashev/laravel-queue-rabbitmq": "^14.0",
         "vlucas/phpdotenv": "^5.5",
-        "wearepixel/laravel-cart": "^1.0",
+        "joelwmale/laravel-cart": "^1.2",
         "webleit/zohocrmapi": "^5.3",
-        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5"
+        "yakovenko/laravel-lighthouse-graphql-multi-schema": "dev-main"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
@@ -172,6 +171,22 @@
         {
             "type": "vcs",
             "url": "https://github.com/laravel-shift/laravelshoppingcart.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/bakaphp/laravel-lighthouse-graphql-multi-schema.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/laravel-shift/scout-extended.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/laravel-shift/laravel-onesignal.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/laravel-shift/laravel-scout-typesense-driver.git"
         }
     ],
     "extra": {
