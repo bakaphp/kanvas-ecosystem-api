@@ -72,7 +72,7 @@
         "typesense/typesense-php": "^4.2",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^14.0",
         "vlucas/phpdotenv": "^5.5",
-        "wearepixel/laravel-cart": "^1.0",
+        "joelwmale/laravel-cart": "^1.0",
         "webleit/zohocrmapi": "^5.3",
         "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5"
     },

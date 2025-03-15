@@ -9,7 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Cart\Services\CartService;
-use Wearepixel\Cart\CartCondition;
+use Joelwmale\Cart\CartCondition;
 
 class CartManagementMutation
 {

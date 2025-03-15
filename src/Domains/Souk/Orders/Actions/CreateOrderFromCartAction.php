@@ -22,7 +22,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Spatie\LaravelData\DataCollection;
-use Wearepixel\Cart\Cart;
+use Joelwmale\Cart\Cart;
 
 class CreateOrderFromCartAction
 {
