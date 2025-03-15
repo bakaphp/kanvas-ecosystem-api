@@ -29,10 +29,9 @@ class CreateAbilitiesByModule
         $scope = RolesEnums::getScope($this->app);
         Bouncer::scope()->to($scope);
         Bouncer::useAbilityModel(Ability::class);
-
         foreach (ModulesRepositories::getAbilitiesByModule() as $module => $subModule) {
             foreach ($subModule as $model => $abilities) {
-                $systemModule = SystemModulesRepository::getByModelName($model);
+                $systemModule = SystemModulesRepository::getByModelName($model, $this->app);
                 foreach ($abilities as $ability) {
                     $ability = Bouncer::ability()->firstOrCreate([
                         'name' => $ability,

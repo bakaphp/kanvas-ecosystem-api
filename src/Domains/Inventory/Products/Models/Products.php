@@ -131,11 +131,24 @@ class Products extends BaseModel implements EntityIntegrationInterface
         );
     }
 
+    /**
+     * @psalm-suppress InvalidArrayOffset
+     * @psalm-suppress LessSpecificReturnStatement
+     * @psalm-suppress InvalidArrayOffset
+     */
     public function getAttributeByName(string $name, ?string $locale = null): ?ProductsAttributes
     {
         $locale = $locale ?? app()->getLocale(); // Use app locale if not passed.
 
-        return $this->buildAttributesQuery(["name->{$locale}" => $name])->first();
+        return $this->buildAttributesQuery()
+            ->whereRaw("
+                IF(
+                    JSON_VALID(attributes.name), 
+                    json_unquote(json_extract(attributes.name, '$.\"{$locale}\"')), 
+                    attributes.name
+                ) = ?
+            ", [$name])
+            ->first();
     }
 
     public function getAttributeBySlug(string $slug): ?ProductsAttributes
@@ -574,6 +587,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 [
                     'name' => 'categories',
                     'type' => 'object[]',
+                    'facet' => true,  // Enable faceting on the whole object
                 ],
                 [
                     'name' => 'variants',
@@ -625,30 +639,35 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'name' => 'prices',
                     'type' => 'object',
                     'optional' => true,
+                    'facet' => true,
                 ],
                 [
                     'name' => 'prices.*',
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,
+                    'facet' => true,
                 ],
                 [
                     'name' => 'prices.regular',
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,
+                    'facet' => true,
                 ],
                 [
                     'name' => 'prices.sale',
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,
+                    'facet' => true,
                 ],
                 [
                     'name' => 'prices.msrp',
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,
+                    'facet' => true,
                 ],
                 [
                     'name' => 'apps_id',

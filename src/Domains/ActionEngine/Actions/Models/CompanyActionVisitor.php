@@ -7,6 +7,7 @@ namespace Kanvas\ActionEngine\Actions\Models;
 use Baka\Casts\Json;
 use Baka\Traits\NoAppRelationshipTrait;
 use Kanvas\ActionEngine\Models\BaseModel;
+use Override;
 
 /**
  * Class CompanyAction.
@@ -29,6 +30,7 @@ class CompanyActionVisitor extends BaseModel
     protected $table = 'companies_actions_visitors';
     protected $guarded = [];
 
+    #[Override]
     protected function casts(): array
     {
         return [

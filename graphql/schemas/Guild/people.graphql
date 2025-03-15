@@ -4,7 +4,7 @@ type People {
     company: Company! @belongsTo
     user: User! @belongsTo
     name: String! @method(name: "getName")
-    firstname: String!
+    firstname: String
     middlename: String
     lastname: String
     subscriptions: [PeopleSubscription!]! @hasMany

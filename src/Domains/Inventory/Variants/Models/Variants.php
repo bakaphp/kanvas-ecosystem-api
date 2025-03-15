@@ -194,11 +194,24 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         );
     }
 
+    /**
+     * @psalm-suppress InvalidArrayOffset
+     * @psalm-suppress LessSpecificReturnStatement
+     * @psalm-suppress InvalidArrayOffset
+     */
     public function getAttributeByName(string $name, ?string $locale = null): ?VariantsAttributes
     {
         $locale = $locale ?? app()->getLocale(); // Use app locale if not passed.
 
-        return $this->buildAttributesQuery(["name->{$locale}" => $name])->first();
+        return $this->buildAttributesQuery()
+            ->whereRaw("
+                IF(
+                    JSON_VALID(attributes.name), 
+                    json_unquote(json_extract(attributes.name, '$.\"{$locale}\"')), 
+                    attributes.name
+                ) = ?
+            ", [$name])
+            ->first();
     }
 
     public function getAttributeBySlug(string $slug): ?VariantsAttributes
