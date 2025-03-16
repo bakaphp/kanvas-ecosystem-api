@@ -15,5 +15,5 @@ enum ConfigurationEnum: string
     case FOLLOWS_ENGINE_RECOMBEE_API_KEY = 'FOLLOWS_ENGINE_RECOMBEE_API_KEY';
     case FOLLOWS_ENGINE_RECOMBEE_REGION = 'FOLLOWS_ENGINE_RECOMBEE_REGION';
     case FOR_YOU_SCENARIO = 'for-you-feed';
-    case TRENDING_SCENARIO = 'trending';
+    case TRENDING_SCENARIO = 'trending-creators';
 }
