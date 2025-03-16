@@ -33,8 +33,12 @@ class RecombeeUserRecommendationService
         ))->getClient();
     }
 
-    public function getUserForYouFeed(UserInterface $user, int $count = 100, string $scenario = 'for-you-feed', ?string $recommId = null): array
-    {
+    public function getUserForYouFeed(
+        UserInterface $user,
+        int $count = 100,
+        string $scenario = 'for-you-feed',
+        ?string $recommId = null
+    ): array {
         $recommendationOptions = [
             'rotationRate' => 0.0,
             // Uncomment when ready to use configuration
