@@ -48,6 +48,7 @@ class RecombeeIndexService
             'title' => 'string',
             'description' => 'string',
             'message_type' => 'string',
+            'users_id' => 'int',
             'total_like' => 'int',
             'total_dislike' => 'int',
             'total_share' => 'int',
@@ -123,6 +124,7 @@ class RecombeeIndexService
             [
                 'title' => $messageData['title'],
                 'description' => $messageData['prompt'],
+                'users_id' => $message->users_id,
                 'message_type' => $message->messageType->name,
                 'total_like' => $message->total_liked,
                 'total_dislike' => $message->total_disliked,
