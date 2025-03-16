@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
@@ -53,7 +52,7 @@ class GenerateRecommendForYourFeedAction
             ->toArray();
 
         $totalRecords = $this->app->get('social-user-message-filter-total-records') ?? 500;
-        if (empty($entityIds) && $scenario === ConfigurationEnum::FOR_YOU_SCENARIO->value) {
+        if (empty($entityIds)) {
             return new LengthAwarePaginator(
                 UserMessage::getForYouFeed($user, $this->app)->forPage($page, $pageSize)->get(),
                 $totalRecords,
