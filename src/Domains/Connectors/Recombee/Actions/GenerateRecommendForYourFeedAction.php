@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
@@ -21,8 +22,12 @@ class GenerateRecommendForYourFeedAction
     ) {
     }
 
-    public function execute(UserInterface $user, int $page = 1, int $pageSize = 25): LengthAwarePaginator
-    {
+    public function execute(
+        UserInterface $user,
+        int $page = 1,
+        int $pageSize = 25,
+        string $scenario = 'for-you-feed'
+    ): LengthAwarePaginator {
         $recommendationService = new RecombeeUserRecommendationService($this->app);
 
         if ($page > 1) {
@@ -30,10 +35,11 @@ class GenerateRecommendForYourFeedAction
             $response = $recommendationService->getUserForYouFeed(
                 user: $user,
                 count: $pageSize,
-                recommId: $recommendationId
+                recommId: $recommendationId,
+                scenario: $scenario
             );
         } else {
-            $response = $recommendationService->getUserForYouFeed($user, $pageSize);
+            $response = $recommendationService->getUserForYouFeed($user, $pageSize, $scenario);
         }
 
         $recommendation = $response['recomms'];
@@ -47,7 +53,7 @@ class GenerateRecommendForYourFeedAction
             ->toArray();
 
         $totalRecords = $this->app->get('social-user-message-filter-total-records') ?? 500;
-        if (empty($entityIds)) {
+        if (empty($entityIds) && $scenario === ConfigurationEnum::FOR_YOU_SCENARIO->value) {
             return new LengthAwarePaginator(
                 UserMessage::getForYouFeed($user, $this->app)->forPage($page, $pageSize)->get(),
                 $totalRecords,
