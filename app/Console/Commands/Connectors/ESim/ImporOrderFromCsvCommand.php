@@ -147,11 +147,9 @@ class ImporOrderFromCsvCommand extends Command
                 'currency' => Currencies::getByCode('USD'),
                 'items' => $items
             ]);
-            $kanvasOrder = (
-                new CreateOrderAction(
-                    $dto
-                )
-            )->execute();
+            $action = new CreateOrderAction($dto);
+            $action->disableWorkflow();
+            $kanvasOrder = $action->execute();
             $kanvasOrder->set('order_reference', $order['order_reference']);
             $this->info("Order created: {$kanvasOrder->order_number}\n");
         }
