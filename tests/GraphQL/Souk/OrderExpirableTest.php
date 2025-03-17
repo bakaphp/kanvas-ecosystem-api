@@ -60,8 +60,8 @@ class OrderExpirableTest extends TestCase
             'region_id' => $region->getId(),
             'metadata' => [
                 'data' => [
-                    'start_date' => now()->subDays(2)->toDateTimeString(),
-                    'end_date' => now()->subDays(1)->toDateTimeString(),
+                    'start_at' => now()->subDays(2)->toDateTimeString(),
+                    'end_at' => now()->subDays(1)->toDateTimeString(),
                 ],
             ],
             'customer' => [
