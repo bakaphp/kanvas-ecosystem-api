@@ -38,4 +38,22 @@ class PeopleFactory extends Factory
             ];
         });
     }
+
+    public function withContacts()
+    {
+        return $this->afterCreating(function ($person) {
+            $person->contacts()->createMany([
+                [
+                    'contacts_types_id' => 1,
+                    'value' => fake()->email,
+                    'weight' => 0
+                ],
+                [
+                    'contacts_types_id' => 2,
+                    'value' => fake()->phoneNumber,
+                    'weight' => 0
+                ]
+            ]);
+        });
+    }
 }
