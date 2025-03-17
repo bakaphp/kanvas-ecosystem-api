@@ -44,7 +44,7 @@ class UpdateProductAction
                     'name' => $this->productDto->name ?? $this->product->name,
                     'slug' => $this->productDto->slug ?? $this->product->slug,
                     'description' => optional($this->productDto)->description
-                        ?? (optional($this->productDto)->html_description ? Str::of($this->productDto->html_description)->stripTags() : null) 
+                        ?? (optional($this->productDto)->html_description ? Str::of($this->productDto->html_description)->stripTags() : null)
                         ?? optional($this->product)->description,
                     'short_description' => $this->productDto->short_description ?? $this->product->short_description,
                     'html_description' => $this->productDto->html_description ?? $this->product->html_description,

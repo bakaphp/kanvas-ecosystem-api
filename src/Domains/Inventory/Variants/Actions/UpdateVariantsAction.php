@@ -54,7 +54,7 @@ class UpdateVariantsAction
                 'sku' => $this->variantDto->sku,
                 'users_id' => $this->user->getId(),
                 'description' => optional($this->variantDto)->description
-                    ?? (optional($this->variantDto)->html_description ? Str::of($this->variantDto->html_description)->stripTags() : null) 
+                    ?? (optional($this->variantDto)->html_description ? Str::of($this->variantDto->html_description)->stripTags() : null)
                     ?? optional($this->variant)->description,
                 'short_description' => $this->variantDto->short_description ?? $this->variant->short_description,
                 'html_description' => $this->variantDto->html_description ?? $this->variant->html_description,
