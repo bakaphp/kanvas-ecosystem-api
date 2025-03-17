@@ -63,6 +63,7 @@ use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierA
 use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
+use Kanvas\Social\Messages\Workflows\Activities\CheckMessageContentActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
@@ -134,7 +135,8 @@ class KanvasWorkflowSynActionCommand extends Command
             GenerateMessageTagsWithAiActivity::class,
             PushUserInteractionToEventActivity::class,
             PushMessageToItemActivity::class,
-            DistributeMessageActivity::class
+            DistributeMessageActivity::class,
+            CheckMessageContentActivity::class,
         ];
 
         $createdActions = [];
