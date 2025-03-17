@@ -43,6 +43,5 @@ class CheckMessageContentAction
                 throw new Exception('Text content moderation: inappropriate content detected.');
             }
         }
-        
     }
 }

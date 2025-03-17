@@ -31,7 +31,7 @@ class ContentModerationService
             'api_secret' => config('services.sightengine.api_secret')
         );
 
-        $ch = curl_init( config('services.sightengine.image_moderation.api_url') . http_build_query($params));
+        $ch = curl_init(config('services.sightengine.image_moderation.api_url') . http_build_query($params));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($ch);
         curl_close($ch);
