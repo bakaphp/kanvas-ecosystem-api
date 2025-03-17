@@ -78,7 +78,7 @@ class ContentModerationService
 
     private function formatTextModerationResults(array $results): array
     {
-        $sexualResults = $results['moderation_classes']['sexual'] >= self::SEXUAL_THRESHOLD;
+        $sexualResults = $results['moderation_classes']['sexual'] >= self::SEXUAL_THRESHOLD ? true : false;
         $discriminatoryResults = $results['moderation_classes']['discriminatory'] >= self::DISCRIMINATORY_THRESHOLD;
         $violentResults = $results['moderation_classes']['violent'] >= self::VIOLENT_THRESHOLD;
         $insultingResults = $results['moderation_classes']['insulting'] >= self::INSULTING_THRESHOLD;

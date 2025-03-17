@@ -13,6 +13,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
+use Kanvas\Social\Messages\Actions\CheckMessageContentAction;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
@@ -79,6 +80,9 @@ class MessageManagementMutation
             $company,
             $app
         );
+
+        //Lets check the content for anything that might be inappropriate
+        (new CheckMessageContentAction($data->message, $app))->execute();
 
         $action = new CreateMessageAction(
             $data,
