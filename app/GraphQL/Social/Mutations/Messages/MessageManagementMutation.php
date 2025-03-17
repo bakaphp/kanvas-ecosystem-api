@@ -81,9 +81,6 @@ class MessageManagementMutation
             $app
         );
 
-        //Lets check the content for anything that might be inappropriate
-        (new CheckMessageContentAction($data->message, $app))->execute();
-
         $action = new CreateMessageAction(
             $data,
             $systemModule,
