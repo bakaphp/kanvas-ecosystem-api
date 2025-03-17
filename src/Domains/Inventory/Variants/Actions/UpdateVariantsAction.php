@@ -49,11 +49,13 @@ class UpdateVariantsAction
 
         $this->variant->update(
             [
-                'name' => $this->variantDto->name,
+                'name' => $this->variantDto->name ?? $this->variant->name,
                 'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
                 'sku' => $this->variantDto->sku,
                 'users_id' => $this->user->getId(),
-                'description' => $this->variantDto->description ?? $this->variant->description,
+                'description' => optional($this->variantDto)->description
+                    ?? (optional($this->variantDto)->html_description ? Str::of($this->variantDto->html_description)->stripTags() : null) 
+                    ?? optional($this->variant)->description,
                 'short_description' => $this->variantDto->short_description ?? $this->variant->short_description,
                 'html_description' => $this->variantDto->html_description ?? $this->variant->html_description,
                 'status_id' => $this->variantDto->status_id ?? $this->variant->status_id,

@@ -50,7 +50,7 @@ class CreateProductAction
             $updateData = [
                 'products_types_id' => $productType,
                 'name' => $this->productDto->name,
-                'description' => $this->productDto->description,
+                'description' => $this->productDto->description ?? Str::of($this->productDto->html_description)->stripTags(),
                 'short_description' => $this->productDto->short_description,
                 'html_description' => $this->productDto->html_description,
                 'warranty_terms' => $this->productDto->warranty_terms,
