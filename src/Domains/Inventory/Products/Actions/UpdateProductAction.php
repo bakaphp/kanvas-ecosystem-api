@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -40,9 +41,11 @@ class UpdateProductAction
             $this->product->update(
                 [
                     'products_types_id' => $productType,
-                    'name' => $this->productDto->name,
+                    'name' => $this->productDto->name ?? $this->product->name,
                     'slug' => $this->productDto->slug ?? $this->product->slug,
-                    'description' => $this->productDto->description ?? $this->product->description,
+                    'description' => optional($this->productDto)->description
+                        ?? (optional($this->productDto)->html_description ? Str::of($this->productDto->html_description)->stripTags() : null) 
+                        ?? optional($this->product)->description,
                     'short_description' => $this->productDto->short_description ?? $this->product->short_description,
                     'html_description' => $this->productDto->html_description ?? $this->product->html_description,
                     'warranty_terms' => $this->productDto->warranty_terms ?? $this->product->warranty_terms,

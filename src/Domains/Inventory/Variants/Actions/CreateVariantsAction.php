@@ -59,7 +59,7 @@ class CreateVariantsAction
                 'name' => $this->variantDto->name,
                 'users_id' => $this->user->getId(),
                 'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
-                'description' => $this->variantDto->description,
+                'description' => $this->variantDto->description ?? Str::of($this->variantDto->html_description)->stripTags(),
                 'short_description' => $this->variantDto->short_description,
                 'html_description' => $this->variantDto->html_description,
                 'status_id' => $this->variantDto->status_id,
