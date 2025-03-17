@@ -49,7 +49,7 @@ class ContentModerationService
             'api_user' => config('services.sightengine.api_user'),
             'api_secret' => config('services.sightengine.api_secret')
         );
-          
+
         $ch = curl_init(config('services.sightengine.text_moderation.api_url'));
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
