@@ -29,8 +29,8 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
             'message_id' => $message->getId(),
             ];
         }
-        $latitude = $messageContent['coordinates']['latitude'];
-        $longitude = $messageContent['coordinates']['longitude'];
+        $latitude = $messageContent['coordinates']['lat'];
+        $longitude = $messageContent['coordinates']['long'];
         $tempFilePath = MapStaticApiService::getImageFromCoordinates($latitude, $longitude);
         $fileName = basename($tempFilePath);
 
