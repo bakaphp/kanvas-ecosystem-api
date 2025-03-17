@@ -7,6 +7,7 @@ namespace App\Console\Commands\Souk;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Models\Settings;
 use Kanvas\Souk\Orders\Models\Order;
 
 class OrderFinishExpiredCommand extends Command
@@ -30,34 +31,60 @@ class OrderFinishExpiredCommand extends Command
     public function handle(): void
     {
         $appsId = $this->argument('app_id');
-        if (! $appsId) {
-            $this->info('No app id provided, skipping');
-            return;
-        }
 
-        $app = Apps::getById($appsId);
-        $this->overwriteAppService($app);
-
-        $ordersInProgress = Order::fromApp($app)->notDeleted()
-        ->whereNotFulfilled()
-        ->whereNotNull('metadata')
-        ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
-        ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_date')) < ?", [now()->toDateTimeString()])
-        ->orderBy('id', 'desc')->get();
-
-        foreach ($ordersInProgress as $order) {
-            $this->finishOrdersExpiredOrder($order);
+        if ($appsId) {
+            $this->checkApps($appsId);
+        } else {
+            $appsIds = Settings::where([
+                'name' => 'check_expired_orders',
+                'value' => '1',
+            ])->select('apps_id')->get()->pluck('apps_id');
+            $this->info('Checking ' . $appsIds->count() . ' apps');
+            foreach ($appsIds as $appsId) {
+                $this->checkApps($appsId);
+                $this->info('Checked ' . $appsId);
+            }
         }
     }
 
     protected function finishOrdersExpiredOrder(Order $order): void
     {
         // get the variant
-        $variant = $order->items[0]->variant;
-        $channel = $variant->variantChannels()->first();
-        $variantWarehouse = $channel?->productVariantWarehouse()->first();
-        // Mark order as completed
-        $order->fulfill();
-        $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $variantWarehouse->quantity + 1);
+        if (count($order->items) > 0) {
+            $variant = $order->items[0]->variant;
+            $channel = $variant->variantChannels()->first();
+
+            $variantWarehouse = $channel?->productVariantWarehouse()->first();
+            // Mark order as completed
+            $order->fulfill();
+            $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $variantWarehouse->quantity + 1);
+            $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
+        } else {
+            $this->info('No items found for order ' . $order->id . ' for app ' . $order->app->name . ' with ' . count($order->items) . ' items');
+        }
+    }
+
+    protected function checkApps($appsId): void
+    {
+        $app = Apps::getById($appsId);
+        $this->overwriteAppService($app);
+
+        $endTime = now()->toDateTimeString();
+        $query = Order::fromApp($app)
+        ->notDeleted()
+        ->whereNotFulfilled()
+        ->whereNotNull('metadata')
+        ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
+        ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) < ?", [$endTime])
+        ->orderBy('id', 'desc')
+        ->with('items');
+
+
+        $ordersInProgress = $query->get();
+        $this->info('Found ' . $ordersInProgress->count() . ' orders in progress to finish for app ' . $app->name . ' at ' . $endTime);
+
+        foreach ($ordersInProgress as $order) {
+            $this->finishOrdersExpiredOrder($order);
+        }
     }
 }
