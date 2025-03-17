@@ -63,7 +63,7 @@ use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierA
 use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
-use Kanvas\Social\Messages\Workflows\Activities\CheckMessageContentActivity;
+use Kanvas\Connectors\Google\Activities\CovertMapsCoordinatesToImageActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
@@ -136,7 +136,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PushUserInteractionToEventActivity::class,
             PushMessageToItemActivity::class,
             DistributeMessageActivity::class,
-            CheckMessageContentActivity::class,
+            CovertMapsCoordinatesToImageActivity::class,
         ];
 
         $createdActions = [];
