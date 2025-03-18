@@ -37,11 +37,13 @@ class SendLeadEmailsAction
 
     public function getProduct(string $productId): object
     {
-        $product = Products::where('id', $productId)->with(['variants', 'variants.warehouses'])->first();
+        $product = Products::where('id', $productId)->with(['variants', 'variants.warehouses', 'variants.variantChannels'])->first();
         $variantWarehouse = $product->variants->first()->warehouses->first();
+        $variantChannel = $product->variants->first()->variantChannels->first();
+
         return (object) [
             'name' => $product->name,
-            'price' => $variantWarehouse->price,
+            'price' => $variantChannel->price,
             'quantity' => $variantWarehouse->quantity,
         ];
     }
