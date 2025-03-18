@@ -208,6 +208,9 @@ class SyncEsimWithProviderCommand extends Command
             $orderService = new ServicesOrderService($message->app, $message->company);
             $remainingData = $orderService->getOrderStatus($orderNumber)['total'];
         }
+        if ($remainingData > $totalBytesData) {
+            $remainingData = $totalBytesData;
+        }
 
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
