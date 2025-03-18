@@ -58,15 +58,14 @@ class PullNetSuiteProductPriceAction
 
         $variantWarehouse = $variant->variantWarehouses()->firstOrFail();
 
-        if ($setMinimumQuantity) {
-            $warehouseOptions = $this->getWarehouseOptions($netsuiteProductInfo, $variantWarehouse, $defaultWarehouse);
-        }
+        $warehouseOptions = $this->getWarehouseOptions($netsuiteProductInfo, $variantWarehouse, $defaultWarehouse);
 
         $mapPrice =  $this->productService->getProductMapPrice($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
 
         $config = [
             'map_price' => $mapPrice,
-            ...(isset($warehouseOptions["minimum_quantity"]) ? ["minimum_quantity" => $warehouseOptions["minimum_quantity"]] : []),
+            ...(isset($warehouseOptions["minimum_quantity"]) && $setMinimumQuantity ? ["minimum_quantity" => $warehouseOptions["minimum_quantity"]] : []),
+
         ];
 
         if (isset($warehouseOptions["quantity"]) && $warehouseOptions["quantity"] !== null) {
@@ -81,6 +80,7 @@ class PullNetSuiteProductPriceAction
             'company' => $this->mainAppCompany->getId(),
             'item' => $barcode,
             'config' => $config,
+            "options" => $warehouseOptions,
         ];
     }
 
