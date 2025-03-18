@@ -45,6 +45,7 @@ jobs:
             
             docker stop phpkanvas-ecosystem
             docker stop nginxkanvas-ecosystem
+            docker stop rediskanvas-ecosystem
             docker restart queue-scrapper
             docker restart queue-scrapper-worker-1
             docker restart queue-scrapper-worker-2
