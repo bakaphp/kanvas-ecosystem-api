@@ -28,7 +28,7 @@ jobs:
 
   docker-command:
     runs-on: ubuntu-latest
-    needs: deploy-to-ec2
+    needs: deploy-to-queues-ec2
     environment: ${{ github.ref_name }}
     steps:
       - name: executing remote ssh commands using password
