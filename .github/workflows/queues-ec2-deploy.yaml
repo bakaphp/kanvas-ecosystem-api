@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy-to-ec2:
+  deploy-to-queues-ec2:
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name }}
     permissions:
@@ -43,9 +43,8 @@ jobs:
             docker-compose -f docker-compose.${{ github.ref_name }}.yml up -d
             docker exec -i phpkanvas-ecosystem composer install --no-dev --optimize-autoloader
             
-            docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
-            docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
-            docker exec -i phpkanvas-ecosystem php artisan config:cache
+            docker stop phpkanvas-ecosystem
+            docker stop nginxkanvas-ecosystem
             docker restart queue-scrapper
             docker restart queue-scrapper-worker-1
             docker restart queue-scrapper-worker-2
