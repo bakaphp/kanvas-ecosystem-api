@@ -204,10 +204,18 @@ class SyncEsimWithProviderCommand extends Command
         $orderNumber = $message->message['order']['order_number'] ?? null;
         $totalBytesData = FileSizeConverter::toBytes($totalData);
         $remainingData = $totalBytesData;
+
         if ($orderNumber !== null) {
             $orderService = new ServicesOrderService($message->app, $message->company);
             $remainingData = $orderService->getOrderStatus($orderNumber)['total'];
         }
+
+        if ($response['state'] == 'Released') {
+            $isPublished = true;
+        } else {
+            $isPublished = false;
+        }
+
         if ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
         }
@@ -226,6 +234,7 @@ class SyncEsimWithProviderCommand extends Command
             esimStatus: $response['state'],
             message: $response['installDevice'],
             installedDate: $installedDate,
+            is_published: $isPublished ?? null,
         );
 
         return $esimStatus->toArray();
