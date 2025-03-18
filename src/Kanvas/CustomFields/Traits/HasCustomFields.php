@@ -416,12 +416,11 @@ trait HasCustomFields
      * If something happened to redis
      * And we need to re insert all the custom fields
      * for this entity , we run this method.
+     * @deprecated
      */
     public function reCacheCustomFields(): void
     {
-        foreach ($this->getAll(fromRedis: false) as $key => $value) {
-            $this->setInRedis($key, $value);
-        }
+        $this->reGenerateRedisCustomFields();
     }
 
     /**
