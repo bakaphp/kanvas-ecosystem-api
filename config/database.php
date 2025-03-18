@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Support\Str;
-
 return [
     /*
     |--------------------------------------------------------------------------
@@ -369,10 +367,9 @@ return [
 
     'redis' => [
         'client' => env('REDIS_CLIENT', 'phpredis'),
-
         'options' => [
-            'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_'),
+            'cluster' => 'redis',
+            'prefix' => env('REDIS_PREFIX', ''),
             'serializer' => extension_loaded('igbinary') && defined('Redis::SERIALIZER_IGBINARY') ? Redis::SERIALIZER_IGBINARY : Redis::SERIALIZER_PHP,
             'ssl' => [
                 'verify_peer' => false,
@@ -385,18 +382,22 @@ return [
                 [
                     'host' => env('REDIS_HOST', '127.0.0.1'),
                     'password' => env('REDIS_PASSWORD', null),
-                    'port' => env('REDIS_PORT', 6379),
+                    'port' => env('REDIS_PORT', '6379'),
                     'database' => 0,
                     'scheme' => 'tls',
                 ],
             ],
         ],
+
+        // Individual connections with prefixes
         'default' => [
             'url' => env('REDIS_URL'),
             'host' => env('REDIS_HOST', '127.0.0.1'),
             'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
-            'database' => env('REDIS_DB', '0'),
+            'database' => 0,
+            'prefix' => '{default}:',
+            'scheme' => 'tls',
         ],
 
         'cache' => [
@@ -404,7 +405,9 @@ return [
             'host' => env('REDIS_HOST', '127.0.0.1'),
             'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
-            'database' => env('REDIS_CACHE_DB', '1'),
+            'database' => 0,
+            'prefix' => '{cache}:',
+            'scheme' => 'tls',
         ],
 
         'model-cache' => [
@@ -412,7 +415,9 @@ return [
             'host' => env('REDIS_HOST', '127.0.0.1'),
             'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
-            'database' => 2,
+            'database' => 0,
+            'prefix' => '{model}:',
+            'scheme' => 'tls',
         ],
 
         'queue' => [
@@ -420,7 +425,9 @@ return [
             'host' => env('REDIS_HOST', '127.0.0.1'),
             'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
-            'database' => 3,
+            'database' => 0,
+            'prefix' => '{queue}:',
+            'scheme' => 'tls',
             'options' => [
                 'serializer' => 0,
                 'compression' => 0,
@@ -432,7 +439,9 @@ return [
             'host' => env('REDIS_HOST', '127.0.0.1'),
             'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
-            'database' => 4,
+            'database' => 0,
+            'prefix' => '{graph}:',
+            'scheme' => 'tls',
         ],
 
         'lighthouse-redis-subscription' => [
@@ -440,7 +449,9 @@ return [
             'host' => env('REDIS_HOST', '127.0.0.1'),
             'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
-            'database' => 5,
+            'database' => 0,
+            'prefix' => '{lighthouse}:',
+            'scheme' => 'tls',
         ],
     ],
 ];
