@@ -8,8 +8,7 @@ use BaconQrCode\Renderer\Image\ImagickImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
-use DateTime;
-use DateTimeZone;
+use Carbon\Carbon;
 use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
 use Kanvas\Connectors\CMLink\Services\CustomerService;
@@ -135,14 +134,12 @@ class CreateEsimOrderAction
         $totalData = $orderVariant->getAttributeBySlug('data')?->value ?? 0;
         $timestamp = ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time();
 
-        //Create DateTime object in UTC
-        $date = new DateTime("@$timestamp", new DateTimeZone("UTC"));
-        //Change to EST timezone (without daylight saving time)
-        $date->setTimezone(new DateTimeZone("America/New_York"));
-        //Get the new Unix timestamp in EST
-        $timestamp_est = $date->getTimestamp();
-        //Format the date as 'Y-m-d H:i:s'
-        $formatted_est = $date->format('Y-m-d H:i:s');
+        //Convert Unix timestamp to EST using Carbon
+        $dateEst = Carbon::createFromTimestamp($timestamp, 'UTC')->setTimezone('America/New_York');
+        //Unix timestamp in EST
+        $timestampEst = $dateEst->timestamp;
+        //Formatted date in EST
+        $formattedEst = $dateEst->format('Y-m-d H:i:s');
 
         $esim = new ESim(
             $esimData['data']['downloadUrl'],
@@ -154,7 +151,7 @@ class CreateEsimOrderAction
             $orderVariant->sku,
             $esimData['data']['smdpAddress'],
             $esimData['data']['activationCode'],
-            $timestamp_est,
+            $timestampEst,
             json_encode(['order' => $this->order->getId(), 'install_device' => $esimData['data']['installDevice'] ?? '']),
             $qrCodeBase64,
             new ESimStatus(
@@ -162,7 +159,7 @@ class CreateEsimOrderAction
                 'data',
                 FileSizeConverter::toBytes($totalData),
                 FileSizeConverter::toBytes($totalData),
-                $formatted_est ?? $this->order->created_at->format('Y-m-d H:i:s'),
+                $formattedEst ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $esimData['data']['activationCode'],
                 $esimData['data']['state'],
                 $orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
