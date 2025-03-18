@@ -33,6 +33,7 @@ type User {
     photo: Filesystem @method(name: "getPhoto")
     social: UserSocialInfo @method(name: "getSocialInfo")
     files: [Filesystem!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
@@ -40,6 +41,7 @@ type User {
     custom_fields(
         orderBy: _ @orderBy(columns: ["updated_at", "created_at"])
     ): [CustomField!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
@@ -295,7 +297,7 @@ extend type Mutation {
 }
 
 type Query @guard {
-    me: User! @auth
+    me: User! @auth @cacheRedis(maxAge: 300)
     user(id: ID! @eq): User
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersListQuery@getFromCurrentCompany"
