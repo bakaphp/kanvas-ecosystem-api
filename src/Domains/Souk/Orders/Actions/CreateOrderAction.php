@@ -122,6 +122,7 @@ class CreateOrderAction
                 }
             });
 
+            $order->refresh();
             return $order;
         });
     }
