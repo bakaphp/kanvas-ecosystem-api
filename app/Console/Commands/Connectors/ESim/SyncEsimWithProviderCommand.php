@@ -212,6 +212,9 @@ class SyncEsimWithProviderCommand extends Command
 
         $validStates = ['released', 'installed', 'active', 'enabled'];
 
+        /**
+         * @todo Move this to somewhere more central
+         */
         if (in_array(strtolower($response['state']), $validStates)) {
             $message->setPublic();
         } else {
