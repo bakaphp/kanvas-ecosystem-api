@@ -135,14 +135,14 @@ class CreateEsimOrderAction
         $totalData = $orderVariant->getAttributeBySlug('data')?->value ?? 0;
         $timestamp = ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time();
 
-        // Create DateTime object in UTC
-        $date = new DateTime("@$timestamp", new DateTimeZone("UTC"));  
-        // Change to EST timezone (without daylight saving time)  
-        $date->setTimezone(new DateTimeZone("America/New_York"));  
-        // Get the new Unix timestamp in EST  
-        $timestamp_est = $date->getTimestamp();  
-        // Format the date as 'Y-m-d H:i:s'  
-        $formatted_est = $date->format('Y-m-d H:i:s'); 
+        //Create DateTime object in UTC
+        $date = new DateTime("@$timestamp", new DateTimeZone("UTC"));
+        //Change to EST timezone (without daylight saving time)
+        $date->setTimezone(new DateTimeZone("America/New_York"));
+        //Get the new Unix timestamp in EST
+        $timestamp_est = $date->getTimestamp();
+        //Format the date as 'Y-m-d H:i:s'
+        $formatted_est = $date->format('Y-m-d H:i:s');
 
         $esim = new ESim(
             $esimData['data']['downloadUrl'],
