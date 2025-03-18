@@ -210,7 +210,9 @@ class SyncEsimWithProviderCommand extends Command
             $remainingData = $orderService->getOrderStatus($orderNumber)['total'];
         }
 
-        if (strtolower($response['state']) == 'released') {
+        $validStates = ['released', 'installed', 'active', 'enabled'];
+
+        if (in_array(strtolower($response['state']), $validStates)) {
             $message->setPublic();
         } else {
             $message->setPrivate();
