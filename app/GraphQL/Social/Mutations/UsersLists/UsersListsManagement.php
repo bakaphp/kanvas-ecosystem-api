@@ -12,6 +12,7 @@ use Kanvas\Social\UsersLists\Actions\CreateUserListAction;
 use Kanvas\Social\UsersLists\DataTransferObject\UserList;
 use Kanvas\Social\UsersLists\Models\UserList as ModelUserList;
 use Kanvas\Social\UsersLists\Repositories\UserListRepository;
+use Kanvas\SystemModules\Models\SystemModules;
 
 class UsersListsManagement
 {
@@ -95,15 +96,7 @@ class UsersListsManagement
 
     private function getEntity(string $entityType, int $entityId): Model
     {
-        $entities = [
-            'message' => Message::class,
-            'product' => Products::class,
-        ];
-
-        if (! isset($entities[$entityType])) {
-            throw new \Exception('Invalid entity type');
-        }
-
-        return $entities[$entityType]::getById($entityId);
+        $entityClass = SystemModules::getSystemModuleNameSpaceBySlug($entityType);
+        return $entityClass::getById($entityId);
     }
 }

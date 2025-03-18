@@ -10,8 +10,6 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Messages\Models\Message;
