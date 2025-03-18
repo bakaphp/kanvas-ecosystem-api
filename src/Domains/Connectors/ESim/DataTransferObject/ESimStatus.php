@@ -34,8 +34,7 @@ class ESimStatus extends Data
         public readonly ?string $esimStatus = null,
         public readonly ?string $message = null,
         #[MapOutputName('installed_date')]
-        public readonly ?string $installedDate = null,
-        public readonly ?bool $is_published = null
+        public readonly ?string $installedDate = null
     ) {
     }
 }

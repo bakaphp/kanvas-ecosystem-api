@@ -211,9 +211,9 @@ class SyncEsimWithProviderCommand extends Command
         }
 
         if ($response['state'] == 'Released') {
-            $isPublished = true;
+            $message->setPublic();
         } else {
-            $isPublished = false;
+            $message->setPrivate();
         }
 
         if ($remainingData > $totalBytesData) {
@@ -234,7 +234,6 @@ class SyncEsimWithProviderCommand extends Command
             esimStatus: $response['state'],
             message: $response['installDevice'],
             installedDate: $installedDate,
-            is_published: $isPublished ?? null,
         );
 
         return $esimStatus->toArray();
