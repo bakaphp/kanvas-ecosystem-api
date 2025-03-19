@@ -17,7 +17,6 @@ use Kanvas\Inventory\Attributes\Actions\CreateAttributeType;
 use Kanvas\Inventory\Attributes\DataTransferObject\AttributesType;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
 
-
 class CovertMapsCoordinatesToImageActivity extends KanvasActivity
 {
     public function execute(Model $entity, AppInterface $app, array $params = []): array
@@ -28,13 +27,12 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
 
         if (empty($mapCoordinates)) {
             return [
-            'result' => false,
-            'message' => 'Coordinates not found on message body',
-            'activity' => self::class,
-            'message_id' => $entity->getId(),
+                'result' => false,
+                'message' => 'Coordinates not found on message body',
+                'activity' => self::class,
+                'message_id' => $entity->getId(),
             ];
         }
-      
         $latitude = $mapCoordinates['lat'];
         $longitude = $mapCoordinates['long'];
         $tempFilePath = MapStaticApiService::getImageFromCoordinates($latitude, $longitude);
@@ -55,7 +53,6 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
         $fileSystemRecord = $filesystem->upload($uploadedFile, $entity->user);
 
         try {
-
             //Create image atrribute type
             $imageAttributeType = new CreateAttributeType(
                 AttributesType::viaRequest([
@@ -69,16 +66,16 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
             //Create attribute
             $imageAttribute = (new CreateAttribute(
                 AttributeDto::viaRequest(
-                [
-                    'company' => $entity->company,
-                    'app' => $app,
-                    'name' => 'Image',
-                    'slug' => 'image',
-                    'attributeType' => $imageAttributeType,
-                    'isVisible' => true,
-                    'isSearchable' => true,
-                    'isFiltrable' => true,
-                ], 
+                    [
+                        'company' => $entity->company,
+                        'app' => $app,
+                        'name' => 'Image',
+                        'slug' => 'image',
+                        'attributeType' => $imageAttributeType,
+                        'isVisible' => true,
+                        'isSearchable' => true,
+                        'isFiltrable' => true,
+                    ],
                     $entity->user,
                     $app
                 ),
@@ -86,7 +83,6 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
             ))->execute();
 
             $imageAttribute->addDefaultValue($fileSystemRecord->url);
-
         } catch (\Throwable $th) {
             return [
                 'result' => false,
