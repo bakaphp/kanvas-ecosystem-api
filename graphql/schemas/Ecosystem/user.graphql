@@ -295,7 +295,7 @@ extend type Mutation {
 }
 
 type Query @guard {
-    me: User! @cacheRedis @auth
+    me: User! @auth @cacheRedis
     user(id: ID! @eq): User
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersListQuery@getFromCurrentCompany"

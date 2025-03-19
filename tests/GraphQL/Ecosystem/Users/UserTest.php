@@ -99,7 +99,7 @@ class UserTest extends TestCase
         $currentPassword = 'abcabc123456';
         $userData = $this->graphQL(/** @lang GraphQL */ '
             { 
-                me {
+                me @skipCache{
                     id,
                     uuid,
                     email
@@ -193,7 +193,7 @@ class UserTest extends TestCase
         $currentPassword = 'abc12345676';
         $userData = $this->graphQL(/** @lang GraphQL */ '
             { 
-                me {
+                me @skipCache {
                     id,
                     uuid,
                     email
