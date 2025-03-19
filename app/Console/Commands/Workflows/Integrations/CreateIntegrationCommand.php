@@ -44,7 +44,7 @@ class CreateIntegrationCommand extends Command
             $this->overwriteAppService($app);
             $appId = $app->getId();
         }
-    
+
         // Paso 2: Ask if have configuration
         $hasConfig = $this->confirm('¿Does the integration have config?', false);
 
