@@ -11,26 +11,31 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Google\Services\MapStaticApiService;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Workflow\KanvasActivity;
+use Kanvas\Inventory\Attributes\Actions\CreateAttributeType;
+use Kanvas\Inventory\Attributes\DataTransferObject\AttributesType;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
+
 
 class CovertMapsCoordinatesToImageActivity extends KanvasActivity
 {
-    public function execute(Model $message, AppInterface $app, array $params = []): array
+    public function execute(Model $entity, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
 
-        $messageContent = ! is_array($message->message) ? json_decode($message->message, true) : $message->message;
+        $mapCoordinates = json_decode($entity->getAttributeBySlug("coordinates")->attribute->value, true);
 
-        if (! array_key_exists('coordinates', $messageContent) || empty($messageContent['coordinates'])) {
+        if (empty($mapCoordinates)) {
             return [
             'result' => false,
             'message' => 'Coordinates not found on message body',
             'activity' => self::class,
-            'message_id' => $message->getId(),
+            'message_id' => $entity->getId(),
             ];
         }
-        $latitude = $messageContent['coordinates']['latitude'];
-        $longitude = $messageContent['coordinates']['longitude'];
+        $latitude = $mapCoordinates['lat'];
+        $longitude = $mapCoordinates['long'];
         $tempFilePath = MapStaticApiService::getImageFromCoordinates($latitude, $longitude);
         $fileName = basename($tempFilePath);
 
@@ -46,19 +51,46 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
         );
 
         $filesystem = new FilesystemServices($app);
-        $fileSystemRecord = $filesystem->upload($uploadedFile, $message->user);
+        $fileSystemRecord = $filesystem->upload($uploadedFile, $entity->user);
 
         try {
-            $tempMessageArray = $messageContent;
-            $tempMessageArray['image'] = $fileSystemRecord->url;
-            $message->message = $tempMessageArray;
-            $message->saveOrFail();
+
+            //Create image atrribute type
+            $imageAttributeType = new CreateAttributeType(
+                AttributesType::viaRequest([
+                    'company_id' => $entity->companies_id,
+                    'name' => 'image',
+                    'is_default' => false,
+                ], $entity->user),
+                $entity->user
+            );
+
+            //Create attribute
+            $imageAttribute = (new CreateAttribute(
+                AttributeDto::viaRequest([
+                    'company' => $entity->company,
+                    'app' => $app,
+                    'name' => 'Image',
+                    'slug' => 'image',
+                    'attributeType' => $imageAttributeType,
+                    'isVisible' => true,
+                    'isSearchable' => true,
+                    'isFiltrable' => true,
+                ], 
+                $entity->user,
+                $app),
+                $entity->user
+            ))->execute();
+
+            $imageAttribute->addDefaultValue($fileSystemRecord->url);
+
+            
         } catch (\Throwable $th) {
             return [
                 'result' => false,
-                'message' => 'Failed to save message',
+                'message' => 'Failed to save image attribute',
                 'activity' => self::class,
-                'message_id' => $message->getId(),
+                'entity_id' => $entity->getId(),
                 'error' => $th->getMessage(),
             ];
         }
@@ -71,7 +103,7 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
             'message' => 'Image Url converted to Kanvas Filesystem',
             'activity' => self::class,
             'data' => $fileSystemRecord,
-            'message_id' => $message->getId(),
+            'message_id' => $entity->getId(),
         ];
     }
 }
