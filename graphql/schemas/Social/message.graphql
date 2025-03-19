@@ -230,6 +230,7 @@ extend type Query @guard {
             )
         search: String @search
     ): [Message!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getAll"
