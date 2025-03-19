@@ -67,7 +67,8 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
 
             //Create attribute
             $imageAttribute = (new CreateAttribute(
-                AttributeDto::viaRequest([
+                AttributeDto::viaRequest(
+                [
                     'company' => $entity->company,
                     'app' => $app,
                     'name' => 'Image',
@@ -77,14 +78,14 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
                     'isSearchable' => true,
                     'isFiltrable' => true,
                 ], 
-                $entity->user,
-                $app),
+                    $entity->user,
+                    $app
+                ),
                 $entity->user
             ))->execute();
 
             $imageAttribute->addDefaultValue($fileSystemRecord->url);
 
-            
         } catch (\Throwable $th) {
             return [
                 'result' => false,
