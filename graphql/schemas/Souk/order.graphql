@@ -254,6 +254,7 @@ extend type Query @guard {
                     "user_email"
                     "user_phone"
                     "status"
+                    "fulfillment_status"
                 ]
             )
         hasAddress: _
@@ -272,7 +273,7 @@ extend type Query @guard {
         hasItems: _
             @whereHasConditions(
                 relation: "items"
-                columns: ["product_name", "product_sku"]
+                columns: ["product_name", "product_sku", "variant_id"]
             )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "status"])

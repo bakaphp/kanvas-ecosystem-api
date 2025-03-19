@@ -62,4 +62,15 @@ return [
         'tolerance' => env('STRIPE_WEBHOOK_TOLERANCE', 300),
         ],
     ],
+
+    'sightengine' => [
+        'api_user' => env('SIGHTENGINE_API_USER'),
+        'api_secret' => env('SIGHTENGINE_API_SECRET'),
+        'image_moderation' => [
+            'api_url' => env('SIGHTENGINE_IMAGE_MODERATION_API_URL')
+        ],
+        'text_moderation' => [
+            'api_url' => env('SIGHTENGINE_TEXT_MODERATION_API_URL')
+        ]
+    ]
 ];

@@ -38,7 +38,7 @@ class VariantsAttributes extends BaseModel
     ];
 
     protected $primaryKey = ['products_variants_id', 'attributes_id'];
-    public $translatable = ['value'];
+    public $translatable = ['name', 'value'];
 
     #[Override]
     protected function casts(): array

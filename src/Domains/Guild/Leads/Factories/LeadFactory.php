@@ -34,8 +34,10 @@ class LeadFactory extends Factory
             'people_id' => People::factory()
                             ->withAppId($appId)
                             ->withCompanyId($companyId)
+                            ->withContacts()
                             ->create()
                             ->getId(),
+
         ];
     }
 

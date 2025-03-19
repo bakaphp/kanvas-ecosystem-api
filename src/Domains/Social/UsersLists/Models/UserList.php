@@ -9,6 +9,7 @@ use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Messages\Models\Message;
@@ -43,6 +44,11 @@ class UserList extends BaseModel
     public function items(): BelongsToMany
     {
         return $this->belongsToMany(Message::class, 'users_lists_messages', 'users_lists_id', 'messages_id');
+    }
+
+    public function entities(): HasMany
+    {
+        return $this->hasMany(UserListEntity::class, 'users_lists_id');
     }
 
     /**
