@@ -14,11 +14,6 @@ class VariantObserver
         $variant->clearLightHouseCache(withKanvasConfiguration: false);
     }
 
-    public function updated(Variants $variant): void
-    {
-        $variant->clearLightHouseCache(withKanvasConfiguration: false);
-    }
-
     public function deleting(Variants $variant): void
     {
         $totalVariant = Variants::fromCompany($variant->company)

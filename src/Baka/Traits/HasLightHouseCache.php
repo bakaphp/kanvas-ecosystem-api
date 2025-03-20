@@ -12,9 +12,11 @@ trait HasLightHouseCache
 {
     abstract public function getGraphTypeName(): string;
 
-    public function clearLightHouseCache(bool $withKanvasConfiguration = true): void
-    {
-        $key = $this->generateLighthouseCacheKey() . '*';
+    public function clearLightHouseCache(
+        bool $withKanvasConfiguration = true,
+        bool $cleanGlobalKey = false
+    ): void {
+        $key = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
         $redis = Redis::connection('graph-cache');
         $keys = $redis->keys($key);
         if (empty($keys) && $withKanvasConfiguration) {
@@ -69,12 +71,14 @@ trait HasLightHouseCache
         $this->generateRelationshipLighthouseCache('files', $items);
     }
 
-    protected function generateLighthouseCacheKey(): string
+    protected function generateLighthouseCacheKey(bool $globalModelKey = false): string
     {
         $graphTypeName = $this->getGraphTypeName();
         $separator = CacheKeyAndTagsGenerator::SEPARATOR;
 
-        return CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName . $separator . $this->getId();
+        $key = CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName;
+
+        return $globalModelKey ? $key : $key . $separator . $this->getId();
     }
 
     protected function getRelationshipQueryBuilder(string $relationship)
