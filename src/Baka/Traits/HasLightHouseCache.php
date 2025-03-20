@@ -12,12 +12,12 @@ trait HasLightHouseCache
 {
     abstract public function getGraphTypeName(): string;
 
-    public function clearLightHouseCache(): void
+    public function clearLightHouseCache(bool $withKanvasConfiguration = true): void
     {
         $key = $this->generateLighthouseCacheKey() . '*';
         $redis = Redis::connection('graph-cache');
         $keys = $redis->keys($key);
-        if (empty($keys)) {
+        if (empty($keys) && $withKanvasConfiguration) {
             //$this->generateCustomFieldsLighthouseCache();
             $this->generateFilesLighthouseCache();
 
@@ -29,7 +29,9 @@ trait HasLightHouseCache
         }
 
         //$this->generateCustomFieldsLighthouseCache();
-        $this->generateFilesLighthouseCache();
+        if ($withKanvasConfiguration) {
+            $this->generateFilesLighthouseCache();
+        }
     }
 
     public function clearLightHouseCacheJob(): void

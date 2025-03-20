@@ -30,7 +30,7 @@ type Variant {
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]! @method(name: "visibleAttributes")
+    attributes: [VariantsAttributes!]! @method(name: "visibleAttributes") @cacheRedis
     companies: Company! @belongsTo(relation: "company")
     channels: [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")
