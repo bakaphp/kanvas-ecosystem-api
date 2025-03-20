@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Repositories;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 
 class MessagesRepository
@@ -31,5 +33,30 @@ class MessagesRepository
         }
 
         return array_values(array_unique($userPostsTags));
+    }
+
+    public static function getcurrentMonthCreationCount(Apps $app, Users $user, MessageType $messageType): int
+    {
+        $messageCountOnCurrentMonth = Message::query()
+            ->columns('COUNT(id) as count')
+            ->where('apps_id', $app->getId())
+            ->where('users_id', $user->getId())
+            ->where('message_types_id', $messageType->getId())
+            ->where('MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())')
+            ->execute()
+            ->getFirst();
+
+        return $messageCountOnCurrentMonth->count;
+    }
+
+    public static function getMostPopularMesssageByTotalLikes(Apps $app, MessageType $messageType): Message
+    {
+        return Message::query()
+            ->where('apps_id', $app->getId())
+            ->where('message_types_id', $messageType->getId())
+            ->orderBy('total_likes DESC')
+            ->limit(1)
+            ->execute()
+            ->getFirst();
     }
 }
