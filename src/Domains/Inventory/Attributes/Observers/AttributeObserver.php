@@ -9,6 +9,13 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 
 class AttributeObserver
 {
+    public function saved(Attributes $attribute): void
+    {
+        //$attribute->clearLightHouseCache(withKanvasConfiguration: false);
+        $attribute->variantAttributes->first()?->variant?->clearLightHouseCache(withKanvasConfiguration: false, cleanGlobalKey: true);
+        $attribute->productsAttributes->first()?->product?->clearLightHouseCache(withKanvasConfiguration: false, cleanGlobalKey: true);
+    }
+
     public function deleting(Attributes $attribute): void
     {
         if ($attribute->hasDependencies()) {

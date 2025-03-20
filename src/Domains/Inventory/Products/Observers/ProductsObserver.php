@@ -14,15 +14,15 @@ class ProductsObserver
             $product->productsTypes->setTotalProducts();
         }
 
-        //$products->clearLightHouseCacheJob();
+        $product->clearLightHouseCache(withKanvasConfiguration: false);
     }
 
-    public function created(Products $products): void
+    public function created(Products $product): void
     {
-        if ($products->productsTypes()->exists()) {
-            $products->productsTypes->setTotalProducts();
+        if ($product->productsTypes()->exists()) {
+            $product->productsTypes->setTotalProducts();
         }
 
-        //$products->clearLightHouseCacheJob();
+        $product->clearLightHouseCache(withKanvasConfiguration: false);
     }
 }
