@@ -208,6 +208,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
         )
+    updateOrder(id: ID!, input: OrderCartInput!): OrderResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@update"
+        )
     createOrderFromAppleInAppPurchase(
         input: AppleInAppPurchaseReceipt!
     ): Order!

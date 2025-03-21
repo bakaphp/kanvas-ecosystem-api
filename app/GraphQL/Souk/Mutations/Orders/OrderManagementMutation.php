@@ -50,6 +50,8 @@ class OrderManagementMutation
         return $this->handlePaymentResponse($response, $isSubscription);
     }
 
+ 
+
     public function createFromCart(mixed $root, array $request): array
     {
         $user = auth()->user();
@@ -96,6 +98,38 @@ class OrderManagementMutation
         return [
             'order' => $createOrder->execute(),
             'message' => 'Order created successfully',
+        ];
+    }
+
+    public function update(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $orderId = $request['id'];
+        $orderData = $request['input'];
+
+        
+        if (empty($request['input']['items'])) {
+            return [
+                'order' => null,
+                'message' => [
+                    'error_code' => 'Cart is empty',
+                    'error_message' => 'Cart is empty',
+                ],
+            ];
+        }
+
+        $updateOrder = new UpdateOrderAction(
+            $orderId,
+            $orderData,
+            $user,
+            $app
+        );
+
+        return [
+            'order' => $updateOrder->execute(),
+            'message' => 'Order updated successfully',
         ];
     }
 
