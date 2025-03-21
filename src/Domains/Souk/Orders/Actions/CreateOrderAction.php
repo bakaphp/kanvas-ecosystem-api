@@ -29,7 +29,7 @@ class CreateOrderAction
 
     public function execute(): ModelsOrder
     {
-        return DB::connection('commerce')->transaction(function () {
+        $orderId = DB::connection('commerce')->transaction(function () {
             // Lock the table for uniqueness check
             $existingOrder = ModelsOrder::where([
                 'apps_id' => $this->orderData->app->getId(),
@@ -122,9 +122,11 @@ class CreateOrderAction
                 }
             });
 
-            $order->refresh();
-            return $order;
+            return $order->id; // Return only the ID
         });
+
+        // Now fetch a fresh order after the transaction and afterCommit callbacks have executed
+        return ModelsOrder::findOrFail($orderId);
     }
 
     public function disableWorkflow(): self
