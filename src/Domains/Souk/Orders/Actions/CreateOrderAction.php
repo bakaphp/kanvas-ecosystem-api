@@ -122,10 +122,10 @@ class CreateOrderAction
                 }
             });
 
-            return $order->id; // Return only the ID
+            return $order->id;
         });
 
-        // Now fetch a fresh order after the transaction and afterCommit callbacks have executed
+        // we need to fetch the data since workflow is run after commit and refresh would not work
         return ModelsOrder::findOrFail($orderId);
     }
 
