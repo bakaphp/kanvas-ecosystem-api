@@ -6,9 +6,10 @@ namespace Kanvas\Connectors\Shopify\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\Contracts\IntegrationDtoInterface;
 use Kanvas\Inventory\Regions\Models\Regions;
 
-class Shopify
+class Shopify implements IntegrationDtoInterface
 {
     /**
      * __construct.
