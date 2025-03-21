@@ -47,7 +47,6 @@ class SendMonthlyMessageCountJob implements ShouldQueue
             ],
             $this->config['via']
         );
-        
         $this->user->notify($monthlyCountNotification);
     }
 }
