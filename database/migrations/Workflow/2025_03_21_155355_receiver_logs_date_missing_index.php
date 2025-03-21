@@ -11,7 +11,6 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('receiver_webhooks', function (Blueprint $table) {
-            $table->index('apps_id');
             $table->index('created_at');
             $table->index('updated_at');
         });
@@ -29,7 +28,8 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('receiver_webhooks', function (Blueprint $table) {
-            $table->dropIndex(['apps_id']);
+            $table->dropIndex(['created_at']);
+            $table->dropIndex(['updated_at']);
         });
 
         Schema::table('receiver_webhook_calls', function (Blueprint $table) {
