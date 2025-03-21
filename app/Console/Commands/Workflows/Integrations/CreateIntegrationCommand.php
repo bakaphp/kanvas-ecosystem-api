@@ -7,9 +7,12 @@ namespace App\Console\Commands\Workflows\Integrations;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Models\Integrations;
-
+use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
 use function Laravel\Prompts\info;
+use RuntimeException;
+use Symfony\Component\Console\Exception\InvalidArgumentException;
 
 class CreateIntegrationCommand extends Command
 {
@@ -21,7 +24,7 @@ class CreateIntegrationCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:create-integration {--app_id=}';
+    protected $signature = 'kanvas:create-integration {name} {--app_id=} {--config=} {--handler=} {--workflow_id=} {--receiver_id=}';
 
     /**
      * The console command description.
@@ -30,14 +33,18 @@ class CreateIntegrationCommand extends Command
      */
     protected $description = 'Create a new Integration';
 
-    public function handle()
+    /**
+     * @psalm-suppress MixedArgument
+     *
+     * @throws InvalidArgumentException
+     * @throws ModelNotFoundException
+     * @throws RuntimeException
+     * @throws NonInteractiveValidationException
+     */
+    public function handle(): void
     {
+        $name = $this->argument('name');
         $appId = 0;
-
-        // Paso 1: Ask for integration name
-        $name = $this->ask('Enter Integration Name');
-
-        $handler = $this->ask('Enter the integration handler class name');
 
         if ($this->option('app_id')) {
             $app = Apps::getById($this->option('app_id'));
@@ -45,42 +52,11 @@ class CreateIntegrationCommand extends Command
             $appId = $app->getId();
         }
 
-        // Paso 2: Ask if have configuration
-        $hasConfig = $this->confirm('¿Does the integration have config?', false);
-
-        $config = [];
-
-        if ($hasConfig) {
-            $this->info("Add the fields of the configuration. Leave the name blank to end.");
-
-            while (true) {
-                // Paso 3.1: Ask for field name
-                $fieldName = $this->ask('Enter configuration name');
-                if (empty($fieldName)) {
-                    break;
-                }
-
-                // Paso 3.2: Ask for data type
-                $fieldType = $this->choice('Select data type', ['text', 'number', 'boolean', 'json'], 0);
-
-                // Paso 3.3: Ask if required
-                $isRequired = $this->confirm('¿Is this field required?', true);
-
-                // Add configuration fields
-                $config[$fieldName] = [
-                    'type' => $fieldType,
-                    'required' => $isRequired
-                ];
-
-                $this->info("Field '$fieldName' added.");
-            }
+        if ($config = $this->option('config')) {
+            $config = json_decode($this->option('config'), true);
         }
 
-        $integrationData = [
-            'name' => $name,
-            'config' => $config,
-            'handler' => $handler
-        ];
+        $handler = $this->option('handler') ?? null;
 
         $integration = Integrations::firstOrCreate([
             'name' => $name,
@@ -91,6 +67,5 @@ class CreateIntegrationCommand extends Command
         ]);
 
         info('Integration created successfully - ' . $integration->getId() . ' - ' . $integration->name);
-        $this->line(json_encode($integrationData, JSON_PRETTY_PRINT));
     }
 }
