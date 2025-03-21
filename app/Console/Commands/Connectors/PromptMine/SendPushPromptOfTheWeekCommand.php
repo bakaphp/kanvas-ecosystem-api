@@ -21,7 +21,7 @@ class SendPushPromptOfTheWeekCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-promptmine: send-push-prompt-of-the-week {app_id} {message_type_id}';
+    protected $signature = 'kanvas:promptmine-send-push-prompt-of-the-week {app_id} {message_type_id}';
 
     /**
      * The console command description.

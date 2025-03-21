@@ -21,7 +21,7 @@ class SendPushMonthlyPromptCountCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-promptmine: send-push-monthly-prompt-count {app_id} {message_type_id}';
+    protected $signature = 'kanvas:promptmine-send-push-monthly-prompt-count {app_id} {message_type_id}';
 
     /**
      * The console command description.
