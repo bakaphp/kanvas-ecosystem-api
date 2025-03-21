@@ -87,7 +87,7 @@ trait HasCustomFields
         }
 
         $results = DB::select($query, $parameters);
-        
+
         $listOfCustomFields = [];
 
         foreach ($results as $row) {

@@ -111,6 +111,7 @@ class SystemModules extends BaseModel
     {
         $mapping = [
             Lead::class => 'Gewaer\\Models\\Leads',
+            People::class => 'Gewaer\\Models\\Peoples\\Peoples',
             Message::class => 'Gewaer\\Models\\Messages',
             Companies::class => 'Gewaer\\Models\\Companies',
             // Message::class => 'Kanvas\Packages\Social\Models\Messages',
