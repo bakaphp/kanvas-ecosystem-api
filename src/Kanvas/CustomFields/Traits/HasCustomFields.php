@@ -19,6 +19,7 @@ use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 trait HasCustomFields
@@ -64,19 +65,28 @@ trait HasCustomFields
         }
 
         $companyId = $this->companies_id ?? 0;
+        $currentClass = get_class($this);
+        $legacySystemModule = SystemModules::getLegacyNamespace($currentClass);
+        $hasLegacySystemModule = $legacySystemModule !== $currentClass;
 
-        $results = DB::select('
-            SELECT name, value
-                FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
-                WHERE
-                    companies_id = ?
-                    AND model_name = ?
-                    AND entity_id = ?
-        ', [
-            $companyId,
-            get_class($this),
-            $this->getKey(),
-        ]);
+        // Build the query dynamically
+        $query = 'SELECT name, value 
+            FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
+            WHERE companies_id = ? AND entity_id = ?';
+
+        $parameters = [$companyId, $this->getKey()];
+
+        // Add model_name condition based on legacy status
+        if ($hasLegacySystemModule) {
+            $query .= ' AND (model_name = ? OR model_name = ?)';
+            $parameters[] = $currentClass;
+            $parameters[] = $legacySystemModule;
+        } else {
+            $query .= ' AND model_name = ?';
+            $parameters[] = $currentClass;
+        }
+
+        $results = DB::select($query, $parameters);
 
         $listOfCustomFields = [];
 
