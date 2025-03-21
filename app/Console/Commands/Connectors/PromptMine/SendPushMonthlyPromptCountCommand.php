@@ -45,10 +45,6 @@ class SendPushMonthlyPromptCountCommand extends Command
 
         $messageType = MessageType::getById($messageTypeId);
 
-        SendMonthlyMessageCountJob::dispatch($app, $messageType, [
-            'via' => 'push',
-        ]);
-
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)

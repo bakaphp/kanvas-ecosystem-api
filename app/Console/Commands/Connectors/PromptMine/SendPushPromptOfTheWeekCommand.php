@@ -7,7 +7,7 @@ namespace App\Console\Commands\Connectors\PromptMine;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Messages\Jobs\SendMonthlyMessageCountJob;
+use Kanvas\Social\Messages\Jobs\SendMessageOfTheWeekJob;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -45,17 +45,13 @@ class SendPushPromptOfTheWeekCommand extends Command
 
         $messageType = MessageType::getById($messageTypeId);
 
-        SendMonthlyMessageCountJob::dispatch($app, $messageType, [
-            'via' => 'push',
-        ]);
-
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)
             ->chunk(100, function ($users) use ($app, $messageType) {
                 foreach ($users as $user) {
                     $monthtlyCount = MessagesRepository::getcurrentMonthCreationCount($app, $user, $messageType);
-                    (new SendMonthlyMessageCountJob($app, $user, $monthtlyCount, $messageType, [
+                    (new SendMessageOfTheWeekJob($app, $user, $monthtlyCount, $messageType, [
                         'via' => 'push',
                     ]))::dispatch();
                 }
