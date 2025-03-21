@@ -11,11 +11,11 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Messages\Notifications\MonthlyMessageCreationNotification;
+use Kanvas\Social\Messages\Notifications\MessageOfTheWeekNotification;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 
-class SendMonthlyMessageCountJob implements ShouldQueue
+class SendMessageOfTheWeekJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -39,7 +39,7 @@ class SendMonthlyMessageCountJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        $monthlyCountNotification = new MonthlyMessageCreationNotification(
+        $messageOfTheWeek = new MessageOfTheWeekNotification(
             $this->user,
             [
                 'push_template' => 'push_new_message',
@@ -47,7 +47,7 @@ class SendMonthlyMessageCountJob implements ShouldQueue
             ],
             $this->config['via']
         );
-        
-        $this->user->notify($monthlyCountNotification);
+
+        $this->user->notify($messageOfTheWeek);
     }
 }
