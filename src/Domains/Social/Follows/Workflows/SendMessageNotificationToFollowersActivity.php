@@ -16,7 +16,7 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
      * todo we cap this to 3 tries for now. because of the
      * issue encounter with onesignal Data Data must be no more than 2048 bytes long , to avoid infinite loop
      */
-    public $tries = 3;
+    public $tries = 1;
 
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
