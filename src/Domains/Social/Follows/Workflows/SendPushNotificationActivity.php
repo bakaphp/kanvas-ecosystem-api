@@ -14,13 +14,15 @@ use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationMetadata;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Override;
 use Workflow\Activity;
 
 class SendPushNotificationActivity extends Activity implements WorkflowActivityInterface
 {
     use KanvasJobsTrait;
-    //public $tries = 3;
+    public $tries = 3;
 
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
