@@ -106,7 +106,7 @@ return [
      */
     'structure_caching' => [
         'enabled' => true,
-        'directories' => [app_path('Data')],
+        'directories' => [],
         'cache' => [
             'store' => 'redis',
             'prefix' => 'laravel-data',
@@ -114,8 +114,8 @@ return [
         ],
         'reflection_discovery' => [
             'enabled' => true,
-            'base_path' => base_path(),
-            'root_namespace' => null,
+            'base_path' => base_path('src'),
+            'root_namespace' => 'Kanvas\\',
         ],
     ],
 
