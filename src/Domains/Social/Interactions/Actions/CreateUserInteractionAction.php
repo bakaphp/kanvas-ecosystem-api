@@ -70,9 +70,7 @@ class CreateUserInteractionAction
         ];
 
         if (in_array($userInteraction->entity_namespace, $includedNamespace) && $entity && method_exists($entity, 'flushCache')) {
-            if (method_exists($fileEntity, 'flushCache')) {
-                $fileEntity->flushCache();
-            }
+            $entity->flushCache();
         }
     }
 }
