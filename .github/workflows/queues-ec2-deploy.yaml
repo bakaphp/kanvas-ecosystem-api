@@ -19,7 +19,7 @@ jobs:
       - name: Copy folder content recursively to remote VM
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.AWS_EC2_HOST }}
+          host: ${{ secrets.AWS_QUEUE_EC2_HOST }}
           username: ${{ secrets.AWS_EC2_USERNAME }}
           key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
           source: .
