@@ -48,7 +48,7 @@ class PushOrderToWooCommerceAction
 
         $orderData = [
             'status' => $this->mapOrderStatus($this->order->status),
-            'currency' => $this->order->currency->code,
+            'currency' => $this->order->currency,
             'customer_id' => $customer->get(CustomFieldEnum::WOOCOMMERCE_ID->value) ?? 0,
             'line_items' => $lineItems,
             'payment_method' => $this->order->payment->payment_method ?? '',
