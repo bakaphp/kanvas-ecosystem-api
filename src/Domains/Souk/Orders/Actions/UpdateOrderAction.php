@@ -30,17 +30,20 @@ class UpdateOrderAction
         $totalDiscount = 0;
         $lineItems = [];
 
-        foreach ($this->orderData['items'] as $key => $lineItem) {
-            $lineItems[$key] = OrderItem::viaRequest($this->order->app, $this->order->company, $this->order->region, $lineItem);
-            $total += $lineItems[$key]->getTotal();
-            $totalTax += $lineItems[$key]->getTotalTax();
-            $totalDiscount = $lineItems[$key]->getTotalDiscount();
+        $hasItems = isset($this->orderData['items']);
+
+        if ($hasItems) {
+            foreach ($this->orderData['items'] as $key => $lineItem) {
+                $lineItems[$key] = OrderItem::viaRequest($this->order->app, $this->order->company, $this->order->region, $lineItem);
+                $total += $lineItems[$key]->getTotal();
+                $totalTax += $lineItems[$key]->getTotalTax();
+                $totalDiscount = $lineItems[$key]->getTotalDiscount();
+            }
+
+            $lineItems = OrderItem::collect($lineItems, DataCollection::class);
         }
 
-        $items = OrderItem::collect($lineItems, DataCollection::class);
-
-
-        return DB::connection('commerce')->transaction(function () use ($items) {
+        return DB::connection('commerce')->transaction(function () use ($lineItems, $hasItems) {
             $this->order->metadata = [
                 ...($this->order->metadata ?? []),
                 'data' => [
@@ -50,8 +53,10 @@ class UpdateOrderAction
             ];
             $this->order->saveOrFail();
 
-            $this->order->deleteItems();
-            $this->order->addItems($items);
+            if ($hasItems) {
+                $this->order->deleteItems();
+                $this->order->addItems($lineItems);
+            }
 
             // Run after commit
             DB::afterCommit(function () {

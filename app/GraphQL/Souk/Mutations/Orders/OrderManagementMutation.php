@@ -110,16 +110,6 @@ class OrderManagementMutation
         $orderId = (int) $request['id'];
         $orderData = $request['input'];
 
-        if (empty($request['input']['items'])) {
-            return [
-                'order' => null,
-                'message' => [
-                    'error_code' => 'the items are empty',
-                    'error_message' => 'the items are empty',
-                ],
-            ];
-        }
-
         $order = Order::where([
             'apps_id' => $app->getId(),
             'id' => $orderId
