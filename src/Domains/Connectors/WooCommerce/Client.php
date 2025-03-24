@@ -1,0 +1,37 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\WooCommerce;
+
+use Automattic\WooCommerce\Client as WooCommerceClient;
+use Baka\Contracts\AppInterface;
+use Kanvas\Connectors\WooCommerce\Enums\WooCommerceEnum;
+
+class Client
+{
+    protected WooCommerceClient $client;
+
+    /**
+     * Constructor.
+     */
+    public function __construct(protected AppInterface $app)
+    {
+        $wooCommerceUrl = $this->app->get(WooCommerceEnum::WORDPRESS_URL->value);
+        $wooCommerceKey = $this->app->get(WooCommerceEnum::WOOCOMMERCE_KEY->value);
+        $wooCommerceSecretKey = $this->app->get(WooCommerceEnum::WOOCOMMERCE_SECRET_KEY->value);
+        $this->client = new WooCommerceClient(
+            $wooCommerceUrl,
+            $wooCommerceKey,
+            $wooCommerceSecretKey,
+            [
+                'version' => 'wc/v3',
+            ]
+        );
+    }
+
+    public function getClient(): WooCommerceClient
+    {
+        return $this->client;
+    }
+}

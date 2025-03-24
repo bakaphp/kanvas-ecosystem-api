@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\WooCommerce\Services;
 
 use Automattic\WooCommerce\Client;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\WooCommerce\Enums\WooCommerceEnum;
+use Kanvas\Connectors\WooCommerce\Client as WooCommerceClient;
 
 class WooCommerce
 {
@@ -15,22 +15,12 @@ class WooCommerce
     public function __construct(
         protected Apps $app
     ) {
-        $wooCommerceUrl = $this->app->get(WooCommerceEnum::WORDPRESS_URL->value);
-        $wooCommerceKey = $this->app->get(WooCommerceEnum::WOOCOMMERCE_KEY->value);
-        $wooCommerceSecretKey = $this->app->get(WooCommerceEnum::WOOCOMMERCE_SECRET_KEY->value);
-        $this->client = new Client(
-            $wooCommerceUrl,
-            $wooCommerceKey,
-            $wooCommerceSecretKey,
-            [
-                'version' => 'wc/v3',
-            ]
-        );
+        $this->client = (new WooCommerceClient($this->app))->getClient();
     }
 
     public function getProducts(): array
     {
-        return $this->client->get('products');
+        return (array) $this->client->get('products');
     }
 
     public function getUsers(): array
