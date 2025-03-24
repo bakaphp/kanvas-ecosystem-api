@@ -23,7 +23,7 @@ class ValidateMessageSchemaAction
     public function execute(): array
     {
         $schema = json_decode($this->messageType->message_schema, true);
-        $data = json_decode($this->message->message, true);
+        $data = is_array($this->message->message) ? $this->message->message : json_decode($this->message->message, true);
 
         return $this->validateJson($data, $schema);
     }

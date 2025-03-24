@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Observers;
 
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
+use Kanvas\Social\Messages\Actions\ValidateMessageSchemaAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use NetSuite\Classes\Check;
+use Kanvas\Exceptions\ValidationException;
 
 class MessageObserver
 {
@@ -18,6 +19,14 @@ class MessageObserver
                 message: $message,
                 getChildrenCount: true
             ))->execute();
+        }
+
+        if ($message->app->get('validate-message-schema')) {
+            $checkJson = new ValidateMessageSchemaAction($message, $message->messageType);
+            $errors = $checkJson->execute();
+            if (! empty($errors)) {
+                throw new ValidationException(implode(', ', $errors));
+            }
         }
     }
 
