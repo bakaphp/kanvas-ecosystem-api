@@ -28,7 +28,7 @@ class ValidateMessageSchemaAction
         return $this->validateJson($data, $schema);
     }
 
-    private function validateJson($data, $schema, $parentKey = '') 
+    private function validateJson($data, $schema, $parentKey = '')
     {
         $errors = [];
         foreach ($schema['required'] as $key) {
