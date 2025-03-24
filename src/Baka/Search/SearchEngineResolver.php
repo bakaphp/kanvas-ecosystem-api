@@ -6,6 +6,7 @@ namespace Baka\Search;
 
 use Algolia\AlgoliaSearch\SearchClient;
 use Algolia\ScoutExtended\Engines\AlgoliaEngine;
+use BadMethodCallException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
@@ -39,9 +40,12 @@ class SearchEngineResolver
     public function resolveEngine(?Model $model = null, ?Apps $app = null): Engine
     {
         // As for this stage, the code doesn't know in which app need to set the index.
-        $model = $model && method_exists($model, 'withTrashed') && $model->searchableDeleteRecord()
-            ? $model->withTrashed()->find($model->id)
-            : $model;
+
+        try {
+            $model = ! $model->searchableDeleteRecord() ? $model : $model->withTrashed()->find($model->id);
+        } catch (BadMethodCallException $e) {
+            $model = $model;
+        }
         $app = $model->app ?? $app ?? app(Apps::class);
 
         $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');

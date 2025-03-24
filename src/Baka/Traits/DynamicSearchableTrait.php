@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use BadMethodCallException;
 use Baka\Search\SearchEngineResolver;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Engines\TypesenseEngine;
@@ -36,10 +37,12 @@ trait DynamicSearchableTrait
             return true;
         }
 
-        $model = method_exists($this, 'withTrashed') && $this->searchableDeleteRecord()
-        ? $this->withTrashed()->find($this->id)
-        : $this;
-
+        try {
+            $model = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        } catch (BadMethodCallException $e) {
+            $model = $this;
+        }
+        
         $app = $model->app ?? app(Apps::class);
 
         $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
