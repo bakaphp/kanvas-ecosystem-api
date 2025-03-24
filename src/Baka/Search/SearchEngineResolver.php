@@ -6,16 +6,17 @@ namespace Baka\Search;
 
 use Algolia\AlgoliaSearch\SearchClient;
 use Algolia\ScoutExtended\Engines\AlgoliaEngine;
+use BadMethodCallException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\EngineManager;
 use Laravel\Scout\Engines\Engine;
 use Laravel\Scout\Engines\MeilisearchEngine;
+use Laravel\Scout\Engines\NullEngine;
 use Laravel\Scout\Engines\TypesenseEngine as EnginesTypesenseEngine;
 use Meilisearch\Client as MeiliSearchClient;
 use Typesense\Client as TypesenseClient;
-use Laravel\Scout\Engines\NullEngine;
 
 class SearchEngineResolver
 {
@@ -38,7 +39,15 @@ class SearchEngineResolver
 
     public function resolveEngine(?Model $model = null, ?Apps $app = null): Engine
     {
-        $app ??= app(Apps::class);
+        // As for this stage, the code doesn't know in which app need to set the index.
+
+        try {
+            $model = ! $model->searchableDeleteRecord() ? $model : $model->withTrashed()->find($model->id);
+        } catch (BadMethodCallException $e) {
+            $model = $model;
+        }
+        $app = $model->app ?? $app ?? app(Apps::class);
+
         $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
         // If there's a model, try to get model-specific engine setting
         $modelSpecificEngine = $model !== null ? $app->get($model->getTable() . '_search_engine') : null;
