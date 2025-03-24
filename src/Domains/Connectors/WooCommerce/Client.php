@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\WooCommerce;
 
 use Automattic\WooCommerce\Client as WooCommerceClient;
 use Baka\Contracts\AppInterface;
-use Kanvas\Connectors\WooCommerce\Enums\WooCommerceEnum;
+use Kanvas\Connectors\WooCommerce\Enums\ConfigurationEnum;
 
 class Client
 {
@@ -17,9 +17,9 @@ class Client
      */
     public function __construct(protected AppInterface $app)
     {
-        $wooCommerceUrl = $this->app->get(WooCommerceEnum::WORDPRESS_URL->value);
-        $wooCommerceKey = $this->app->get(WooCommerceEnum::WOOCOMMERCE_KEY->value);
-        $wooCommerceSecretKey = $this->app->get(WooCommerceEnum::WOOCOMMERCE_SECRET_KEY->value);
+        $wooCommerceUrl = $this->app->get(ConfigurationEnum::WORDPRESS_URL->value);
+        $wooCommerceKey = $this->app->get(ConfigurationEnum::WOOCOMMERCE_KEY->value);
+        $wooCommerceSecretKey = $this->app->get(ConfigurationEnum::WOOCOMMERCE_SECRET_KEY->value);
         $this->client = new WooCommerceClient(
             $wooCommerceUrl,
             $wooCommerceKey,

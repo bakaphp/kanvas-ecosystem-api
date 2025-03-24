@@ -6,7 +6,10 @@ namespace Kanvas\Connectors\WooCommerce\Actions;
 
 use Automattic\WooCommerce\Client as WooCommerceClient;
 use Kanvas\Connectors\WooCommerce\Client;
+use Kanvas\Connectors\WooCommerce\Enums\CustomFieldEnum;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerce;
+use Kanvas\Guild\Customers\Models\Address;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
 
 class PushOrderToWooCommerce
@@ -42,10 +45,10 @@ class PushOrderToWooCommerce
         // Get line items
         $lineItems = $this->getLineItems();
 
-        return [
+        $orderData = [
             'status' => $this->mapOrderStatus($this->order->status),
             'currency' => $this->order->currency->code,
-            'customer_id' => $customer->woocommerce_id ?? 0, // If you have WooCommerce customer ID stored
+            'customer_id' => $customer->get(CustomFieldEnum::WOOCOMMERCE_ID->value) ?? 0, // If you have WooCommerce customer ID stored
            // 'billing' => $this->formatAddress($billingAddress, $customer),
           //  'shipping' => $this->formatAddress($shippingAddress, $customer),
             'line_items' => $lineItems,
@@ -59,15 +62,19 @@ class PushOrderToWooCommerce
                 ],
             ],
         ];
+
+        if ($this->order->billing_address_id !== null) {
+            $orderData['billing'] = $this->formatAddress($this->order->billingAddress, $customer);
+        }
+
+        if ($this->order->shipping_address_id !== null) {
+            $orderData['shipping'] = $this->formatAddress($this->order->shippingAddress, $customer);
+        }
+
+        return $orderData;
     }
 
-    /**
-     * Format address for WooCommerce
-     *
-     * @param OrderAddress $address
-     * @param People $customer
-     */
-    protected function formatAddress($address, $customer): array
+    protected function formatAddress(Address $address, People $customer): array
     {
         $country = $address->country;
 
@@ -79,9 +86,9 @@ class PushOrderToWooCommerce
             'city' => $address->city,
             'state' => $address->state,
             'postcode' => $address->zip,
-            'country' => $country->code,
-            'email' => $customer->email,
-            'phone' => $customer->phone ?? '',
+            'country' => $country->code ?? '',
+            'email' => $this->order->user_email,
+            'phone' => $this->order->user_phone ?? '',
         ];
     }
 
@@ -96,7 +103,7 @@ class PushOrderToWooCommerce
             $item = [
                 'quantity' => $item->quantity,
                 'price' => $item->unit_price_net_amount,
-                'total' => (string)($item->quantity * $item->unit_price_net_amount),
+                'total' => (string)((float) $item->quantity * (float) $item->unit_price_net_amount),
                 'sku' => $item->product_sku ?? '',
                 'meta_data' => [
                     [

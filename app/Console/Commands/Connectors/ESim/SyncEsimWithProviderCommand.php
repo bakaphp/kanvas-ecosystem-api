@@ -52,7 +52,7 @@ class SyncEsimWithProviderCommand extends Command
         $messages = Message::fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
-            //->whereIsPublic()
+            ->whereIsPublic()
             ->orderBy('id', 'desc')
             ->get();
 
