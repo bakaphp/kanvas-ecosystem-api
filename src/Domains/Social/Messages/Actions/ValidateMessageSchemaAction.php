@@ -14,7 +14,8 @@ class ValidateMessageSchemaAction
     public function __construct(
         private readonly Message $message,
         private readonly MessageType $messageType
-    ) {}
+    ) {
+    }
 
     /**
      * Validate the message schema
@@ -27,11 +28,11 @@ class ValidateMessageSchemaAction
         return $this->validateJson($data, $schema);
     }
 
-    private function validateJson($data, $schema, $parentKey = '') {
+    private function validateJson($data, $schema, $parentKey = '') 
+    {
         $errors = [];
-    
         foreach ($schema['required'] as $key) {
-            if (!isset($data[$key])) {
+            if (! isset($data[$key])) {
                 $errors[] = "Missing required field: {$parentKey}{$key}";
             } elseif (is_array($schema['types'][$key])) {
                 $errors = array_merge($errors, $this->validateJson($data[$key], $schema['types'][$key], "{$parentKey}{$key}."));
@@ -39,7 +40,6 @@ class ValidateMessageSchemaAction
                 $errors[] = "Invalid type for {$parentKey}{$key}, expected " . $schema['types'][$key];
             }
         }
-    
         foreach ($schema['optional'] as $key) {
             if (isset($data[$key])) {
                 if (is_array($schema['types'][$key])) {
@@ -49,7 +49,6 @@ class ValidateMessageSchemaAction
                 }
             }
         }
-    
         return $errors;
     }
 }
