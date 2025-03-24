@@ -42,7 +42,7 @@ trait DynamicSearchableTrait
         } catch (BadMethodCallException $e) {
             $model = $this;
         }
-        
+
         $app = $model->app ?? app(Apps::class);
 
         $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
