@@ -26,7 +26,7 @@ class PullWooCommerceOrdersCommand extends Command
     {
         $app = Apps::getById((int) $this->argument(key: 'app_id'));
         $this->overwriteAppService($app);
-        
+
         $wooCommerceUrl = $app->get(ConfigurationEnum::WORDPRESS_URL->value);
         if (! $wooCommerceUrl) {
             $ask = $this->ask('What is the WooCommerce Base URL?');
@@ -70,6 +70,7 @@ class PullWooCommerceOrdersCommand extends Command
                 } catch (Exception $e) {
                     echo $e->getMessage() . PHP_EOL;
                     echo $e->getTraceAsString() . PHP_EOL;
+
                     break;
                 }
             }
