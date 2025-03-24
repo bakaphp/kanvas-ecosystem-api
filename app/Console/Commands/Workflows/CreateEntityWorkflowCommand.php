@@ -15,7 +15,6 @@ use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
-
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\multiselect;
 
