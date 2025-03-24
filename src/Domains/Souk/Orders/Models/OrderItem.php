@@ -33,6 +33,7 @@ use Override;
  * @property string|null $currency
  * @property string|null $translated_variant_name
  * @property string $variant_name
+ * @property bool $is_public
  * @property bool $is_deleted
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -80,13 +81,31 @@ class OrderItem extends BaseModel
             'translated_variant_name' => 'string',
             'variant_name' => 'string',
             'is_deleted' => 'boolean',
+            'is_public' => 'boolean',
             'created_at' => 'datetime',
-            'updated_at' => 'datetime'
+            'updated_at' => 'datetime',
         ];
     }
 
     public function getPrice(): float
     {
         return (float) $this->unit_price_net_amount;
+    }
+
+    public function setPublic(): void
+    {
+        $this->is_public = true;
+        $this->saveOrFail();
+    }
+
+    public function setPrivate(): void
+    {
+        $this->is_public = false;
+        $this->saveOrFail();
+    }
+
+    public function isPublic(): bool
+    {
+        return $this->is_public;
     }
 }

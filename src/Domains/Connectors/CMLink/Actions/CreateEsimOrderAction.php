@@ -62,7 +62,7 @@ class CreateEsimOrderAction
         //$sku = $availableVariant->sku;
 
         //add this variant to the order so we have a history of the iccid
-        $this->order->addItem(new OrderItem(
+        $orderItem = $this->order->addItem(new OrderItem(
             app: $this->order->app,
             variant: $availableVariant,
             name: (string) $availableVariant->name,
@@ -73,6 +73,7 @@ class CreateEsimOrderAction
             discount: 0,
             currency: Currencies::getBaseCurrency(),
         ));
+        $orderItem->setPrivate();
 
         $orderService = new OrderService($this->order->app, $this->order->company);
         $cmLinkOrder = $orderService->createOrder(
