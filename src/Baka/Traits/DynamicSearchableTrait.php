@@ -36,7 +36,10 @@ trait DynamicSearchableTrait
             return true;
         }
 
-        $model = ! $this->searchableDeleteRecord() && ! method_exists($this, 'withTrashed') ? $this : $this->withTrashed()->find($this->id);
+        $model = method_exists($this, 'withTrashed') && $this->searchableDeleteRecord()
+        ? $this->withTrashed()->find($this->id)
+        : $this;
+
         $app = $model->app ?? app(Apps::class);
 
         $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');

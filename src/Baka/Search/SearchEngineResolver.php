@@ -39,7 +39,9 @@ class SearchEngineResolver
     public function resolveEngine(?Model $model = null, ?Apps $app = null): Engine
     {
         // As for this stage, the code doesn't know in which app need to set the index.
-        $model = ! $model->searchableDeleteRecord() && ! method_exists($model, 'withTrashed') ? $model : $model->withTrashed()->find($model->id);
+        $model = $model && method_exists($model, 'withTrashed') && $model->searchableDeleteRecord()
+            ? $model->withTrashed()->find($model->id)
+            : $model;
         $app = $model->app ?? $app ?? app(Apps::class);
 
         $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
