@@ -67,8 +67,16 @@ class CreateOrderInESimActivity extends KanvasActivity
             if ($providerValue == strtolower(ProviderEnum::CMLINK->value)) {
                 $esim = (new CreateEsimOrderAction($order))->execute();
 
-                $woocommerceOrder = new PushOrderToWooCommerceAction($order, $this->formatEsimForWoocommerce($order, $esim));
-                $woocommerceOrder->execute();
+                try {
+                    $woocommerceOrder = new PushOrderToWooCommerceAction($order, $this->formatEsimForWoocommerce($order, $esim));
+                    $woocommerceResponse = $woocommerceOrder->execute();
+                } catch (Throwable $e) {
+                    $woocommerceResponse = [
+                        'status' => 'error',
+                        'message' => 'Error creating order in WooCommerce',
+                        'response' => $e->getMessage(),
+                    ];
+                }
 
                 $response = [
                     'success' => true,
@@ -77,6 +85,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                         'plan_origin' => $esim->plan,
                     ],
                     'esim_status' => $esim->esimStatus->toArray(),
+                    'woocommerce_response' => $woocommerceResponse,
                 ];
             } else {
                 $createOrder = new OrderService($order);
