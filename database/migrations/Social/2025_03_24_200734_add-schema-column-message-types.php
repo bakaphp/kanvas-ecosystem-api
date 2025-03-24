@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('message_types', function (Blueprint $table) {
-            $table->json('message_schema')->after('templates_plural')->nullable();
+            $table->json('message_schema')->after('templates_plura')->nullable();
         });
     }
 
