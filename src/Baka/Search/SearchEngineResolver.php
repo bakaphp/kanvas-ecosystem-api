@@ -76,12 +76,13 @@ class SearchEngineResolver
     protected function createTypesenseEngine(array $searchSettings): EnginesTypesenseEngine
     {
         $apiKey = $searchSettings['typesense_api_key'] ?? config('scout.typesense.api_key');
+        $defaultNode = config('scout.typesense.nodes')[0] ?? [];
         $nodes = $searchSettings['typesense_nodes'] ?? [
             [
-                'host' => config('scout.typesense.host', 'localhost'),
-                'port' => config('scout.typesense.port', 8108),
-                'path' => config('scout.typesense.path', '/'),
-                'protocol' => config('scout.typesense.protocol', 'http'),
+                'host' => $defaultNode['host'] ?? 'localhost',
+                'port' => $defaultNode['port'] ?? 8108,
+                'path' => $defaultNode['path'] ?? '/',
+                'protocol' => $defaultNode['protocol'] ?? 'http',
             ],
         ];
 
