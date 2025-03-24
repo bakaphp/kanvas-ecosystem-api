@@ -17,11 +17,9 @@ use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\multiselect;
-
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\table;
 use function Laravel\Prompts\text;
-
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 
