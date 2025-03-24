@@ -26,7 +26,7 @@ class Integrations extends BaseModel
         'apps_id',
         'name',
         'config',
-        'handler'
+        'handler',
     ];
 
     protected $casts = [
@@ -48,6 +48,7 @@ class Integrations extends BaseModel
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+
         return $company->integrations()->where('integrations_id', '=', $this->getId())->get();
     }
 

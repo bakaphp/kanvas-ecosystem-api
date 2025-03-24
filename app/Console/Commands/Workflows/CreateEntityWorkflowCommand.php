@@ -7,7 +7,6 @@ namespace App\Console\Commands\Workflows;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
