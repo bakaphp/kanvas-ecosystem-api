@@ -6,7 +6,6 @@ namespace Kanvas\Workflow\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
-
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Workflow\Enums\StatusEnum;

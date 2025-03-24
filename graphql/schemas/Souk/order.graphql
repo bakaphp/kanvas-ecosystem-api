@@ -140,6 +140,11 @@ input OrderCartInput {
     metadata: Mixed
 }
 
+input UpdateOrderInput {
+    items: [OrderLineItemInput]
+    metadata: Mixed
+}
+
 input DraftOrderInput {
     email: String!
     phone: String
@@ -207,6 +212,10 @@ extend type Mutation @guard {
     createDraftOrder(input: DraftOrderInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
+        )
+    updateOrder(id: ID!, input: UpdateOrderInput!): OrderResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@update"
         )
     createOrderFromAppleInAppPurchase(
         input: AppleInAppPurchaseReceipt!
