@@ -22,7 +22,6 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
-use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Spatie\LaravelData\DataCollection;
 
@@ -99,19 +98,19 @@ class Order extends BaseModel
         return $this->belongsTo(Regions::class, 'region_id', 'id');
     }
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id', 'id');
-    }
-
     public function people(): BelongsTo
     {
         return $this->belongsTo(People::class, 'people_id', 'id');
     }
 
+    public function billingAddress(): BelongsTo
+    {
+        return $this->belongsTo(Address::class, 'billing_address_id', 'id');
+    }
+
     public function items(): HasMany
     {
-        return $this->hasMany(OrderItem::class, 'order_id', 'id');
+        return $this->hasMany(OrderItem::class, 'order_id', 'id')->where('is_public', 1);
     }
 
     public function shippingAddress(): BelongsTo
@@ -171,6 +170,11 @@ class Order extends BaseModel
         $orderItem->saveOrFail();
 
         return $orderItem;
+    }
+
+    public function deleteItems(): void
+    {
+        $this->items()->delete();
     }
 
     public function fulfill(): void

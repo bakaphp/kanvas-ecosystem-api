@@ -14,8 +14,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class MessageOwnerInteractionNotifierActivity extends KanvasActivity
 {
-    //public $tries = 3;
-    public $queue = 'default';
+    public $tries = 1;
 
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {

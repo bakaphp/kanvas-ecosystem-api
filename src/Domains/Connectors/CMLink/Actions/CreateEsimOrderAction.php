@@ -8,6 +8,7 @@ use BaconQrCode\Renderer\Image\ImagickImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Carbon\Carbon;
 use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
 use Kanvas\Connectors\CMLink\Services\CustomerService;
@@ -61,7 +62,7 @@ class CreateEsimOrderAction
         //$sku = $availableVariant->sku;
 
         //add this variant to the order so we have a history of the iccid
-        $this->order->addItem(new OrderItem(
+        $orderItem = $this->order->addItem(new OrderItem(
             app: $this->order->app,
             variant: $availableVariant,
             name: (string) $availableVariant->name,
@@ -72,6 +73,7 @@ class CreateEsimOrderAction
             discount: 0,
             currency: Currencies::getBaseCurrency(),
         ));
+        $orderItem->setPrivate();
 
         $orderService = new OrderService($this->order->app, $this->order->company);
         $cmLinkOrder = $orderService->createOrder(
@@ -131,6 +133,14 @@ class CreateEsimOrderAction
             )
          */
         $totalData = $orderVariant->getAttributeBySlug('data')?->value ?? 0;
+        $timestamp = ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time();
+
+        //Convert Unix timestamp from China time to EST using Carbon
+        $dateEst = Carbon::createFromTimestamp($timestamp, 'Asia/Shanghai')->setTimezone('America/New_York');
+        //Unix timestamp in EST
+        $timestampEst = $dateEst->timestamp;
+        //Formatted date in EST
+        $formattedEst = $dateEst->format('Y-m-d H:i:s');
 
         $esim = new ESim(
             $esimData['data']['downloadUrl'],
@@ -142,7 +152,7 @@ class CreateEsimOrderAction
             $orderVariant->sku,
             $esimData['data']['smdpAddress'],
             $esimData['data']['activationCode'],
-            ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time(),
+            $timestampEst,
             json_encode(['order' => $this->order->getId(), 'install_device' => $esimData['data']['installDevice'] ?? '']),
             $qrCodeBase64,
             new ESimStatus(
@@ -150,7 +160,7 @@ class CreateEsimOrderAction
                 'data',
                 FileSizeConverter::toBytes($totalData),
                 FileSizeConverter::toBytes($totalData),
-                $esimData['data']['installTime'] ?? $this->order->created_at->format('Y-m-d H:i:s'),
+                $formattedEst ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $esimData['data']['activationCode'],
                 $esimData['data']['state'],
                 $orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,

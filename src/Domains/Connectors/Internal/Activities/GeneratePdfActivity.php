@@ -10,9 +10,11 @@ use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
@@ -20,14 +22,14 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
         $pdfTemplate = $params['template_pdf'] ?? null;
         $pdfFileName = $params['pdf_file_name'] ?? null;
 
-        if (! $pdfTemplate) {
+        if ($pdfTemplate === null) {
             return [
                 'message' => 'No template configured to generate pdf',
                 'entity_id' => $entity->getId(),
             ];
         }
 
-        if (! $pdfFileName) {
+        if ($pdfFileName === null) {
             return [
                 'message' => 'No file name configured to generate pdf',
                 'entity_id' => $entity->getId(),
