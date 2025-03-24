@@ -18,7 +18,6 @@ use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
 
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\multiselect;
-
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\table;
 use function Laravel\Prompts\text;

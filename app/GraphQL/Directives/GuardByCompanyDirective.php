@@ -7,7 +7,6 @@ namespace App\GraphQL\Directives;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Nuwave\Lighthouse\Auth\GuardDirective;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
-
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
