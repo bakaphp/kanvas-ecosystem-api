@@ -12,23 +12,27 @@ use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
 
-class PushOrderToWooCommerce
+class PushOrderToWooCommerceAction
 {
     protected WooCommerceClient $wooCommerceService;
 
     public function __construct(
-        protected Order $order
+        protected Order $order,
+        protected array $customMetadata = [],
     ) {
         $this->wooCommerceService = (new Client($this->order->app))->getClient();
+        $this->customMetadata = $customMetadata;
     }
 
     public function execute(): object
     {
-        // Format the order data for WooCommerce
+        // Format the order data for WooCommerce (including all eSIM data)
         $orderData = $this->formatOrderData();
 
-        // Send the order to WooCommerce
-        return $this->wooCommerceService->post('orders', $orderData);
+        // Send the order to WooCommerce with all data in a single request
+        $woocommerceOrder = $this->wooCommerceService->post('orders', $orderData);
+
+        return $woocommerceOrder;
     }
 
     /**
@@ -36,9 +40,6 @@ class PushOrderToWooCommerce
      */
     protected function formatOrderData(): array
     {
-        //$billingAddress = $this->order->getBillingAddress();
-        // $shippingAddress = $this->order->getShippingAddress() ?? $billingAddress;
-
         // Get customer information
         $customer = $this->order->people;
 
@@ -48,11 +49,8 @@ class PushOrderToWooCommerce
         $orderData = [
             'status' => $this->mapOrderStatus($this->order->status),
             'currency' => $this->order->currency->code,
-            'customer_id' => $customer->get(CustomFieldEnum::WOOCOMMERCE_ID->value) ?? 0, // If you have WooCommerce customer ID stored
-           // 'billing' => $this->formatAddress($billingAddress, $customer),
-          //  'shipping' => $this->formatAddress($shippingAddress, $customer),
+            'customer_id' => $customer->get(CustomFieldEnum::WOOCOMMERCE_ID->value) ?? 0,
             'line_items' => $lineItems,
-           // 'shipping_lines' => $this->getShippingLines(),
             'payment_method' => $this->order->payment->payment_method ?? '',
             'payment_method_title' => $this->order->payment->payment_method_title ?? '',
             'meta_data' => [
@@ -62,6 +60,26 @@ class PushOrderToWooCommerce
                 ],
             ],
         ];
+
+        // Add any custom metadata provided to the class
+        if (! empty($this->customMetadata)) {
+            $formattedMetadata = [];
+
+            foreach ($this->customMetadata as $key => $value) {
+                // Handle JSON serialization for array/object values
+                if (is_array($value) || is_object($value)) {
+                    $value = json_encode($value);
+                }
+
+                $formattedMetadata[] = [
+                    'key' => $key,
+                    'value' => $value,
+                ];
+            }
+
+            // Merge custom metadata into the order metadata
+            $orderData['meta_data'] = array_merge($orderData['meta_data'], $formattedMetadata);
+        }
 
         if ($this->order->billing_address_id !== null) {
             $orderData['billing'] = $this->formatAddress($this->order->billingAddress, $customer);
@@ -93,14 +111,14 @@ class PushOrderToWooCommerce
     }
 
     /**
-     * Get order line items
+     * Get order line items and apply any custom line item metadata
      */
     protected function getLineItems(): array
     {
         $lineItems = [];
 
         foreach ($this->order->items as $item) {
-            $item = [
+            $itemData = [
                 'quantity' => $item->quantity,
                 'price' => $item->unit_price_net_amount,
                 'total' => (string)((float) $item->quantity * (float) $item->unit_price_net_amount),
@@ -113,33 +131,10 @@ class PushOrderToWooCommerce
                 ],
             ];
 
-            // Add product_id if available
-            /*  if (! empty($product->product->external_id)) {
-                 $item['product_id'] = $product->product->external_id;
-             }
- */
-            $lineItems[] = $item;
+            $lineItems[] = $itemData;
         }
 
         return $lineItems;
-    }
-
-    /**
-     * Get shipping lines
-     */
-    protected function getShippingLines(): array
-    {
-        if (! $this->order->shipping_amount) {
-            return [];
-        }
-
-        return [
-            [
-                'method_id' => 'flat_rate',
-                'method_title' => 'Shipping',
-                'total' => (string) $this->order->shipping_amount,
-            ],
-        ];
     }
 
     /**
