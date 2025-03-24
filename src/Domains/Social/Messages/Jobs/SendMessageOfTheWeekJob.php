@@ -28,7 +28,6 @@ class SendMessageOfTheWeekJob implements ShouldQueue
     public function __construct(
         protected Apps $app,
         protected Users $user,
-
         protected MessageType $messageType,
         protected array $config,
     ) {
