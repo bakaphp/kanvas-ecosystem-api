@@ -208,9 +208,25 @@ class SyncEsimWithProviderCommand extends Command
         $orderNumber = $message->message['order']['order_number'] ?? null;
         $totalBytesData = FileSizeConverter::toBytes($totalData);
         $remainingData = $totalBytesData;
+
         if ($orderNumber !== null) {
             $orderService = new ServicesOrderService($message->app, $message->company);
             $remainingData = $orderService->getOrderStatus($orderNumber)['total'];
+        }
+
+        $validStates = ['released', 'installed', 'active', 'enabled'];
+
+        /**
+         * @todo Move this to somewhere more central
+         */
+        if (in_array(strtolower($response['state']), $validStates)) {
+            $message->setPublic();
+        } else {
+            $message->setPrivate();
+        }
+
+        if ($remainingData > $totalBytesData) {
+            $remainingData = $totalBytesData;
         }
 
         $esimStatus = new ESimStatus(

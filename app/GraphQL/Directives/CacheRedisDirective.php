@@ -12,6 +12,7 @@ use Nuwave\Lighthouse\Execution\Resolved;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Override;
 
 class CacheRedisDirective extends CacheCacheDirective
 {
@@ -40,6 +41,7 @@ directive @cacheRedis(
 GRAPHQL;
     }
 
+    #[Override]
     public function handleField(FieldValue $fieldValue): void
     {
         $rootCacheKey = $fieldValue->getParent()->cacheKey();
@@ -55,7 +57,7 @@ GRAPHQL;
             $fieldName = $resolveInfo->fieldName;
             $path = $resolveInfo->path;
 
-            $cache =  Redis::connection('graph-cache');
+            $cache = Redis::connection('graph-cache');
 
             $cacheKey = $this->cacheKeyAndTags->key(
                 $context->user(),
