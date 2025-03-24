@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Notifications;
 
 use Kanvas\Notifications\Notification;
-use Kanvas\Social\Messages\Enums\NotificationTemplateEnum;
+use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
@@ -19,7 +19,7 @@ class MonthlyMessageCreationNotification extends Notification
     ) {
         parent::__construct($user, $data);
         $this->setType(EmailTemplateEnum::BLANK->value);
-        $this->setPushTemplateName($data['push_template'] ?? NotificationTemplateEnum::PUSH_NEW_MESSAGE->value);
+        $this->setPushTemplateName(NotificationTemplateEnum::PUSH_MONTHLY_PROMPT_COUNT->value);
         $this->setData($data);
         $this->setFromUser($user);
         $this->channels = $via;

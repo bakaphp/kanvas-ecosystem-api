@@ -38,14 +38,13 @@ class MessagesRepository
     public static function getcurrentMonthCreationCount(Apps $app, Users $user, MessageType $messageType): int
     {
         $messageCountOnCurrentMonth = Message::query()
-            ->columns('COUNT(id) as count')
+            ->selectRaw('COUNT(id) as count')
             ->where('apps_id', $app->getId())
             ->where('users_id', $user->getId())
             ->where('message_types_id', $messageType->getId())
-            ->where('MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())')
-            ->execute()
-            ->getFirst();
-
+            ->whereRaw('MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())')
+            ->first();
+            
         return $messageCountOnCurrentMonth->count;
     }
 
@@ -54,9 +53,9 @@ class MessagesRepository
         return Message::query()
             ->where('apps_id', $app->getId())
             ->where('message_types_id', $messageType->getId())
-            ->orderBy('total_likes DESC')
+            ->whereRaw('YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)')
+            ->orderBy('total_liked', 'DESC')
             ->limit(1)
-            ->execute()
-            ->getFirst();
+            ->first();
     }
 }

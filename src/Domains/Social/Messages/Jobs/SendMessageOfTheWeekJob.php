@@ -12,8 +12,10 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Notifications\MessageOfTheWeekNotification;
+use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
+use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
 
 class SendMessageOfTheWeekJob implements ShouldQueue
 {
@@ -26,7 +28,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
     public function __construct(
         protected Apps $app,
         protected Users $user,
-        protected int $monthtlyCount,
+
         protected MessageType $messageType,
         protected array $config,
     ) {
@@ -39,11 +41,13 @@ class SendMessageOfTheWeekJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
+        $messageOfTheWeek = MessagesRepository::getMostPopularMesssageByTotalLikes($this->app, $this->messageType);
         $messageOfTheWeek = new MessageOfTheWeekNotification(
             $this->user,
             [
-                'push_template' => 'push_new_message',
-                'message_count' => $this->monthtlyCount,
+                'push_template' => NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value,
+                'title' => 'Prompt of the Week',
+                'message' => "$messageOfTheWeek->message['title'] — Try it now and keep the momentum going."
             ],
             $this->config['via']
         );

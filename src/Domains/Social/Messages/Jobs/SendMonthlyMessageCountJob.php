@@ -14,6 +14,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Notifications\MonthlyMessageCreationNotification;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
+use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
 
 class SendMonthlyMessageCountJob implements ShouldQueue
 {
@@ -26,7 +27,7 @@ class SendMonthlyMessageCountJob implements ShouldQueue
     public function __construct(
         protected Apps $app,
         protected Users $user,
-        protected int $monthtlyCount,
+        protected readonly int $monthtlyCount,
         protected MessageType $messageType,
         protected array $config,
     ) {
@@ -42,8 +43,9 @@ class SendMonthlyMessageCountJob implements ShouldQueue
         $monthlyCountNotification = new MonthlyMessageCreationNotification(
             $this->user,
             [
-                'push_template' => 'push_new_message',
-                'message_count' => $this->monthtlyCount,
+                'push_template' => NotificationTemplateEnum::PUSH_MONTHLY_PROMPT_COUNT->value,
+                'title' => "You created $this->monthtlyCount prompts this month!",
+                'message' => "Amazing work! Keep the streak going. Unlock even more creative ideas.",
             ],
             $this->config['via']
         );
