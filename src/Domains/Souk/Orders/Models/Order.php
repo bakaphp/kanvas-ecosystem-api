@@ -173,6 +173,11 @@ class Order extends BaseModel
         return $orderItem;
     }
 
+    public function deleteItems(): void
+    {
+        $this->items()->delete();
+    }
+
     public function fulfill(): void
     {
         $this->fulfillment_status = 'fulfilled';

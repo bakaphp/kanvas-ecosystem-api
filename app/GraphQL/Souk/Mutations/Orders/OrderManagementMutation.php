@@ -14,12 +14,15 @@ use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartAction;
+use Kanvas\Souk\Orders\Actions\UpdateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 use Kanvas\Souk\Services\B2BConfigurationService;
+use Kanvas\Exceptions\ValidationException;
 
 class OrderManagementMutation
 {
@@ -49,8 +52,6 @@ class OrderManagementMutation
 
         return $this->handlePaymentResponse($response, $isSubscription);
     }
-
- 
 
     public function createFromCart(mixed $root, array $request): array
     {
@@ -106,25 +107,32 @@ class OrderManagementMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $orderId = $request['id'];
+        $orderId = (int) $request['id'];
         $orderData = $request['input'];
 
-        
         if (empty($request['input']['items'])) {
             return [
                 'order' => null,
                 'message' => [
-                    'error_code' => 'Cart is empty',
-                    'error_message' => 'Cart is empty',
+                    'error_code' => 'the items are empty',
+                    'error_message' => 'the items are empty',
                 ],
             ];
         }
 
+        $order = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $orderId
+        ])->first();
+
+        if ($order->fulfillment_status === 'fulfilled') {
+            throw new ValidationException('Order is already fulfilled');
+        }
+
         $updateOrder = new UpdateOrderAction(
-            $orderId,
+            $order,
             $orderData,
-            $user,
-            $app
+            $user
         );
 
         return [
