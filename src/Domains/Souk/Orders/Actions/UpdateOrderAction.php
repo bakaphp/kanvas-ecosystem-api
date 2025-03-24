@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Spatie\LaravelData\DataCollection;
@@ -40,8 +41,13 @@ class UpdateOrderAction
 
 
         return DB::connection('commerce')->transaction(function () use ($items) {
-            $this->order->metadata = $this->orderData['metadata'];
-
+            $this->order->metadata = [
+                ...($this->order->metadata ?? []),
+                'data' => [
+                    ...($this->order->metadata['data'] ?? []),
+                    ...($this->orderData['metadata']['data'] ?? []),
+                ],
+            ];
             $this->order->saveOrFail();
 
             $this->order->deleteItems();

@@ -239,6 +239,7 @@ class OrderTest extends TestCase
         $order = Order::find($orderData['id']);
 
         $this->assertEquals($extendedEndAt, $order->metadata['data']['end_at']);
+        $this->assertEquals($data['metadata']['data']['start_at'], $order->metadata['data']['start_at']);
         $this->assertCount(1, $order->items);
         $this->assertEquals(2, $order->items[0]->quantity);
     }
