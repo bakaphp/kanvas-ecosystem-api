@@ -52,7 +52,7 @@ class SyncEsimWithProviderCommand extends Command
         $messages = Message::fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
-            //->whereIsPublic()
+            ->whereIsPublic()
             ->orderBy('id', 'desc')
             ->get();
 
@@ -208,9 +208,31 @@ class SyncEsimWithProviderCommand extends Command
         $orderNumber = $message->message['order']['order_number'] ?? null;
         $totalBytesData = FileSizeConverter::toBytes($totalData);
         $remainingData = $totalBytesData;
+
         if ($orderNumber !== null) {
             $orderService = new ServicesOrderService($message->app, $message->company);
             $remainingData = $orderService->getOrderStatus($orderNumber)['total'];
+        }
+
+        $validStates = ['released', 'installed', 'active', 'enabled'];
+
+        /**
+         * @todo Move this to somewhere more central
+         */
+        if (in_array(strtolower($response['state']), $validStates)) {
+            $message->setPublic();
+        } else {
+            $message->setPrivate();
+        }
+
+        // 0 means the data hasnt been used yet
+        if ($remainingData <= 0) {
+            $remainingData = $totalBytesData;
+        } elseif ($remainingData > $totalBytesData) {
+            $remainingData = 0;
+        } else {
+            // Calculate data yet to be processed
+            $remainingData = $totalBytesData - $remainingData;
         }
 
         $esimStatus = new ESimStatus(

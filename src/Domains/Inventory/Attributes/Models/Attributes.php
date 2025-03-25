@@ -9,11 +9,13 @@ use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Actions\AddAttributeValue;
+use Kanvas\Inventory\Attributes\Observers\AttributeObserver;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
@@ -33,6 +35,7 @@ use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
  * @property int $is_visible
  * @property int $weight
  */
+#[ObservedBy(AttributeObserver::class)]
 class Attributes extends BaseModel
 {
     use UuidTrait;
