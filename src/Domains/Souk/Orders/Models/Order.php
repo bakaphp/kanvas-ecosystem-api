@@ -75,7 +75,7 @@ use Spatie\LaravelData\DataCollection;
 class Order extends BaseModel
 {
     use UuidTrait;
-    //use DynamicSearchableTrait;
+    use DynamicSearchableTrait;
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
