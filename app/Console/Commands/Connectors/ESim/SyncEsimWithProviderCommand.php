@@ -249,9 +249,6 @@ class SyncEsimWithProviderCommand extends Command
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
-        } else {
-            // Calculate data yet to be processed
-            $remainingData = $totalBytesData - $remainingData;
         }
 
         $esimStatus = new ESimStatus(
