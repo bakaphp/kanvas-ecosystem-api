@@ -11,6 +11,8 @@ use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
+use Kanvas\Inventory\Channels\Actions\CreateChannel;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -74,18 +76,6 @@ class PullNetSuiteProductPriceAction
             $variantWarehouse->quantity = $warehouseOptions["quantity"];
             $variantWarehouse->price = $warehouseOptions["price"] ?? 0;
         }
-
-        $addVariantToChannel = new AddVariantToChannelAction(
-            $variantWarehouse,
-            $variant->channel,
-            VariantChannel::from([
-                'price' => $variantWarehouse->price,
-                'discounted_price' => $variantWarehouse->price,
-                'is_published' => $variantWarehouse->price > 0,
-                'config' => $config ?? null,
-            ])
-        );
-        $addVariantToChannel->execute();
 
         $variantWarehouse->config =  $config ?? null;
         $variantWarehouse->saveOrFail();
