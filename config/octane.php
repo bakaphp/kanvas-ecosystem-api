@@ -33,6 +33,7 @@ return [
             'task_worker_num' => 10,
             'enable_coroutine' => true,
             'max_request' => 1000,
+            'request_timeout' => 30,
         ],
     ],
 
