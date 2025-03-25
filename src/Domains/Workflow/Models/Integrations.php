@@ -6,7 +6,6 @@ namespace Kanvas\Workflow\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
-
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Workflow\Enums\StatusEnum;
@@ -27,7 +26,7 @@ class Integrations extends BaseModel
         'apps_id',
         'name',
         'config',
-        'handler'
+        'handler',
     ];
 
     protected $casts = [
@@ -49,6 +48,7 @@ class Integrations extends BaseModel
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+
         return $company->integrations()->where('integrations_id', '=', $this->getId())->get();
     }
 
