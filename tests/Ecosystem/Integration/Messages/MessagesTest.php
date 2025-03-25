@@ -15,6 +15,7 @@ final class MessagesTest extends TestCase
 {
     public function testValidMessageSchema()
     {
+        $faker = \Faker\Factory::create();
         $messageType = MessageType::factory()->create([
             'message_schema' => json_encode([
                 'required' => ['name', 'email'],
@@ -30,9 +31,9 @@ final class MessagesTest extends TestCase
         $this->assertIsArray(json_decode($messageType->message_schema, true));
 
         $messageData = [
-            'name' => 'John Doe',
-            'email' => "example@example.com",
-            'phone' => '1234567890'
+            'name' => $faker->name(),
+            'email' => $faker->email(),
+            'phone' => $faker->phoneNumber()
         ];
 
         $message = new Message([
@@ -55,6 +56,7 @@ final class MessagesTest extends TestCase
 
     public function testInvalidMessageSchema()
     {
+        $faker = \Faker\Factory::create();
         $messageType = MessageType::factory()->create([
             'message_schema' => json_encode([
                 'required' => ['name', 'email'],
@@ -70,8 +72,8 @@ final class MessagesTest extends TestCase
         $this->assertIsArray(json_decode($messageType->message_schema, true));
 
         $messageData = [
-            'name' => 'John Doe',
-            'email' => "example@example.com",
+            'name' => $faker->name(),
+            'email' => $faker->email(),
             'phone' => 12312313
         ];
 
