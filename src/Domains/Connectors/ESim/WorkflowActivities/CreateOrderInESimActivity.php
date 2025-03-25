@@ -68,7 +68,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $esim = (new CreateEsimOrderAction($order))->execute();
 
                 try {
-                    $woocommerceOrder = new PushOrderToWooCommerceAction($order, $this->formatEsimForWoocommerce($order, $esim));
+                    $woocommerceOrder = new PushOrderToWooCommerceAction($order, [],  $this->formatEsimForWoocommerce($order, $esim));
                     $woocommerceResponse = $woocommerceOrder->execute();
                 } catch (Throwable $e) {
                     $woocommerceResponse = [
@@ -217,6 +217,9 @@ class CreateOrderInESimActivity extends KanvasActivity
 
         $orderMetadata['esim_activation'] = $activationData;
 
-        return $orderMetadata;
+        return [[
+            'key' => '_esim_details',
+            'value' => $orderMetadata,
+        ]];
     }
 }
