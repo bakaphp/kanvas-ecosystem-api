@@ -51,8 +51,6 @@ final class MessagesTest extends TestCase
         $errors = $validateMessageSchema->execute();
 
         $this->assertEmpty($errors);
-
-        
     }
 
     public function testInvalidMessageSchema()
