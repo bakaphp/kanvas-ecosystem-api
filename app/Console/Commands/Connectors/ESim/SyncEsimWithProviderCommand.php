@@ -210,7 +210,7 @@ class SyncEsimWithProviderCommand extends Command
 
         if ($isActive && empty($existingActivationDate)) {
             $activationDate = now()->format('Y-m-d H:i:s');
-        } elseif (!empty($existingActivationDate)) {
+        } elseif (! empty($existingActivationDate)) {
             // If activation date already exists, preserve it
             $activationDate = $existingActivationDate;
         } else {
