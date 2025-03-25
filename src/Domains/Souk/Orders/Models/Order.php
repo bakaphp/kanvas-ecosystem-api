@@ -99,11 +99,6 @@ class Order extends BaseModel
         return $this->belongsTo(Regions::class, 'region_id', 'id');
     }
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id', 'id');
-    }
-
     public function people(): BelongsTo
     {
         return $this->belongsTo(People::class, 'people_id', 'id');
@@ -111,7 +106,7 @@ class Order extends BaseModel
 
     public function items(): HasMany
     {
-        return $this->hasMany(OrderItem::class, 'order_id', 'id');
+        return $this->hasMany(OrderItem::class, 'order_id', 'id')->where('is_public', 1);
     }
 
     public function shippingAddress(): BelongsTo
