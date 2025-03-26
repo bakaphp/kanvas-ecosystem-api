@@ -9,9 +9,11 @@ use Nuwave\Lighthouse\Auth\GuardDirective;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Override;
 
 class GuardByCompanyDirective extends GuardDirective
 {
+    #[Override]
     public static function definition(): string
     {
         return /** @lang GraphQL */ <<<'GRAPHQL'
@@ -25,6 +27,7 @@ directive @guardByCompany(
 GRAPHQL;
     }
 
+    #[Override]
     public function handleField(FieldValue $fieldValue): void
     {
         $fieldValue->wrapResolver(
