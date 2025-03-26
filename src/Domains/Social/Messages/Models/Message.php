@@ -228,6 +228,10 @@ class Message extends BaseModel
             return false;
         }
 
+        if ($this->app->get('message_disable_searchable')) {
+            return false;
+        }
+
         $filterByMessageType = $this->app->get('index_message_by_type');
 
         return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
