@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kanvas\Connectors\WooCommerce\Enums;
 
-enum WooCommerceEnum: string
+enum ConfigurationEnum: string
 {
     case WORDPRESS_URL = 'wordpress_url';
     case WORDPRESS_USER = 'wordpress_user';

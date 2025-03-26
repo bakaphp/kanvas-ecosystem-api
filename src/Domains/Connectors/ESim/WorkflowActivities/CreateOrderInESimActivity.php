@@ -7,11 +7,13 @@ namespace Kanvas\Connectors\ESim\WorkflowActivities;
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\CMLink\Actions\CreateEsimOrderAction;
+use Kanvas\Connectors\ESim\DataTransferObject\ESim;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Connectors\WooCommerce\Actions\PushOrderToWooCommerceAction;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -65,6 +67,17 @@ class CreateOrderInESimActivity extends KanvasActivity
             if ($providerValue == strtolower(ProviderEnum::CMLINK->value)) {
                 $esim = (new CreateEsimOrderAction($order))->execute();
 
+                try {
+                    $woocommerceOrder = new PushOrderToWooCommerceAction($order, $this->formatEsimForWoocommerce($order, $esim));
+                    $woocommerceResponse = $woocommerceOrder->execute();
+                } catch (Throwable $e) {
+                    $woocommerceResponse = [
+                        'status' => 'error',
+                        'message' => 'Error creating order in WooCommerce',
+                        'response' => $e->getMessage(),
+                    ];
+                }
+
                 $response = [
                     'success' => true,
                     'data' => [
@@ -72,6 +85,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                         'plan_origin' => $esim->plan,
                     ],
                     'esim_status' => $esim->esimStatus->toArray(),
+                    'woocommerce_response' => $woocommerceResponse,
                 ];
             } else {
                 $createOrder = new OrderService($order);
@@ -159,5 +173,50 @@ class CreateOrderInESimActivity extends KanvasActivity
             'message_id' => $message->getId(),
             'response' => $response,
         ];
+    }
+
+    protected function formatEsimForWoocommerce(Order $order, ESim $esim): array
+    {
+        $esimData = $order->metadata['data'] ?? [];
+
+        // Prepare eSIM metadata for the order
+        $orderMetadata = [
+           'purchase_type' => 'new',
+           'recharge_status' => 'none',
+           'is_archived' => false,
+           'is_unlocked' => false,
+           'has_valid_imei' => $esimData['has_valid_imei'] ?? true,
+           'esim_name' => $esimData['destination'] ?? '',
+           'imei' => $esimData['client_imei'] ?? '',
+           'esim_email' => $order->user_email ?? '',
+           'date_from' => $esim->esimStatus->assignmentDateTime ?? '',
+           'date_to' => $esim->esimStatus->expirationDate ?? '',
+           'total_days' => $esimData['total_days'] ?? 0,
+           'apn' => $esimData['apn'] ?? '',
+           'order_reference' => $order->order_number ?? '',
+           'lpa_code' => $esim->lpaCode ?? '',
+           'matching_id' => $esim->matchingId ?? '',
+           'smdp_address' => $esim->smdpAddress ?? '',
+           'label' => $esim->label ?? '',
+           'agent_name' => '',
+           'is_unlimited' => $esim->esimStatus->unlimited ?? false,
+           'order_source' => 'kanvas',
+        ];
+
+        // Prepare activation data
+        $activationData = [
+            'plan' => $esim->plan,
+            'iccid' => $esim->iccid,
+            'apn' => $esimData['apn'] ?? '',
+            'order_reference' => $order->order_number ?? '',
+            'lpa_code' => $esim->lpaCode ?? '',
+            'matching_id' => $esim->matchingId ?? '',
+            'smdp_address' => $esim->smdpAddress ?? '',
+            'phone_number' => $esim->esimStatus->phoneNumber ?? '',
+        ];
+
+        $orderMetadata['esim_activation'] = $activationData;
+
+        return $orderMetadata;
     }
 }

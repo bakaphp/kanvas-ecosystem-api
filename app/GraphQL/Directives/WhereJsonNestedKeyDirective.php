@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Nuwave\Lighthouse\Schema\Directives\BaseDirective;
 use Nuwave\Lighthouse\Support\Contracts\ArgBuilderDirective;
+use Override;
 
 class WhereJsonNestedKeyDirective extends BaseDirective implements ArgBuilderDirective
 {
+    #[Override]
     public static function definition(): string
     {
         return /** @lang GraphQL */ <<<'SDL'
@@ -37,6 +39,7 @@ directive @whereJsonNestedKey(
 SDL;
     }
 
+    #[Override]
     public function handleBuilder(
         QueryBuilder|EloquentBuilder|Relation $builder,
         mixed $value

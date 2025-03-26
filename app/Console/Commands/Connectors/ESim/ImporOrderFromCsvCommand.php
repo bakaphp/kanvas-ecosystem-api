@@ -30,6 +30,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
+use Exception;
 
 class ImporOrderFromCsvCommand extends Command
 {
@@ -130,12 +131,17 @@ class ImporOrderFromCsvCommand extends Command
             }
             $total = $items->sum('price');
             $items = OrderItem::collect($items, DataCollection::class);
+            try {
+                $user = UsersRepository::getByEmail($order['email']);
+            } catch (Exception $e) {
+                continue;
+            }
             $dto = OrderDTO::from([
                 'app' => $this->app,
                 'region' => $this->region,
                 'company' => $this->company,
                 'people' => $people,
-                'user' => $this->user,
+                'user' => $user,
                 'token' => $order['key'],
                 'orderNumber' => '',
                 'total' => (float) $total,
