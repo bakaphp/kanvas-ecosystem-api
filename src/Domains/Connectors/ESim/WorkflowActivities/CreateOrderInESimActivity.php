@@ -59,6 +59,7 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         $providerValue = strtolower($provider->value);
+        $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
 
         try {
             /**
@@ -67,16 +68,7 @@ class CreateOrderInESimActivity extends KanvasActivity
             if ($providerValue == strtolower(ProviderEnum::CMLINK->value)) {
                 $esim = (new CreateEsimOrderAction($order))->execute();
 
-                try {
-                    $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
-                    $woocommerceResponse = $woocommerceOrder->execute($providerValue);
-                } catch (Throwable $e) {
-                    $woocommerceResponse = [
-                        'status' => 'error',
-                        'message' => 'Error creating order in WooCommerce',
-                        'response' => $e->getMessage(),
-                    ];
-                }
+                $woocommerceResponse = $fromMobile ? $this->sendOrderToCommerce($order, $esim, $providerValue) : ['web order' => true];
 
                 $response = [
                     'success' => true,
@@ -173,5 +165,21 @@ class CreateOrderInESimActivity extends KanvasActivity
             'message_id' => $message->getId(),
             'response' => $response,
         ];
+    }
+
+    protected function sendOrderToCommerce(Order $order, ESim $esim, string $providerValue): array
+    {
+        try {
+            $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
+            $woocommerceResponse = $woocommerceOrder->execute($providerValue);
+        } catch (Throwable $e) {
+            $woocommerceResponse = [
+                'status' => 'error',
+                'message' => 'Error creating order in WooCommerce',
+                'response' => $e->getMessage(),
+            ];
+        }
+
+        return $woocommerceResponse;
     }
 }
