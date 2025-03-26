@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Observers;
 
+use Kanvas\Exceptions\MessageValidationException;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
-use Kanvas\Social\Messages\Actions\ValidateMessageSchemaAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
 
 class MessageObserver
 {
@@ -22,11 +22,8 @@ class MessageObserver
         }
 
         if ($message->app->get('validate-message-schema')) {
-            $checkJson = new ValidateMessageSchemaAction($message, $message->messageType);
-            $errors = $checkJson->execute();
-            if (! empty($errors)) {
-                throw new ValidationException(implode(', ', $errors));
-            }
+            $checkJson = new MessageSchemaValidator($message, $message->messageType);
+            $checkJson->validate();
         }
     }
 

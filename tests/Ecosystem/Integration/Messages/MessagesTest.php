@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Tests\Ecosystem\Integration\Messages;
 
 use Illuminate\Support\Facades\Auth;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Social\Messages\Actions\ValidateMessageSchemaAction;
+use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
+use Kanvas\Exceptions\MessageValidationException;
 
 final class MessagesTest extends TestCase
 {
@@ -18,13 +18,9 @@ final class MessagesTest extends TestCase
         $faker = \Faker\Factory::create();
         $messageType = MessageType::factory()->create([
             'message_schema' => json_encode([
-                'required' => ['name', 'email'],
-                'optional' => ['phone'],
-                'types' => [
-                    'name' => 'string',
-                    'email' => 'string',
-                    'phone' => 'string'
-                ]
+                'name' => 'required|string',
+                'email' => 'required|string',
+                'phone' => 'required|string'
             ])
         ]);
 
@@ -48,10 +44,8 @@ final class MessagesTest extends TestCase
 
         $this->assertGreaterThan(0, $message->getId());
 
-        $validateMessageSchema = new ValidateMessageSchemaAction($message, $messageType);
-        $errors = $validateMessageSchema->execute();
-
-        $this->assertEmpty($errors);
+        $validateMessageSchema = new MessageSchemaValidator($message, $messageType);
+        $validateMessageSchema->validate();
     }
 
     public function testInvalidMessageSchema()
@@ -59,13 +53,9 @@ final class MessagesTest extends TestCase
         $faker = \Faker\Factory::create();
         $messageType = MessageType::factory()->create([
             'message_schema' => json_encode([
-                'required' => ['name', 'email'],
-                'optional' => ['phone'],
-                'types' => [
-                    'name' => 'string',
-                    'email' => 'string',
-                    'phone' => 'string'
-                ]
+                'name' => 'required|string',
+                'email' => 'required|string',
+                'phone' => 'required|string'
             ])
         ]);
 
@@ -88,10 +78,10 @@ final class MessagesTest extends TestCase
         $message->save();
 
         $this->assertGreaterThan(0, $message->getId());
+        $this->expectException(MessageValidationException::class);
+        $this->expectExceptionMessage('The phone must be a string.');
 
-        $validateMessageSchema = new ValidateMessageSchemaAction($message, $messageType);
-        $errors = $validateMessageSchema->execute();
-
-        $this->assertNotEmpty($errors);
+        $validateMessageSchema = new MessageSchemaValidator($message, $messageType);
+        $validateMessageSchema->validate();
     }
 }
