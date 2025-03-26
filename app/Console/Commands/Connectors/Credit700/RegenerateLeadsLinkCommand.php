@@ -7,6 +7,7 @@ namespace App\Console\Commands\Connectors\Credit700;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Credit700\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Credit700\Services\CreditScoreService;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -27,8 +28,9 @@ class RegenerateLeadsLinkCommand extends Command
         /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
+        $company = Companies::getById((int) $this->argument('companies_id'));
 
-        $query = Lead::getByCustomFieldBuilder(CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value, null);
+        $query = Lead::getByCustomFieldBuilder(CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value, null, $company);
         $cursor = $query->cursor();
         $totalLeads = $query->count();
 
