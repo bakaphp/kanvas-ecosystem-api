@@ -69,7 +69,7 @@ class CreateOrderInESimActivity extends KanvasActivity
 
                 try {
                     $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
-                    $woocommerceResponse = $woocommerceOrder->execute($provider);
+                    $woocommerceResponse = $woocommerceOrder->execute($providerValue);
                 } catch (Throwable $e) {
                     $woocommerceResponse = [
                         'status' => 'error',
