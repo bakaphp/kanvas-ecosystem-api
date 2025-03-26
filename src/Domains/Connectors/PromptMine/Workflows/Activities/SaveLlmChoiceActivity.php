@@ -22,8 +22,7 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
                 'message' => 'Message does not have an AI model',
             ];
         }
-        
-        $entity->user->set('llm_choice', $messageData['ai_model']);
+        $entity->user->set('llm_last_choice', $messageData['ai_model']);
 
         return [
             'message' => 'LLM choice saved',
