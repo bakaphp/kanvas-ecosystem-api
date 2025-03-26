@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\ESim\WorkflowActivities;
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\CMLink\Actions\CreateEsimOrderAction;
+use Kanvas\Connectors\ESim\Actions\PushOrderToCommerceAction;
 use Kanvas\Connectors\ESim\DataTransferObject\ESim;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
@@ -67,16 +68,16 @@ class CreateOrderInESimActivity extends KanvasActivity
             if ($providerValue == strtolower(ProviderEnum::CMLINK->value)) {
                 $esim = (new CreateEsimOrderAction($order))->execute();
 
-                try {
-                    $woocommerceOrder = new PushOrderToWooCommerceAction($order, [],  $this->formatEsimForWoocommerce($order, $esim));
-                    $woocommerceResponse = $woocommerceOrder->execute();
+                 try {
+                    $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
+                    $woocommerceResponse = $woocommerceOrder->execute($provider);
                 } catch (Throwable $e) {
                     $woocommerceResponse = [
                         'status' => 'error',
                         'message' => 'Error creating order in WooCommerce',
                         'response' => $e->getMessage(),
                     ];
-                }
+                } 
 
                 $response = [
                     'success' => true,
