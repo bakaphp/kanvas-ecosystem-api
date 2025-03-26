@@ -23,6 +23,7 @@ use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 use Spatie\LaravelData\DataCollection;
 
 /**
@@ -269,5 +270,11 @@ class Order extends BaseModel
     public function getPhone(): ?string
     {
         return $this->user_phone ?? $this->people->getPhones()->first()?->phone;
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return false;
     }
 }
