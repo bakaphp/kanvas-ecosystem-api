@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baka\Enums;
 
 use Baka\Contracts\EnumsInterface;
+use Override;
 
 enum StateEnums implements EnumsInterface
 {
@@ -26,11 +27,7 @@ enum StateEnums implements EnumsInterface
     case DEFAULT_NAME;
     case DEFAULT_NAME_SLUG;
 
-    /**
-     * Get value.
-     *
-     * @return mixed
-     */
+    #[Override]
     public function getValue(): mixed
     {
         return match ($this) {

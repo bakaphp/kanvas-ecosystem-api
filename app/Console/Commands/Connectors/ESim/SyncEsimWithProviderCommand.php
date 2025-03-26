@@ -225,8 +225,14 @@ class SyncEsimWithProviderCommand extends Command
             $message->setPrivate();
         }
 
-        if ($remainingData > $totalBytesData) {
+        // 0 means the data hasnt been used yet
+        if ($remainingData <= 0) {
             $remainingData = $totalBytesData;
+        } elseif ($remainingData > $totalBytesData) {
+            $remainingData = 0;
+        } else {
+            // Calculate data yet to be processed
+            $remainingData = $totalBytesData - $remainingData;
         }
 
         $esimStatus = new ESimStatus(

@@ -110,7 +110,7 @@ class Order extends BaseModel
 
     public function items(): HasMany
     {
-        return $this->hasMany(OrderItem::class, 'order_id', 'id');
+        return $this->hasMany(OrderItem::class, 'order_id', 'id')->where('is_public', 1);
     }
 
     public function shippingAddress(): BelongsTo
@@ -170,6 +170,11 @@ class Order extends BaseModel
         $orderItem->saveOrFail();
 
         return $orderItem;
+    }
+
+    public function deleteItems(): void
+    {
+        $this->items()->delete();
     }
 
     public function fulfill(): void
