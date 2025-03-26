@@ -27,7 +27,7 @@ class PushOrderToCommerceAction
         $destination = $variant->product->getAttributeBySlug('destination')?->value ?? '';
         $descriptionName = $variant->product->getAttributeBySlug('destination-name')?->value ?? '';
         $commerceSku = $variant->product->getAttributeBySlug('commerce-sku')?->value ?? 'esim-eu';
-        $commerceProductId = $variant->product->getAttributeBySlug('commerce-product-id')?->value ?? 'esim-eu';
+        $commerceProductId = $variant->product->getAttributeBySlug('commerce-product-id')?->value ?? '20';
         $variantDuration = $variant->getAttributeBySlug('variant-duration')?->value ?? null;
 
         return Http::withHeaders([
