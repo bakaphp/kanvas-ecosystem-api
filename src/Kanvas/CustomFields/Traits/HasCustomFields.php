@@ -451,7 +451,7 @@ trait HasCustomFields
             ->where('apps_custom_fields.model_name', static::class)
             ->where('apps_custom_fields.name', $name);
 
-        if (! is_null($value)) {
+        if ($value !== null) {
             $query->where('apps_custom_fields.value', $value);
         }
 
