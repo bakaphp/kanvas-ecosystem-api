@@ -49,6 +49,8 @@ class SyncEsimWithProviderCommand extends Command
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
 
+        Order::disableSearchSyncing();
+
         $messages = Message::fromApp($app)
             ->fromCompany($company)
             ->notDeleted()

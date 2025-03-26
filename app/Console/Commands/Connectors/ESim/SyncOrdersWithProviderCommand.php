@@ -43,6 +43,8 @@ class SyncOrdersWithProviderCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
+        Order::disableSearchSyncing();
+
         $company = Companies::getById((int) $this->argument('company_id'));
 
         $orders = Order::fromApp($app)->fromCompany($company)->notDeleted()->whereNotFulfilled()->orderBy('id', 'desc')->get();
