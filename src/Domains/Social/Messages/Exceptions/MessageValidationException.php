@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Exceptions;
+namespace Kanvas\Social\Messages\Exceptions;
 
 use Exception;
 use GraphQL\Error\ClientAware;
