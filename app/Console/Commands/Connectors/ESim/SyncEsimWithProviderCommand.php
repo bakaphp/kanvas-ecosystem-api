@@ -52,7 +52,7 @@ class SyncEsimWithProviderCommand extends Command
         $messages = Message::fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
-            //->whereIsPublic()
+            ->whereIsPublic()
             ->orderBy('id', 'desc')
             ->get();
 
@@ -248,7 +248,10 @@ class SyncEsimWithProviderCommand extends Command
         if ($remainingData <= 0) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
-            $remainingData = $totalBytesData;
+            $remainingData = 0;
+        } else {
+            // Calculate data yet to be processed
+            $remainingData = $totalBytesData - $remainingData;
         }
 
         $esimStatus = new ESimStatus(

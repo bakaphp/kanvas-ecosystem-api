@@ -438,16 +438,24 @@ trait HasCustomFields
      */
     public static function getByCustomField(string $name, mixed $value, ?Companies $company = null): ?Model
     {
+        return self::getByCustomFieldBuilder($name, $value, $company)->first();
+    }
+
+    public static function getByCustomFieldBuilder(string $name, mixed $value, ?Companies $company = null): Builder
+    {
         $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $table = (new static())->getTable();
 
-        return self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
+        $query = self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
             ->where('apps_custom_fields.companies_id', $company)
             ->where('apps_custom_fields.model_name', static::class)
-            ->where('apps_custom_fields.name', $name)
-            ->where('apps_custom_fields.value', $value)
-            ->select($table . '.*')
-            ->first();
+            ->where('apps_custom_fields.name', $name);
+
+        if ($value !== null) {
+            $query->where('apps_custom_fields.value', $value);
+        }
+
+        return $query->select($table . '.*');
     }
 
     protected function clearCustomFieldsCacheIfNeeded(): void
