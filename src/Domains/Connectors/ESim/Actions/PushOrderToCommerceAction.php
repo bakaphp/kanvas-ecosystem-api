@@ -25,9 +25,9 @@ class PushOrderToCommerceAction
         $firstItem = $this->order->items()->first();
         $variant = $firstItem->variant;
         $destination = $variant->product->getAttributeBySlug('destination')?->value ?? '';
-        $descriptionName = $variant->getAttributeBySlug('description-name')?->value ?? '';
-        $commerceSku = $variant->getAttributeBySlug('commerce-sku')?->value ?? 'esim-eu';
-        $commerceProductId = $variant->getAttributeBySlug('commerce-product-id')?->value ?? 'esim-eu';
+        $descriptionName = $variant->product->getAttributeBySlug('destination-name')?->value ?? '';
+        $commerceSku = $variant->product->getAttributeBySlug('commerce-sku')?->value ?? 'esim-eu';
+        $commerceProductId = $variant->product->getAttributeBySlug('commerce-product-id')?->value ?? 'esim-eu';
         $variantDuration = $variant->getAttributeBySlug('variant-duration')?->value ?? null;
 
         return Http::withHeaders([
