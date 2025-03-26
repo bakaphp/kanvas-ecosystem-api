@@ -14,7 +14,6 @@ use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
-use Kanvas\Connectors\WooCommerce\Actions\PushOrderToWooCommerceAction;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -68,7 +67,7 @@ class CreateOrderInESimActivity extends KanvasActivity
             if ($providerValue == strtolower(ProviderEnum::CMLINK->value)) {
                 $esim = (new CreateEsimOrderAction($order))->execute();
 
-                 try {
+                try {
                     $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
                     $woocommerceResponse = $woocommerceOrder->execute($provider);
                 } catch (Throwable $e) {
@@ -77,7 +76,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                         'message' => 'Error creating order in WooCommerce',
                         'response' => $e->getMessage(),
                     ];
-                } 
+                }
 
                 $response = [
                     'success' => true,
@@ -174,53 +173,5 @@ class CreateOrderInESimActivity extends KanvasActivity
             'message_id' => $message->getId(),
             'response' => $response,
         ];
-    }
-
-    protected function formatEsimForWoocommerce(Order $order, ESim $esim): array
-    {
-        $esimData = $order->metadata['data'] ?? [];
-
-        // Prepare eSIM metadata for the order
-        $orderMetadata = [
-           'purchase_type' => 'new',
-           'recharge_status' => 'none',
-           'is_archived' => false,
-           'is_unlocked' => false,
-           'has_valid_imei' => $esimData['has_valid_imei'] ?? true,
-           'esim_name' => $esimData['destination'] ?? '',
-           'imei' => $esimData['client_imei'] ?? '',
-           'esim_email' => $order->user_email ?? '',
-           'date_from' => $esim->esimStatus->assignmentDateTime ?? '',
-           'date_to' => $esim->esimStatus->expirationDate ?? '',
-           'total_days' => $esimData['total_days'] ?? 0,
-           'apn' => $esimData['apn'] ?? '',
-           'order_reference' => $order->order_number ?? '',
-           'lpa_code' => $esim->lpaCode ?? '',
-           'matching_id' => $esim->matchingId ?? '',
-           'smdp_address' => $esim->smdpAddress ?? '',
-           'label' => $esim->label ?? '',
-           'agent_name' => '',
-           'is_unlimited' => $esim->esimStatus->unlimited ?? false,
-           'order_source' => 'kanvas',
-        ];
-
-        // Prepare activation data
-        $activationData = [
-            'plan' => $esim->plan,
-            'iccid' => $esim->iccid,
-            'apn' => $esimData['apn'] ?? '',
-            'order_reference' => $order->order_number ?? '',
-            'lpa_code' => $esim->lpaCode ?? '',
-            'matching_id' => $esim->matchingId ?? '',
-            'smdp_address' => $esim->smdpAddress ?? '',
-            'phone_number' => $esim->esimStatus->phoneNumber ?? '',
-        ];
-
-        $orderMetadata['esim_activation'] = $activationData;
-
-        return [[
-            'key' => '_esim_details',
-            'value' => $orderMetadata,
-        ]];
     }
 }

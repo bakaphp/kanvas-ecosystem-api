@@ -11,5 +11,5 @@ enum ConfigurationEnum: string
     case APP_CHANNEL_ID = 'ESIM_CHANNEL_ID';
     case PROVIDER_SLUG = 'product-provider';
     case VARIANT_PROVIDER_SLUG = 'variant-product-provider';
-    case COMMERCE_API_KEY = 'WP-X-API-KEY'; 
+    case COMMERCE_API_KEY = 'WP-X-API-KEY';
 }
