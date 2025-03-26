@@ -9,7 +9,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
-use Kanvas\Exceptions\MessageValidationException;
+use Kanvas\Social\Exceptions\MessageValidationException;
 
 final class MessagesTest extends TestCase
 {

@@ -8,7 +8,7 @@ use Closure;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Illuminate\Support\Facades\Validator;
-use Kanvas\Exceptions\MessageValidationException;
+use Kanvas\Social\Exceptions\MessageValidationException;
 
 class MessageSchemaValidator
 {
