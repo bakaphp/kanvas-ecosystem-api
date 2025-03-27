@@ -10,9 +10,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 
 class CallService
 {
-    /**
-     * The API endpoint
-     */
     protected string $apiEndpoint;
     protected string $useCase;
 
@@ -24,17 +21,25 @@ class CallService
 
     public function sendLead(Lead $lead): array
     {
+        if ($lead->get('sandraai_response')) {
+            return $lead->get('sandraai_response');
+        }
+
         $payload = $this->buildPayload($lead);
 
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
         ])->post($this->apiEndpoint, $payload);
 
-        return [
+        $response = [
             'status' => $response->successful(),
             'status_code' => $response->status(),
             'body' => $response->json() ?: $response->body(),
         ];
+
+        $lead->set('sandraai_response', $response);
+
+        return $response;
     }
 
     public function buildPayload(Lead $lead): array
@@ -99,14 +104,21 @@ class CallService
 
     protected function formatContacts($people): array
     {
-        return $people->contacts()->get()->map(function ($contact) {
+        // Get unique contacts by type
+        return $people->contacts()->get()
+        ->unique(function ($contact) {
+            return $contact->type->name ?? 'Unknown';
+        })
+        ->map(function ($contact) {
             return [
-            'type' => [
-                'name' => $contact->type->name ?? 'Unknown',
-            ],
-            'value' => $contact->value,
+                'type' => [
+                    'name' => $contact->type->name ?? 'Unknown',
+                ],
+                'value' => $contact->value,
             ];
-        })->toArray();
+        })
+        ->values()
+        ->toArray();
     }
 
     protected function formatOwner($owner): array
