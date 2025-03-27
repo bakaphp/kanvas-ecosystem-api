@@ -804,6 +804,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         }
     }
 
+    /**
+     * Get the user alternative email because for whatever reason
+     * during the integration the email we get is not a real user email to
+     * work with forgot password.
+     */
+    public function getAlternativeEmail(): ?string
+    {
+        return $this->get('contact_email');
+    }
+
     public static function searchableIndex(): string
     {
         return 'users_index_';
