@@ -37,7 +37,7 @@ class SalesAssistService
         ];
     }
 
-    protected function buildPayload(Lead $lead): array
+    public function buildPayload(Lead $lead): array
     {
         return [
             'use_case' => $this->useCase,
