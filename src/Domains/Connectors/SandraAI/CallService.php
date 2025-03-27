@@ -8,7 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Guild\Leads\Models\Lead;
 
-class SalesAssistService
+class CallService
 {
     /**
      * The API endpoint
