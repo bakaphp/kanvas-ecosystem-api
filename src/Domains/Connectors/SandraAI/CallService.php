@@ -106,19 +106,27 @@ class CallService
     {
         // Get unique contacts by type
         return $people->contacts()->get()
-        ->unique(function ($contact) {
-            return $contact->type->name ?? 'Unknown';
-        })
-        ->map(function ($contact) {
-            return [
-                'type' => [
-                    'name' => $contact->type->name ?? 'Unknown',
-                ],
-                'value' => $contact->value,
-            ];
-        })
-        ->values()
-        ->toArray();
+            ->unique(function ($contact) {
+                return $contact->type->name ?? 'Unknown';
+            })
+            ->map(function ($contact) {
+                $type = $contact->type->name ?? 'Unknown';
+                $value = $contact->value;
+
+                // If it's a phone type, remove any formatting
+                if (strpos(strtolower($type), 'phone') !== false) {
+                    $value = preg_replace('/[^0-9]/', '', $value);
+                }
+
+                return [
+                    'type' => [
+                        'name' => $type,
+                    ],
+                    'value' => $value,
+                ];
+            })
+            ->values()
+            ->toArray();
     }
 
     protected function formatOwner($owner): array
