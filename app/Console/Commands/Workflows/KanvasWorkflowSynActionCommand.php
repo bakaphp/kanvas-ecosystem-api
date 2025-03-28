@@ -64,7 +64,7 @@ use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Connectors\Google\Activities\CovertMapsCoordinatesToImageActivity;
-use Kanvas\Social\Connectors\Promptmine\Workflows\Activities\SaveLlmChoiceActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
