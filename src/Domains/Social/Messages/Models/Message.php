@@ -86,7 +86,7 @@ class Message extends BaseModel
     use QueryCacheable;
 
     protected $table = 'messages';
-    public $cacheFor = 0;
+    public $cacheFor = null;
     public $cacheDriver = 'redis';
     protected static $flushCacheOnUpdate = true;
 
@@ -99,17 +99,6 @@ class Message extends BaseModel
         'message_types_id' => 'integer',
         'is_public' => 'integer',
     ];
-
-    protected function cacheForValue()
-    {
-        $app = app(Apps::class);
-        $messageCacheTime = $app->get('message_cache_time');
-        if ($messageCacheTime > 0) {
-            return $messageCacheTime;
-        }
-
-        return null;
-    }
 
     #[Override]
     public function getGraphTypeName(): string
