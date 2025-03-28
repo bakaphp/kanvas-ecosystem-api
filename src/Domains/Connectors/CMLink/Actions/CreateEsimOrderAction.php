@@ -84,7 +84,7 @@ class CreateEsimOrderAction
             activeDate: $this->order->created_at->format('Y-m-d')
         );
 
-        if(!isset($cmLinkOrder['quantity']) || $cmLinkOrder['quantity'] < 1) {
+        if (! isset($cmLinkOrder['quantity']) || $cmLinkOrder['quantity'] < 1) {
             throw new ValidationException($cmLinkOrder['description']);
         }
 
