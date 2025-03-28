@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VinSolution;
 
 use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 
-/**
- * Wrapper for the VinSolutions API.
- */
 class Client
 {
     protected GuzzleClient $client;
