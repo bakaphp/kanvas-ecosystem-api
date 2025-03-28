@@ -13,6 +13,8 @@ use Kanvas\Workflow\KanvasActivity;
 
 class PullUserInformationActivity extends KanvasActivity
 {
+    public $tries = 3;
+
     public function execute(Users $user, Apps $app, array $params): array
     {
         $company = $params['company'];

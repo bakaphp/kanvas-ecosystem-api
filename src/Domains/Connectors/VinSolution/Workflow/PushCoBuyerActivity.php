@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\ClientCredential;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
@@ -15,6 +16,8 @@ use Kanvas\Workflow\KanvasActivity;
 
 class PushCoBuyerActivity extends KanvasActivity
 {
+    public $tries = 3;
+
     public function execute(LeadParticipant $participant, Apps $app, array $params): array
     {
         $company = $participant->people->company;
@@ -36,7 +39,20 @@ class PushCoBuyerActivity extends KanvasActivity
         $customer = $pushPeopleToVin->execute();
 
         $vinLeadId = $lead->get(CustomFieldEnum::LEADS->value);
-        $vinLead = Lead::getById($vinCredential->dealer, $vinCredential->user, $vinLeadId);
+
+        if (! $vinLeadId) {
+            return [
+                'error' => 'Lead ID found for  VinSolution',
+            ];
+        }
+
+        try {
+            $vinLead = Lead::getById($vinCredential->dealer, $vinCredential->user, $vinLeadId);
+        } catch (Exception $e) {
+            return [
+                'error' => 'Lead not found in VinSolution',
+            ];
+        }
 
         $vinLead->coBuyerContact = $customer->id;
         $vinLead->update(
