@@ -7,8 +7,10 @@ namespace Kanvas\Connectors\Zoho;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Services\ZohoConfigurationService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Enums\FlagEnum;
+use Kanvas\Regions\Models\Regions as KanvasRegions;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 use Weble\ZohoClient\Enums\Region;
 use Weble\ZohoClient\OAuthClient;
@@ -32,7 +34,7 @@ class Client
     /**
      * Connect to zoho CRM.
      */
-    public static function getInstance(AppInterface $app, CompanyInterface $company): ZohoCrm
+    public static function getInstance(AppInterface $app, CompanyInterface $company, KanvasRegions $region): ZohoCrm
     {
         $redis = RedisAdapter::createConnection(
             'redis://' . config('database.redis.default.host')
@@ -49,37 +51,21 @@ class Client
             $defaultLifetime = 0
         );
 
-        list($clientId, $clientSecret, $refreshToken) = self::getKeys($company, $app);
-
-        if (empty($clientId) || empty($clientSecret) || empty($refreshToken)) {
-            $configZohoKey = $company->get(FlagEnum::APP_GLOBAL_ZOHO->value) ? 'app' : 'company';
-            $configZohoKeyId = $company->get(FlagEnum::APP_GLOBAL_ZOHO->value) ? $app->name : $company->name;
-
-            throw new ValidationException('Zoho keys are not set for ' . $configZohoKey . ' ' . $configZohoKeyId);
+        if (!self::$instance) {
+            self::cleanupOldInstances();
+            self::$instance = self::createInstance($app, $company, $region, $cache);
         }
 
-        $oAuthClient = new OAuthClient(
-            $clientId,
-            $clientSecret,
-        );
+        return self::$instance;
 
-        $oAuthClient->setRefreshToken($refreshToken);
-        $oAuthClient->setRegion(self::$region);
-        $oAuthClient->useCache($cache);
-        $oAuthClient->offlineMode();
-
-        // setup the zoho crm client
-        $client = new ZohoCrmClient($oAuthClient);
-        $client->setMode(self::$environment);
-
-        return new ZohoCrm($client);
     }
 
     /**
      * Get zoho keys from company.
      */
-    public static function getKeys(CompanyInterface $company, AppInterface $app): array
+    public static function getKeys(CompanyInterface $company, AppInterface $app, KanvasRegions $region): array
     {
+        $credentialKey = ZohoConfigurationService::generateCredentialKey($company, $app, $region);
         $config = $app;
 
         if (! $app->get(FlagEnum::APP_GLOBAL_ZOHO->value)) {
@@ -91,6 +77,57 @@ class Client
             $config->get(CustomFieldEnum::CLIENT_SECRET->value),
             $config->get(CustomFieldEnum::REFRESH_TOKEN->value),
         ];
+    }
+
+    /**
+     * Create and validate a new Shopify SDK instance.
+     */
+    public static function getInstanceValidation(
+        AppInterface $app,
+        CompanyInterface $company,
+        Regions $region
+    ): ZohoCrm {
+        return self::$instance = self::getInstance($app, $company, $region);
+    }
+
+    private static function getConnectionKey(
+        AppInterface $app,
+        CompanyInterface $company,
+        KanvasRegions $region
+    ): string {
+        return sprintf('app_%d-company_%d-region_%d', $app->id, $company->id, $region->id);
+    }
+
+    private static function createInstance(
+        AppInterface $app,
+        CompanyInterface $company,
+        KanvasRegions $region,
+        RedisAdapter $cache
+    ) {
+        [$clientId, $clientSecret, $refreshToken] = self::getKeys($company, $app, $region);
+
+        if (empty($clientId) || empty($clientSecret)) {
+            $configZohoKey = $company->get(FlagEnum::APP_GLOBAL_ZOHO->value) ? 'app' : 'company';
+            $configZohoKeyId = $company->get(FlagEnum::APP_GLOBAL_ZOHO->value) ? $app->name : $company->name;
+
+            throw new ValidationException('Zoho keys are not set for ' . $configZohoKey . ' ' . $configZohoKeyId);
+        }
+
+        $oAuthClient = new OAuthClient(
+            $clientId,
+            $clientSecret,
+        );
+
+        // $oAuthClient->setRefreshToken($refreshToken);
+        $oAuthClient->setRegion(self::$region);
+        $oAuthClient->useCache($cache);
+        $oAuthClient->offlineMode();
+
+        // setup the zoho crm client
+        $client = new ZohoCrmClient($oAuthClient);
+        $client->setMode(self::$environment);
+
+        return new ZohoCrm($client);
     }
 
     /**
@@ -107,5 +144,12 @@ class Client
     public function setRegion(string $region): void
     {
         self::$region = $region;
+    }
+
+    private static function cleanupOldInstances(): void
+    {
+        if (self::$instance) {
+            self::$instance = null;
+        }
     }
 }

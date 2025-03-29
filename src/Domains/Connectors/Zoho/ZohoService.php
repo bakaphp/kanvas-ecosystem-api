@@ -8,9 +8,12 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
+use Kanvas\Connectors\Zoho\DataTransferObject\ZohoSetup;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Services\ZohoConfigurationService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Regions\Models\Regions;
 use Webleit\ZohoCrmApi\Models\Record;
 use Webleit\ZohoCrmApi\ZohoCrm;
 
@@ -22,12 +25,27 @@ class ZohoService
 
     public function __construct(
         protected AppInterface $app,
-        protected CompanyInterface $company
+        protected CompanyInterface $company,
+        protected Regions $region
     ) {
-        $this->zohoCrm = Client::getInstance($app, $company);
+        $this->zohoCrm = Client::getInstance($app, $company, $region);
         $this->zohoAgentModule = $this->company->get(CustomFieldEnum::ZOHO_AGENT_MODULE->value) ?? self::DEFAULT_AGENT_MODULE;
     }
 
+    public static function zohoSetup(ZohoSetup $data): bool
+    {
+        $clientCredentialNaming = ZohoConfigurationService::generateCredentialKey($data->company, $data->app, $data->region);
+
+        $configData = [
+            CustomFieldEnum::CLIENT_ID->value => $data->clientId,
+            CustomFieldEnum::CLIENT_SECRET->value => $data->clientSecret,
+        ];
+
+        return $data->company->set(
+            $clientCredentialNaming,
+            $configData
+        );
+    }
     public function getAgentByEmail(string $email): object
     {
         return $this->searchAgent('Email', $email);
