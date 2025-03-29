@@ -8,5 +8,5 @@ enum IntegrationsEnum: string
 {
     case SHOPIFY = 'shopify';
     case KANVAS = 'kanvas';
-    case VIN_SOLUTION = 'vin_solution';
+    case VIN_SOLUTION = 'vinsolution';
 }
