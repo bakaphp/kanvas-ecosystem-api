@@ -18,6 +18,8 @@ class VinSolutionHandler extends BaseIntegration
         $this->app->set(ConfigurationEnum::API_KEY_DIGITAL_SHOWROOM->value, $this->data['api_key_digital_showroom']);
         //  $this->app->set(ConfigurationEnum::COMPANY->value, $this->data['company_id']);
         //   $this->app->set(ConfigurationEnum::USER->value, $this->data['user_id']);
+        $this->company->set(ConfigurationEnum::COMPANY->value, $this->data['company_id']);
+        $this->company->user->set(ConfigurationEnum::getUserKey($this->company, $this->company->user), $this->data['user_id']);
 
         $client = new Client(
             (int) $this->data['dealer_id'],
