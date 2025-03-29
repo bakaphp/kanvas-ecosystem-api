@@ -20,8 +20,8 @@ class VinSolutionHandler extends BaseIntegration
         //   $this->app->set(ConfigurationEnum::USER->value, $this->data['user_id']);
 
         $client = new Client(
-            $this->data['dealer_id'],
-            $this->data['user_id'],
+            (int) $this->data['dealer_id'],
+            (int) $this->data['user_id'],
             $this->app
         );
 
