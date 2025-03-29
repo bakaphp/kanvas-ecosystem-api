@@ -25,7 +25,6 @@ class PushPeopleAction
     public function __construct(
         protected People $people
     ) {
-        $this->people = $people;
         $this->vinCredential = ClientCredential::get(
             $this->people->company,
             $this->people->user,
