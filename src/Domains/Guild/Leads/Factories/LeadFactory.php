@@ -20,6 +20,7 @@ class LeadFactory extends Factory
         $app = app(Apps::class);
         $appId = $this->states['apps_id'] ?? $app->getId(); // Use the provided app ID if set
         $companyId = $this->states['companies_id'] ?? Companies::factory()->create()->getId(); // Use the provided company ID if set
+        $peopleId = $this->states['people_id'] ?? People::factory()->withAppId($appId)->withCompanyId($companyId)->create()->getId(); 
 
         return [
             'firstname' => fake()->firstName,
@@ -31,14 +32,26 @@ class LeadFactory extends Factory
             'leads_owner_id' => 1,
             'apps_id' => $appId,
             'companies_id' => $companyId,
-            'people_id' => People::factory()
-                            ->withAppId($appId)
-                            ->withCompanyId($companyId)
-                            ->withContacts()
-                            ->create()
-                            ->getId(),
-
+            'people_id' => $peopleId,
         ];
+    }
+
+    public function withPeopleId(int $peopleId)
+    {
+        return $this->state(function (array $attributes) use ($peopleId) {
+            return [
+                'people_id' => $peopleId,
+            ];
+        });
+    }
+
+    public function withUserId(int $userId)
+    {
+        return $this->state(function (array $attributes) use ($userId) {
+            return [
+                'users_id' => $userId,
+            ];
+        });
     }
 
     public function withAppId(int $appId)

@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 use Kanvas\Connectors\VinSolution\ClientCredential;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
 
 class PushLeadAction
@@ -43,7 +44,7 @@ class PushLeadAction
                 'leadSource' => $this->lead->source && ! empty($this->lead->source->description)
                     ? trim($this->lead->source->description)
                     : 55694, // default source ID
-                'leadType' => strtoupper($this->lead->type->name),
+                'leadType' => strtoupper($this->lead?->type?->name ?? 'INTERNET'),
                 'contact' => $contact->id,
                 'isHot' => false,
             ];
@@ -54,6 +55,7 @@ class PushLeadAction
                 $leadData
             );
 
+            $vinLead->contactId = $contact->id;
             $this->lead->set($leadId, $vinLead->id);
         } else {
             $vinLead = Lead::getById(
@@ -77,6 +79,7 @@ class PushLeadAction
 
         $this->addReferralNotes();
         $this->updateShowRoom();
+        $this->addCoBuyer();
 
         return $vinLead;
     }
@@ -121,6 +124,10 @@ class PushLeadAction
         }
         $referral = $this->lead->get('referral');
 
+        if (! $referral) {
+            return false;
+        }
+
         $this->vinLead->addNotes(
             $this->vinCredential->dealer,
             $this->vinCredential->user,
@@ -130,5 +137,45 @@ class PushLeadAction
         $this->lead->del('referral');
 
         return true;
+    }
+
+    protected function addCoBuyer(): ?People
+    {
+        if ($this->lead->get('processCoBuyer')) {
+            return null;
+        }
+
+        // Find co-buyer participant type
+        $coBuyerType = $this->lead->participants()
+            ->whereHas('type', function ($query) {
+                $query->where('name', 'Co-buyer');
+            })
+            ->first();
+
+        if (! $coBuyerType) {
+            return null;
+        }
+
+        $coBuyerPeople = $coBuyerType->people;
+
+        if (! $coBuyerPeople || $coBuyerPeople->id === $this->lead->people->id) {
+            return null;
+        }
+
+        // Create a temporary action to push the co-buyer person
+        $pushAction = new PushPeopleAction($coBuyerPeople);
+        $contact = $pushAction->execute();
+
+        // Update the vin lead with co-buyer info
+        $this->vinLead->coBuyerContact = $contact->id;
+        $this->vinLead->update(
+            $this->vinCredential->dealer,
+            $this->vinCredential->user
+        );
+
+        // Mark as processed
+        $this->lead->set('processCoBuyer', 1);
+
+        return $coBuyerPeople;
     }
 }
