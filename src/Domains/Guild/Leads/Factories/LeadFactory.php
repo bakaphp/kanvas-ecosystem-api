@@ -20,7 +20,7 @@ class LeadFactory extends Factory
         $app = app(Apps::class);
         $appId = $this->states['apps_id'] ?? $app->getId(); // Use the provided app ID if set
         $companyId = $this->states['companies_id'] ?? Companies::factory()->create()->getId(); // Use the provided company ID if set
-        $peopleId = $this->states['people_id'] ?? People::factory()->withAppId($appId)->withCompanyId($companyId)->create()->getId(); 
+        $peopleId = $this->states['people_id'] ?? People::factory()->withAppId($appId)->withCompanyId($companyId)->create()->getId();
 
         return [
             'firstname' => fake()->firstName,
