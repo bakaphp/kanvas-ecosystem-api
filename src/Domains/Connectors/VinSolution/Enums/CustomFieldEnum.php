@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Enums;
 
-use Baka\Users\Contracts\UserInterface;
-use Kanvas\Companies\Models\Companies;
-
 enum CustomFieldEnum: string
 {
     case COMPANY = 'VIN_SOLUTION_COMPANY';
@@ -27,9 +24,4 @@ enum CustomFieldEnum: string
     case DOC_INSURANCE_INFO = 'docs-insurance';
     case DOC_VALID_INFO = 'valid-info';
     case ESIGN_INFO_KEY = 'esign-docs';
-
-    public static function getUserKey(Companies $company, UserInterface $user): string
-    {
-        return self::USER . '_' . $company->getId() . '_' . $user->getId();
-    }
 }

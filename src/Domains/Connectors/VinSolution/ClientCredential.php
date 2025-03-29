@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Dealers\User;
+use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 
 class ClientCredential
@@ -25,7 +26,7 @@ class ClientCredential
 
         return new self(
             $dealer,
-            Dealer::getUser($dealer, (int) $user->get(CustomFieldEnum::getUserKey($company, $user)), $app)
+            Dealer::getUser($dealer, (int) $user->get(ConfigurationEnum::getUserKey($company, $user)), $app)
         );
     }
 }
