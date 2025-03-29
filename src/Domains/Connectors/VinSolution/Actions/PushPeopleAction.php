@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Customers\Actions;
+namespace Kanvas\Connectors\VinSolution\Actions;
 
+use Baka\Helpers\DateHelper;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\OCR\DataTransferObjects\DriversLicense;
@@ -25,7 +26,11 @@ class PushPeopleAction
         protected People $people
     ) {
         $this->people = $people;
-        $this->vinCredential = ClientCredential::get($this->people->company, $this->people->user, $this->people->app);
+        $this->vinCredential = ClientCredential::get(
+            $this->people->company,
+            $this->people->user,
+            $this->people->app
+        );
     }
 
     /**
@@ -33,73 +38,21 @@ class PushPeopleAction
      */
     public function execute(): Contact
     {
-        return $this->syncContact($this->people);
-    }
-
-    /**
-     * Add a people as a contact in vin solution.
-     */
-    protected function syncContact(People $people): Contact
-    {
         $contactId = CustomFieldEnum::CONTACT->value;
+        $exist = $this->people->get($contactId);
 
-        $emails = $people->getEmails();
-        $phones = $people->getPhones()->merge($people->getCellPhones());
-        $exist = $people->get($contactId);
-
-        // Get the full name
-        $fullName = $people->getName();
-        $nameParts = explode(' ', $fullName);
-
-        $name = [
-            'firstName' => $nameParts[0] ?? '',
-            'lastName' => end($nameParts) ?? '',
-            'middleName' => count($nameParts) > 2 ? implode(' ', array_slice($nameParts, 1, -1)) : '',
-        ];
-
-        $contactEmail = [];
-        $contactPhone = [];
-        $contactAddress = [];
-
-        if ($emails->count() > 0) {
-            $i = 1;
-            foreach ($emails as $email) {
-                $contactEmail[] = [
-                    'EmailId' => ! $exist ? 0 : $i,
-                    'EmailAddress' => strtolower(trim((string)$email->value)),
-                    'EmailType' => 'primary',
-                ];
-                $i++;
-            }
-        }
-
-        if ($phones->count() > 0) {
-            $i = 1;
-            foreach ($phones as $phone) {
-                $contactPhone[] = [
-                    'PhoneId' => ! $exist ? 0 : $i,
-                    'Number' => Phone::removeUSCountryCode($phone->getCleanPhone()),
-                    'PhoneType' => 'Cell',
-                ];
-                $i++;
-            }
-        }
-
-        if ($people->address()->count() > 0) {
-            $i = 1;
-            foreach ($people->address as $address) {
-                $toAddress = new Address(! $exist ? 0 : $i, $address);
-                $contactAddress[] = $toAddress->transform();
-                $i++;
-            }
-        }
+        // Prepare contact data
+        $contactEmail = $this->prepareEmails($this->people, ! $exist);
+        $contactPhone = $this->preparePhones($this->people, ! $exist);
+        $contactAddress = $this->prepareAddresses($this->people, ! $exist);
 
         if (! $exist) {
+            // Create new contact
             $contact = [
                 'ContactInformation' => [
-                    'FirstName' => Str::of($name['firstName'])->trim(),
-                    'LastName' => Str::of($name['lastName'])->trim(),
-                    'MiddleName' => Str::of($name['middleName'])->trim(),
+                    'FirstName' => Str::of($this->people->firstname)->trim(),
+                    'LastName' => Str::of($this->people->lastname)->trim(),
+                    'MiddleName' => Str::of($this->people->middlename)->trim(),
                     'Emails' => $contactEmail,
                     'Phones' => $contactPhone,
                     'Addresses' => $contactAddress,
@@ -120,30 +73,29 @@ class PushPeopleAction
                 $contact
             );
 
-            $people->set(
+            $this->people->set(
                 $contactId,
                 $contact->id
             );
 
-            // Update again
+            // Update again if contact information is empty
             if (empty($contact->information)) {
-                $this->updateContact(
-                    $name,
+                $contact = $this->updateContact(
                     $contactEmail,
                     $contactPhone,
                     $contactAddress,
-                    (int) $people->get($contactId),
-                    $people
+                    (int) $this->people->get($contactId),
+                    $this->people
                 );
             }
         } else {
+            // Update existing contact
             $contact = $this->updateContact(
-                $name,
                 $contactEmail,
                 $contactPhone,
                 $contactAddress,
-                (int) $people->get($contactId),
-                $people
+                (int) $this->people->get($contactId),
+                $this->people
             );
         }
 
@@ -151,29 +103,142 @@ class PushPeopleAction
     }
 
     /**
-     * Detect the format of a given date string.
+     * Prepare emails for contact.
      */
-    protected function detectDateFormat(string $dateString): ?string
+    protected function prepareEmails(People $people, bool $isNew): array
     {
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateString)) {
-            return 'Y-m-d';
-        } elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dateString)) {
-            return 'm/d/Y';
-        } elseif (preg_match('/^\d{2}-\d{2}-\d{4}$/', $dateString)) {
-            return 'm-d-Y';
-        } elseif (preg_match('/^\d{2}\/\d{2}\/\d{2}$/', $dateString)) {
-            return 'm/d/y'; // short year format
-        }
-        // Add more patterns as needed
+        $emails = $people->getEmails();
+        $contactEmail = [];
 
-        return null; // Return null if no format matches
+        if ($emails->count() > 0) {
+            $i = 1;
+            foreach ($emails as $email) {
+                $contactEmail[] = [
+                    'EmailId' => $isNew ? 0 : $i,
+                    'EmailAddress' => strtolower(trim((string)$email->value)),
+                    'EmailType' => 'primary',
+                ];
+                $i++;
+            }
+        }
+
+        return $contactEmail;
+    }
+
+    /**
+     * Prepare phones for contact.
+     */
+    protected function preparePhones(People $people, bool $isNew): array
+    {
+        $phones = $people->getPhones()->merge($people->getCellPhones());
+        $contactPhone = [];
+
+        if ($phones->count() > 0) {
+            $i = 1;
+            foreach ($phones as $phone) {
+                $contactPhone[] = [
+                    'PhoneId' => $isNew ? 0 : $i,
+                    'Number' => Phone::removeUSCountryCode($phone->getCleanPhone()),
+                    'PhoneType' => 'Cell',
+                ];
+                $i++;
+            }
+        }
+
+        return $contactPhone;
+    }
+
+    /**
+     * Prepare addresses for contact.
+     */
+    protected function prepareAddresses(People $people, bool $isNew): array
+    {
+        $contactAddress = [];
+
+        if ($people->address()->count() > 0) {
+            $i = 1;
+            foreach ($people->address as $address) {
+                $toAddress = new Address($isNew ? 0 : $i, $address);
+                $contactAddress[] = $toAddress->transform();
+                $i++;
+            }
+        }
+
+        return $contactAddress;
+    }
+
+    /**
+     * Process drivers license data.
+     */
+    protected function processDriversLicense(People $people): ?array
+    {
+        $driversLicenseData = $people->get(PeopleCustomFieldEnum::DRIVERS_LICENSE->value);
+
+        if ($driversLicenseData) {
+            try {
+                $driversLicense = DriversLicense::fromArray($driversLicenseData);
+                $birthDay = Carbon::createFromFormat(DateHelper::detectDateFormat($driversLicense->birthDate), $driversLicense->birthDate, 'UTC');
+                $expirationData = Carbon::createFromFormat(DateHelper::detectDateFormat($driversLicense->expirationDate), $driversLicense->expirationDate, 'UTC');
+                $issueDate = Carbon::createFromFormat(DateHelper::detectDateFormat($driversLicense->issueDate), $driversLicense->issueDate, 'UTC');
+
+                return [
+                    'State' => $driversLicense->state,
+                    'Name' => $driversLicense->firstName,
+                    'LastName' => $driversLicense->lastName,
+                    'PostalCode' => $driversLicense->zipCode,
+                    'Country' => 'USA',
+                    'LicenseID' => $driversLicense->documentNumber,
+                    'DateOfBirth' => $birthDay->format('Y-m-d\TH:i:s.u\Z'),
+                    'ExpirationDate' => $expirationData->format('Y-m-d\TH:i:s.u\Z'),
+                    'IssueDate' => $issueDate->format('Y-m-d\TH:i:s.u\Z'),
+                    'Sex' => $driversLicense->sex,
+                ];
+            } catch (Throwable $e) {
+                report($e);
+
+                return null;
+            }
+        } elseif ($legacyLicense = $people->get('get_docs_drivers_license')) {
+            try {
+                $birthday = $legacyLicense['birthday']['year'] . '-' . $legacyLicense['birthday']['month'] . '-' . $legacyLicense['birthday']['day'];
+                $expirationDate = $legacyLicense['exp_date']['year'] . '-' . $legacyLicense['exp_date']['month'] . '-' . $legacyLicense['exp_date']['day'];
+
+                $birthDay = Carbon::parse($birthday, 'UTC');
+                $expirationData = Carbon::parse($expirationDate, 'UTC');
+
+                // Extract zip code
+                $zipCode = null;
+                $pattern = '/\b\d{5}(-\d{4})?\b/';
+                if (preg_match($pattern, $legacyLicense['address'], $matches)) {
+                    $zipCode = $matches[0];
+                }
+
+                return [
+                    'State' => $legacyLicense['state'],
+                    'Name' => $people->firstname,
+                    'LastName' => $people->lastname,
+                    'PostalCode' => $zipCode,
+                    'Country' => 'USA',
+                    'LicenseID' => $legacyLicense['license'],
+                    'DateOfBirth' => $birthDay->format('Y-m-d\TH:i:s.u\Z'),
+                    'ExpirationDate' => $expirationData->format('Y-m-d\TH:i:s.u\Z'),
+                    'IssueDate' => null,
+                    'Sex' => null,
+                ];
+            } catch (Throwable $e) {
+                report($e);
+
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /**
      * Update Contact.
      */
     protected function updateContact(
-        array $name,
         array $emails,
         array $phone,
         array $address,
@@ -185,81 +250,31 @@ class PushPeopleAction
         );
         $contact = $vinContactService->getContactByPeople($people);
 
-        $contact->information['FirstName'] = $name['firstName'];
-        $contact->information['LastName'] = $name['lastName'];
+        // Update basic information
+        $contact->information['FirstName'] = $this->people->firstname;
+        $contact->information['LastName'] = $this->people->lastname;
         $contact->emails = $emails;
         $contact->phones = $phone;
 
-        // If customer has address in vin, don't update it
+        // Check if customer already has address in Vin
         $customHasAddressInVin = ! empty($contact->addresses) && ! empty($contact->addresses[0]['StreetAddress']);
         if (! $customHasAddressInVin) {
             $contact->addresses = $address;
-        }
 
-        $driversLicenseData = $people->get(PeopleCustomFieldEnum::DRIVERS_LICENSE->value);
-        if ($driversLicenseData) {
-            $driversLicense = DriversLicense::fromArray($driversLicenseData);
-
-            try {
-                $birthDay = Carbon::createFromFormat($this->detectDateFormat($driversLicense->birthDate), $driversLicense->birthDate, 'UTC');
-                $expirationData = Carbon::createFromFormat($this->detectDateFormat($driversLicense->expirationDate), $driversLicense->expirationDate, 'UTC');
-                $issueDate = Carbon::createFromFormat($this->detectDateFormat($driversLicense->issueDate), $driversLicense->issueDate, 'UTC');
-                if (! $customHasAddressInVin) {
-                    $contact->licenseData = [
-                        'State' => $driversLicense->state,
-                        'Name' => $driversLicense->firstName,
-                        'LastName' => $driversLicense->lastName,
-                        'PostalCode' => $driversLicense->zipCode,
-                        'Country' => 'USA',
-                        'LicenseID' => $driversLicense->documentNumber,
-                        'DateOfBirth' => $birthDay->format('Y-m-d\TH:i:s.u\Z'),
-                        'ExpirationDate' => $expirationData->format('Y-m-d\TH:i:s.u\Z'),
-                        'IssueDate' => $issueDate->format('Y-m-d\TH:i:s.u\Z'),
-                        'Sex' => $driversLicense->sex,
-                    ];
-                }
-            } catch (Throwable $e) {
-                // Use Laravel logging
-                report($e);
-            }
-        } elseif ($people->get('get_docs_drivers_license')) {
-            $driversLicense = $people->get('get_docs_drivers_license');
-            $birthday = $driversLicense['birthday']['year'] . '-' . $driversLicense['birthday']['month'] . '-' . $driversLicense['birthday']['day'];
-            $expirationDate = $driversLicense['exp_date']['year'] . '-' . $driversLicense['exp_date']['month'] . '-' . $driversLicense['exp_date']['day'];
-
-            $birthDay = Carbon::parse($birthday, 'UTC');
-            $expirationData = Carbon::parse($expirationDate, 'UTC');
-            $pattern = '/\b\d{5}(-\d{4})?\b/';
-
-            // Use preg_match to find a ZIP code in the address string
-            $zipCode = null;
-            if (preg_match($pattern, $driversLicense['address'], $matches)) {
-                // If a ZIP code is found, it will be stored in $matches[0]
-                $zipCode = $matches[0];
-            }
-
-            if (! $customHasAddressInVin) {
-                $contact->licenseData = [
-                    'State' => $driversLicense['state'],
-                    'Name' => $people->firstname,
-                    'LastName' => $people->lastname,
-                    'PostalCode' => $zipCode,
-                    'Country' => 'USA',
-                    'LicenseID' => $driversLicense['license'],
-                    'DateOfBirth' => $birthDay->format('Y-m-d\TH:i:s.u\Z'),
-                    'ExpirationDate' => $expirationData->format('Y-m-d\TH:i:s.u\Z'),
-                    'IssueDate' => null,
-                    'Sex' => null,
-                ];
+            // Process driver's license only if we're updating the address
+            $licenseData = $this->processDriversLicense($people);
+            if ($licenseData) {
+                $contact->licenseData = $licenseData;
             }
         }
 
+        // Process credit app info
         $creditAppInfo = $people->get(PeopleCustomFieldEnum::CREDIT_APP->value);
         if ($creditAppInfo && isset($creditAppInfo['personalInformation']) && ! empty($creditAppInfo['personalInformation'])) {
             // Avoid overwriting the credit app info if we have it
             $contact->personalInformation = $creditAppInfo['personalInformation'];
         }
 
-        return $contact->update($this->vinCredential->dealer, $this->vinCredential->user, );
+        return $contact->update($this->vinCredential->dealer, $this->vinCredential->user);
     }
 }

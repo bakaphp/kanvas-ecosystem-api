@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\VinSolution;
+namespace Tests\Connectors\Integration\VinSolution\SDK;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;

@@ -21,6 +21,15 @@ class PeopleFactory extends Factory
         ];
     }
 
+    public function withUserId(int $userId)
+    {
+        return $this->state(function (array $attributes) use ($userId) {
+            return [
+                'users_id' => $userId,
+            ];
+        });
+    }
+
     public function withAppId(int $appId)
     {
         return $this->state(function (array $attributes) use ($appId) {
@@ -46,13 +55,13 @@ class PeopleFactory extends Factory
                 [
                     'contacts_types_id' => 1,
                     'value' => fake()->email,
-                    'weight' => 0
+                    'weight' => 0,
                 ],
                 [
                     'contacts_types_id' => 2,
                     'value' => fake()->phoneNumber,
-                    'weight' => 0
-                ]
+                    'weight' => 0,
+                ],
             ]);
         });
     }

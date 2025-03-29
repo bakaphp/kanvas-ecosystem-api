@@ -10,7 +10,7 @@ use Kanvas\Connectors\VinSolution\ClientCredential;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
-use Kanvas\Guild\Customers\Actions\PushPeopleAction;
+use Kanvas\Connectors\VinSolution\Actions\PushPeopleAction;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Workflow\KanvasActivity;
 
