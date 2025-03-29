@@ -247,7 +247,7 @@ class SyncEsimWithProviderCommand extends Command
         }
 
         // 0 means the data hasnt been used yet
-        if ($remainingData <= 0) {
+        if ($remainingData <= 0 && $isActive == false) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;

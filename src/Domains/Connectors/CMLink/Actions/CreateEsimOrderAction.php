@@ -137,10 +137,10 @@ class CreateEsimOrderAction
             )
          */
         $totalData = $orderVariant->getAttributeBySlug('data')?->value ?? 0;
-        $timestamp = ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time();
+        $installTimeChange = ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time();
 
-        //Convert Unix timestamp from China time to EST using Carbon
-        $dateEst = Carbon::createFromTimestamp($timestamp, 'Asia/Shanghai')->setTimezone('America/New_York');
+        //Convert timestamp directly to EST
+        $dateEst = Carbon::createFromTimestamp($installTimeChange)->setTimezone('America/New_York');
         //Unix timestamp in EST
         $timestampEst = $dateEst->timestamp;
         //Formatted date in EST
