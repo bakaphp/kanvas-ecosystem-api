@@ -126,15 +126,10 @@ extend type Query @guard {
         )
     workflowIntegrationsHistory(
         where: _
-            @whereConditions(
-                columnsEnum: WorkFlowIntegrationsHistoryEnumColumn
-            )
+            @whereConditions(columnsEnum: WorkFlowIntegrationsHistoryEnumColumn)
         hasRegion: _
             @whereHasConditions(
-                columns: [
-                    "id",
-                    "name"
-                ]
+                columns: ["id", "name"]
                 handler: "App\\GraphQL\\Workflow\\Builders\\Integrations\\IntegrationsBuilder@getHasRegion"
             )
         orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
