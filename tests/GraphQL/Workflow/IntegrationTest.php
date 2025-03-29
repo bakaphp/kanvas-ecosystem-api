@@ -206,7 +206,7 @@ class IntegrationTest extends TestCase
         $company = $user->getCurrentCompany();
 
         $product = Products::factory()->withCompanyId($company->getId())->withUserId($user->getId())->create();
-        
+
         $region = $this->createDefaultRegion(
             company: $product->company,
             app: $app,
