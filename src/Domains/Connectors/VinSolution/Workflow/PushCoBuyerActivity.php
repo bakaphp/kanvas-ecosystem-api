@@ -9,6 +9,7 @@ use Kanvas\Connectors\VinSolution\Actions\PushLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class PushCoBuyerActivity extends KanvasActivity
@@ -33,14 +34,26 @@ class PushCoBuyerActivity extends KanvasActivity
             ];
         }
 
-        $pushLead = new PushLeadAction($lead);
-        $vinLead = $pushLead->execute();
+        return $this->executeIntegration(
+            entity: $lead,
+            app: $app,
+            integration: IntegrationsEnum::VIN_SOLUTION,
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($people) {
+                $pushLead = new PushLeadAction($entity);
+                $vinLead = $pushLead->execute();
 
-        return [
-            'message' => 'Co-buyer added successfully',
-            'vinLead' => $vinLead->id,
-            'people' => $people->toArray(),
-            'lead' => $lead->toArray(),
-        ];
+                // Mark as processed
+                $entity->set(CustomFieldEnum::LEAD_CO_BUYER_PROCESSED->value, true);
+                $entity->save();
+
+                return [
+                    'message' => 'Co-buyer added successfully',
+                    'vinLead' => $vinLead->id,
+                    'people' => $people->toArray(),
+                    'lead' => $entity->toArray(),
+                ];
+            },
+            company: $company,
+        );
     }
 }

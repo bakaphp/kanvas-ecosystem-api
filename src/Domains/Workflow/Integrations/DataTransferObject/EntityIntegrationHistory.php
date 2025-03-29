@@ -12,11 +12,6 @@ use Spatie\LaravelData\Data;
 
 class EntityIntegrationHistory extends Data
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         public AppInterface $app,
         public IntegrationsCompany $integrationCompany,
