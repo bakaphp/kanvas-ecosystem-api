@@ -6,14 +6,12 @@ namespace Kanvas\Guild\Leads\Actions;
 
 use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class AddLeadParticipantAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
+    public bool $runWorkflow = true;
+
     public function __construct(
         protected readonly LeadsParticipant $leadParticipant
     ) {
@@ -25,11 +23,20 @@ class AddLeadParticipantAction
      */
     public function execute(): LeadParticipant
     {
-        return LeadParticipant::firstOrCreate([
+        $participant = LeadParticipant::firstOrCreate([
             'leads_id' => $this->leadParticipant->lead->getId(),
             'peoples_id' => $this->leadParticipant->people->getId(),
         ], [
             'participants_types_id' => $this->leadParticipant->relationship ? $this->leadParticipant->relationship->id : 0,
         ]);
+
+        if ($this->runWorkflow) {
+            $participant->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true
+            );
+        }
+
+        return $participant;
     }
 }

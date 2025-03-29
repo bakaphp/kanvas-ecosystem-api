@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Class Leads.
@@ -24,6 +25,8 @@ class LeadParticipant extends BaseModel
     use HasCompositePrimaryKeyTrait;
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
+
+    use CanUseWorkflow;
 
     protected $primaryKey = ['leads_id', 'peoples_id'];
     protected $table = 'leads_participants';
