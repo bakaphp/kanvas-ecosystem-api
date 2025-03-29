@@ -12,14 +12,16 @@ use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $company = $this->webhookRequest->receiverWebhook->company;
         $payload = $this->webhookRequest->payload['post']['current'];
-        $app = $this->webhookRequest->receiverWebhook->app;
+        //$app = $this->webhookRequest->receiverWebhook->app;
         $eventType = $this->getType($payload);
         if (! $eventType) {
             return [];
@@ -62,7 +64,7 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
             CustomFieldEnum::GHOST_EVENT_IS_REPORT->value => $app->get(CustomFieldEventWebhookEnum::WEBHOOK_IS_REPORT_EVENT->value),
             default => null,
         };
-        if (! $eventType) {
+        if ($eventType === null) {
             return null;
         }
 

@@ -4,14 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
-use Illuminate\Notifications\AnonymousNotifiable;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 use Kanvas\Guild\Leads\Actions\SendLeadEmailsAction;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Notifications\Templates\Blank;
 
 class SendLeadEmailsTest extends TestCase
 {
@@ -38,6 +34,10 @@ class SendLeadEmailsTest extends TestCase
                 [
                     "data" => "218062",
                     "name" => "product_id"
+                ],
+                [
+                    "data" => "7",
+                    "name" => "share_left"
                 ]
             ],
             "pipeline_stage_id" => 0

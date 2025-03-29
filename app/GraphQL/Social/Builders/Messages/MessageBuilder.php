@@ -60,6 +60,11 @@ class MessageBuilder
                     $q->where('slug', $slug);
                 });
             }
+
+            $messageCacheTime = (int) $app->get('message_tags_cache_time');
+            if ($messageCacheTime > 0) {
+                $query->cacheFor($messageCacheTime);
+            }
         }
 
         //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order

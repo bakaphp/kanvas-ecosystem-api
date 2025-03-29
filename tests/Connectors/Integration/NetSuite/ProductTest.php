@@ -100,7 +100,7 @@ final class ProductTest extends TestCase
         $product = $productService->searchProductByItemNumber(getenv('NET_SUITE_ITEM_NUMBER'));
 
         $product = $productService->getProductById($product[0]->internalId);
-        $price = $productService->getProductMapPrice($product, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
+        $price = (float) $productService->getCustomField($product, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
 
         $this->assertIsFloat($price);
         $this->assertGreaterThan(0, $price);
@@ -121,7 +121,7 @@ final class ProductTest extends TestCase
 
         $company->associateUser($company->user, true, $company->defaultBranch);
 
-        $syncProduct = new PullNetSuiteProductPriceAction($app, $company);
+        $syncProduct = new PullNetSuiteProductPriceAction($app, $company, $company->user);
         $result = $syncProduct->execute(getenv('NET_SUITE_ITEM_NUMBER'));
 
         $this->assertIsArray($result);

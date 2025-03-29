@@ -14,12 +14,15 @@ use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartAction;
+use Kanvas\Souk\Orders\Actions\UpdateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 use Kanvas\Souk\Services\B2BConfigurationService;
+use Kanvas\Exceptions\ValidationException;
 
 class OrderManagementMutation
 {
@@ -96,6 +99,35 @@ class OrderManagementMutation
         return [
             'order' => $createOrder->execute(),
             'message' => 'Order created successfully',
+        ];
+    }
+
+    public function update(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $orderId = (int) $request['id'];
+        $orderData = $request['input'];
+
+        $order = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $orderId
+        ])->first();
+
+        if ($order->fulfillment_status === 'fulfilled') {
+            throw new ValidationException('Order is already fulfilled');
+        }
+
+        $updateOrder = new UpdateOrderAction(
+            $order,
+            $orderData,
+            $user
+        );
+
+        return [
+            'order' => $updateOrder->execute(),
+            'message' => 'Order updated successfully',
         ];
     }
 

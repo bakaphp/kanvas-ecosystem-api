@@ -49,11 +49,11 @@ type OrderItem {
     uuid: String!
     product_name: String!
     product_sku: String!
-    quantity: Int!
+    quantity: Float!
     unit_price_net_amount: Money!
     unit_price_gross_amount: Money!
     is_shipping_required: Boolean
-    quantity_fulfilled: Int
+    quantity_fulfilled: Float
     variant: Variant! @belongsTo
     tax_rate: Money!
     translated_product_name: String
@@ -74,7 +74,7 @@ type PaymentResult {
 
 type OrderItemImport {
     variant_id: Int
-    quantity: Int
+    quantity: Float
 }
 
 type ImportOrderCsvResult {
@@ -140,6 +140,11 @@ input OrderCartInput {
     metadata: Mixed
 }
 
+input UpdateOrderInput {
+    items: [OrderLineItemInput]
+    metadata: Mixed
+}
+
 input DraftOrderInput {
     email: String!
     phone: String
@@ -154,7 +159,7 @@ input DraftOrderInput {
 
 input OrderLineItemInput {
     variant_id: ID!
-    quantity: Int!
+    quantity: Float!
 }
 
 input PaymentInput {
@@ -207,6 +212,10 @@ extend type Mutation @guard {
     createDraftOrder(input: DraftOrderInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
+        )
+    updateOrder(id: ID!, input: UpdateOrderInput!): OrderResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@update"
         )
     createOrderFromAppleInAppPurchase(
         input: AppleInAppPurchaseReceipt!

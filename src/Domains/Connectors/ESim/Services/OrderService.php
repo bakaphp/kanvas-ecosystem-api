@@ -93,8 +93,8 @@ class OrderService
     protected function getClientDetails(): array
     {
         return [
-            'first_name' => $this->order?->people?->first_name,
-            'last_name' => $this->order?->people?->last_name,
+            'first_name' => $this->order->people?->firstname,
+            'last_name' => $this->order->people?->lastname,
             'phone' => $this->order->user_phone,
             'email' => $this->order->user_email,
             'payment' => null,

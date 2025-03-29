@@ -49,10 +49,12 @@ class SyncEsimWithProviderCommand extends Command
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
 
+        Order::disableSearchSyncing();
+
         $messages = Message::fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
-            //->whereIsPublic()
+            ->whereIsPublic()
             ->orderBy('id', 'desc')
             ->get();
 
@@ -201,7 +203,21 @@ class SyncEsimWithProviderCommand extends Command
 
     private function formatCmLinkResponse(Message $message, array $response): array
     {
+        $existingActivationDate = $message->message['esim_status']['activationDate'] ?? null;
+
         $installedDate = $response['installTime'] ?? (! empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
+
+        $status = strtolower($response['state']);
+        $isActive = IccidStatusEnum::getStatus($status) == 'active';
+
+        if ($isActive && empty($existingActivationDate)) {
+            $activationDate = now()->format('Y-m-d H:i:s');
+        } elseif (! empty($existingActivationDate)) {
+            // If activation date already exists, preserve it
+            $activationDate = $existingActivationDate;
+        } else {
+            $activationDate = null;
+        }
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
         $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
@@ -214,18 +230,26 @@ class SyncEsimWithProviderCommand extends Command
             $remainingData = $orderService->getOrderStatus($orderNumber)['total'];
         }
 
-        $validStates = ['released', 'installed', 'active', 'enabled'];
+        $validStates = ['released', 'installed', 'active', 'enabled', 'enable'];
+        // Calculate expiration date based on activationDate (fallback to installedDate if no activation yet)
+        $expirationBaseDate = $activationDate ?? $installedDate;
+        $expirationDate = Carbon::parse($expirationBaseDate)->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s');
 
         /**
          * @todo Move this to somewhere more central
          */
-        if (in_array(strtolower($response['state']), $validStates)) {
+        if (now()->greaterThan(Carbon::parse($expirationDate))) {
+            $message->setPrivate();
+        } elseif (in_array(strtolower($response['state']), $validStates)) {
             $message->setPublic();
         } else {
             $message->setPrivate();
         }
 
-        if ($remainingData > $totalBytesData) {
+        // 0 means the data hasnt been used yet
+        if ($remainingData <= 0 && $isActive == false) {
+            $remainingData = $totalBytesData;
+        } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
         }
 
@@ -238,11 +262,12 @@ class SyncEsimWithProviderCommand extends Command
             assignmentReference: $response['activationCode'],
             bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
             unlimited: $variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED->value,
-            expirationDate: Carbon::parse($installedDate)->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s'),
+            expirationDate: $expirationDate,
             imei: $message->message['data']['imei_number'] ?? null,
             esimStatus: $response['state'],
             message: $response['installDevice'],
             installedDate: $installedDate,
+            activationDate: $activationDate,
         );
 
         return $esimStatus->toArray();

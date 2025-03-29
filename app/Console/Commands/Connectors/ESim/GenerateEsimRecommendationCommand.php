@@ -192,6 +192,8 @@ class GenerateEsimRecommendationCommand extends Command
 
         // Check the first variant for any of these attributes
         foreach ($variants[0]['attributes'] as $attribute) {
+            $attribute['name'] = isset($attribute['name']['en']) ? $attribute['name']['en'] : $attribute['name'];
+
             if (isset($attribute['name'])) {
                 $name = strtolower($attribute['name']);
                 if (in_array($name, $possibleNames) || strpos($name, 'data') !== false || strpos($name, 'gb') !== false) {
