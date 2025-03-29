@@ -43,7 +43,7 @@ class PushLeadAction
             $leadData = [
                 'leadSource' => $this->lead->source && ! empty($this->lead->source->description)
                     ? trim($this->lead->source->description)
-                    : 55694, // default source ID
+                    : '55694', // default source ID
                 'leadType' => strtoupper($this->lead?->type?->name ?? 'INTERNET'),
                 'contact' => $contact->id,
                 'isHot' => false,
@@ -64,9 +64,9 @@ class PushLeadAction
                 $vinLeadId
             );
 
-            $vinLead->leadSource = $this->lead->source && ! empty($this->lead->source->description)
-                ? trim($this->lead->source->description)
-                : 55694; // default source ID
+            /*   $vinLead->leadSource = $this->lead->source && ! empty($this->lead->source->description)
+                  ? trim($this->lead->source->description)
+                  : '55694'; // default source ID */
             //$vinLead->isHot = $this->lead->isHot ? 1 : 0;
 
             $vinLead->update(
@@ -141,7 +141,7 @@ class PushLeadAction
 
     protected function addCoBuyer(): ?People
     {
-        if ($this->lead->get('processCoBuyer')) {
+        if ($this->lead->get(CustomFieldEnum::LEAD_CO_BUYER_PROCESSED->value)) {
             return null;
         }
 
@@ -174,7 +174,7 @@ class PushLeadAction
         );
 
         // Mark as processed
-        $this->lead->set('processCoBuyer', 1);
+        $this->lead->set(CustomFieldEnum::LEAD_CO_BUYER_PROCESSED->value, 1);
 
         return $coBuyerPeople;
     }

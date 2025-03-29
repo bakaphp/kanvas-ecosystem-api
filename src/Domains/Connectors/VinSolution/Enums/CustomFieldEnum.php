@@ -24,4 +24,5 @@ enum CustomFieldEnum: string
     case DOC_INSURANCE_INFO = 'docs-insurance';
     case DOC_VALID_INFO = 'valid-info';
     case ESIGN_INFO_KEY = 'esign-docs';
+    case LEAD_CO_BUYER_PROCESSED = 'processCoBuyer';
 }
