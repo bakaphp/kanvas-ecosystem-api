@@ -60,7 +60,7 @@ class UpdateVariantsAction
                 'ean' => $this->variantDto->ean ?? $this->variant->ean,
                 'barcode' => $this->variantDto->barcode ?? $this->variant->barcode,
                 'serial_number' => $this->variantDto->serial_number ?? $this->variant->serial_number,
-                'weight' => $this->variantDto->weight ?? $this->variant->weight,
+                'weight' => $this->variantDto->weight ?? $this->variant->weight ?? 0,
             ]
         );
 
