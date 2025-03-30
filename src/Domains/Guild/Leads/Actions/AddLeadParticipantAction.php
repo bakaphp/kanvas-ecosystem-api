@@ -33,7 +33,11 @@ class AddLeadParticipantAction
         if ($this->runWorkflow) {
             $participant->fireWorkflow(
                 WorkflowEnum::CREATED->value,
-                true
+                true,
+                [
+                    'app' => $this->leadParticipant->lead->app,
+                    'company' => $this->leadParticipant->lead->company,
+                ]
             );
         }
 
