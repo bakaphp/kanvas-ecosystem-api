@@ -60,7 +60,6 @@ class Client extends BaseClient
         }
 
         return self::$instance;
-
     }
 
     /**
