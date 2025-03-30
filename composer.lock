@@ -1198,20 +1198,6 @@
         {
             "name": "aws/aws-sdk-php",
             "version": "3.342.16",
-<<<<<<< Updated upstream
-            "version": "3.342.14",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c7db59f47523f66205b4c429a69b6baf947d3f78"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c7db59f47523f66205b4c429a69b6baf947d3f78",
-                "reference": "c7db59f47523f66205b4c429a69b6baf947d3f78",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/587475eec402e3d0326e5021cbbc1cb1e8bf4f93",
-                "reference": "587475eec402e3d0326e5021cbbc1cb1e8bf4f93",
-=======
             "version": "3.342.3",
             "source": {
                 "type": "git",
@@ -1222,7 +1208,6 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c4dcf34bedbd9727bdd99a38d6c4f386a3ca2bbc",
                 "reference": "c4dcf34bedbd9727bdd99a38d6c4f386a3ca2bbc",
->>>>>>> Stashed changes
                 "shasum": ""
             },
             "require": {
@@ -1305,16 +1290,8 @@
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
                 "source": "https://github.com/aws/aws-sdk-php/tree/3.342.16"
-<<<<<<< Updated upstream
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.14"
-            },
-            "time": "2025-03-28T18:09:10+00:00"
-            "time": "2025-03-26T19:03:32+00:00"
-=======
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.3"
             },
             "time": "2025-03-10T18:12:55+00:00"
->>>>>>> Stashed changes
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -16392,11 +16369,7 @@
                     "type": "github"
                 }
             ],
-<<<<<<< Updated upstream
-            "time": "2025-03-24T13:45:00+00:00"
-=======
             "time": "2025-03-09T09:30:48+00:00"
->>>>>>> Stashed changes
         },
         {
             "name": "phpunit/php-code-coverage",
