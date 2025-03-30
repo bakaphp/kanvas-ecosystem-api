@@ -8,8 +8,7 @@ use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
 
@@ -66,11 +65,9 @@ class IntegrationsCompany extends BaseModel
     /**
      * Get the integration company using the integration name
      *
-     * @param Companies $company
      * @param Status $status Current status of the integration company
      * @param string $name name of the integration
      * @param Region $region The region of the company integration
-     * @return IntegrationsCompany
      */
     public static function getByIntegration(Companies $company, Status $status, string $name, Regions $region): ?IntegrationsCompany
     {
