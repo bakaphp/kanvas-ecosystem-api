@@ -54,7 +54,7 @@ class Client extends BaseClient
         );
 
         self::$cache = $cache;
-        if (!self::$instance) {
+        if (! self::$instance) {
             self::cleanupOldInstances();
             self::$instance = self::createInstance($app, $company, $region);
         }

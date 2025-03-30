@@ -14,5 +14,5 @@ abstract class BaseClient
 
     abstract protected static function createInstance(AppInterface $app, CompanyInterface $company, Regions $region);
 
-    abstract static function getKeys(CompanyInterface $company, AppInterface $app, Regions $region): array;
+    abstract public static function getKeys(CompanyInterface $company, AppInterface $app, Regions $region): array;
 }
