@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Models;
 
 use Exception;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Rules\Models\Rule;
 use Workflow\Models\StoredWorkflow as ModelsStoredWorkflow;
+use Workflow\Serializers\Serializer;
 
 class StoredWorkflow extends ModelsStoredWorkflow
 {
@@ -20,9 +25,15 @@ class StoredWorkflow extends ModelsStoredWorkflow
     {
         if (isset($this->arguments) && ! empty($this->arguments)) {
             try {
-                $unserialize = unserialize($this->arguments)->getClosure();
+                $unserialize = Serializer::unserialize($this->arguments);
 
-                return $unserialize();
+                foreach ($unserialize as $key => $value) {
+                    if ($value instanceof Apps || $value instanceof Companies || $value instanceof Rule || $value instanceof Users) {
+                        unset($unserialize[$key]);
+                    }
+                }
+
+                return $unserialize;
             } catch (Exception $e) {
                 return null;
             }
@@ -35,9 +46,14 @@ class StoredWorkflow extends ModelsStoredWorkflow
     {
         if (isset($this->output) && ! empty($this->output)) {
             try {
-                $unserialize = unserialize($this->output)->getClosure();
+                $unserialize = Serializer::unserialize($this->output);
+                foreach ($unserialize as $key => $value) {
+                    if ($value instanceof Apps || $value instanceof Companies || $value instanceof Rule || $value instanceof Users) {
+                        unset($unserialize[$key]);
+                    }
+                }
 
-                return $unserialize();
+                return $unserialize;
             } catch (Exception $e) {
                 return null;
             }
