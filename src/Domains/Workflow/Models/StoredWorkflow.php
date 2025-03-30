@@ -9,56 +9,77 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Rules\Models\Rule;
-use Workflow\Models\StoredWorkflow as ModelsStoredWorkflow;
+use Workflow\Models\StoredWorkflow as BaseStoredWorkflow;
 use Workflow\Serializers\Serializer;
 
-class StoredWorkflow extends ModelsStoredWorkflow
+class StoredWorkflow extends BaseStoredWorkflow
 {
     protected $connection = 'workflow';
 
     public function getActivityName(): string
     {
-        return class_basename($this->logs()->first()->class);
+        return class_basename($this->logs()->first()?->class ?? '');
     }
 
-    public function getUnSerializeArgument(): mixed
+    public function getUnSerializeArgument(): array
     {
-        if (isset($this->arguments) && ! empty($this->arguments)) {
-            try {
-                $unserialize = Serializer::unserialize($this->arguments);
+        if (empty($this->arguments)) {
+            return [];
+        }
 
-                foreach ($unserialize as $key => $value) {
-                    if ($value instanceof Apps || $value instanceof Companies || $value instanceof Rule || $value instanceof Users) {
-                        unset($unserialize[$key]);
-                    }
-                }
+        try {
+            $unserialized = Serializer::unserialize($this->arguments);
 
-                return $unserialize;
-            } catch (Exception $e) {
-                return null;
+            return $this->filterUnserializedData($unserialized);
+        } catch (Exception) {
+        }
+
+        return [];
+    }
+
+    public function getUnSerializeOutput(): array
+    {
+        if (empty($this->output)) {
+            return [];
+        }
+
+        try {
+            $unserialized = Serializer::unserialize($this->output);
+
+            return array_filter(
+                $unserialized,
+                fn ($value) => ! $this->isIgnoredType($value)
+            );
+        } catch (Exception) {
+        }
+
+        return [];
+    }
+
+    protected function filterUnserializedData(array $data): array
+    {
+        $results = [];
+
+        foreach ($data as $key => $value) {
+            if ($this->isIgnoredType($value)) {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $results['params'] = $value;
+            } elseif (is_object($value) && method_exists($value, 'toArray')) {
+                $results[get_class($value)] = $value->toArray();
             }
         }
 
-        return null;
+        return $results;
     }
 
-    public function getUnSerializeOutput(): mixed
+    protected function isIgnoredType(mixed $value): bool
     {
-        if (isset($this->output) && ! empty($this->output)) {
-            try {
-                $unserialize = Serializer::unserialize($this->output);
-                foreach ($unserialize as $key => $value) {
-                    if ($value instanceof Apps || $value instanceof Companies || $value instanceof Rule || $value instanceof Users) {
-                        unset($unserialize[$key]);
-                    }
-                }
-
-                return $unserialize;
-            } catch (Exception $e) {
-                return null;
-            }
-        }
-
-        return null;
+        return $value instanceof Apps
+            || $value instanceof Companies
+            || $value instanceof Rule
+            || $value instanceof Users;
     }
 }
