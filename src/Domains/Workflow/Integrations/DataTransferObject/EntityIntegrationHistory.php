@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Integrations\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
@@ -16,7 +17,7 @@ class EntityIntegrationHistory extends Data
         public AppInterface $app,
         public IntegrationsCompany $integrationCompany,
         public Status $status,
-        public EntityIntegrationInterface $entity,
+        public EntityIntegrationInterface|Model $entity,
         public ?string $response = null,
         public mixed $exception = null,
         public ?int $workflowId = null

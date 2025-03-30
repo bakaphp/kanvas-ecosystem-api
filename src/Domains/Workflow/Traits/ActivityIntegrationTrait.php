@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Traits;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
@@ -42,7 +43,7 @@ trait ActivityIntegrationTrait
         AppInterface $app,
         IntegrationsCompany $integrationCompany,
         Status $status,
-        EntityIntegrationInterface $entity,
+        Model $entity,
         ?string $historyResponse = null,
         ?Throwable $exception = null
     ): void {
@@ -64,7 +65,7 @@ trait ActivityIntegrationTrait
     }
 
     public function executeIntegration(
-        $entity,
+        Model $entity,
         AppInterface $app,
         IntegrationsEnum $integration,
         callable $integrationOperation,

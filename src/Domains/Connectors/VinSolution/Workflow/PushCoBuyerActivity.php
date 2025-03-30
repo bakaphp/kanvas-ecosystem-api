@@ -37,7 +37,7 @@ class PushCoBuyerActivity extends KanvasActivity
         }
 
         return $this->executeIntegration(
-            entity: $lead,
+            entity: $participant,
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
             integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($people) {
