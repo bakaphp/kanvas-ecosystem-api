@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Models;
 
+use Exception;
 use Workflow\Models\StoredWorkflow as ModelsStoredWorkflow;
 
 class StoredWorkflow extends ModelsStoredWorkflow
@@ -18,9 +19,13 @@ class StoredWorkflow extends ModelsStoredWorkflow
     public function getUnSerializeArgument(): mixed
     {
         if (isset($this->arguments) && ! empty($this->arguments)) {
-            $unserialize = unserialize($this->arguments)->getClosure();
+            try {
+                $unserialize = unserialize($this->arguments)->getClosure();
 
-            return $unserialize();
+                return $unserialize();
+            } catch (Exception $e) {
+                return null;
+            }
         }
 
         return null;
@@ -29,9 +34,13 @@ class StoredWorkflow extends ModelsStoredWorkflow
     public function getUnSerializeOutput(): mixed
     {
         if (isset($this->output) && ! empty($this->output)) {
-            $unserialize = unserialize($this->output)->getClosure();
+            try {
+                $unserialize = unserialize($this->output)->getClosure();
 
-            return $unserialize();
+                return $unserialize();
+            } catch (Exception $e) {
+                return null;
+            }
         }
 
         return null;
