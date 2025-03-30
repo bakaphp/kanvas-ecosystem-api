@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Leads;
 
-use Kanvas\Guild\Leads\Actions\UpdateLeadReceiverAction;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
+use Kanvas\Guild\Leads\Actions\UpdateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadReceiver as LeadReceiverModel;
-use Kanvas\Users\Models\Users;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Rotations\Models\Rotation;
 use Kanvas\Guild\Leads\Models\LeadRotation;
+use Kanvas\Users\Models\Users;
 
 class LeadReceiverManagement
 {
@@ -31,6 +30,7 @@ class LeadReceiverManagement
             'lead_types_id' => $request['input']['lead_types_id'],
             'template' => key_exists('template', $request['input']) ? $request['input']['template'] : '',
         ]);
+
         return (new CreateLeadReceiverAction($dto))->execute();
     }
 
@@ -51,12 +51,14 @@ class LeadReceiverManagement
             'template' => key_exists('template', $request['input']) ? $request['input']['template'] : null,
         ]);
         $leadReceiver = LeadReceiverModel::getById($request['id'], app(Apps::class));
+
         return (new UpdateLeadReceiverAction($leadReceiver, $dto))->execute();
     }
 
     public function delete(mixed $root, array $request): bool
     {
         $leadReceiver = LeadReceiverModel::getById($request['id'], app(Apps::class));
+
         return $leadReceiver->delete();
     }
 }

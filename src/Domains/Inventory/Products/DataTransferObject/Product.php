@@ -44,7 +44,7 @@ class Product extends Data
         public array $productType = [],
         public array $files = [],
         public ?string $slug = null,
-        public ?float $weight = 0,
+        public ?float $weight = null,
     ) {
     }
 
@@ -76,7 +76,7 @@ class Product extends Data
             $request['productType'] ?? [],
             $request['files'] ?? [],
             $request['slug'] ?? null,
-            $request['weight'] ?? 0
+            $request['weight'] ?? null
         );
     }
 }

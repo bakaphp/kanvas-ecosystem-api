@@ -137,7 +137,7 @@ class Lead
             $data['coBuyerContact'] = 'https://api.vinsolutions.com/contacts/id/' . $this->coBuyerContact . '?dealerid=' . $dealer->id;
         }
 
-        $response = $client->put(
+        $client->put(
             '/leads/id/' . $this->id,
             json_encode($data),
             [
@@ -161,7 +161,7 @@ class Lead
         $data['UserId'] = $user->id;
         $data['Note'] = $notes;
 
-        $response = $client->put(
+        $client->put(
             '/gateway/v1/lead/' . $this->id,
             json_encode($data),
         );

@@ -13,18 +13,20 @@ class CreateLeadsProductFromReceiverJob extends CreateLeadsFromReceiverJob
     protected function sendLeadEmails(string $emailTemplate, Model $user, Lead $lead, array $payload): void
     {
         $sendLeadEmailsAction = new SendLeadEmailsAction($lead, $emailTemplate);
-        $productId = null;
-        if (isset($payload['custom_fields'])) {
-            foreach ($payload['custom_fields'] as $customField) {
-                if ($customField['name'] === 'product_id') {
-                    $productId = $customField['data'];
-                }
-            }
+        $fieldMaps = $this->mapCustomFields($payload['custom_fields']);
+        if (isset($fieldMaps['product_id'])) {
+            $payload['product'] = $sendLeadEmailsAction->getProduct($fieldMaps['product_id']);
         }
-
-        if ($productId) {
-            $payload['product'] = $sendLeadEmailsAction->getProduct($productId);
-        }
+        $payload['field_maps'] = $fieldMaps;
         $sendLeadEmailsAction->execute($payload, $user);
+    }
+
+    protected function mapCustomFields(array $customFields): array
+    {
+        $fieldMaps = [];
+        foreach ($customFields as $customField) {
+            $fieldMaps[$customField['name']] = $customField['data'];
+        }
+        return $fieldMaps;
     }
 }

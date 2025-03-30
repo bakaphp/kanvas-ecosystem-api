@@ -7,6 +7,8 @@ namespace Kanvas\Connectors\ESim\WorkflowActivities;
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\CMLink\Actions\CreateEsimOrderAction;
+use Kanvas\Connectors\ESim\Actions\PushOrderToCommerceAction;
+use Kanvas\Connectors\ESim\DataTransferObject\ESim;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
@@ -57,6 +59,7 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         $providerValue = strtolower($provider->value);
+        $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
 
         try {
             /**
@@ -65,6 +68,8 @@ class CreateOrderInESimActivity extends KanvasActivity
             if ($providerValue == strtolower(ProviderEnum::CMLINK->value)) {
                 $esim = (new CreateEsimOrderAction($order))->execute();
 
+                $woocommerceResponse = $fromMobile ? $this->sendOrderToCommerce($order, $esim, $providerValue) : ['web order' => true];
+
                 $response = [
                     'success' => true,
                     'data' => [
@@ -72,6 +77,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                         'plan_origin' => $esim->plan,
                     ],
                     'esim_status' => $esim->esimStatus->toArray(),
+                    'woocommerce_response' => $woocommerceResponse,
                 ];
             } else {
                 $createOrder = new OrderService($order);
@@ -149,6 +155,8 @@ class CreateOrderInESimActivity extends KanvasActivity
         );
 
         $message = $createMessage->execute();
+        $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
+        $order->updateOrFail();
         $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
 
         return [
@@ -157,5 +165,21 @@ class CreateOrderInESimActivity extends KanvasActivity
             'message_id' => $message->getId(),
             'response' => $response,
         ];
+    }
+
+    protected function sendOrderToCommerce(Order $order, ESim $esim, string $providerValue): array
+    {
+        try {
+            $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
+            $woocommerceResponse = $woocommerceOrder->execute($providerValue);
+        } catch (Throwable $e) {
+            $woocommerceResponse = [
+                'status' => 'error',
+                'message' => 'Error creating order in WooCommerce',
+                'response' => $e->getMessage(),
+            ];
+        }
+
+        return $woocommerceResponse;
     }
 }

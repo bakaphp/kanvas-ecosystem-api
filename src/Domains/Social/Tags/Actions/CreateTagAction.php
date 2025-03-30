@@ -18,11 +18,11 @@ class CreateTagAction
     {
         return Tag::firstOrCreate([
             'apps_id' => $this->tagData->app->getId(),
-            'companies_id' => $this->tagData->company->getId(),
             'name' => $this->tagData->name,
         ], [
             'users_id' => $this->tagData->user?->getId(),
             'weight' => $this->tagData->weight ?? 0,
+            'companies_id' => $this->tagData->company->getId(),
         ]);
     }
 }

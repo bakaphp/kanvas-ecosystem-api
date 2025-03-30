@@ -25,7 +25,7 @@ class LeadReceiver extends Data
         public bool $isDefault = false,
         public int $lead_sources_id = 0,
         public int $lead_types_id = 0,
-        public ?string $template = null,
+        public string|array|null $template = null,
         public ?LeadRotation $rotation = null
     ) {
     }

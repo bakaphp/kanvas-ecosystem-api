@@ -62,7 +62,7 @@ class CreateEsimOrderAction
         //$sku = $availableVariant->sku;
 
         //add this variant to the order so we have a history of the iccid
-        $this->order->addItem(new OrderItem(
+        $orderItem = $this->order->addItem(new OrderItem(
             app: $this->order->app,
             variant: $availableVariant,
             name: (string) $availableVariant->name,
@@ -73,6 +73,7 @@ class CreateEsimOrderAction
             discount: 0,
             currency: Currencies::getBaseCurrency(),
         ));
+        $orderItem->setPrivate();
 
         $orderService = new OrderService($this->order->app, $this->order->company);
         $cmLinkOrder = $orderService->createOrder(
@@ -82,6 +83,10 @@ class CreateEsimOrderAction
             dataBundleId: $variantSkuIsBundleId,
             activeDate: $this->order->created_at->format('Y-m-d')
         );
+
+        if (! isset($cmLinkOrder['quantity']) || $cmLinkOrder['quantity'] < 1) {
+            throw new ValidationException($cmLinkOrder['description']);
+        }
 
         $customerService = new CustomerService($this->order->app, $this->order->company);
         $esimData = $customerService->getEsimInfo($availableVariant->sku);
@@ -132,10 +137,10 @@ class CreateEsimOrderAction
             )
          */
         $totalData = $orderVariant->getAttributeBySlug('data')?->value ?? 0;
-        $timestamp = ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time();
+        $installTimeChange = ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time();
 
-        //Convert Unix timestamp to EST using Carbon
-        $dateEst = Carbon::createFromTimestamp($timestamp, 'UTC')->setTimezone('America/New_York');
+        //Convert timestamp directly to EST
+        $dateEst = Carbon::createFromTimestamp($installTimeChange)->setTimezone('America/New_York');
         //Unix timestamp in EST
         $timestampEst = $dateEst->timestamp;
         //Formatted date in EST

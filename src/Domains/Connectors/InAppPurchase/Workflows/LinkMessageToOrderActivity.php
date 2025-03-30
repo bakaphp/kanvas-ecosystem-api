@@ -17,12 +17,14 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     /**
      * @param Model<Order> $order
      */
+    #[Override]
     public function execute(Model $order, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
@@ -56,7 +58,6 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
                 description: 'Purchase Message Channel',
                 slug: 'PMC-' . $user->uuid
             ),
-            $order->user
         );
 
         $purchaseChannel = $newPurchaseMessageChannel->execute();

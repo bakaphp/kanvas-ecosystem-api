@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Support;
 
 use Baka\Contracts\AppInterface;
-
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;

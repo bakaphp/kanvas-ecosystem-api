@@ -11,14 +11,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
-/**
- * Wrapper for the VinSolutions API.
- */
 class Client
 {
     protected GuzzleClient $client;
-    protected int $dealerId;
-    protected int $userId;
+    public int $dealerId;
+    public int $userId;
     protected string $authBaseUrl = 'https://authentication.vinsolutions.com';
     protected string $baseUrl = 'https://api.vinsolutions.com';
     protected string $grantType = 'client_credentials';
@@ -38,6 +35,10 @@ class Client
         $app = $app ?? app(Apps::class);
         $this->dealerId = $dealerId;
         $this->userId = $userId;
+
+        if (app()->environment() !== 'production') {
+            $this->baseUrl = 'https://sandbox.api.vinsolutions.com';
+        }
 
         $this->clientId = $app->get(ConfigurationEnum::CLIENT_ID->value);
         $this->clientSecret = $app->get(ConfigurationEnum::CLIENT_SECRET->value);
