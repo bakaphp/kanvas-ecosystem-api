@@ -11,11 +11,9 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Kanvas\Workflow\Traits\ActivityIntegrationTrait;
 
 class PushCoBuyerActivity extends KanvasActivity
 {
-    use ActivityIntegrationTrait;
     public $tries = 3;
 
     public function execute(LeadParticipant $participant, Apps $app, array $params): array
