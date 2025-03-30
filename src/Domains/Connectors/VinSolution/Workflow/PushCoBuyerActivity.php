@@ -30,29 +30,29 @@ class PushCoBuyerActivity extends KanvasActivity
             ];
         }
 
-        if ($lead->get(CustomFieldEnum::LEAD_CO_BUYER_PROCESSED->value)) {
-            return [
-                'error' => 'Co-buyer already processed',
-            ];
-        }
-
         return $this->executeIntegration(
             entity: $participant,
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
-            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($people) {
-                $pushLead = new PushLeadAction($entity);
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($people, $lead) {
+                if ($lead->get(CustomFieldEnum::LEAD_CO_BUYER_PROCESSED->value)) {
+                    return [
+                        'error' => 'Co-buyer already processed',
+                    ];
+                }
+
+                $pushLead = new PushLeadAction($lead);
                 $vinLead = $pushLead->execute();
 
                 // Mark as processed
-                $entity->set(CustomFieldEnum::LEAD_CO_BUYER_PROCESSED->value, true);
-                $entity->save();
+                $lead->set(CustomFieldEnum::LEAD_CO_BUYER_PROCESSED->value, true);
 
                 return [
                     'message' => 'Co-buyer added successfully',
                     'vinLead' => $vinLead->id,
                     'people' => $people->toArray(),
-                    'lead' => $entity->toArray(),
+                    'entity' => $entity->toArray(),
+                    'lead' => $lead->toArray(),
                 ];
             },
             company: $company,
