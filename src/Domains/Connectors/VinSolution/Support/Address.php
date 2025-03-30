@@ -64,11 +64,11 @@ class Address
      */
     public function getCity(): ?string
     {
-        if ($this->address->getCity() === null) {
+        if ($this->address->city === null) {
             return ! empty(trim((string) $this->address->city)) ? $this->address->city : null;
         }
 
-        return $this->address->getCity()->name;
+        return $this->address->city()->first()?->name;
     }
 
     /**
