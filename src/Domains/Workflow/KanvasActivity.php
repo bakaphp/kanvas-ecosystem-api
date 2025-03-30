@@ -29,14 +29,14 @@ class KanvasActivity extends Activity
     //public $timeout = 60;
     public $queue = 'workflow';
 
-    protected function getStatus(StatusEnum $status): ?Status
+    public function getStatus(StatusEnum $status): ?Status
     {
         return Status::where('slug', $status->value)
         ->where('apps_id', 0)
         ->first();
     }
 
-    protected function getIntegrationCompany(
+    public function getIntegrationCompany(
         IntegrationsEnum $integration,
         Regions $region,
         Status $status
@@ -49,7 +49,7 @@ class KanvasActivity extends Activity
         );
     }
 
-    protected function addToIntegrationHistory(
+    public function addToIntegrationHistory(
         AppInterface $app,
         IntegrationsCompany $integrationCompany,
         Status $status,
@@ -74,7 +74,7 @@ class KanvasActivity extends Activity
         ))->execute();
     }
 
-    protected function executeIntegration(
+    public function executeIntegration(
         $entity,
         AppInterface $app,
         IntegrationsEnum $integration,
