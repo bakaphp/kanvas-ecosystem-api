@@ -34,7 +34,6 @@ class SendLeadEmailsAction
         }
     }
 
-
     public function getProduct(string $productId): object
     {
         $product = Products::where('id', $productId)->with(['variants', 'variants.warehouses'])->first();
