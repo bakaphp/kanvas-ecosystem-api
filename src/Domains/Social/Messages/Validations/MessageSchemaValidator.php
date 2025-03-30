@@ -4,22 +4,20 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Validations;
 
-use Closure;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Social\Messages\Exceptions\MessageValidationException;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 
 class MessageSchemaValidator
 {
-    protected $appId;
+    #protected string|int $appId;
 
     public function __construct(
         private readonly Message $message,
         private readonly MessageType $messageType
     ) {
     }
-
 
     public function validate(): void
     {
@@ -28,7 +26,7 @@ class MessageSchemaValidator
         $this->validateSchema($data, $schema);
     }
 
-    private function validateSchema($data, $schema): void
+    private function validateSchema(array $data, array $schema): void
     {
         $validator = Validator::make($data, $schema);
         if ($validator->fails()) {
