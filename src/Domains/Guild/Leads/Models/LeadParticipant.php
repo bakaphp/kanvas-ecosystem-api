@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
-use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,13 +21,11 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  */
 class LeadParticipant extends BaseModel
 {
-    use HasCompositePrimaryKeyTrait;
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
 
     use CanUseWorkflow;
 
-    protected $primaryKey = ['leads_id', 'peoples_id'];
     protected $table = 'leads_participants';
     protected $guarded = [];
 
