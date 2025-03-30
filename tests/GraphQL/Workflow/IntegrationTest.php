@@ -20,8 +20,6 @@ class IntegrationTest extends TestCase
 
     /**
      * testCreate.
-     *
-     * @return void
      */
     public function testIntegrationCompanySave(): void
     {
@@ -57,9 +55,9 @@ class IntegrationTest extends TestCase
                 }
             }
         ', [
-            'data' => $region
+            'data' => $region,
         ])->assertJson([
-            'data' => ['createRegion' => $region]
+            'data' => ['createRegion' => $region],
         ]);
         $regionResponse = $regionResponse->decodeResponseJson();
 
@@ -73,17 +71,17 @@ class IntegrationTest extends TestCase
 
         $data = [
             'integration' => [
-                'id' => $integration['id']
+                'id' => $integration['id'],
             ],
             'company_id' => $company->getId(),
             'region' => [
-                'id' => $regionResponse['data']['createRegion']['id']
+                'id' => $regionResponse['data']['createRegion']['id'],
             ],
             'config' => [
                 'client_id' => $credentials['client_id'],
                 'client_secret' => $credentials['client_secret'],
-                'shop_url' => $credentials['shop_url']
-            ]
+                'shop_url' => $credentials['shop_url'],
+            ],
         ];
 
         $integrationCompanyResponse = $this->graphQL('
@@ -99,8 +97,6 @@ class IntegrationTest extends TestCase
 
     /**
      * testSearch.
-     *
-     * @return void
      */
     public function testRemoveIntegrationCompany(): void
     {
@@ -136,9 +132,9 @@ class IntegrationTest extends TestCase
                 }
             }
         ', [
-            'data' => $region
+            'data' => $region,
         ])->assertJson([
-            'data' => ['createRegion' => $region]
+            'data' => ['createRegion' => $region],
         ]);
         $regionResponse = $regionResponse->decodeResponseJson();
 
@@ -153,17 +149,17 @@ class IntegrationTest extends TestCase
 
         $data = [
             'integration' => [
-                'id' => $integration['id']
+                'id' => $integration['id'],
             ],
             'company_id' => $company->getId(),
             'region' => [
-                'id' => $regionResponse['data']['createRegion']['id']
+                'id' => $regionResponse['data']['createRegion']['id'],
             ],
             'config' => [
                 'client_id' => $credentials['client_id'],
                 'client_secret' => $credentials['client_secret'],
-                'shop_url' => $credentials['shop_url']
-            ]
+                'shop_url' => $credentials['shop_url'],
+            ],
         ];
 
         $integrationCompanyResponse = $this->graphQL('
@@ -186,7 +182,6 @@ class IntegrationTest extends TestCase
         ]);
     }
 
-
     public function testGetIntegrationsWorkflowHistory(): void
     {
         $this->createProduct();
@@ -207,8 +202,10 @@ class IntegrationTest extends TestCase
     protected function createProduct()
     {
         $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
 
-        $product = Products::factory()->create();
+        $product = Products::factory()->withCompanyId($company->getId())->withUserId($user->getId())->create();
 
         $region = $this->createDefaultRegion(
             company: $product->company,
