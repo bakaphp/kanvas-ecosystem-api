@@ -78,7 +78,7 @@ class Address
     {
         $defaultState = $this->address->people && $this->address->people->companies ? $this->address->people->company->get(ConfigurationEnum::DEFAULT_STATE_KEY->value) : CustomFieldEnum::DEFAULT_STATE->value;
 
-        if ($this->address->getState() === null) {
+        if ($this->address->state === null) {
             if (! empty($this->address->state) && strlen($this->address->state) > 3) {
                 $state = States::where('name', $this->address->state)->first();
 
@@ -93,6 +93,6 @@ class Address
             //return ! empty($this->address->state) && strlen($this->address->state) < 3 ? strtoupper($this->address->state) : $defaultState;
         }
 
-        return $this->address->getState()->code;
+        return $this->address->state()->first()?->code ?? $defaultState;
     }
 }
