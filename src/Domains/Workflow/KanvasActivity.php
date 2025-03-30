@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Workflow;
 
 use Baka\Traits\KanvasJobsTrait;
+use Kanvas\Workflow\Traits\ActivityIntegrationTrait;
 use Workflow\Activity;
 
 /**
@@ -14,6 +15,8 @@ use Workflow\Activity;
 class KanvasActivity extends Activity
 {
     use KanvasJobsTrait;
+    use ActivityIntegrationTrait;
+
     //public $tries = 3;
     //public $timeout = 60;
     public $queue = 'workflow';
