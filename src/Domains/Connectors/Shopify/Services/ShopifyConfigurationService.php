@@ -9,8 +9,8 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Regions\Models\Regions;
 
 class ShopifyConfigurationService
 {
