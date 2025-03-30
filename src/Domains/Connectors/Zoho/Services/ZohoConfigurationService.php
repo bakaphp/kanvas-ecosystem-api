@@ -21,8 +21,9 @@ class ZohoConfigurationService extends BaseConfigurationService
         $clientCredentialNaming = self::generateCredentialKey($data->company, $data->app, $data->region);
 
         $configData = [
-            CustomFieldEnum::CLIENT_ID->value => $data->apiKey,
+            CustomFieldEnum::CLIENT_ID->value => $data->clientId,
             CustomFieldEnum::CLIENT_SECRET->value => $data->apiSecret,
+            CustomFieldEnum::REFRESH_TOKEN->value => $data->refreshToken,
         ];
 
         return $data->company->set(

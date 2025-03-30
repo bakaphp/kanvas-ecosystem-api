@@ -39,6 +39,7 @@ class ZohoService
         $configData = [
             CustomFieldEnum::CLIENT_ID->value => $data->clientId,
             CustomFieldEnum::CLIENT_SECRET->value => $data->clientSecret,
+            CustomFieldEnum::REFRESH_TOKEN->value => $data->refreshToken,
         ];
 
         return $data->company->set(

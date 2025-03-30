@@ -20,7 +20,8 @@ class ZohoSetup
         public AppInterface $app,
         public Regions $region,
         public string $clientId,
-        public string $clientSecret
+        public string $clientSecret,
+        public string $refreshToken
     ) {
     }
 
@@ -34,7 +35,8 @@ class ZohoSetup
             $app,
             Regions::getById($data['region_id']),
             $data['client_id'],
-            $data['client_secret']
+            $data['client_secret'],
+            $data['refresh_token']
         );
     }
 }

@@ -19,6 +19,7 @@ class ZohoHandler extends BaseIntegration
             region: $this->region,
             clientId: $this->data['client_id'],
             clientSecret: $this->data['client_secret'],
+            refreshToken: $this->data['refresh_token']
         );
 
         ZohoService::zohoSetup($zohoDto);
