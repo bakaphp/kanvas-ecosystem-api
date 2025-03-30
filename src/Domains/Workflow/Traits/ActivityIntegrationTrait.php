@@ -75,6 +75,7 @@ trait ActivityIntegrationTrait
     ): array {
         $this->overwriteAppService($app);
         $activeStatus = $this->getStatus(StatusEnum::ACTIVE);
+        $company = $company ?? $entity->company;
         $region = $region ?? Regions::getDefault($company ?? $entity->company, $app);
 
         $integrationCompany = $this->getIntegrationCompany(
@@ -87,7 +88,7 @@ trait ActivityIntegrationTrait
             return [
                 'error' => 'No integration configured for this company',
                 'integration' => $integration->value,
-                'company' => $entity->company->getId(),
+                'company' => $company?->getId() ?? 'no company',
                 'entity_id' => $entity->getId(),
             ];
         }
@@ -117,7 +118,7 @@ trait ActivityIntegrationTrait
         if ($exception) {
             return [
                 'error' => $exception->getMessage(),
-                'company' => $entity->company->getId(),
+                'company' => $company?->getId() ?? 'no company',
                 'integration' => $integration->value,
                 'entity_id' => $entity->getId(),
             ];
