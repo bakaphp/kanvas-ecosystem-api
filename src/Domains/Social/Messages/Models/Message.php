@@ -42,6 +42,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
 use Override;
+use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  *  Class Message
@@ -82,8 +83,12 @@ class Message extends BaseModel
     use HasLightHouseCache;
     //use Cachable;
     use HasFilesystemTrait;
+    use QueryCacheable;
 
     protected $table = 'messages';
+    public $cacheFor = null;
+    public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
 
     protected $guarded = [
         'uuid',

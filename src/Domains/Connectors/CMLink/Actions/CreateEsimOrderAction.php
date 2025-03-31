@@ -84,6 +84,10 @@ class CreateEsimOrderAction
             activeDate: $this->order->created_at->format('Y-m-d')
         );
 
+        if (! isset($cmLinkOrder['quantity']) || $cmLinkOrder['quantity'] < 1) {
+            throw new ValidationException($cmLinkOrder['description']);
+        }
+
         $customerService = new CustomerService($this->order->app, $this->order->company);
         $esimData = $customerService->getEsimInfo($availableVariant->sku);
 

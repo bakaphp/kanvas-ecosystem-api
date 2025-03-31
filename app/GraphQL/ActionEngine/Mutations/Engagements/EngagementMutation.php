@@ -153,6 +153,7 @@ class EngagementMutation
             checkListId: $checkListId,
             preFill: [],
             via: $via,
+            product_id: $data['product_id'] ?? null,
         );
         $messageInput = [
             'message' => $engagementMessage->toArray(),
