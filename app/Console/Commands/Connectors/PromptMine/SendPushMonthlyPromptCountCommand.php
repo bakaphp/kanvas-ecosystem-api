@@ -7,7 +7,7 @@ namespace App\Console\Commands\Connectors\PromptMine;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Messages\Jobs\SendMonthlyMessageCountJob;
+use Kanvas\Connectors\PromptMine\Jobs\SendMonthlyMessageCountJob;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;

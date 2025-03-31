@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Jobs;
+namespace Kanvas\Connectors\PromptMine\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
