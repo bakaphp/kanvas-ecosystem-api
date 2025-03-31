@@ -35,18 +35,6 @@ class MessagesRepository
         return array_values(array_unique($userPostsTags));
     }
 
-    public static function getcurrentMonthCreationCount(Apps $app, Users $user, MessageType $messageType): int
-    {
-        $messageCountOnCurrentMonth = Message::query()
-            ->selectRaw('COUNT(id) as count')
-            ->where('apps_id', $app->getId())
-            ->where('users_id', $user->getId())
-            ->where('message_types_id', $messageType->getId())
-            ->whereRaw('MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())')
-            ->first();
-        return $messageCountOnCurrentMonth->count;
-    }
-
     public static function getMostPopularMesssageByTotalLikes(Apps $app, MessageType $messageType): Message
     {
         return Message::query()

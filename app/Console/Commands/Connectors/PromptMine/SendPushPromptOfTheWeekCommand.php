@@ -8,7 +8,6 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Jobs\SendMessageOfTheWeekJob;
-use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
@@ -28,7 +27,7 @@ class SendPushPromptOfTheWeekCommand extends Command
      *
      * @var string|null
      */
-    protected $description = 'Send Push notification of montly count of prompts for each user.';
+    protected $description = 'Send Push notification of prompt of the week for each user.';
 
     /**
      * Execute the console command.
@@ -50,8 +49,7 @@ class SendPushPromptOfTheWeekCommand extends Command
             ->where('is_deleted', 0)
             ->chunk(100, function ($users) use ($app, $messageType) {
                 foreach ($users as $user) {
-                    $monthtlyCount = MessagesRepository::getcurrentMonthCreationCount($app, $user, $messageType);
-                    (new SendMessageOfTheWeekJob($app, $user, $monthtlyCount, $messageType, [
+                    (new SendMessageOfTheWeekJob($app, $user, $messageType, [
                         'via' => 'push',
                     ]))::dispatch();
                 }
