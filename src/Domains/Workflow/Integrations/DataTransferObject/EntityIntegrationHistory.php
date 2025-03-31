@@ -18,7 +18,7 @@ class EntityIntegrationHistory extends Data
         public IntegrationsCompany $integrationCompany,
         public Status $status,
         public EntityIntegrationInterface|Model $entity,
-        public ?string $response = null,
+        public mixed $response = null,
         public mixed $exception = null,
         public ?int $workflowId = null
     ) {

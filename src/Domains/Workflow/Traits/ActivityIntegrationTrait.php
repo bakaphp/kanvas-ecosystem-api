@@ -44,7 +44,7 @@ trait ActivityIntegrationTrait
         IntegrationsCompany $integrationCompany,
         Status $status,
         Model $entity,
-        ?string $historyResponse = null,
+        mixed $historyResponse = null,
         ?Throwable $exception = null
     ): void {
         $dto = new EntityIntegrationHistory(
