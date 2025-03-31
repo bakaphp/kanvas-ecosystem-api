@@ -87,7 +87,6 @@ class FixPromptDataCommand extends Command
     {
         $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
 
-
         if (! isset($messageData['ai_model'])) {
             $messageData['ai_model'] = [
                 'name'=> 'gpt-3.5-turbo',
