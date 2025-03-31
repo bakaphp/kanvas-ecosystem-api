@@ -8,13 +8,15 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions;
-use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
+
+use function Sentry\captureException;
+
 use Throwable;
 
 trait ActivityIntegrationTrait
@@ -103,6 +105,8 @@ trait ActivityIntegrationTrait
             $status = $this->getStatus(StatusEnum::CONNECTED);
         } catch (Throwable $exception) {
             $status = $this->getStatus(StatusEnum::FAILED);
+
+            captureException($exception);
         }
 
         // Record integration history
