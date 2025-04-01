@@ -36,14 +36,9 @@ class CreateEsimOrderAction
     public function execute(): ESim
     {
         $orderHasMetaData = $this->order->get(CustomFieldEnum::ORDER_ESIM_METADATA->value);
-        $rechargeOrder = null;
 
         if (! empty($orderHasMetaData)) {
-            if (! empty($orderHasMetaData['parent_order_id']) && ! empty($orderHasMetaData['message_id'])) {
-                $rechargeOrder = true;
-            } else {
-                throw new ValidationException('Order already has eSim metadata');
-            }
+            throw new ValidationException('Order already has eSim metadata');
         }
 
         //get free iccid stock
@@ -81,24 +76,13 @@ class CreateEsimOrderAction
         $orderItem->setPrivate();
 
         $orderService = new OrderService($this->order->app, $this->order->company);
-        if ($rechargeOrder === true) {
-            $cmLinkOrder = $orderService->refuelOrder(
-                thirdOrderId: (string) $orderHasMetaData['parent_order_id'],
-                iccid: $availableVariant->sku,
-                quantity: 1,
-                activeDate: $this->order->created_at->format('Y-m-d'),
-                refuelingId: $variantSkuIsBundleId
-            );
-        } else {
-            $cmLinkOrder = $orderService->createOrder(
-                thirdOrderId: (string) $this->order->order_number,
-                iccid: $availableVariant->sku,
-                quantity: 1,
-                dataBundleId: $variantSkuIsBundleId,
-                activeDate: $this->order->created_at->format('Y-m-d')
-            );
-        }
-
+        $cmLinkOrder = $orderService->createOrder(
+            thirdOrderId: (string) $this->order->order_number,
+            iccid: $availableVariant->sku,
+            quantity: 1,
+            dataBundleId: $variantSkuIsBundleId,
+            activeDate: $this->order->created_at->format('Y-m-d')
+        );
 
         $customerService = new CustomerService($this->order->app, $this->order->company);
         $esimData = $customerService->getEsimInfo($availableVariant->sku);
