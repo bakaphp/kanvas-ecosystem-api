@@ -66,6 +66,7 @@ use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Connectors\Google\Activities\CovertMapsCoordinatesToImageActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
+use Kanvas\Social\Messages\Workflows\Activities\MessageReportNotificationActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
@@ -141,6 +142,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CovertMapsCoordinatesToImageActivity::class,
             SaveLlmChoiceActivity::class,
             PushCoBuyerActivity::class,
+            MessageReportNotificationActivity::class,
         ];
 
         $createdActions = [];
