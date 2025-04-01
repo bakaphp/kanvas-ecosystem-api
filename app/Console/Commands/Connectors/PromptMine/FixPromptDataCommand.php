@@ -57,25 +57,15 @@ class FixPromptDataCommand extends Command
                 foreach ($messages as $message) {
                     try {
                         $this->fixPromptData($message);
-                        $this->info('Message ID: ' . $message->getId() . ' updated');
-                        die();
-                    } catch (Throwable $e) {
-                        $this->error('Error updating message ID: ' . $message->getId() . ' - ' . $e->getMessage());
-                    }
-                }
-            });
-    }
+                        $this->info('-Message ID: ' . $message->getId() . ' updated');
 
-    private function SyncNuggetData(Apps $app, MessageType $messageType, int $companiesId, int $parentId): void
-    {
-        Message::fromApp($app)
-            ->where('message_types_id', $messageType->getId())
-            ->where('companies_id', $companiesId)
-            ->orderBy('id', 'asc')
-            ->chunk(100, function ($messages) {
-                foreach ($messages as $message) {
-                    try {
-                        $this->info('Message ID: ' . $message->getId() . ' updated');
+                        if (count($message->children) == 0) {
+                            continue;
+                        }
+                        foreach ($message->children as $childMessage) {
+                            $this->fixNuggetData($childMessage);
+                            $this->info('--Child Message ID: ' . $childMessage->getId() . ' updated');
+                        }
                     } catch (Throwable $e) {
                         $this->error('Error updating message ID: ' . $message->getId() . ' - ' . $e->getMessage());
                     }
@@ -89,9 +79,9 @@ class FixPromptDataCommand extends Command
 
         if (! isset($messageData['ai_model'])) {
             $messageData['ai_model'] = [
-                'name'=> 'gpt-3.5-turbo',
-                'value'=> 'gpt-3.5-turbo',
-                'icon'=> 'https://cdn.openai.com/papers/gpt-3.5-turbo.png',
+                'name' => 'gpt-3.5-turbo',
+                'value' => 'gpt-3.5-turbo',
+                'icon' => 'https://cdn.openai.com/papers/gpt-3.5-turbo.png',
                 'payment' => [
                     'price' => 0,
                     'is_locked' => false,
@@ -115,6 +105,14 @@ class FixPromptDataCommand extends Command
                 'free_regeneration' => false
             ];
         }
+
+        $message->message = $messageData;
+        $message->save();
+    }
+
+    private function fixNuggetData(Message $message): void
+    {
+        $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
 
         $message->message = $messageData;
         $message->save();
