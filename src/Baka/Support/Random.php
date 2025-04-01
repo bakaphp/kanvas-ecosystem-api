@@ -6,6 +6,7 @@ namespace Baka\Support;
 
 use Baka\Contracts\AppInterface;
 use GrantHolle\UsernameGenerator\Username;
+use InvalidArgumentException;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
 class Random
@@ -28,42 +29,62 @@ class Random
         return $username;
     }
 
-    /**
-     * Given a email generate a displayname.
-     */
     public static function generateDisplayNameFromEmail(string $email, AppInterface $app, int $randNo = 200): string
     {
-        if (str_ends_with($email, '@privaterelay.appleid.com')) {
-            $displayname = (new Username())
-                ->withAdjectiveCount(1)
-                ->withNounCount(1)
-                ->withDigitCount(0)
-                ->withCasing('lower')
-                ->generate();
+        if (empty($email) || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException('Invalid email format provided');
+        }
 
-            return str_replace(' ', '', $displayname);
+        // Handle Apple private relay emails consistently
+        if (str_ends_with($email, '@privaterelay.appleid.com')) {
+            return self::generatePrivateRelayUsername();
         }
 
         $displayname = substr($email, 0, strpos($email, '@'));
 
-        //Remove any numbers from the email
-        preg_match_all('!\d+!', $displayname, $matches);
-        $numbers = implode('', $matches[0]);
-        $displayname = str_replace($numbers, '', $displayname);
+        // First remove special characters, keeping only alphanumeric
+        $displayname = preg_replace('/[^a-zA-Z0-9]/', '', $displayname);
 
-        //Check if there is another user with the same displayname
-        if (UsersAssociatedApps::query()->fromApp($app)->where('displayname', $displayname)->first()) {
-            $randomNumber = ($randNo) ? rand(0, $randNo) : '';
-            $displayname = $displayname . $randomNumber;
+        $displayname = preg_replace('/\d+/', '', $displayname);
+
+        // If nothing is left after cleaning, generate a random username
+        if ($displayname === null || $displayname === '') {
+            return self::generatePrivateRelayUsername();
         }
 
-        //Remove any characters from the left of a found special character, if any
-        if (preg_match('/[^a-zA-Z0-9]/', $displayname, $matches, PREG_OFFSET_CAPTURE)) {
-            $pos = $matches[0][1];
-            $displayname = substr($displayname, $pos + 1);
+        // Ensure uniqueness by checking the database
+        $originalName = $displayname;
+        $counter = 0;
+
+        while ($counter < 10) { // Limit attempts to avoid infinite loop
+            // Check if this displayname already exists
+            if (! UsersAssociatedApps::query()->fromApp($app)->where('displayname', $displayname)->exists()) {
+                return $displayname; // Return unique name
+            }
+
+            // If it exists, add random suffix
+            $randomNumber = ($randNo > 0) ? rand(1, $randNo) : '';
+            $displayname = $originalName . $randomNumber;
+            $counter++;
         }
 
-        return $displayname;
+        // Fallback to timestamp-based name to ensure uniqueness
+        return $originalName . time();
+    }
+
+    /**
+     * Generate a consistent username format for private relay emails
+     */
+    private static function generatePrivateRelayUsername(): string
+    {
+        $username = (new Username())
+            ->withAdjectiveCount(1)
+            ->withNounCount(1)
+            ->withDigitCount(0)
+            ->withCasing('lower')
+            ->generate();
+
+        return str_replace(' ', '', $username);
     }
 
     public static function cleanUpDisplayNameForSlug(string $displayName): string
