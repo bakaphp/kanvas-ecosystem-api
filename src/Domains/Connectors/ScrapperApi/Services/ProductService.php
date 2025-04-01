@@ -14,8 +14,8 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 class ProductService
 {
     public function __construct(
-        private Channels $channels,
-        private Warehouses $warehouse
+        protected Channels $channels,
+        protected Warehouses $warehouse
     ) {
     }
 
@@ -77,8 +77,6 @@ class ProductService
                 ],
             ],
         ];
-        $product['variants'][] = $product;
-
         return $product;
     }
 
