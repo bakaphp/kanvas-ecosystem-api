@@ -28,7 +28,7 @@ use Kanvas\Souk\Orders\Models\Order;
 
 class CreateEsimOrderAction
 {
-    protected ?CustomerService $customerService = null;
+    protected CustomerService $customerService;
     protected ?OrderService $orderService = null;
     protected ?Variants $availableVariant = null;
     protected ?Variants $orderVariant = null;
@@ -36,12 +36,14 @@ class CreateEsimOrderAction
     protected ?array $esimData = null;
     protected ?array $cmLinkOrder = null;
     protected ?array $orderMetaData = null;
+    protected Warehouses $warehouse;
 
     public function __construct(
         protected Order $order,
-        protected ?Warehouses $warehouse = null
+        ?Warehouses $warehouse = null
     ) {
-        $this->warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
+        $this->warehouse = $warehouse ?? $this->order->region->defaultWarehouse;
+        $this->customerService = new CustomerService($order->app, $order->company);
     }
 
     public function execute(): ESim
@@ -87,7 +89,7 @@ class CreateEsimOrderAction
             activeDate: $parentOrder->created_at->format('Y-m-d'),
             refuelingId: $this->variantSkuIsBundleId,
         );
-        $this->customerService = new CustomerService($parentOrder->app, $parentOrder->company);
+
         $this->orderMetaData = $parentOrder->metadata ?? [];
     }
 
@@ -112,7 +114,7 @@ class CreateEsimOrderAction
             dataBundleId: $this->variantSkuIsBundleId,
             activeDate: $this->order->created_at->format('Y-m-d')
         );
-        $this->customerService = new CustomerService($this->order->app, $this->order->company);
+
         $this->orderMetaData = $this->order->metadata ?? [];
     }
 
