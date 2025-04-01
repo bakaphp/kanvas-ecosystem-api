@@ -51,7 +51,8 @@ class CreateEsimOrderAction
     {
         $this->validateOrder();
 
-        if (isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id'])) {
+        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+        if ($isRefuelOrder) {
             $this->processRefuelOrder();
         } else {
             $this->processNewOrder();
