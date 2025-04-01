@@ -164,7 +164,7 @@ class CreateEsimOrderAction
                 'data',
                 FileSizeConverter::toBytes($totalData),
                 FileSizeConverter::toBytes($totalData),
-                $formattedEst ?? $this->order->created_at->format('Y-m-d H:i:s'),
+                $formattedEst . ' EST' ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $esimData['data']['activationCode'],
                 $esimData['data']['state'],
                 $orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
