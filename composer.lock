@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "da6e995fa6890d650c930ddf49fc3ffa",
+    "content-hash": "eb185cac6cc312fdcde36558b52b2e73",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.342.16",
+            "version": "3.342.17",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c7db59f47523f66205b4c429a69b6baf947d3f78"
+                "reference": "110ca44672e59ec3255c693e9e761001f2706b53"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c7db59f47523f66205b4c429a69b6baf947d3f78",
-                "reference": "c7db59f47523f66205b4c429a69b6baf947d3f78",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/110ca44672e59ec3255c693e9e761001f2706b53",
+                "reference": "110ca44672e59ec3255c693e9e761001f2706b53",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.16"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.17"
             },
-            "time": "2025-03-28T18:09:10+00:00"
+            "time": "2025-03-31T18:16:40+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -2902,16 +2902,16 @@
         },
         {
             "name": "google/cloud-discoveryengine",
-            "version": "v1.4.0",
+            "version": "v1.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-discoveryengine.git",
-                "reference": "ac0a75b5c4424fa2378403ccbb79413633ce8982"
+                "reference": "83285af4ac048dc32d1efd9670a9736b9473d4f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/ac0a75b5c4424fa2378403ccbb79413633ce8982",
-                "reference": "ac0a75b5c4424fa2378403ccbb79413633ce8982",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/83285af4ac048dc32d1efd9670a9736b9473d4f9",
+                "reference": "83285af4ac048dc32d1efd9670a9736b9473d4f9",
                 "shasum": ""
             },
             "require": {
@@ -2945,9 +2945,9 @@
             ],
             "description": "Google Cloud Discovery Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.4.0"
+                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.5.0"
             },
-            "time": "2025-02-03T23:47:57+00:00"
+            "time": "2025-03-31T16:15:35+00:00"
         },
         {
             "name": "google/cloud-recommendations-ai",
@@ -6518,16 +6518,16 @@
         },
         {
             "name": "mll-lab/laravel-graphiql",
-            "version": "v3.3.0",
+            "version": "v3.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mll-lab/laravel-graphiql.git",
-                "reference": "ebbebfda401b5745eb26fbc642fe2393b31a2d5c"
+                "reference": "5a494e4705bf65803e5f4baf4e0fd63427190337"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/ebbebfda401b5745eb26fbc642fe2393b31a2d5c",
-                "reference": "ebbebfda401b5745eb26fbc642fe2393b31a2d5c",
+                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/5a494e4705bf65803e5f4baf4e0fd63427190337",
+                "reference": "5a494e4705bf65803e5f4baf4e0fd63427190337",
                 "shasum": ""
             },
             "require": {
@@ -6539,10 +6539,13 @@
             "require-dev": {
                 "ergebnis/composer-normalize": "^2.45",
                 "larastan/larastan": "^2.9.14 || ^3.1",
+                "laravel/framework": "^9 || ^10 || ^11 || ^12",
                 "mll-lab/php-cs-fixer-config": "^5.10",
                 "orchestra/testbench": "^7.52 || ^8.33 || ^9.11 || ^10",
                 "phpstan/extension-installer": "^1.4.3",
-                "phpstan/phpstan": "^1.12.20 || ^2.1.7"
+                "phpstan/phpstan": "^1.12.20 || ^2.1.7",
+                "phpstan/phpstan-phpunit": "^1.4.2 || ^2.0.6",
+                "phpunit/phpunit": "^9.6.22 || ^10.5.45 || ^11.5.15 || ^12.0.10"
             },
             "type": "library",
             "extra": {
@@ -6575,9 +6578,9 @@
             ],
             "support": {
                 "issues": "https://github.com/mll-lab/laravel-graphiql/issues",
-                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v3.3.0"
+                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v3.3.1"
             },
-            "time": "2025-03-06T09:47:23+00:00"
+            "time": "2025-03-31T07:52:54+00:00"
         },
         {
             "name": "moneyphp/money",
@@ -7006,16 +7009,16 @@
         },
         {
             "name": "nette/utils",
-            "version": "v4.0.5",
+            "version": "v4.0.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nette/utils.git",
-                "reference": "736c567e257dbe0fcf6ce81b4d6dbe05c6899f96"
+                "reference": "ce708655043c7050eb050df361c5e313cf708309"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nette/utils/zipball/736c567e257dbe0fcf6ce81b4d6dbe05c6899f96",
-                "reference": "736c567e257dbe0fcf6ce81b4d6dbe05c6899f96",
+                "url": "https://api.github.com/repos/nette/utils/zipball/ce708655043c7050eb050df361c5e313cf708309",
+                "reference": "ce708655043c7050eb050df361c5e313cf708309",
                 "shasum": ""
             },
             "require": {
@@ -7086,9 +7089,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nette/utils/issues",
-                "source": "https://github.com/nette/utils/tree/v4.0.5"
+                "source": "https://github.com/nette/utils/tree/v4.0.6"
             },
-            "time": "2024-08-07T15:39:19+00:00"
+            "time": "2025-03-30T21:06:30+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",

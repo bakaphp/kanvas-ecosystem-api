@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace Baka\Support;
 
-use Kanvas\Users\Models\UsersAssociatedApps;
+use Baka\Contracts\AppInterface;
 use GrantHolle\UsernameGenerator\Username;
-use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 class Random
 {
     /**
      * Given a firstname give me a random username.
-     *
-     * @param int $randNo
      */
     public static function generateDisplayName(string $displayname, int $randNo = 200): string
     {
@@ -33,9 +31,8 @@ class Random
     /**
      * Given a email generate a displayname.
      */
-    public static function generateDisplayNameFromEmail(string $email, int $randNo = 200, ?Apps $app = null): string
+    public static function generateDisplayNameFromEmail(string $email, AppInterface $app, int $randNo = 200): string
     {
-        $app = $app ?? app(Apps::class);
         if (str_ends_with($email, '@privaterelay.appleid.com')) {
             $displayname = (new Username())
                 ->withAdjectiveCount(1)
