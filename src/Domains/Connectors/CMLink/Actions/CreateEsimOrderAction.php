@@ -41,6 +41,7 @@ class CreateEsimOrderAction
         protected Order $order,
         protected ?Warehouses $warehouse = null
     ) {
+        $this->warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
     }
 
     public function execute(): ESim
@@ -94,7 +95,7 @@ class CreateEsimOrderAction
     {
         // Get free iccid stock
         $this->availableVariant = $this->getAvailableVariant();
-        $this->availableVariant->reduceQuantityInWarehouse($this->warehouse ?? $this->order->region->defaultWarehouse, 1);
+        $this->availableVariant->reduceQuantityInWarehouse($this->warehouse, 1);
 
         // If it has a parent SKU its means its a fake product we created to sell the same product at a diff price
         $this->orderVariant = $this->order->items()->first()->variant;
@@ -123,14 +124,14 @@ class CreateEsimOrderAction
             ->where('slug', $productTypeSlug)
             ->firstOrFail();
 
-        $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
+        $warehouse = $this->warehouse;
 
         return VariantsRepository::getAvailableVariant($productType, $warehouse);
     }
 
     protected function addVariantToOrder(Variants $variant): void
     {
-        $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
+        $warehouse = $this->warehouse;
 
         $orderItem = $this->order->addItem(new OrderItem(
             app: $this->order->app,
