@@ -52,7 +52,6 @@ class ScrapperProcessorAction
         $service = new ProductVariantService($channels, $warehouse);
         foreach ($this->results as $i => $result) {
             try {
-
                 $product = $repository->getByAsin($result['asin']);
                 $product = array_merge($product, $result);
                 if (empty($product['price']) && empty($product['original_price']['price'])) {

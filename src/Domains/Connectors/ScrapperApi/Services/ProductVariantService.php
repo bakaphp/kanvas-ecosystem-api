@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Services;
@@ -7,23 +8,21 @@ use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 
 class ProductVariantService extends ProductService
 {
-
     public function mapVariant(array $product): array
     {
         $codes = $this->getAsinsFromProduct($product['customization_options']);
         $variants = [];
         foreach ($codes as $code) {
-            if (!$code) {
+            if (! $code) {
                 continue;
             }
-            \Illuminate\Support\Facades\Log::info("code".$code);
+            \Illuminate\Support\Facades\Log::info("code" . $code);
             $variant = (new ScrapperRepository($this->channels->app))->getByAsin($code);
             $variant['price'] = $variant['pricing'];
             if (key_exists('list_price', $variant)) {
                 $variant['original_price'] = [
                     'price' => $variant['list_price']
                 ];
-
             }
             $variant['image'] = $variant['images'][0];
             $variant['asin'] = $code;
