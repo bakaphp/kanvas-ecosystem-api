@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Notifications;
+namespace Kanvas\Connectors\PromptMine\Notifications;
 
 use Kanvas\Notifications\Notification;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;

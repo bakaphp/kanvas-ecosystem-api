@@ -11,7 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Messages\Notifications\MonthlyMessageCreationNotification;
+use Kanvas\Connectors\PromptMine\Notifications\MonthlyMessageCreationNotification;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
