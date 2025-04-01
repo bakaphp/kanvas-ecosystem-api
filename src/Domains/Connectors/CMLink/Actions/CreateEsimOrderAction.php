@@ -29,7 +29,7 @@ use Kanvas\Souk\Orders\Models\Order;
 class CreateEsimOrderAction
 {
     protected CustomerService $customerService;
-    protected ?OrderService $orderService = null;
+    protected OrderService $orderService;
     protected ?Variants $availableVariant = null;
     protected ?Variants $orderVariant = null;
     protected ?string $variantSkuIsBundleId = null;
@@ -44,6 +44,7 @@ class CreateEsimOrderAction
     ) {
         $this->warehouse = $warehouse ?? $this->order->region->defaultWarehouse;
         $this->customerService = new CustomerService($order->app, $order->company);
+        $this->orderService = new OrderService($order->app, $order->company);
     }
 
     public function execute(): ESim
@@ -74,7 +75,6 @@ class CreateEsimOrderAction
     protected function processRefuelOrder(): void
     {
         $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
-        $this->orderService = new OrderService($parentOrder->app, $parentOrder->company);
         $this->orderVariant = $parentOrder->items()->latest()->first()->variant;
         $this->variantSkuIsBundleId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $this->orderVariant->sku;
         $this->availableVariant = $this->orderVariant->getBySku($this->variantSkuIsBundleId, $parentOrder->app, $parentOrder->company);
@@ -106,7 +106,6 @@ class CreateEsimOrderAction
         // Add this variant to the order so we have a history of the iccid
         $this->addVariantToOrder($this->availableVariant);
 
-        $this->orderService = new OrderService($this->order->app, $this->order->company);
         $this->cmLinkOrder = $this->orderService->createOrder(
             thirdOrderId: (string) $this->order->order_number,
             iccid: $this->availableVariant->sku,
