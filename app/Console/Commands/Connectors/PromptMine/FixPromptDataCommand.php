@@ -140,9 +140,9 @@ class FixPromptDataCommand extends Command
         if(! isset($messageData['type']) && isset($parentMessageData['type'])) {
             $messageData['type'] = $parentMessageData['type'];
             if ($parentMessageData['type'] == 'image-format') {
-                $messageData['image'] = '';
+                $messageData['image'] = ''; //Use nugget if not possible to generate image.
             } else {
-                $messageData['nugget'] = ""; // Check how we are going to generate the missing nugget from prompts?
+                $messageData['nugget'] = "";
             }
         }
 
