@@ -183,27 +183,30 @@ input AppleInAppPurchaseReceipt {
     region_id: ID
     custom_fields: [CustomFieldEntityInput!]
 }
-
-extend type Mutation @guardByAdmin {
-    # @deprecated(reason: "Use createOrderFromCart instead")
-    createOrder(input: OrderInput!): Mixed!
-        @field(
-            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
-        )
-    createOrderFromCart(input: OrderCartInput!): OrderResult!
-        @field(
-            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@createFromCart"
-        )
-    createDraftOrder(input: DraftOrderInput!): Order!
-        @field(
-            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
-        )
+extend type Mutation @guard {
     createOrderFromAppleInAppPurchase(
         input: AppleInAppPurchaseReceipt!
     ): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\AppleInAppPurchaseMutation@create"
         )
+    createOrderFromCart(input: OrderCartInput!): OrderResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@createFromCart"
+     )
+}
+extend type Mutation @guardByAdmin {
+    # @deprecated(reason: "Use createOrderFromCart instead")
+    createOrder(input: OrderInput!): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
+        )
+
+    createDraftOrder(input: DraftOrderInput!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
+        )
+
     processOrderPayment(input: ProcessPaymentInput!): PaymentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@processPayment"
