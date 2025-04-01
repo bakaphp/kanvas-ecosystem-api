@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\ActionEngine\Mutations\Engagements;
 
+use Illuminate\Support\Facades\Log;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
@@ -12,6 +13,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+
+use function Illuminate\Log\log;
 
 class TaskEngagementMutation
 {
@@ -24,6 +27,7 @@ class TaskEngagementMutation
         $status = $request['status'];
         $lead = Lead::getByIdFromCompanyApp($request['lead_id'], $company, $app);
         $messageId = $request['message_id'] ?? null;
+        $configData = $request['config'] ?? null;
 
         $taskListItem = TaskListItem::getById($id);
 
@@ -60,6 +64,10 @@ class TaskEngagementMutation
         }
 
         $taskEngagementItem->status = $status;
+        
+        if ($configData !== null) {
+            $taskEngagementItem->config = $configData;
+        }
         $saveTaskEngagementItem = $taskEngagementItem->saveOrFail();
 
         /**
