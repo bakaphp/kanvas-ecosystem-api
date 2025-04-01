@@ -95,7 +95,6 @@ class CreateEsimOrderAction
                 dataBundleId: $variantSkuIsBundleId,
                 activeDate: $this->order->created_at->format('Y-m-d')
             );
-    
             $customerService = new CustomerService($this->order->app, $this->order->company);
         }
         $esimData = $customerService->getEsimInfo($availableVariant->sku);
@@ -173,7 +172,7 @@ class CreateEsimOrderAction
                 'data',
                 FileSizeConverter::toBytes($totalData),
                 FileSizeConverter::toBytes($totalData),
-                $formattedEst?? $this->order->created_at->format('Y-m-d H:i:s'),
+                $formattedEst ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $esimData['data']['activationCode'],
                 $esimData['data']['state'],
                 $orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
