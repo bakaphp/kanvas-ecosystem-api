@@ -340,7 +340,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getFollowingFeed"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["notDeleted"]
         )
 
     channelMessages(

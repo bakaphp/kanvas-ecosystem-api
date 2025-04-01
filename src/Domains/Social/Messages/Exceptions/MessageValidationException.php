@@ -7,6 +7,7 @@ namespace Kanvas\Social\Messages\Exceptions;
 use Exception;
 use GraphQL\Error\ClientAware;
 use GraphQL\Error\ProvidesExtensions;
+use Override;
 
 class MessageValidationException extends Exception implements ClientAware, ProvidesExtensions
 {
@@ -22,6 +23,7 @@ class MessageValidationException extends Exception implements ClientAware, Provi
     /**
      * Returns true when exception message is safe to be displayed to a client.
      */
+    #[Override]
     public function isClientSafe(): bool
     {
         return true;
@@ -41,12 +43,11 @@ class MessageValidationException extends Exception implements ClientAware, Provi
      * Return the content that is put in the "extensions" part
      * of the returned error.
      */
+    #[Override]
     public function getExtensions(): array
     {
         return [
             'reason' => $this->reason,
         ];
     }
-}
-{
 }

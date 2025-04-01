@@ -157,7 +157,14 @@ class MessageBuilder
         $user = auth()->user();
         $app = app(Apps::class);
 
-        return UserMessage::getFollowingFeed($user, $app);
+        $messageTypeId = $app->get('social-user-message-filter-message-type');
+
+        return UserMessage::getUserMessageFollowingFeed($user, $app)->when(
+            $messageTypeId !== null,
+            function ($query) use ($messageTypeId) {
+                return $query->where('messages.message_types_id', $messageTypeId);
+            }
+        );
     }
 
     public function getChannelMessages(
