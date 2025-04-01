@@ -34,6 +34,8 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
             ];
         }
 
+        $order->addPrivateMetadata('stripe_payment_intent', $payload);
+
         $order->fireWorkflow(
             WorkflowEnum::AFTER_PAYMENT_INTENT->value,
             true,

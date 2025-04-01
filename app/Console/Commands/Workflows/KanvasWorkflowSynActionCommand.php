@@ -11,6 +11,7 @@ use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
+use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\GenerateMessageTagsWithAiActivity;
 use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
@@ -145,6 +146,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PushCoBuyerActivity::class,
             MessageReportNotificationActivity::class,
             StripePaymentIntentWebhookJob::class,
+            UpdateOrderStripePaymentActivity::class,
         ];
 
         $createdActions = [];

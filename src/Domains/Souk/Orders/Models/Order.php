@@ -272,6 +272,44 @@ class Order extends BaseModel
         return $this->user_phone ?? $this->people->getPhones()->first()?->phone;
     }
 
+    public function addMetadata(string $key, mixed $value): void
+    {
+        if ($this->metadata === null) {
+            $this->metadata = [];
+        }
+
+        $this->metadata[$key] = $value;
+        $this->saveOrFail();
+    }
+
+    public function addPrivateMetadata(string $key, mixed $value): void
+    {
+        if ($this->private_metadata === null) {
+            $this->private_metadata = [];
+        }
+
+        $this->private_metadata[$key] = $value;
+        $this->saveOrFail();
+    }
+
+    public function getMetadata(string $key): mixed
+    {
+        if ($this->metadata === null) {
+            return null;
+        }
+
+        return $this->metadata[$key] ?? null;
+    }
+
+    public function getPrivateMetadata(string $key): mixed
+    {
+        if ($this->private_metadata === null) {
+            return null;
+        }
+
+        return $this->private_metadata[$key] ?? null;
+    }
+
     #[Override]
     public function shouldBeSearchable(): bool
     {
