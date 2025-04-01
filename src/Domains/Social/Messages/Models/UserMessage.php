@@ -79,6 +79,7 @@ class UserMessage extends BaseModel
                 ->where('messages.users_id', '<>', $user->getId()) //for now we are not showing liked messages
                 #->where('user_messages.is_liked', 0) //for now we are not showing liked messages
                 ->where('user_messages.is_disliked', 0) //for now we are not showing disliked messages
+                ->where('user_messages.is_reported', 0) //for now we are not showing disliked messages
                 #->where('user_messages.is_shared', 0) //for now we are not showing disliked messages
                 ->where('user_messages.is_deleted', 0) //for now we are not showing saved messages
                 ->orderBy('user_messages.created_at', 'asc') //top recommendation , we are now listing last
@@ -117,6 +118,7 @@ class UserMessage extends BaseModel
             ->where('user_messages.users_id', $user->getId())
             ->where('user_messages.apps_id', $app->getId())
             ->where('user_messages.is_deleted', 0)
+            ->where('user_messages.is_reported', 0)
             ->where('messages.is_deleted', 0)
             ->select('messages.*');
     }
