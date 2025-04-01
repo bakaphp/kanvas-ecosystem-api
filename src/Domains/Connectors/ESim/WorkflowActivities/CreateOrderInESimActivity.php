@@ -91,6 +91,7 @@ class CreateOrderInESimActivity extends KanvasActivity
             ];
         }
 
+        $order->checkout_token = $response['paymentIntent']['client_secret'] ?? null;
         $order->metadata = array_merge(($order->metadata ?? []), $response);
         $order->completed();
         //$order->saveOrFail();
