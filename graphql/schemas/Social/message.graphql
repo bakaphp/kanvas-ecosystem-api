@@ -21,7 +21,7 @@ type Message {
     total_children: Int
     total_purchase: Int
     parent: Message @cacheRedis
-    user: User!
+    user: User! @cacheRedis
     children: [Message!] @hasMany(type: PAGINATOR)
     messageType: MessageType! @cacheRedis
     appModuleMessage: AppModuleMessage @cacheRedis
