@@ -14,6 +14,7 @@ use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Connectors\OrionMobile\Actions\CreateEsimOrderAction as OrionMobileActionsCreateEsimOrderAction;
 use Kanvas\Connectors\VentaMobile\Actions\CreateEsimOrderAction as ActionsCreateEsimOrderAction;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -82,6 +83,16 @@ class CreateOrderInESimActivity extends KanvasActivity
                 ];
             } elseif ($providerValue == strtolower(ProviderEnum::VENTA_MOBILE->value)) {
                 $esim = (new ActionsCreateEsimOrderAction($order))->execute();
+                $response = [
+                    'success' => true,
+                    'data' => [
+                        ...array_diff_key($esim->toArray(), ['esim_status' => '']),
+                        'plan_origin' => $esim->plan,
+                    ],
+                    'esim_status' => $esim->esimStatus->toArray(),
+                ];
+            } elseif ($providerValue == strtolower(ProviderEnum::ORION_MOBILE->value)) {
+                $esim = (new OrionMobileActionsCreateEsimOrderAction($order))->execute();
                 $response = [
                     'success' => true,
                     'data' => [

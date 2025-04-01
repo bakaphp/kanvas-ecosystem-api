@@ -11,4 +11,5 @@ enum ProviderEnum: string
     case AIROLA = 'Airola';
     case CMLINK = 'CMLink';
     case VENTA_MOBILE = 'VentaMobile';
+    case ORION_MOBILE = 'OrionMobile';
 }
