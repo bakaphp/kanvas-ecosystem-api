@@ -36,9 +36,14 @@ class CreateEsimOrderAction
     public function execute(): ESim
     {
         $orderHasMetaData = $this->order->get(CustomFieldEnum::ORDER_ESIM_METADATA->value);
+        $rechargeOrder = null;
 
         if (! empty($orderHasMetaData)) {
-            throw new ValidationException('Order already has eSim metadata');
+            if (! empty($orderHasMetaData['parent_order_id']) && ! empty($orderHasMetaData['message_id'])) {
+                $rechargeOrder = true;
+            } else {
+                throw new ValidationException('Order already has eSim metadata');
+            }
         }
 
         //get free iccid stock
@@ -76,13 +81,24 @@ class CreateEsimOrderAction
         $orderItem->setPrivate();
 
         $orderService = new OrderService($this->order->app, $this->order->company);
-        $cmLinkOrder = $orderService->createOrder(
-            thirdOrderId: (string) $this->order->order_number,
-            iccid: $availableVariant->sku,
-            quantity: 1,
-            dataBundleId: $variantSkuIsBundleId,
-            activeDate: $this->order->created_at->format('Y-m-d')
-        );
+        if ($rechargeOrder === true) {
+            $cmLinkOrder = $orderService->refuelOrder(
+                thirdOrderId: (string) $orderHasMetaData['parent_order_id'],
+                iccid: $availableVariant->sku,
+                quantity: 1,
+                activeDate: $this->order->created_at->format('Y-m-d'),
+                refuelingId: $variantSkuIsBundleId
+            );
+        } else {
+            $cmLinkOrder = $orderService->createOrder(
+                thirdOrderId: (string) $this->order->order_number,
+                iccid: $availableVariant->sku,
+                quantity: 1,
+                dataBundleId: $variantSkuIsBundleId,
+                activeDate: $this->order->created_at->format('Y-m-d')
+            );
+        }
+
 
         $customerService = new CustomerService($this->order->app, $this->order->company);
         $esimData = $customerService->getEsimInfo($availableVariant->sku);
@@ -160,7 +176,7 @@ class CreateEsimOrderAction
                 'data',
                 FileSizeConverter::toBytes($totalData),
                 FileSizeConverter::toBytes($totalData),
-                $formattedEst ?? $this->order->created_at->format('Y-m-d H:i:s'),
+                $formattedEst . ' EST' ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $esimData['data']['activationCode'],
                 $esimData['data']['state'],
                 $orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
