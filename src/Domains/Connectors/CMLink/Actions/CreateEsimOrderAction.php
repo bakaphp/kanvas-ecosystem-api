@@ -78,6 +78,9 @@ class CreateEsimOrderAction
         if (! empty($this->order->metadata['parent_order_id'])) {
             $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
             $orderService = new OrderService($parentOrder->app, $parentOrder->company);
+            $orderVariant = $parentOrder->items()->latest()->first()->variant;
+            $variantSkuIsBundleId = $orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $orderVariant->sku;
+
             $cmLinkOrder = $orderService->refuelOrder(
                 thirdOrderId: (string) $parentOrder->order_number,
                 iccid: $availableVariant->sku,
@@ -108,8 +111,13 @@ class CreateEsimOrderAction
 
         $qrCode = $writer->writeString($esimData['data']['downloadUrl']);
         $qrCodeBase64 = 'data:image/png;base64,' . base64_encode($qrCode);
-        $orderVariant = $this->order->items()->first()->variant;
-        $orderMetaData = $this->order->metadata ?? [];
+        if (! empty($this->order->metadata['parent_order_id'])) {
+            $orderVariant = $parentOrder->items()->latest()->first()->variant;
+            $orderMetaData = $parentOrder->metadata ?? [];
+        } else {
+            $orderVariant = $this->order->items()->first()->variant;
+            $orderMetaData = $this->order->metadata ?? [];
+        }
 
         /*
         data from cmlink
