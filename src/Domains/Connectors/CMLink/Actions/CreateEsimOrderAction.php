@@ -41,45 +41,26 @@ class CreateEsimOrderAction
             throw new ValidationException('Order already has eSim metadata');
         }
 
-        //get free iccid stock
-        $productTypeSlug = ConfigurationEnum::ICCID_INVENTORY_PRODUCT_TYPE->value;
-        $productType = ProductsTypes::fromApp($this->order->app)
-            ->fromCompany($this->order->company)
-            ->where('slug', $productTypeSlug)
-            ->firstOrFail();
-
-        $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
-
-        $availableVariant = VariantsRepository::getAvailableVariant($productType, $warehouse);
-        $availableVariant->reduceQuantityInWarehouse($warehouse, 1);
-
-        /**
-         * if it has a parent SKU its means its a fake product we created to sell the same product
-         * at a diff price
-         */
-        $orderVariant = $this->order->items()->first()->variant;
-        $variantSkuIsBundleId = $orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $orderVariant->sku;
-        //$sku = $availableVariant->sku;
-
-        //add this variant to the order so we have a history of the iccid
-        $orderItem = $this->order->addItem(new OrderItem(
-            app: $this->order->app,
-            variant: $availableVariant,
-            name: (string) $availableVariant->name,
-            sku: $availableVariant->sku,
-            quantity: 1,
-            price: $availableVariant->getPrice($warehouse),
-            tax: 0,
-            discount: 0,
-            currency: Currencies::getBaseCurrency(),
-        ));
-        $orderItem->setPrivate();
-
         if (! empty($this->order->metadata['parent_order_id'])) {
             $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
             $orderService = new OrderService($parentOrder->app, $parentOrder->company);
             $orderVariant = $parentOrder->items()->latest()->first()->variant;
             $variantSkuIsBundleId = $orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $orderVariant->sku;
+            $availableVariant = $orderVariant->getBySku($variantSkuIsBundleId, $parentOrder->app, $parentOrder->company);
+
+            //add this variant to the order so we have a history of the iccid
+            $orderItem = $this->order->addItem(new OrderItem(
+                app: $this->order->app,
+                variant: $availableVariant,
+                name: (string) $availableVariant->name,
+                sku: $availableVariant->sku,
+                quantity: 1,
+                price: $availableVariant->getPrice($warehouse),
+                tax: 0,
+                discount: 0,
+                currency: Currencies::getBaseCurrency(),
+            ));
+            $orderItem->setPrivate();
 
             $cmLinkOrder = $orderService->refuelOrder(
                 thirdOrderId: (string) $parentOrder->order_number,
@@ -90,6 +71,40 @@ class CreateEsimOrderAction
             );
             $customerService = new CustomerService($parentOrder->app, $parentOrder->company);
         } else {
+            //get free iccid stock
+            $productTypeSlug = ConfigurationEnum::ICCID_INVENTORY_PRODUCT_TYPE->value;
+            $productType = ProductsTypes::fromApp($this->order->app)
+                ->fromCompany($this->order->company)
+                ->where('slug', $productTypeSlug)
+                ->firstOrFail();
+
+            $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
+
+            $availableVariant = VariantsRepository::getAvailableVariant($productType, $warehouse);
+            $availableVariant->reduceQuantityInWarehouse($warehouse, 1);
+
+            /**
+             * if it has a parent SKU its means its a fake product we created to sell the same product
+             * at a diff price
+             */
+            $orderVariant = $this->order->items()->first()->variant;
+            $variantSkuIsBundleId = $orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $orderVariant->sku;
+            //$sku = $availableVariant->sku;
+
+            //add this variant to the order so we have a history of the iccid
+            $orderItem = $this->order->addItem(new OrderItem(
+                app: $this->order->app,
+                variant: $availableVariant,
+                name: (string) $availableVariant->name,
+                sku: $availableVariant->sku,
+                quantity: 1,
+                price: $availableVariant->getPrice($warehouse),
+                tax: 0,
+                discount: 0,
+                currency: Currencies::getBaseCurrency(),
+            ));
+            $orderItem->setPrivate();
+
             $orderService = new OrderService($this->order->app, $this->order->company);
             $cmLinkOrder = $orderService->createOrder(
                 thirdOrderId: (string) $this->order->order_number,
