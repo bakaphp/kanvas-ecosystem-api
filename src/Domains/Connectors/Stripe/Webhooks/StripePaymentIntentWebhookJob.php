@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Webhooks;
 
-use Kanvas\Connectors\Stripe\Traits\CashierWebhookTrait;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -12,8 +11,6 @@ use Override;
 
 class StripePaymentIntentWebhookJob extends ProcessWebhookJob
 {
-    use CashierWebhookTrait;
-
     #[Override]
     public function execute(): array
     {
