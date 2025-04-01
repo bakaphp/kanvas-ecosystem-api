@@ -18,6 +18,8 @@ input TemplateInput {
     parent_template_id: Int!
     template_variables: [TemplateVariableInput!]!
     template: String!
+    title: String
+    subject: String
 }
 
 type TemplateVariables {
