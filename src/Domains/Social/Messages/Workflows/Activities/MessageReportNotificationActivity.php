@@ -39,6 +39,7 @@ class MessageReportNotificationActivity extends KanvasActivity
 
         //@todo add total reports to the message
         $message->total_disliked += 1;
+        $message->update();
 
         return [
             'result' => true,
