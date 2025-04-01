@@ -11,6 +11,7 @@ use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class TaskEngagementMutation
 {
@@ -67,6 +68,16 @@ class TaskEngagementMutation
         $taskEngagementItem->disableRelatedItems();
         $taskEngagementItem->enableRelatedTasks();
         $taskEngagementItem->completeRelatedItems();
+
+        $taskEngagementItem->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $app,
+                'company' => $company,
+                'lead' => $lead,
+            ]
+        );
 
         return $saveTaskEngagementItem;
     }
