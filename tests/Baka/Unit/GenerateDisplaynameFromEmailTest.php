@@ -2,18 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Tests\Ecosystem\Unit;
+namespace Tests\Baka\Unit;
 
-use Tests\TestCaseUnit;
 use Baka\Support\Random;
 use Kanvas\Apps\Models\Apps;
+use Tests\TestCaseUnit;
 
 final class GenerateDisplaynameFromEmailTest extends TestCaseUnit
 {
     /**
      * Test GenerateDisplaynameFromEmail.
-     *
-     * @return void
      */
     public function testGenerateDisplaynameFromEmail(): void
     {
@@ -33,11 +31,12 @@ final class GenerateDisplaynameFromEmailTest extends TestCaseUnit
         // Test email with special characters
         $emailWithSpecialChars = 'john.doe+test@example.com';
         $displayNameWithSpecialChars = $random->generateDisplayNameFromEmail($emailWithSpecialChars, $app);
-        $this->assertEquals('doe+test', $displayNameWithSpecialChars);
+        $this->assertEquals('johndoetest', $displayNameWithSpecialChars);
 
         // Test Apple private relay email
         $appleEmail = 'random@privaterelay.appleid.com';
         $displayNameApple = $random->generateDisplayNameFromEmail($appleEmail, $app);
+
         $this->assertNotEmpty($displayNameApple);
         $this->assertMatchesRegularExpression('/[a-z]+[a-z]+/', $displayNameApple);
     }

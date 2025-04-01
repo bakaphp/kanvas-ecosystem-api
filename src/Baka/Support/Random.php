@@ -11,22 +11,31 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 
 class Random
 {
-    /**
-     * Given a firstname give me a random username.
-     */
+    public const int MAX_FIRSTNAME_LENGTH = 8;
+    public const int MAX_LASTNAME_LENGTH = 5;
+    public const int MAX_UNIQUENESS_ATTEMPTS = 10;
+
     public static function generateDisplayName(string $displayname, int $randNo = 200): string
     {
         $displayname = Str::cleanup($displayname);
-        $usernameParts = array_filter(explode(' ', strtolower($displayname))); //explode and lowercase name
-        $usernameParts = array_slice($usernameParts, 0, 2); //return only first two array part
 
-        $part1 = (! empty($usernameParts[0])) ? substr($usernameParts[0], 0, 8) : ''; //cut first name to 8 letters
-        $part2 = (! empty($usernameParts[1])) ? substr($usernameParts[1], 0, 5) : ''; //cut second name to 5 letters
-        $part3 = ($randNo) ? rand(0, $randNo) : '';
+        // Break name into parts, filter out empty elements
+        $usernameParts = array_filter(explode(' ', strtolower($displayname)));
 
-        $username = $part1 . str_shuffle($part2) . $part3; //str_shuffle to randomly shuffle all characters
+        // Get only first two parts (typically first and last name)
+        $usernameParts = array_slice($usernameParts, 0, 2);
 
-        return $username;
+        $part1 = ! empty($usernameParts[0])
+            ? substr($usernameParts[0], 0, self::MAX_FIRSTNAME_LENGTH)
+            : '';
+
+        $part2 = ! empty($usernameParts[1])
+            ? str_shuffle(substr($usernameParts[1], 0, self::MAX_LASTNAME_LENGTH))
+            : '';
+
+        $part3 = ($randNo > 0) ? rand(1, $randNo) : '';
+
+        return $part1 . $part2 . $part3;
     }
 
     public static function generateDisplayNameFromEmail(string $email, AppInterface $app, int $randNo = 200): string
@@ -35,46 +44,25 @@ class Random
             throw new InvalidArgumentException('Invalid email format provided');
         }
 
-        // Handle Apple private relay emails consistently
+        // Handle Apple private relay emails with special formatting
         if (str_ends_with($email, '@privaterelay.appleid.com')) {
             return self::generatePrivateRelayUsername();
         }
 
+        // Extract username portion from email
         $displayname = substr($email, 0, strpos($email, '@'));
 
-        // First remove special characters, keeping only alphanumeric
-        $displayname = preg_replace('/[^a-zA-Z0-9]/', '', $displayname);
+        // Clean up the display name (remove special chars and numbers)
+        $displayname = self::cleanupEmailUsername($displayname);
 
-        $displayname = preg_replace('/\d+/', '', $displayname);
-
-        // If nothing is left after cleaning, generate a random username
-        if ($displayname === null || $displayname === '') {
+        // If cleaning removed everything, generate a fallback name
+        if ($displayname === '' || $displayname === null) {
             return self::generatePrivateRelayUsername();
         }
 
-        // Ensure uniqueness by checking the database
-        $originalName = $displayname;
-        $counter = 0;
-
-        while ($counter < 10) { // Limit attempts to avoid infinite loop
-            // Check if this displayname already exists
-            if (! UsersAssociatedApps::query()->fromApp($app)->where('displayname', $displayname)->exists()) {
-                return $displayname; // Return unique name
-            }
-
-            // If it exists, add random suffix
-            $randomNumber = ($randNo > 0) ? rand(1, $randNo) : '';
-            $displayname = $originalName . $randomNumber;
-            $counter++;
-        }
-
-        // Fallback to timestamp-based name to ensure uniqueness
-        return $originalName . time();
+        return self::ensureUsernameUniqueness($displayname, $app, $randNo);
     }
 
-    /**
-     * Generate a consistent username format for private relay emails
-     */
     private static function generatePrivateRelayUsername(): string
     {
         $username = (new Username())
@@ -87,6 +75,44 @@ class Random
         return str_replace(' ', '', $username);
     }
 
+    private static function cleanupEmailUsername(string $username): ?string
+    {
+        // Remove special characters
+        $username = preg_replace('/[^a-zA-Z0-9]/', '', $username);
+
+        // Remove numbers
+        $username = preg_replace('/\d+/', '', $username);
+
+        return $username;
+    }
+
+    private static function ensureUsernameUniqueness(string $username, AppInterface $app, int $randNo): string
+    {
+        $originalName = $username;
+        $counter = 0;
+
+        // Try a few times with random numbers
+        while ($counter < self::MAX_UNIQUENESS_ATTEMPTS) {
+            if (! UsersAssociatedApps::query()->fromApp($app)->where('displayname', $username)->exists()) {
+                return $username; // Already unique
+            }
+
+            // Add random suffix
+            $randomNumber = ($randNo > 0) ? rand(1, $randNo) : '';
+            $username = $originalName . $randomNumber;
+            $counter++;
+        }
+
+        // Ultimate fallback - timestamp will guarantee uniqueness
+        return $originalName . time();
+    }
+
+    /**
+     * Create a URL-friendly slug from a display name.
+     *
+     * @param string $displayName The display name to convert to a slug
+     * @return string Slug-formatted string
+     */
     public static function cleanUpDisplayNameForSlug(string $displayName): string
     {
         $slug = Str::slug($displayName);
