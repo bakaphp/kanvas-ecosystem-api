@@ -62,6 +62,7 @@ class FixPromptDataCommand extends Command
                         if (count($message->children) == 0) {
                             continue;
                         }
+
                         foreach ($message->children as $childMessage) {
                             $this->fixNuggetData($childMessage);
                             $this->info('--Child Message ID: ' . $childMessage->getId() . ' updated');
@@ -79,9 +80,10 @@ class FixPromptDataCommand extends Command
 
         if (! isset($messageData['ai_model'])) {
             $messageData['ai_model'] = [
-                'name' => 'gpt-3.5-turbo',
-                'value' => 'gpt-3.5-turbo',
-                'icon' => 'https://cdn.openai.com/papers/gpt-3.5-turbo.png',
+                "name" => "GPT-4o",
+                "key" => "openai",
+                "value" => "gpt-4o",
+                'icon' => "https://cdn.promptmine.ai/OpenAILogo.png",
                 'payment' => [
                     'price' => 0,
                     'is_locked' => false,
@@ -91,7 +93,19 @@ class FixPromptDataCommand extends Command
         }
 
         if (! isset($messageData['type'])) {
-            $messageData['type'] = 'text-format';
+
+            //Check if child message has image field, then set type to image
+            if (isset($message->children) && count($message->children) > 0) {
+                foreach ($message->children as $childMessage) {
+                    $childMessageData = is_array($childMessage->message) ? $childMessage->message : json_decode($childMessage->message, true);
+                    if (isset($childMessageData['image']) && ! empty($childMessageData['image'])) {
+                        $messageData['type'] = 'image-format';
+                        break;
+                    }
+                }
+            } else {
+                $messageData['type'] = 'text-format';
+            }
         }
 
         if (isset($messageData['preview'])) {
@@ -112,7 +126,25 @@ class FixPromptDataCommand extends Command
 
     private function fixNuggetData(Message $message): void
     {
+        $parentMessageData = is_array($message->parent->message) ? $message->parent->message : json_decode($message->parent->message, true);
         $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
+
+        if (! isset($messageData['id'])) {
+            $messageData['id'] = $message->getId();
+        }
+
+        if (! isset($messageData['title']) && isset($parentMessageData['title'])) {
+            $messageData['title'] = $parentMessageData['title'];
+        }
+
+        if(! isset($messageData['type']) && isset($parentMessageData['type'])) {
+            $messageData['type'] = $parentMessageData['type'];
+            if ($parentMessageData['type'] == 'image-format') {
+                $messageData['image'] = '';
+            } else {
+                $messageData['nugget'] = ""; // Check how we are going to generate the missing nugget from prompts?
+            }
+        }
 
         $message->message = $messageData;
         $message->save();
