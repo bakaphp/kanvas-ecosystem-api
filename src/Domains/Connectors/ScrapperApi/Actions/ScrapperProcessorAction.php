@@ -63,7 +63,6 @@ class ScrapperProcessorAction
                 $mappedProduct = $service->mapProduct($product);
                 if ($product['customization_options']) {
                     $mappedProduct['variants'] = $service->mapVariant($product);
-                    Log::debug("mappedProduct", $mappedProduct);
                 } else {
                     $mappedProduct['variants'] = $mappedProduct;
                 }
