@@ -11,7 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Messages\Notifications\MessageOfTheWeekNotification;
+use Kanvas\Connectors\PromptMine\Notifications\MessageOfTheWeekNotification;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
