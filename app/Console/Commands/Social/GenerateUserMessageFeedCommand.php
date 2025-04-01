@@ -48,6 +48,13 @@ class GenerateUserMessageFeedCommand extends Command
         $progress = $this->output->createProgressBar($totalUsers);
         $progress->start();
 
+        // add a alter asking are you sure?
+        if (! $this->confirm('Are you sure you want to generate the user message feed? We recommend using GenerateUserFollowingFeed for better results. Do you want to proceed?')) {
+            $this->info('Operation cancelled.');
+
+            return;
+        }
+
         UserAppRepository::getAllAppUsers($app)->chunk(100, function ($users) use (
             $app,
             $company,

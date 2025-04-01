@@ -21,12 +21,12 @@ use Override;
  * @property string $uuid
  * @property string $product_name
  * @property string $product_sku
- * @property int $quantity
+ * @property int|float $quantity
  * @property float|null $unit_price_net_amount
  * @property float|null $unit_price_gross_amount
  * @property bool $is_shipping_required
  * @property int $order_id
- * @property int $quantity_fulfilled
+ * @property int|float $quantity_fulfilled
  * @property int $variant_id
  * @property float|null $tax_rate
  * @property string|null $translated_product_name
@@ -68,12 +68,12 @@ class OrderItem extends BaseModel
             'uuid' => 'string',
             'product_name' => 'string',
             'product_sku' => 'string',
-            'quantity' => 'integer',
+            'quantity' => 'float',
             'unit_price_net_amount' => 'float',
             'unit_price_gross_amount' => 'float',
             'is_shipping_required' => 'boolean',
             'order_id' => 'integer',
-            'quantity_fulfilled' => 'integer',
+            'quantity_fulfilled' => 'float',
             'variant_id' => 'integer',
             'tax_rate' => 'float',
             'translated_product_name' => 'string',

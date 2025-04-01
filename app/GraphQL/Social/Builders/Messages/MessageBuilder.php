@@ -60,6 +60,11 @@ class MessageBuilder
                     $q->where('slug', $slug);
                 });
             }
+
+            $messageCacheTime = (int) $app->get('message_tags_cache_time');
+            if ($messageCacheTime > 0) {
+                $query->cacheFor($messageCacheTime);
+            }
         }
 
         //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
@@ -152,7 +157,14 @@ class MessageBuilder
         $user = auth()->user();
         $app = app(Apps::class);
 
-        return UserMessage::getFollowingFeed($user, $app);
+        $messageTypeId = $app->get('social-user-message-filter-message-type');
+
+        return UserMessage::getUserMessageFollowingFeed($user, $app)->when(
+            $messageTypeId !== null,
+            function ($query) use ($messageTypeId) {
+                return $query->where('messages.message_types_id', $messageTypeId);
+            }
+        );
     }
 
     public function getChannelMessages(

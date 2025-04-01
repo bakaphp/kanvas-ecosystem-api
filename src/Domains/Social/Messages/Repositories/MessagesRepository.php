@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Repositories;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 
 class MessagesRepository
@@ -31,5 +33,16 @@ class MessagesRepository
         }
 
         return array_values(array_unique($userPostsTags));
+    }
+
+    public static function getMostPopularMesssageByTotalLikes(Apps $app, MessageType $messageType): Message
+    {
+        return Message::query()
+            ->where('apps_id', $app->getId())
+            ->where('message_types_id', $messageType->getId())
+            ->whereRaw('YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)')
+            ->orderBy('total_liked', 'DESC')
+            ->limit(1)
+            ->first();
     }
 }

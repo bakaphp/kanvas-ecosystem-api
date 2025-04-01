@@ -20,6 +20,7 @@ use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
@@ -27,6 +28,15 @@ use Kanvas\Souk\Orders\Models\Order;
 
 class CreateEsimOrderAction
 {
+    protected ?CustomerService $customerService = null;
+    protected ?OrderService $orderService = null;
+    protected ?Variants $availableVariant = null;
+    protected ?Variants $orderVariant = null;
+    protected ?string $variantSkuIsBundleId = null;
+    protected ?array $esimData = null;
+    protected ?array $cmLinkOrder = null;
+    protected ?array $orderMetaData = null;
+
     public function __construct(
         protected Order $order,
         protected ?Warehouses $warehouse = null
@@ -35,88 +45,109 @@ class CreateEsimOrderAction
 
     public function execute(): ESim
     {
+        $this->validateOrder();
+
+        if (isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id'])) {
+            $this->processRefuelOrder();
+        } else {
+            $this->processNewOrder();
+        }
+
+        $this->esimData = $this->customerService->getEsimInfo($this->availableVariant->sku);
+        $qrCodeBase64 = $this->generateQrCode($this->esimData['data']['downloadUrl']);
+
+        return $this->createESimObject($qrCodeBase64);
+    }
+
+    protected function validateOrder(): void
+    {
         $orderHasMetaData = $this->order->get(CustomFieldEnum::ORDER_ESIM_METADATA->value);
 
         if (! empty($orderHasMetaData)) {
             throw new ValidationException('Order already has eSim metadata');
         }
+    }
 
-        if (! empty($this->order->metadata['parent_order_id'])) {
-            $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
-            $orderService = new OrderService($parentOrder->app, $parentOrder->company);
-            $orderVariant = $parentOrder->items()->latest()->first()->variant;
-            $variantSkuIsBundleId = $orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $orderVariant->sku;
-            $availableVariant = $orderVariant->getBySku($variantSkuIsBundleId, $parentOrder->app, $parentOrder->company);
+    protected function processRefuelOrder(): void
+    {
+        $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
+        $this->orderService = new OrderService($parentOrder->app, $parentOrder->company);
+        $this->orderVariant = $parentOrder->items()->latest()->first()->variant;
+        $this->variantSkuIsBundleId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $this->orderVariant->sku;
+        $this->availableVariant = $this->orderVariant->getBySku($this->variantSkuIsBundleId, $parentOrder->app, $parentOrder->company);
 
-            //add this variant to the order so we have a history of the iccid
-            $orderItem = $this->order->addItem(new OrderItem(
-                app: $this->order->app,
-                variant: $availableVariant,
-                name: (string) $availableVariant->name,
-                sku: $availableVariant->sku,
-                quantity: 1,
-                price: $availableVariant->getPrice($warehouse),
-                tax: 0,
-                discount: 0,
-                currency: Currencies::getBaseCurrency(),
-            ));
-            $orderItem->setPrivate();
+        // Add this variant to the order so we have a history of the iccid
+        $this->addVariantToOrder($this->availableVariant);
 
-            $cmLinkOrder = $orderService->refuelOrder(
-                thirdOrderId: (string) $parentOrder->order_number,
-                iccid: $availableVariant->sku,
-                quantity: 1,
-                activeDate: $parentOrder->created_at->format('Y-m-d'),
-                refuelingId: $variantSkuIsBundleId,
-            );
-            $customerService = new CustomerService($parentOrder->app, $parentOrder->company);
-        } else {
-            //get free iccid stock
-            $productTypeSlug = ConfigurationEnum::ICCID_INVENTORY_PRODUCT_TYPE->value;
-            $productType = ProductsTypes::fromApp($this->order->app)
-                ->fromCompany($this->order->company)
-                ->where('slug', $productTypeSlug)
-                ->firstOrFail();
+        $this->cmLinkOrder = $this->orderService->refuelOrder(
+            thirdOrderId: (string) $parentOrder->order_number,
+            iccid: $this->availableVariant->sku,
+            quantity: 1,
+            activeDate: $parentOrder->created_at->format('Y-m-d'),
+            refuelingId: $this->variantSkuIsBundleId,
+        );
+        $this->customerService = new CustomerService($parentOrder->app, $parentOrder->company);
+        $this->orderMetaData = $parentOrder->metadata ?? [];
+    }
 
-            $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
+    protected function processNewOrder(): void
+    {
+        // Get free iccid stock
+        $this->availableVariant = $this->getAvailableVariant();
+        $this->availableVariant->reduceQuantityInWarehouse($this->warehouse ?? $this->order->region->defaultWarehouse, 1);
 
-            $availableVariant = VariantsRepository::getAvailableVariant($productType, $warehouse);
-            $availableVariant->reduceQuantityInWarehouse($warehouse, 1);
+        // If it has a parent SKU its means its a fake product we created to sell the same product at a diff price
+        $this->orderVariant = $this->order->items()->first()->variant;
+        $this->variantSkuIsBundleId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $this->orderVariant->sku;
 
-            /**
-             * if it has a parent SKU its means its a fake product we created to sell the same product
-             * at a diff price
-             */
-            $orderVariant = $this->order->items()->first()->variant;
-            $variantSkuIsBundleId = $orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $orderVariant->sku;
-            //$sku = $availableVariant->sku;
+        // Add this variant to the order so we have a history of the iccid
+        $this->addVariantToOrder($this->availableVariant);
 
-            //add this variant to the order so we have a history of the iccid
-            $orderItem = $this->order->addItem(new OrderItem(
-                app: $this->order->app,
-                variant: $availableVariant,
-                name: (string) $availableVariant->name,
-                sku: $availableVariant->sku,
-                quantity: 1,
-                price: $availableVariant->getPrice($warehouse),
-                tax: 0,
-                discount: 0,
-                currency: Currencies::getBaseCurrency(),
-            ));
-            $orderItem->setPrivate();
+        $this->orderService = new OrderService($this->order->app, $this->order->company);
+        $this->cmLinkOrder = $this->orderService->createOrder(
+            thirdOrderId: (string) $this->order->order_number,
+            iccid: $this->availableVariant->sku,
+            quantity: 1,
+            dataBundleId: $this->variantSkuIsBundleId,
+            activeDate: $this->order->created_at->format('Y-m-d')
+        );
+        $this->customerService = new CustomerService($this->order->app, $this->order->company);
+        $this->orderMetaData = $this->order->metadata ?? [];
+    }
 
-            $orderService = new OrderService($this->order->app, $this->order->company);
-            $cmLinkOrder = $orderService->createOrder(
-                thirdOrderId: (string) $this->order->order_number,
-                iccid: $availableVariant->sku,
-                quantity: 1,
-                dataBundleId: $variantSkuIsBundleId,
-                activeDate: $this->order->created_at->format('Y-m-d')
-            );
-            $customerService = new CustomerService($this->order->app, $this->order->company);
-        }
-        $esimData = $customerService->getEsimInfo($availableVariant->sku);
+    protected function getAvailableVariant(): Variants
+    {
+        $productTypeSlug = ConfigurationEnum::ICCID_INVENTORY_PRODUCT_TYPE->value;
+        $productType = ProductsTypes::fromApp($this->order->app)
+            ->fromCompany($this->order->company)
+            ->where('slug', $productTypeSlug)
+            ->firstOrFail();
 
+        $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
+
+        return VariantsRepository::getAvailableVariant($productType, $warehouse);
+    }
+
+    protected function addVariantToOrder(Variants $variant): void
+    {
+        $warehouse = $this->warehouse ?? $this->order->region->defaultWarehouse;
+
+        $orderItem = $this->order->addItem(new OrderItem(
+            app: $this->order->app,
+            variant: $variant,
+            name: (string) $variant->name,
+            sku: $variant->sku,
+            quantity: 1,
+            price: $variant->getPrice($warehouse),
+            tax: 0,
+            discount: 0,
+            currency: Currencies::getBaseCurrency(),
+        ));
+        $orderItem->setPrivate();
+    }
+
+    protected function generateQrCode(string $downloadUrl): string
+    {
         $writer = new Writer(
             new ImageRenderer(
                 new RendererStyle(300),
@@ -124,89 +155,47 @@ class CreateEsimOrderAction
             )
         );
 
-        $qrCode = $writer->writeString($esimData['data']['downloadUrl']);
-        $qrCodeBase64 = 'data:image/png;base64,' . base64_encode($qrCode);
-        if (! empty($this->order->metadata['parent_order_id'])) {
-            $orderVariant = $parentOrder->items()->latest()->first()->variant;
-            $orderMetaData = $parentOrder->metadata ?? [];
-        } else {
-            $orderVariant = $this->order->items()->first()->variant;
-            $orderMetaData = $this->order->metadata ?? [];
-        }
+        $qrCode = $writer->writeString($downloadUrl);
 
-        /*
-        data from cmlink
-            Array
-            (
-                [code] => 0000000
-                [description] => Success
-                [orderID] => 12501130811111111s
-                [totalAmount] => 3999.000000
-                [quantity] => 1
-                [price] => 3999.000000
-                [currency] => 840
-            )
+        return 'data:image/png;base64,' . base64_encode($qrCode);
+    }
 
+    protected function createESimObject(string $qrCodeBase64): ESim
+    {
+        $totalData = $this->orderVariant->getAttributeBySlug('data')?->value ?? 0;
+        $installTimeChange = isset($this->esimData['data']['installTime']) && ! empty($this->esimData['data']['installTime']) ? strtotime($this->esimData['data']['installTime']) : time();
 
-            Array
-            (
-                [data] => Array
-                    (
-                        [smdpAddress] => rsp1.cmlink.com
-                        [activationCode] => 975B8B4349B84F11ABE6412312312312313
-                        [state] => Released
-                        [eid] =>
-                        [installTime] =>
-                        [installDevice] =>
-                        [installCount] => 0
-                        [updateTime] => 2023-05-13 15:45:44
-                        [downloadUrl] => LPA:1$rsp1.cmlink.com1232132131232131231231231231
-                    )
-
-                [code] => 0000000
-                [msg] => Success
-            )
-         */
-        $totalData = $orderVariant->getAttributeBySlug('data')?->value ?? 0;
-        $installTimeChange = ! empty($esimData['data']['installTime']) ? strtotime($esimData['data']['installTime']) : time();
-
-        //Convert timestamp directly to EST
+        // Convert timestamp directly to EST
         $dateEst = Carbon::createFromTimestamp($installTimeChange)->setTimezone('America/New_York');
-        //Unix timestamp in EST
+        // Unix timestamp in EST
         $timestampEst = $dateEst->timestamp;
-        //Formatted date in EST
+        // Formatted date in EST
         $formattedEst = $dateEst->format('Y-m-d H:i:s');
 
-        $esim = new ESim(
-            $esimData['data']['downloadUrl'],
-            $availableVariant->sku,
-            $esimData['data']['state'],
-            (int) $cmLinkOrder['quantity'],
-            (float) $cmLinkOrder['price'],
+        return new ESim(
+            $this->esimData['data']['downloadUrl'],
+            $this->availableVariant->sku,
+            $this->esimData['data']['state'],
+            (int) $this->cmLinkOrder['quantity'],
+            (float) $this->cmLinkOrder['price'],
             'bundle',
-            $orderVariant->sku,
-            $esimData['data']['smdpAddress'],
-            $esimData['data']['activationCode'],
+            $this->orderVariant->sku,
+            $this->esimData['data']['smdpAddress'],
+            $this->esimData['data']['activationCode'],
             $timestampEst,
-            json_encode(['order' => $this->order->getId(), 'install_device' => $esimData['data']['installDevice'] ?? '']),
+            json_encode(['order' => $this->order->getId(), 'install_device' => $this->esimData['data']['installDevice'] ?? '']),
             $qrCodeBase64,
             new ESimStatus(
-                $esimData['data']['activationCode'],
+                $this->esimData['data']['activationCode'],
                 'data',
                 FileSizeConverter::toBytes($totalData),
                 FileSizeConverter::toBytes($totalData),
                 $formattedEst ?? $this->order->created_at->format('Y-m-d H:i:s'),
-                $esimData['data']['activationCode'],
-                $esimData['data']['state'],
-                $orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
+                $this->esimData['data']['activationCode'],
+                $this->esimData['data']['state'],
+                $this->orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
             ),
-            $orderMetaData['esimLabels'][0]['label'] ?? null,
+            $this->orderMetaData['esimLabels'][0]['label'] ?? null,
         );
-
-        /* $this->order->metadata = array_merge(($this->order->metadata ?? []), $esim->toArray());
-        $this->order->disableWorkflows();
-        $this->order->saveOrFail(); */
-
-        return $esim;
     }
 }
