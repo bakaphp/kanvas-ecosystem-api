@@ -13,8 +13,10 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use InvalidArgumentException;
 use Kanvas\Social\Messages\Observers\UserMessageObserver;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 
 /**
  *  Class UserMessage
@@ -83,22 +85,40 @@ class UserMessage extends BaseModel
                 ->select('messages.*');
     }
 
+    /**
+     * get following feed by full query
+     * @throws InvalidArgumentException
+     */
     public static function getFollowingFeed(UserInterface $user, AppInterface $app): EloquentBuilder
     {
-        $messageTypeId = $app->get('social-user-message-filter-message-type');
+        $userId = $user->getId();
 
         return Message::query()
                 ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
-                ->where('user_messages.users_id', $user->getId())
-                ->where('user_messages.apps_id', $app->getId())
-                ->where('messages.is_deleted', 0)
-                ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
-                    return $query->where('messages.message_types_id', $messageTypeId);
+                ->join('users_follows', function ($join) use ($userId) {
+                    $join->on('messages.users_id', '=', 'users_follows.entity_id')
+                        ->where('users_follows.users_id', '=', $userId)
+                        ->where('users_follows.entity_namespace', '=', Users::class);
                 })
-                ->where('messages.users_id', '<>', $user->getId())
+                ->where('messages.is_deleted', 0)
                 ->where('user_messages.is_deleted', 0)
-                ->orderBy('messages.created_at', 'desc')
+                ->where('messages.users_id', '<>', $userId)
                 ->select('messages.*');
+    }
+
+    /**
+     * Get following feed base on user tables
+     * @throws InvalidArgumentException
+     */
+    public static function getUserMessageFollowingFeed(UserInterface $user, AppInterface $app): EloquentBuilder
+    {
+        return Message::query()
+            ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
+            ->where('user_messages.users_id', $user->getId())
+            ->where('user_messages.apps_id', $app->getId())
+            ->where('user_messages.is_deleted', 0)
+            ->where('messages.is_deleted', 0)
+            ->select('messages.*');
     }
 
     public static function getFirstMessageFromPage(
