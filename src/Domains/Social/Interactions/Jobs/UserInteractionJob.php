@@ -74,8 +74,8 @@ class UserInteractionJob implements ShouldQueue
         );
 
         //generate ser feed
-        $generateUserFeed = $this->app->get('social-generate-user-feed-after-interaction') ?? true;
-        if ($generateUserFeed) {
+        $generateUserFeed = $this->app->get('social-generate-user-feed-after-interaction') ?? false;
+        if ((bool) $generateUserFeed) {
             GenerateUserMessageJob::dispatch(
                 $this->app,
                 $this->user->getCurrentCompany(),

@@ -33,6 +33,9 @@ class DistributeMessagesToUsersAction
                             'apps_id' => $this->app->getId(),
                             'messages_id' => $this->message->getId(),
                             'users_id' => $userFollow->users_id,
+                            'created_at' => $this->message->created_at,
+                        ],
+                        [
                             'is_deleted' => 0,
                         ]
                     );
