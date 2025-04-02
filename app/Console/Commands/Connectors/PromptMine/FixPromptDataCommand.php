@@ -233,6 +233,9 @@ class FixPromptDataCommand extends Command
             ->where('id', $nuggetId)
             ->update(['path' => $parentMessage->getId() . "." . $nuggetId]);
 
+        //Call fixNuggetData just in case something is missing
+        $this->fixNuggetData(Message::find($nuggetId));
+
         $this->info('Created nugget message with ID: ' . $nuggetId);
     }
 }
