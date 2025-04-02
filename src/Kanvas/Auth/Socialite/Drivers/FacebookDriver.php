@@ -15,7 +15,6 @@ use Kanvas\Auth\Socialite\Contracts\DriverInterface;
 use Kanvas\Auth\Socialite\DataTransferObject\User;
 use phpseclib3\Crypt\RSA;
 use phpseclib3\Math\BigInteger;
-use Illuminate\Support\Facades\Http;
 
 /**
  * @todo delegate the implementation of to a package
@@ -33,24 +32,17 @@ class FacebookDriver implements DriverInterface
 
     public function getUserFromToken(string $token): User
     {
-        if ($this->isJwt($token)) {
-            return $this->getUserFromJwtIos($token);
-        }
-        return $this->getUserFromClassicTokenAndroid($token);
-    }
-
-    public function getUserFromJwtIos(string $token): User
-    {
         $kid = json_decode(base64_decode(explode('.', $token)[0]), true)['kid'] ?? null;
 
         if ($kid === null) {
-            return null;
+            return $this->getUserFromClassicToken($token);
         }
 
         $data = (array) JWT::decode($token, $this->getPublicKeyOfOIDCToken($kid));
 
         throw_if($data['aud'] !== $this->clientId, new Exception('Token has incorrect audience.'));
         throw_if($data['iss'] !== 'https://www.facebook.com', new Exception('Token has incorrect issuer.'));
+
         return User::from([
             'id' => $data['sub'],
             'email' => $data['email'],
@@ -58,21 +50,18 @@ class FacebookDriver implements DriverInterface
             'name' => $data['name'],
             'token' => $token,
         ]);
-
     }
 
-    public function getUserFromClassicTokenAndroid(string $token): User
+    public function getUserFromClassicToken(string $token): User
     {
-        $response = Http::get('https://graph.facebook.com/me', [
-            'fields' => 'id,name,email',
-            'access_token' => $token,
-        ]);
+        $response = $this->client->get('https://graph.facebook.com/me?access_token=' . $token . '&fields=id,name,email,first_name,last_name');
 
-        $data = $response->json();
+        $data = json_decode($response->getBody()->getContents(), true);
+
         return User::from([
             'id' => $data['id'],
             'email' => $data['email'],
-            'nickname' => Random::generateDisplayName($data['name']),
+            'nickname' => Random::generateDisplayName($data['first_name']),
             'name' => $data['name'],
             'token' => $token,
         ]);
@@ -95,14 +84,4 @@ class FacebookDriver implements DriverInterface
 
         return new Key((string) RSA::load($key), 'RS256');
     }
-
-    protected function isJwt(string $token): bool
-    {
-        $parts = explode('.', $token);
-
-        return count($parts) === 3 &&
-               base64_decode($parts[0], true) !== false &&
-               base64_decode($parts[1], true) !== false;
-    }
-
 }
