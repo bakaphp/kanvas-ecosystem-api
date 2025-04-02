@@ -255,6 +255,9 @@ class SyncEsimWithProviderCommand extends Command
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData == 0 && $isActive == true) {
+            /**
+             * @todo Move those spanish strings to app settings
+             */
             $today = now();
             $expirationDay = Carbon::parse($expirationDate);
             // If current date is the last day or after the expiration date
