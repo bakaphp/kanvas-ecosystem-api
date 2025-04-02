@@ -11,6 +11,7 @@ use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class TaskEngagementMutation
 {
@@ -23,6 +24,7 @@ class TaskEngagementMutation
         $status = $request['status'];
         $lead = Lead::getByIdFromCompanyApp($request['lead_id'], $company, $app);
         $messageId = $request['message_id'] ?? null;
+        $configData = $request['config'] ?? null;
 
         $taskListItem = TaskListItem::getById($id);
 
@@ -59,6 +61,10 @@ class TaskEngagementMutation
         }
 
         $taskEngagementItem->status = $status;
+
+        if ($configData !== null) {
+            $taskEngagementItem->config = $configData;
+        }
         $saveTaskEngagementItem = $taskEngagementItem->saveOrFail();
 
         /**
@@ -67,6 +73,16 @@ class TaskEngagementMutation
         $taskEngagementItem->disableRelatedItems();
         $taskEngagementItem->enableRelatedTasks();
         $taskEngagementItem->completeRelatedItems();
+
+        $taskEngagementItem->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $app,
+                'company' => $company,
+                'lead' => $lead,
+            ]
+        );
 
         return $saveTaskEngagementItem;
     }
