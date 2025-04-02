@@ -13,6 +13,7 @@ use Illuminate\Support\Arr;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Socialite\Contracts\DriverInterface;
 use Kanvas\Auth\Socialite\DataTransferObject\User;
+use Override;
 use phpseclib3\Crypt\RSA;
 use phpseclib3\Math\BigInteger;
 
@@ -30,6 +31,7 @@ class FacebookDriver implements DriverInterface
         $this->clientId = $config['client_id'] ?? throw new AuthenticationException('Facebook Client Id configuration is required');
     }
 
+    #[Override]
     public function getUserFromToken(string $token): User
     {
         $kid = json_decode(base64_decode(explode('.', $token)[0]), true)['kid'] ?? null;
