@@ -49,7 +49,7 @@ class ForgotPassword
             $query->where('email', $email);
         }
 
-        $recoverUser = $query->firstOrFail();
+        $recoverUser = $query->firstOrFail()->user;
         $recoverUser->generateForgotHash($this->app);
         $alternativeEmail = $recoverUser->getAlternativeEmail();
         $email = $recoverUser->email;
