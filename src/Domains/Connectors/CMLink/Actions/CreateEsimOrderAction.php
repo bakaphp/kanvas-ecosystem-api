@@ -31,8 +31,8 @@ class CreateEsimOrderAction
     protected CustomerService $customerService;
     protected OrderService $orderService;
     protected ?Variants $availableVariant = null;
-    protected ?Variants $orderVariant = null;
-    protected ?string $variantSkuIsBundleId = null;
+    protected Variants $orderVariant;
+    protected string $variantSkuIsBundleId;
     protected ?array $esimData = null;
     protected ?array $cmLinkOrder = null;
     protected ?array $orderMetaData = null;
@@ -45,6 +45,8 @@ class CreateEsimOrderAction
         $this->warehouse = $warehouse ?? $this->order->region->defaultWarehouse;
         $this->customerService = new CustomerService($order->app, $order->company);
         $this->orderService = new OrderService($order->app, $order->company);
+        $this->orderVariant = $order->allItems()->first()->variant;
+        $this->variantSkuIsBundleId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $this->orderVariant->sku;
     }
 
     public function execute(): ESim
@@ -76,20 +78,22 @@ class CreateEsimOrderAction
     protected function processRefuelOrder(): void
     {
         $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
-        $this->orderVariant = $parentOrder->items()->latest()->first()->variant;
-        $this->variantSkuIsBundleId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $this->orderVariant->sku;
-        $this->availableVariant = $this->orderVariant->getBySku($this->variantSkuIsBundleId, $parentOrder->company, $parentOrder->app);
-
-        // Add this variant to the order so we have a history of the iccid
-        $this->addVariantToOrder($this->availableVariant);
+        $parentProduct = $parentOrder->allItems()->first();
+        $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
+        $this->availableVariant = $parentProductIccid->variant;
 
         $this->cmLinkOrder = $this->orderService->refuelOrder(
             thirdOrderId: (string) $parentOrder->order_number,
-            iccid: $this->availableVariant->sku,
+            iccid: $parentProductIccid->product_sku,
             quantity: 1,
             activeDate: $parentOrder->created_at->format('Y-m-d'),
             refuelingId: $this->variantSkuIsBundleId,
+            dataBundleId: $parentProduct->product_sku
         );
+
+        if ($this->cmLinkOrder['code'] !== '0000000') {
+            throw new ValidationException($this->cmLinkOrder['description']);
+        }
 
         $this->orderMetaData = $parentOrder->metadata ?? [];
     }
@@ -101,8 +105,7 @@ class CreateEsimOrderAction
         $this->availableVariant->reduceQuantityInWarehouse($this->warehouse, 1);
 
         // If it has a parent SKU its means its a fake product we created to sell the same product at a diff price
-        $this->orderVariant = $this->order->items()->first()->variant;
-        $this->variantSkuIsBundleId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $this->orderVariant->sku;
+        $this->orderVariant = $this->order->allItems()->first()->variant;
 
         // Add this variant to the order so we have a history of the iccid
         $this->addVariantToOrder($this->availableVariant);

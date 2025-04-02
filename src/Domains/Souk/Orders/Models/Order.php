@@ -114,6 +114,11 @@ class Order extends BaseModel
         return $this->hasMany(OrderItem::class, 'order_id', 'id')->where('is_public', 1);
     }
 
+    public function allItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class, 'order_id', 'id');
+    }
+
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
