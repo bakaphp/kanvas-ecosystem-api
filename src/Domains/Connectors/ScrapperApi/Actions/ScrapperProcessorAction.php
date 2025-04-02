@@ -16,6 +16,7 @@ use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Connectors\ScrapperApi\Events\ProductScrapperEvent;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Connectors\ScrapperApi\Services\ProductService;
+use Kanvas\Connectors\ScrapperApi\Services\ProductVariantService;
 use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
 use Kanvas\Users\Models\Users;
 use Illuminate\Support\Facades\Log;
@@ -48,25 +49,22 @@ class ScrapperProcessorAction
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
         $channels = Channels::getDefault($this->companyBranch->company);
         $repository = new ScrapperRepository($this->app);
-        $service = new ProductService($channels, $warehouse);
+        $service = new ProductVariantService($channels, $warehouse);
         foreach ($this->results as $i => $result) {
             try {
-                if (preg_match('/(?:asin=|dp\/)([A-Z0-9]{10})/', $result['url'], $matches)) {
-                    $asin = $matches[1];
-                } else {
-                    continue;
-                }
-                $product = $repository->getByAsin($asin);
+                $product = $repository->getByAsin($result['asin']);
                 $product = array_merge($product, $result);
                 if (empty($product['price']) && empty($product['original_price']['price'])) {
                     continue;
                 }
                 $originalName = $product['name'];
-                $mappedProduct = $service->mapProduct($product);
 
-                // if ($mappedProduct['price'] >= 230) {
-                //     continue;
-                // }
+                $mappedProduct = $service->mapProduct($product);
+                if ($product['customization_options']) {
+                    $mappedProduct['variants'] = $service->mapVariant($product);
+                } else {
+                    $mappedProduct['variants'] = $mappedProduct;
+                }
                 try {
                     $product = (
                         new ProductImporterAction(
@@ -134,6 +132,8 @@ class ScrapperProcessorAction
                     $originalName
                 ))->execute();
             } catch (\Throwable $e) {
+                Log::error($e->getMessage());
+                Log::debug($e->getTraceAsString());
                 continue;
             }
         }

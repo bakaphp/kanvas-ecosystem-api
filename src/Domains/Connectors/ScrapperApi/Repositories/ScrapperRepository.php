@@ -20,7 +20,7 @@ class ScrapperRepository
 
     protected function makeRequest(string $url, array $queryParams): array
     {
-        $response = Http::timeout(10)->get($this->baseUri . $url, $queryParams);
+        $response = Http::timeout(60)->get($this->baseUri . $url, $queryParams);
 
         if ($response->failed()) {
             throw new Exception('Request failed with status: ' . $response->status());
