@@ -58,7 +58,6 @@ class FacebookDriver implements DriverInterface
             'name' => $data['name'],
             'token' => $token,
         ]);
-
     }
 
     public function getUserFromClassicTokenAndroid(string $token): User
@@ -104,5 +103,4 @@ class FacebookDriver implements DriverInterface
                base64_decode($parts[0], true) !== false &&
                base64_decode($parts[1], true) !== false;
     }
-
 }
