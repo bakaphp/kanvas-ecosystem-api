@@ -15,22 +15,29 @@ class MessageSchemaValidator
 
     public function __construct(
         private readonly Message $message,
-        private readonly MessageType $messageType
+        private readonly MessageType $messageType,
+        private bool $returnValidation = false
     ) {
     }
 
-    public function validate(): void
+    public function validate(): bool
     {
         $schema = json_decode($this->messageType->message_schema, true);
         $data = is_array($this->message->message) ? $this->message->message : json_decode($this->message->message, true);
-        $this->validateSchema($data, $schema);
+        return $this->validateSchema($data, $schema);
     }
 
-    private function validateSchema(array $data, array $schema): void
+    private function validateSchema(array $data, array $schema): bool
     {
         $validator = Validator::make($data, $schema);
         if ($validator->fails()) {
+
+            if ($this->returnValidation) {
+                return false;
+            }
             throw new MessageValidationException(implode(', ', $validator->errors()->all()));
         }
+
+        return true;
     }
 }

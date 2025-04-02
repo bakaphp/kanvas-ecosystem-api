@@ -12,6 +12,7 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use EchoLabs\Prism\Enums\Provider;
 use EchoLabs\Prism\Prism;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
 use Throwable;
 
 class FixPromptDataCommand extends Command
@@ -49,6 +50,9 @@ class FixPromptDataCommand extends Command
         $this->SyncPromptData($app, $messageType, $companiesId);
     }
 
+    /**
+     * @todo how to avoid changing legit prompts and nugget data? Use the json validator?
+     */
     private function SyncPromptData($app, $messageType, $companiesId): void
     {
         Message::fromApp($app)
@@ -71,6 +75,13 @@ class FixPromptDataCommand extends Command
                         }
 
                         foreach ($message->children as $childMessage) {
+
+                            $validateMessageSchema = new MessageSchemaValidator($childMessage, MessageType::find(576));
+                            
+                            if ($validateMessageSchema->validate()) {
+                                continue;
+                            }
+
                             $this->fixNuggetData($childMessage);
                             $this->info('--Child Message ID: ' . $childMessage->getId() . ' updated');
                         }
@@ -208,23 +219,11 @@ class FixPromptDataCommand extends Command
             'companies_id' => $parentMessage->companies_id,
             'users_id' => $parentMessage->users_id,
             'message_types_id' => 576,
-            'message' => json_encode([
+            'message' => [
                 'title' => $messageData['title'],
-                'ai_model' => [
-                    "name" => "GPT-4o",
-                    "key" => "openai",
-                    "value" => "gpt-4o",
-                    'icon' => "https://cdn.promptmine.ai/OpenAILogo.png",
-                    'payment' => [
-                        'price' => 0,
-                        'is_locked' => false,
-                        'free_regeneration' => false
-                    ]
-
-                ],
                 "type" => "text-format",
                 "nugget" => $responseText,
-            ]),
+            ],
             'created_at' => now(),
             'updated_at' => now()
         ]);
@@ -235,6 +234,10 @@ class FixPromptDataCommand extends Command
 
         //Call fixNuggetData just in case something is missing
         $this->fixNuggetData(Message::find($nuggetId));
+
+        //Update total children on parent message
+        $parentMessage->total_children++;
+        $parentMessage->save();
 
         $this->info('Created nugget message with ID: ' . $nuggetId);
     }
