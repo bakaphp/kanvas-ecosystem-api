@@ -65,25 +65,27 @@ class FixPromptDataCommand extends Command
 
                     try {
                         $this->fixPromptData($message);
-                        $this->info('-Message ID: ' . $message->getId() . ' updated');
 
                         if (count($message->children) == 0) {
                             //Generate child messages if it doesn't exist
                             $this->createNuggetMessage($message);
-                            $this->info('--Child Message ID: ' . $message->getId() . ' created');
+                            $this->info('--Child Nugget Message ID: ' . $message->getId() . ' created');
                             continue;
                         }
 
                         foreach ($message->children as $childMessage) {
 
-                            $validateMessageSchema = new MessageSchemaValidator($childMessage, MessageType::find(576));
+                            $validateMessageSchema = new MessageSchemaValidator($childMessage, MessageType::find(576), true);
                             
+                            $this->info('--Checking Child Nugget Message Schema of ID: ' . $childMessage->getId());
                             if ($validateMessageSchema->validate()) {
+                                $this->info('--Message Schema is OK');
                                 continue;
                             }
 
+                            $this->info('--Fixing Child Nugget Message Schema');
                             $this->fixNuggetData($childMessage);
-                            $this->info('--Child Message ID: ' . $childMessage->getId() . ' updated');
+                            $this->info('--Child Nugget Message ID: ' . $childMessage->getId() . ' updated');
                         }
                     } catch (Throwable $e) {
                         $this->error('Error updating message ID: ' . $message->getId() . ' - ' . $e->getMessage());
@@ -96,6 +98,13 @@ class FixPromptDataCommand extends Command
     private function fixPromptData(Message $message): void
     {
         $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
+        $validateMessageSchema = new MessageSchemaValidator($message, MessageType::find($message->message_types_id), true);
+
+        $this->info('--Checking Prompt Message Schema of ID: ' . $message->getId());
+        if ($validateMessageSchema->validate()) {
+            $this->info('-- Prompt Message Schema is OK');
+            return;
+        }
         //Anything that is not a prompt, set as deleted
         if (! isset($messageData['prompt'])) {
             $message->is_deleted = 1;
@@ -151,6 +160,7 @@ class FixPromptDataCommand extends Command
 
         $message->message = $messageData;
         $message->save();
+        $this->info('-Prompt Message ID: ' . $message->getId() . ' updated');
     }
 
     private function fixNuggetData(Message $message): void
