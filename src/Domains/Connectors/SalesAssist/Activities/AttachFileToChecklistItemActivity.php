@@ -48,13 +48,17 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
         $people = People::getById($peopleId, $app);
         $latestFile = FilesystemEntities::query()
             ->where('entity_id', $people->getId())
-            ->whereIn('system_modules_id', [SystemModulesRepository::getByModelName(People::class)->getId(), SystemModules::getLegacyNamespace(People::class)])
+            ->whereIn('system_modules_id', [SystemModulesRepository::getByModelName(People::class)->getId(), SystemModulesRepository::getByModelName(SystemModules::getLegacyNamespace(People::class))->getId()])
             ->where('companies_id', $lead->companies_id)
+            ->latest()
             ->first();
 
         if ($latestFile === null) {
             return [
                 'result' => false,
+                'people' => $people->toArray(),
+                'lead' => $lead->toArray(),
+                'system_modules_id' => [SystemModulesRepository::getByModelName(People::class)->getId(), SystemModulesRepository::getByModelName(SystemModules::getLegacyNamespace(People::class))->getId()],
                 'message' => 'No file found for checklist item' . $entity->getId(),
             ];
         }
