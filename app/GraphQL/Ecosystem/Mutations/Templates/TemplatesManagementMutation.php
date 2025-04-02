@@ -52,13 +52,15 @@ class TemplatesManagementMutation
         //The template itself should have the content as {$content} inside the body
         //The subject, content and template should be then used for notifications
 
-        $templatedto =  new TemplateInput(
-            app(Apps::class),
-            $request['name'],
-            $request['template'],
-            $user->getCurrentCompany(),
-            $user
-        );
+        $templatedto = TemplateInput::from([
+            'app' => app(Apps::class),
+            'name' => $request['name'],
+            'template' => $request['template'],
+            'subject' => $request['subject'] ?? null,
+            'title' => $request['title'] ?? null,
+            'company' => $user->getCurrentCompany(),
+            'user' => $user,
+        ]);
 
         $template = (new CreateTemplateAction(
             $templatedto

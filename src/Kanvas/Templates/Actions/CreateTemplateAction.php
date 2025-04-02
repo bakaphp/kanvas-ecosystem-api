@@ -27,6 +27,8 @@ class CreateTemplateAction
             'apps_id' => $this->template->app->getKey(),
             'companies_id' => $this->template->company ? $this->template->company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue(),
             'name' => $this->template->name,
+            'title' => $this->template->title,
+            'subject' => $this->template->subject,
         ];
 
         $attributes = [
