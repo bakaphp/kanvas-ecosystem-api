@@ -7,9 +7,11 @@ namespace App\Console\Commands\Connectors\PromptMine;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use EchoLabs\Prism\Enums\Provider;
+use EchoLabs\Prism\Prism;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class FixPromptDataCommand extends Command
@@ -52,14 +54,19 @@ class FixPromptDataCommand extends Command
         Message::fromApp($app)
             ->where('message_types_id', $messageType->getId())
             ->where('companies_id', $companiesId)
+            ->where('is_deleted', 0)
             ->orderBy('id', 'asc')
-            ->chunk(100, function ($messages) {
+            ->chunk(20, function ($messages) {
                 foreach ($messages as $message) {
+
                     try {
                         $this->fixPromptData($message);
                         $this->info('-Message ID: ' . $message->getId() . ' updated');
 
                         if (count($message->children) == 0) {
+                            //Generate child messages if it doesn't exist
+                            $this->createNuggetMessage($message);
+                            $this->info('--Child Message ID: ' . $message->getId() . ' created');
                             continue;
                         }
 
@@ -71,12 +78,21 @@ class FixPromptDataCommand extends Command
                         $this->error('Error updating message ID: ' . $message->getId() . ' - ' . $e->getMessage());
                     }
                 }
+                die();
             });
     }
 
     private function fixPromptData(Message $message): void
     {
         $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
+        //Anything that is not a prompt, set as deleted
+        if (! isset($messageData['prompt'])) {
+            $message->is_deleted = 1;
+            $message->is_public = 0;
+            $message->save();
+            $this->info('Message is not a prompt, setting as deleted and not public');
+            return;
+        }
 
         if (! isset($messageData['ai_model'])) {
             $messageData['ai_model'] = [
@@ -90,26 +106,27 @@ class FixPromptDataCommand extends Command
                     'free_regeneration' => false
                 ]
             ];
+            $this->info('Added AI model to message data');
         }
 
         if (! isset($messageData['type'])) {
-
+            $messageData['type'] = 'text-format';
             //Check if child message has image field, then set type to image
-            if (isset($message->children) && count($message->children) > 0) {
-                foreach ($message->children as $childMessage) {
-                    $childMessageData = is_array($childMessage->message) ? $childMessage->message : json_decode($childMessage->message, true);
-                    if (isset($childMessageData['image']) && ! empty($childMessageData['image'])) {
-                        $messageData['type'] = 'image-format';
-                        break;
-                    }
-                }
-            } else {
-                $messageData['type'] = 'text-format';
-            }
+            // if (isset($message->children) && count($message->children) > 0) {
+            //     foreach ($message->children as $childMessage) {
+            //         $childMessageData = is_array($childMessage->message) ? $childMessage->message : json_decode($childMessage->message, true);
+            //         if (isset($childMessageData['image']) && ! empty($childMessageData['image'])) {
+            //             $messageData['type'] = 'image-format';
+            //             break;
+            //         }
+            //     }
+            // }
+            $this->info('Added message type to message data');
         }
 
         if (isset($messageData['preview'])) {
             unset($messageData['preview']);
+            $this->info('Removed preview from message data');
         }
 
         if ($message->is_premium && ! isset($messageData['payment'])) {
@@ -118,6 +135,7 @@ class FixPromptDataCommand extends Command
                 'is_locked' => false,
                 'free_regeneration' => false
             ];
+            $this->info('Added payment to message data');
         }
 
         $message->message = $messageData;
@@ -126,27 +144,95 @@ class FixPromptDataCommand extends Command
 
     private function fixNuggetData(Message $message): void
     {
-        $parentMessageData = is_array($message->parent->message) ? $message->parent->message : json_decode($message->parent->message, true);
+        $parentMessage = $message->parent;
+        $parentMessageData = is_array($parentMessage->message) ? $parentMessage->message : json_decode($parentMessage->message, true);
         $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
+
+        if ($parentMessage->is_deleted) {
+            $message->is_deleted = 1;
+            $message->is_public = 0;
+            $message->save();
+            $this->info('Parent message is deleted, setting child message as deleted and not public');
+            return;
+        }
 
         if (! isset($messageData['id'])) {
             $messageData['id'] = $message->getId();
+            $this->info('Added message id to message data' . $messageData['id']);
         }
 
         if (! isset($messageData['title']) && isset($parentMessageData['title'])) {
             $messageData['title'] = $parentMessageData['title'];
+            $this->info('Added message title to message data' . $messageData['title']);
         }
 
-        if(! isset($messageData['type']) && isset($parentMessageData['type'])) {
+        if (! isset($messageData['type']) && isset($parentMessageData['type'])) {
             $messageData['type'] = $parentMessageData['type'];
-            if ($parentMessageData['type'] == 'image-format') {
-                $messageData['image'] = ''; //Use nugget if not possible to generate image.
-            } else {
-                $messageData['nugget'] = "";
+
+            if (! isset($messageData['nugget']) || ! isset($messageData['image'])) {
+                $response = Prism::text()
+                ->using(Provider::Gemini, 'gemini-2.0-flash')
+                ->withPrompt($parentMessageData['prompt'])
+                ->generate();
+
+                $responseText = str_replace(['```', 'json'], '', $response->text);
+
+                if ($parentMessageData['type'] == 'image-format') {
+                    $messageData['image'] = ''; //Use nugget if not possible to generate image.
+                } else {
+                    $messageData['nugget'] = $responseText;
+                }
             }
+
+            $this->info('Added message type to message data' . $messageData['type']);
+            $this->info('Added message nugget to message data');
         }
 
         $message->message = $messageData;
         $message->save();
+    }
+
+    private function createNuggetMessage(Message $parentMessage): void
+    {
+        $messageData = is_array($parentMessage->message) ? $parentMessage->message : json_decode($parentMessage->message, true);
+        $response = Prism::text()
+                ->using(Provider::Gemini, 'gemini-2.0-flash')
+                ->withPrompt($messageData['prompt'])
+                ->generate();
+
+        $responseText = str_replace(['```', 'json'], '', $response->text);
+        $nuggetId = DB::connection('social')->table('messages')->insertGetId([
+            'parent_id' => $parentMessage->getId(),
+            'apps_id' => $parentMessage->apps_id,
+            'uuid' => DB::raw('uuid()'),
+            'companies_id' => $parentMessage->companies_id,
+            'users_id' => $parentMessage->users_id,
+            'message_types_id' => 576,
+            'message' => json_encode([
+                'title' => $messageData['title'],
+                'ai_model' => [
+                    "name" => "GPT-4o",
+                    "key" => "openai",
+                    "value" => "gpt-4o",
+                    'icon' => "https://cdn.promptmine.ai/OpenAILogo.png",
+                    'payment' => [
+                        'price' => 0,
+                        'is_locked' => false,
+                        'free_regeneration' => false
+                    ]
+
+                ],
+                "type" => "text-format",
+                "nugget" => $responseText,
+            ]),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+
+        DB::connection('social')->table('messages')
+            ->where('id', $nuggetId)
+            ->update(['path' => $parentMessage->getId() . "." . $nuggetId]);
+
+        $this->info('Created nugget message with ID: ' . $nuggetId);
     }
 }
