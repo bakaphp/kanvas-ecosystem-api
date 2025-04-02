@@ -31,7 +31,6 @@ class MessageSchemaValidator
     {
         $validator = Validator::make($data, $schema);
         if ($validator->fails()) {
-
             if ($this->returnValidation) {
                 return false;
             }

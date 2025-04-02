@@ -62,7 +62,6 @@ class FixPromptDataCommand extends Command
             ->orderBy('id', 'asc')
             ->chunk(20, function ($messages) {
                 foreach ($messages as $message) {
-
                     try {
                         $this->fixPromptData($message);
 
@@ -74,9 +73,7 @@ class FixPromptDataCommand extends Command
                         }
 
                         foreach ($message->children as $childMessage) {
-
                             $validateMessageSchema = new MessageSchemaValidator($childMessage, MessageType::find(576), true);
-                            
                             $this->info('--Checking Child Nugget Message Schema of ID: ' . $childMessage->getId());
                             if ($validateMessageSchema->validate()) {
                                 $this->info('--Message Schema is OK');
