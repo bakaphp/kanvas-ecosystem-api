@@ -78,7 +78,7 @@ class CreateEsimOrderAction
         $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
         $this->orderVariant = $parentOrder->items()->latest()->first()->variant;
         $this->variantSkuIsBundleId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $this->orderVariant->sku;
-        $this->availableVariant = $this->orderVariant->getBySku($this->variantSkuIsBundleId, $parentOrder->app, $parentOrder->company);
+        $this->availableVariant = $this->orderVariant->getBySku($this->variantSkuIsBundleId, $parentOrder->company, $parentOrder->app);
 
         // Add this variant to the order so we have a history of the iccid
         $this->addVariantToOrder($this->availableVariant);
