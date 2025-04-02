@@ -102,7 +102,7 @@ class FixPromptDataCommand extends Command
 
         $this->info('--Checking Prompt Message Schema of ID: ' . $message->getId());
         if ($validateMessageSchema->validate()) {
-            $this->info('-- Prompt Message Schema is OK');
+            $this->info('-Prompt Message Schema is OK');
             return;
         }
         //Anything that is not a prompt, set as deleted
@@ -149,7 +149,7 @@ class FixPromptDataCommand extends Command
             $this->info('Removed preview from message data');
         }
 
-        if ($message->is_premium && ! isset($messageData['payment'])) {
+        if (! isset($messageData['payment'])) {
             $messageData['payment'] = [
                 'price' => 0,
                 'is_locked' => false,
