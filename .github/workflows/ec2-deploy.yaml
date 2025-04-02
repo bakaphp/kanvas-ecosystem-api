@@ -63,12 +63,15 @@ jobs:
             docker restart queue-scout-worker-1
             docker stop queue-scout-worker-2
             docker restart queue-workflow-1
+            docker stop queue-workflow-2
+            docker stop queue-workflow-3
             docker restart batch-logger-queue
             docker restart queue-user-interactions
             docker stop queue-scrapper-worker-1
             docker stop queue-scrapper-worker-2
             docker stop queue-scrapper-worker-3
             docker stop queue-scrapper-worker-4
+            docker stop queue-scout-worker-3
             if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
               docker stop queue-imports2
               docker stop queue2
@@ -79,9 +82,6 @@ jobs:
               docker stop queue7
               docker stop queue8
               docker stop queue-workflow-4
-              docker stop queue-scout-worker-3
-              docker stop queue-workflow-2
-              docker stop queue-workflow-3
             fi
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload
