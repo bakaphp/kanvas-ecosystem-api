@@ -27,9 +27,32 @@ class ForgotPassword
      */
     public function forgot(string $email): Users
     {
-        $recoverUser = Users::getByEmail($email);
+        //$recoverUser = Users::getByEmail($email);
+        $allowResetPasswordWithDisplayname = $this->app->get(
+            (string) AppSettingsEnums::ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME->getValue(),
+        );
+
+        $query = UsersAssociatedApps::fromApp($this->app)
+            ->notDeleted()
+            ->where(
+                'companies_id',
+                AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            );
+
+        // If allowed to reset with displayname, check both email and displayname
+        if ($allowResetPasswordWithDisplayname) {
+            $query->where(function ($subquery) use ($email) {
+                $subquery->where('email', $email)
+                        ->orWhere('displayname', $email);
+            });
+        } else {
+            $query->where('email', $email);
+        }
+
+        $recoverUser = $query->firstOrFail();
         $recoverUser->generateForgotHash($this->app);
         $alternativeEmail = $recoverUser->getAlternativeEmail();
+        $email = $recoverUser->email;
 
         $emailAddresses = $alternativeEmail ? [$email, $alternativeEmail] : [$email];
 
