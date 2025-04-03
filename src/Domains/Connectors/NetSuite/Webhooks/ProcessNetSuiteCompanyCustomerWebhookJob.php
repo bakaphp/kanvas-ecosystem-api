@@ -43,8 +43,8 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
             $syncNetSuiteCustomerWithCompany->execute();
 
             Products::fromApp($this->receiver->app)
-               ->where('company_id', $mainCompanyId)
-               ->where('is_published', true)
+               ->fromCompany($mainCompany)
+               ->where('is_published', 1)
                ->searchable();
 
             return [
