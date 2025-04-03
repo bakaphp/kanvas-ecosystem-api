@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\AccessControl;
 
 use Illuminate\Console\Command;
-use Kanvas\AccessControlList\Actions\CreateRolesByTemplates;
+use Kanvas\AccessControlList\Actions\CreateRolesByTemplatesAction;
 use Kanvas\Apps\Models\Apps;
 
 class UpdateAbilitiesByTemplatesCommand extends Command
@@ -21,7 +21,7 @@ class UpdateAbilitiesByTemplatesCommand extends Command
             $apps = Apps::all();
         }
         foreach ($apps as $app) {
-            (new CreateRolesByTemplates($app))->execute();
+            (new CreateRolesByTemplatesAction($app))->execute();
         }
     }
 }

@@ -12,7 +12,7 @@ use Bouncer;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 
-class CreateRolesByTemplates
+class CreateRolesByTemplatesAction
 {
     protected array $templates = [
         OwnerRoleTemplate::class,
