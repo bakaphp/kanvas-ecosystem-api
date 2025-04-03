@@ -32,6 +32,12 @@ class ForgotPassword
             (string) AppSettingsEnums::ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME->getValue(),
         );
 
+        if (! $allowResetPasswordWithDisplayname) {
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new ExceptionsModelNotFoundException('Email is not valid.');
+            }
+        }
+
         $query = UsersAssociatedApps::fromApp($this->app)
             ->notDeleted()
             ->where(
