@@ -378,18 +378,24 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 // Initialize prices array
                 $product['prices'] = [];
 
+                // Temporary array to collect all prices
+                $allPrices = [];
+
                 // Loop through each variant
-                $this->variants->each(function ($variant) use (&$product) {
+                $this->variants->each(function ($variant) use (&$allPrices) {
                     // Each variant has its own channels, so get them
                     if ($variant->channels && $variant->channels->count() > 0) {
-                        $variant->channels->each(function ($channel) use (&$product) {
+                        $variant->channels->each(function ($channel) use (&$allPrices) {
                             // Get company by slug
                             try {
                                 $company = Companies::getByUuid($channel->slug);
 
                                 if ($company) {
-                                    // Add price to the prices array
-                                    $product['prices']['price_b2b_' . $company->getId()] = (float) $channel->price;
+                                    // Store price with company ID for later sorting
+                                    $allPrices[] = [
+                                        'company_id' => $company->getId(),
+                                        'price' => (float) $channel->price,
+                                    ];
                                 }
                             } catch (Exception $e) {
                                 // Do nothing
@@ -397,6 +403,16 @@ class Products extends BaseModel implements EntityIntegrationInterface
                         });
                     }
                 });
+
+                // Sort prices in descending order (highest first)
+                usort($allPrices, function ($a, $b) {
+                    return $b['price'] <=> $a['price'];
+                });
+
+                // Add sorted prices to the product
+                foreach ($allPrices as $priceData) {
+                    $product['prices']['price_b2b_' . $priceData['company_id']] = $priceData['price'];
+                }
             }
         }
 
