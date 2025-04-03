@@ -23,6 +23,7 @@ use Spatie\LaravelData\DataCollection;
 use Imdhemy\Purchases\Facades\Product;
 use Imdhemy\GooglePlay\Products\ProductPurchase;
 use Kanvas\Connectors\InAppPurchase\Enums\GooglePlayReceiptStatusEnum;
+use Imdhemy\GooglePlay\ClientFactory;
 
 class CreateOrderFromGoogleReceiptAction
 {
@@ -51,10 +52,10 @@ class CreateOrderFromGoogleReceiptAction
             'orderId' => $this->googlePlayInAppPurchase->order_id,
             'purchaseToken' => $this->googlePlayInAppPurchase->purchase_token,
             'purchaseState' => $this->googlePlayInAppPurchase->purchase_state,
-            'purchaseTime' => $this->googlePlayInAppPurchase->purchase_time,
         ];
 
         $verifiedReceipt = $this->verifyReceipt($receipt);
+
         if ($verifiedReceipt->getPurchaseState() == GooglePlayReceiptStatusEnum::CANCELED) {
             throw new ValidationException('Invalid Receipt');
         }
@@ -62,7 +63,6 @@ class CreateOrderFromGoogleReceiptAction
         $people = $this->createPeople();
         $orderData = $this->createOrderData(
             $receipt,
-            $verifiedReceipt->toArray(),
             $people
         );
 
@@ -78,7 +78,8 @@ class CreateOrderFromGoogleReceiptAction
 
     private function verifyReceipt(array $receipt): ProductPurchase
     {
-        return Product::googlePlay()->id($receipt['productId'])->token($receipt['purchaseToken'])->get();
+        $client = ClientFactory::createWithJsonKey(json_decode(file_get_contents(getenv("GOOGLE_PLAY_CREDENTIALS")), true));
+        return Product::googlePlay($client)->id($receipt['productId'])->token($receipt['purchaseToken'])->get();
     }
 
     private function createPeople(): People
@@ -90,9 +91,9 @@ class CreateOrderFromGoogleReceiptAction
         ))->execute();
     }
 
-    private function createOrderData(array $allReceiptData, mixed $receipt, $people): Order
+    private function createOrderData(array $allReceiptData, $people): Order
     {
-        $orderItem = $this->createOrderItem($receipt);
+        $orderItem = $this->createOrderItem($allReceiptData);
 
         return new Order(
             app: $this->app,
@@ -123,17 +124,17 @@ class CreateOrderFromGoogleReceiptAction
         );
     }
 
-    private function createOrderItem(ProductPurchase $inAppData): OrderItem
+    private function createOrderItem(array $inAppData): OrderItem
     {
-        $variant = $this->getVariant($inAppData->getProductId());
+        $variant = $this->getVariant($inAppData['productId']);
         $warehouse = $this->region->warehouses()->firstOrFail();
 
         return new OrderItem(
             app: $this->app,
             variant: $variant,
             name: $variant->name,
-            sku: $inAppData->getProductId(),
-            quantity: $inAppData->getQuantity(),
+            sku: $inAppData['productId'],
+            quantity: 1,
             price: $variant->getPrice($warehouse),
             tax: 0.0,
             discount: 0.0,
