@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Actions;
@@ -20,23 +21,23 @@ class CreateRolesByTemplates
         UsersRoleTemplate::class,
     ];
 
-    public function execute(){
+    public function execute()
+    {
         foreach ($this->templates as $template) {
             $templateInstance = new $template();
             $role = $templateInstance->role;
             $denied = $templateInstance->denied;
             $allowed = $templateInstance->allowed;
-            if(empty($allowed)){
+            if (empty($allowed)) {
                 $allowed = ModulesRepositories::getAllAbilities();
             }
-            foreach($allowed as $key => $permissions){
-                foreach($permissions as $value){
-                    if(in_array($value, $denied)){
+            foreach ($allowed as $key => $permissions) {
+                foreach ($permissions as $value) {
+                    if (in_array($value, $denied)) {
                         continue;
                     }
                     Bouncer::allow($role)->to($value, $key);
                 }
-
             }
         }
     }
