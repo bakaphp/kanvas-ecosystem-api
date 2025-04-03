@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\NetSuite\Webhooks;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -40,6 +41,11 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
                 $company
             );
             $syncNetSuiteCustomerWithCompany->execute();
+
+            Products::fromApp($this->receiver->app)
+               ->where('company_id', $mainCompanyId)
+               ->where('is_published', true)
+               ->searchable();
 
             return [
                 'message' => 'NetSuite Company Synced',
