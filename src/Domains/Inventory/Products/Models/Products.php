@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
+use Awobaz\Compoships\Exceptions\InvalidUsageException;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -13,8 +14,10 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Exception;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\MissingAttributeException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -321,6 +324,13 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->isPublished();
     }
 
+    /**
+     * @todo refactor this method is to long
+     * @throws BindingResolutionException
+     * @throws MissingAttributeException
+     * @throws InvalidUsageException
+     * @throws InvalidArgumentException
+     */
     public function toSearchableArray(): array
     {
         $product = [
@@ -404,14 +414,22 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     }
                 });
 
-                // Sort prices in descending order (highest first)
-                usort($allPrices, function ($a, $b) {
-                    return $b['price'] <=> $a['price'];
-                });
+                // Create an associative array to track highest price per company_id
+                $highestPrices = [];
 
-                // Add sorted prices to the product
+                // Loop through all prices just once
                 foreach ($allPrices as $priceData) {
-                    $product['prices']['price_b2b_' . $priceData['company_id']] = $priceData['price'];
+                    $companyId = $priceData['company_id'];
+
+                    // Only store if this company isn't tracked yet or if this price is higher
+                    if (! isset($highestPrices[$companyId]) || $priceData['price'] > $highestPrices[$companyId]) {
+                        $highestPrices[$companyId] = $priceData['price'];
+                    }
+                }
+
+                // Add the highest prices to the product
+                foreach ($highestPrices as $companyId => $price) {
+                    $product['prices']['price_b2b_' . $companyId] = $price;
                 }
             }
         }
