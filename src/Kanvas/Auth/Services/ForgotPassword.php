@@ -51,17 +51,9 @@ class ForgotPassword
 
         $recoverUser = $query->firstOrFail()->user;
         $recoverUser->generateForgotHash($this->app);
-        $alternativeEmail = $recoverUser->getAlternativeEmail();
-        $email = $recoverUser->email;
-
-        $emailAddresses = $alternativeEmail ? [$email, $alternativeEmail] : [$email];
 
         try {
             $resetPasswordTitle = $this->app->get((string) AppSettingsEnums::RESET_PASSWORD_EMAIL_SUBJECT->getValue()) ?? $this->app->name . ' - Reset your password';
-
-            $recoverUser->routeNotificationFor('mail', function () use ($emailAddresses) {
-                return $emailAddresses;
-            });
 
             $recoverUser->notify(new ResetPassword(
                 $recoverUser,
