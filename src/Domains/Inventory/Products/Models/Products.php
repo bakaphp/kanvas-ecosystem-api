@@ -321,6 +321,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->isPublished();
     }
 
+    /**
+     * @todo refactor this method is to long
+     */
     public function toSearchableArray(): array
     {
         $product = [
@@ -404,14 +407,22 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     }
                 });
 
-                // Sort prices in descending order (highest first)
-                usort($allPrices, function ($a, $b) {
-                    return $b['price'] <=> $a['price'];
-                });
+                // Create an associative array to track highest price per company_id
+                $highestPrices = [];
 
-                // Add sorted prices to the product
+                // Loop through all prices just once
                 foreach ($allPrices as $priceData) {
-                    $product['prices']['price_b2b_' . $priceData['company_id']] = $priceData['price'];
+                    $companyId = $priceData['company_id'];
+
+                    // Only store if this company isn't tracked yet or if this price is higher
+                    if (! isset($highestPrices[$companyId]) || $priceData['price'] > $highestPrices[$companyId]) {
+                        $highestPrices[$companyId] = $priceData['price'];
+                    }
+                }
+
+                // Add the highest prices to the product
+                foreach ($highestPrices as $companyId => $price) {
+                    $product['prices']['price_b2b_' . $companyId] = $price;
                 }
             }
         }
