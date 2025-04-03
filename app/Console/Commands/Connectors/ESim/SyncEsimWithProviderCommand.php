@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use DateTime;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
@@ -22,8 +23,11 @@ use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 
 class SyncEsimWithProviderCommand extends Command
 {
@@ -287,7 +291,112 @@ class SyncEsimWithProviderCommand extends Command
             spentMessage: $spentMessage
         );
 
-        return $esimStatus->toArray();
+        $esimStatusArray = $esimStatus->toArray();
+
+        // Check and send notifications if needed
+        $this->checkAndSendNotifications($message, $esimStatusArray, $isActive);
+
+        return $esimStatusArray;
+    }
+
+    /**
+     * Check if notifications should be sent for a specific ESim and send them if needed
+     *
+     * @param Message $message
+     * @param array $esimStatus
+     * @return void
+     */
+    private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isActive): void
+    {
+        // If the ESim is not in an active state, don't send notifications
+        if (! $isActive) {
+            return;
+        }
+
+        // Get the user associated with the message
+        $email = $message->message['order']['user_email'];
+        $notifyUser = Users::getByEmail($email);
+
+        if (! $notifyUser) {
+            return;
+        }
+
+        if ($esimStatus['unlimited']) {
+            $this->checkUnlimitedPlanExpiration($esimStatus, $notifyUser);
+        } else {
+            $this->checkDataUsageThresholds($esimStatus, $notifyUser);
+        }
+    }
+
+    /**
+     * Check data usage thresholds and send notifications at 70% and 90% usage
+     *
+     * @param array $esimStatus
+     * @param Users $notifyUser
+     * @return void
+     */
+    private function checkDataUsageThresholds(array $esimStatus, Users $notifyUser): void
+    {
+        $initialQuantity = $esimStatus['initialQuantity'];
+        $remainingQuantity = $esimStatus['remainingQuantity'];
+
+        if ($initialQuantity <= 0) {
+            return;
+        }
+
+        $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
+
+        if ($usedPercentage >= 70 && $usedPercentage < 75) {
+            $this->sendPushNotification(
+                $notifyUser,
+                '¡Atención! Has usado el 70% de tus datos.',
+                'Aún tienes conexión, pero tu plan está por agotarse. Verifica tu consumo en la app.',
+                ['usage_percentage' => 70]
+            );
+        }
+
+        if ($usedPercentage >= 90 && $usedPercentage < 95) {
+            $this->sendPushNotification(
+                $notifyUser,
+                '¡Casi sin datos!',
+                'Has consumido el 90% de tu plan. Considera recargar para seguir navegando sin interrupciones.',
+                ['usage_percentage' => 90]
+            );
+        }
+    }
+
+    /**
+     * Send push notification to user
+     *
+     * @param Users $notifyUser
+     * @param string $title
+     * @param string $message
+     * @param array $additionalData
+     * @return void
+     */
+    private function sendPushNotification(Users $notifyUser, string $title, string $message, array $additionalData = []): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $data = [
+            'title' => $title,
+            'message' => $message,
+            'app' => $app,
+            'data' => $additionalData
+        ];
+
+        $vias = [NotificationChannelEnum::getNotificationChannelBySlug('PUSH')];
+
+        $notification = new Blank(
+            'esim_notification',
+            $data,
+            $vias,
+            $user
+        );
+        
+        $notification->setFromUser($user);
+        Notification::send(collect([$notifyUser]), $notification);
     }
 
     private function updateMessageStatus(Message $message, array $response, string $network): void
