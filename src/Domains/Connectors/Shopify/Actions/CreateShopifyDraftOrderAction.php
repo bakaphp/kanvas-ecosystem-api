@@ -124,7 +124,7 @@ class CreateShopifyDraftOrderAction
             'address2' => $this->order->shippingAddress->address_2,
             'city' => $this->order->shippingAddress->city,
             'province' => $this->order->shippingAddress->state,
-            'country' => $this->order->shippingAddress->country,
+            'country' => $this->order->shippingAddress->country->code ?? $this->company->country_code ?? 'US',
             'zip' => $this->order->shippingAddress->zip,
         ] : null;
 
