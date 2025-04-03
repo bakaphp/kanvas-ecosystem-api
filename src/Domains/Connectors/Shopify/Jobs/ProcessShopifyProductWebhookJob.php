@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Jobs;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
