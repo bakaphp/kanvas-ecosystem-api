@@ -14,9 +14,11 @@ use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $payload = $this->webhookRequest->payload;
@@ -37,7 +39,7 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
         //$entityIdField = $this->receiver->app->get('amplitude_entity_id_field');
         $entityId = $payload['event_properties']['message_id'] ?? $payload['event_properties']['prompt_id'] ?? 0;
 
-        if (! $eventType) {
+        if ($eventType !== null) {
             return [
               'message' => 'Event type not found',
             ];
@@ -61,12 +63,14 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
 
         $pageNumber = 1; // Replace with the page number you want (starting from 1)
         if ((int) $entityId > 0) {
-            $userMessages = Message::getById($entityId);
+            $userMessages = Message::fromApp($this->receiver->app)
+                ->where('id', $entityId)
+                ->first();
         } else {
             $userMessages = UserMessage::getFirstMessageFromPage($user, $this->receiver->app, $pageNumber)?->message;
         }
 
-        if (! $userMessages) {
+        if ($userMessages === null) {
             return [
               'message' => 'User message not found',
             ];
