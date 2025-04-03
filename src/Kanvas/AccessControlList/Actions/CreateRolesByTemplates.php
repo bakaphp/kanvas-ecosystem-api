@@ -14,22 +14,19 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 
 class CreateRolesByTemplates
 {
-    public function __construct(
-        protected Apps $app
-    ) {
-        Bouncer::scope()->to(RolesEnums::getScope($app));
-    }
-
-    /**
-     * @var array
-     */
     protected array $templates = [
         OwnerRoleTemplate::class,
         AdminRoleTemplate::class,
         UsersRoleTemplate::class,
     ];
 
-    public function execute()
+    public function __construct(
+        protected Apps $app
+    ) {
+        Bouncer::scope()->to(RolesEnums::getScope($app));
+    }
+
+    public function execute(): void
     {
         foreach ($this->templates as $template) {
             $templateInstance = new $template();
