@@ -18,6 +18,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Rotations\Models\Rotation;
+
 class ModulesRepositories
 {
     public static function getAbilitiesByModule(): array
@@ -73,7 +74,7 @@ class ModulesRepositories
                     'delete attributes',
                 ],
             ],
-            ModuleEnum::CRM->value =>[
+            ModuleEnum::CRM->value => [
                 People::class => [
                     'create people',
                     'edit people',

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Actions;
@@ -45,7 +46,6 @@ class CreateRolesByTemplates
                     }
                     Bouncer::allow($role)->to($value, $key);
                 }
-
             }
         }
     }
