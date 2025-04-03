@@ -26,7 +26,7 @@ class FillUserMessage // implements ShouldQueue
         public EloquentModel $entityFollow,
         public array $activity = []
     ) {
-        $this->onQueue('messages');
+        $this->onQueue('kanvas-social');
     }
 
     public function handle()

@@ -27,18 +27,39 @@ class ForgotPassword
      */
     public function forgot(string $email): Users
     {
-        $recoverUser = Users::getByEmail($email);
-        $recoverUser->generateForgotHash($this->app);
-        $alternativeEmail = $recoverUser->getAlternativeEmail();
+        //$recoverUser = Users::getByEmail($email);
+        $allowResetPasswordWithDisplayname = $this->app->get(
+            (string) AppSettingsEnums::ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME->getValue(),
+        );
 
-        $emailAddresses = $alternativeEmail ? [$email, $alternativeEmail] : [$email];
+        if (! $allowResetPasswordWithDisplayname) {
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new ExceptionsModelNotFoundException('Email is not valid.');
+            }
+        }
+
+        $query = UsersAssociatedApps::fromApp($this->app)
+            ->notDeleted()
+            ->where(
+                'companies_id',
+                AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            );
+
+        // If allowed to reset with displayname, check both email and displayname
+        if ($allowResetPasswordWithDisplayname) {
+            $query->where(function ($subquery) use ($email) {
+                $subquery->where('email', $email)
+                        ->orWhere('displayname', $email);
+            });
+        } else {
+            $query->where('email', $email);
+        }
+
+        $recoverUser = $query->firstOrFail()->user;
+        $recoverUser->generateForgotHash($this->app);
 
         try {
             $resetPasswordTitle = $this->app->get((string) AppSettingsEnums::RESET_PASSWORD_EMAIL_SUBJECT->getValue()) ?? $this->app->name . ' - Reset your password';
-
-            $recoverUser->routeNotificationFor('mail', function () use ($emailAddresses) {
-                return $emailAddresses;
-            });
 
             $recoverUser->notify(new ResetPassword(
                 $recoverUser,

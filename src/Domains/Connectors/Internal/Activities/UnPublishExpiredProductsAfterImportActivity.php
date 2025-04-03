@@ -9,12 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class UnPublishExpiredProductsAfterImportActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     /**
      * @param Products $product
      */
+    #[Override]
     public function execute(Model $company, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

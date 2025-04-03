@@ -18,6 +18,7 @@ use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
@@ -190,18 +191,20 @@ class AuthManagementMutation
         ?ResolveInfo $resolveInfo = null
     ): bool {
         $user = new ForgotPasswordService();
+        $app = app(Apps::class);
+        $companyBranch = AuthenticationService::getAppDefaultAssignCompanyBranch($app) ?? app(CompaniesBranches::class);
 
         $registeredUser = $user->forgot($request['data']['email']);
         $tokenResponse = $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
-
         $request = request();
 
         $registeredUser->fireWorkflow(
             WorkflowEnum::REQUEST_FORGOT_PASSWORD->value,
             true,
             [
-                'app' => app(Apps::class),
+                'app' => $app,
                 'profile' => $user,
+                'company' => $companyBranch?->company,
             ]
         );
 
