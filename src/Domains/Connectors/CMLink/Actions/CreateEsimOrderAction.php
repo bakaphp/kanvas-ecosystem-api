@@ -82,6 +82,12 @@ class CreateEsimOrderAction
         $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
         $this->availableVariant = $parentProductIccid->variant;
 
+        $refuelId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_REFUEL_SKU->value)?->value ?? $this->orderVariant->product->getAttributeBySlug(ConfigurationEnum::PRODUCT_REFUEL_SKU->value)?->value;
+
+        if ($refuelId === null) {
+            throw new ValidationException('Refuel ID not found for this product variant - ' . $this->orderVariant->sku);
+        }
+
         $parentSku = $parentProduct->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $parentProduct->variant->sku;
 
         $this->cmLinkOrder = $this->orderService->refuelOrder(
@@ -89,7 +95,7 @@ class CreateEsimOrderAction
             iccid: $parentProductIccid->product_sku,
             quantity: 1,
             activeDate: $parentOrder->created_at->format('Y-m-d'),
-            refuelingId: $this->variantSkuIsBundleId,
+            refuelingId: $refuelId,
             dataBundleId: $parentSku
         );
 
