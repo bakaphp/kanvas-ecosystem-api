@@ -16,18 +16,19 @@ class ProductVariantService extends ProductService
             if (! $code) {
                 continue;
             }
-            \Illuminate\Support\Facades\Log::info("code" . $code);
+
             $variant = (new ScrapperRepository($this->channels->app))->getByAsin($code);
             $variant['price'] = $variant['pricing'];
             if (key_exists('list_price', $variant)) {
                 $variant['original_price'] = [
-                    'price' => $variant['list_price']
+                    'price' => $variant['list_price'],
                 ];
             }
             $variant['image'] = $variant['images'][0];
             $variant['asin'] = $code;
             $variants[] = $this->mapProduct($variant);
         }
+
         return $variants;
     }
 
@@ -46,6 +47,7 @@ class ProductVariantService extends ProductService
             }, $value);
             $asins = array_merge($asins, $asin);
         }
+
         return $asins;
     }
 }

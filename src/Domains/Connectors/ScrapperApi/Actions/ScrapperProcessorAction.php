@@ -5,28 +5,23 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
-use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
-use Kanvas\Connectors\Shopify\Client;
-use Kanvas\Inventory\Channels\Models\Channels;
+use Baka\Traits\KanvasJobsTrait;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Connectors\ScrapperApi\Events\ProductScrapperEvent;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
-use Kanvas\Connectors\ScrapperApi\Services\ProductService;
 use Kanvas\Connectors\ScrapperApi\Services\ProductVariantService;
-use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
-use Kanvas\Users\Models\Users;
-use Illuminate\Support\Facades\Log;
-use PHPShopify\Exception\CurlException;
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Connectors\Shopify\Actions\CreateProductGraphql;
-use Kanvas\Connectors\Shopify\Actions\UpdateProductGraphql;
 use Kanvas\Connectors\Shopify\Actions\CreateProductVariantGraphql;
 use Kanvas\Connectors\Shopify\Actions\ImagesGraphql;
-use Kanvas\Connectors\ScrapperApi\Actions\SaveCustomFieldDataAction;
+use Kanvas\Connectors\Shopify\Actions\UpdateProductGraphql;
+use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
+use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Users\Models\Users;
 
 class ScrapperProcessorAction
 {
@@ -65,6 +60,7 @@ class ScrapperProcessorAction
                 } else {
                     $mappedProduct['variants'] = $mappedProduct;
                 }
+
                 try {
                     $product = (
                         new ProductImporterAction(
@@ -79,6 +75,7 @@ class ScrapperProcessorAction
                 } catch (\Throwable $e) {
                     Log::error($e->getMessage());
                     Log::debug($e->getTraceAsString());
+
                     continue;
                 }
                 $metafields = $this->getMetaFields(product: $product);
@@ -114,7 +111,7 @@ class ScrapperProcessorAction
                     $product
                 ))->execute();
 
-                Log::info(message: "Product synced with Shopify");
+                Log::info(message: 'Product synced with Shopify');
                 if ($this->uuid) {
                     ProductScrapperEvent::dispatch(
                         $this->app,
@@ -134,10 +131,12 @@ class ScrapperProcessorAction
             } catch (\Throwable $e) {
                 Log::error($e->getMessage());
                 Log::debug($e->getTraceAsString());
+
                 continue;
             }
         }
     }
+
     public function getMetaFields(Products $product): array
     {
         $attribute = $product->attributes()->where('name', operator: ScrapperConfigEnum::AMAZON_PRICE->value)->first();
@@ -147,8 +146,9 @@ class ScrapperProcessorAction
                 'key' => 'amazon_price',
                 'value' => json_encode(['amount' => $attribute->value, 'currency_code' => 'USD']),
                 'type' => 'money',
-            ]
+            ],
         ];
+
         return $metafieldData;
     }
 }
