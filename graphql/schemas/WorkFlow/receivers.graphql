@@ -34,6 +34,13 @@ enum WorkflowReceiverStatusEnum {
     FAILED @enum(value: "failed")
 }
 
+enum workflowReceiverHistoryEnumColumn {
+    ID @enum(value: "receiver_webhook_calls.id")
+    NAME @enum(value: "receiver_webhook_calls.name")
+    CREATED_AT @enum(value: "receiver_webhook_calls.created_at")
+    STATUS @enum(value: "receiver_webhook_calls.status")
+}
+
 extend type Query @guard {
     workflowReceiverHistory(
         where: _
@@ -43,7 +50,7 @@ extend type Query @guard {
                 columns: ["id", "name"]
                 handler: "App\\GraphQL\\Workflow\\Builders\\Receivers\\ReceiversBuilder@getHasAction"
             )
-        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "status"])
+        orderBy: _ @orderBy(columnsEnum: workflowReceiverHistoryEnumColumn)
     ): [WorkflowReceiversHistory!]!
         @paginate(
             builder: "App\\GraphQL\\Workflow\\Builders\\Receivers\\ReceiversBuilder@getReceiversHistory"
