@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
-use Awobaz\Compoships\Exceptions\InvalidUsageException;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -14,10 +13,8 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Exception;
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
-use Illuminate\Database\Eloquent\MissingAttributeException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -326,10 +323,6 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     /**
      * @todo refactor this method is to long
-     * @throws BindingResolutionException
-     * @throws MissingAttributeException
-     * @throws InvalidUsageException
-     * @throws InvalidArgumentException
      */
     public function toSearchableArray(): array
     {
