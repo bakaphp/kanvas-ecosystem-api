@@ -394,7 +394,7 @@ class SyncEsimWithProviderCommand extends Command
             $vias,
             $user
         );
-        
+
         $notification->setFromUser($user);
         Notification::send(collect([$notifyUser]), $notification);
     }
