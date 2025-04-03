@@ -82,13 +82,15 @@ class CreateEsimOrderAction
         $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
         $this->availableVariant = $parentProductIccid->variant;
 
+        $parentSku = $parentProduct->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $parentProduct->variant->sku;
+
         $this->cmLinkOrder = $this->orderService->refuelOrder(
             thirdOrderId: (string) $parentOrder->order_number,
             iccid: $parentProductIccid->product_sku,
             quantity: 1,
             activeDate: $parentOrder->created_at->format('Y-m-d'),
             refuelingId: $this->variantSkuIsBundleId,
-            dataBundleId: $parentProduct->product_sku
+            dataBundleId: $parentSku
         );
 
         if ($this->cmLinkOrder['code'] !== '0000000') {
