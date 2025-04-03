@@ -36,7 +36,7 @@ enum WorkflowReceiverStatusEnum {
 
 enum workflowReceiverHistoryEnumColumn {
     ID @enum(value: "receiver_webhook_calls.id")
-    NAME @enum(value: "receiver_webhook_calls.name")
+    NAME @enum(value: "receiver_webhooks.name")
     CREATED_AT @enum(value: "receiver_webhook_calls.created_at")
     STATUS @enum(value: "receiver_webhook_calls.status")
 }
