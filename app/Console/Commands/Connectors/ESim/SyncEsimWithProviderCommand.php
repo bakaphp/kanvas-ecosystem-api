@@ -460,7 +460,6 @@ class SyncEsimWithProviderCommand extends Command
         $templateName,
         Message $message
     ): void {
-
         $user = auth()->user();
         $app = $message->app;
 
