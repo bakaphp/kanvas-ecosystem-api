@@ -259,7 +259,7 @@ class SyncEsimWithProviderCommand extends Command
         $today = now();
         $shouldForceActive = $isUnlimited && in_array(strtolower($status), ['disabled', 'disable']) && $today->lessThanOrEqualTo($expirationDay);
 
-        if ($remainingData <= 0 && ($isActive == false && !$shouldForceActive)) {
+        if ($remainingData <= 0 && ($isActive == false && ! $shouldForceActive)) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
@@ -394,7 +394,7 @@ class SyncEsimWithProviderCommand extends Command
     {
         $expirationDate = Carbon::parse($esimStatus['expirationDate']);
         $hoursLeft = now()->diffInHours($expirationDate);
-        
+
         // Notify when around 22 hours are left (between 20-24 hours)
         if ($hoursLeft >= 20 && $hoursLeft <= 24 && (! isset($message->get('sent_unlimited')) || $message->get('sent_unlimited') != true)) {
             $this->sendPushNotification(
