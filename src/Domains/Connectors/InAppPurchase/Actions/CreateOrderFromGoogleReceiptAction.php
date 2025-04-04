@@ -51,11 +51,11 @@ class CreateOrderFromGoogleReceiptAction
             'productId' => $this->googlePlayInAppPurchase->product_id,
             'orderId' => $this->googlePlayInAppPurchase->order_id,
             'purchaseToken' => $this->googlePlayInAppPurchase->purchase_token,
-            'purchaseState' => $this->googlePlayInAppPurchase->purchase_state,
         ];
 
         $verifiedReceipt = $this->verifyReceipt($receipt);
 
+        // 0 = Purchased, 1 = Canceled, 2 = Pending
         if ($verifiedReceipt->getPurchaseState() == GooglePlayReceiptStatusEnum::CANCELED) {
             throw new ValidationException('Invalid Receipt');
         }
