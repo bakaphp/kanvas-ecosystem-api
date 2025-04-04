@@ -169,7 +169,8 @@ class RolesManagementMutation
         (new BulkAllowRoleToPermissionAction(
             app(Apps::class),
             $role,
-            $permissions
+            $permissions,
+            SilberRole::find($input['template_id'])
         ))->execute();
         return KanvasRole::find($role->id);
     }
