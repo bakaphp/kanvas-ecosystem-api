@@ -19,19 +19,24 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
         //$regionId = $this->receiver->configuration['region_id'];
         $payload = $this->webhookRequest->payload;
         $chargeId = $payload['data']['object']['latest_charge'] ?? null;
-        sleep(10);
+        $clientSecret = $payload['data']['object']['client_secret'] ?? null;
+        sleep(15);
         if ($chargeId === null) {
             return [
                 'message' => 'No charge ID found in the payload',
                 'response' => null,
             ];
         }
+
         $order = Order::fromApp($this->receiver->app)
-        ->where('metadata', 'LIKE', '%' . $chargeId . '%')
+        ->where('metadata', 'LIKE', '%' . $clientSecret . '%')
         ->first();
 
         if (empty($order)) {
             return [
+                'clientSecret' => $clientSecret,
+                'chargeId' => $chargeId,
+                //'order' => $order->toArray(),
                 'message' => 'Order not found',
                 'response' => null,
             ];
