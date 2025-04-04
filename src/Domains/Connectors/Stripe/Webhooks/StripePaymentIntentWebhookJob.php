@@ -27,14 +27,14 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $order = Order::fromApp($this->receiver->app)->where('checkout_token', $payload['id'])->first();
-        $orderCommerceId = $order->get(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value);
+        $order = Order::fromApp($this->receiver->app)->where('checkout_token', $payload['data']['object']['client_secret'])->first();
         if (empty($order)) {
             return [
                 'message' => 'Order not found',
                 'response' => null,
             ];
         }
+        $orderCommerceId = $order->get(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value);
 
         $order->addPrivateMetadata('stripe_payment_intent', $payload);
 
