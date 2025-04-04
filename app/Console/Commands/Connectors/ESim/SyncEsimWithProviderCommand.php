@@ -213,6 +213,7 @@ class SyncEsimWithProviderCommand extends Command
 
         $status = strtolower($response['state']);
         $isActive = IccidStatusEnum::getStatus($status) == 'active';
+        $isUnlimited = $message['unlimited'] ?? false;
 
         if ($isActive && empty($existingActivationDate)) {
             $activationDate = now()->format('Y-m-d H:i:s');
@@ -253,22 +254,22 @@ class SyncEsimWithProviderCommand extends Command
         // Initialize spentMessage as null
         $spentMessage = null;
 
-        // 0 means the data hasnt been used yet
-        if ($remainingData <= 0 && $isActive == false) {
+        // Verificación especial para planes ilimitados en velocidad reducida
+        $expirationDay = Carbon::parse($expirationDate);
+        $today = now();
+        $shouldForceActive = $isUnlimited && in_array(strtolower($status), ['disabled', 'disable']) && $today->lessThanOrEqualTo($expirationDay);
+
+        if ($remainingData <= 0 && ($isActive == false && !$shouldForceActive)) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
-        } elseif ($remainingData == 0 && $isActive == true) {
+        } elseif (($remainingData == 0 && $isActive == true) || ($remainingData == 0 && $shouldForceActive)) {
             /**
              * @todo Move those spanish strings to app settings
              */
-            $today = now();
-            $expirationDay = Carbon::parse($expirationDate);
-            // If current date is the last day or after the expiration date
             if ($today->startOfDay()->equalTo($expirationDay->startOfDay()) || $today->greaterThan($expirationDay)) {
                 $spentMessage = "Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps";
             } else {
-                // There are still days left before expiration
                 $spentMessage = "Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps hasta el siguiente día";
             }
         }
@@ -467,7 +468,13 @@ class SyncEsimWithProviderCommand extends Command
             IccidStatusEnum::DISABLE->value,
         ];
 
-        if (in_array(strtolower($response['bundleState']), $inactiveStatuses, true)) {
+        $isUnlimited = $response['unlimited'] ?? false;
+        $bundleState = strtolower($response['bundleState']);
+        $expirationDate = isset($response['expiration_date']) ? Carbon::parse($response['expiration_date']) : null;
+
+        $shouldForcePublic = $isUnlimited && in_array($bundleState, ['disabled', 'disable']) && $expirationDate && now()->lessThan($expirationDate);
+
+        if (in_array($bundleState, $inactiveStatuses, true) && ! $shouldForcePublic) {
             $message->setPrivate();
             $this->info("Message ID: {$message->id} has been set to private.");
         } else {
