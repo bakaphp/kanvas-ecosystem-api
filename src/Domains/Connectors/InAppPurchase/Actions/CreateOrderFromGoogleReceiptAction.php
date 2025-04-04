@@ -82,7 +82,7 @@ class CreateOrderFromGoogleReceiptAction
 
     private function verifyReceipt(array $receipt): ProductPurchase
     {
-        $client = ClientFactory::createWithJsonKey(json_decode(file_get_contents(getenv("GOOGLE_PLAY_CREDENTIALS")), true));
+        $client = ClientFactory::createWithJsonKey(json_decode(file_get_contents(config('kanvas.app.google.google_play_credentials_json')), true));
         return Product::googlePlay($client)->id($receipt['productId'])->token($receipt['purchaseToken'])->get();
     }
 
