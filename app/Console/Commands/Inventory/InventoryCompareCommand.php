@@ -38,13 +38,36 @@ class InventoryCompareCommand extends Command
         $app = Apps::getById($this->argument('app_id'));
         $this->overwriteAppService($app);
         $company = Companies::getById($this->argument('company_id'));
+
         $csvFilePath = $this->argument('filePath');
-        $this->compareInventory($app, $company, $csvFilePath);
+
+        $productList = $this->getProductList($csvFilePath);
+        $barcodeList = array_keys($productList);
+        $inverseProductList = array_flip($productList);
+
+        $missingBarcodes = $this->compareInventory($app, $company, $barcodeList);
+        $skusOfMissingBarcodes = collect($missingBarcodes)->map(fn ($barcode) => $productList[$barcode])->toArray();
+
+        ["missing_skus" => $missingSkus, "changed_barcodes" => $changedBarcodes] = $this->compareInventoryBySku($app, $company, $skusOfMissingBarcodes);
+        $barcodesOfMissingSkus = collect($missingSkus)->map(fn ($sku) => $inverseProductList[$sku])->toArray();
+        $barcodesOfChangedBarcodes = collect($changedBarcodes)->map(fn ($barcode) => $inverseProductList[$barcode])->toArray();
+
+
+        $this->info('Missing barcodes: ' . json_encode($missingBarcodes));
+
+        $this->info('Missing variants by barcode ' . $company->name . ': ' . json_encode($missingBarcodes));
+        $this->info('Total missing variants in ' . $company->name . ': ' . count($missingBarcodes));
+        $this->info('Total changed barcodes in ' . $company->name . ': ' . count($changedBarcodes));
+        $this->info('Total missing skus in ' . $company->name . ': ' . count($missingSkus));
+        Storage::disk('local')->put('missing_variants.json', json_encode([
+            'missing_barcodes' => $missingBarcodes,
+            'changed_barcodes' => $barcodesOfChangedBarcodes,
+            'missing_skus' => $barcodesOfMissingSkus,
+        ]));
     }
 
-    protected function compareInventory(AppInterface $app, CompanyInterface $company, string $csvFilePath): void
+    protected function compareInventory(AppInterface $app, CompanyInterface $company, array $barcodeList): array
     {
-        $barcodeList = $this->getBarcodeList($csvFilePath);
         $chunks = array_chunk($barcodeList, 50);
         $missingVariants = [];
 
@@ -65,28 +88,66 @@ class InventoryCompareCommand extends Command
                 ...array_values(array_diff($chunk, $foundVariants))
             ];
         }
-        $this->info('Missing variants in ' . $company->name . ': ' . json_encode($missingVariants));
-        $this->info('Total missing variants in ' . $company->name . ': ' . count($missingVariants));
-        Storage::disk('local')->put('missing_variants.json', json_encode($missingVariants));
+
+        return $missingVariants;
+    }
+
+    protected function compareInventoryBySku(AppInterface $app, CompanyInterface $company, array $skuList): array
+    {
+        $chunks = array_chunk($skuList, 50);
+        $missingSkus = [];
+        $changedSkus = [];
+
+        foreach ($chunks as $chunk) {
+            $foundVariants = Variants::query()
+            ->where(
+                fn ($query) => $query
+                ->whereIn('sku', $chunk)
+            )
+            ->where('companies_id', $company->id)
+            ->where('apps_id', $app->id)
+            ->pluck('sku')
+            ->toArray();
+
+            $missingSkus = [
+                ...$missingSkus,
+                ...array_values(array_diff($chunk, $foundVariants))
+            ];
+
+            $changedSkus = [
+                ...$changedSkus,
+                ...$foundVariants
+            ];
+        }
+
+        return [
+            'missing_skus' => $missingSkus,
+            'changed_barcodes' => $foundVariants
+        ];
     }
 
 
-    private function getBarcodeList(string $csvFilePath): array
+
+
+    private function getProductList(string $csvFilePath): array
     {
-        $barcodeList = [];
         $headerOffset = 0;
         $csv = Reader::createFromPath($csvFilePath);
         $csv->setHeaderOffset($headerOffset);
         $csv->skipEmptyRecords();
         $records = $csv->getRecords();
+
+        $productList = [];
         foreach ($records as $offset => $record) {
             if ($offset < $headerOffset) {
                 continue;
             }
 
-            $barcodeList[] = $record['Copic Item No/ UPC'];
+            $barcode = $record['Copic Item No/ UPC'];
+            $sku = $record["Macpherson  Item #"];
+            $productList[$barcode] = $sku;
         }
 
-        return $barcodeList;
+        return $productList;
     }
 }
