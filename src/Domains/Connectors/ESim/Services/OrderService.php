@@ -49,7 +49,7 @@ class OrderService
         $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
         $iccid = $this->order->metadata['data']['iccid'] ?? null;
 
-        if (!$iccid) {
+        if (! $iccid) {
             return [
                 'status' => 'error',
                 'message' => 'ICCID is required',
