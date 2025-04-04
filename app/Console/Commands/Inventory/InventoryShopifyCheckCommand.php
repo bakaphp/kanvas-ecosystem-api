@@ -51,7 +51,7 @@ class InventoryShopifyCheckCommand extends Command
     protected function findMissingShopifyVariants(AppInterface $app, CompanyInterface $company): array
     {
         $foundVariants = Variants::query()
-        ->whereDoesntHave('customFields', fn ($query) => $query->whereRaw('slug like ?', '%' . CustomFieldEnum::SHOPIFY_VARIANT_ID->value . '%'))
+        ->whereDoesntHave('customFields', fn ($query) => $query->whereRaw('name like ?', '%' . CustomFieldEnum::SHOPIFY_VARIANT_ID->value . '%'))
         ->where([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
