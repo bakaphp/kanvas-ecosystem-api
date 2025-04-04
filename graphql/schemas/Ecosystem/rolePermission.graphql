@@ -67,6 +67,7 @@ input RoleInput {
     name: String!
     title: String
     permissions: [RolePermissionsInput!]
+    template_id: ID
 }
 
 input RolePermissionsInput {

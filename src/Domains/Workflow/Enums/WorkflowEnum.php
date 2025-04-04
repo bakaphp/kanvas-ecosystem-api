@@ -29,6 +29,7 @@ enum WorkflowEnum: string
     case AFTER_RUNNING_RECEIVER = 'after-running-receiver';
     case AFTER_MESSAGE_INTERACTION = 'after-message-interaction';
     case AFTER_PAYMENT_INTENT = 'after-payment-intent';
+    case AFTER_ID_VERIFICATION = 'after-id-verification';
 
     /**
      * Get the enum case by its value.

@@ -246,11 +246,24 @@ class SyncEsimWithProviderCommand extends Command
             $message->setPrivate();
         }
 
+        // Initialize spentMessage as null
+        $spentMessage = null;
+
         // 0 means the data hasnt been used yet
         if ($remainingData <= 0 && $isActive == false) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
+        } elseif ($remainingData == 0 && $isActive == true) {
+            $today = now();
+            $expirationDay = Carbon::parse($expirationDate);
+            // If current date is the last day or after the expiration date
+            if ($today->startOfDay()->equalTo($expirationDay->startOfDay()) || $today->greaterThan($expirationDay)) {
+                $spentMessage = "Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps";
+            } else {
+                // There are still days left before expiration
+                $spentMessage = "Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps hasta el siguiente día";
+            }
         }
 
         $esimStatus = new ESimStatus(
@@ -268,6 +281,7 @@ class SyncEsimWithProviderCommand extends Command
             message: $response['installDevice'],
             installedDate: $installedDate,
             activationDate: $activationDate,
+            spentMessage: $spentMessage
         );
 
         return $esimStatus->toArray();

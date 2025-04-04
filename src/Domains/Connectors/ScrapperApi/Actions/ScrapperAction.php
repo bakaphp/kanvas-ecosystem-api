@@ -71,7 +71,6 @@ class ScrapperAction
             ));
             $classConcurrently[] = fn () => $action->execute();
         }
-        Log::debug(json_encode(value: $classConcurrently));
         Octane::concurrently($classConcurrently);
         return [
             'scrapperProducts' => $scrapperProducts,

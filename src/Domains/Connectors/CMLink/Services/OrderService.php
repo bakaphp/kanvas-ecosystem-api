@@ -55,8 +55,7 @@ class OrderService
      * @param string $thirdOrderId Unique order ID from the client.
      * @param string $iccid ICCID of the target SIM card.
      * @param int $quantity Number of bundles to purchase.
-     * @param int $isRefuel Indicates whether this is an add-on package (0 = yes, 1 = no).
-     * @param int $refuelingId Add-on package ID, it is required if is_Refuel is 0
+     * @param string $refuelingId Add-on package ID, it is required if is_Refuel is 0
      * @param string $dataBundleId ID of the data package to purchase.
      */
     public function refuelOrder(
@@ -64,14 +63,16 @@ class OrderService
         string $iccid,
         int $quantity,
         string $activeDate,
-        string $refuelingId
+        string $refuelingId,
+        string $dataBundleId
     ): array {
         return $this->client->post('/aep/APP_createOrder_SBO/v1', [
             'thirdOrderId' => $thirdOrderId,
             'ICCID' => $iccid,
             'quantity' => $quantity,
             'is_Refuel' => '0',
-            'refuelingId' => (string) $refuelingId,
+            'refuelingId' => $refuelingId,
+            'dataBundleId' => $dataBundleId,
             'includeCard' => 0, // Assuming 0 means no physical card
             'sendLang' => 2,
             //'setActiveTime' => date('Ymd', strtotime($activeDate)),
