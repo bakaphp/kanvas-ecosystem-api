@@ -305,9 +305,11 @@ class SyncEsimWithProviderCommand extends Command
      *
      * @param Message $message
      * @param array $esimStatus
+     * @param bool $isActive
+     * @param bool $shouldForceActive
      * @return void
      */
-    private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isActive, $shouldForceActive): void
+    private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isActive, bool $shouldForceActive): void
     {
         // If the ESim is not in an active state, don't send notifications
         if (! $isActive) {
@@ -362,9 +364,9 @@ class SyncEsimWithProviderCommand extends Command
                 $notifyUser,
                 '¡Atención! Has usado el 70% de tus datos.',
                 'Aún tienes conexión, pero tu plan está por agotarse. Verifica tu consumo en la app.',
-                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
                 'plan-warning-usage-notification',
-                $message
+                $message,
+                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
             );
             $message->set('sent_70', 1);
         }
@@ -374,9 +376,9 @@ class SyncEsimWithProviderCommand extends Command
                 $notifyUser,
                 '¡Casi sin datos!',
                 'Has consumido el 90% de tu plan. Considera recargar para seguir navegando sin interrupciones.',
-                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
                 'plan-warning-usage-notification',
-                $message
+                $message,
+                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
             );
             $message->set('sent_90', 1);
         }
@@ -401,9 +403,9 @@ class SyncEsimWithProviderCommand extends Command
                 $notifyUser,
                 '¡Tu plan está por finalizar!',
                 'Aprovecha al máximo tu conexión. Tu plan ilimitado vence en menos de 24 horas.',
-                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
                 'plan-warning-usage-notification',
-                $message
+                $message,
+                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
             );
             $message->set('sent_unlimited', 1);
         }
@@ -415,6 +417,7 @@ class SyncEsimWithProviderCommand extends Command
      * @param array $esimStatus
      * @param Users $user
      * @param Message $message
+     * @param array $dataNotification
      * @return void
      */
     private function checkUnlimitedPlanUsage(array $esimStatus, Users $notifyUser, Message $message, array $dataNotification): void
@@ -434,9 +437,9 @@ class SyncEsimWithProviderCommand extends Command
                 $notifyUser,
                 $dataNotification['title'],
                 $dataNotification['message'],
-                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
                 'plan-warning-usage-notification',
-                $message
+                $message,
+                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
             );
             $message->set('sent_unlimited_usage', 1);
         }
@@ -449,6 +452,7 @@ class SyncEsimWithProviderCommand extends Command
      * @param string $title
      * @param string $notificationMessage
      * @param array $additionalData
+     * @param string $templateName,
      * @param Message $message
      * @return void
      */
@@ -456,9 +460,9 @@ class SyncEsimWithProviderCommand extends Command
         Users $notifyUser,
         string $title,
         string $notificationMessage,
+        string $templateName,
+        Message $message,
         array $additionalData = [],
-        $templateName,
-        Message $message
     ): void {
         $user = auth()->user();
         $app = $message->app;
