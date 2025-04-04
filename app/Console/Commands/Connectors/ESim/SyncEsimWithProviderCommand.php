@@ -357,7 +357,7 @@ class SyncEsimWithProviderCommand extends Command
 
         $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
 
-        if ($usedPercentage >= 70 && $usedPercentage < 75 && (! isset($message->get('sent_70')) || $message->get('sent_70') != true)) {
+        if ($usedPercentage >= 70 && $usedPercentage < 75 && (! empty($message->get('sent_70')) || $message->get('sent_70') != true)) {
             $this->sendPushNotification(
                 $notifyUser,
                 '¡Atención! Has usado el 70% de tus datos.',
@@ -369,7 +369,7 @@ class SyncEsimWithProviderCommand extends Command
             $message->set('sent_70', 1);
         }
 
-        if ($usedPercentage >= 90 && $usedPercentage < 95 && (! isset($message->get('sent_90')) || $message->get('sent_90') != true)) {
+        if ($usedPercentage >= 90 && $usedPercentage < 95 && (! empty($message->get('sent_90')) || $message->get('sent_90') != true)) {
             $this->sendPushNotification(
                 $notifyUser,
                 '¡Casi sin datos!',
@@ -396,7 +396,7 @@ class SyncEsimWithProviderCommand extends Command
         $hoursLeft = now()->diffInHours($expirationDate);
 
         // Notify when around 22 hours are left (between 20-24 hours)
-        if ($hoursLeft >= 20 && $hoursLeft <= 24 && (! isset($message->get('sent_unlimited')) || $message->get('sent_unlimited') != true)) {
+        if ($hoursLeft >= 20 && $hoursLeft <= 24 && (! empty($message->get('sent_unlimited')) || $message->get('sent_unlimited') != true)) {
             $this->sendPushNotification(
                 $notifyUser,
                 '¡Tu plan está por finalizar!',
@@ -429,7 +429,7 @@ class SyncEsimWithProviderCommand extends Command
         $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
 
         // Notify when around 100% of plan is used
-        if ($usedPercentage >= 100 && (! isset($message->get('sent_unlimited_usage')) || $message->get('sent_unlimited_usage') != true)) {
+        if ($usedPercentage >= 100 && (! empty($message->get('sent_unlimited_usage')) || $message->get('sent_unlimited_usage') != true)) {
             $this->sendPushNotification(
                 $notifyUser,
                 $dataNotification['title'],
