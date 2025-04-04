@@ -189,6 +189,10 @@ class CMLinkProductService
                 'value' => $bundle['desc'][0]['value'] ?? 'Unknown',
             ],
             [
+                'name' => 'refueling_package',
+                'value' => $bundle['refuelingPackage'] ?? null,
+            ],
+            [
                 'name' => 'Variant Speed',
                 'value' => 'LTE', // Replace with actual speed if available
             ],
@@ -253,10 +257,10 @@ class CMLinkProductService
             'name' => 'max_unlimited_days',
             'value' => $bundle['period'] ?? 0,
         ];
-        $attributes[] = [
+/*         $attributes[] = [
             'name' => 'refueling_package',
             'value' => $bundle['refuelingPackage'] ?? null,
-        ];
+        ]; */
 
         return $attributes;
     }
