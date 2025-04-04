@@ -14,6 +14,8 @@ use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -22,6 +24,7 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\KanvasActivity;
+use Stripe\StripeClient;
 use Throwable;
 
 class CreateOrderInESimActivity extends KanvasActivity
@@ -173,7 +176,23 @@ class CreateOrderInESimActivity extends KanvasActivity
         try {
             $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
             $woocommerceResponse = $woocommerceOrder->execute($providerValue);
+            $orderCommerceId = $woocommerceResponse['order']['id'];
             $order->set(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value, $woocommerceResponse['order']['id']);
+
+            $stripe = new StripeClient($order->app->get(EnumsConfigurationEnum::STRIPE_SECRET_KEY->value));
+
+            $clientSecret = $order->checkout_token;
+            $paymentIntentId = explode('_secret_', $clientSecret)[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
+
+            $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
+
+            $commerceOrder = new WooCommerceOrderService($order->app);
+            $updateResponse = $commerceOrder->updateOrderStripePayment(
+                $orderCommerceId,
+                $paymentIntent->latest_charge,
+                'completed',
+                $paymentIntent->toArray(),
+            );
         } catch (Throwable $e) {
             $woocommerceResponse = [
                 'status' => 'error',
@@ -183,6 +202,9 @@ class CreateOrderInESimActivity extends KanvasActivity
             ];
         }
 
-        return $woocommerceResponse;
+        return [
+            'order' => $woocommerceResponse,
+            'update' => $updateResponse ?? null,
+        ];
     }
 }

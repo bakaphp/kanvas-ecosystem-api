@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Webhooks;
 
-use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
-use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -20,7 +18,7 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
         $payload = $this->webhookRequest->payload;
         $chargeId = $payload['data']['object']['latest_charge'] ?? null;
         $clientSecret = $payload['data']['object']['client_secret'] ?? null;
-        sleep(15);
+        //sleep(15);
         if ($chargeId === null) {
             return [
                 'message' => 'No charge ID found in the payload',
@@ -41,16 +39,8 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
                 'response' => null,
             ];
         }
-        $orderCommerceId = $order->get(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value);
 
         $order->addPrivateMetadata('stripe_payment_intent', $payload);
-
-        $commerceOrder = new WooCommerceOrderService($order->app);
-        $response = $commerceOrder->updateOrderStripePayment(
-            $orderCommerceId,
-            $chargeId,
-            'completed'
-        );
 
         $order->fireWorkflow(
             WorkflowEnum::AFTER_PAYMENT_INTENT->value,
