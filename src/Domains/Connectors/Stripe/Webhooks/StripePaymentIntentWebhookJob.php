@@ -16,7 +16,7 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
     {
         //$regionId = $this->receiver->configuration['region_id'];
         $payload = $this->webhookRequest->payload;
-        $chargeId = $payload['latest_charge'] ?? null;
+        $chargeId = $payload['data']['object']['latest_charge'] ?? null;
 
         if ($chargeId === null) {
             return [
