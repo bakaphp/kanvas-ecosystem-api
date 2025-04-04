@@ -55,9 +55,14 @@ class CreateOrderFromGoogleReceiptAction
 
         $verifiedReceipt = $this->verifyReceipt($receipt);
 
+        
         // 0 = Purchased, 1 = Canceled, 2 = Pending
-        if ($verifiedReceipt->getPurchaseState() == GooglePlayReceiptStatusEnum::CANCELED) {
-            throw new ValidationException('Invalid Receipt');
+        if ($verifiedReceipt->getPurchaseState() == GooglePlayReceiptStatusEnum::CANCELED->value) {
+            throw new ValidationException('Receipt is in canceled state');
+        }
+
+        if ($verifiedReceipt->getPurchaseState() == GooglePlayReceiptStatusEnum::PENDING->value) {
+            throw new ValidationException('Receipt is in pending state');
         }
 
         $people = $this->createPeople();
