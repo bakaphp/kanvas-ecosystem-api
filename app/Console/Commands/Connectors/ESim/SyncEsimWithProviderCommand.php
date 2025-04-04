@@ -295,7 +295,7 @@ class SyncEsimWithProviderCommand extends Command
         $esimStatusArray = $esimStatus->toArray();
 
         // Check and send notifications if needed
-        $this->checkAndSendNotifications($message, $esimStatusArray, $isActive);
+        $this->checkAndSendNotifications($message, $esimStatusArray, $isActive, $shouldForceActive);
 
         return $esimStatusArray;
     }
@@ -307,7 +307,7 @@ class SyncEsimWithProviderCommand extends Command
      * @param array $esimStatus
      * @return void
      */
-    private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isActive): void
+    private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isActive, $shouldForceActive): void
     {
         // If the ESim is not in an active state, don't send notifications
         if (! $isActive) {
@@ -324,6 +324,13 @@ class SyncEsimWithProviderCommand extends Command
 
         $notifyUser = $message->user;
 
+        if ($esimStatus['unlimited'] && $shouldForceActive) {
+            $dataNotification = [];
+            $dataNotification['title'] = 'Has alcanzado tu límite diario de datos a alta velocidad.';
+            $dataNotification['message'] = 'Ahora navegarás a una velocidad reducida de 384kbps.';
+
+            $this->checkUnlimitedPlanUsage($esimStatus, $notifyUser, $message, $dataNotification);
+        }
         if ($esimStatus['unlimited']) {
             $this->checkUnlimitedPlanExpiration($esimStatus, $notifyUser, $message);
         } else {
@@ -399,6 +406,39 @@ class SyncEsimWithProviderCommand extends Command
                 $message
             );
             $message->set('sent_unlimited', 1);
+        }
+    }
+
+    /**
+     * Check if unlimited plan is about to expire and send notification
+     *
+     * @param array $esimStatus
+     * @param Users $user
+     * @param Message $message
+     * @return void
+     */
+    private function checkUnlimitedPlanUsage(array $esimStatus, Users $notifyUser, Message $message, array $dataNotification): void
+    {
+        $initialQuantity = $esimStatus['initialQuantity'];
+        $remainingQuantity = $esimStatus['remainingQuantity'];
+
+        if ($initialQuantity <= 0) {
+            return;
+        }
+
+        $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
+
+        // Notify when around 100% of plan is used
+        if ($usedPercentage >= 100 && (!isset($message->get('sent_unlimited_usage')) || $message->get('sent_unlimited_usage') != true)) {
+            $this->sendPushNotification(
+                $notifyUser,
+                $dataNotification['title'],
+                $dataNotification['message'],
+                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
+                'plan-warning-usage-notification',
+                $message
+            );
+            $message->set('sent_unlimited_usage', 1);
         }
     }
 
