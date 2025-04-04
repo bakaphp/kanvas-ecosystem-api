@@ -20,7 +20,6 @@ class GooglePlayInAppPurchaseReceipt extends Data
         public readonly string $product_id,
         public readonly string $order_id,
         public readonly string $purchase_token,
-        public readonly int $purchase_state, // 0 = Purchased, 1 = Canceled, 2 = Pending
         public readonly array $custom_fields = []
     ) {
     }
@@ -40,7 +39,6 @@ class GooglePlayInAppPurchaseReceipt extends Data
             $data['product_id'],
             $data['order_id'],
             $data['purchase_token'],
-            (int) $data['purchase_state'],
             $data['custom_fields'] ?? []
         );
     }
