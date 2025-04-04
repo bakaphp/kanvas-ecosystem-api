@@ -31,7 +31,7 @@ type Order {
     checkout_token: String
     currency: String
     metadata: Mixed
-    private_metadata: String
+    private_metadata: Mixed
     is_deleted: Boolean!
     created_at: String!
     updated_at: String
