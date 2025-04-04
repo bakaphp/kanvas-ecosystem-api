@@ -24,8 +24,8 @@ class WooCommerceOrderService
         ?string $newStatus = null,
         array $paymentIntentData = []
     ): object {
-        $paymentIntentId = $paymentIntentData['data']['object']['id'] ?? null;
-        $chargeData = $paymentIntentData['data']['object']['charges']['data'][0] ?? null;
+        $paymentIntentId = $paymentIntentData['id'] ?? null;
+        $chargeData = $paymentIntentData['charges']['data'][0] ?? null;
 
         $payloadData = [
             'payment_method' => 'stripe',
@@ -59,7 +59,7 @@ class WooCommerceOrderService
                 ],
                 [
                     'key' => '_stripe_currency',
-                    'value' => $paymentIntentData['data']['object']['currency'] ?? 'usd',
+                    'value' => $paymentIntentData['currency'] ?? 'usd',
                 ],
                 [
                     'key' => '_stripe_captured',
@@ -75,18 +75,18 @@ class WooCommerceOrderService
                 ],
                 [
                     'key' => '_stripe_payment_method',
-                    'value' => $paymentIntentData['data']['object']['payment_method'] ?? null,
+                    'value' => $paymentIntentData['payment_method'] ?? null,
                 ],[
                     'key' => '_stripe_source_id',
-                    'value' => $paymentIntentData['data']['object']['payment_method'] ?? null,
+                    'value' => $paymentIntentData['payment_method'] ?? null,
                 ],
                 [
                     'key' => '_payment_method_id',
-                    'value' => $paymentIntentData['data']['object']['payment_method'] ?? null,
+                    'value' => $paymentIntentData['payment_method'] ?? null,
                 ],
                 [
                     'key' => '_stripe_customer_id',
-                    'value' => $paymentIntentData['data']['object']['customer'] ?? '',
+                    'value' => $paymentIntentData['customer'] ?? '',
                 ],
             ],
         ];
