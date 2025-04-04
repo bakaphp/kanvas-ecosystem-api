@@ -1198,15 +1198,16 @@
         {
             "name": "aws/aws-sdk-php",
             "version": "3.342.16",
+            "version": "3.342.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c7db59f47523f66205b4c429a69b6baf947d3f78"
+                "reference": "c4dcf34bedbd9727bdd99a38d6c4f386a3ca2bbc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c7db59f47523f66205b4c429a69b6baf947d3f78",
-                "reference": "c7db59f47523f66205b4c429a69b6baf947d3f78",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c4dcf34bedbd9727bdd99a38d6c4f386a3ca2bbc",
+                "reference": "c4dcf34bedbd9727bdd99a38d6c4f386a3ca2bbc",
                 "shasum": ""
             },
             "require": {
@@ -1290,7 +1291,7 @@
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
                 "source": "https://github.com/aws/aws-sdk-php/tree/3.342.16"
             },
-            "time": "2025-03-28T18:09:10+00:00"
+            "time": "2025-03-10T18:12:55+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -16301,16 +16302,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.11",
+            "version": "2.1.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "8ca5f79a8f63c49b2359065832a654e1ec70ac30"
+                "reference": "f9adff3b87c03b12cc7e46a30a524648e497758f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/8ca5f79a8f63c49b2359065832a654e1ec70ac30",
-                "reference": "8ca5f79a8f63c49b2359065832a654e1ec70ac30",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/f9adff3b87c03b12cc7e46a30a524648e497758f",
+                "reference": "f9adff3b87c03b12cc7e46a30a524648e497758f",
                 "shasum": ""
             },
             "require": {
@@ -16355,7 +16356,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-03-24T13:45:00+00:00"
+            "time": "2025-03-09T09:30:48+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
