@@ -47,9 +47,6 @@ class CreateOrderFromGoogleReceiptAction
      */
     public function execute(): ModelsOrder
     {
-
-        print_r(config('kanvas.app.google.google_play_credentials_json'));
-        die();
         $receipt = [
             'productId' => $this->googlePlayInAppPurchase->product_id,
             'orderId' => $this->googlePlayInAppPurchase->order_id,
