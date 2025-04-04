@@ -27,7 +27,10 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $order = Order::fromApp($this->receiver->app)->where('checkout_token', $payload['data']['object']['client_secret'])->first();
+        $order = Order::fromApp($this->receiver->app)
+            ->whereJsonContains('metadata->paymentIntent->client_secret', $chargeId)
+            ->first();
+
         if (empty($order)) {
             return [
                 'message' => 'Order not found',
