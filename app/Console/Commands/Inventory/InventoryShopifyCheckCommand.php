@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class InventoryShopifyCheckCommand extends Command
@@ -40,11 +41,14 @@ class InventoryShopifyCheckCommand extends Command
         $company = Companies::getById($this->argument('company_id'));
 
         $missingBarcodes = $this->findMissingShopifyVariants($app, $company);
+        $missingProducts = $this->findMissingShopifyProducts($app, $company);
 
 
         $this->info('Missing shopify id in variants' . $company->name . ': ' . count($missingBarcodes));
+        $this->info('Missing shopify id in products' . $company->name . ': ' . count($missingProducts));
         Storage::disk('local')->put('missing_variants_shopify.json', json_encode([
             'missing_barcodes' => $missingBarcodes,
+            'missing_products' => $missingProducts,
         ]));
     }
 
@@ -60,5 +64,19 @@ class InventoryShopifyCheckCommand extends Command
         ->toArray();
 
         return $foundVariants;
+    }
+
+    protected function findMissingShopifyProducts(AppInterface $app, CompanyInterface $company): array
+    {
+        $foundProducts  = Products::query()
+        ->whereDoesntHave('customFields', fn ($query) => $query->whereRaw('name like ?', '%' . CustomFieldEnum::SHOPIFY_PRODUCT_ID->value . '%'))
+        ->where([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+        ])
+        ->pluck('id')
+        ->toArray();
+
+        return $foundProducts;
     }
 }
