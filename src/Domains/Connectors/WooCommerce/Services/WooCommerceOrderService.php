@@ -42,4 +42,17 @@ class WooCommerceOrderService
 
         return $this->client->put("orders/{$wooOrderId}", $payloadData);
     }
+
+    public function addOrderComment(
+        string $wooOrderId,
+        string $comment,
+        bool $customerVisible = false
+    ): object {
+        $payload = [
+            'note' => $comment,
+            'customer_note' => $customerVisible,
+        ];
+
+        return $this->client->post("orders/{$wooOrderId}/notes", $payload);
+    }
 }
