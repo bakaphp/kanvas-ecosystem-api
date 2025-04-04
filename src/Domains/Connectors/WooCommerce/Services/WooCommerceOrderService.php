@@ -19,10 +19,14 @@ class WooCommerceOrderService
     }
 
     public function updateOrderStripePayment(
-        string $wooOrderId,
+        string|int $wooOrderId,
         string $stripeChargeId,
-        ?string $newStatus = null
+        ?string $newStatus = null,
+        array $paymentIntentData = []
     ): object {
+        $paymentIntentId = $paymentIntentData['data']['object']['id'] ?? null;
+        $chargeData = $paymentIntentData['data']['object']['charges']['data'][0] ?? null;
+
         $payloadData = [
             'payment_method' => 'stripe',
             'payment_method_title' => 'Stripe Mobile Payment',
@@ -32,6 +36,57 @@ class WooCommerceOrderService
                 [
                     'key' => '_stripe_charge_id',
                     'value' => $stripeChargeId,
+                ],
+                [
+                    'key' => '_stripe_intent_id',
+                    'value' => $paymentIntentId,
+                ],
+                [
+                    'key' => '_payment_method',
+                    'value' => 'stripe',
+                ],
+                [
+                    'key' => '_stripe_fee',
+                    'value' => null, // Calculate if available
+                ],
+                [
+                    'key' => '_stripe_net',
+                    'value' => $chargeData !== null ? $chargeData['amount_captured'] : null,
+                ],
+                [
+                    'key' => '_stripe_mode',
+                    'value' => $paymentIntentData['livemode'] ? 'live' : 'test',
+                ],
+                [
+                    'key' => '_stripe_currency',
+                    'value' => $paymentIntentData['data']['object']['currency'] ?? 'usd',
+                ],
+                [
+                    'key' => '_stripe_captured',
+                    'value' => $chargeData !== null ? $chargeData['captured'] : true,
+                ],
+                [
+                    'key' => '_stripe_paid',
+                    'value' => $chargeData !== null ? $chargeData['paid'] : true,
+                ],
+                [
+                    'key' => '_stripe_refunded',
+                    'value' => $chargeData !== null ? $chargeData['refunded'] : false,
+                ],
+                [
+                    'key' => '_stripe_payment_method',
+                    'value' => $paymentIntentData['data']['object']['payment_method'] ?? null,
+                ],[
+                    'key' => '_stripe_source_id',
+                    'value' => $paymentIntentData['data']['object']['payment_method'] ?? null,
+                ],
+                [
+                    'key' => '_payment_method_id',
+                    'value' => $paymentIntentData['data']['object']['payment_method'] ?? null,
+                ],
+                [
+                    'key' => '_stripe_customer_id',
+                    'value' => $paymentIntentData['data']['object']['customer'] ?? '',
                 ],
             ],
         ];
@@ -44,7 +99,7 @@ class WooCommerceOrderService
     }
 
     public function addOrderComment(
-        string $wooOrderId,
+        string|int $wooOrderId,
         string $comment,
         bool $customerVisible = false
     ): object {
