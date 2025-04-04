@@ -170,7 +170,7 @@ class RolesManagementMutation
             app(Apps::class),
             $role,
             $permissions,
-            SilberRole::find($input['template_id'])
+            key_exists('template_id', $input) ? SilberRole::find($input['template_id']) : null
         ))->execute();
         return KanvasRole::find($role->id);
     }
