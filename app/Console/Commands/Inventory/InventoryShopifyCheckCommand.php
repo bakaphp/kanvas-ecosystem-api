@@ -40,30 +40,35 @@ class InventoryShopifyCheckCommand extends Command
         $this->overwriteAppService($app);
         $company = Companies::getById($this->argument('company_id'));
 
-        $missingBarcodes = $this->findMissingShopifyVariants($app, $company);
+        [ 'variants' => $variants, 'products' => $products ] = $this->findMissingShopifyVariants($app, $company);
         $missingProducts = $this->findMissingShopifyProducts($app, $company);
 
 
-        $this->info('Missing shopify id in variants' . $company->name . ': ' . count($missingBarcodes));
+        $this->info('Missing shopify id in variants' . $company->name . ': ' . count($variants));
+        $this->info('Missing shopify variants grouped by products' . $company->name . ': ' . count($products));
         $this->info('Missing shopify id in products' . $company->name . ': ' . count($missingProducts));
         Storage::disk('local')->put('missing_variants_shopify.json', json_encode([
-            'missing_barcodes' => $missingBarcodes,
+            'missing_barcodes' => $variants,
+            "missing_variants_grouped_by_product" => $products,
             'missing_products' => $missingProducts,
+
         ]));
     }
 
     protected function findMissingShopifyVariants(AppInterface $app, CompanyInterface $company): array
     {
-        $foundVariants = Variants::query()
+        $productQuery = Variants::query()
         ->whereDoesntHave('customFields', fn ($query) => $query->whereRaw('name like ?', '%' . CustomFieldEnum::SHOPIFY_VARIANT_ID->value . '%'))
         ->where([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
         ])
-        ->pluck('barcode', 'id')
-        ->toArray();
+        ->select('id', 'barcode', 'products_id');
 
-        return $foundVariants;
+        return [
+            'variants' => $productQuery->get(),
+            'products' => $productQuery->pluck('products_id')->unique()->toArray(),
+        ];
     }
 
     protected function findMissingShopifyProducts(AppInterface $app, CompanyInterface $company): array
