@@ -257,10 +257,10 @@ class CMLinkProductService
             'name' => 'max_unlimited_days',
             'value' => $bundle['period'] ?? 0,
         ];
-/*         $attributes[] = [
-            'name' => 'refueling_package',
-            'value' => $bundle['refuelingPackage'] ?? null,
-        ]; */
+        /*         $attributes[] = [
+                    'name' => 'refueling_package',
+                    'value' => $bundle['refuelingPackage'] ?? null,
+                ]; */
 
         return $attributes;
     }
