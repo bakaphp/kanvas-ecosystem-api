@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use DateTime;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
@@ -22,8 +23,11 @@ use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 
 class SyncEsimWithProviderCommand extends Command
 {
@@ -209,6 +213,7 @@ class SyncEsimWithProviderCommand extends Command
 
         $status = strtolower($response['state']);
         $isActive = IccidStatusEnum::getStatus($status) == 'active';
+        $isUnlimited = $message['unlimited'] ?? false;
 
         if ($isActive && empty($existingActivationDate)) {
             $activationDate = now()->format('Y-m-d H:i:s');
@@ -249,19 +254,22 @@ class SyncEsimWithProviderCommand extends Command
         // Initialize spentMessage as null
         $spentMessage = null;
 
-        // 0 means the data hasnt been used yet
-        if ($remainingData <= 0 && $isActive == false) {
+        // Verificación especial para planes ilimitados en velocidad reducida
+        $expirationDay = Carbon::parse($expirationDate);
+        $today = now();
+        $shouldForceActive = $isUnlimited && in_array(strtolower($status), ['disabled', 'disable']) && $today->lessThanOrEqualTo($expirationDay);
+
+        if ($remainingData <= 0 && ($isActive == false && ! $shouldForceActive)) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
-        } elseif ($remainingData == 0 && $isActive == true) {
-            $today = now();
-            $expirationDay = Carbon::parse($expirationDate);
-            // If current date is the last day or after the expiration date
+        } elseif (($remainingData == 0 && $isActive == true) || ($remainingData == 0 && $shouldForceActive)) {
+            /**
+             * @todo Move those spanish strings to app settings
+             */
             if ($today->startOfDay()->equalTo($expirationDay->startOfDay()) || $today->greaterThan($expirationDay)) {
                 $spentMessage = "Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps";
             } else {
-                // There are still days left before expiration
                 $spentMessage = "Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps hasta el siguiente día";
             }
         }
@@ -281,10 +289,202 @@ class SyncEsimWithProviderCommand extends Command
             message: $response['installDevice'],
             installedDate: $installedDate,
             activationDate: $activationDate,
-            spentMessage: $spentMessage
+            spentMessage: $spentMessage,
         );
 
-        return $esimStatus->toArray();
+        $esimStatusArray = $esimStatus->toArray();
+
+        // Check and send notifications if needed
+        $this->checkAndSendNotifications($message, $esimStatusArray, $isActive, $shouldForceActive);
+
+        return $esimStatusArray;
+    }
+
+    /**
+     * Check if notifications should be sent for a specific ESim and send them if needed
+     *
+     * @param Message $message
+     * @param array $esimStatus
+     * @param bool $isActive
+     * @param bool $shouldForceActive
+     * @return void
+     */
+    private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isActive, bool $shouldForceActive): void
+    {
+        // If the ESim is not in an active state, don't send notifications
+        if (! $isActive) {
+            return;
+        }
+
+        // Get the user associated with the message
+        $source = $message->message['order']['source'];
+
+
+        if ($source !== 'mobile') {
+            return;
+        }
+
+        $notifyUser = $message->user;
+
+        if ($esimStatus['unlimited'] && $shouldForceActive) {
+            $dataNotification = [];
+            $dataNotification['title'] = 'Has alcanzado tu límite diario de datos a alta velocidad.';
+            $dataNotification['message'] = 'Ahora navegarás a una velocidad reducida de 384kbps.';
+
+            $this->checkUnlimitedPlanUsage($esimStatus, $notifyUser, $message, $dataNotification);
+        }
+        if ($esimStatus['unlimited']) {
+            $this->checkUnlimitedPlanExpiration($esimStatus, $notifyUser, $message);
+        } else {
+            $this->checkDataUsageThresholds($esimStatus, $notifyUser, $message);
+        }
+    }
+
+    /**
+     * Check data usage thresholds and send notifications at 70% and 90% usage
+     *
+     * @param array $esimStatus
+     * @param Users $notifyUser
+     * @param Message $message
+     * @return void
+     */
+    private function checkDataUsageThresholds(array $esimStatus, Users $notifyUser, Message $message): void
+    {
+        $initialQuantity = $esimStatus['initialQuantity'];
+        $remainingQuantity = $esimStatus['remainingQuantity'];
+
+        if ($initialQuantity <= 0) {
+            return;
+        }
+
+        $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
+
+        if ($usedPercentage >= 70 && $usedPercentage < 75 && (! empty($message->get('sent_70')) || $message->get('sent_70') != true)) {
+            $this->sendPushNotification(
+                $notifyUser,
+                '¡Atención! Has usado el 70% de tus datos.',
+                'Aún tienes conexión, pero tu plan está por agotarse. Verifica tu consumo en la app.',
+                'plan-warning-usage-notification',
+                $message,
+                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
+            );
+            $message->set('sent_70', 1);
+        }
+
+        if ($usedPercentage >= 90 && $usedPercentage < 95 && (! empty($message->get('sent_90')) || $message->get('sent_90') != true)) {
+            $this->sendPushNotification(
+                $notifyUser,
+                '¡Casi sin datos!',
+                'Has consumido el 90% de tu plan. Considera recargar para seguir navegando sin interrupciones.',
+                'plan-warning-usage-notification',
+                $message,
+                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
+            );
+            $message->set('sent_90', 1);
+        }
+    }
+
+    /**
+     * Check if unlimited plan is about to expire and send notification
+     *
+     * @param array $esimStatus
+     * @param Users $user
+     * @param Message $message
+     * @return void
+     */
+    private function checkUnlimitedPlanExpiration(array $esimStatus, Users $notifyUser, Message $message): void
+    {
+        $expirationDate = Carbon::parse($esimStatus['expirationDate']);
+        $hoursLeft = now()->diffInHours($expirationDate);
+
+        // Notify when around 22 hours are left (between 20-24 hours)
+        if ($hoursLeft >= 20 && $hoursLeft <= 24 && (! empty($message->get('sent_unlimited')) || $message->get('sent_unlimited') != true)) {
+            $this->sendPushNotification(
+                $notifyUser,
+                '¡Tu plan está por finalizar!',
+                'Aprovecha al máximo tu conexión. Tu plan ilimitado vence en menos de 24 horas.',
+                'plan-warning-usage-notification',
+                $message,
+                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
+            );
+            $message->set('sent_unlimited', 1);
+        }
+    }
+
+    /**
+     * Check if unlimited plan is about to expire and send notification
+     *
+     * @param array $esimStatus
+     * @param Users $user
+     * @param Message $message
+     * @param array $dataNotification
+     * @return void
+     */
+    private function checkUnlimitedPlanUsage(array $esimStatus, Users $notifyUser, Message $message, array $dataNotification): void
+    {
+        $initialQuantity = $esimStatus['initialQuantity'];
+        $remainingQuantity = $esimStatus['remainingQuantity'];
+
+        if ($initialQuantity <= 0) {
+            return;
+        }
+
+        $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
+
+        // Notify when around 100% of plan is used
+        if ($usedPercentage >= 100 && (! empty($message->get('sent_unlimited_usage')) || $message->get('sent_unlimited_usage') != true)) {
+            $this->sendPushNotification(
+                $notifyUser,
+                $dataNotification['title'],
+                $dataNotification['message'],
+                'plan-warning-usage-notification',
+                $message,
+                ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
+            );
+            $message->set('sent_unlimited_usage', 1);
+        }
+    }
+
+    /**
+     * Send push notification to user
+     *
+     * @param Users $notifyUser
+     * @param string $title
+     * @param string $notificationMessage
+     * @param array $additionalData
+     * @param string $templateName,
+     * @param Message $message
+     * @return void
+     */
+    private function sendPushNotification(
+        Users $notifyUser,
+        string $title,
+        string $notificationMessage,
+        string $templateName,
+        Message $message,
+        array $additionalData = [],
+    ): void {
+        $user = auth()->user();
+        $app = $message->app;
+
+        $data = [
+            'title' => $title,
+            'message' => $notificationMessage,
+            'app' => $app,
+            'data' => $additionalData
+        ];
+
+        $vias = [NotificationChannelEnum::getNotificationChannelBySlug('PUSH')];
+
+        $notification = new Blank(
+            $templateName,
+            $data,
+            $vias,
+            $user
+        );
+
+        $notification->setFromUser($user);
+        Notification::send(collect([$notifyUser]), $notification);
     }
 
     private function updateMessageStatus(Message $message, array $response, string $network): void
@@ -311,7 +511,13 @@ class SyncEsimWithProviderCommand extends Command
             IccidStatusEnum::DISABLE->value,
         ];
 
-        if (in_array(strtolower($response['bundleState']), $inactiveStatuses, true)) {
+        $isUnlimited = $response['unlimited'] ?? false;
+        $bundleState = strtolower($response['bundleState']);
+        $expirationDate = isset($response['expiration_date']) ? Carbon::parse($response['expiration_date']) : null;
+
+        $shouldForcePublic = $isUnlimited && in_array($bundleState, ['disabled', 'disable']) && $expirationDate && now()->lessThan($expirationDate);
+
+        if (in_array($bundleState, $inactiveStatuses, true) && ! $shouldForcePublic) {
             $message->setPrivate();
             $this->info("Message ID: {$message->id} has been set to private.");
         } else {
