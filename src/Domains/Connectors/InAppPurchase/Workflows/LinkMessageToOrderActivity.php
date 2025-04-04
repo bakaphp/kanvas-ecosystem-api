@@ -21,6 +21,8 @@ use Override;
 
 class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    public $tries = 3;
+
     /**
      * @param Model<Order> $order
      */
@@ -36,7 +38,13 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
             ];
         }
 
-        $message = Message::getById($order->get('message_id'), $app);
+        $message = Message::fromApp($app)->where('id', $order->get('message_id'))->first();
+        if (! $message) {
+            return [
+                'message' => 'No message found',
+                'order' => $order->id,
+            ];
+        }
         $orderSystemModule = SystemModulesRepository::getByModelName(Order::class);
         (new CreateAppModuleMessageAction($message, $orderSystemModule, $order->getId()))->execute();
 

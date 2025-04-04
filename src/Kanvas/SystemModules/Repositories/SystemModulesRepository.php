@@ -16,22 +16,19 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Override;
 use Ramsey\Uuid\Uuid;
 
 class SystemModulesRepository
 {
     use SearchableTrait;
 
+    #[Override]
     public static function getModel(): Model
     {
         return new SystemModules();
     }
 
-    /**
-     * Get System Module by its model_name.
-     *
-     * @param string $model_name
-     */
     public static function getByModelName(string $modelName, ?AppInterface $app = null): SystemModules
     {
         $app = $app === null ? app(Apps::class) : $app;

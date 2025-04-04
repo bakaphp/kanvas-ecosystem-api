@@ -9,6 +9,7 @@ use GuzzleHttp\Client;
 use Kanvas\Auth\Socialite\Contracts\DriverInterface;
 use Kanvas\Auth\Socialite\DataTransferObject\User;
 use Kanvas\Auth\Socialite\Decoders\ASDecoder;
+use Override;
 
 /**
  * @todo delegate the implementation of to a package
@@ -22,6 +23,7 @@ class AppleDriver implements DriverInterface
     {
     }
 
+    #[Override]
     public function getUserFromToken(string $token): User
     {
         $data = (array) ASDecoder::decodeIdentityToken($token);

@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.342.17",
+            "version": "3.342.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "110ca44672e59ec3255c693e9e761001f2706b53"
+                "reference": "b2eb01f8dc4015f50095fcdf2ac99e3342a63dc0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/110ca44672e59ec3255c693e9e761001f2706b53",
-                "reference": "110ca44672e59ec3255c693e9e761001f2706b53",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/b2eb01f8dc4015f50095fcdf2ac99e3342a63dc0",
+                "reference": "b2eb01f8dc4015f50095fcdf2ac99e3342a63dc0",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.17"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.19"
             },
-            "time": "2025-03-31T18:16:40+00:00"
+            "time": "2025-04-02T18:16:12+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -4869,16 +4869,16 @@
         },
         {
             "name": "laravel/octane",
-            "version": "v2.8.2",
+            "version": "v2.8.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/octane.git",
-                "reference": "74fef270e9f7d2dfbfd8f272de81aac839942c29"
+                "reference": "f3eee159192d72319ee8e612abc17eacffb47c97"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/octane/zipball/74fef270e9f7d2dfbfd8f272de81aac839942c29",
-                "reference": "74fef270e9f7d2dfbfd8f272de81aac839942c29",
+                "url": "https://api.github.com/repos/laravel/octane/zipball/f3eee159192d72319ee8e612abc17eacffb47c97",
+                "reference": "f3eee159192d72319ee8e612abc17eacffb47c97",
                 "shasum": ""
             },
             "require": {
@@ -4955,7 +4955,7 @@
                 "issues": "https://github.com/laravel/octane/issues",
                 "source": "https://github.com/laravel/octane"
             },
-            "time": "2025-03-12T14:26:35+00:00"
+            "time": "2025-04-01T14:17:29+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -5082,16 +5082,16 @@
         },
         {
             "name": "laravel/scout",
-            "version": "v10.14.0",
+            "version": "v10.14.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/scout.git",
-                "reference": "840d18e3d68b17c59663fc687497c49c0ff0d295"
+                "reference": "6ae3ec83ceacb554f395df9fe15318a14b79bb39"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/scout/zipball/840d18e3d68b17c59663fc687497c49c0ff0d295",
-                "reference": "840d18e3d68b17c59663fc687497c49c0ff0d295",
+                "url": "https://api.github.com/repos/laravel/scout/zipball/6ae3ec83ceacb554f395df9fe15318a14b79bb39",
+                "reference": "6ae3ec83ceacb554f395df9fe15318a14b79bb39",
                 "shasum": ""
             },
             "require": {
@@ -5159,7 +5159,7 @@
                 "issues": "https://github.com/laravel/scout/issues",
                 "source": "https://github.com/laravel/scout"
             },
-            "time": "2025-03-18T14:00:31+00:00"
+            "time": "2025-04-01T14:58:03+00:00"
         },
         {
             "name": "laravel/serializable-closure",
@@ -5224,16 +5224,16 @@
         },
         {
             "name": "laravel/socialite",
-            "version": "v5.18.0",
+            "version": "v5.19.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/socialite.git",
-                "reference": "7809dc71250e074cd42970f0f803f2cddc04c5de"
+                "reference": "c40f843c5643fb6b089e46ce9794b8408bf08319"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/socialite/zipball/7809dc71250e074cd42970f0f803f2cddc04c5de",
-                "reference": "7809dc71250e074cd42970f0f803f2cddc04c5de",
+                "url": "https://api.github.com/repos/laravel/socialite/zipball/c40f843c5643fb6b089e46ce9794b8408bf08319",
+                "reference": "c40f843c5643fb6b089e46ce9794b8408bf08319",
                 "shasum": ""
             },
             "require": {
@@ -5250,7 +5250,7 @@
             "require-dev": {
                 "mockery/mockery": "^1.0",
                 "orchestra/testbench": "^4.0|^5.0|^6.0|^7.0|^8.0|^9.0|^10.0",
-                "phpstan/phpstan": "^1.10",
+                "phpstan/phpstan": "^1.12.23",
                 "phpunit/phpunit": "^8.0|^9.3|^10.4|^11.5"
             },
             "type": "library",
@@ -5292,7 +5292,7 @@
                 "issues": "https://github.com/laravel/socialite/issues",
                 "source": "https://github.com/laravel/socialite"
             },
-            "time": "2025-02-11T13:38:19+00:00"
+            "time": "2025-03-27T17:26:42+00:00"
         },
         {
             "name": "laravel/tinker",
@@ -6518,16 +6518,16 @@
         },
         {
             "name": "mll-lab/laravel-graphiql",
-            "version": "v3.3.1",
+            "version": "v3.3.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mll-lab/laravel-graphiql.git",
-                "reference": "5a494e4705bf65803e5f4baf4e0fd63427190337"
+                "reference": "ddad2580094fc0ea68065546ada07b3eabe02baa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/5a494e4705bf65803e5f4baf4e0fd63427190337",
-                "reference": "5a494e4705bf65803e5f4baf4e0fd63427190337",
+                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/ddad2580094fc0ea68065546ada07b3eabe02baa",
+                "reference": "ddad2580094fc0ea68065546ada07b3eabe02baa",
                 "shasum": ""
             },
             "require": {
@@ -6578,22 +6578,22 @@
             ],
             "support": {
                 "issues": "https://github.com/mll-lab/laravel-graphiql/issues",
-                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v3.3.1"
+                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v3.3.2"
             },
-            "time": "2025-03-31T07:52:54+00:00"
+            "time": "2025-04-01T08:12:53+00:00"
         },
         {
             "name": "moneyphp/money",
-            "version": "v4.6.0",
+            "version": "v4.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/moneyphp/money.git",
-                "reference": "ddf6a86b574808f8844777ed4e8c4f92a10dac9b"
+                "reference": "af048f0206d3b39b8fad9de6a230cedf765365fa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/moneyphp/money/zipball/ddf6a86b574808f8844777ed4e8c4f92a10dac9b",
-                "reference": "ddf6a86b574808f8844777ed4e8c4f92a10dac9b",
+                "url": "https://api.github.com/repos/moneyphp/money/zipball/af048f0206d3b39b8fad9de6a230cedf765365fa",
+                "reference": "af048f0206d3b39b8fad9de6a230cedf765365fa",
                 "shasum": ""
             },
             "require": {
@@ -6615,10 +6615,12 @@
                 "php-http/message": "^1.16.0",
                 "php-http/mock-client": "^1.6.0",
                 "phpbench/phpbench": "^1.2.5",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.1.9",
+                "phpstan/phpstan-phpunit": "^2.0",
                 "phpunit/phpunit": "^10.5.9",
-                "psalm/plugin-phpunit": "^0.18.4",
                 "psr/cache": "^1.0.1 || ^2.0 || ^3.0",
-                "vimeo/psalm": "~5.20.0"
+                "ticketswap/phpstan-error-formatter": "^1.1"
             },
             "suggest": {
                 "ext-gmp": "Calculate without integer limits",
@@ -6666,9 +6668,9 @@
             ],
             "support": {
                 "issues": "https://github.com/moneyphp/money/issues",
-                "source": "https://github.com/moneyphp/money/tree/v4.6.0"
+                "source": "https://github.com/moneyphp/money/tree/v4.7.0"
             },
-            "time": "2024-11-22T10:59:03+00:00"
+            "time": "2025-04-03T08:26:36+00:00"
         },
         {
             "name": "monolog/monolog",
@@ -6841,16 +6843,16 @@
         },
         {
             "name": "nesbot/carbon",
-            "version": "3.8.6",
+            "version": "3.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/CarbonPHP/carbon.git",
-                "reference": "ff2f20cf83bd4d503720632ce8a426dc747bf7fd"
+                "reference": "6d16a8a015166fe54e22c042e0805c5363aef50d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/ff2f20cf83bd4d503720632ce8a426dc747bf7fd",
-                "reference": "ff2f20cf83bd4d503720632ce8a426dc747bf7fd",
+                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/6d16a8a015166fe54e22c042e0805c5363aef50d",
+                "reference": "6d16a8a015166fe54e22c042e0805c5363aef50d",
                 "shasum": ""
             },
             "require": {
@@ -6943,7 +6945,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-02-20T17:33:38+00:00"
+            "time": "2025-03-27T12:57:33+00:00"
         },
         {
             "name": "nette/schema",
@@ -10854,16 +10856,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.33.0",
+            "version": "1.34.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "2c79b9ad26d37e361689b6df87fe4aba680a3827"
+                "reference": "f3d7c5e19569d83e4c37f7a5e249187a96ab8aa8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/2c79b9ad26d37e361689b6df87fe4aba680a3827",
-                "reference": "2c79b9ad26d37e361689b6df87fe4aba680a3827",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/f3d7c5e19569d83e4c37f7a5e249187a96ab8aa8",
+                "reference": "f3d7c5e19569d83e4c37f7a5e249187a96ab8aa8",
                 "shasum": ""
             },
             "require": {
@@ -10935,7 +10937,7 @@
                 "spatie"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-health/tree/1.33.0"
+                "source": "https://github.com/spatie/laravel-health/tree/1.34.0"
             },
             "funding": [
                 {
@@ -10943,7 +10945,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-03-18T22:44:18+00:00"
+            "time": "2025-04-01T13:22:01+00:00"
         },
         {
             "name": "spatie/laravel-image-optimizer",

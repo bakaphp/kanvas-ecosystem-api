@@ -52,22 +52,6 @@ class FilesystemEntities extends BaseModel
     }
 
     /**
-     * Companies relationship.
-     */
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
-
-    /**
-     * Apps relationship.
-     */
-    public function app(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
-
-    /**
      * SystemModules relationship.
      */
     public function systemModule(): BelongsTo
