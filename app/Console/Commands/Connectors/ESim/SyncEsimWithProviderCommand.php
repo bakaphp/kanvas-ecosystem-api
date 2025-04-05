@@ -213,7 +213,6 @@ class SyncEsimWithProviderCommand extends Command
 
         $status = strtolower($response['state']);
         $isActive = IccidStatusEnum::getStatus($status) == 'active';
-        $isUnlimited = $message['unlimited'] ?? false;
 
         if ($isActive && empty($existingActivationDate)) {
             $activationDate = now()->format('Y-m-d H:i:s');
@@ -236,6 +235,7 @@ class SyncEsimWithProviderCommand extends Command
         }
 
         $validStates = ['released', 'installed', 'active', 'enabled', 'enable'];
+        $isValidState = in_array(strtolower($response['state']), $validStates);
         // Calculate expiration date based on activationDate (fallback to installedDate if no activation yet)
         $expirationBaseDate = $activationDate ?? $installedDate;
         $expirationDate = Carbon::parse($expirationBaseDate)->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s');
@@ -245,7 +245,7 @@ class SyncEsimWithProviderCommand extends Command
          */
         if (now()->greaterThan(Carbon::parse($expirationDate))) {
             $message->setPrivate();
-        } elseif (in_array(strtolower($response['state']), $validStates)) {
+        } elseif ($isValidState) {
             $message->setPublic();
         } else {
             $message->setPrivate();
@@ -257,13 +257,12 @@ class SyncEsimWithProviderCommand extends Command
         // Verificación especial para planes ilimitados en velocidad reducida
         $expirationDay = Carbon::parse($expirationDate);
         $today = now();
-        $shouldForceActive = $isUnlimited && in_array(strtolower($status), ['disabled', 'disable']) && $today->lessThanOrEqualTo($expirationDay);
 
-        if ($remainingData <= 0 && ($isActive == false && ! $shouldForceActive)) {
+        if ($remainingData <= 0 && $isValidState == false) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
-        } elseif (($remainingData == 0 && $isActive == true) || ($remainingData == 0 && $shouldForceActive)) {
+        } elseif ($remainingData == 0 && $isValidState == true) {
             /**
              * @todo Move those spanish strings to app settings
              */
@@ -295,7 +294,7 @@ class SyncEsimWithProviderCommand extends Command
         $esimStatusArray = $esimStatus->toArray();
 
         // Check and send notifications if needed
-        $this->checkAndSendNotifications($message, $esimStatusArray, $isActive, $shouldForceActive);
+        $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
 
         return $esimStatusArray;
     }
@@ -305,41 +304,38 @@ class SyncEsimWithProviderCommand extends Command
      *
      * @param Message $message
      * @param array $esimStatus
-     * @param bool $isActive
+     * @param bool $isValidState
      * @param bool $shouldForceActive
      * @return void
      */
-    private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isActive, bool $shouldForceActive): void
+    private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isValidState): void
     {
-        // If the ESim is not in an active state, don't send notifications
-        if (! $isActive) {
+        // If the ESim is not in an valid state, don't send notifications
+        if (! $isValidState) {
             return;
         }
 
         // Get the user associated with the message
-        $source = $message->message['order']['metadata']['source'] ?? null;
+        $source = $message->message['order']['source'];
 
-
+        // Only send notifications for mobile orders
         if ($source !== 'mobile') {
             return;
         }
 
         $notifyUser = $message->user;
 
-        if ($esimStatus['unlimited'] && $shouldForceActive) {
-            $dataNotification = [];
-            $dataNotification['title'] = 'Has alcanzado tu límite diario de datos a alta velocidad.';
-            $dataNotification['message'] = 'Ahora navegarás a una velocidad reducida de 384kbps.';
-
-            $this->checkUnlimitedPlanUsage($esimStatus, $notifyUser, $message, $dataNotification);
-        }
         if ($esimStatus['unlimited']) {
+            $dataNotification = [
+                'title' => 'Has alcanzado tu límite diario de datos a alta velocidad.',
+                'message' => 'Ahora navegarás a una velocidad reducida de 384kbps.'
+            ];
+            $this->checkUnlimitedPlanUsage($esimStatus, $notifyUser, $message, $dataNotification);
             $this->checkUnlimitedPlanExpiration($esimStatus, $notifyUser, $message);
         } else {
             $this->checkDataUsageThresholds($esimStatus, $notifyUser, $message);
         }
     }
-
     /**
      * Check data usage thresholds and send notifications at 70% and 90% usage
      *
@@ -359,7 +355,7 @@ class SyncEsimWithProviderCommand extends Command
 
         $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
 
-        if ($usedPercentage >= 70 && $usedPercentage < 75 && (! empty($message->get('sent_70')) || $message->get('sent_70') != true)) {
+        if ($usedPercentage >= 70 && $usedPercentage < 75 && $message->get('sent_70') != true) {
             $this->sendPushNotification(
                 $notifyUser,
                 '¡Atención! Has usado el 70% de tus datos.',
@@ -368,10 +364,10 @@ class SyncEsimWithProviderCommand extends Command
                 $message,
                 ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
             );
-            $message->set('sent_70', 1);
+            $message->set('sent_70', true);
         }
 
-        if ($usedPercentage >= 90 && $usedPercentage < 95 && (! empty($message->get('sent_90')) || $message->get('sent_90') != true)) {
+        if ($usedPercentage >= 90 && $usedPercentage < 95 && $message->get('sent_90') != true) {
             $this->sendPushNotification(
                 $notifyUser,
                 '¡Casi sin datos!',
@@ -380,7 +376,7 @@ class SyncEsimWithProviderCommand extends Command
                 $message,
                 ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
             );
-            $message->set('sent_90', 1);
+            $message->set('sent_90', true);
         }
     }
 
@@ -398,7 +394,7 @@ class SyncEsimWithProviderCommand extends Command
         $hoursLeft = now()->diffInHours($expirationDate);
 
         // Notify when around 22 hours are left (between 20-24 hours)
-        if ($hoursLeft >= 20 && $hoursLeft <= 24 && (! empty($message->get('sent_unlimited')) || $message->get('sent_unlimited') != true)) {
+        if ($hoursLeft >= 20 && $hoursLeft <= 24 && $message->get('sent_unlimited') != true) {
             $this->sendPushNotification(
                 $notifyUser,
                 '¡Tu plan está por finalizar!',
@@ -407,7 +403,7 @@ class SyncEsimWithProviderCommand extends Command
                 $message,
                 ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
             );
-            $message->set('sent_unlimited', 1);
+            $message->set('sent_unlimited', true);
         }
     }
 
@@ -432,7 +428,7 @@ class SyncEsimWithProviderCommand extends Command
         $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
 
         // Notify when around 100% of plan is used
-        if ($usedPercentage >= 100 && (! empty($message->get('sent_unlimited_usage')) || $message->get('sent_unlimited_usage') != true)) {
+        if ($usedPercentage >= 100 && $message->get('sent_unlimited_usage') != true) {
             $this->sendPushNotification(
                 $notifyUser,
                 $dataNotification['title'],
@@ -441,7 +437,7 @@ class SyncEsimWithProviderCommand extends Command
                 $message,
                 ['destination_id' => $message->getId(), 'destination_type' => 'MESSAGE'],
             );
-            $message->set('sent_unlimited_usage', 1);
+            $message->set('sent_unlimited_usage', true);
         }
     }
 
