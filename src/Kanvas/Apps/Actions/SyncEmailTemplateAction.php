@@ -106,7 +106,6 @@ class SyncEmailTemplateAction
         array_shift($templates);
 
         foreach ($templates as $template) {
-
             $dto = TemplateInput::from([
                 'app' => $this->app,
                 'name' => $template['name'],
