@@ -46,14 +46,32 @@ class DownloadAllShopifyProductsAction
 
         // Check if we're filtering by SKU
         if (isset($params['sku']) && ! empty($params['sku'])) {
-            // Search for a specific product by SKU
+            $sku = trim($params['sku']);
+
+            // Search for a specific product by SKU using query
             $shopifyParams = [
-                'query' => 'sku:' . $params['sku'],
+                'query' => 'sku:' . $sku,
+                'limit' => 250,  // Get maximum results to improve chances of finding exact match
             ];
 
             $shopifyProducts = $shopifyP->get($shopifyParams);
-
+            $exactMatches = [];
+            // Filter for exact SKU matches only
             foreach ($shopifyProducts as $shopifyProduct) {
+                if (isset($shopifyProduct['variants']) && is_array($shopifyProduct['variants'])) {
+                    foreach ($shopifyProduct['variants'] as $variant) {
+                        if (isset($variant['sku']) && trim($variant['sku']) === $sku) {
+                            // Found exact match
+                            $exactMatches[] = $shopifyProduct;
+
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Process only exact matches
+            foreach ($exactMatches as $shopifyProduct) {
                 $shopifyProductService = new ShopifyProductService(
                     $this->app,
                     $this->warehouses->company,
