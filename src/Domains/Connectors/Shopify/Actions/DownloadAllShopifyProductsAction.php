@@ -33,7 +33,7 @@ class DownloadAllShopifyProductsAction
             $this->warehouses->region
         );
 
-        $productsToImport = isset($params['sku']) && !empty($params['sku'])
+        $productsToImport = isset($params['sku']) && ! empty($params['sku'])
             ? $this->getProductsBySku($shopify, trim($params['sku']))
             : $this->getAllProducts($shopify, $params);
 
@@ -60,20 +60,21 @@ class DownloadAllShopifyProductsAction
         $firstPage = null;
 
         do {
-            $shopifyParams = !$firstPage && $shopifyP->getNextPageParams()
+            $shopifyParams = ! $firstPage && $shopifyP->getNextPageParams()
                 ? $shopifyP->getNextPageParams()
                 : ['limit' => 250];
 
             $shopifyProducts = $shopifyP->get($shopifyParams);
 
             foreach ($shopifyProducts as $product) {
-                if (!isset($product['variants']) || !is_array($product['variants'])) {
+                if (! isset($product['variants']) || ! is_array($product['variants'])) {
                     continue;
                 }
 
                 foreach ($product['variants'] as $variant) {
                     if (isset($variant['sku']) && trim($variant['sku']) === $sku) {
                         $products[] = $this->mapProduct($product);
+
                         break;
                     }
                 }
@@ -92,7 +93,7 @@ class DownloadAllShopifyProductsAction
         $firstPage = null;
 
         do {
-            $shopifyParams = !$firstPage && $shopifyP->getNextPageParams()
+            $shopifyParams = ! $firstPage && $shopifyP->getNextPageParams()
                 ? $shopifyP->getNextPageParams()
                 : $params;
 
