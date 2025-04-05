@@ -315,7 +315,7 @@ class SyncEsimWithProviderCommand extends Command
             return;
         }
 
-        // Get the user associated with the message
+        // Get the source associated with the message
         $source = $message->message['order']['metadata']['source'] ?? null;
 
         // Only send notifications for mobile orders
@@ -336,6 +336,7 @@ class SyncEsimWithProviderCommand extends Command
             $this->checkDataUsageThresholds($esimStatus, $notifyUser, $message);
         }
     }
+
     /**
      * Check data usage thresholds and send notifications at 70% and 90% usage
      *
@@ -460,7 +461,6 @@ class SyncEsimWithProviderCommand extends Command
         Message $message,
         array $additionalData = [],
     ): void {
-        $user = auth()->user();
         $app = $message->app;
 
         $data = [
@@ -476,10 +476,9 @@ class SyncEsimWithProviderCommand extends Command
             $templateName,
             $data,
             $vias,
-            $user
+            $notifyUser
         );
 
-        $notification->setFromUser($user);
         Notification::send(collect([$notifyUser]), $notification);
     }
 
