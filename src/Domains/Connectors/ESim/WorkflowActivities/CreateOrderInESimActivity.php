@@ -19,6 +19,7 @@ use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
@@ -66,6 +67,7 @@ class CreateOrderInESimActivity extends KanvasActivity
 
         $providerValue = strtolower($provider->value);
         $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
+        $isRefuelOrder = isset($order->metadata['parent_order_id']) && ! empty($order->metadata['parent_order_id']);
         $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
 
         try {
@@ -92,6 +94,7 @@ class CreateOrderInESimActivity extends KanvasActivity
             }
         } catch (ClientException $e) {
             captureException($e);
+
             return [
                 'status' => 'error',
                 'message' => 'Error creating order in eSim',
@@ -143,30 +146,38 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         //create the esim for the user
-        $messageType = (new CreateMessageTypeAction(
-            new MessageTypeInput(
-                $app->getId(),
-                0,
-                'esim',
-                'esim',
-            )
-        ))->execute();
-        $createMessage = new CreateMessageAction(
-            new MessageInput(
-                $app,
-                $order->company,
-                $order->user,
-                $messageType,
-                $response
-            ),
-            SystemModulesRepository::getByModelName(Order::class, $app),
-            $order->getId()
-        );
+        if (! $isRefuelOrder) {
+            $messageType = (new CreateMessageTypeAction(
+                new MessageTypeInput(
+                    $app->getId(),
+                    0,
+                    'esim',
+                    'esim',
+                )
+            ))->execute();
+            $createMessage = new CreateMessageAction(
+                new MessageInput(
+                    $app,
+                    $order->company,
+                    $order->user,
+                    $messageType,
+                    $response
+                ),
+                SystemModulesRepository::getByModelName(Order::class, $app),
+                $order->getId()
+            );
 
-        $message = $createMessage->execute();
-        $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
-        $order->updateOrFail();
-        $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
+            $message = $createMessage->execute();
+            $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
+            $order->updateOrFail();
+            $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
+        } else {
+            $parentOrder = Order::getById($order->metadata['parent_order_id']);
+            $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
+            $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
+            $order->updateOrFail();
+            $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
+        }
 
         return [
             'status' => 'success',
