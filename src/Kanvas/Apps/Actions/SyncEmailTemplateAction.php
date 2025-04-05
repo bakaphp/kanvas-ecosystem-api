@@ -91,13 +91,12 @@ class SyncEmailTemplateAction
             ],
         ];
 
-        $dto = new TemplateInput(
-            $this->app,
-            $templates[0]['name'],
-            $templates[0]['template'],
-            null,
-            $this->user
-        );
+        $dto = TemplateInput::from([
+            'app' => $this->app,
+            'name' => $templates[0]['name'],
+            'template' => $templates[0]['template'],
+            'user' => $this->user,
+        ]);
 
         $action = new CreateTemplateAction($dto);
         $parent = $action->execute();
