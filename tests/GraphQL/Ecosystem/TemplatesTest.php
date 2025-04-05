@@ -197,5 +197,4 @@ class TemplatesTest extends TestCase
             ],
         ]);
     }
-
 }
