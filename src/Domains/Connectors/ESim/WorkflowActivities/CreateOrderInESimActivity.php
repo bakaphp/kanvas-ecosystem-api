@@ -202,7 +202,7 @@ class CreateOrderInESimActivity extends KanvasActivity
             );
 
             if (! empty($woocommerceResponse['order']['number'])) {
-                $order->order_number = $woocommerceResponse['order']['number'];
+                //$order->order_number = $woocommerceResponse['order']['number'];
             }
             $order->addPrivateMetadata('stripe_payment_intent', $paymentIntent->toArray());
 
