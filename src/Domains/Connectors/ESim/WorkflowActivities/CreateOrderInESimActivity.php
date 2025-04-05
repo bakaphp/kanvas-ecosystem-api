@@ -91,6 +91,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $response = $createOrder->createOrder();
             }
         } catch (ClientException $e) {
+            captureException($e);
             return [
                 'status' => 'error',
                 'message' => 'Error creating order in eSim',
@@ -137,6 +138,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $response['data']['plan'] = $sku; //overwrite the plan with the sku
             }
         } catch (Throwable $e) {
+            captureException($e);
             // Log the exception or handle it as needed
         }
 

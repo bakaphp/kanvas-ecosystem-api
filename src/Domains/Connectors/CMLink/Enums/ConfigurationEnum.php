@@ -14,5 +14,5 @@ enum ConfigurationEnum: string
     case NAME = 'CMLink';
     case ICCID_INVENTORY_PRODUCT_TYPE = 'cmlink-iccid';
     case PRODUCT_FATHER_SKU = 'cmlink-father-sku';
-    case PRODUCT_REFUEL_SKU = 'refueling_package';
+    case PRODUCT_REFUEL_SKU = 'refueling-package';
 }
