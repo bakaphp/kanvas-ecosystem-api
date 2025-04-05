@@ -317,7 +317,7 @@ class SyncEsimWithProviderCommand extends Command
         }
 
         // Get the user associated with the message
-        $source = $message->message['order']['source'];
+        $source = $message->message['order']['metadata']['source'] ?? null;
 
 
         if ($source !== 'mobile') {
@@ -394,7 +394,7 @@ class SyncEsimWithProviderCommand extends Command
      */
     private function checkUnlimitedPlanExpiration(array $esimStatus, Users $notifyUser, Message $message): void
     {
-        $expirationDate = Carbon::parse($esimStatus['expirationDate']);
+        $expirationDate = Carbon::parse($esimStatus['expirationDate'] ?? $esimStatus['expiration_date']);
         $hoursLeft = now()->diffInHours($expirationDate);
 
         // Notify when around 22 hours are left (between 20-24 hours)
