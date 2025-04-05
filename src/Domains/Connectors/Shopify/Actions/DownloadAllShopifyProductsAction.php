@@ -25,9 +25,16 @@ class DownloadAllShopifyProductsAction
     ) {
     }
 
+    /**
+     * Execute the download action.
+     *
+     * @param array $params Optional parameters for filtering
+     *                      - 'sku' => Filter by specific SKU
+     *
+     * @return int Total number of products downloaded
+     */
     public function execute(array $params = []): int
     {
-        $firstPage = null;
         $shopify = Client::getInstance(
             $this->app,
             $this->warehouses->company,
@@ -35,19 +42,18 @@ class DownloadAllShopifyProductsAction
         );
         $totalRecords = 0;
         $productsToImport = [];
-
         $shopifyP = $shopify->Product();
 
-        do {
-            if (! $firstPage && $shopifyP->getNextPageParams()) {
-                // Get next page parameters without 'status' filter
-                $params = $shopifyP->getNextPageParams();
-            }
+        // Check if we're filtering by SKU
+        if (isset($params['sku']) && ! empty($params['sku'])) {
+            // Search for a specific product by SKU
+            $shopifyParams = [
+                'query' => 'sku:' . $params['sku'],
+            ];
 
-            // Get products based on the current set of parameters
-            $currentShopifyProductPage = $shopifyP->get($params);
+            $shopifyProducts = $shopifyP->get($shopifyParams);
 
-            foreach ($currentShopifyProductPage as $shopifyProduct) {
+            foreach ($shopifyProducts as $shopifyProduct) {
                 $shopifyProductService = new ShopifyProductService(
                     $this->app,
                     $this->warehouses->company,
@@ -58,23 +64,54 @@ class DownloadAllShopifyProductsAction
                     $this->channel
                 );
                 $productsToImport[] = $shopifyProductService->mapProductForImport($shopifyProduct);
-
                 $totalRecords++;
             }
+        } else {
+            // Download all products (original behavior)
+            $firstPage = null;
 
-            $firstPage = false; // After first fetch, do not reset to initial parameters
-        } while ($shopifyP->getNextPageParams());
+            do {
+                if (! $firstPage && $shopifyP->getNextPageParams()) {
+                    // Get next page parameters without 'status' filter
+                    $shopifyParams = $shopifyP->getNextPageParams();
+                } else {
+                    $shopifyParams = $params;
+                }
 
-        $jobUuid = Str::uuid()->toString();
+                // Get products based on the current set of parameters
+                $currentShopifyProductPage = $shopifyP->get($shopifyParams);
 
-        ProductImporterJob::dispatch(
-            $jobUuid,
-            $productsToImport,
-            $this->branch,
-            $this->user,
-            $this->warehouses->region,
-            $this->app
-        );
+                foreach ($currentShopifyProductPage as $shopifyProduct) {
+                    $shopifyProductService = new ShopifyProductService(
+                        $this->app,
+                        $this->warehouses->company,
+                        $this->warehouses->region,
+                        $shopifyProduct['id'],
+                        $this->user,
+                        $this->warehouses,
+                        $this->channel
+                    );
+                    $productsToImport[] = $shopifyProductService->mapProductForImport($shopifyProduct);
+                    $totalRecords++;
+                }
+
+                $firstPage = false; // After first fetch, do not reset to initial parameters
+            } while ($shopifyP->getNextPageParams());
+        }
+
+        // Only dispatch the job if we found products to import
+        if ($totalRecords > 0) {
+            $jobUuid = Str::uuid()->toString();
+
+            ProductImporterJob::dispatch(
+                $jobUuid,
+                $productsToImport,
+                $this->branch,
+                $this->user,
+                $this->warehouses->region,
+                $this->app
+            );
+        }
 
         return $totalRecords;
     }
