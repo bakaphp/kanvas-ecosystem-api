@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Services;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
@@ -207,5 +209,66 @@ class VariantService
                 $channel,
                 $variantChannelDto
             ))->execute();
+    }
+
+    public static function compareInventory(AppInterface $app, CompanyInterface $company, array $barcodeList): array
+    {
+        $chunks = array_chunk($barcodeList, 50);
+        $missingVariants = [];
+
+        foreach ($chunks as $chunk) {
+            $foundVariants = Variants::query()
+            ->where(
+                fn ($query) => $query
+                ->whereIn('barcode', $chunk)
+                ->orWhereIn('ean', $chunk)
+            )
+            // ->where('companies_id', $company->id)
+            // ->where('apps_id', $app->id)
+            ->pluck('barcode')
+            ->toArray();
+
+            $missingVariants = [
+                ...$missingVariants,
+                ...array_values(array_diff($chunk, $foundVariants))
+            ];
+        }
+
+        return $missingVariants;
+    }
+
+    public static function updateVariantBySku(AppInterface $app, CompanyInterface $company, array $productSkus): array
+    {
+        $missingSkus = [];
+        $changedBarcodes = [];
+
+        foreach ($productSkus as $barcode => $variantData) {
+            $variant = Variants::query()
+            ->where([
+                'sku' => $variantData['sku'],
+                'companies_id' => $company->id,
+                'apps_id' => $app->id
+            ])
+            ->first();
+
+            echo 'Variant ' . $variantData['sku'] . ' found: ' . ($variant ? 'true' : 'false');
+
+            if ($variant) {
+                echo 'Updating variant ' . $variant->id . ' with barcode ' . $barcode;
+                $variant->barcode = $barcode;
+                $variant->save();
+
+                $changedBarcodes[] = $barcode;
+            } else {
+                echo 'Variant not found for ' . $variantData['sku'];
+                $missingSkus[] = $variantData['sku'];
+            }
+            echo PHP_EOL;
+        }
+
+        return [
+            "missing_skus" => $missingSkus,
+            "changed_barcodes" => $changedBarcodes
+        ];
     }
 }
