@@ -242,7 +242,7 @@ class VariantService
         $missingSkus = [];
         $changedBarcodes = [];
 
-        foreach ($productSkus as $barcode => $variantData) {
+        foreach ($productSkus as $variantData) {
             $variant = Variants::query()
             ->where([
                 'sku' => $variantData['sku'],
@@ -252,15 +252,15 @@ class VariantService
             ->first();
 
             echo 'Variant ' . $variantData['sku'] . ' found: ' . ($variant ? 'true' : 'false');
-
+            echo PHP_EOL;
             if ($variant) {
-                echo 'Updating variant ' . $variant->id . ' with barcode ' . $barcode;
-                $variant->barcode = $barcode;
+                echo 'Updating variant ' . $variant->id . ' with barcode ' . $variantData['barcode'];
+                $variant->barcode = $variantData['barcode'];
                 $variant->save();
 
-                $changedBarcodes[] = $barcode;
+                $changedBarcodes[] = $variantData['barcode'];
             } else {
-                echo 'Variant not found for ' . $variantData['sku'];
+                echo 'Variant not found for ' . $variantData['sku'] . ' with barcode ' . $variantData['barcode'];
                 $missingSkus[] = $variantData['sku'];
             }
             echo PHP_EOL;
