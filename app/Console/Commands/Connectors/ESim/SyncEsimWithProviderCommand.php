@@ -316,7 +316,7 @@ class SyncEsimWithProviderCommand extends Command
         }
 
         // Get the user associated with the message
-        $source = $message->message['order']['source'];
+        $source = $message->message['order']['metadata']['source'] ?? null;
 
         // Only send notifications for mobile orders
         if ($source !== 'mobile') {
