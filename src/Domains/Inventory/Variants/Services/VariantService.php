@@ -251,19 +251,14 @@ class VariantService
             ])
             ->first();
 
-            echo 'Variant ' . $variantData['sku'] . ' found: ' . ($variant ? 'true' : 'false');
-            echo PHP_EOL;
             if ($variant) {
-                echo 'Updating variant ' . $variant->id . ' with barcode ' . $variantData['barcode'];
                 $variant->barcode = $variantData['barcode'];
                 $variant->save();
 
                 $changedBarcodes[] = $variantData['barcode'];
             } else {
-                echo 'Variant not found for ' . $variantData['sku'] . ' with barcode ' . $variantData['barcode'];
                 $missingSkus[] = $variantData['sku'];
             }
-            echo PHP_EOL;
         }
 
         return [
