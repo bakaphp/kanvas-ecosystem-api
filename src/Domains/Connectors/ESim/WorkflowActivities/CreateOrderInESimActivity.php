@@ -14,6 +14,8 @@ use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -22,6 +24,10 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\KanvasActivity;
+
+use function Sentry\captureException;
+
+use Stripe\StripeClient;
 use Throwable;
 
 class CreateOrderInESimActivity extends KanvasActivity
@@ -60,6 +66,7 @@ class CreateOrderInESimActivity extends KanvasActivity
 
         $providerValue = strtolower($provider->value);
         $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
+        $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
 
         try {
             /**
@@ -91,7 +98,6 @@ class CreateOrderInESimActivity extends KanvasActivity
             ];
         }
 
-        $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
         $order->metadata = array_merge(($order->metadata ?? []), $response);
         $order->completed();
         //$order->saveOrFail();
@@ -168,19 +174,50 @@ class CreateOrderInESimActivity extends KanvasActivity
         ];
     }
 
+    /**
+     * @todo this is ugly as hell and should be moved to a service
+     */
     protected function sendOrderToCommerce(Order $order, ESim $esim, string $providerValue): array
     {
         try {
             $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
             $woocommerceResponse = $woocommerceOrder->execute($providerValue);
+
+            $orderCommerceId = $woocommerceResponse['order']['id'];
+            $order->set(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value, $woocommerceResponse['order']['id']);
+
+            $stripe = new StripeClient($order->app->get(EnumsConfigurationEnum::STRIPE_SECRET_KEY->value));
+
+            $clientSecret = $order->checkout_token;
+            $paymentIntentId = explode('_secret_', $clientSecret)[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
+
+            $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
+
+            $commerceOrder = new WooCommerceOrderService($order->app);
+            $updateResponse = $commerceOrder->updateOrderStripePayment(
+                $orderCommerceId,
+                (string) $paymentIntent->latest_charge,
+                'completed',
+                $paymentIntent->toArray(),
+            );
+
+            if (! empty($woocommerceResponse['order']['number'])) {
+                $order->order_number = $woocommerceResponse['order']['number'];
+            }
+            $order->addPrivateMetadata('stripe_payment_intent', $paymentIntent->toArray());
+
+            return [
+                'order' => $woocommerceResponse,
+                'update' => $updateResponse ?? null,
+            ];
         } catch (Throwable $e) {
-            $woocommerceResponse = [
+            captureException($e);
+
+            return [
                 'status' => 'error',
-                'message' => 'Error creating order in WooCommerce',
+                'message' => 'Error sending order to commerce',
                 'response' => $e->getMessage(),
             ];
         }
-
-        return $woocommerceResponse;
     }
 }

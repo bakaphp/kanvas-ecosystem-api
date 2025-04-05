@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Enums;
 
 use Baka\Contracts\EnumsInterface;
+use Override;
 
 enum AppEnums implements EnumsInterface
 {
@@ -57,9 +58,7 @@ enum AppEnums implements EnumsInterface
 
     case DEFAULT_PUBLIC_SEARCH_USER_ID;
 
-    /**
-     * Get value.
-     */
+    #[Override]
     public function getValue(): mixed
     {
         return match ($this) {
@@ -103,7 +102,7 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_CURRENT_LOCALE_CODE => 'X-Kanvas-Locale-Code',
             self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization', //@deprecated
             self::DISPLAYNAME_LOGIN => 'displayname_login',
-            self::VERSION => '1.33.3',
+            self::VERSION => '1.35.1',
             self::ANONYMOUS_USER_ID => -1,
             self::DEFAULT_APP_JWT_TOKEN_NAME => 'kanvas-login',
             self::CSV_DATE_FORMAT => 'csv_date_format',

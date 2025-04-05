@@ -82,7 +82,9 @@ class CreateEsimOrderAction
         $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
         $this->availableVariant = $parentProductIccid->variant;
 
-        $refuelId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_REFUEL_SKU->value)?->value ?? $this->orderVariant->product->getAttributeBySlug(ConfigurationEnum::PRODUCT_REFUEL_SKU->value)?->value;
+        $refuelId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_REFUEL_SKU->value)?->value ?? null;
+
+        $refuelId = $refuelId[0]['refuelingID'] ?? null;
 
         if ($refuelId === null) {
             throw new ValidationException('Refuel ID not found for this product variant - ' . $this->orderVariant->sku);
