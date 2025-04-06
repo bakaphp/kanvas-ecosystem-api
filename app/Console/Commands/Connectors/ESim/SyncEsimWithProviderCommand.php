@@ -59,6 +59,7 @@ class SyncEsimWithProviderCommand extends Command
             ->fromCompany($company)
             ->notDeleted()
             ->whereIsPublic()
+            ->where('id', 139848)
             ->orderBy('id', 'desc')
             ->get();
 
@@ -267,9 +268,9 @@ class SyncEsimWithProviderCommand extends Command
              * @todo Move those spanish strings to app settings
              */
             if ($today->startOfDay()->equalTo($expirationDay->startOfDay()) || $today->greaterThan($expirationDay)) {
-                $spentMessage = "Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps";
+                $spentMessage = 'Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps';
             } else {
-                $spentMessage = "Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps hasta el siguiente día";
+                $spentMessage = 'Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps hasta el siguiente día';
             }
         }
 
@@ -302,11 +303,7 @@ class SyncEsimWithProviderCommand extends Command
     /**
      * Check if notifications should be sent for a specific ESim and send them if needed
      *
-     * @param Message $message
-     * @param array $esimStatus
-     * @param bool $isValidState
      * @param bool $shouldForceActive
-     * @return void
      */
     private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isValidState): void
     {
@@ -328,7 +325,7 @@ class SyncEsimWithProviderCommand extends Command
         if ($esimStatus['unlimited']) {
             $dataNotification = [
                 'title' => 'Has alcanzado tu límite diario de datos a alta velocidad.',
-                'message' => 'Ahora navegarás a una velocidad reducida de 384kbps.'
+                'message' => 'Ahora navegarás a una velocidad reducida de 384kbps.',
             ];
             $this->checkUnlimitedPlanUsage($esimStatus, $notifyUser, $message, $dataNotification);
             $this->checkUnlimitedPlanExpiration($esimStatus, $notifyUser, $message);
@@ -339,11 +336,6 @@ class SyncEsimWithProviderCommand extends Command
 
     /**
      * Check data usage thresholds and send notifications at 70% and 90% usage
-     *
-     * @param array $esimStatus
-     * @param Users $notifyUser
-     * @param Message $message
-     * @return void
      */
     private function checkDataUsageThresholds(array $esimStatus, Users $notifyUser, Message $message): void
     {
@@ -384,10 +376,7 @@ class SyncEsimWithProviderCommand extends Command
     /**
      * Check if unlimited plan is about to expire and send notification
      *
-     * @param array $esimStatus
      * @param Users $user
-     * @param Message $message
-     * @return void
      */
     private function checkUnlimitedPlanExpiration(array $esimStatus, Users $notifyUser, Message $message): void
     {
@@ -411,11 +400,7 @@ class SyncEsimWithProviderCommand extends Command
     /**
      * Check if unlimited plan is about to expire and send notification
      *
-     * @param array $esimStatus
      * @param Users $user
-     * @param Message $message
-     * @param array $dataNotification
-     * @return void
      */
     private function checkUnlimitedPlanUsage(array $esimStatus, Users $notifyUser, Message $message, array $dataNotification): void
     {
@@ -444,14 +429,6 @@ class SyncEsimWithProviderCommand extends Command
 
     /**
      * Send push notification to user
-     *
-     * @param Users $notifyUser
-     * @param string $title
-     * @param string $notificationMessage
-     * @param array $additionalData
-     * @param string $templateName,
-     * @param Message $message
-     * @return void
      */
     private function sendPushNotification(
         Users $notifyUser,
@@ -467,7 +444,7 @@ class SyncEsimWithProviderCommand extends Command
             'title' => $title,
             'message' => $notificationMessage,
             'app' => $app,
-            'data' => $additionalData
+            'data' => $additionalData,
         ];
 
         $vias = [NotificationChannelEnum::getNotificationChannelBySlug('PUSH')];
