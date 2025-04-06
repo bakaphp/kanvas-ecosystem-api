@@ -135,6 +135,7 @@ class Setup
 
         $createUserLinkedSource = new CreateUserLinkedSourcesAction(
             $this->user,
+            $this->app,
             $source,
             (string)Str::uuid(),
         );
