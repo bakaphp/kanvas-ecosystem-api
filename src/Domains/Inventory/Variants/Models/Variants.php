@@ -132,7 +132,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     public function isPublished(): bool
     {
-        return ! $this->is_deleted && $this->is_published;
+        return (int) $this->is_deleted === 0 && $this->is_published;
     }
 
     /**
