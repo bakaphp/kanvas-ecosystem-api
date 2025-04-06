@@ -132,7 +132,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     public function isPublished(): bool
     {
-        return (int) $this->is_deleted === 0 || $this->is_published === StateEnums::ON->getValue();
+        return ! $this->is_deleted && $this->is_published;
     }
 
     /**
