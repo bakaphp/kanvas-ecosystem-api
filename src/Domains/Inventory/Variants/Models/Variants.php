@@ -57,6 +57,7 @@ use Override;
  * @property string html_description
  * @property string sku
  * @property int status_id
+ * @property int is_published
  * @property string ean
  * @property string barcode
  * @property string serial_number
@@ -105,6 +106,10 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         'apps_id',
     ];
 
+    protected $casts = [
+        'is_published' => 'boolean',
+    ];
+
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
 
@@ -127,7 +132,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     public function isPublished(): bool
     {
-        return (int) $this->is_deleted === 0;
+        return (int) $this->is_deleted === 0 || $this->is_published === StateEnums::ON->getValue();
     }
 
     /**
