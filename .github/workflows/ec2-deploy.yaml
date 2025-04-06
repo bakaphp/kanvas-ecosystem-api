@@ -27,50 +27,61 @@ jobs:
           source: .
           target: ${{ secrets.AWS_EC2_TARGET_DIR }}
 
-  update-docker-swarm-service:
+  docker-command:
     runs-on: ubuntu-latest
     needs: deploy-to-ec2
     environment: ${{ github.ref_name }}
     steps:
       - name: executing remote ssh commands using password
-        uses: appleboy/ssh-action@v1.2.1
+        uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.AWS_EC2_HOST }}
           username: ${{ secrets.AWS_EC2_USERNAME }}
           key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
           script: |
             cd ${{ secrets.AWS_EC2_TARGET_DIR }}
+            if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
+              docker-compose -f docker-compose.${{ github.ref_name }}.yml up -d
+              docker exec -i phpkanvas-ecosystem composer install --no-dev --optimize-autoloader
+            else
+              docker compose -f docker-compose.${{ github.ref_name }}.yml up -d
+              docker exec -i phpkanvas-ecosystem composer install --optimize-autoloader
+            fi
+            docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
+            docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
+            docker exec -i phpkanvas-ecosystem php artisan config:cache
 
-            # Ensure Swarm is initialized
-            docker swarm init --advertise-addr $(hostname -I | awk '{print $1}') || true
+            docker restart queue-scrapper
+            docker restart queue
+            docker restart queue-imports
+            docker restart queue-notifications
+            docker restart queue-social
+            docker restart laravel-scheduler
+            docker restart queue-sync-shopify-queue
+            docker restart queue-sync-shopify-queue-worker-1
+            docker stop queue-sync-shopify-queue-worker-2
+            docker restart queue-scout-worker-1
+            docker stop queue-scout-worker-2
+            docker restart queue-workflow-1
+            docker stop queue-workflow-2
+            docker stop queue-workflow-3
+            docker restart batch-logger-queue
+            docker restart queue-user-interactions
+            docker stop queue-scrapper-worker-1
+            docker stop queue-scrapper-worker-2
+            docker stop queue-scrapper-worker-3
+            docker stop queue-scrapper-worker-4
+            docker stop queue-scout-worker-3
+            if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
+              docker stop queue-imports2
+              docker stop queue2
+              docker stop queue3
+              docker stop queue4
+              docker stop queue5
+              docker stop queue6
+              docker stop queue7
+              docker stop queue8
+              docker stop queue-workflow-4
+            fi
 
-            # Create Swarm Network if it doesn't exist
-            docker network ls | grep kanvas_docker_swarm_network || docker network create --driver overlay kanvas_docker_swarm_network
-
-            # Deploy with Swarm
-            docker stack deploy -c docker-compose.${{ github.ref_name }}.yml kanvas-niche-api
-            
-            # Wait for services to start
-            sleep 10
-
-            # Install dependencies inside Laravel container
-            docker exec -i $(docker ps --filter name=phpkanvas-ecosystem -q) composer install --optimize-autoloader
-
-            # Clear and cache Laravel configurations
-            docker exec -i $(docker ps --filter name=phpkanvas-ecosystem -q) php artisan lighthouse:cache
-            docker exec -i $(docker ps --filter name=phpkanvas-ecosystem -q) php artisan lighthouse:clear-cache all
-            docker exec -i $(docker ps --filter name=phpkanvas-ecosystem -q) php artisan config:cache
-            
-            # Reload Octane
-            docker exec -i $(docker ps --filter name=phpkanvas-ecosystem -q) php artisan octane:reload
-
-            # Force update of all services to apply changes smoothly
-            docker service update --force kanvas-niche-api_queue-social
-            docker service update --force kanvas-niche-api_queue
-            docker service update --force kanvas-niche-api_laravel-scheduler
-            docker service update --force kanvas-niche-api_batch-logger-queue
-            docker service update --force kanvas-niche-api_queue-user-interactions
-            docker service update --force kanvas-niche-api_queue-scout-worker
-            docker service update --force kanvas-niche-api_queue-workflow
-            docker service update --force kanvas-niche-api_queue-imports
-            docker service update --force kanvas-niche-api_queue-notifications
+            docker exec -i phpkanvas-ecosystem php artisan octane:reload
