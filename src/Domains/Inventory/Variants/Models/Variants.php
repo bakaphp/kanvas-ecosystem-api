@@ -61,6 +61,7 @@ use Override;
  * @property string ean
  * @property string barcode
  * @property string serial_number
+ * @property int is_deleted
  */
 #[ObservedBy(VariantObserver::class)]
 class Variants extends BaseModel implements EntityIntegrationInterface
