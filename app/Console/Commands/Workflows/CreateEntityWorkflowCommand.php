@@ -7,7 +7,6 @@ namespace App\Console\Commands\Workflows;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
@@ -15,16 +14,14 @@ use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
+use RuntimeException;
+use Symfony\Component\Console\Exception\InvalidArgumentException;
 
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\multiselect;
-
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\table;
 use function Laravel\Prompts\text;
-
-use RuntimeException;
-use Symfony\Component\Console\Exception\InvalidArgumentException;
 
 class CreateEntityWorkflowCommand extends Command
 {

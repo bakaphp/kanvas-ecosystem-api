@@ -45,7 +45,7 @@ class Variants
         $variantDto = VariantDto::viaRequest($req['input'], auth()->user());
         $action = new CreateVariantsAction($variantDto, auth()->user());
         $variantModel = $action->execute();
-        $company = $variantDto->product->company()->get()->first();
+        $company = $variantDto->product->company;
 
         if (isset($req['input']['attributes'])) {
             $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);

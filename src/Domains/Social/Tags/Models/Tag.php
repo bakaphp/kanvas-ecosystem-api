@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Tags\Models;
 
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Models\BaseModel;
-use Laravel\Scout\Searchable;
+use Override;
 
 /**
  * @property int id
@@ -25,25 +28,26 @@ use Laravel\Scout\Searchable;
 class Tag extends BaseModel
 {
     use SlugTrait;
-    use Searchable {
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
 
     protected $guarded = [];
     protected $table = 'tags';
 
-    public function taggables()
+    public function taggables(): HasMany
     {
         return $this->hasMany(TagEntity::class, 'tags_id');
     }
 
-    public function entities()
+    public function entities(): MorphToMany
     {
         return $this->morphToMany(Tag::class, 'taggable', 'tags_entities', 'tags_id', 'entity_id')
                     ->using(TagEntity::class)
                     ->withPivot('entity_namespace', 'companies_id', 'apps_id', 'users_id', 'is_deleted', 'created_at', 'updated_at');
     }
 
+    #[Override]
     public function getTable()
     {
         $databaseName = DB::connection($this->connection)->getDatabaseName();

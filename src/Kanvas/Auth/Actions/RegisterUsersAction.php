@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
-use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Services\SetupService;
@@ -12,21 +11,22 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Override;
 
 class RegisterUsersAction extends CreateUserAction
 {
-    /**
-     * Invoke function.
-     * @todo improve duplicate code
-     *
-     * @param RegisterInput $data
-     */
+    #[Override]
     public function execute(): Users
     {
         $newUser = false;
         $company = $this->data->branch ? $this->data->branch->company : null;
 
         $this->validateEmail();
+
+        if ($this->extraValidation && $this->app->get('register_user_additional_fields_validation')) {
+            $this->validateNames();
+            $this->validatePhoneNumber();
+        }
 
         try {
             /**
@@ -49,7 +49,7 @@ class RegisterUsersAction extends CreateUserAction
             $user = $this->createNewUser();
 
             // if company is not set we create a new company
-            if (! $company) {
+            if ($company === null) {
                 $company = $this->createCompany($user);
             } else {
                 $this->assignCompany($user);

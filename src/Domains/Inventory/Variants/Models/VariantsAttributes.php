@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
+use Override;
 
 /**
  * Class Variants Attributes.
@@ -37,15 +38,15 @@ class VariantsAttributes extends BaseModel
     ];
 
     protected $primaryKey = ['products_variants_id', 'attributes_id'];
+    public $translatable = ['name', 'value'];
 
+    #[Override]
     protected function casts(): array
     {
         return [
             'value' => Json::class,
         ];
     }
-
-    public $translatable = ['value'];
 
     /**
      * Get the product.

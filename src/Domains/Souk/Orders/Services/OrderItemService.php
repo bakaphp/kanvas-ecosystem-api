@@ -75,6 +75,7 @@ class OrderItemService
     public function processOrderItems(array $orderItems, int $channelId): array
     {
         $cartItems = [];
+        $errors = [];
         foreach ($orderItems as $orderItem) {
             $variant = Variants::where('id', $orderItem['variant_id'])->first();
             $channel = $variant->variantChannels()->where('channels_id', $channelId)->first();
@@ -88,11 +89,13 @@ class OrderItemService
             $currentStock = $warehouse?->quantity ?? 0;
 
             if ($currentStock < $orderItem['quantity']) {
-                throw new \Exception('Not enough stock for product ' . $variant->name);
+                $errors[] = 'Not enough stock for product ' . $variant->name;
+                continue;
             }
 
             if ($minimumOrderQuantity > $orderItem['quantity']) {
-                throw new \Exception('Minimum order quantity for product ' . $variant->name . ' is ' . $minimumOrderQuantity);
+                $errors[] = 'Minimum order quantity for product ' . $variant->name . ' is ' . $minimumOrderQuantity;
+                continue;
             }
 
             $cartItems[] = [
@@ -101,6 +104,9 @@ class OrderItemService
             ];
         }
 
-        return $cartItems;
+        return [
+            'validItems' => $cartItems,
+            'errors' => $errors,
+        ];
     }
 }

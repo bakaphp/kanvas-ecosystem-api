@@ -35,6 +35,35 @@ class OrderService
 
     protected function eSimGoOrder(OrderItem $item): array
     {
+        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+
+        if ($isRefuelOrder) {
+            return $this->processEsimGoRefuelOrder($item);
+        } else {
+            return $this->processEsimGoNewOrder($item);
+        }
+    }
+
+    protected function processEsimGoRefuelOrder(OrderItem $item): array
+    {
+        $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
+        $iccid = $this->order->metadata['data']['iccid'] ?? null;
+
+        if (! $iccid) {
+            return [
+                'status' => 'error',
+                'message' => 'ICCID is required',
+            ];
+        }
+
+        return $this->client->post('/api/v1/esimgo/recharge', [
+            'iccid' => $iccid,
+            'name' => $esimBundle->value,
+        ]);
+    }
+
+    protected function processEsimGoNewOrder(OrderItem $item): array
+    {
         $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
         $totalDays = $item->variant->getAttributeByName('esim_days');
         $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
@@ -93,8 +122,8 @@ class OrderService
     protected function getClientDetails(): array
     {
         return [
-            'first_name' => $this->order?->people?->first_name,
-            'last_name' => $this->order?->people?->last_name,
+            'first_name' => $this->order->people?->firstname,
+            'last_name' => $this->order->people?->lastname,
             'phone' => $this->order->user_phone,
             'email' => $this->order->user_email,
             'payment' => null,

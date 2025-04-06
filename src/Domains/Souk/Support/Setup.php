@@ -20,7 +20,7 @@ class Setup
 
     public function run(): bool
     {
-        $createSystemModule = new CreateInCurrentAppAction($this->app);
+        //$createSystemModule = new CreateInCurrentAppAction($this->app);
         (new CreateSystemModule($this->app))->run();
 
         return true;

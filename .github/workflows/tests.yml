@@ -100,6 +100,7 @@ jobs:
       TEST_VINSOLUTIONS_API_KEY: ${{ secrets.TEST_VINSOLUTIONS_API_KEY }}
       TEST_VINSOLUTIONS_API_KEY_DIGITAL_SHOWROOM: ${{ secrets.TEST_VINSOLUTIONS_API_KEY_DIGITAL_SHOWROOM }}
       TEST_VINSOLUTIONS_COMPANY_ID: ${{ secrets.TEST_VINSOLUTIONS_COMPANY_ID }}
+      TEST_VINSOLUTIONS_USER_ID: ${{ secrets.TEST_VINSOLUTIONS_USER_ID }}
       TEST_RECOMBEE_DATABASE: ${{ secrets.TEST_RECOMBEE_DATABASE }}
       TEST_RECOMBEE_API_KEY: ${{ secrets.TEST_RECOMBEE_API_KEY }}
       TEST_RECOMBEE_REGION: ${{ secrets.TEST_RECOMBEE_REGION }}
@@ -201,6 +202,9 @@ jobs:
 
       - name: Setup Kanvas Integrations
         run: php artisan kanvas:create-integration shopify --config='{"client_id":{"type":"text","required":true},"client_secret":{"type":"text","required":true},"shop_url":{"type":"text","required":true}}' --handler='Kanvas\Connectors\Shopify\Handlers\ShopifyHandler'
+
+      - name: Setup Kanvas Workflow Actions
+        run: php artisan kanvas:workflow-sync-actions
 
       - name: create .env file
         run: echo '' > .env

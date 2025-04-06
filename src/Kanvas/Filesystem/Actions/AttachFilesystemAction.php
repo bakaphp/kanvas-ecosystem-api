@@ -82,6 +82,9 @@ class AttachFilesystemAction
 
             if ($runUpdate) {
                 $fileEntity->saveOrFail();
+                if (method_exists($fileEntity, 'flushCache')) {
+                    $fileEntity->flushCache();
+                }
             }
 
             // Fire events after successful database operations

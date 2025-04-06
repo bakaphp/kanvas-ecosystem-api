@@ -27,55 +27,100 @@ class DownloadAllShopifyProductsAction
 
     public function execute(array $params = []): int
     {
-        $firstPage = null;
         $shopify = Client::getInstance(
             $this->app,
             $this->warehouses->company,
             $this->warehouses->region
         );
-        $totalRecords = 0;
-        $productsToImport = [];
 
+        $productsToImport = isset($params['sku']) && ! empty($params['sku'])
+            ? $this->getProductsBySku($shopify, trim($params['sku']))
+            : $this->getAllProducts($shopify, $params);
+
+        if (count($productsToImport)) {
+            $jobUuid = Str::uuid()->toString();
+
+            ProductImporterJob::dispatch(
+                $jobUuid,
+                $productsToImport,
+                $this->branch,
+                $this->user,
+                $this->warehouses->region,
+                $this->app
+            );
+        }
+
+        return count($productsToImport);
+    }
+
+    private function getProductsBySku($shopify, string $sku): array
+    {
+        $products = [];
         $shopifyP = $shopify->Product();
+        $firstPage = null;
 
         do {
-            if (! $firstPage && $shopifyP->getNextPageParams()) {
-                // Get next page parameters without 'status' filter
-                $params = $shopifyP->getNextPageParams();
+            $shopifyParams = ! $firstPage && $shopifyP->getNextPageParams()
+                ? $shopifyP->getNextPageParams()
+                : ['limit' => 250];
+
+            $shopifyProducts = $shopifyP->get($shopifyParams);
+
+            foreach ($shopifyProducts as $product) {
+                if (! isset($product['variants']) || ! is_array($product['variants'])) {
+                    continue;
+                }
+
+                foreach ($product['variants'] as $variant) {
+                    if (isset($variant['sku']) && trim($variant['sku']) === $sku) {
+                        $products[] = $this->mapProduct($product);
+
+                        break;
+                    }
+                }
             }
 
-            // Get products based on the current set of parameters
-            $currentShopifyProductPage = $shopifyP->get($params);
-
-            foreach ($currentShopifyProductPage as $shopifyProduct) {
-                $shopifyProductService = new ShopifyProductService(
-                    $this->app,
-                    $this->warehouses->company,
-                    $this->warehouses->region,
-                    $shopifyProduct['id'],
-                    $this->user,
-                    $this->warehouses,
-                    $this->channel
-                );
-                $productsToImport[] = $shopifyProductService->mapProductForImport($shopifyProduct);
-
-                $totalRecords++;
-            }
-
-            $firstPage = false; // After first fetch, do not reset to initial parameters
+            $firstPage = false;
         } while ($shopifyP->getNextPageParams());
 
-        $jobUuid = Str::uuid()->toString();
+        return $products;
+    }
 
-        ProductImporterJob::dispatch(
-            $jobUuid,
-            $productsToImport,
-            $this->branch,
-            $this->user,
+    private function getAllProducts($shopify, array $params): array
+    {
+        $products = [];
+        $shopifyP = $shopify->Product();
+        $firstPage = null;
+
+        do {
+            $shopifyParams = ! $firstPage && $shopifyP->getNextPageParams()
+                ? $shopifyP->getNextPageParams()
+                : $params;
+
+            $shopifyProducts = $shopifyP->get($shopifyParams);
+
+            foreach ($shopifyProducts as $product) {
+                $products[] = $this->mapProduct($product);
+            }
+
+            $firstPage = false;
+        } while ($shopifyP->getNextPageParams());
+
+        return $products;
+    }
+
+    private function mapProduct(array $shopifyProduct): array
+    {
+        $service = new ShopifyProductService(
+            $this->app,
+            $this->warehouses->company,
             $this->warehouses->region,
-            $this->app
+            $shopifyProduct['id'],
+            $this->user,
+            $this->warehouses,
+            $this->channel
         );
 
-        return $totalRecords;
+        return $service->mapProductForImport($shopifyProduct);
     }
 }

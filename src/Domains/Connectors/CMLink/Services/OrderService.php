@@ -55,8 +55,7 @@ class OrderService
      * @param string $thirdOrderId Unique order ID from the client.
      * @param string $iccid ICCID of the target SIM card.
      * @param int $quantity Number of bundles to purchase.
-     * @param int $isRefuel Indicates whether this is an add-on package (0 = yes, 1 = no).
-     * @param int $refuelingId Add-on package ID, it is required if is_Refuel is 0
+     * @param string $refuelingId Add-on package ID, it is required if is_Refuel is 0
      * @param string $dataBundleId ID of the data package to purchase.
      */
     public function refuelOrder(
@@ -64,14 +63,16 @@ class OrderService
         string $iccid,
         int $quantity,
         string $activeDate,
-        string $refuelingId
+        string $refuelingId,
+        string $dataBundleId
     ): array {
         return $this->client->post('/aep/APP_createOrder_SBO/v1', [
             'thirdOrderId' => $thirdOrderId,
             'ICCID' => $iccid,
             'quantity' => $quantity,
             'is_Refuel' => '0',
-            'refuelingId' => (string) $refuelingId,
+            'refuelingId' => $refuelingId,
+            'dataBundleId' => $dataBundleId,
             'includeCard' => 0, // Assuming 0 means no physical card
             'sendLang' => 2,
             //'setActiveTime' => date('Ymd', strtotime($activeDate)),
@@ -86,13 +87,26 @@ class OrderService
             'accessToken' => $this->client->getAccessToken(),
         ]);
 
-        // Check if quotaList and historyQuota exist
-        if (! isset($response['quotaList'][0]['historyQuota'])) {
-            return ['total' => 0]; // No data usage available
+        // Check if 'quotaList' exists and is an array
+        if (! isset($response['quotaList']) || ! is_array($response['quotaList'])) {
+            return ['total' => 0];
         }
 
-        // Calculate total qtaconsumption in MB
-        $totalConsumptionMB = array_sum(array_column($response['quotaList'][0]['historyQuota'], 'qtaconsumption'));
+        $totalConsumptionMB = null;
+        // Loop through quotaList items
+        foreach ($response['quotaList'] as $quotaItem) {
+            // Check if subscriberQuota exists and is not empty
+            if (! empty($quotaItem['subscriberQuota']) && isset($quotaItem['subscriberQuota']['qtabalance'])) {
+                $totalConsumptionMB = $quotaItem['subscriberQuota']['qtabalance'];
+
+                break;
+            }
+        }
+
+        if (is_null($totalConsumptionMB)) {
+            // If no subscriberQuota found, return total 0
+            return ['total' => 0];
+        }
 
         // Convert MB to required format (MB * 1,000,000 to match 500MB = 500000000)
         $totalConsumptionFormatted = (int) ($totalConsumptionMB * 1000000);

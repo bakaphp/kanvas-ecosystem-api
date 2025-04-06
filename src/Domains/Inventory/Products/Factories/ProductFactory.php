@@ -20,7 +20,7 @@ class ProductFactory extends Factory
     public function definition()
     {
         $app = app(Apps::class);
-        $company = Companies::factory()->create();
+        $company = Companies::where('id', $this->states['companies_id'] ?? null)->first() ?? Companies::factory()->create();
         $productType = ProductsTypes::factory()->company($company->getId())->create();
 
         return [
@@ -32,5 +32,32 @@ class ProductFactory extends Factory
             'description' => $this->faker->text,
             //'sku' => $this->faker->numberBetween(1000, 9000),
         ];
+    }
+
+    public function withUserId(int $userId)
+    {
+        return $this->state(function (array $attributes) use ($userId) {
+            return [
+                'users_id' => $userId,
+            ];
+        });
+    }
+
+    public function withAppId(int $appId)
+    {
+        return $this->state(function (array $attributes) use ($appId) {
+            return [
+                'apps_id' => $appId,
+            ];
+        });
+    }
+
+    public function withCompanyId(int $companyId)
+    {
+        return $this->state(function (array $attributes) use ($companyId) {
+            return [
+                'companies_id' => $companyId,
+            ];
+        });
     }
 }

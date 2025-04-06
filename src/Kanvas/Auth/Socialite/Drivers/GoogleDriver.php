@@ -10,6 +10,7 @@ use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Socialite\Contracts\DriverInterface;
 use Kanvas\Auth\Socialite\DataTransferObject\User;
 use Kanvas\Exceptions\ValidationException;
+use Override;
 
 class GoogleDriver implements DriverInterface
 {
@@ -28,6 +29,7 @@ class GoogleDriver implements DriverInterface
         $this->client->setRedirectUri($this->config['redirect_uri']);
     }
 
+    #[Override]
     public function getUserFromToken(string $token): User
     {
         $payload = $this->client->verifyIdToken($token);

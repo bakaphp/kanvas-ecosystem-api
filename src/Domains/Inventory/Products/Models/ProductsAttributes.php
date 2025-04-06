@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
+use Override;
 use Spatie\Translatable\HasTranslations;
 
 /**
@@ -19,7 +20,7 @@ use Spatie\Translatable\HasTranslations;
  *
  * @property int $products_id
  * @property int $attributes_id
- * @property string $value
+ * @property ?string $value = null
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
@@ -59,6 +60,7 @@ class ProductsAttributes extends BaseModel
         return $this->belongsTo(Attributes::class, 'attributes_id');
     }
 
+    #[Override]
     protected function casts(): array
     {
         return [

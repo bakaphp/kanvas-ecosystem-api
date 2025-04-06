@@ -13,6 +13,7 @@ use Illuminate\Support\Arr;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Socialite\Contracts\DriverInterface;
 use Kanvas\Auth\Socialite\DataTransferObject\User;
+use Override;
 use phpseclib3\Crypt\RSA;
 use phpseclib3\Math\BigInteger;
 
@@ -30,12 +31,13 @@ class FacebookDriver implements DriverInterface
         $this->clientId = $config['client_id'] ?? throw new AuthenticationException('Facebook Client Id configuration is required');
     }
 
+    #[Override]
     public function getUserFromToken(string $token): User
     {
         $kid = json_decode(base64_decode(explode('.', $token)[0]), true)['kid'] ?? null;
 
         if ($kid === null) {
-            return null;
+            return $this->getUserFromClassicToken($token);
         }
 
         $data = (array) JWT::decode($token, $this->getPublicKeyOfOIDCToken($kid));
@@ -47,6 +49,21 @@ class FacebookDriver implements DriverInterface
             'id' => $data['sub'],
             'email' => $data['email'],
             'nickname' => Random::generateDisplayName($data['given_name']),
+            'name' => $data['name'],
+            'token' => $token,
+        ]);
+    }
+
+    public function getUserFromClassicToken(string $token): User
+    {
+        $response = $this->client->get('https://graph.facebook.com/me?access_token=' . $token . '&fields=id,name,email,first_name,last_name');
+
+        $data = json_decode($response->getBody()->getContents(), true);
+
+        return User::from([
+            'id' => $data['id'],
+            'email' => $data['email'],
+            'nickname' => Random::generateDisplayName($data['first_name']),
             'name' => $data['name'],
             'token' => $token,
         ]);

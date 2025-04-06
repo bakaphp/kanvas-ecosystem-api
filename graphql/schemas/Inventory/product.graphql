@@ -26,7 +26,7 @@ type Product {
     updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
-    attributes: [ProductAttribute!]! @method(name: "visibleAttributes")
+    attributes: [ProductAttribute!]! @method(name: "visibleAttributes") @cacheRedis
     variants: [Variant!]! @HasMany
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")
@@ -125,7 +125,7 @@ enum FormatSortAttribute {
     DATE
 }
 
-extend type Mutation @guardByAdmin {
+extend type Mutation @guard {
     createProduct(input: ProductInput!): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"

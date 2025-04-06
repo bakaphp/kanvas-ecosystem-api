@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
-use Kanvas\Guild\Enums\FlagEnum;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Tests\TestCase;
-use Kanvas\Guild\Leads\Models\LeadType;
-use Kanvas\Guild\Leads\Models\LeadSource;
-use Kanvas\Apps\Models\Apps;
 use Illuminate\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\LeadRotation;
+use Kanvas\Guild\Leads\Models\LeadSource;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Tests\TestCase;
 
 class LeadReceiverTest extends TestCase
 {
@@ -22,7 +20,7 @@ class LeadReceiverTest extends TestCase
             'companies_id' => auth()->user()->getCurrentCompany()->getId(),
             'name' => 'Lead Rotation',
             'hits' => 1,
-            'leads_rotations_email' => ''
+            'leads_rotations_email' => '',
         ]);
         $leadType = LeadType::create([
             'apps_id' => app(Apps::class)->getId(),
@@ -87,7 +85,7 @@ class LeadReceiverTest extends TestCase
                     'leadType' => [
                         'id' => $input['lead_types_id'],
                     ],
-                    'template' => 'template'
+                    'template' => 'template',
                 ],
             ],
         ]);
@@ -136,7 +134,7 @@ class LeadReceiverTest extends TestCase
                     'leadType' => [
                         'id' => $input['lead_types_id'],
                     ],
-                    'template' => 'template'
+                    'template' => 'template',
                 ],
             ],
         ]);

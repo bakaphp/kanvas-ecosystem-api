@@ -11,11 +11,6 @@ use Kanvas\Workflow\Integrations\Models\Status;
 
 class AddEntityIntegrationHistoryAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         protected EntityIntegrationHistory $dto,
         protected Apps $app,
@@ -23,11 +18,6 @@ class AddEntityIntegrationHistoryAction
     ) {
     }
 
-    /**
-     * execute.
-     *
-     * @return ModelsEntityIntegrationHistory
-     */
     public function execute(): ModelsEntityIntegrationHistory
     {
         $integrationHistory = new ModelsEntityIntegrationHistory();
@@ -35,6 +25,7 @@ class AddEntityIntegrationHistoryAction
         $integrationHistory->entity_id = $this->dto->entity->getId();
         $integrationHistory->apps_id = $this->app->getId();
         $integrationHistory->integrations_company_id = $this->dto->integrationCompany->getId();
+        $integrationHistory->companies_id = $this->dto->integrationCompany->company->getId();
         $integrationHistory->integrations_id = $this->dto->integrationCompany->integration->getId();
         $integrationHistory->status_id = $this->dto->status->getId();
         $integrationHistory->response = $this->dto->response;
@@ -42,6 +33,7 @@ class AddEntityIntegrationHistoryAction
         $integrationHistory->workflow_id = $this->dto->workflowId;
 
         $integrationHistory->saveOrFail();
+
         return $integrationHistory;
     }
 }

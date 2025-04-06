@@ -10,8 +10,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\AuthenticationService;
 use Kanvas\Auth\Socialite\DataTransferObject\User as SocialiteUser;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
 use Kanvas\Users\Models\Users;
@@ -19,9 +17,6 @@ use Kanvas\Users\Repositories\UsersRepository;
 
 class SocialLoginAction
 {
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected SocialiteUser $socialUser,
         protected string $provider,
@@ -31,9 +26,6 @@ class SocialLoginAction
 
     /**
      * Login a user and create if not exist.
-     *
-     * @param SocialiteUser $socialUser
-     * @param string $provider
      */
     public function execute(): Users
     {
@@ -65,6 +57,7 @@ class SocialLoginAction
                 'source_id' => $source->getId(),
                 'source_users_id' => $this->socialUser->id,
             ], [
+                'apps_id' => $this->app->getId(),
                 'source_users_id_text' => $this->socialUser->token,
                 'source_username' => $this->socialUser->nickname ?? $this->socialUser->name,
             ]);

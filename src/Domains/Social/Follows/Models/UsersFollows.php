@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Follows\Models;
 
-use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Social\Follows\Observers\UserFollowObserver;
-use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
+use Override;
 
 /**
  *  class UsersFollows
@@ -28,14 +26,10 @@ class UsersFollows extends BaseModel
     protected $guarded = [];
     protected $table = 'users_follows';
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id', 'id');
-    }
-
     /**
      * Convert the model instance to an array.
      */
+    #[Override]
     public function toArray(): array
     {
         $array = parent::toArray();

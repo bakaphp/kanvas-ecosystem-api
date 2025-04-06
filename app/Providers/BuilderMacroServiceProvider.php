@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\ServiceProvider;
+use Override;
 
 class BuilderMacroServiceProvider extends ServiceProvider
 {
@@ -35,6 +36,7 @@ class BuilderMacroServiceProvider extends ServiceProvider
         });
     }
 
+    #[Override]
     public function register()
     {
     }

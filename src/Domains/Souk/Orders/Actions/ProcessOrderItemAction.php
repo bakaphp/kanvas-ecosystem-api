@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Exception;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -34,7 +35,7 @@ class ProcessOrderItemAction
         $validOrderItemsCount = count($validOrderItems);
 
         if ($validOrderItemsCount === 0) {
-            throw new \Exception('No valid order items found');
+            throw new Exception('No valid order items found');
         }
 
         // If the number of valid order items is greater than the limit, dispatch a job to process the order items.
@@ -48,11 +49,15 @@ class ProcessOrderItemAction
         }
 
         // Process the order items and add to cart.
-        $itemsProcessed = $orderItemService->processOrderItems($validOrderItems, $channelId);
+        $result = $orderItemService->processOrderItems($validOrderItems, $channelId);
+
+        if (count($result['errors']) > 0) {
+            throw new Exception(implode(', ', $result['errors']));
+        }
 
         // Add the items to the cart.
         $addToCartAction = new AddToCartAction($this->app, $this->user, $this->currentUserCompany);
-        $addToCartAction->execute($cart, $itemsProcessed);
+        $addToCartAction->execute($cart, $result['validItems']);
 
         // Return the items processed.
         return [

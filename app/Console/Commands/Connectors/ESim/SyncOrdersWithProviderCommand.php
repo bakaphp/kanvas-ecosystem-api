@@ -15,6 +15,8 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Souk\Orders\Models\Order;
 
+use function Sentry\captureException;
+
 class SyncOrdersWithProviderCommand extends Command
 {
     use KanvasJobsTrait;
@@ -43,6 +45,8 @@ class SyncOrdersWithProviderCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
+        Order::disableSearchSyncing();
+
         $company = Companies::getById((int) $this->argument('company_id'));
 
         $orders = Order::fromApp($app)->fromCompany($company)->notDeleted()->whereNotFulfilled()->orderBy('id', 'desc')->get();
@@ -65,7 +69,8 @@ class SyncOrdersWithProviderCommand extends Command
             }
 
             $item = $order->items()->first();
-            $provider = $item->variant?->product?->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+            $variant = $item->variant;
+            $provider = $variant?->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value) ?? $variant?->product?->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
 
             if ($provider == null) {
                 $this->info("Order ID: {$order->id} does not have a provider.");
@@ -89,6 +94,7 @@ class SyncOrdersWithProviderCommand extends Command
         try {
             $response = $customerService->getEsimInfo($iccid);
         } catch (Exception $e) {
+            captureException($e);
             $this->info("Order ID: {$order->id} does not have an ICCID.");
             $order->cancel();
             $order->fulfillCancelled();

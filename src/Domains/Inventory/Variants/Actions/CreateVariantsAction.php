@@ -33,7 +33,7 @@ class CreateVariantsAction
     public function execute(): Variants
     {
         CompaniesRepository::userAssociatedToCompany(
-            $this->variantDto->product->company()->get()->first(),
+            $this->variantDto->product->company,
             $this->user
         );
 
@@ -66,7 +66,7 @@ class CreateVariantsAction
                 'ean' => $this->variantDto->ean,
                 'barcode' => $this->variantDto->barcode,
                 'serial_number' => $this->variantDto->serial_number,
-                'weight' => $this->variantDto->weight,
+                'weight' => $this->variantDto->weight ?? 0,
             ]
         );
 

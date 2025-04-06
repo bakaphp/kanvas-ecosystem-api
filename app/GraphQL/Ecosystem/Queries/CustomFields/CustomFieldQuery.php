@@ -32,7 +32,7 @@ class CustomFieldQuery
             $results['results'],
             $results['total'],
             $results['per_page'],
-            25
+            $page
         );
 
         /**

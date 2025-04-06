@@ -48,7 +48,6 @@ class ScrapperAction
 
     public function execute(): array
     {
-        Log::info('Scrapper Started');
         $repository = new ScrapperRepository($this->app);
         $results = $repository->getSearch($this->search);
         $scrapperProducts = 0;
@@ -72,7 +71,6 @@ class ScrapperAction
             ));
             $classConcurrently[] = fn () => $action->execute();
         }
-        Log::debug(json_encode(value: $classConcurrently));
         Octane::concurrently($classConcurrently);
         return [
             'scrapperProducts' => $scrapperProducts,

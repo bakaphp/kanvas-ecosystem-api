@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Actions\Models;
 
+use Baka\Casts\Json;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\UuidTrait;
@@ -13,6 +14,7 @@ use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Nevadskiy\Tree\AsTree;
+use Override;
 
 /**
  * Class CompanyAction.
@@ -31,6 +33,7 @@ use Nevadskiy\Tree\AsTree;
  * @property string $icon
  * @property string $description
  * @property string $form_config
+ * @property string $config
  * @property int $is_active
  * @property int $is_published
  * @property int $weight
@@ -42,6 +45,15 @@ class CompanyAction extends BaseModel
 
     protected $table = 'companies_actions';
     protected $guarded = [];
+
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'form_config' => Json::class,
+            'config' => Json::class,
+        ];
+    }
 
     public function action(): BelongsTo
     {
