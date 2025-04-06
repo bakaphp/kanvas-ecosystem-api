@@ -22,7 +22,8 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/{{ secrets.AWS_ECR_ROLE_NAME }}
+          audience: sts.amazonaws.com.cn
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ECR_ROLE_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Login to ECR
