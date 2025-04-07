@@ -212,13 +212,13 @@ class SyncEsimWithProviderCommand extends Command
         $existingActivationDate = $message->message['esim_status']['activationDate'] ?? null;
         $userPlans = $cmLinkCustomerService->getUserPlans($iccid);
 
-        $installedDate = $response['installTime'] ?? (!empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
+        $installedDate = $response['installTime'] ?? (! empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
         $status = strtolower($response['state']);
         $isActive = IccidStatusEnum::getStatus($status) == 'active';
 
         $activationDate = null;
         if ($iccid && $isActive) {
-            if (!empty($userPlans['userDataBundles'][0]['activeTime'])) {
+            if (! empty($userPlans['userDataBundles'][0]['activeTime'])) {
                 $activationDate = $userPlans['userDataBundles'][0]['activeTime'];
                 $activationDate = $existingActivationDate;
             }
@@ -236,7 +236,7 @@ class SyncEsimWithProviderCommand extends Command
         $remainingData = $totalBytesData;
 
         if ($iccid && $isActive) {
-            if (!empty($userPlans['userDataBundles'][0]['remainFlow'])) {
+            if (! empty($userPlans['userDataBundles'][0]['remainFlow'])) {
                 // Convert remainFlow to bytes - assuming it's in MB
                 $remainingData = (float)$userPlans['userDataBundles'][0]['remainFlow'] * 1024 * 1024; // Convert MB to bytes
             }
@@ -244,7 +244,7 @@ class SyncEsimWithProviderCommand extends Command
             $remainingData = $totalBytesData;
         }
 
-        if ($iccid && isset($userPlans) && !empty($userPlans['userDataBundles'][0]['expireTime'])) {
+        if ($iccid && isset($userPlans) && ! empty($userPlans['userDataBundles'][0]['expireTime'])) {
             $expirationDate = $userPlans['userDataBundles'][0]['expireTime'];
         } else {
             $expirationBaseDate = $activationDate ?? $installedDate;
