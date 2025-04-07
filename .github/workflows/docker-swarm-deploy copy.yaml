@@ -36,8 +36,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -f ${{ github.ref_name }}.Dockerfile -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
-          docker tag $REPOSITORY:$IMAGE_TAG $REGISTRY/$REPOSITORY:$IMAGE_TAG
-          docker push $REGISTRY /$REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
 
   # update-docker-swarm-service:
   #   runs-on: ubuntu-latest
