@@ -215,7 +215,7 @@ class SyncEsimWithProviderCommand extends Command
         $isActive = IccidStatusEnum::getStatus($status) == 'active';
 
         if ($isActive && empty($existingActivationDate)) {
-            $activationDate = now()->format('Y-m-d H:i:s');
+            $activationDate = Carbon::now('America/New_York')->format('Y-m-d H:i:s');
         } elseif (! empty($existingActivationDate)) {
             // If activation date already exists, preserve it
             $activationDate = $existingActivationDate;
