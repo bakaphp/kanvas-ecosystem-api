@@ -5,7 +5,7 @@ input UserListInput {
     is_default: Boolean
 }
 
-union RelatedEntity = Products | Message
+union RelatedEntity = Message | Product
 
 type Entity {
     id: ID!
