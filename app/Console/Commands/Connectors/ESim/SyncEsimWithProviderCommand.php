@@ -168,7 +168,8 @@ class SyncEsimWithProviderCommand extends Command
 
                 return $this->formatCmLinkResponse(
                     $message,
-                    $cmLinkCustomerService->getEsimInfo($iccid)['data']
+                    $cmLinkCustomerService->getEsimInfo($iccid)['data'],
+                    $cmLinkCustomerService,
                 );
 
             default:
@@ -205,40 +206,52 @@ class SyncEsimWithProviderCommand extends Command
         ];
     }
 
-    private function formatCmLinkResponse(Message $message, array $response): array
+    private function formatCmLinkResponse(Message $message, array $response, CustomerService $cmLinkCustomerService): array
     {
+        $iccid = $message->message['data']['iccid'] ?? null;
         $existingActivationDate = $message->message['esim_status']['activationDate'] ?? null;
+        $userPlans = $cmLinkCustomerService->getUserPlans($iccid);
 
         $installedDate = $response['installTime'] ?? (! empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
-
         $status = strtolower($response['state']);
         $isActive = IccidStatusEnum::getStatus($status) == 'active';
 
-        if ($isActive && empty($existingActivationDate)) {
-            $activationDate = Carbon::now('America/New_York')->format('Y-m-d H:i:s');
+        $activationDate = null;
+        if ($iccid && $isActive) {
+            if (! empty($userPlans['userDataBundles'][0]['activeTime'])) {
+                $activationDate = $userPlans['userDataBundles'][0]['activeTime'];
+                $activationDate = $existingActivationDate;
+            }
         } elseif (! empty($existingActivationDate)) {
             // If activation date already exists, preserve it
             $activationDate = $existingActivationDate;
-        } else {
-            $activationDate = null;
         }
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
         $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
-        $orderNumber = $message->message['order']['order_number'] ?? null;
         $totalBytesData = FileSizeConverter::toBytes($totalData);
-        $remainingData = $totalBytesData;
-
-        if ($orderNumber !== null) {
-            $orderService = new ServicesOrderService($message->app, $message->company);
-            $remainingData = $orderService->getOrderStatus($orderNumber)['total'];
-        }
 
         $validStates = ['released', 'installed', 'active', 'enabled', 'enable'];
         $isValidState = in_array(strtolower($response['state']), $validStates);
-        // Calculate expiration date based on activationDate (fallback to installedDate if no activation yet)
-        $expirationBaseDate = $activationDate ?? $installedDate;
-        $expirationDate = Carbon::parse($expirationBaseDate)->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)->format('Y-m-d H:i:s');
+        $remainingData = $totalBytesData;
+
+        if ($iccid && $isActive) {
+            if (! empty($userPlans['userDataBundles'][0]['remainFlow'])) {
+                // Convert remainFlow to bytes - assuming it's in MB
+                $remainingData = (float)$userPlans['userDataBundles'][0]['remainFlow'] * 1024 * 1024; // Convert MB to bytes
+            }
+        } elseif ($isValidState == false && $remainingData <= 0) {
+            $remainingData = $totalBytesData;
+        }
+
+        if ($iccid && isset($userPlans) && ! empty($userPlans['userDataBundles'][0]['expireTime'])) {
+            $expirationDate = $userPlans['userDataBundles'][0]['expireTime'];
+        } else {
+            $expirationBaseDate = $activationDate ?? $installedDate;
+            $expirationDate = Carbon::parse($expirationBaseDate)
+                ->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)
+                ->format('Y-m-d H:i:s');
+        }
 
         /**
          * @todo Move this to somewhere more central
@@ -253,8 +266,6 @@ class SyncEsimWithProviderCommand extends Command
 
         // Initialize spentMessage as null
         $spentMessage = null;
-
-        // Verificación especial para planes ilimitados en velocidad reducida
         $expirationDay = Carbon::parse($expirationDate);
         $today = now();
 
@@ -272,6 +283,15 @@ class SyncEsimWithProviderCommand extends Command
                 $spentMessage = 'Has agotado el límite diario en alta velocidad, ahora estarás navegando en una velocidad de 384kbps hasta el siguiente día';
             }
         }
+
+        // Convert dates to EST timezone right before creating the ESimStatus object
+        $estTimezone = 'America/New_York';
+
+        if ($activationDate) {
+            $activationDate = Carbon::parse($activationDate)->setTimezone($estTimezone)->format('Y-m-d H:i:s');
+        }
+
+        $expirationDate = Carbon::parse($expirationDate)->setTimezone($estTimezone)->format('Y-m-d H:i:s');
 
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
