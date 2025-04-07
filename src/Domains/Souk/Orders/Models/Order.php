@@ -319,4 +319,15 @@ class Order extends BaseModel
     {
         return false;
     }
+
+    public function getOrderNumber(): int
+    {
+        $key = $this->app->get('use_integration_order_number');
+
+        if (! empty($key) && $value = $this->get($key)) {
+            return (int) $value;
+        }
+
+        return $this->order_number;
+    }
 }
