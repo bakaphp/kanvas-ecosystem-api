@@ -243,13 +243,13 @@ class SyncEsimWithProviderCommand extends Command
 
         if ($iccid && $isValidState) {
             // Convert remainFlow to bytes - assuming it's in MB
-            $remainingData = (float)$activePlan[0]['remainFlow'] * 1024 * 1024; // Convert MB to bytes
+            $remainingData = (float)$activePlan['remainFlow'] * 1024 * 1024; // Convert MB to bytes
         } elseif ($isValidState == false && $remainingData <= 0) {
             $remainingData = $totalBytesData;
         }
 
-        if ($iccid && isset($activePlan) && ! empty($activePlan[0]['expireTime'])) {
-            $expirationDate = $activePlan[0]['expireTime'];
+        if ($iccid && isset($activePlan) && ! empty($activePlan['expireTime'])) {
+            $expirationDate = $activePlan['expireTime'];
         } else {
             $expirationBaseDate = $activationDate ?? $installedDate;
             $expirationDate = Carbon::parse($expirationBaseDate)
@@ -306,7 +306,7 @@ class SyncEsimWithProviderCommand extends Command
             assignmentReference: $response['activationCode'],
             bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
             unlimited: $variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED->value,
-            expirationDate: $expirationDate,
+            expirationDate: $expirationDate . 'EST',
             imei: $message->message['data']['imei_number'] ?? null,
             esimStatus: $response['state'],
             message: $response['installDevice'],
