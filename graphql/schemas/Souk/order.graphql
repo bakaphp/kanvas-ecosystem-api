@@ -7,7 +7,7 @@ type Order {
     token: String
     billing_address_id: Int
     shipping_address_id: Int
-    order_number: Int
+    order_number: Int @method(name: "getOrderNumber")
     user_id: Int @deprecated(reason: "Use user field instead")
     user: User! @belongsTo
     people: People! @belongsTo
