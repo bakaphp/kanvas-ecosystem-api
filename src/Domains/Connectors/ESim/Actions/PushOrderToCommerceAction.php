@@ -61,6 +61,7 @@ class PushOrderToCommerceAction
             'start_date' => null,
             'end_date' => null,
             'esim_status' => 'completed',
+            'order_source' => 'mobile-app',
             'total_days' => $variantDuration,
             'first_name' => $this->order->people->firstname,
             'last_name' => $this->order->people->lastname,
