@@ -104,6 +104,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         'sku',
         'ean',
         'weight',
+        'is_published',
         'apps_id',
     ];
 
