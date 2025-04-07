@@ -60,7 +60,7 @@ class FixPromptDataCommand extends Command
             ->where('companies_id', $companiesId)
             ->where('is_deleted', 0)
             ->orderBy('id', 'asc')
-            ->chunk(20, function ($messages) {
+            ->chunk(100, function ($messages) {
                 foreach ($messages as $message) {
                     try {
                         $this->fixPromptData($message);
@@ -88,7 +88,6 @@ class FixPromptDataCommand extends Command
                         $this->error('Error updating message ID: ' . $message->getId() . ' - ' . $e->getMessage());
                     }
                 }
-                die();
             });
     }
 
