@@ -242,16 +242,16 @@ class SyncEsimWithProviderCommand extends Command
         $remainingData = $totalBytesData;
 
         if ($iccid && $isValidState) {
-            if (! empty($userPlans['userDataBundles'][0]['remainFlow'])) {
+            if (! empty($activePlan[0]['remainFlow'])) {
                 // Convert remainFlow to bytes - assuming it's in MB
-                $remainingData = (float)$userPlans['userDataBundles'][0]['remainFlow'] * 1024 * 1024; // Convert MB to bytes
+                $remainingData = (float)$activePlan[0]['remainFlow'] * 1024 * 1024; // Convert MB to bytes
             }
         } elseif ($isValidState == false && $remainingData <= 0) {
             $remainingData = $totalBytesData;
         }
 
-        if ($iccid && isset($userPlans) && ! empty($userPlans['userDataBundles'][0]['expireTime'])) {
-            $expirationDate = $userPlans['userDataBundles'][0]['expireTime'];
+        if ($iccid && isset($activePlan) && ! empty($activePlan[0]['expireTime'])) {
+            $expirationDate = $activePlan[0]['expireTime'];
         } else {
             $expirationBaseDate = $activationDate ?? $installedDate;
             $expirationDate = Carbon::parse($expirationBaseDate)
