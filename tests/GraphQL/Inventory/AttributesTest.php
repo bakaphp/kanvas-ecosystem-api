@@ -207,7 +207,6 @@ class AttributesTest extends TestCase
             true,
             $response['data']['createAttribute']['is_required']
         );
-
     }
 
     /**
