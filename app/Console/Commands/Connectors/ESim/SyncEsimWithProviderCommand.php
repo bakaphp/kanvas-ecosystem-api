@@ -59,7 +59,6 @@ class SyncEsimWithProviderCommand extends Command
             ->fromCompany($company)
             ->notDeleted()
             ->whereIsPublic()
-            ->where('id', 139848)
             ->orderBy('id', 'desc')
             ->get();
 
