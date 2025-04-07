@@ -122,6 +122,7 @@ final class ZOrderTest extends TestCase
         );
         foreach ($order->items as $item) {
             $shopify->saveProduct($item->variant->product, StatusEnum::ACTIVE);
+            $shopify->publishProduct($item->variant->product);
         }
 
         $createShopifyDraftOrder = new CreateShopifyDraftOrderAction($order);

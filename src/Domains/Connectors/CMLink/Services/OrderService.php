@@ -50,7 +50,7 @@ class OrderService
     }
 
     /**
-     * Refuel an order. this is use to extend data plan for the current DAY no to 
+     * Refuel an order. this is use to extend data plan for the current DAY no to
      * extend the plan with a new plan.
      *
      * @param string $thirdOrderId Unique order ID from the client.
