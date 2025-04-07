@@ -115,6 +115,15 @@ final class ZOrderTest extends TestCase
 
         $order = $createOrder->execute();
 
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
+        foreach ($order->items as $item) {
+            $shopify->saveProduct($item->variant->product, StatusEnum::ACTIVE);
+        }
+
         $createShopifyDraftOrder = new CreateShopifyDraftOrderAction($order);
         $shopifyOrderId = $createShopifyDraftOrder->execute();
 
