@@ -80,6 +80,7 @@ class CreateEsimOrderAction
         $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
         //$parentProduct = $parentOrder->allItems()->first();
         $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
+        $this->availableVariant = $this->orderVariant;
         //$this->availableVariant = $parentProductIccid->variant;
 
         /* $refuelId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_REFUEL_SKU->value)?->value ?? null;
