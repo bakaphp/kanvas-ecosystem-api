@@ -154,6 +154,11 @@ class FixPromptDataCommand extends Command
             $this->info('Added payment to message data');
         }
 
+        if (isset($messageData['ai_nugged'])) {
+            unset($messageData['ai_nugged']);
+            $this->info('Removed ai_nugged from message data');
+        }
+
         $message->message = $messageData;
         $message->save();
         $this->info('-Prompt Message ID: ' . $message->getId() . ' updated');
@@ -193,16 +198,16 @@ class FixPromptDataCommand extends Command
                 ->generate();
 
                 $responseText = str_replace(['```', 'json'], '', $response->text);
-
-                if ($parentMessageData['type'] == 'image-format') {
-                    $messageData['image'] = ''; //Use nugget if not possible to generate image.
-                } else {
-                    $messageData['nugget'] = $responseText;
-                }
+                $messageData['nugget'] = $responseText;
             }
 
             $this->info('Added message type to message data' . $messageData['type']);
             $this->info('Added message nugget to message data');
+        }
+
+        if (isset($messageData['ai_nugged'])) {
+            unset($messageData['ai_nugged']);
+            $this->info('Removed ai_nugged from message data');
         }
 
         $message->message = $messageData;
