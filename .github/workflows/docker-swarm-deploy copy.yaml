@@ -30,12 +30,14 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and Push Docker image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          IMAGE_TAG=$(date +%s)
-          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          docker build -f ${{ github.ref_name }}.Dockerfile -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:$IMAGE_TAG .
-          docker tag ${{ secrets.ECR_REPOSITORY_NAME }}:$IMAGE_TAG ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:$IMAGE_TAG
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:$IMAGE_TAG
+          docker build -f ${{ github.ref_name }}.Dockerfile -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker tag $REPOSITORY:$IMAGE_TAG $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY /$REPOSITORY:$IMAGE_TAG
 
   # update-docker-swarm-service:
   #   runs-on: ubuntu-latest
