@@ -5,6 +5,8 @@ input UserListInput {
     is_default: Boolean
 }
 
+union RelatedEntity = Products | Message
+
 type Entity {
     id: ID!
     users_lists_id: ID!
@@ -12,7 +14,7 @@ type Entity {
     entity_namespace: String
     description: String
     is_pin: Boolean
-    entity: Mixed!
+    entity: RelatedEntity!
 }
 
 input EntityInput {
