@@ -9,7 +9,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
+use Kanvas\Companies\Jobs\CompanyDashboardJob;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
@@ -68,12 +68,18 @@ class AssignCompanyAction
         );
         $assignRole->execute();
 
-        if (! $roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
-            $roleLegacy = $app->name . '.' . $this->user->role()->first()->name;
+        /**
+         * @todo after migration to niche, remove
+         */
+        if ($app->get(AppSettingsEnums::USE_LEGACY_ROLES->getValue(), false)) {
+            if (! $roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
+                $roleLegacy = $app->name . '.' . $this->user->role()->notDeleted()->first()->name;
+            }
+
+            $assignRoleLegacy = new ActionsAssignRoleAction($this->user, $this->company, $app);
+            $assignRoleLegacy->execute($roleLegacy);
         }
 
-        $assignRoleLegacy = new ActionsAssignRoleAction($this->user, $this->company, $app);
-        $assignRoleLegacy->execute($roleLegacy);
-        (new CompaniesSetUsersCountAction($this->company))->execute();
+        CompanyDashboardJob::dispatch($this->company, $app);
     }
 }

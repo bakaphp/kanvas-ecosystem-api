@@ -9,6 +9,9 @@ use Baka\Validations\PasswordValidation;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Auth\Services\AuthenticationService;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -44,16 +47,26 @@ class AppUserManagementMutation
         $branch = $user->getCurrentBranch();
         $app = app(Apps::class);
 
-        UsersRepository::belongsToThisApp($user, app(Apps::class));
+        UsersRepository::belongsToThisApp($user, $app);
 
         if (! isset($request['data']['password'])) {
             $request['data']['password'] = Str::random(15);
         }
 
+        /**
+         * @todo remove this when we have the new UI , its ugly as F :D
+         */
         $adminUserRegistrationAssignCurrentCompany = $app->get(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue());
         $createCompany = $request['data']['create_company'] ?? false;
-        $assignCurrentUserBranch = $adminUserRegistrationAssignCurrentCompany ?? ! $createCompany;
-        $assignBranch = $assignCurrentUserBranch ? $branch : null;
+        $companyId = $request['data']['company_id'] ?? null;
+
+        if ($companyId !== null && ! $createCompany) {
+            $assignBranch = CompaniesBranches::query()->where('companies_id', $companyId)->firstOrFail();
+            CompaniesRepository::hasAccessToThisApp($assignBranch->company, $app);
+        } else {
+            $assignCurrentUserBranch = $adminUserRegistrationAssignCurrentCompany ?? ! $createCompany;
+            $assignBranch = $assignCurrentUserBranch ? $branch : null;
+        }
 
         //validate
         PasswordValidation::validateArray($request['data'], $app);
@@ -77,8 +90,9 @@ class AppUserManagementMutation
     public function appDeActivateUser(mixed $root, array $req): bool
     {
         $user = Users::find((int)$req['user_id']);
-        $userAssociate = UsersRepository::belongsToThisApp($user, app(Apps::class));
-
+        $app = app(Apps::class);
+        $userAssociate = UsersRepository::belongsToThisApp($user, $app);
+        AuthenticationService::logoutFromAllDevices($userAssociate->user, $app);
         return $userAssociate->deActive();
     }
 

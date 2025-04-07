@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Event\Support\Setup as EventSetup;
 use Kanvas\Guild\Support\Setup as GuildSetup;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
 
@@ -46,6 +47,7 @@ class OnBoardingJob implements ShouldQueue
     {
         $runOnboardingGuild = $this->app->get(AppSettingsEnums::ONBOARDING_GUILD_SETUP->getValue());
         $runOnboardingInventory = $this->app->get(AppSettingsEnums::ONBOARDING_INVENTORY_SETUP->getValue());
+        $runOnboardingEvent = $this->app->get(AppSettingsEnums::ONBOARDING_EVENT_SETUP->getValue());
         $runOnboarding = $runOnboardingGuild || $runOnboardingInventory;
 
         if (! $runOnboarding) {
@@ -72,6 +74,14 @@ class OnBoardingJob implements ShouldQueue
 
         if ($runOnboardingInventory) {
             (new InventorySetup(
+                $this->app,
+                $this->user,
+                $company
+            ))->run();
+        }
+
+        if ($runOnboardingEvent) {
+            (new EventSetup(
                 $this->app,
                 $this->user,
                 $company

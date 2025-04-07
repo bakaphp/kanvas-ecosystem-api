@@ -14,6 +14,7 @@ use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\Actions\DeleteVariantsAction;
 use Kanvas\Inventory\Variants\Actions\UpdateVariantsAction;
+use Kanvas\Inventory\Variants\DataTransferObject\Translate as VariantTranslateDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
@@ -25,6 +26,7 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Kanvas\Inventory\Warehouses\Services\WarehouseService;
+use Kanvas\Languages\Models\Languages;
 
 class Variants
 {
@@ -43,7 +45,7 @@ class Variants
         $variantDto = VariantDto::viaRequest($req['input'], auth()->user());
         $action = new CreateVariantsAction($variantDto, auth()->user());
         $variantModel = $action->execute();
-        $company = $variantDto->product->company()->get()->first();
+        $company = $variantDto->product->company;
 
         if (isset($req['input']['attributes'])) {
             $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);
@@ -91,6 +93,7 @@ class Variants
                 );
             }
         }
+        $variantModel->products->searchable();
 
         return $variantModel;
     }
@@ -121,6 +124,7 @@ class Variants
         if (isset($req['input']['channels'])) {
             ChannelService::updateChannelVariant($variantModel, $req['input']['channels']);
         }
+        $variantModel->products->searchable();
 
         return $variantModel;
     }
@@ -270,6 +274,25 @@ class Variants
             ->firstOrFail();
         $channel = ChannelRepository::getById((int) $req['channels_id']);
         $variantWarehouses->channels()->where('id', $channel->getId())->detach($channel->id);
+
+        return $variant;
+    }
+
+    /**
+     * update.
+     */
+    public function updateVariantTranslation(mixed $root, array $req): VariantModel
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $language = Languages::getByCode($req['code']);
+
+        $variant = VariantsRepository::getById((int) $req['id'], $company);
+        $variantTranslateDto = VariantTranslateDto::fromMultiple($req['input'], $variant->company);
+
+        foreach ($variantTranslateDto->toArray() as $key => $value) {
+            $variant->setTranslation($key, $language->code, $value);
+            $variant->save();
+        }
 
         return $variant;
     }

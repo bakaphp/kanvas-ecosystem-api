@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Shopify;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Shopify\Actions\CreateShopifyCustomerAction;
 use Kanvas\Connectors\Shopify\Actions\SyncShopifyCustomerAction;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
@@ -95,5 +97,34 @@ final class CustomerTest extends TestCase
             $shopifyCustomer->get(CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value),
             $shopifyCustomerData['id']
         );
+    }
+
+    public function testCreateCustomer()
+    {
+        $app = app(Apps::class);
+        $product = Products::fromApp($app)->first();
+        $channel = Channels::fromApp($app)->fromCompany($product->company)->first();
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
+
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
+
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($product->company->id)->create();
+
+        $people->addEmail(fake()->email);
+        $people->addPhone(fake()->phoneNumber);
+
+        $createShopifyCustomer = new CreateShopifyCustomerAction(
+            $people,
+            $warehouse->region
+        );
+        $shopifyCustomerId = $createShopifyCustomer->execute();
+
+        $this->assertNotNull($shopifyCustomerId);
     }
 }

@@ -6,36 +6,38 @@ namespace Kanvas\Inventory\Variants\Actions;
 
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 
 class AddAttributeAction
 {
     public function __construct(
-        public Variants $variants,
-        public Attributes $attributes,
+        public Variants $variant,
+        public Attributes $attribute,
         public mixed $value,
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Variants
     {
-        if (empty($this->value)) {
-            return $this->variants;
+        if ($this->value === null || $this->value === '') {
+            return $this->variant;
         }
 
-        if ($this->variants->attributes()->find($this->attributes->getId())) {
-            $this->variants->attributes()->syncWithoutDetaching(
-                [$this->attributes->getId() => ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]]
-            );
+        $variantAttribute = VariantsAttributes::where('products_variants_id', $this->variant->getId())
+        ->where('attributes_id', $this->attribute->getId())
+        ->first();
+
+        if ($variantAttribute) {
+            $variantAttribute->value = $this->value;
+            $variantAttribute->update();
         } else {
-            $this->variants->attributes()->attach(
-                $this->attributes->getId(),
-                ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]
-            );
+            $variantAttribute = new VariantsAttributes();
+            $variantAttribute->products_variants_id = $this->variant->getId();
+            $variantAttribute->attributes_id = $this->attribute->getId();
+            $variantAttribute->value = $this->value; //is_array($this->value) ? json_encode($this->value) : $this->value;
+            $variantAttribute->save();
         }
 
-        return $this->variants;
+        return $this->variant;
     }
 }

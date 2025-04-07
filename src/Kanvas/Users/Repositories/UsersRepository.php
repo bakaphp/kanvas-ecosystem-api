@@ -7,8 +7,11 @@ namespace Kanvas\Users\Repositories;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -25,11 +28,11 @@ class UsersRepository
      * findUsersByIds
      * @psalm-suppress MixedReturnStatement
      */
-    public static function findUsersByArray(array $users, ?CompanyInterface $company = null): Collection
+    public static function findUsersByArray(array $users, AppInterface $app, ?CompanyInterface $company = null): Collection
     {
         return Users::select('users.*')
             ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
-            ->where('users_associated_apps.apps_id', app(Apps::class)->id)
+            ->where('users_associated_apps.apps_id', $app->id)
             ->when($company, function ($query, $company) {
                 $query->where('users_associated_apps.companies_id', $company->getKey());
             })
@@ -60,7 +63,7 @@ class UsersRepository
                 ->firstOrFail();
     }
 
-    public static function getUserOfAppByEmail(string $email, AppInterface $app = null): Users
+    public static function getUserOfAppByEmail(string $email, ?AppInterface $app = null): Users
     {
         return Users::select('users.*')
             ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
@@ -136,6 +139,10 @@ class UsersRepository
      */
     public static function belongsToCompany(Users|UserInterface $user, CompanyInterface $company): UsersAssociatedCompanies
     {
+        if ($user->isAppOwner()) {
+            return new UsersAssociatedCompanies();
+        }
+
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
                 ->where('companies_id', $company->getKey())
@@ -210,5 +217,23 @@ class UsersRepository
                 'User doesn\'t own this app ' . $app->uuid . ' , talk to the Admin'
             );
         }
+    }
+
+    public static function getAppUserByRole(AppInterface $app, string $roleName): Builder
+    {
+        $roleScope = RolesEnums::getScope($app);
+        $role = RolesRepository::getByNameFromCompany(
+            name: $roleName,
+            app: $app
+        );
+
+        return Users::select('users.*')
+            ->join('users_associated_apps', 'users_associated_apps.users_id', '=', 'users.id')
+            ->join('assigned_roles', 'assigned_roles.entity_id', '=', 'users.id')
+            ->where('users_associated_apps.apps_id', $app->getId())
+            ->where('users_associated_apps.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->where('assigned_roles.entity_type', Users::class)
+            ->where('assigned_roles.scope', $roleScope)
+            ->where('assigned_roles.role_id', $role->id);
     }
 }

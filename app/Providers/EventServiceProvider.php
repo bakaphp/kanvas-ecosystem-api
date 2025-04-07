@@ -15,6 +15,8 @@ use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
+use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Attributes\Observers\AttributeObserver;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
@@ -22,6 +24,8 @@ use Kanvas\Inventory\Channels\Observers\VariantsChannelObserver;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Models\ProductsCategories;
 use Kanvas\Inventory\Products\Observers\ProductsObserver;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\ProductsTypes\Observers\ProductsTypesObserver;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Observers\RegionObserver;
 use Kanvas\Inventory\Status\Models\Status;
@@ -35,10 +39,8 @@ use Kanvas\Inventory\Warehouses\Observers\VariantsWarehouseObserver;
 use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
-use Kanvas\Social\Messages\Observers\MessageObserver;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\Messages\Observers\UserMessageObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
@@ -49,6 +51,7 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 use Kanvas\Users\Observers\UsersAssociatedCompaniesObserver;
 use Kanvas\Users\Observers\UsersObserver;
+use Override;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -68,26 +71,28 @@ class EventServiceProvider extends ServiceProvider
      *
      * @return void
      */
+    #[Override]
     public function boot()
     {
         Users::observe(UsersObserver::class);
-        Companies::observe(CompaniesObserver::class);
+        #Companies::observe(CompaniesObserver::class);
         CompaniesGroups::observe(CompaniesGroupsObserver::class);
         UserMessageActivity::observe(UserMessageActivityObserver::class);
         UserList::observe(UsersListsObserver::class);
         Lead::observe(LeadObserver::class);
-        UserMessage::observe(UserMessageObserver::class);
-        Message::observe(MessageObserver::class);
+        #UserMessage::observe(UserMessageObserver::class);
         Warehouses::observe(WarehouseObserver::class);
         Regions::observe(RegionObserver::class);
         Status::observe(StatusObserver::class);
         VariantsWarehouses::observe(VariantsWarehouseObserver::class);
         Channels::observe(ChannelObserver::class);
-        Products::observe(ProductsObserver::class);
-        Variants::observe(VariantObserver::class);
+        #Products::observe(ProductsObserver::class);
+        ProductsTypes::observe(ProductsTypesObserver::class);
+        #Variants::observe(VariantObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
-        UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
-        UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
+        #Attributes::observe(AttributeObserver::class);
+        #UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
+        #UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
@@ -98,6 +103,7 @@ class EventServiceProvider extends ServiceProvider
      *
      * @return bool
      */
+    #[Override]
     public function shouldDiscoverEvents()
     {
         return true;

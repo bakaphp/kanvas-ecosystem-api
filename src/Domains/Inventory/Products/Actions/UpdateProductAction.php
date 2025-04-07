@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
-use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -12,15 +11,13 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class UpdateProductAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
+    protected bool $runWorkflow = true;
+
     public function __construct(
         protected Products $product,
         protected ProductDto $productDto,
@@ -28,9 +25,6 @@ class UpdateProductAction
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Products
     {
         CompaniesRepository::userAssociatedToCompany(
@@ -47,14 +41,16 @@ class UpdateProductAction
                 [
                     'products_types_id' => $productType,
                     'name' => $this->productDto->name,
-                    'description' => $this->productDto->description,
-                    'short_description' => $this->productDto->short_description,
-                    'html_description' => $this->productDto->html_description,
-                    'warranty_terms' => $this->productDto->warranty_terms,
-                    'upc' => $this->productDto->upc,
-                    'status_id' => $this->productDto->status_id,
+                    'slug' => $this->productDto->slug ?? $this->product->slug,
+                    'description' => $this->productDto->description ?? $this->product->description,
+                    'short_description' => $this->productDto->short_description ?? $this->product->short_description,
+                    'html_description' => $this->productDto->html_description ?? $this->product->html_description,
+                    'warranty_terms' => $this->productDto->warranty_terms ?? $this->product->warranty_terms,
+                    'upc' => $this->productDto->upc ?? $this->product->upc,
+                    'status_id' => $this->productDto->status_id ?? $this->product->status_id,
                     'is_published' => $this->productDto->is_published,
                     'published_at' => $this->productDto->is_published ? Carbon::now() : null,
+                    'weight' => $this->productDto->weight ?? $this->product->weight ?? 0,
                 ]
             );
 
@@ -83,6 +79,19 @@ class UpdateProductAction
             DB::connection('inventory')->rollback();
 
             throw $e;
+        }
+
+        if ($this->product->isPublished()) {
+            $this->product->searchable();
+        } else {
+            $this->product->unsearchable();
+        }
+
+        if ($this->runWorkflow) {
+            $this->product->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true
+            );
         }
 
         return $this->product;

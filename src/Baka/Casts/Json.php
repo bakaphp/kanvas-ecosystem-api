@@ -7,6 +7,7 @@ namespace Baka\Casts;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Override;
 
 class Json implements CastsAttributes
 {
@@ -17,9 +18,10 @@ class Json implements CastsAttributes
      * @return array<string, mixed>
      * @psalm-suppress MixedReturnStatement
      */
+    #[Override]
     public function get(Model $model, string $key, mixed $value, array $attributes): mixed
     {
-        return  Str::isJson($value) ? json_decode($value, true) : $value;
+        return Str::isJson($value) ? json_decode($value, true) : $value;
     }
 
     /**
@@ -27,6 +29,7 @@ class Json implements CastsAttributes
      *
      * @param  array<string, mixed>  $attributes
      */
+    #[Override]
     public function set(Model $model, string $key, mixed $value, array $attributes): mixed
     {
         return Str::isJson($value) || is_array($value) ? json_encode($value) : $value;

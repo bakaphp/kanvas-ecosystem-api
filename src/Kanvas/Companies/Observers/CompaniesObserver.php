@@ -6,15 +6,16 @@ namespace Kanvas\Companies\Observers;
 
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Branches\Actions\CreateCompanyBranchActions;
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Groups\Actions\CreateCompanyGroupActions;
+use Kanvas\Companies\Jobs\CompanyDashboardJob;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Actions\AssignRoleAction;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CompaniesObserver
 {
@@ -83,10 +84,27 @@ class CompaniesObserver
         if (! $user->get($company->branchCacheKey())) {
             $user->set($company->branchCacheKey(), $branch->id);
         }
+
+        $company->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            [
+                'company' => $company,
+            ]
+        );
     }
 
     public function updated(Companies $company): void
     {
-        (new CompaniesSetUsersCountAction($company))->execute();
+        $app = app(Apps::class);
+
+        CompanyDashboardJob::dispatch($company, $app);
+        $company->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'company' => $company,
+            ]
+        );
     }
 }

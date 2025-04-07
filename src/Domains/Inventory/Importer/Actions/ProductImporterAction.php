@@ -26,6 +26,9 @@ use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Status\Actions\CreateStatusAction;
+use Kanvas\Inventory\Status\DataTransferObject\Status;
+use Kanvas\Inventory\Status\Models\Status as ModelsStatus;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction as ActionsAddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
@@ -38,6 +41,8 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehou
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
+use Kanvas\Regions\Models\Regions as KanvasRegions;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class ProductImporterAction
@@ -51,21 +56,22 @@ class ProductImporterAction
         public ProductImporter $importedProduct,
         public Companies $company,
         public UserInterface $user,
-        public Regions $region,
-        public ?AppInterface $app = null
+        public KanvasRegions|Regions $region,
+        public ?AppInterface $app = null,
+        public bool $runWorkflow = true
     ) {
         $this->app = $this->app ?? app(Apps::class);
     }
 
     /**
      * Run all method dor a specify product.
-     *
      */
     public function execute(): ProductsModel
     {
         try {
             DB::connection('inventory')->beginTransaction();
 
+            $status = $this->createStatus();
             $productDto = ProductsDto::from([
                 'app' => $this->app,
                 'company' => $this->company,
@@ -78,30 +84,43 @@ class ProductImporterAction
                 'warranty_terms' => $this->importedProduct->warrantyTerms,
                 'upc' => $this->importedProduct->upc,
                 'variants' => $this->importedProduct->variants,
+                'status_id' => $status ? $status->getId() : null,
                 'is_published' => $this->importedProduct->isPublished,
                 'attributes' => $this->importedProduct->attributes,
             ]);
-            $this->product = (new CreateProductAction($productDto, $this->user))->execute();
+            $createAction = new CreateProductAction($productDto, $this->user);
+            $createAction->setRunWorkflow($this->runWorkflow);
+            $this->product = $createAction->execute();
 
             if (isset($this->importedProduct->customFields) && ! empty($this->importedProduct->customFields)) {
                 $this->product->setAllCustomFields($this->importedProduct->customFields);
             }
 
             if (! empty($this->importedProduct->files)) {
-                $this->product->overWriteFiles($this->importedProduct->files);
+                $this->product->overWriteFiles($this->importedProduct->files, $this->product->app);
             }
 
             $this->categories();
 
             $this->productWarehouse();
 
+            if ($this->importedProduct->vendor) {
+                $this->product->warehouses()->newPivotStatement()->update([
+                    'vendor' => $this->importedProduct->vendor,
+                ]);
+            }
             //$this->variants();
+            // @todo to be removed
             $this->variantsLocation($this->product);
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
             }
+            if ($this->importedProduct->tags) {
+                $this->product->syncTags($this->importedProduct->tags);
+            }
             DB::connection('inventory')->commit();
+            $this->product->fireWorkflow(WorkflowEnum::SYNC_SHOPIFY->value);
         } catch (Throwable $e) {
             DB::connection('inventory')->rollback();
 
@@ -109,6 +128,25 @@ class ProductImporterAction
         }
 
         return $this->product;
+    }
+
+    protected function createStatus(): ?ModelsStatus
+    {
+        if ($this->importedProduct->status) {
+            $createStatus = new CreateStatusAction(
+                new Status(
+                    $this->app,
+                    $this->company,
+                    $this->user,
+                    $this->importedProduct->status,
+                ),
+                $this->user
+            );
+
+            return $createStatus->execute();
+        }
+
+        return null;
     }
 
     /**
@@ -379,8 +417,8 @@ class ProductImporterAction
             }
 
             $variantChannel = VariantChannel::from([
-                'price' => $variantData['price'],
-                'discounted_price' => $variantData['discountPrice'],
+                'price' => (float) $variantData['price'],
+                'discounted_price' => (float) $variantData['discountPrice'],
                 'is_published' => $this->importedProduct->isPublished,
             ]);
 

@@ -9,12 +9,18 @@ use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Attributes\Actions\AddAttributeValue;
+use Kanvas\Inventory\Attributes\Observers\AttributeObserver;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Products\Models\ProductsAttributes;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 
 /**
  * Class Attributes.
@@ -27,29 +33,28 @@ use Kanvas\Inventory\Variants\Models\VariantsAttributes;
  * @property int $is_filterable
  * @property int $is_searchable
  * @property int $is_visible
+ * @property int $weight
  */
+#[ObservedBy(AttributeObserver::class)]
 class Attributes extends BaseModel
 {
     use UuidTrait;
     use SlugTrait;
     use CascadeSoftDeletes;
     use DatabaseSearchableTrait;
+    use HasTranslationsDefaultFallback;
 
     public $table = 'attributes';
-    public $guarded = [];
-    protected $cascadeDeletes = ['variantAttributes', 'defaultValues'];
+    public $translatable = ['name'];
 
-    /**
-     * apps.
-     */
+    public $guarded = [];
+    protected $cascadeDeletes = ['variantAttributes','defaultValues'];
+
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
-    /**
-     * apps.
-     */
     public function attributeType(): BelongsTo
     {
         return $this->belongsTo(AttributesTypes::class, 'attributes_type_id');
@@ -60,13 +65,31 @@ class Attributes extends BaseModel
         return $this->hasMany(VariantsAttributes::class, 'attributes_id');
     }
 
+    public function productsAttributes(): HasMany
+    {
+        return $this->hasMany(ProductsAttributes::class, 'attributes_id');
+    }
+
+    public function productsTypesAttributes(): HasMany
+    {
+        return $this->hasMany(ProductsTypesAttributes::class, 'attributes_id');
+    }
+
     /**
      * attributes values from pivot
      */
     public function value(): Attribute
     {
         return Attribute::make(
-            get: fn () => Str::isJson($this->pivot->value) ? json_decode($this->pivot->value, true) : $this->pivot->value,
+            get: function () {
+                if (! $this->pivot || ! isset($this->pivot->value)) {
+                    return null;
+                }
+
+                $value = $this->pivot->value;
+
+                return Str::isJson($value) ? json_decode($value, true) : $value;
+            }
         );
     }
 
@@ -76,5 +99,27 @@ class Attributes extends BaseModel
     public function defaultValues(): HasMany
     {
         return $this->hasMany(AttributesValues::class, 'attributes_id');
+    }
+
+    public function hasDependencies(): bool
+    {
+        return $this->productsAttributes()->exists()
+        || $this->variantAttributes()->exists()
+        || $this->productsTypesAttributes()->exists();
+    }
+
+    public function addDefaultValues(array $values): void
+    {
+        $valueObjects = array_map(
+            fn ($value) => ['value' => $value],
+            $values
+        );
+
+        (new AddAttributeValue($this, $valueObjects))->execute();
+    }
+
+    public function addDefaultValue(mixed $value): void
+    {
+        $this->addValues([$value]);
     }
 }

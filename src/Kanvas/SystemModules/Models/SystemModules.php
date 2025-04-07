@@ -10,8 +10,21 @@ use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Models\BaseModel;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
+use Silber\Bouncer\Database\Ability;
 
 /**
  * SystemModules Model.
@@ -79,5 +92,60 @@ class SystemModules extends BaseModel
     {
         return $query->where('apps_id', app(Apps::class)->id)
                 ->where('is_deleted', 0);
+    }
+
+    public static function convertLegacySystemModules(string $className): string
+    {
+        $mapping = [
+            'Gewaer\\Models\\Leads' => Lead::class,
+            'Gewaer\\Models\\Messages' => Message::class,
+            'Gewaer\\Models\\Companies' => Companies::class,
+            'Kanvas\\Packages\\Social\\Models\\Messages' => Message::class,
+            // 'Kanvas\Guild\Activities\Models\Activities' => Message::class,
+        ];
+
+        return $mapping[$className] ?? $className;
+    }
+
+    public static function getLegacyNamespace(string $className): string
+    {
+        $mapping = [
+            Lead::class => 'Gewaer\\Models\\Leads',
+            People::class => 'Gewaer\\Models\\Peoples\\Peoples',
+            Message::class => 'Gewaer\\Models\\Messages',
+            Companies::class => 'Gewaer\\Models\\Companies',
+            // Message::class => 'Kanvas\Packages\Social\Models\Messages',
+            // Message::class => 'Kanvas\Guild\Activities\Models\Activities',
+        ];
+
+        return $mapping[$className] ?? $className;
+    }
+
+    public static function getSystemModuleNameSpaceBySlug(string $slug): string
+    {
+        $internalMapping = [
+            'lead' => Lead::class,
+            'people' => People::class,
+            'message' => Message::class,
+            'product' => Products::class,
+            'variant' => Variants::class,
+            'order' => Order::class,
+            'user' => Users::class,
+            'company' => Companies::class,
+            'branch' => CompaniesBranches::class,
+            'region' =>  Regions::class,
+           ];
+
+        return $internalMapping[strtolower($slug)] ?? throw new InvalidArgumentException('Entity ' . $slug . ' not found');
+    }
+
+    public function abilities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Ability::class,
+            'abilities_modules',
+            'system_modules_id',
+            'abilities_id'
+        );
     }
 }

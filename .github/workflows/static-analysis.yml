@@ -1,6 +1,6 @@
 name: static analysis
 
-on: [ "push" ]
+on: ["push"]
 
 jobs:
   run-tests:
@@ -33,6 +33,9 @@ jobs:
       DB_COMMERCE_DATABASE: commerce
       DB_COMMERCE_USERNAME: root
       DB_COMMERCE_PASSWORD: password
+      DB_EVENT_DATABASE: event
+      DB_EVENT_USERNAME: root
+      DB_EVENT_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
       APP_KEY: base64:Wm5KmkE4aWFjdFUzU2o3SElYNGc0QlpLcXNWR0hMME0=
       APP_JWT_TOKEN: Wm5KmkE4aWFjdFUzU2o3SElYNGc0QlpLcXNWR0hMME0=4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjYj
@@ -56,14 +59,45 @@ jobs:
       TEST_SHOPIFY_API_KEY: ${{ secrets.TEST_SHOPIFY_API_KEY }}
       TEST_SHOPIFY_API_SECRET: ${{ secrets.TEST_SHOPIFY_API_SECRET }}
       TEST_SHOPIFY_SHOP_URL: ${{ secrets.TEST_SHOPIFY_SHOP_URL }}
+      TEST_SHOPIFY_ORDER_ID: ${{ secrets.TEST_SHOPIFY_ORDER_ID }}
       TEST_APPLE_LOGIN_TOKEN: ${{ secrets.TEST_APPLE_LOGIN_TOKEN }}
       TEST_APOLLO_KEY: ${{ secrets.TEST_APOLLO_KEY }}
       TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
-
+      TEST_AMPLITUDE_KEY: ${{ secrets.TEST_AMPLITUDE_KEY }}
+      TEST_AMPLITUDE_SECRET: ${{ secrets.TEST_AMPLITUDE_SECRET }}
+      NET_SUITE_CUSTOMER_ID: ${{ secrets.NET_SUITE_CUSTOMER_ID }}
+      NET_SUITE_ITEM_NUMBER: ${{ secrets.NET_SUITE_ITEM_NUMBER }}
+      NET_SUITE_LOCATION_ID: ${{ secrets.NET_SUITE_LOCATION_ID }}
+      NET_SUITE_INVOICE_NUMBER: ${{ secrets.NET_SUITE_INVOICE_NUMBER }}
+      NET_SUITE_ACCOUNT: ${{ secrets.NET_SUITE_ACCOUNT }}
+      NET_SUITE_CONSUMER_KEY: ${{ secrets.NET_SUITE_CONSUMER_KEY }}
+      NET_SUITE_CONSUMER_SECRET: ${{ secrets.NET_SUITE_CONSUMER_SECRET }}
+      NET_SUITE_TOKEN: ${{ secrets.NET_SUITE_TOKEN }}
+      NET_SUITE_TOKEN_SECRET: ${{ secrets.NET_SUITE_TOKEN_SECRET }}
+      TEST_APPLE_PAYMENT_SHARED_SECRET: ${{ secrets.TEST_APPLE_PAYMENT_SHARED_SECRET }}
+      TEST_OFFER_LOGIX_SOURCE_ID: ${{ secrets.TEST_OFFER_LOGIX_SOURCE_ID }}
+      TEST_700_CREDIT_ACCOUNT: ${{ secrets.TEST_700_CREDIT_ACCOUNT }}
+      TEST_700_CREDIT_PASSWORD: ${{ secrets.TEST_700_CREDIT_PASSWORD }}
+      TEST_700_CREDIT_CLIENT_ID: ${{ secrets.TEST_700_CREDIT_CLIENT_ID }}
+      TEST_700_CREDIT_CLIENT_SECRET: ${{ secrets.TEST_700_CREDIT_CLIENT_SECRET }}
+      TEST_EASY_ACTIVATION_USERNAME: ${{ secrets.TEST_EASY_ACTIVATION_USERNAME }}
+      TEST_EASY_ACTIVATION_PASSWORD: ${{ secrets.TEST_EASY_ACTIVATION_PASSWORD }}
+      TEST_EASY_ACTIVATION_ICCID: ${{ secrets.TEST_EASY_ACTIVATION_ICCID }}
+      TEST_IPLUS_BASE_URL: ${{ secrets.TEST_IPLUS_BASE_URL }}
+      TEST_IPLUS_CLIENT_ID: ${{ secrets.TEST_IPLUS_CLIENT_ID }}
+      TEST_IPLUS_CLIENT_SECRET: ${{ secrets.TEST_IPLUS_CLIENT_SECRET }}
+      TEST_VINSOLUTIONS_CLIENT_SECRET: ${{ secrets.TEST_VINSOLUTIONS_CLIENT_SECRET }}
+      TEST_VINSOLUTIONS_API_KEY: ${{ secrets.TEST_VINSOLUTIONS_API_KEY }}
+      TEST_VINSOLUTIONS_API_KEY_DIGITAL_SHOWROOM: ${{ secrets.TEST_VINSOLUTIONS_API_KEY_DIGITAL_SHOWROOM }}
+      TEST_VINSOLUTIONS_COMPANY_ID: ${{ secrets.TEST_VINSOLUTIONS_COMPANY_ID }}
+      TEST_VINSOLUTIONS_USER_ID: ${{ secrets.TEST_VINSOLUTIONS_USER_ID }}
+      TEST_RECOMBEE_DATABASE: ${{ secrets.TEST_RECOMBEE_DATABASE }}
+      TEST_RECOMBEE_API_KEY: ${{ secrets.TEST_RECOMBEE_API_KEY }}
+      TEST_RECOMBEE_REGION: ${{ secrets.TEST_RECOMBEE_REGION }}
     strategy:
       fail-fast: false
       matrix:
-        php-versions: ["8.3"]
+        php-versions: ["8.4"]
     services:
       mysql:
         image: mysql:8.0
@@ -132,6 +166,10 @@ jobs:
       - name: Setup COMMERCE DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS commerce;'
+
+      - name: Setup EVENT DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS event;'
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress

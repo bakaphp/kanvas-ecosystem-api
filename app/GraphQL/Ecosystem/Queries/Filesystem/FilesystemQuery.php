@@ -28,7 +28,7 @@ class FilesystemQuery
         $app = $systemModule->app;
 
         /**
-         * @var Builder
+         * @todo use directly from the entity via fileQueryBuilder
          */
         $files = Filesystem::select(
             'filesystem_entities.uuid',
@@ -39,6 +39,7 @@ class FilesystemQuery
             'filesystem.file_type',
             'filesystem.file_type as type',
             'filesystem_entities.id',
+            'filesystem.created_at'
         )
             ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
             ->where('filesystem_entities.entity_id', '=', $root->getKey())

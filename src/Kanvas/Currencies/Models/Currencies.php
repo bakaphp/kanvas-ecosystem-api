@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Currencies\Models;
 
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Factories\CurrenciesFactory;
 use Kanvas\Models\BaseModel;
+use Override;
 
 /**
  * Companies Model.
@@ -21,29 +23,15 @@ class Currencies extends BaseModel
 {
     use Cachable;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'currencies';
 
-    /**
-     * Create a new factory instance for the model.
-     *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
-     */
+    #[Override]
     protected static function newFactory()
     {
         return CurrenciesFactory::new();
     }
 
-    /**
-     * Companies relationship.
-     *
-     * @return hasMany[j[[j[]]]]
-     */
-    public function companies()
+    public function companies(): HasMany
     {
         return $this->hasMany(Companies::class, 'currency_id');
     }
@@ -51,5 +39,13 @@ class Currencies extends BaseModel
     public static function getByCode(string $code): self
     {
         return self::where('code', $code)->firstOrFail();
+    }
+
+    /**
+     * Base currency for kanvas is USD.
+     */
+    public static function getBaseCurrency(): self
+    {
+        return self::where('code', 'USD')->firstOrFail();
     }
 }

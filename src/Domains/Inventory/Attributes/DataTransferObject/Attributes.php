@@ -30,7 +30,7 @@ class Attributes extends Data
     ) {
     }
 
-    public static function viaRequest(array $request, UserInterface $user): self
+    public static function viaRequest(array $request, UserInterface $user, AppInterface $app): self
     {
         return new self(
             isset($request['company_id']) ? Companies::getById($request['company_id']) : $user->getCurrentCompany(),

@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
-use Bouncer;
 use Illuminate\Support\ServiceProvider;
-use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Sessions\Models\Sessions;
+use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
+use Laravel\Cashier\Cashier;
 use Laravel\Sanctum\Sanctum;
+use Override;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -16,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
      *
      * @return void
      */
+    #[Override]
     public function register()
     {
         //Sanctum::ignoreMigrations();
@@ -29,5 +32,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         Sanctum::usePersonalAccessTokenModel(Sessions::class);
+        Cashier::useCustomerModel(AppsStripeCustomer::class);
     }
 }

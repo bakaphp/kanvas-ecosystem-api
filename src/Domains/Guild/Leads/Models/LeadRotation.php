@@ -35,7 +35,7 @@ class LeadRotation extends BaseModel
 
     public function getRandomLeadsRotationsAgents(): Collection
     {
-        return $this->agents()->inRandomOrder()->get();
+        return $this->agents()->where('is_deleted', 0)->inRandomOrder()->get();
     }
 
     public function getAgent(): UserInterface

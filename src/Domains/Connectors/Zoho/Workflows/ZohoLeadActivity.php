@@ -5,26 +5,26 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Actions\SyncLeadToZohoAction;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 /**
  * @todo refactor move core logic to SyncLeadWithZohoAction
  */
-class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
+class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
-    public $tries = 5;
+    //public $tries = 5;
 
     /**
      * @param Lead $lead
      */
+    #[Override]
     public function execute(Model $lead, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

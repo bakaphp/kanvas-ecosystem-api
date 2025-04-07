@@ -17,10 +17,13 @@ enum CustomFieldEnum: string
     case SHOPIFY_VARIANT_INVENTORY_ID = 'SHOPIFY_VARIANT_INVENTORY_ID';
     case SHOPIFY_CUSTOMER_ID = 'SHOPIFY_CUSTOMER_ID';
     case SHOPIFY_ORDER_ID = 'SHOPIFY_ORDER_ID';
+    case SHOPIFY_DRAFT_ORDER_ID = 'SHOPIFY_DRAFT_ORDER_ID';
     case USER_SHOPIFY_ID = 'shopify_id';
     case SHOPIFY_MANUEL_ORDER_NOTIFICATION_MSG = 'SHOPIFY_MANUEL_ORDER_NOTIFICATION_MSG';
 
     case SHOPIFY_COLLECTION_ID = 'shopify_collection_id';
 
     case SHOPIFY_COLLECTION_IS_SYNCED = 'shopify_collection_is_synced';
+
+    case SHOPIFY_INVENTORY_MANAGEMENT = 'shopify_inventory_management';
 }

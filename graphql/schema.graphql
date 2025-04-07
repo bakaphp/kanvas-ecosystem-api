@@ -15,12 +15,15 @@ scalar Upload
 
 scalar Mixed @scalar(class: "MLL\\GraphQLScalars\\MixedScalar")
 scalar Email @scalar(class: "MLL\\GraphQLScalars\\Email")
-scalar JSON  @scalar(class: "MLL\\GraphQLScalars\\JSON")
-scalar Null  @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
+scalar JSON @scalar(class: "MLL\\GraphQLScalars\\JSON")
+scalar Null @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
+scalar Decimal @scalar(class: "App\\GraphQL\\Scalars\\DecimalScalar")
+scalar Money @scalar(class: "App\\GraphQL\\Scalars\\MoneyScalar")
 
 #import hello.graphql
-#import schemas/Ecosystem/*.graphql
 #import schemas/*.graphql
+#import schemas/Ecosystem/*.graphql
+#import schemas/Ecosystem/Filesystem/*.graphql
 #import schemas/Inventory/*.graphql
 #import schemas/Connector/*.graphql
 #import schemas/Inventory/Admin/*.graphql
@@ -30,3 +33,6 @@ scalar Null  @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
 #import schemas/Souk/*.graphql
 #import schemas/ActionEngine/*.graphql
 #import schemas/Ecosystem/Admin/*.graphql
+#import schemas/WorkFlow/*.graphql
+#import schemas/Subscription/*.graphql
+#import schemas/Event/*.graphql

@@ -5,19 +5,25 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
-use Kanvas\Users\Models\Users;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
+use Override;
 use Spatie\LaravelData\DataCollection;
 
 /**
@@ -65,12 +71,14 @@ use Spatie\LaravelData\DataCollection;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
+#[ObservedBy(OrderObserver::class)]
 class Order extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use CanUseWorkflow;
     use HasShopifyCustomField;
+    use HasTagsTrait;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -83,6 +91,8 @@ class Order extends BaseModel
         'discount_amount' => 'float',
         'weight' => 'float',
         'payment_gateway_names' => Json::class,
+        'metadata' => Json::class,
+        'private_metadata' => Json::class,
     ];
 
     public function region(): BelongsTo
@@ -95,14 +105,24 @@ class Order extends BaseModel
         return $this->belongsTo(People::class, 'people_id', 'id');
     }
 
+    public function billingAddress(): BelongsTo
+    {
+        return $this->belongsTo(Address::class, 'billing_address_id', 'id');
+    }
+
     public function items(): HasMany
+    {
+        return $this->hasMany(OrderItem::class, 'order_id', 'id')->where('is_public', 1);
+    }
+
+    public function allItems(): HasMany
     {
         return $this->hasMany(OrderItem::class, 'order_id', 'id');
     }
 
-    public function user(): BelongsTo
+    public function shippingAddress(): BelongsTo
     {
-        return $this->belongsTo(Users::class, 'user_id', 'id');
+        return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder
@@ -119,6 +139,16 @@ class Order extends BaseModel
     public function getTotalAmount(): float
     {
         return (float) $this->total_gross_amount;
+    }
+
+    public function getSubTotalAmount(): float
+    {
+        return (float) $this->total_net_amount;
+    }
+
+    public function getTotalTaxAmount(): float
+    {
+        return $this->getTotalAmount() - $this->getSubTotalAmount();
     }
 
     public function addItems(DataCollection $items): void
@@ -149,6 +179,11 @@ class Order extends BaseModel
         return $orderItem;
     }
 
+    public function deleteItems(): void
+    {
+        $this->items()->delete();
+    }
+
     public function fulfill(): void
     {
         $this->fulfillment_status = 'fulfilled';
@@ -157,7 +192,7 @@ class Order extends BaseModel
 
     public function fulfillCancelled(): void
     {
-        $this->fulfillment_status = 'cancelled';
+        $this->fulfillment_status = 'canceled';
         $this->saveOrFail();
     }
 
@@ -169,7 +204,119 @@ class Order extends BaseModel
 
     public function cancel(): void
     {
-        $this->status = 'cancelled';
+        $this->status = 'canceled';
         $this->saveOrFail();
+    }
+
+    public function scopeWhereNotCompleted(Builder $query): Builder
+    {
+        return $query->where('status', '!=', 'completed');
+    }
+
+    public function scopeWhereCompleted(Builder $query): Builder
+    {
+        return $query->where('status', 'completed');
+    }
+
+    public function scopeWhereCancelled(Builder $query): Builder
+    {
+        return $query->where('status', 'cancelled');
+    }
+
+    public function scopeWhereFulfilled(Builder $query): Builder
+    {
+        return $query->where('fulfillment_status', 'fulfilled');
+    }
+
+    public function scopeWhereNotFulfilled(Builder $query): Builder
+    {
+        return $query->whereNotIn('fulfillment_status', ['fulfilled', 'canceled']);
+    }
+
+    public function scopeWhereDraft(Builder $query): Builder
+    {
+        return $query->where('status', 'draft');
+    }
+
+    public function isFulfilled(): bool
+    {
+        return $this->fulfillment_status === OrderFulfillmentStatusEnum::COMPLETED->value;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === OrderStatusEnum::COMPLETED->value;
+    }
+
+    public function isFullyCompleted(): bool
+    {
+        return $this->isFulfilled() && $this->isCompleted();
+    }
+
+    public function generateOrderNumber(): int
+    {
+        // Lock the orders table while retrieving the last order
+        $lastOrder = Order::where('companies_id', $this->companies_id)
+                        ->where('apps_id', $this->apps_id)
+                        ->lockForUpdate() // Ensure no race conditions
+                        ->latest('id')
+                        ->first();
+
+        $lastOrderNumber = $lastOrder ? intval($lastOrder->order_number) : 0;
+        $newOrderNumber = $lastOrderNumber + 1;
+
+        return $newOrderNumber;
+    }
+
+    public function getEmail(): ?string
+    {
+        return $this->user_email ?? $this->people->getEmails()->first()?->email;
+    }
+
+    public function getPhone(): ?string
+    {
+        return $this->user_phone ?? $this->people->getPhones()->first()?->phone;
+    }
+
+    public function addMetadata(string $key, mixed $value): void
+    {
+        $metadata = $this->metadata ?? [];
+        $metadata[$key] = $value;
+
+        $this->metadata = $metadata;
+        $this->saveOrFail();
+    }
+
+    public function addPrivateMetadata(string $key, mixed $value): void
+    {
+        $metadata = $this->private_metadata ?? [];
+        $metadata[$key] = $value;
+
+        $this->private_metadata = $metadata;
+        $this->saveOrFail();
+    }
+
+    public function getMetadata(string $key): mixed
+    {
+        if ($this->metadata === null) {
+            return null;
+        }
+
+        return $this->metadata[$key] ?? null;
+    }
+
+    public function getPrivateMetadata(string $key): mixed
+    {
+        if ($this->private_metadata === null) {
+            return null;
+        }
+
+        return $this->private_metadata[$key] ?? null;
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return false;
     }
 }

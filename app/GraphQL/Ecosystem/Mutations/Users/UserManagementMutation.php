@@ -12,23 +12,35 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
+use Kanvas\Auth\Socialite\DataTransferObject\User;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
+use Kanvas\Users\Actions\CreateAdminInviteAction;
 use Kanvas\Users\Actions\CreateInviteAction;
+use Kanvas\Users\Actions\ProcessAdminInviteAction;
 use Kanvas\Users\Actions\ProcessInviteAction;
 use Kanvas\Users\Actions\RequestDeleteAccountAction as RequestDeleteAction;
+use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
+use Kanvas\Users\Models\AdminInvite;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersInvite;
+use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Users\Services\UserContactsService;
 
 class UserManagementMutation
 {
+    use HasMutationUploadFiles;
+
     /**
      * changePassword.
      */
@@ -70,7 +82,7 @@ class UserManagementMutation
      *
      * @param  mixed $rootValue
      */
-    public function insertInvite($rootValue, array $request): UsersInvite
+    public function insertUserInvite($rootValue, array $request): UsersInvite
     {
         $request = $request['input'];
         $company = auth()->user()->getCurrentCompany();
@@ -97,6 +109,51 @@ class UserManagementMutation
     }
 
     /**
+     * insertAdminInvite.
+     *
+     * @param  mixed $rootValue
+     */
+    public function insertAdminInvite($rootValue, array $request): AdminInvite
+    {
+        $request = $request['input'];
+        $app = app(Apps::class);
+        $appDefault = Apps::getByUuid(config('kanvas.app.id'));
+
+        $userAssociation = UsersAssociatedApps::where('email', $request['email'])
+            ->fromApp($appDefault)
+            ->notDeleted()
+            ->first();
+
+        $invite = new CreateAdminInviteAction(
+            new AdminInviteDto(
+                app: $app,
+                email: $request['email'],
+                firstname: $request['firstname'] ?? null,
+                lastname: $request['lastname'] ?? null,
+                description: $request['description'] ?? null,
+                customFields: $request['custom_fields'] ?? []
+            ),
+            auth()->user(),
+            (bool) $userAssociation
+        );
+
+        $invite = $invite->execute();
+
+        if ($userAssociation) {
+            (new ProcessAdminInviteAction(
+                new CompleteInviteInput(
+                    invite_hash: $invite->invite_hash,
+                    password: $userAssociation->password,
+                    firstname: $invite->firstname
+                ),
+                $userAssociation->user
+            ))->execute();
+        }
+
+        return $invite;
+    }
+
+    /**
      * deleteInvite.
      *
      * @param  mixed $rootValue
@@ -106,6 +163,23 @@ class UserManagementMutation
         $invite = UsersInviteRepository::getById(
             (int) $request['id'],
             auth()->user()->getCurrentCompany()
+        );
+
+        $invite->softDelete();
+
+        return true;
+    }
+
+    /**
+     * deleteInvite.
+     *
+     * @param  mixed $rootValue
+     */
+    public function deleteAdminInvite($rootValue, array $request): bool
+    {
+        $invite = AdminInviteRepository::getById(
+            id: (int) $request['id'],
+            app: app(Apps::class)
         );
 
         $invite->softDelete();
@@ -132,6 +206,17 @@ class UserManagementMutation
     public function process($rootValue, array $request): array
     {
         $action = new ProcessInviteAction(
+            CompleteInviteInput::from($request['input'])
+        );
+
+        $user = $action->execute();
+
+        return $user->createToken('kanvas-login')->toArray();
+    }
+
+    public function processAdmin($rootValue, array $request): array
+    {
+        $action = new ProcessAdminInviteAction(
             CompleteInviteInput::from($request['input'])
         );
 
@@ -170,12 +255,12 @@ class UserManagementMutation
         if ($request['user_id'] != $loggedUser->getId() && ! $loggedUser->isAdmin()) {
             throw new Exception('You are not allowed to update this photo user');
         }
-        $user = UsersRepository::getUserOfAppById((int)$request['user_id']);
         $app = app(Apps::class);
+        $user = UsersRepository::getUserOfAppById((int)$request['user_id'], $app);
 
         $filesystem = new FilesystemServices(app(Apps::class));
         $file = $request['file'];
-        in_array($file->extension(), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']) ?: throw new Exception('Invalid file format');
+        in_array($file->extension(), AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions()) ?: throw new Exception('Invalid file format');
 
         $filesystemEntity = $filesystem->upload($file, $user);
         $action = new AttachFilesystemAction(
@@ -187,8 +272,63 @@ class UserManagementMutation
         return $user;
     }
 
+    public function attachFileToUser(mixed $root, array $request): Users
+    {
+        $app = app(Apps::class);
+        $loggedUser = auth()->user();
+
+        if ($request['id'] != $loggedUser->getId() && ! $loggedUser->isAdmin()) {
+            throw new Exception('You are not allowed to update this photo user');
+        }
+
+        $userId = $request['id'] > 0 && $loggedUser->isAdmin() ? (int) $request['id'] : $loggedUser->getId();
+        $user = UsersRepository::getUserOfAppById($userId, $app);
+
+        return $this->uploadFileToEntity(
+            model: $user,
+            app: $app,
+            user: $user,
+            request: $request
+        );
+    }
+
     public function requestDeleteAccount(mixed $rootValue, array $request): bool
     {
         return (new RequestDeleteAction(app(Apps::class), auth()->user()))->execute();
+    }
+
+    public function checkUsersContactsMatch(mixed $rootValue, array $request): ?array
+    {
+        $authUser = auth()->user();
+        $app = app(Apps::class);
+        $contacts = $request['contacts'];
+        $contactsEmails = [];
+        foreach (UserContactsService::extractEmailsFromContactsList($contacts) as $email) {
+            $contactsEmails[] = $email;
+        }
+
+        $appUsers = UsersAssociatedApps::where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->whereNotNull('email')
+            ->whereNotIn('email', [$authUser->email])
+            ->with('user')
+            ->lazy();
+
+
+        $contactsEmails = array_flip($contactsEmails);
+        $matchingContacts = [];
+
+        // Efficient lookup using isset()
+        foreach ($appUsers as $appUser) {
+            if (isset($contactsEmails[$appUser->email])) {
+                $matchingContacts[] = $appUser->user;
+            }
+        }
+
+        // Return alse the contacts that are not in the app
+        return [
+            "matching_contacts" => $matchingContacts,
+            "nonmatching_contacts" => array_diff_key($contactsEmails, array_flip($matchingContacts))
+        ];
     }
 }

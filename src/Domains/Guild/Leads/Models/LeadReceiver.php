@@ -6,10 +6,14 @@ namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Guild\Leads\Observers\LeadReceiverObserver;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Rotations\Models\Rotation;
+use Kanvas\Traits\DefaultTrait;
+use Kanvas\Users\Models\Users;
 
 /**
  * Class LeadReceiver.
@@ -31,15 +35,17 @@ use Kanvas\Guild\Rotations\Models\Rotation;
  * @property int $total_leads
  * @property int $is_default
  */
+#[ObservedBy(LeadReceiverObserver::class)]
 class LeadReceiver extends BaseModel
 {
     use UuidTrait;
+    use DefaultTrait;
 
     protected $table = 'leads_receivers';
     protected $guarded = [];
 
     protected $casts = [
-        'template' => Json::class
+        'template' => Json::class,
     ];
 
     /**
@@ -53,5 +59,20 @@ class LeadReceiver extends BaseModel
     public function branch(): BelongsTo
     {
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
+    }
+
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'agents_id');
+    }
+
+    public function leadSource(): BelongsTo
+    {
+        return $this->belongsTo(LeadSource::class, 'leads_sources_id');
+    }
+
+    public function leadType(): BelongsTo
+    {
+        return $this->belongsTo(LeadType::class, 'lead_types_id');
     }
 }

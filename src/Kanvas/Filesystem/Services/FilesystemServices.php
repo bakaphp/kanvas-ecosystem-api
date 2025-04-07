@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Services;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\CreateFilesystemAction;
@@ -21,7 +23,8 @@ class FilesystemServices
      * Construct function.
      */
     public function __construct(
-        protected Apps $app
+        protected Apps $app,
+        protected ?CompanyInterface $company = null
     ) {
         $this->storage = $this->getStorageByDisk();
     }
@@ -32,6 +35,7 @@ class FilesystemServices
     public function upload(UploadedFile $file, Users $user): ModelsFilesystem
     {
         $path = $this->app->get('cloud-bucket-path') ?? '/';
+
         $uploadedFile = $this->storage->put(
             $path,
             $file,
@@ -40,7 +44,7 @@ class FilesystemServices
             ]
         );
 
-        $createFileSystem = new CreateFilesystemAction($file, $user);
+        $createFileSystem = new CreateFilesystemAction($file, $user, $this->app, $this->company);
 
         return $createFileSystem->execute(
             $this->storage->url($uploadedFile),
@@ -101,7 +105,8 @@ class FilesystemServices
             'bucket' => $this->app->get('cloud-bucket'),
             'url' => $this->app->get('cloud-cdn'),
             'path' => $this->app->get('cloud-bucket-path') ?? '/',
-            'use_path_style_endpoint' => false,
+            'use_path_style_endpoint' => (bool)$this->app->get('use_path_style_endpoint') ?? false,
+            'endpoint' => $aws['endpoint'] ?? null,
         ]);
     }
 
@@ -111,5 +116,73 @@ class FilesystemServices
     public function delete(ModelsFilesystem $file): bool
     {
         return $this->storage->delete($file->path);
+    }
+
+    public function getFileLocalPath(ModelsFilesystem $filesystem): string
+    {
+        $path = $filesystem->path;
+        $diskS3 = $this->buildS3Storage();
+
+        $fileContent = $diskS3->get($path);
+        $filename = basename($path);
+        $path = storage_path('app/csv/' . $filename);
+        file_put_contents($path, $fileContent);
+
+        return $path;
+    }
+
+    public function createFileSystemFromBase64(string $base64String, string $originalName, Users $user): ModelsFilesystem
+    {
+        /**
+         * @todo should we cache the decoded content? to avoid decoding it again
+         */
+        $decodedContent = base64_decode($base64String);
+
+        // Ensure the content is decoded correctly
+        if ($decodedContent === false) {
+            throw new InvalidArgumentException('Invalid Base64 string provided');
+        }
+
+        // Save to a temporary file
+        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '_' . $originalName;
+        file_put_contents($tempFilePath, $decodedContent);
+
+        return $this->upload(
+            new UploadedFile(
+                $tempFilePath,               // Path to the file
+                $originalName,               // Original file name
+                mime_content_type($tempFilePath), // MIME type
+                null,                        // Error (null means no error)
+                true                         // Mark it as a test file (will not delete original file)
+            ),
+            $user
+        );
+    }
+
+    public static function downloadImageFromUrl(string $imageUrl): ?string
+    {
+        $fileInfo = pathinfo($imageUrl);
+        $extension = $fileInfo['extension'] ?? null;
+
+        if (is_null($extension)) {
+            $parsedUrl = parse_url($imageUrl);
+            $path = $parsedUrl['path'];
+
+            $extension = pathinfo($path, PATHINFO_EXTENSION);
+        }
+
+        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $extension;
+
+        // Get the image content
+        $imageContent = file_get_contents($imageUrl);
+
+        if ($imageContent !== false) {
+            // Save the image locally
+            file_put_contents($tempFilePath, $imageContent);
+
+            return $tempFilePath;
+        }
+
+        return null;
     }
 }

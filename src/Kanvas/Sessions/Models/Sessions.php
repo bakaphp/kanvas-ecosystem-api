@@ -134,7 +134,7 @@ class Sessions extends PersonalAccessToken
             ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $id");
+            throw new ExceptionsModelNotFoundException("No record found for Token $id");
         }
     }
 
@@ -238,7 +238,7 @@ class Sessions extends PersonalAccessToken
      * Checks for a given user session, tidies session table and updates user
      * sessions at each page refresh.
      */
-    public function check(Users $user, string $sessionId, string $userIp, Apps $app = null, int $pageId): Users
+    public function check(Users $user, string $sessionId, string $userIp, ?Apps $app = null, ?int $pageId = null): Users
     {
         $currentTime = time();
 

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Models;
 
+use Baka\Traits\DynamicSearchableTrait;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Enums\RolesEnums;
-use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\Role as SilberRole;
 
 /**
@@ -17,7 +17,7 @@ use Silber\Bouncer\Database\Role as SilberRole;
  */
 class Role extends SilberRole
 {
-    use Searchable;
+    use DynamicSearchableTrait;
     protected $connection = 'mysql';
 
     public function getUserCountAttribute(): int
@@ -25,7 +25,7 @@ class Role extends SilberRole
         $count = Redis::get('role:' . $this->id . ':users_count');
         if (! $count) {
             $count = $this->users()->count();
-            Redis::setex('role:' . $this->id . ':users_count', 120, $count);
+            Redis::set('role:' . $this->id . ':users_count', 120, $count);
         }
 
         return (int)$count;
@@ -36,7 +36,7 @@ class Role extends SilberRole
         $count = Redis::get('role:' . $this->id . ':abilities_count');
         if (! $count) {
             $count = $this->abilities()->count();
-            Redis::setex('role:' . $this->id . ':abilities_count', 120, $count);
+            Redis::set('role:' . $this->id . ':abilities_count', 120, $count);
         }
 
         return (int)$count;
@@ -51,6 +51,7 @@ class Role extends SilberRole
                 $modules[$module->id] = $module;
             }
         }
+
         return $modules;
     }
 

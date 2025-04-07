@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Exception;
 use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -37,16 +38,18 @@ class ShopifyVariantMetafieldService
     {
         $attributes = $this->variant->attributes;
         $shopifyProductVariantId = $this->variant->getShopifyId($this->region);
-        $shopifyProduct = $this->shopifySdk->Product($this->variant->product->getShopifyId($this->region));
-        $shopifyMetaFields = $this->variant->get(CustomFieldEnum::SHOPIFY_META_FIELD_ID->value) ?? [];
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 99);
+        $partNumber = ShopifyInventoryService::getProductPartForVariant($this->variant->product, $this->variant, $variantLimit);
 
+        $shopifyProduct = $this->shopifySdk->Product($this->variant->product->getShopifyId($this->region, $partNumber));
+        $shopifyMetaFields = $this->variant->get(CustomFieldEnum::SHOPIFY_META_FIELD_ID->value) ?? [];
         $i = 0;
         foreach ($attributes as $attribute) {
-            if (! $attribute->is_filterable) {
+            if (! $attribute->is_filtrable) {
                 $this->deleteMetaFieldIfExists($shopifyMetaFields, $attribute, $shopifyProduct, $shopifyProductVariantId);
+
                 continue;
             }
-
             $type = $this->determineType($attribute->value);
             $attributeValue = $type === 'json' ? json_encode($attribute->value) : $attribute->value;
 
@@ -55,10 +58,9 @@ class ShopifyVariantMetafieldService
                 'key' => $attribute->name,
                 'value' => $attributeValue,
                 'type' => $this->types[$type],
+                'variant_id' => $shopifyProductVariantId,
             ];
-
             $metaField = $shopifyProduct->Variant($shopifyProductVariantId)->Metafield->post($mutationGraphql);
-
             $shopifyMetaFields[$this->region->id][$attribute->id] = $metaField['id'];
             $i++;
         }
@@ -95,8 +97,11 @@ class ShopifyVariantMetafieldService
 
     public function getMetaField(): array
     {
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 99);
+        $partNumber = ShopifyInventoryService::getProductPartForVariant($this->variant->product, $this->variant, $variantLimit);
+
         $shopifyProductVariantId = $this->variant->getShopifyId($this->region);
-        $shopifyProduct = $this->shopifySdk->Product($this->variant->product->getShopifyId($this->region));
+        $shopifyProduct = $this->shopifySdk->Product($this->variant->product->getShopifyId($this->region, $partNumber));
 
         return $shopifyProduct->Variant($shopifyProductVariantId)->Metafield->get();
     }

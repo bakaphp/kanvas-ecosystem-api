@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Baka\Support\Str;
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
@@ -24,6 +27,8 @@ use Kanvas\SystemModules\Models\SystemModules;
 
 class MessageManagementMutation
 {
+    use HasMutationUploadFiles;
+
     public function create(mixed $root, array $request): Message
     {
         $app = app(Apps::class);
@@ -59,7 +64,13 @@ class MessageManagementMutation
         }
 
         $systemModuleId = $messageData['system_modules_id'] ?? null;
-        $systemModule = $systemModuleId ? SystemModules::getById((int)$systemModuleId, $app) : null;
+
+        if (Str::isUuid($systemModuleId)) {
+            $systemModule = SystemModules::getByUuid($systemModuleId, $app);
+        } else {
+            $systemModule = $systemModuleId ? SystemModules::getById((int)$systemModuleId, $app) : null;
+        }
+
         $messageData['ip_address'] = request()->ip();
         $data = MessageInput::fromArray(
             $messageData,
@@ -111,12 +122,30 @@ class MessageManagementMutation
             throw new ValidationException($validator->messages()->__toString());
         }
 
+        if (! empty($request['input']['message_verb'] ?? null)) {
+            try {
+                $messageType = MessagesTypesRepository::getByVerb($request['input']['message_verb'], $message->app);
+            } catch (ModelNotFoundException $e) {
+                $messageTypeDto = MessageTypeInput::from([
+                    'apps_id' => $message->app->getId(),
+                    'name' => $request['input']['message_verb'],
+                    'verb' => $request['input']['message_verb'],
+                ]);
+                $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
+            }
+
+            unset($request['input']['message_verb']);
+            $request['input']['message_types_id'] = $messageType->getId();
+        }
+
         /**
          * @todo move to action
          */
         $message->update($request['input']);
 
-        $message->syncTags(array_column($request['input']['tags'], 'name'));
+        if (array_key_exists('tags', $request['input']) && ! empty($request['input']['tags'])) {
+            $message->syncTags($request['input']['tags']);
+        }
 
         return $message;
     }
@@ -170,6 +199,33 @@ class MessageManagementMutation
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));
         $message->topics()->detach($request['topicId']);
+
+        return $message;
+    }
+
+    public function attachFileToMessage(mixed $root, array $request): Message
+    {
+        $app = app(Apps::class);
+        $message = Message::getById((int)$request['message_id'], $app);
+
+        if (($message->user->getId() !== auth()->user()->getId()) && ! auth()->user()->isAdmin()) {
+            throw new Exception('The message does not belong to the authenticated user');
+        }
+
+        return $this->uploadFileToEntity(
+            model: $message,
+            app: $app,
+            user: auth()->user(),
+            request: $request
+        );
+    }
+
+    public function recoverMessage(mixed $root, array $request): Message
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $message = Message::withTrashed()->where('id', $request['id'])->where('users_id', $user->getId())->fromApp($app)->firstOrFail();
+        $message->restore();
 
         return $message;
     }

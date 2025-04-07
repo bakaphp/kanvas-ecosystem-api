@@ -18,7 +18,10 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
+use Kanvas\AccessControlList\Actions\DisallowAllAbilitiesAction;
 use Silber\Bouncer\Database\Role as SilberRole;
+use Silber\Bouncer\Database\Ability as SilberAbility;
+use Kanvas\AccessControlList\Actions\BulkAllowRoleToPermissionAction;
 
 class RolesManagementMutation
 {
@@ -32,7 +35,10 @@ class RolesManagementMutation
         $userId = (int) $request['userId'];
         $app = app(Apps::class);
 
-        $role = RolesRepository::getByMixedParamFromCompany($request['role']);
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: $request['role'],
+            app: $app
+        );
 
         if ($auth->isAppOwner()) {
             $user = UsersRepository::getUserOfAppById($userId, $app);
@@ -59,7 +65,10 @@ class RolesManagementMutation
         $userId = (int) $request['userId'];
         $app = app(Apps::class);
 
-        $role = RolesRepository::getByMixedParamFromCompany($request['role']);
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: $request['role'],
+            app: $app
+        );
 
         if ($auth->isAdmin()) {
             $user = UsersRepository::getUserOfAppById($userId, $app);
@@ -141,22 +150,28 @@ class RolesManagementMutation
     public function createRole(mixed $rootValue, array $request): SilberRole
     {
         $user = auth()->user();
-
+        $input = $request['input'];
         if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not allowed to perform this action');
         }
 
-        if (RolesEnums::isEnumValue($request['name'])) {
+        if (RolesEnums::isEnumValue($input['name'])) {
             throw new ValidationException('You are not allowed to create system roles');
         }
 
         $role = new CreateRoleAction(
-            $request['name'],
-            $request['title'] ?? null
+            $input['name'],
+            $input['title'] ?? null
         );
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
-
+        $permissions = $input['permissions'];
+        (new BulkAllowRoleToPermissionAction(
+            app(Apps::class),
+            $role,
+            $permissions,
+            key_exists('template_id', $input) ? SilberRole::find($input['template_id']) : null
+        ))->execute();
         return KanvasRole::find($role->id);
     }
 
@@ -170,14 +185,23 @@ class RolesManagementMutation
         if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not allowed to perform this action');
         }
+        $input = $request['input'];
 
         $role = new UpdateRoleAction(
             (int) $request['id'],
-            $request['name'] ?? null,
-            $request['title'] ?? null
+            $input['name'] ?? null,
+            $input['title'] ?? null
         );
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
+        Bouncer::disallow($role)->to($role->abilities->pluck('name')->toArray());
+        $permissions = $input['permissions'];
+
+        (new BulkAllowRoleToPermissionAction(
+            app(Apps::class),
+            $role,
+            $permissions
+        ))->execute();
 
         return KanvasRole::find($role->id);
     }

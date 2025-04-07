@@ -12,6 +12,12 @@ type Variant {
     barcode: String
     serial_number: String
     status: Status
+    rating: Float
+    weight: Float
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     files: [Filesystem]
         @cacheRedis
         @paginate(
@@ -21,14 +27,14 @@ type Variant {
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     user_interactions: Mixed! @method(name: "getUserSocialInteractions") @guard
-    product: Product @cacheRedis
+    product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]! @BelongsToMany(relation: "attributes")
+    attributes: [VariantsAttributes!]! @method(name: "visibleAttributes") @cacheRedis
     companies: Company! @belongsTo(relation: "company")
-    channels: [VariantChannelRelationship!]!
+    channels(currencyCode: String): [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")
-    channel: VariantPricingInfo
+    channel(currencyCode: String): VariantPricingInfo
         @field(
             resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price"
         )
@@ -37,22 +43,22 @@ type Variant {
             resolver: "App\\GraphQL\\Inventory\\Types\\MetadataType@linkedStores"
         )
     custom_fields: [CustomField!]!
-        @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     inventory_quantity: Int @method(name: "getTotalQuantity")
 }
 
 type VariantPricingInfo {
-    price: Float!
-    discounted_price: Float!
+    price: Money!
+    discounted_price: Money!
     quantity: Int!
     is_best_seller: Boolean
     is_on_sale: Boolean
     is_on_promotion: Boolean
     is_coming_soon: Boolean
+    config: Mixed
 }
 
 #@deprecated(reason: "Use the ProductAttributesInput type instead")
@@ -78,6 +84,7 @@ input VariantsInput {
     discountPrice: Float
     status: StatusReferenceInput
     price: Float
+    weight: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput!]
     warehouses: [WarehouseReferenceInput!]
@@ -99,9 +106,17 @@ input VariantsUpdateInput {
     attributes: [VariantsAttributesInput!]
     serial_number: String
     is_published: Boolean
+    weight: Float
     warehouses: [WarehouseReferenceInput!]
     channels: [VariantChannelReferenceInput!]
     custom_fields: [CustomFieldEntityInput!]
+}
+
+input VariantTranslationInput {
+    name: String
+    description: String
+    short_description: String
+    html_description: String
 }
 
 extend type Mutation @guard {
@@ -112,6 +127,18 @@ extend type Mutation @guard {
     updateVariant(input: VariantsUpdateInput!, id: ID!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update"
+        )
+    updateVariantTranslations(
+        id: ID!
+        input: VariantTranslationInput!
+        code: String
+    ): Variant!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantTranslation"
+        )
+    uploadFileToVariant(id: ID!, file: Upload!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\VariantMediaMutation@attachFileToVariant"
         )
     deleteVariant(id: ID!): Boolean
         @field(
@@ -147,6 +174,7 @@ extend type Query @guard {
                     "sku"
                     "serial_number"
                     "is_published"
+                    "rating"
                 ]
             )
         hasAttributesValues: _
@@ -170,6 +198,8 @@ extend type Query @guard {
                     "products_id"
                     "status_id"
                     "is_published"
+                    "weight"
+                    "rating"
                 ]
             )
     ): [Variant!]!

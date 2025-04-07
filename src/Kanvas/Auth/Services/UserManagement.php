@@ -38,6 +38,10 @@ class UserManagement
 
             $userAppProfile = $this->user->getAppProfile($this->app);
 
+            if (! isset($data['lastname'])) {
+                $data['lastname'] = ''; //Save it empty to avoid having a fullName with unwanted lastnam
+            }
+
             //@todo when we update the login to use userAssociatedApps we need to remove this
             $this->user->update($data);
             $userAppProfile->update($data);
@@ -68,7 +72,10 @@ class UserManagement
                 return;
             }
             foreach ($roleIds as $roleId) {
-                $role = RolesRepository::getByMixedParamFromCompany($roleId);
+                $role = RolesRepository::getByMixedParamFromCompany(
+                    param: $roleId,
+                    app: $this->app
+                );
 
                 $assign = new AssignRoleAction(
                     $this->user,

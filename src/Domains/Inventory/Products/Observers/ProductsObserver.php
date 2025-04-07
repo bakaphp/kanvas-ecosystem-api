@@ -8,21 +8,21 @@ use Kanvas\Inventory\Products\Models\Products;
 
 class ProductsObserver
 {
-    public function saved(Products $products): void
+    public function saved(Products $product): void
     {
-        if ($products->wasChanged('products_types_id') && $products->productsTypes()->exists()) {
-            $products->productsTypes->setTotalProducts();
+        if ($product->wasChanged('products_types_id') && $product->productsTypes()->exists()) {
+            $product->productsTypes->setTotalProducts();
         }
 
-        $products->clearLightHouseCache();
+        $product->clearLightHouseCache(withKanvasConfiguration: false);
     }
 
-    public function created(Products $products): void
+    public function created(Products $product): void
     {
-        if ($products->productsTypes()->exists()) {
-            $products->productsTypes->setTotalProducts();
+        if ($product->productsTypes()->exists()) {
+            $product->productsTypes->setTotalProducts();
         }
 
-        $products->clearLightHouseCache();
+        $product->clearLightHouseCache(withKanvasConfiguration: false);
     }
 }

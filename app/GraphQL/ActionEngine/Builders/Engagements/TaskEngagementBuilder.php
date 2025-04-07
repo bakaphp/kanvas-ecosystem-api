@@ -6,7 +6,7 @@ namespace App\GraphQL\ActionEngine\Builders\Engagements;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -25,21 +25,8 @@ class TaskEngagementBuilder
 
         $lead = Lead::getByIdFromCompanyApp($args['lead_id'], $company, $app);
         $leadId = $lead->getId();
+        $taskListId = (int) ($args['task_list_id'] ?? ($company->get('default_company_task_list_id') ?? null));
 
-        return TaskListItem::leftJoin('company_task_engagement_items', function ($join) use ($lead) {
-            $join->on('company_task_list_items.id', '=', 'company_task_engagement_items.task_list_item_id')
-                 ->where('company_task_engagement_items.lead_id', '=', $lead->getId());
-        })
-        ->leftJoin('company_task_list', 'company_task_list.id', '=', 'company_task_list_items.task_list_id')
-        ->where('company_task_list.companies_id', '=', $lead->companies_id)
-        ->select(
-            'company_task_list_items.*',
-            'company_task_engagement_items.lead_id',
-            'company_task_engagement_items.status',
-            'company_task_engagement_items.engagement_start_id',
-            'company_task_engagement_items.engagement_end_id',
-            'company_task_engagement_items.created_at',
-            'company_task_engagement_items.updated_at'
-        );
+        return TaskEngagementItemRepository::getLeadsTaskItems($lead, $taskListId);
     }
 }

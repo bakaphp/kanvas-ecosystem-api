@@ -11,11 +11,13 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
+public/vendor
 /.idea
 .DS_Store
 package.json
 /storage/framework/cache/data/*
 /storage/framework/cache/views/*
+/storage/framework/sessions/*
 /storage/app/*
 /storage/logs/*
 package-lock.json
@@ -29,3 +31,6 @@ service-account.json
 /caddy
 frankenphp
 frankenphp-worker.php
+google_auth.json
+google-play-service-account.json
+typesense-data/

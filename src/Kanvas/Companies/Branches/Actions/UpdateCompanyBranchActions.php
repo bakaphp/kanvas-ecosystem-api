@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Branches\Actions;
 
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPutData;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
@@ -22,11 +21,6 @@ class UpdateCompanyBranchActions
     ) {
     }
 
-    /**
-     * Invoke function.
-     *
-     * @return Companies
-     */
     public function execute(int $companyBranchId): CompaniesBranches
     {
         $companyBranch = CompaniesBranches::getById($companyBranchId);
@@ -34,18 +28,16 @@ class UpdateCompanyBranchActions
 
         CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $this->user);
 
+        //@todo Add observer for is_default value on company branches.
         if ($this->data->is_default === StateEnums::YES->getValue()) {
             $company->branches()->update(['is_default' => StateEnums::NO->getValue()]);
         }
 
-        $companyBranch->is_default = $this->data->is_default;
-        $companyBranch->name = $this->data->name;
-        $companyBranch->address = $this->data->address;
-        $companyBranch->email = $this->data->email;
-        $companyBranch->phone = $this->data->phone;
-        $companyBranch->zipcode = $this->data->zipcode;
-        $companyBranch->is_active = $this->data->is_active;
-        $companyBranch->updateOrFail();
+        $data = array_filter($this->data->toArray(), function ($value) {
+            return $value !== null;
+        });
+
+        $companyBranch->updateOrFail($data);
 
         if ($this->data->files) {
             $companyBranch->addMultipleFilesFromUrl($this->data->files);

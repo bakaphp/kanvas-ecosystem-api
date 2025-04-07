@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Enums;
 
 use Baka\Contracts\EnumsInterface;
+use Override;
 
 enum AppSettingsEnums implements EnumsInterface
 {
@@ -16,6 +17,7 @@ enum AppSettingsEnums implements EnumsInterface
     case SEND_CREATE_USER_EMAIL;
     case ONBOARDING_GUILD_SETUP;
     case ONBOARDING_INVENTORY_SETUP;
+    case ONBOARDING_EVENT_SETUP;
     case ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY;
     case GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY;
     case GLOBAL_APP_IMAGES;
@@ -33,10 +35,14 @@ enum AppSettingsEnums implements EnumsInterface
     case INACTIVE_ACCOUNT_ERROR_MESSAGE;
     case INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE;
     case RESET_PASSWORD_EMAIL_SUBJECT;
+    case FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME;
+    case FILESYSTEM_MAPPER_HEADER_VALIDATION;
+    case NOTIFICATION_FROM_USER_ID;
+    case USE_LEGACY_ROLES;
+    case DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE;
+    case ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME;
 
-    /**
-     * Get value.
-     */
+    #[Override]
     public function getValue(): mixed
     {
         return match ($this) {
@@ -48,6 +54,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::SEND_CREATE_USER_EMAIL => 'send_create_user_email',
             self::ONBOARDING_GUILD_SETUP => 'onboarding_guild_setup',
             self::ONBOARDING_INVENTORY_SETUP => 'onboarding_inventory_setup',
+            self::ONBOARDING_EVENT_SETUP => 'onboarding_event_setup',
             self::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY => 'admin_user_registration_assign_current_company',
             self::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY => 'global_user_registration_assign_global_company',
             self::GLOBAL_APP_IMAGES => 'global_app_images',
@@ -65,6 +72,12 @@ enum AppSettingsEnums implements EnumsInterface
             self::INACTIVE_ACCOUNT_ERROR_MESSAGE => 'inactive_account_error_message',
             self::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE => 'inactive_company_account_error_message',
             self::RESET_PASSWORD_EMAIL_SUBJECT => 'reset_password_email_subject',
+            self::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME => 'filesystem_allow_duplicate_files_by_name',
+            self::FILESYSTEM_MAPPER_HEADER_VALIDATION => 'filesystem_mapper_header_validation',
+            self::NOTIFICATION_FROM_USER_ID => 'notification_from_user_id',
+            self::USE_LEGACY_ROLES => 'app_use_legacy_roles',
+            self::DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE => 'default_filesystem_upload_file_size',
+            self::ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME => 'allow_reset_password_with_displayname',
         };
     }
 }

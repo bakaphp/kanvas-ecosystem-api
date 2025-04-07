@@ -9,3 +9,48 @@ type Engagement {
     entity_uuid: String!
     slug: String!
 }
+
+enum EngagementEntityType {
+    LEAD
+    PEOPLE
+}
+
+input EngagementFilterInput {
+    entity_type: EngagementEntityType!
+    entity_id: ID!
+    slug: String!
+    status: String!
+}
+
+input CreateEngagementInput {
+    lead_id: ID!
+    request_id: ID!
+    people_id: ID
+    receiver_id: ID
+    task_id: ID
+    action: String!
+    data: Mixed
+    source: String!
+    status: String!
+    description: String
+    via: String
+}
+
+extend type Mutation @guard {
+    startLeadEngagement(input: CreateEngagementInput!): Engagement!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\EngagementMutation@startEngagement"
+        )
+    continueLeadEngagement(input: CreateEngagementInput!): Engagement!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\EngagementMutation@continueEngagement"
+        )
+}
+
+# Query definition
+extend type Query @guard {
+    engagementByFilter(filter: EngagementFilterInput!): Engagement
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Queries\\Engagements\\EngagementQuery@engagementByFilter"
+        )
+}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Companies;
 
+use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Tests\TestCase;
@@ -21,6 +22,14 @@ class CompanyTest extends TestCase
             'zipcode' => 90120,
             'language' => 'en',
             'timezone' => 'UTC',
+            'countries_id' => 1,
+            'states_id' => 1,
+            'cities_id' => 1,
+            'address_2' => fake()->address(),
+            'city' => fake()->city(),
+            'state' => fake()->state(),
+            'country' => fake()->country(),
+            'zip' => fake()->postcode(),
         ];
     }
 
@@ -38,7 +47,13 @@ class CompanyTest extends TestCase
                     address,
                     zipcode,
                     email,
-                    language
+                    language,
+                    address,
+                    address_2,
+                    city,
+                    state,
+                    country,
+                    zip
                 }
             }',
             [
@@ -48,16 +63,22 @@ class CompanyTest extends TestCase
         ->assertSuccessful()
         ->assertSee('name', $companyData['name'])
         ->assertSee('website', $companyData['website'])
-        ->assertSee('address', $companyData['address'])
         ->assertSee('zipcode', $companyData['zipcode'])
         ->assertSee('email', $companyData['email'])
-        ->assertSee('language', $companyData['language']);
+        ->assertSee('language', $companyData['language'])
+        ->assertSee('address', $companyData['address'])
+        ->assertSee('address_2', $companyData['address_2'])
+        ->assertSee('city', $companyData['city'])
+        ->assertSee('state', $companyData['state'])
+        ->assertSee('country', $companyData['country'])
+        ->assertSee('zip', $companyData['zip']);
     }
 
     public function testUpdateCompany(): void
     {
         $companyData = $this->companyInputData();
         $company = auth()->user()->getCurrentCompany();
+        $companyData['timezone'] = 'UTC +1';
         $this->graphQL( /** @lang GraphQL */
             '
             mutation updateCompany($id: ID!, $input: CompanyInput!) {
@@ -68,7 +89,8 @@ class CompanyTest extends TestCase
                     address,
                     zipcode,
                     email,
-                    language
+                    language,
+                    timezone
                 }
             }',
             [
@@ -82,7 +104,45 @@ class CompanyTest extends TestCase
         ->assertSee('address', $companyData['address'])
         ->assertSee('zipcode', $companyData['zipcode'])
         ->assertSee('email', $companyData['email'])
-        ->assertSee('language', $companyData['language']);
+        ->assertSee('language', $companyData['language'])
+        ->assertSee('timezone', $companyData['timezone']);
+    }
+
+    public function testUnactivateCompany(): void
+    {
+        $companyData = $this->companyInputData();
+        $company = auth()->user()->getCurrentCompany();
+        $companyData['timezone'] = 'UTC +1';
+        $companyData['is_active'] = false;
+        $this->graphQL( /** @lang GraphQL */
+            '
+            mutation updateCompany($id: ID!, $input: CompanyInput!) {
+                updateCompany(id: $id, input: $input)
+                {
+                    name,
+                    website,
+                    address,
+                    zipcode,
+                    email,
+                    language,
+                    timezone,
+                    is_active
+                }
+            }',
+            [
+                'id' => $company->getId(),
+                'input' => $companyData,
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('name', $companyData['name'])
+        ->assertSee('website', $companyData['website'])
+        ->assertSee('address', $companyData['address'])
+        ->assertSee('zipcode', $companyData['zipcode'])
+        ->assertSee('email', $companyData['email'])
+        ->assertSee('language', $companyData['language'])
+        ->assertSee('timezone', $companyData['timezone'])
+        ->assertSee('is_active', false);
     }
 
     public function testGetCompanies(): void
@@ -165,6 +225,30 @@ class CompanyTest extends TestCase
         ->assertSee('public');
     }
 
+    public function testGetAdminCompanySetting()
+    {
+        $usr = auth()->user();
+        $company = $usr->getCurrentCompany();
+        $app = app(Apps::class);
+        $key = 'testName';
+        $company->set($key, 'testValue');
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            {
+                adminCompanySetting(entity_uuid: "' . $company->uuid . '", key: "' . $key . '") 
+            }
+            ',
+            [],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('testValue');
+    }
+
     public function testDeleteCompany(): void
     {
         $companyData = $this->companyInputData();
@@ -199,5 +283,45 @@ class CompanyTest extends TestCase
         )
         ->assertSuccessful()
         ->assertSee('deleteCompany', true);
+    }
+
+    public function testUploadFileToCompany()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+            mutation uploadFileToCompany($id: ID!, $file: Upload!) {
+                uploadFileToCompany(id: $id, file: $file)
+                    { 
+                        id
+                        name
+                        files{
+                            data {
+                                name
+                                url
+                            }
+                        }
+                    } 
+                }
+            ',
+            'variables' => [
+                'id' => $company->getId(),
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('company.jpg'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)->assertSee('id')
+            ->assertSee('name')
+            ->assertSee('files')
+            ->assertSee('company.jpg');
     }
 }

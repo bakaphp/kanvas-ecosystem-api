@@ -10,6 +10,7 @@ use Kanvas\Models\BaseModel;
 /**
  * User Linked Sources Model.
  *
+ * @property int|null $apps_id
  * @property string $title
  * @property string $url
  * @property string $source_users_id
@@ -18,28 +19,16 @@ use Kanvas\Models\BaseModel;
  */
 class UserLinkedSources extends BaseModel
 {
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'user_linked_sources';
 
     protected $fillable = [
         'users_id',
+        'apps_id',
         'source_id',
         'source_users_id',
         'source_users_id_text',
         'source_username',
     ];
-
-    /**
-     * Users relationship.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
-    }
 
     /**
      * Users relationship.

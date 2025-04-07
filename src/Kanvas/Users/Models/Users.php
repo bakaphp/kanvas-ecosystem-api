@@ -7,6 +7,7 @@ namespace Kanvas\Users\Models;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -47,18 +48,21 @@ use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
 use Kanvas\Notifications\Models\Notifications;
+use Kanvas\Notifications\Traits\CanBeNotifiedTrait;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Users\Traits\CanBlockUser;
+use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -119,13 +123,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasApiTokens;
     use HasRolesAndAbilities;
     use LikableTrait;
+    use FollowersTrait;
     use HasFilesystemTrait;
     use KanvasModelTrait;
     use HasNotificationSettings;
-    use Searchable {
+    use CanBlockUser;
+    use CanBeNotifiedTrait;
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
-
+    use HasRating;
     use CanUseWorkflow;
 
     protected ?string $defaultCompanyName = null;
@@ -216,6 +223,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
+     * overwrite hash table trait primary key
+     */
+    protected function getSettingsPrimaryKey(): string
+    {
+        return 'users_id';
+    }
+
+    /**
      * Create a new factory instance for the model.
      *
      * @return \Illuminate\Database\Eloquent\Factories\Factory
@@ -296,6 +311,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $role = Roles::where('scope', RolesEnums::getScope(app(Apps::class)))->first();
 
         return $role ? $role->name : '';
+    }
+
+    public static function getById(mixed $id, ?AppInterface $app = null): self
+    {
+        try {
+            return self::where('id', $id)
+            ->notDeleted()
+            ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
+        }
     }
 
     /**
@@ -464,6 +491,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $this->currentBranchId();
     }
 
+    public function defaultCompanyUuid(): string
+    {
+        return Companies::getById($this->currentCompanyId())->uuid;
+    }
+
+    public function defaultCompanyBranchUuid(): string
+    {
+        return CompaniesBranches::getById($this->currentBranchId())->uuid;
+    }
+
     /**
      * What the current company the users is logged in with
      * in this current session?
@@ -556,6 +593,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             throw new InternalServerErrorException('Current password is incorrect');
         }
 
+        if (Hash::check($newPassword, (string) $user->password)) {
+            throw new InternalServerErrorException('The new password cannot be the same as your current password');
+        }
+
         return $this->resetPassword($newPassword, $app);
     }
 
@@ -594,6 +635,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         }
 
         $user->displayname = $displayName;
+
+        /**
+         * @todo, we will update legacy user displayname until we migrate them over to graph
+         */
+        $this->displayname = $displayName;
+        $this->updateOrFail();
 
         return $user->updateOrFail();
     }
@@ -652,7 +699,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function isAdmin(): bool
     {
-        return $this->isAppOwner() || $this->isAn(RolesEnums::ADMIN->value);
+        return $this->isAppOwner() || $this->isAn(RolesEnums::ADMIN->value) || $this->isAn(RolesEnums::OWNER->value);
     }
 
     /**
@@ -728,11 +775,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function getSocialInfo(): array
     {
+        $app = app(Apps::class);
+        $socialCount = $this->getFollowersCount($app);
+        $currentUser = auth()->user();
+
         return [
             'total_message' => Message::fromApp(app(Apps::class))->where('users_id', $this->getId())->count(),
             'total_like' => 0,
-            'total_followers' => 0,
-            'total_following' => 0,
+            'total_followers' => $socialCount['users_followers_count'] ?? 0,
+            'total_following' => $socialCount['users_following_count'] ?? 0,
+            'total_blocked' => 0,
+            'is_following' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isFollowing($this, $app) : false,
+            'is_blocked' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isBlocked($this, $app) : false,
             'total_list' => 0,
         ];
     }
@@ -741,13 +795,23 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         try {
             return self::where('id', $id)
-                ->whereRelation('companies', 'id', $company->getId())
+                ->whereRelation('companies', 'companies.id', $company->getId())
                 ->notDeleted()
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
+    }
+
+    /**
+     * Get the user alternative email because for whatever reason
+     * during the integration the email we get is not a real user email to
+     * work with forgot password.
+     */
+    public function getAlternativeEmail(): ?string
+    {
+        return $this->get('contact_email');
     }
 
     public static function searchableIndex(): string

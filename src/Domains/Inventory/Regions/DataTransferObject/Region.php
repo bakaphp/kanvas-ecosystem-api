@@ -28,6 +28,7 @@ class Region extends Data
         public string $short_slug,
         public ?string $settings = null,
         public int $is_default = 0,
+        public ?string $slug = null,
     ) {
     }
 
@@ -45,6 +46,7 @@ class Region extends Data
             $data['short_slug'] ?? '',
             $data['settings'] ?? null,
             $data['is_default'],
+            $request['slug'] ?? null
         );
     }
 }

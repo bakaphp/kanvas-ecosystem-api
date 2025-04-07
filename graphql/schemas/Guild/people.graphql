@@ -4,7 +4,7 @@ type People {
     company: Company! @belongsTo
     user: User! @belongsTo
     name: String! @method(name: "getName")
-    firstname: String!
+    firstname: String
     middlename: String
     lastname: String
     subscriptions: [PeopleSubscription!]! @hasMany
@@ -12,6 +12,8 @@ type People {
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
+    created_at: DateTime!
+    updated_at: DateTime
     employment_history: [PeopleEmploymentHistory!]
         @hasMany(relation: "employmentHistory")
     files: [Filesystem!]!
@@ -21,10 +23,9 @@ type People {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     custom_fields: [CustomField!]!
-        @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     interactions: [EntityInteraction!]!
         @paginate(
@@ -32,7 +33,6 @@ type People {
             builder: "App\\GraphQL\\Social\\Builders\\Interactions\\EntityInteractionsBuilder@getAll"
         )
     tags: [Tag!]
-        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
@@ -52,6 +52,17 @@ type PeopleEmploymentHistory {
     id: ID!
     organization: Organization! @belongsTo
     people: People! @belongsTo
+    position: String!
+    income: Float
+    start_date: Date
+    end_date: Date
+    status: Int!
+    income_type: String
+}
+
+input EmploymentPeopleHistoryInput {
+    peoples_id: ID
+    organizations_id: ID!
     position: String!
     income: Float
     start_date: Date!
@@ -82,7 +93,10 @@ input PeopleInput {
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
     tags: [TagInput!]
+    peopleEmploymentHistory: [EmploymentPeopleHistoryInput!]
+    organization: String
     created_at: DateTime
+    
 }
 
 input PeopleParticipantInput {
@@ -115,11 +129,32 @@ extend type Query @guard {
                     "lastname"
                 ]
             )
+        hasEventsVersions: _
+            @whereHasConditions(
+                columns: ["id","name","version"]
+                handler: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionBuilder@getHasEventVersion"
+            )
         hasEmails: _
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
+        hasOrganization: _
+            @whereHasConditions(relation: "organizations", columns: ["id", "name"])
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
         hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
+        hasLeads: _
+            @whereHasConditions(
+                relation: "leads"
+                columns: [
+                    "id"
+                    "name"
+                    "uuid"
+                    "leads_receivers_id"
+                    "leads_owner_id"
+                    "leads_status_id"
+                    "leads_sources_id"
+                    "leads_types_id"
+                ]
+            )
         hasAddress: _
             @whereHasConditions(
                 relation: "address"
@@ -182,5 +217,13 @@ extend type Mutation @guard {
     importPeoples(input: [PeopleInput!]!, companyId: Int): String!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleImportMutation@import"
+        )
+    attachFileToPeople(file: Upload!, id: ID!, params: Mixed): People!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@attachFile"
+        )
+    attachFilesToPeople(files: [Upload!]!, id: ID!, params: Mixed): People!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@attachFile"
         )
 }

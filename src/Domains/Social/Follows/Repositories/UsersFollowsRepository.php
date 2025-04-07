@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Follows\Repositories;
 
 use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Apps\Models\Apps;
@@ -14,11 +15,33 @@ use Kanvas\Users\Models\Users;
 
 class UsersFollowsRepository
 {
-    /**
-     * getByUserAndEntity
-     * @psalm-suppress MixedReturnStatement
-     */
-    public static function getByUserAndEntity(Users $user, EloquentModel $entity, ?Apps $apps = null): ?UsersFollows
+    public static function isFollowing(Users $user, EloquentModel $entity, ?AppInterface $app = null): bool
+    {
+        return (bool) self::getByUserAndEntity($user, $entity, $app);
+    }
+
+    public static function getUserFollowerBuilder(UserInterface $user, AppInterface $app): Builder
+    {
+        return self::getFollowersBuilder($user, $app);
+    }
+
+    public static function getUserFollowingBuilder(Users $user, ?AppInterface $app = null): Builder
+    {
+        $ecosystemConnection = config('database.connections.ecosystem.database');
+        $socialConnection = config('database.connections.social.database');
+        $app = $app ?? app(Apps::class);
+
+        return Users::join($socialConnection . '.users_follows', 'users.id', '=', 'users_follows.entity_id')
+                ->where('users_follows.apps_id', $app->getId())
+                ->where('users_follows.is_deleted', 0)
+                ->where('users_follows.users_id', $user->id)
+                ->where('users_follows.entity_id', '!=', $user->id)
+               // ->where('users_follows.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+                ->where('users_follows.entity_namespace', Users::class)
+                ->select('users.*');
+    }
+
+    public static function getByUserAndEntity(Users $user, EloquentModel $entity, ?AppInterface $apps = null): ?UsersFollows
     {
         $apps = $apps ?? app(Apps::class);
 
@@ -30,18 +53,6 @@ class UsersFollowsRepository
             ->first();
     }
 
-    /**
-     * isFollowing
-     */
-    public static function isFollowing(Users $user, EloquentModel $entity): bool
-    {
-        return (bool) self::getByUserAndEntity($user, $entity);
-    }
-
-    /**
-     * getFollowersBuilder
-     * @psalm-suppress MixedReturnStatement
-     */
     public static function getFollowersBuilder(EloquentModel $entity, ?AppInterface $app = null): Builder
     {
         $ecosystemConnection = config('database.connections.ecosystem.database');
@@ -49,20 +60,15 @@ class UsersFollowsRepository
         $app = $app ?? app(Apps::class);
 
         return Users::join($socialConnection . '.users_follows', 'users.id', '=', 'users_follows.users_id')
-            ->join($ecosystemConnection . '.users_associated_apps', 'users.id', '=', 'users_associated_apps.users_id')
-            ->where($ecosystemConnection . '.users_associated_apps.apps_id', $app->getId())
-            ->where($ecosystemConnection . '.users_associated_apps.is_deleted', 0)
-            ->where($ecosystemConnection . '.users_associated_apps.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-            ->where('users_follows.is_deleted', 0)
-            ->where('entity_id', $entity->id)
-            ->where('entity_namespace', get_class($entity))
-            ->select('users.*');
+                ->where('users_follows.apps_id', $app->getId())
+                ->where('users_follows.is_deleted', 0)
+                ->where('users_follows.entity_id', $entity->id)
+                ->where('users_follows.users_id', '!=', $entity->id)
+               // ->where('users_follows.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+                ->where('users_follows.entity_namespace', Users::class)
+                ->select('users.*');
     }
 
-    /**
-     * getFollowingBuilder
-     * @psalm-suppress MixedReturnStatement
-     */
     public static function getFollowingBuilder(Users $user, ?AppInterface $app = null): Builder
     {
         $ecosystemConnection = config('database.connections.ecosystem.database');
@@ -76,10 +82,6 @@ class UsersFollowsRepository
             ->where('users_follows.is_deleted', 0);
     }
 
-    /**
-     * getTotalFollowers
-     * @psalm-suppress MixedReturnStatement
-     */
     public static function getTotalFollowers(EloquentModel $entity): int
     {
         return UsersFollows::where('entity_id', $entity->id)

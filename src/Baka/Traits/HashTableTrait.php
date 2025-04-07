@@ -18,7 +18,7 @@ trait HashTableTrait
     /**
      * Get the primary key of this model, this will only work on model with just 1 primary key.
      */
-    private function getSettingsPrimaryKey(): string
+    protected function getSettingsPrimaryKey(): string
     {
         return $this->table . '_' . $this->getKeyName();
     }
@@ -31,6 +31,19 @@ trait HashTableTrait
         $class = get_class($this) . 'Settings';
 
         $this->settingsModel = new $class();
+    }
+
+    /**
+     * Get the foreign key used in the settings table for this model.
+     */
+    protected function getSettingsForeignKey(): string
+    {
+        return $this->getTable() === 'companies' ? 'companies_id' : 'apps_id';
+    }
+
+    protected function getSettingsTable(): string
+    {
+        return $this->getTable() . '_settings';
     }
 
     /**
@@ -81,7 +94,12 @@ trait HashTableTrait
 
         foreach ($settings as $setting) {
             $isPublic = $setting['public'] ?? $isPublic;
-            $this->set($setting['name'], $setting['data'], $isPublic);
+            $value = $setting['data'] ?? $setting['value'] ?? null;
+            if ($value === null) {
+                continue;
+            }
+
+            $this->set($setting['name'], $value, $isPublic);
         }
 
         return true;
@@ -135,7 +153,7 @@ trait HashTableTrait
     /**
      * Get the settings base on the key.
      */
-    public function get(string $key): mixed
+    public function get(string $key, mixed $defaultValue = null): mixed
     {
         $this->createSettingsModel();
         $value = $this->getSettingsByKey($key);
@@ -144,7 +162,7 @@ trait HashTableTrait
             return $value->value;
         }
 
-        return null;
+        return $defaultValue;
     }
 
     /**
@@ -163,5 +181,19 @@ trait HashTableTrait
     public function del(string $key): bool
     {
         return $this->deleteHash($key);
+    }
+
+    public static function getByCustomField(string $name, mixed $value): ?Model
+    {
+        $instance = new static();
+        $settingsTable = $instance->getSettingsTable();
+        $foreignKey = $instance->getSettingsForeignKey();
+
+        return self::join($settingsTable, $instance->getTable() . '.id', '=', $settingsTable . '.' . $foreignKey)
+            ->where($settingsTable . '.name', $name)
+            ->where($settingsTable . '.value', $value)
+            ->where($instance->getTable() . '.is_deleted', 0)
+            ->select($instance->getTable() . '.*')
+            ->first();
     }
 }

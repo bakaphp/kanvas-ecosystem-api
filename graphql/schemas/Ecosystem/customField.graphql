@@ -7,14 +7,16 @@ type CustomField {
 
 input CustomFieldInput {
     name: String!
-    data: Mixed
+    data: Mixed # in 2025 we will deprecated this field
+    value: Mixed
     system_module_uuid: String!
     entity_id: ID!
 }
 
 input CustomFieldEntityInput {
     name: ID!
-    data: Mixed
+    data: Mixed # in 2025 we will deprecated this field
+    value: Mixed
     public: Boolean
 }
 
@@ -27,17 +29,14 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@delete"
         )
-    """
-    deprecated
-    """
     getCustomField(input: CustomFieldInput!): Mixed
+        @deprecated(reason: "use the query customField")
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@get"
         )
-    """
-    deprecated
-    """
+
     getAllCustomField(input: CustomFieldInput!): Mixed
+        @deprecated(reason: "use the query customFields")
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@getAll"
         )

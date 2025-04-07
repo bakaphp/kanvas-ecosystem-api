@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Traits\AddressTraitRelationship;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\SoftDeletesTrait;
+use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,21 +26,27 @@ use Kanvas\Companies\Actions\CompaniesTotalBranchesAction;
 use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
+use Kanvas\Companies\Observers\CompaniesObserver;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
+use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
-use Laravel\Scout\Searchable;
+use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 /**
  * Companies Model.
@@ -56,15 +68,18 @@ use Laravel\Scout\Searchable;
  * @property string $country_code
  * @property bool $is_active
  */
+#[ObservedBy([CompaniesObserver::class])]
 class Companies extends BaseModel implements CompanyInterface
 {
     use HashTableTrait;
     use HasFilesystemTrait;
-    use Searchable {
+    use CanUseWorkflow;
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
+    use AddressTraitRelationship;
 
     protected $table = 'companies';
 
@@ -134,6 +149,14 @@ class Companies extends BaseModel implements CompanyInterface
         )->when(app(Apps::class), function ($query, $app) {
             $query->where('users_associated_apps.apps_id', $app->getId());
         });
+    }
+
+    public function integrations(): HasMany
+    {
+        return $this->hasMany(
+            IntegrationsCompany::class,
+            'companies_id'
+        );
     }
 
     /**
@@ -215,27 +238,36 @@ class Companies extends BaseModel implements CompanyInterface
         return (int) ($this->get('total_branches') ?? (new CompaniesTotalBranchesAction($this))->execute());
     }
 
+    public static function getById(mixed $id, ?AppInterface $app = null): self
+    {
+        try {
+            return self::where('id', $id)
+            ->notDeleted()
+            ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
+        }
+    }
+
     /**
      * Associate user to this company.
      * @psalm-suppress MixedReturnStatement
      */
     public function associateUser(
         Users $user,
-        int $isActive,
+        int|bool $isActive,
         CompaniesBranches $branch,
         ?int $userRoleId = null,
-        string $companyUserIdentifier = null
+        ?string $companyUserIdentifier = null
     ): UsersAssociatedCompanies {
         return UsersAssociatedCompanies::firstOrCreate([
             'users_id' => $user->getKey(),
             'companies_id' => $this->getKey(),
             'companies_branches_id' => $branch->id,
         ], [
-            'users_id' => $user->getKey(),
-            'companies_id' => $this->getKey(),
-            'companies_branches_id' => $branch->id,
             'identify_id' => $companyUserIdentifier ?? $user->id,
-            'user_active' => $isActive,
+            'user_active' => (int) $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
         ]);
     }
@@ -249,8 +281,8 @@ class Companies extends BaseModel implements CompanyInterface
         Apps $app,
         int $isActive,
         ?int $userRoleId = null,
-        string $password = null,
-        string $companyUserIdentifier = null
+        ?string $password = null,
+        ?string $companyUserIdentifier = null
     ): UsersAssociatedApps {
         return UsersAssociatedApps::firstOrCreate([
             'users_id' => $user->getKey(),
@@ -350,5 +382,22 @@ class Companies extends BaseModel implements CompanyInterface
         $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_COMPANY_AVATAR->getValue());
 
         return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
+    }
+
+    public function getStripeAccount(AppInterface $app): AppsStripeCustomer
+    {
+        return AppsStripeCustomer::firstOrCreate([
+            'companies_id' => $this->getId(),
+            'apps_id' => $app->getId(),
+        ]);
+    }
+
+    public function hasCompanyPermission(UserInterface $user): void
+    {
+        if (! UsersRepository::belongsToCompany($user, $this) && ! $user->isAdmin()) {
+            throw new AuthorizationException(
+                'You are not allowed to perform this action for company ' . $this->name
+            );
+        }
     }
 }

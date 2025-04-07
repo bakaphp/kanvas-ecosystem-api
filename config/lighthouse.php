@@ -179,6 +179,32 @@ return [
         ),
     ],
 
+     /*
+    |--------------------------------------------------------------------------
+    | Validation Cache
+    |--------------------------------------------------------------------------
+    |
+    | Caches the result of validating queries to boost performance on subsequent requests.
+    |
+    */
+
+    'validation_cache' => [
+        /*
+         * Setting to true enables validation caching.
+         */
+        'enable' => env('LIGHTHOUSE_VALIDATION_CACHE_ENABLE', false),
+
+        /*
+         * Allows using a specific cache store, uses the app's default if set to null.
+         */
+        'store' => env('LIGHTHOUSE_VALIDATION_CACHE_STORE', null),
+
+        /*
+         * Duration in seconds the validation result should remain cached, null means forever.
+         */
+        'ttl' => env('LIGHTHOUSE_VALIDATION_CACHE_TTL', 24 * 60 * 60),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Namespaces
@@ -201,36 +227,46 @@ return [
             'App\\GraphQL\\CRM\\Queries',
             'App\\GraphQL\\Social\\Queries',
             'App\\GraphQL\\Inventory\\Queries',
+            'App\\GraphQL\\Subscription\\Queries',
             'App\\GraphQL\\Social\\Queries',
+            'App\\GraphQL\\Event\\Queries',
+            'App\\GraphQL\\Workflow\\Queries',
         ],
         'mutations' => [
             'App\\GraphQL\\Ecosystem\\Mutations',
             'App\\GraphQL\\CRM\\Mutations',
             'App\\GraphQL\\Social\\Mutations',
+            'App\\GraphQL\\Subscription\\Mutations',
             'App\\GraphQL\\Inventory\\Mutations',
+            'App\\GraphQL\\Event\\Mutations',
+            'App\\GraphQL\\Workflow\\Mutations',
         ],
         'subscriptions' => [
-            'App\\GraphQL\\Ecosystem\\Subscriptions',
-            'App\\GraphQL\\CRM\\Subscriptions',
-            'App\\GraphQL\\Social\\Subscriptions',
-            'App\\GraphQL\\Inventory\\Subscriptions',
+            // 'App\\GraphQL\\Ecosystem\\Subscriptions',
+            // 'App\\GraphQL\\CRM\\Subscriptions',
+            // 'App\\GraphQL\\Social\\Subscriptions',
+            // 'App\\GraphQL\\Subscription\\Subscriptions',
+            // 'App\\GraphQL\\Inventory\\Subscriptions',
         ],
         'interfaces' => [
             'App\\GraphQL\\Ecosystem\\Interfaces',
             'App\\GraphQL\\CRM\\Interfaces',
             'App\\GraphQL\\Social\\Interfaces',
+            //'App\\GraphQL\\Subscription\\Inferfaces',
             'App\\GraphQL\\Inventory\\Interfaces',
         ],
         'unions' => [
             'App\\GraphQL\\Ecosystem\\Unions',
             'App\\GraphQL\\CRM\\Unions',
             'App\\GraphQL\\Social\\Unions',
+            //'App\\GraphQL\\Subscription\\Unions',
             'App\\GraphQL\\Inventory\\Unions',
         ],
         'scalars' => [
             'App\\GraphQL\\Ecosystem\\Scalars',
             'App\\GraphQL\\CRM\\Scalars',
             'App\\GraphQL\\Social\\Scalars',
+            // 'App\\GraphQL\\Subscription\\Scalars',
             'App\\GraphQL\\Inventory\\Scalars',
         ],
         'directives' => [
@@ -486,7 +522,7 @@ return [
          *
          * Any Laravel supported cache driver options are available here.
          */
-        'storage' => env('LIGHTHOUSE_SUBSCRIPTION_STORAGE', 'redis'),
+        'storage' => env('LIGHTHOUSE_SUBSCRIPTION_STORAGE', 'lighthouse-redis-subscription'),
 
         /*
          * Default subscription storage time to live in seconds.

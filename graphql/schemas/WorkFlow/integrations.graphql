@@ -1,0 +1,142 @@
+type Integrations {
+    id: ID!
+    name: String!
+    uuid: String!
+    status: Status @method(name: "getIntegrationStatus")
+    integrations: [IntegrationsCompanies!]!
+        @method(name: "getIntegrationsByCompany")
+    config: Mixed
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type IntegrationsCompanies {
+    id: ID!
+    company: Company
+    integration: Integrations
+    status: Status
+    region: Region
+    is_active: Boolean!
+    updated_at: DateTime
+}
+
+type IntegrationsEntityReference {
+    id: ID!
+    name: String
+    status: Status
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type IntegrationsEntityHistory {
+    integration: Integrations
+    status: Status
+    workflow: Workflow
+    created_at: DateTime
+}
+
+type WorkflowIntegrationsHistory {
+    id: ID!
+    entity_namespace: String!
+    entity_id: ID!
+    integration: Integrations
+    integrationCompany: IntegrationsCompanies
+    status: Status
+    workflow: Workflow
+    response: Mixed
+    exception: Mixed
+    trigger: String
+    created_at: DateTime
+}
+
+input IntegrationsCompaniesInput {
+    integration: IntegrationsReferenceInput!
+    region: RegionReferenceInput!
+    company_id: ID!
+    config: Mixed!
+}
+
+input IntegrationsReferenceInput {
+    id: ID!
+    name: String
+}
+
+input IntegrationCompanyActive {
+    id: ID!
+    is_active: Boolean!
+}
+
+extend type Mutation @guard {
+    integrationCompany(
+        input: IntegrationsCompaniesInput!
+    ): IntegrationsCompanies!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@createIntegrationCompany"
+        )
+    # integrationCompany(integration_company_id: ID!, config: JSON!): IntegrationsCompanies!
+    #     @field(
+    #         resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@updateIntegrationCompany"
+    #     )
+    removeIntegrationCompany(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@removeIntegrationCompany"
+        )
+    integrationCompanyIsActive(input: IntegrationCompanyActive!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@integrationCompanyIsActive"
+        )
+}
+
+enum WorkFlowIntegrationsHistoryEnumColumn {
+    ID @enum(value: "entity_integration_history.id")
+    ENTITY_NAMESPACE @enum(value: "entity_integration_history.entity_namespace")
+    ENTITY_ID @enum(value: "entity_integration_history.entity_id")
+    STATUS_ID @enum(value: "entity_integration_history.status_id")
+    INTEGRATIONS_ID @enum(value: "entity_integration_history.integrations_id")
+}
+
+extend type Query @guard {
+    integrations(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
+    ): [Integrations!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Models\\Integrations"
+            scopes: ["fromApp", "notDeleted", "fromPublicApp"]
+            defaultCount: 25
+        )
+    workflowStatus(
+        where: _ @whereConditions(columns: ["id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "name"])
+    ): [WorkflowStatus!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Integrations\\Models\\Status"
+            scopes: ["fromApp", "notDeleted", "fromPublicApp"]
+            defaultCount: 25
+        )
+    integrationsByEntityHistory(
+        system_module_uuid: String!
+        entity_id: ID!
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [IntegrationsEntityHistory!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Workflow\\Builders\\Integrations\\IntegrationsBuilder@integrationEntityHistoryByEntity"
+        )
+    workflowIntegrationsHistory(
+        where: _
+            @whereConditions(columnsEnum: WorkFlowIntegrationsHistoryEnumColumn)
+        hasRegion: _
+            @whereHasConditions(
+                columns: ["id", "name"]
+                handler: "App\\GraphQL\\Workflow\\Builders\\Integrations\\IntegrationsBuilder@getHasRegion"
+            )
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
+    ): [WorkflowIntegrationsHistory!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Integrations\\Models\\EntityIntegrationHistory"
+            scopes: ["fromApp", "notDeleted", "fromCompany"]
+            defaultCount: 25
+        )
+}

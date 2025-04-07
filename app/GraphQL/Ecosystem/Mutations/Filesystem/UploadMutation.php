@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Actions\UploadFileAction;
 use Kanvas\Filesystem\Models\Filesystem;
 
@@ -16,8 +17,9 @@ class UploadMutation
     {
         /** @var \Illuminate\Http\UploadedFile $file */
         $file = $request['file'];
+        $app = app(Apps::class);
 
-        $uploadFile = new UploadFileAction(auth()->user());
+        $uploadFile = new UploadFileAction(auth()->user(), $app);
 
         return $uploadFile->execute($file);
     }
@@ -30,9 +32,10 @@ class UploadMutation
         /** @var \Illuminate\Http\UploadedFile $file */
         $files = $request['files'];
         $fileSystems = [];
+        $app = app(Apps::class);
 
         foreach ($files as $file) {
-            $uploadFile = new UploadFileAction(auth()->user());
+            $uploadFile = new UploadFileAction(auth()->user(), $app);
 
             $fileSystems[] = $uploadFile->execute($file);
         }

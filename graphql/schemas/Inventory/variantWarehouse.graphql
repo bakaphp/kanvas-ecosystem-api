@@ -1,5 +1,5 @@
 type WarehousesPricesHistoryRelationship {
-    price: Float!
+    price: Money!
     from_date: String!
 }
 type WarehouseVariantRelationship {
@@ -7,7 +7,7 @@ type WarehouseVariantRelationship {
     warehouseinfo: Warehouse @belongsToMany(relation: "warehouse")
     channels: [VariantChannelRelationship]
     quantity: Float
-    price: Float
+    price: Money
     status: Status
     sku: String
     position: Int
@@ -21,6 +21,7 @@ type WarehouseVariantRelationship {
     is_coming_soon: Boolean
     is_new: Boolean
     is_published: Boolean
+    config: Mixed
     status_history: [StatusHistoryRelationship!]!
         @method(name: "getStatusHistory")
     prices_history: [WarehousesPricesHistoryRelationship!]!

@@ -1,0 +1,82 @@
+name: Deploy to Queues EC2
+
+on:
+  push:
+    branches:
+      - "1.x"
+  workflow_dispatch:
+
+jobs:
+  deploy-to-queues-ec2:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Copy folder content recursively to remote VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.AWS_QUEUE_EC2_HOST }}
+          username: ${{ secrets.AWS_EC2_USERNAME }}
+          key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
+          source: .
+          target: ${{ secrets.AWS_EC2_TARGET_DIR }}
+
+  docker-command:
+    runs-on: ubuntu-latest
+    needs: deploy-to-queues-ec2
+    environment: ${{ github.ref_name }}
+    steps:
+      - name: executing remote ssh commands using password
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.AWS_QUEUE_EC2_HOST }}
+          username: ${{ secrets.AWS_EC2_USERNAME }}
+          key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
+          script: |
+            cd ${{ secrets.AWS_EC2_TARGET_DIR }}
+    
+            docker-compose -f docker-compose.${{ github.ref_name }}.yml up -d
+            docker exec -i phpkanvas-ecosystem composer install --no-dev --optimize-autoloader
+            
+            docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
+            docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
+            docker exec -i phpkanvas-ecosystem php artisan config:cache
+            docker stop nginxkanvas-ecosystem
+            docker stop rediskanvas-ecosystem
+            docker restart queue-scrapper
+            docker restart queue-scrapper-worker-1
+            docker restart queue-scrapper-worker-2
+            docker restart queue-scrapper-worker-3
+            docker restart queue-scrapper-worker-4
+            docker restart queue
+            docker restart queue-imports
+            docker restart queue-notifications
+            docker restart queue-social
+            docker restart laravel-scheduler
+            docker restart queue-sync-shopify-queue
+            docker restart queue-sync-shopify-queue-worker-1
+            docker restart queue-sync-shopify-queue-worker-1
+            docker restart queue-sync-shopify-queue-worker-2
+            docker restart queue-scout-worker-1
+            docker restart queue-scout-worker-2
+            docker restart queue-scout-worker-3
+            docker restart queue-workflow-1
+            docker restart queue-workflow-2
+            docker restart queue-workflow-3
+            docker restart batch-logger-queue
+            docker restart queue-user-interactions
+            if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
+              docker restart queue-imports2
+              docker restart queue2
+              docker restart queue3
+              docker restart queue4
+              docker restart queue5
+              docker restart queue6
+              docker restart queue7
+              docker restart queue8
+              docker restart queue-workflow-4
+            fi

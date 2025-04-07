@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Status\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Inventory\Models\BaseModel;
-use Baka\Traits\DatabaseSearchableTrait;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 
 /**
  * Class Attributes.
@@ -27,9 +29,12 @@ class Status extends BaseModel
     use SlugTrait;
     use DatabaseSearchableTrait;
     use DefaultTrait;
+    use HasTranslationsDefaultFallback;
 
     protected $table = 'status';
     protected $guarded = [];
+
+    public $translatable = ['name'];
 
     /**
      * Get the user that owns the Variants.
@@ -39,8 +44,18 @@ class Status extends BaseModel
         return $this->hasMany(Variants::class, 'status_id');
     }
 
+    public function products(): HasMany
+    {
+        return $this->hasMany(Products::class, 'status_id');
+    }
+
     public function variantWarehouses(): HasMany
     {
         return $this->hasMany(VariantsWarehouses::class, 'products_variants_id');
+    }
+
+    public function hasDependencies(): bool
+    {
+        return $this->products()->exists() || $this->variants()->exists();
     }
 }

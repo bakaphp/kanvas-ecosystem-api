@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Baka\Search;
 
 use Baka\Search\MeiliSearchService as SearchMeiliSearchService;

@@ -15,6 +15,7 @@ use Kanvas\Models\BaseModel;
  * @property int $users_id
  * @property string $name
  * @property string $value
+ * @property int|bool $is_public
  */
 class UserConfig extends BaseModel
 {

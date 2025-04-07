@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Kanvas\Languages\Models\Languages;
+use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class ProductsTest extends TestCase
 {
+    use InventoryCases;
+
     /**
      * testSave.
      */
@@ -17,6 +21,7 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'sku' => fake()->time,
+            'weight' => 1,
             'attributes' => [
                 [
                     'name' => fake()->name,
@@ -25,51 +30,111 @@ class ProductsTest extends TestCase
             ],
         ];
 
-        $response = $this->graphQL('
-            mutation($data: ProductInput!) {
-                createProduct(input: $data)
-                {
-                    name
-                    description
-                    attributes {
-                        name
-                        value
-                    }
-                }
-            }', ['data' => $data]);
-
+        $response = $this->createProduct($data);
+        unset($data['id']);
         unset($data['sku']);
         $response->assertJson([
             'data' => ['createProduct' => $data],
         ]);
     }
 
+    public function testSortByAttributes(): void
+    {
+        $attributeName = fake()->name;
+        $sku = fake()->time;
+        $data = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => $sku,
+            'attributes' => [
+                [
+                    'name' => $attributeName,
+                    'value' => 0,
+                ],
+            ],
+        ];
+
+        $response = $this->createProduct($data);
+        unset($data['id']);
+        unset($data['sku']);
+        $response = $this->graphQL(
+            "
+            query {
+                products(
+                    attributeOrderBy: {
+                     name: \"$attributeName\", 
+                     sort: \"DESC\" ,
+                     format: NUMERIC
+                }                    
+                ) {
+                    data {
+                        name
+                        description
+                    }
+                }
+            }"
+        );
+        $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
+        // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
+    }
+    public function testSortByVariantAttributes(): void
+    {
+        $attributeName = fake()->name;
+        $sku = fake()->time;
+        $data = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => $sku,
+            'attributes' => [
+                [
+                    'name' => $attributeName,
+                    'value' => 0,
+                ],
+            ],
+        ];
+        $data['variants'][] = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => $sku,
+            'attributes' => [
+                [
+                    'name' => $attributeName,
+                    'value' => 0,
+                ],
+            ],
+        ];
+        $response = $this->createProduct($data);
+        unset($data['id']);
+        unset($data['sku']);
+        $response = $this->graphQL(
+            "
+            query {
+                products(
+                    variantAttributeOrderBy: {
+                     name: \"$attributeName\", 
+                     sort: \"DESC\" ,
+                     format: NUMERIC
+                }                    
+                ) {
+                    data {
+                        name
+                        description
+                    }
+                }
+            }"
+        );
+        $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
+        // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
+    }
     /**
      * test get product.
      */
     public function testGetProduct(): void
     {
-        $data = [
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'sku' => fake()->time,
-        ];
+        $response = $this->createProduct();
+        $this->assertArrayHasKey('name', $response['data']['createProduct']);
 
         $response = $this->graphQL('
-            mutation($data: ProductInput!) {
-                createProduct(input: $data)
-                {
-                    name
-                    description
-                }
-            }', ['data' => $data]);
-
-        unset($data['sku']);
-        $response->assertJson([
-            'data' => ['createProduct' => $data],
-        ]);
-
-        $this->graphQL('
             query {
                 products {
                     data {
@@ -77,9 +142,8 @@ class ProductsTest extends TestCase
                         description
                     }
                 }
-            }')->assertJson([
-            'data' => ['products' => ['data' => [$data]]],
-        ]);
+            }');
+        $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
     }
 
     /**
@@ -87,44 +151,16 @@ class ProductsTest extends TestCase
      */
     public function testUpdateProduct(): void
     {
+        $response = $this->createProduct();
+
+        $this->assertArrayHasKey('id', $response['data']['createProduct']);
+
+        $id = $response->json()['data']['createProduct']['id'];
+
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
-        ];
-        $response = $this->graphQL('
-            mutation($data: ProductInput!) {
-                createProduct(input: $data)
-                {
-                    name
-                    description
-                }
-            }', ['data' => $data]);
-
-        unset($data['sku']);
-        $response->assertJson([
-            'data' => ['createProduct' => $data],
-        ]);
-
-        $response = $this->graphQL('
-        query {
-            products {
-                data {
-                    id
-                    name
-                    description
-                }
-            }
-        }');
-        $this->assertArrayHasKey('data', $response->json());
-        $this->assertArrayHasKey('products', $response->json()['data']);
-        $this->assertArrayHasKey('data', $response->json()['data']['products']);
-        $this->assertArrayHasKey('id', $response->json()['data']['products']['data'][0]);
-
-        $id = $response->json()['data']['products']['data'][0]['id'];
-        $data = [
-            'name' => fake()->name,
-            'description' => fake()->text,
+            'weight' => 1,
         ];
         $this->graphQL('
         mutation($data: ProductInputUpdate! $id: ID!) {
@@ -132,6 +168,7 @@ class ProductsTest extends TestCase
             {
                 name
                 description
+                weight
             }
         }', ['data' => $data, 'id' => $id])->assertJson([
             'data' => ['updateProduct' => $data],
@@ -143,26 +180,10 @@ class ProductsTest extends TestCase
      */
     public function testDeleteProduct(): void
     {
-        $data = [
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'sku' => fake()->time,
-        ];
-        $response = $this->graphQL('
-        mutation($data: ProductInput!) {
-            createProduct(input: $data)
-            {
-                id
-                name
-                description
-            }
-        }', ['data' => $data]);
-
-        unset($data['sku']);
-        $response->assertJson([
-            'data' => ['createProduct' => $data],
-        ]);
+        $response = $this->createProduct();
+        $this->assertArrayHasKey('id', $response['data']['createProduct']);
         $id = $response->json()['data']['createProduct']['id'];
+
         $this->graphQL('
                 mutation($id: ID!) {
                     deleteProduct(id: $id)
@@ -176,126 +197,28 @@ class ProductsTest extends TestCase
      */
     public function testAddVariantToProduct(): void
     {
-        $region = [
-            'name' => fake()->name,
-            'short_slug' => fake()->name,
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $regionResponse = $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $region,
-        ])->assertJson([
-            'data' => ['createRegion' => $region],
-        ]);
-        $regionResponse = $regionResponse->decodeResponseJson();
+        $regionResponse = $this->createRegion();
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
+        $regionResponse = $regionResponse->json()['data']['createRegion'];
+
+        $warehouseResponse = $this->createWarehouses($regionResponse['id']);
+        $this->assertArrayHasKey('id', $warehouseResponse['data']['createWarehouse']);
+        $warehouseResponse = $warehouseResponse->json()['data']['createWarehouse'];
+
+        $response = $this->createProduct();
+
+        $this->assertArrayHasKey('id', $response['data']['createProduct']);
+
+        $id = $response->json()['data']['createProduct']['id'];
 
         $warehouseData = [
-            'regions_id' => $regionResponse['data']['createRegion']['id'],
-            'name' => fake()->name,
-            'location' => 'Test Location',
-            'is_default' => true,
-            'is_published' => true,
+            'id' => $warehouseResponse['id'],
         ];
 
-        $warehouseResponse = $this->graphQL('
-        mutation($data: WarehouseInput!) {
-            createWarehouse(input: $data)
-            {
-                id
-                regions_id
-                name
-                location
-                is_default
-                is_published
-            }
-        }', ['data' => $warehouseData])->assertJson([
-        'data' => ['createWarehouse' => $warehouseData],
-    ]);
-
-        $data = [
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'sku' => fake()->time,
-            'attributes' => [
-                [
-                    'name' => fake()->name,
-                    'value' => fake()->name,
-                ],
-            ],
-        ];
-        $response = $this->graphQL('
-            mutation($data: ProductInput!) {
-                createProduct(input: $data)
-                {
-                    name
-                    description
-                    attributes {
-                        name
-                        value
-                    }
-                }
-            }', ['data' => $data]);
-
-        unset($data['sku']);
-        $response->assertJson([
-            'data' => ['createProduct' => $data],
-        ]);
-
-        $response = $this->graphQL('
-        query {
-            products {
-                data {
-                    id
-                    name
-                    description
-                }
-            }
-        }');
-        $this->assertArrayHasKey('data', $response->json());
-        $this->assertArrayHasKey('products', $response->json()['data']);
-        $this->assertArrayHasKey('data', $response->json()['data']['products']);
-        $this->assertArrayHasKey('id', $response->json()['data']['products']['data'][0]);
-
-        $id = $response->json()['data']['products']['data'][0]['id'];
-
-        $warehouseData = [
-            'id' => $warehouseResponse['data']['createWarehouse']['id'],
-        ];
-        $data = [
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'products_id' => $id,
-            'sku' => fake()->time,
-            'warehouses' => [$warehouseData],
-            'attributes' => [
-                [
-                    'name' => fake()->name,
-                    'value' => fake()->name,
-                ],
-            ],
-        ];
-        $variantResponse = $this->graphQL('
-        mutation($data: VariantsInput!) {
-            createVariant(input: $data)
-            {
-                id
-                name
-                description
-                products_id
-            }
-        }', ['data' => $data]);
+        $variantResponse = $this->createVariant(
+            productId: $id,
+            warehouseData: $warehouseData
+        );
 
         $this->assertArrayHasKey('id', $variantResponse->json()['data']['createVariant']);
     }
@@ -305,112 +228,29 @@ class ProductsTest extends TestCase
      */
     public function testDeleteVariantToProduct(): void
     {
-        $region = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $regionResponse = $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $region,
-        ])->assertJson([
-            'data' => ['createRegion' => $region],
-        ]);
-        $regionResponse = $regionResponse->decodeResponseJson();
+        $regionResponse = $this->createRegion();
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
+        $regionResponse = $regionResponse->json()['data']['createRegion'];
+
+        $warehouseResponse = $this->createWarehouses($regionResponse['id']);
+        $this->assertArrayHasKey('id', $warehouseResponse['data']['createWarehouse']);
+        $warehouseResponse = $warehouseResponse->json()['data']['createWarehouse'];
+
+        $response = $this->createProduct();
+
+        $this->assertArrayHasKey('id', $response['data']['createProduct']);
+
+        $id = $response->json()['data']['createProduct']['id'];
 
         $warehouseData = [
-            'regions_id' => $regionResponse['data']['createRegion']['id'],
-            'name' => fake()->name,
-            'location' => 'Test Location',
-            'is_default' => true,
-            'is_published' => true,
+            'id' => $warehouseResponse['id'],
         ];
 
-        $warehouseResponse = $this->graphQL('
-        mutation($data: WarehouseInput!) {
-            createWarehouse(input: $data)
-            {
-                id
-                regions_id
-                name
-                location
-                is_default
-                is_published
-            }
-        }', ['data' => $warehouseData])->assertJson([
-        'data' => ['createWarehouse' => $warehouseData],
-    ]);
+        $variantResponse = $this->createVariant(
+            productId: $id,
+            warehouseData: $warehouseData
+        );
 
-        $data = [
-            'name' => fake()->name,
-            'sku' => fake()->time,
-            'description' => fake()->text,
-        ];
-        $response = $this->graphQL('
-            mutation($data: ProductInput!) {
-                createProduct(input: $data)
-                {
-                    name
-                    description
-                }
-            }', ['data' => $data]);
-
-        unset($data['sku']);
-        $response->assertJson([
-            'data' => ['createProduct' => $data],
-        ]);
-
-        $response = $this->graphQL('
-        query {
-            products {
-                data {
-                    id
-                    name
-                    description
-                }
-            }
-        }');
-        $this->assertArrayHasKey('data', $response->json());
-        $this->assertArrayHasKey('products', $response->json()['data']);
-        $this->assertArrayHasKey('data', $response->json()['data']['products']);
-        $this->assertArrayHasKey('id', $response->json()['data']['products']['data'][0]);
-
-        $id = $response->json()['data']['products']['data'][0]['id'];
-
-        $warehouseData = [
-            'id' => $warehouseResponse['data']['createWarehouse']['id'],
-        ];
-        $data = [
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'products_id' => $id,
-            'sku' => fake()->time,
-            'warehouses' => [$warehouseData]
-        ];
-        $variantResponse = $this->graphQL('
-        mutation($data: VariantsInput!) {
-            createVariant(input: $data)
-            {
-                id
-                name
-                sku
-                description
-                products_id
-            }
-        }', ['data' => $data]);
         $this->assertArrayHasKey('id', $variantResponse->json()['data']['createVariant']);
 
         $variantResponseId = $variantResponse->json()['data']['createVariant']['id'];
@@ -420,5 +260,98 @@ class ProductsTest extends TestCase
         }', ['id' => $variantResponseId])->assertJson([
             'data' => ['deleteVariant' => true],
         ]);
+    }
+
+    /**
+     * testDeleteLastVariantToProduct.
+     */
+    public function testDeleteLastVariantToProduct(): void
+    {
+        // Create product with default variant
+        $productData = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => fake()->time,
+        ];
+        $productResponse = $this->graphQL('
+        mutation($data: ProductInput!) {
+            createProduct(input: $data)
+            {
+                id
+                name
+                description
+                variants {
+                    id
+                }
+            }
+        }', ['data' => $productData]);
+
+        $productResponse->assertJsonStructure([
+            'data' => [
+                'createProduct' => [
+                    'id',
+                    'name',
+                    'description',
+                    'variants' => [
+                        ['id'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $productId = $productResponse->json()['data']['createProduct']['id'];
+        $defaultVariantId = $productResponse->json()['data']['createProduct']['variants'][0]['id'];
+
+        // Try delete default product variant
+        $deleteResponse = $this->graphQL('
+        mutation($id: ID!) {
+            deleteVariant(id: $id)
+        }', ['id' => $defaultVariantId]);
+
+        $this->assertArrayHasKey('errors', $deleteResponse->json());
+        $this->assertNull($deleteResponse->json()['data']['deleteVariant']);
+    }
+
+    /**
+     * test update product.
+     */
+    public function testUpdateProductTranslate(): void
+    {
+        $response = $this->createProduct();
+
+        $this->assertArrayHasKey('id', $response['data']['createProduct']);
+        $language = Languages::first();
+        $id = $response->json()['data']['createProduct']['id'];
+
+        $dataUpdate = [
+            'name' => fake()->name . ' en',
+            'description' => fake()->text . ' en'
+        ];
+        $response = $this->graphQL('
+            mutation($dataUpdate: ProductTranslationInput!, $id: ID!, $code: String!) {
+                updateProductTranslations(input: $dataUpdate, id: $id, code: $code)
+                {
+                    id,
+                    name,
+                    description,
+                    translation(languageCode: $code){
+                        name
+                        description
+                        language{
+                            code
+                            language
+                        }
+                    }
+                }
+            }', [
+                'dataUpdate' => $dataUpdate,
+                'id' => $id,
+                'code' => $language->code
+            ]);
+
+        $this->assertEquals(
+            $dataUpdate['name'],
+            $response['data']['updateProductTranslations']['translation']['name']
+        );
     }
 }

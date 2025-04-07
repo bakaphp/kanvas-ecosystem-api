@@ -54,4 +54,11 @@ class Engagement extends BaseModel
     {
         return $this->belongsTo(People::class, 'people_id', 'id');
     }
+
+    public static function getByMessageId(int|string $messageId): self
+    {
+        return self::query()
+            ->where('message_id', $messageId)
+            ->firstOrFail();
+    }
 }

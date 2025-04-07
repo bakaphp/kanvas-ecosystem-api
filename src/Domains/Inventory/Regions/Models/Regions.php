@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Regions\Models;
 
 use Baka\Traits\SlugTrait;
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Currencies\Models\Currencies;
-use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions as ModelsRegions;
+use Kanvas\Traits\DefaultTrait;
 
 /**
  * Class Regions.
+ * @deprecated v2.0
  *
  * @property int $id
  * @property int $companies_id
@@ -30,16 +32,22 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  * @property string $created_at
  * @property string $updated_at
  */
-class Regions extends BaseModel
+class Regions extends ModelsRegions
 {
     use UuidTrait;
     use SlugTrait;
     use DefaultTrait;
+    use SoftDeletesTrait;
 
     protected $table = 'regions';
     protected $guarded = [];
 
     public function currencies(): BelongsTo
+    {
+        return $this->belongsTo(Currencies::class, 'currency_id');
+    }
+
+    public function currency(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');
     }

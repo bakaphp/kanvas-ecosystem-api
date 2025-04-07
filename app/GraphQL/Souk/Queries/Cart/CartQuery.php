@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Queries\Cart;
 
+use Kanvas\Souk\Cart\Services\CartService;
+
 class CartQuery
 {
     public function index(): array
@@ -11,10 +13,8 @@ class CartQuery
         $user = auth()->user();
         $cart = app('cart')->session($user->getId());
 
-        return [
-            'id' => 'default',
-            'items' => $cart->getContent()->toArray(),
-            'total' => $cart->getTotal(),
-        ];
+        $cartService = new CartService($cart);
+
+        return $cartService->getCart();
     }
 }

@@ -4,16 +4,24 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
+use Kanvas\Souk\Orders\Notifications\NewOrderStoreOwnerNotification;
 use Kanvas\Souk\Orders\Validations\UniqueOrderNumber;
+use Kanvas\Users\Services\UserRoleNotificationService;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateOrderAction
 {
+    public bool $runWorkflow = true;
+
     public function __construct(
         protected Order $orderData
     ) {
@@ -21,16 +29,28 @@ class CreateOrderAction
 
     public function execute(): ModelsOrder
     {
-        $validator = Validator::make(
-            ['order_number' => $this->orderData->orderNumber],
-            ['order_number' => new UniqueOrderNumber($this->orderData->app, $this->orderData->company, $this->orderData->region)]
-        );
+        $orderId = DB::connection('commerce')->transaction(function () {
+            // Lock the table for uniqueness check
+            $existingOrder = ModelsOrder::where([
+                'apps_id' => $this->orderData->app->getId(),
+                'companies_id' => $this->orderData->company->getId(),
+                'order_number' => $this->orderData->orderNumber,
+            ])->lockForUpdate()->first();
 
-        if ($validator->fails()) {
-            throw new ValidationException($validator->messages()->__toString());
-        }
+            if ($existingOrder) {
+                throw new ValidationException('Order number already exists');
+            }
 
-        return DB::connection('commerce')->transaction(function () {
+            // Additional validation
+            $validator = Validator::make(
+                ['order_number' => $this->orderData->orderNumber],
+                ['order_number' => new UniqueOrderNumber($this->orderData->app, $this->orderData->company, $this->orderData->region)]
+            );
+
+            if ($validator->fails()) {
+                throw new ValidationException($validator->messages()->__toString());
+            }
+
             $order = new ModelsOrder();
             $order->apps_id = $this->orderData->app->getId();
             $order->region_id = $this->orderData->region->getId();
@@ -41,7 +61,7 @@ class CreateOrderAction
             $order->user_phone = $this->orderData->phone;
             $order->token = $this->orderData->token;
             $order->order_number = $this->orderData->orderNumber;
-            $order->shipping_address_id =  $this->orderData?->shippingAddress?->getId() ?? null;
+            $order->shipping_address_id = $this->orderData?->shippingAddress?->getId() ?? null;
             $order->billing_address_id = $this->orderData?->billingAddress?->getId() ?? null;
             $order->total_gross_amount = $this->orderData->total;
             $order->total_net_amount = $this->orderData->total - $this->orderData->taxes;
@@ -61,7 +81,58 @@ class CreateOrderAction
 
             $order->addItems($this->orderData->items);
 
-            return $order;
+            // Run after commit
+            DB::afterCommit(function () use ($order) {
+                if ($this->runWorkflow) {
+                    $order->fireWorkflow(
+                        WorkflowEnum::CREATED->value,
+                        true,
+                        [
+                            'app' => $this->orderData->app,
+                        ]
+                    );
+                }
+
+                try {
+                    $order->user->notify(new NewOrderNotification($order, [
+                        'app' => $this->orderData->app,
+                        'company' => $this->orderData->company,
+                    ]));
+                } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                    // Handle notification failure
+                }
+
+                try {
+                    /**
+                     * @todo move to workflow
+                     */
+                    /*  UserRoleNotificationService::notify(
+                         RolesEnums::ADMIN->value,
+                         new NewOrderStoreOwnerNotification(
+                             $order,
+                             [
+                                 'app' => $this->orderData->app,
+                                 'company' => $this->orderData->company,
+                             ]
+                         ),
+                         $this->orderData->app
+                     ); */
+                } catch (ModelNotFoundException $e) {
+                    // Handle admin notification failure
+                }
+            });
+
+            return $order->id;
         });
+
+        // we need to fetch the data since workflow is run after commit and refresh would not work
+        return ModelsOrder::findOrFail($orderId);
+    }
+
+    public function disableWorkflow(): self
+    {
+        $this->runWorkflow = false;
+
+        return $this;
     }
 }

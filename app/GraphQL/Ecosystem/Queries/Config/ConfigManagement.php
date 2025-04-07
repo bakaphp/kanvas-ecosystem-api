@@ -19,11 +19,23 @@ class ConfigManagement
         return $this->parseSettings(app(Apps::class)->getAll(false, true), $user);
     }
 
+    public function getAppSettingByKey(mixed $root, array $request): mixed
+    {
+        //$user = auth()->user();
+
+        return app(Apps::class)->get($request['key']);
+    }
+
     public function getCompanySetting(mixed $root, array $request): array
     {
         $user = auth()->user();
 
         return $this->parseSettings(CompaniesRepository::getByUuid($request['entity_uuid'], app(Apps::class))->getAll(false, true), $user);
+    }
+
+    public function getCompanySettingByKey(mixed $root, array $request): mixed
+    {
+        return CompaniesRepository::getByUuid($request['entity_uuid'], app(Apps::class))->get($request['key']);
     }
 
     public function getUserSetting(mixed $root, array $request): array

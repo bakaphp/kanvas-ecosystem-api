@@ -17,9 +17,9 @@ class ForgotPassword
 {
     protected Apps $app;
 
-    public function __construct()
+    public function __construct(?Apps $app = null)
     {
-        $this->app = app(Apps::class);
+        $this->app = $app ?? app(Apps::class);
     }
 
     /**
@@ -27,7 +27,35 @@ class ForgotPassword
      */
     public function forgot(string $email): Users
     {
-        $recoverUser = Users::getByEmail($email);
+        //$recoverUser = Users::getByEmail($email);
+        $allowResetPasswordWithDisplayname = $this->app->get(
+            (string) AppSettingsEnums::ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME->getValue(),
+        );
+
+        if (! $allowResetPasswordWithDisplayname) {
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new ExceptionsModelNotFoundException('Email is not valid.');
+            }
+        }
+
+        $query = UsersAssociatedApps::fromApp($this->app)
+            ->notDeleted()
+            ->where(
+                'companies_id',
+                AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            );
+
+        // If allowed to reset with displayname, check both email and displayname
+        if ($allowResetPasswordWithDisplayname) {
+            $query->where(function ($subquery) use ($email) {
+                $subquery->where('email', $email)
+                        ->orWhere('displayname', $email);
+            });
+        } else {
+            $query->where('email', $email);
+        }
+
+        $recoverUser = $query->firstOrFail()->user;
         $recoverUser->generateForgotHash($this->app);
 
         try {

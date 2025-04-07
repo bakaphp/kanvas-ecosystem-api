@@ -24,7 +24,7 @@ class RuleFactory extends Factory
 
         try {
             $ruleType = RuleType::getByName(WorkflowEnum::CREATED->value);
-        } catch(Throwable $e) {
+        } catch (Throwable $e) {
             $ruleType = RuleType::factory()->create();
         }
 
@@ -37,7 +37,16 @@ class RuleFactory extends Factory
             'description' => 'Lead Zoho Test',
             'pattern' => 1,
             'params' => ['test' => 'test'],
-            'is_async' => false,
+            'is_async' => true,
         ];
+    }
+
+    public function withAsync(bool $isAsync)
+    {
+        return $this->state(function (array $attributes) use ($isAsync) {
+            return [
+                'is_async' => $isAsync,
+            ];
+        });
     }
 }

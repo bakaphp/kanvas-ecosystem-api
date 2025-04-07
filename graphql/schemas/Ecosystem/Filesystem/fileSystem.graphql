@@ -1,0 +1,63 @@
+type Filesystem {
+    id: ID!
+    uuid: String!
+    name: String!
+    url: String!
+    type: String
+    size: Float!
+    field_name: String
+    attributes: JSON
+    created_at: DateTime
+}
+
+input FilesystemInputUrl {
+    url: String!
+    name: String!
+    attributes: JSON
+}
+
+input FilesystemAttachInput {
+    filesystem_uuid: ID!
+    field_name: String!
+    system_module_uuid: String!
+    entity_id: ID!
+}
+
+extend type Query @guard {
+    entityFiles(
+        entity: SystemModuleEntityInput!
+        where: _ @whereConditions(columns: ["field_name", "uuid"])
+    ): [Filesystem!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFilesFromSystemModuleEntity"
+            defaultCount: 25
+        )
+}
+
+extend type Mutation @guard {
+    "Upload a file that is publicly available."
+    upload(file: Upload!): Filesystem!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@singleFile"
+        )
+    multiUpload(files: [Upload!]!): [Filesystem!]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@multiFile"
+        )
+    attachFile(input: FilesystemAttachInput!): String!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@attachFile"
+        )
+    deAttachFile(uuid: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@deAttachFile"
+        )
+    deAttachFiles(uuids: [String!]!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@deAttachFiles"
+        )
+    uploadCsv(file: Upload!): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@uploadCsv"
+        )
+}

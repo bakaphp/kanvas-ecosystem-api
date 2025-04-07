@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Products\Traits\SearchProductWorkflowTrait;
 use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Repositories\VariantsChannelRepository;
@@ -19,6 +20,8 @@ use stdClass;
 
 class VariantChannelBuilder
 {
+    use SearchProductWorkflowTrait;
+
     public function allVariantsPublishedInChannel(
         mixed $root,
         array $args,
@@ -30,9 +33,6 @@ class VariantChannelBuilder
         $channel = Channels::getByUuid($channelUuid);
         $variants = new ModelsVariants();
         $variantsChannel = new VariantsChannels();
-
-        //set index
-        //ModelsVariants::setSearchIndex((int) $channel->companies_id);
 
         /**
          * @var Builder
@@ -96,15 +96,15 @@ class VariantChannelBuilder
                 $root->price = $defaultChannelVariant->pivot->price;
                 $root->discounted_price = $defaultChannelVariant->pivot->discounted_price;
                 $root->is_published = $defaultChannelVariant->pivot->is_published;
-            } catch(ModelNotFoundException $e) {
+            } catch (ModelNotFoundException $e) {
             }
         }
 
         //@todo doesnt work with search
         return [
             'name' => $root->channel_name,
-            'price' => $root->price,
-            'discounted_price' => $root->discounted_price,
+            'price' => $root->price ?? 0.00,
+            'discounted_price' => $root->discounted_price ?? 0.00,
             'is_published' => $root->is_published,
         ];
     }
@@ -119,9 +119,9 @@ class VariantChannelBuilder
         }
         $channelUuid = $req['HAS']['condition']['value'];
 
-        return $root->with(['channels' => function ($query) use ($channelUuid) {
+        return $root->whereHas('channels', function ($query) use ($channelUuid) {
             $query->where('uuid', $channelUuid);
-        }])->get();
+        })->get();
     }
 
     /**

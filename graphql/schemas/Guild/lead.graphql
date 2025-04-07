@@ -1,28 +1,28 @@
 type Lead {
     id: ID!
     uuid: String!
-    company: Company! @belongsTo @cacheRedis
-    branch: CompanyBranch! @belongsTo @cacheRedis
+    company: Company! @belongsTo (relation: "company")
+    branch: CompanyBranch! @belongsTo (relation: "branch")
     title: String!
     people: People
-    user: User @belongsTo @cacheRedis
-    owner: User @belongsTo @cacheRedis
-    organization: Organization @belongsTo @cacheRedis
-    receiver: LeadReceiver @belongsTo @cacheRedis
-    status: LeadStatus @belongsTo @cacheRedis
-    type: LeadType @belongsTo @cacheRedis
-    source: LeadSource @belongsTo @cacheRedis
+    user: User @belongsTo (relation: "user")
+    owner: User @belongsTo (relation: "owner")
+    organization: Organization @belongsTo (relation: "organization")
+    receiver: LeadReceiver @belongsTo (relation: "receiver")
+    status: LeadStatus @belongsTo (relation: "status")
+    type: LeadType @belongsTo (relation: "type")
+    source: LeadSource @belongsTo (relation: "source")
     firstname: String
     lastname: String
     email: String
     phone: String
     description: String
     reason_lost: String
-    pipeline: LeadPipeline @belongsTo @cacheRedis
+    pipeline: LeadPipeline @belongsTo (relation: "pipeline")
     stage: LeadPipelineStage @belongsTo(relation: "stage")
-    participants: [LeadsParticipants!]! @hasMany
+    participants: [LeadsParticipants!]! @hasMany(relation: "participants")
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
-    systemModule: SystemModule
+    systemModule: SystemModule @belongsTo(relation: "systemModule")
     tags: [Tag!]
         @paginate(
             defaultCount: 25
@@ -40,18 +40,17 @@ type Lead {
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getEntityFollowers"
         )
     custom_fields: [CustomField!]!
-        @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     created_at: DateTime!
     updated_at: DateTime!
 }
 
 type LeadsParticipants {
-    people: People! @belongsTo
-    relationship: PeopleRelationship @belongsTo
+    people: People! @belongsTo(relation: "people")
+    relationship: PeopleRelationship @belongsTo(relation: "type")
 }
 type Rotation {
     id: ID!
@@ -137,11 +136,11 @@ input LeadUpdateInput {
 }
 
 extend type Mutation @guard {
-    createLead(input: LeadInput!): Lead
+    createLead(input: LeadInput!): Lead!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@create"
         )
-    updateLead(id: ID!, input: LeadUpdateInput!): Lead
+    updateLead(id: ID!, input: LeadUpdateInput!): Lead!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update"
         )
@@ -169,6 +168,21 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\SocialMutation@unFollow"
         )
+    attachFileToLead(file: Upload!, id: ID!, params: Mixed): Lead!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@attachFile"
+        )
+    attachFilesToLead(file: [Upload!]!, id: ID!, params: Mixed): Lead!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@attachFile"
+        )
+}
+
+extend type Subscription @guard {
+    leadUpdate(id: ID!): Lead
+        @subscription(
+            class: "App\\GraphQL\\Guild\\Subscriptions\\LeadUpdatedSubscription"
+        )
 }
 
 extend type Query @guard {
@@ -185,6 +199,8 @@ extend type Query @guard {
                     "leads_owner_id"
                     "leads_status_id"
                     "title"
+                    "email"
+                    "phone"
                     "pipeline_id"
                     "pipeline_stage_id"
                     "people_id"
@@ -197,6 +213,17 @@ extend type Query @guard {
                 relation: "customFields"
                 columns: ["name", "value"]
             )
+        hasStatus: _ @whereHasConditions(relation: "status", columns: ["name"])
+        hasType: _
+            @whereHasConditions(relation: "type", columns: ["name", "uuid"])
+        hasSource: _
+            @whereHasConditions(relation: "source", columns: ["name", "uuid"])
+        hasPipeline: _
+            @whereHasConditions(relation: "pipeline", columns: ["name"])
+        hasReceiver: _
+            @whereHasConditions(relation: "receiver", columns: ["name", "uuid"])
+        hasOwner: _
+            @whereHasConditions(relation: "owner", columns: ["id", "uuid"])
         orderBy: _
             @orderBy(
                 columns: [
@@ -215,7 +242,7 @@ extend type Query @guard {
     ): [Lead!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\Lead"
-            scopes: ["fromCompany", "notDeleted", "filterSettings"]
+            scopes: ["fromApp", "fromCompany", "notDeleted", "filterSettings"]
             defaultCount: 25
         )
 

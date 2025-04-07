@@ -8,8 +8,10 @@ use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Attributes\Enums\AttributeTypeEnum;
 use Kanvas\Inventory\Attributes\Models\Attributes as ModelsAttributes;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Workflow\Traits\PublicAppScopeTrait;
 
 /**
  * Class Attributes.
@@ -19,17 +21,16 @@ use Kanvas\Inventory\Models\BaseModel;
  * @property int $companies_id
  * @property string uuid
  * @property string $name
+ * @property string $slug
  */
 class AttributesTypes extends BaseModel
 {
+    use PublicAppScopeTrait;
     use SlugTrait;
 
     public $table = 'attributes_types_input';
     public $guarded = [];
 
-    /**
-     * apps.
-     */
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
@@ -38,5 +39,18 @@ class AttributesTypes extends BaseModel
     public function attributes(): HasMany
     {
         return $this->hasMany(ModelsAttributes::class, 'attributes_id');
+    }
+
+    /**
+     * @todo change to list
+     */
+    public function isList(): bool
+    {
+        return $this->slug === AttributeTypeEnum::CHECKBOX->value;
+    }
+
+    public function isJson(): bool
+    {
+        return $this->slug === AttributeTypeEnum::JSON->value;
     }
 }

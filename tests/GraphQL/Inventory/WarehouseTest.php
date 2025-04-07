@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class WarehouseTest extends TestCase
 {
+    use InventoryCases;
+
     /**
      * testCreateWarehouse.
      *
@@ -15,54 +18,13 @@ class WarehouseTest extends TestCase
      */
     public function testCreateWarehouse(): void
     {
-        $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $response = $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $data
-        ])->assertJson([
-            'data' => ['createRegion' => $data]
-        ]);
+        $regionResponse = $this->createRegion();
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
+        $regionResponse = $regionResponse->json()['data']['createRegion'];
 
-        $response = $response->decodeResponseJson();
-
-        $data = [
-            'regions_id' => $response['data']['createRegion']['id'],
-            'name' => 'Test Warehouse',
-            'location' => 'Test Location',
-            'is_default' => true,
-            'is_published' => true,
-        ];
-
-        $response = $this->graphQL('
-            mutation($data: WarehouseInput!) {
-                createWarehouse(input: $data)
-                {
-                    regions_id
-                    name
-                    location
-                    is_default
-                    is_published
-                }
-            }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
-        ]);
+        $warehouseResponse = $this->createWarehouses($regionResponse['id']);
+        $this->assertArrayHasKey('id', $warehouseResponse['data']['createWarehouse']);
+        $warehouseResponse = $warehouseResponse->json()['data']['createWarehouse'];
     }
 
     /**
@@ -72,56 +34,15 @@ class WarehouseTest extends TestCase
      */
     public function testFindWarehouse(): void
     {
-        $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $response = $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $data
-        ])->assertJson([
-            'data' => ['createRegion' => $data]
-        ]);
-        $response = $response->decodeResponseJson();
+        $regionResponse = $this->createRegion();
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
+        $regionResponse = $regionResponse->json()['data']['createRegion'];
 
-        $data = [
-            'regions_id' => $response['data']['createRegion']['id'],
-            'name' => 'Test Warehouse',
-            'location' => 'Test Location',
-            'is_default' => true,
-            'is_published' => true,
-        ];
-        $response = $this->graphQL('
-            mutation($data: WarehouseInput!) {
-                createWarehouse(input: $data)
-                {
-                    id
-                    regions_id
-                    name
-                    location
-                    is_default
-                    is_published
-                }
-            }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
-        ]);
-        $warehouseId = $response['data']['createWarehouse']['id'];
+        $warehouseResponse = $this->createWarehouses($regionResponse['id']);
+        $this->assertArrayHasKey('id', $warehouseResponse['data']['createWarehouse']);
+        $warehouseResponse = $warehouseResponse->json()['data']['createWarehouse'];
 
-        $this->graphQL(
+        $warehouses = $this->graphQL(
             '
             query warehouses {
                 warehouses(orderBy: [{ column: ID, order: DESC }]){
@@ -136,9 +57,9 @@ class WarehouseTest extends TestCase
                 }
             }
             '
-        )->assertJson([
-            'data' => ['warehouses' => ['data' => [$response->decodeResponseJson()['data']['createWarehouse']]]]
-        ]);
+        );
+
+        $this->assertArrayHasKey('id', $warehouses->json()['data']['warehouses']['data'][0]);
     }
 
     /**
@@ -148,54 +69,14 @@ class WarehouseTest extends TestCase
      */
     public function testUpdateWarehouse(): void
     {
-        $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $response = $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $data
-        ])->assertJson([
-            'data' => ['createRegion' => $data]
-        ]);
-        $response = $response->decodeResponseJson();
+        $regionResponse = $this->createRegion();
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
+        $regionResponse = $regionResponse->json()['data']['createRegion'];
 
-        $data = [
-            'regions_id' => $response['data']['createRegion']['id'],
-            'name' => 'Test Warehouse',
-            'location' => 'Test Location',
-            'is_default' => true,
-            'is_published' => true,
-        ];
-        $response = $this->graphQL('
-            mutation($data: WarehouseInput!) {
-                createWarehouse(input: $data)
-                {
-                    id
-                    regions_id
-                    name
-                    location
-                    is_default
-                    is_published
-                }
-            }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
-        ]);
-        $data = $response->decodeResponseJson()['data']['createWarehouse'];
+        $warehouseResponse = $this->createWarehouses($regionResponse['id']);
+        $this->assertArrayHasKey('id', $warehouseResponse['data']['createWarehouse']);
+        $warehouseResponse = $warehouseResponse->json()['data']['createWarehouse'];
+
         $this->graphQL('
             mutation($id: ID!, $data: WarehouseInputUpdate!) {
                 updateWarehouse(id: $id, input: $data)
@@ -208,9 +89,9 @@ class WarehouseTest extends TestCase
                     is_published
                 }
             }', [
-            'id' => $data['id'],
+            'id' => $warehouseResponse['id'],
             'data' => [
-                'regions_id' => $data['regions_id'],
+                'regions_id' => $warehouseResponse['regions_id'],
                 'name' => 'Test Warehouse Updated',
                 'location' => 'Test Location Updated',
                 'is_default' => true,
@@ -218,8 +99,8 @@ class WarehouseTest extends TestCase
             ]
         ])->assertJson([
             'data' => ['updateWarehouse' => [
-                'id' => $data['id'],
-                'regions_id' => $data['regions_id'],
+                'id' => $warehouseResponse['id'],
+                'regions_id' => $warehouseResponse['regions_id'],
                 'name' => 'Test Warehouse Updated',
                 'location' => 'Test Location Updated',
                 'is_default' => true,
@@ -230,59 +111,27 @@ class WarehouseTest extends TestCase
 
     public function testDeleteWarehouse(): void
     {
-        $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $response = $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $data
-        ])->assertJson([
-            'data' => ['createRegion' => $data]
-        ]);
-        $response = $response->decodeResponseJson();
+        $regionResponse = $this->createRegion();
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
+        $regionResponse = $regionResponse->json()['data']['createRegion'];
 
         $data = [
-            'regions_id' => $response['data']['createRegion']['id'],
+            'regions_id' => $regionResponse['id'],
             'name' => 'Test Warehouse',
             'location' => 'Test Location',
             'is_default' => false,
             'is_published' => true,
         ];
-        $response = $this->graphQL('
-            mutation($data: WarehouseInput!) {
-                createWarehouse(input: $data)
-                {
-                    id
-                    regions_id
-                    name
-                    location
-                    is_default
-                    is_published
-                }
-            }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
-        ]);
-        $data = $response->decodeResponseJson()['data']['createWarehouse'];
+
+        $warehouseResponse = $this->createWarehouses($regionResponse['id'], $data);
+        $this->assertArrayHasKey('id', $warehouseResponse['data']['createWarehouse']);
+        $warehouseResponse = $warehouseResponse->json()['data']['createWarehouse'];
+
         $this->graphQL('
             mutation($id: ID!) {
                 deleteWarehouse(id: $id)
             }', [
-            'id' => $data['id'],
+            'id' => $warehouseResponse['id'],
         ])->assertJson([
             'data' => ['deleteWarehouse' => true]
         ]);

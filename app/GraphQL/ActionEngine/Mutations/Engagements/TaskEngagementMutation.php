@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\GraphQL\ActionEngine\Mutations\Engagements;
 
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class TaskEngagementMutation
 {
@@ -20,6 +23,8 @@ class TaskEngagementMutation
         $app = app(Apps::class);
         $status = $request['status'];
         $lead = Lead::getByIdFromCompanyApp($request['lead_id'], $company, $app);
+        $messageId = $request['message_id'] ?? null;
+        $configData = $request['config'] ?? null;
 
         $taskListItem = TaskListItem::getById($id);
 
@@ -29,6 +34,10 @@ class TaskEngagementMutation
 
         if ($taskListItem->companyAction->apps_id != $app->getId()) {
             throw new ValidationException('You are not allowed to change the status of this task , app mismatch');
+        }
+
+        if (! TaskStatusEnum::validate($status)) {
+            throw new ValidationException('Invalid Task Status');
         }
 
         $taskEngagementItem = TaskEngagementItem::fromCompany($company)
@@ -46,8 +55,35 @@ class TaskEngagementMutation
             $taskEngagementItem->users_id = $user->getId();
         }
 
+        if ($status == TaskStatusEnum::COMPLETED->value && $messageId) {
+            $finalEngagement = Engagement::fromApp($app)->fromCompany($company)->where('message_id', $messageId)->first();
+            $taskEngagementItem->engagement_end_id = $finalEngagement?->getId();
+        }
+
         $taskEngagementItem->status = $status;
 
-        return $taskEngagementItem->saveOrFail();
+        if ($configData !== null) {
+            $taskEngagementItem->config = $configData;
+        }
+        $saveTaskEngagementItem = $taskEngagementItem->saveOrFail();
+
+        /**
+         * @todo move to observer
+         */
+        $taskEngagementItem->disableRelatedItems();
+        $taskEngagementItem->enableRelatedTasks();
+        $taskEngagementItem->completeRelatedItems();
+
+        $taskEngagementItem->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $app,
+                'company' => $company,
+                'lead' => $lead,
+            ]
+        );
+
+        return $saveTaskEngagementItem;
     }
 }

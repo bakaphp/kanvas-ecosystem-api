@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Pipelines\Models;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
@@ -24,11 +26,21 @@ class Pipeline extends BaseModel
 {
     use UuidTrait;
 
-    protected $table = 'engagements';
+    protected $table = 'pipelines';
     protected $guarded = [];
 
     public function stages(): HasMany
     {
         return $this->hasMany(PipelineStage::class, 'pipelines_id', 'id');
+    }
+
+    public static function getBySlug(string $slug, AppInterface $app, CompanyInterface $company): self
+    {
+        return self::query()
+            ->where('slug', $slug)
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->notDeleted()
+            ->firstOrFail();
     }
 }

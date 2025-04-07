@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Zoho\DataTransferObject;
 
-use Baka\Validations\Date;
+use Carbon\Carbon;
+use Exception;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Override;
 use Spatie\LaravelData\Data;
 
 class ZohoLead extends Data
@@ -58,6 +60,7 @@ class ZohoLead extends Data
         );
     }
 
+    #[Override]
     public function toArray(): array
     {
         $data = array_merge(parent::toArray(), $this->additionalFields);
@@ -69,6 +72,7 @@ class ZohoLead extends Data
 
     /**
      * Map properties from one array to another.
+     * @todo think of a better way to do this.
      */
     protected static function mapProperties(array $map, array &$data, array $entity): void
     {
@@ -83,19 +87,34 @@ class ZohoLead extends Data
                 if ($name['type'] !== 'date') {
                     settype($value, $name['type']);
                 } else {
-                    $value = Date::isValid($value, 'm/d/Y') || Date::isValid($value, 'Y-m-d') || Date::isValid($value, 'd-m-Y') ? date('Y-m-d', strtotime($value)) : null;
+                    try {
+                        $date = Carbon::parse($value);
+                        $value = $date->format('Y-m-d');
+                    } catch (Exception $e) {
+                        $value = null;
+                    }
                 }
                 $name = $name['name'];
             }
-            if (strtolower($key) == 'credit_score' && $value != null && (int) $value > 0) {
+            if (strtolower($key) == 'credit_score' && $value != null) {
                 $creditScore = [
                     1 => '720-950',
+                    'Excellent' => 'Excellent(720+)',
                     2 => '680-719',
+                    'Great' => 'Great(680-719)',
                     3 => '640-679',
+                    'Good' => 'Good(650-679)',
                     4 => '639 or less',
+                    'Fair' => 'Fair(600-649)',
+                    'Poor' => 'Poor(Below 600)',
+                    'A+' => 'A+',
                 ];
 
                 $value = $creditScore[(int) $value] ?? $value;
+            }
+
+            if (strtolower($key) == 'subid' && $value != null) {
+                $value = (string) $value;
             }
 
             if ($value !== null) {

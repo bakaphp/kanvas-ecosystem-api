@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Tags\Models;
 
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Models\BaseModel;
-use Laravel\Scout\Searchable;
+use Override;
 
 /**
  * @property int id
@@ -19,30 +22,32 @@ use Laravel\Scout\Searchable;
  * @property string name
  * @property string slug
  * @property string color
- * @property float weight
+ * @property int status
+ * @property int is_feature
  */
 class Tag extends BaseModel
 {
     use SlugTrait;
-    use Searchable {
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
 
     protected $guarded = [];
     protected $table = 'tags';
 
-    public function taggables()
+    public function taggables(): HasMany
     {
         return $this->hasMany(TagEntity::class, 'tags_id');
     }
 
-    public function entities()
+    public function entities(): MorphToMany
     {
         return $this->morphToMany(Tag::class, 'taggable', 'tags_entities', 'tags_id', 'entity_id')
                     ->using(TagEntity::class)
                     ->withPivot('entity_namespace', 'companies_id', 'apps_id', 'users_id', 'is_deleted', 'created_at', 'updated_at');
     }
 
+    #[Override]
     public function getTable()
     {
         $databaseName = DB::connection($this->connection)->getDatabaseName();
@@ -50,14 +55,12 @@ class Tag extends BaseModel
         return $databaseName . '.tags';
     }
 
-    public function shouldBeSearchable(): bool
-    {
-        return $this->is_deleted == 0;
-    }
-
     public function searchableAs(): string
     {
-        $customIndex = $this->app ? $this->app->get('app_custom_tag_index') : null;
+        //$tag = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $tag = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
+        $app = $tag->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_tag_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'tag_index');
     }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -14,6 +13,7 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 class LeadObserver
 {
@@ -66,12 +66,12 @@ class LeadObserver
 
     public function created(Lead $lead): void
     {
-        $lead->fireWorkflow(WorkflowEnum::CREATED->value);
+        //$lead->fireWorkflow(WorkflowEnum::CREATED->value);
         if ($lead->user) {
             (
                 new CreateChannelAction(
                     new Channel(
-                        app(Apps::class),
+                        $lead->app,
                         $lead->company,
                         $lead->user,
                         (string)$lead->id,
@@ -84,12 +84,13 @@ class LeadObserver
             )->execute();
         }
 
-        $lead->clearLightHouseCache();
+        //$lead->clearLightHouseCacheJob();
     }
 
     public function updated(Lead $lead): void
     {
-        $lead->fireWorkflow(WorkflowEnum::UPDATED->value);
-        $lead->clearLightHouseCache();
+        //$lead->fireWorkflow(WorkflowEnum::UPDATED->value);
+        Subscription::broadcast('leadUpdate', $lead, true);
+        //$lead->clearLightHouseCacheJob();
     }
 }

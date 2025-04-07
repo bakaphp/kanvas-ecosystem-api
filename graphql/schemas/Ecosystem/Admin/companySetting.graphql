@@ -18,4 +18,8 @@ extend type Query @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getCompanySetting"
         )
+    adminCompanySetting(entity_uuid: String!, key: String!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getCompanySettingByKey"
+        )
 }

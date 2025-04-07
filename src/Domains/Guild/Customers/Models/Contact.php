@@ -45,6 +45,11 @@ class Contact extends BaseModel
         );
     }
 
+    public function getCleanPhone(): string
+    {
+        return preg_replace('/\D+/', '', $this->value);
+    }
+
     protected static function newFactory()
     {
         return new ContactFactory();

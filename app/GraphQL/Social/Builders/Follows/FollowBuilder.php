@@ -18,16 +18,16 @@ class FollowBuilder
      */
     public function getFollowers(mixed $root, array $request): Builder
     {
-        $user = UsersRepository::getUserOfAppById($request['user_id']);
         $app = app(Apps::class);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
 
         return UsersFollowsRepository::getFollowersBuilder($user, $app);
     }
 
     public function getFollowing(mixed $root, array $request): Builder
     {
-        $user = UsersRepository::getUserOfAppById($request['user_id']);
         $app = app(Apps::class);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
 
         return UsersFollowsRepository::getFollowingBuilder($user, $app);
     }
@@ -35,6 +35,7 @@ class FollowBuilder
     public function getEntityFollowers(mixed $root, array $request): Builder
     {
         //return users following the entity
-        return UsersFollowsRepository::getFollowersBuilder($root);
+        $app = app(Apps::class);
+        return UsersFollowsRepository::getFollowersBuilder($root, $app);
     }
 }

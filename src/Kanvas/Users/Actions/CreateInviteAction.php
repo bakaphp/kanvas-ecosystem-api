@@ -29,7 +29,7 @@ class CreateInviteAction
     public function execute(): UsersInvite
     {
         $companyBranch = $this->inviteDto->companyBranch;
-        $company = $companyBranch->company()->get()->first();
+        $company = $companyBranch->company;
 
         CompaniesRepository::userAssociatedToCompanyAndBranch(
             $company,

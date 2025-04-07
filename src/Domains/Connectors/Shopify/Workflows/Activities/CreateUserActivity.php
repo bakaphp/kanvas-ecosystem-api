@@ -13,12 +13,10 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class CreateUserActivity extends Activity
+class CreateUserActivity extends KanvasActivity
 {
-    public $tries = 5;
-
     public function execute(Users $user, Apps $app, array $params): array
     {
         if (! isset($params['company']) || ! $params['company'] instanceof Companies) {
@@ -29,6 +27,7 @@ class CreateUserActivity extends Activity
             ];
         }
 
+        $this->overwriteAppService($app);
         $defaultCompanyBranchId = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
         $company = $defaultCompanyBranchId ? CompaniesBranches::getById($defaultCompanyBranchId)->company : $params['company'];
         $defaultRegion = Regions::getDefault($company);

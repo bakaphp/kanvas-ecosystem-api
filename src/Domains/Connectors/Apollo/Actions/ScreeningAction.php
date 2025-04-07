@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Apollo\Actions;
 
-use Exception;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\ContactType;
@@ -36,19 +34,15 @@ class ScreeningAction
             'linkedin_url' => $linkedin ? $linkedin->value : null,
         ];
 
-        try {
-            $response = $client->post('https://api.apollo.io/v1/people/match', [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Cache-Control' => 'no-cache',
-                    'X-Api-Key' => $this->app->get(ConfigurationEnum::APOLLO_API_KEY->value),
-                ],
-                'json' => $data,
-            ]);
+        $response = $client->post('https://api.apollo.io/v1/people/match', [
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Cache-Control' => 'no-cache',
+                'X-Api-Key' => $this->app->get(ConfigurationEnum::APOLLO_API_KEY->value),
+            ],
+            'json' => $data,
+        ]);
 
-            return json_decode($response->getBody()->getContents(), true)['person'];
-        } catch (GuzzleException $e) {
-            throw new Exception($e->getMessage());
-        }
+        return json_decode($response->getBody()->getContents(), true)['person'];
     }
 }

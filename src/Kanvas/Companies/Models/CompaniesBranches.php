@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Baka\Traits\AddressTraitRelationship;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,6 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
-use Laravel\Scout\Searchable;
 
 /**
  * Companies Model.
@@ -27,9 +28,15 @@ use Laravel\Scout\Searchable;
  * @property int $users_id
  * @property string $name
  * @property string $address
+ * @property string $address_2
  * @property string $email
  * @property string $phone
  * @property string $zipcode
+ * @property int $cities_id
+ * @property int $states_id
+ * @property int $countries_id
+ * @property string $state
+ * @property string $city
  * @property int $is_default
  * @property int $is_active
  */
@@ -37,16 +44,31 @@ class CompaniesBranches extends BaseModel
 {
     use UuidTrait;
     use HasFilesystemTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use NoAppRelationshipTrait;
     use HasCustomFields;
+    use AddressTraitRelationship;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'companies_branches';
+
+    protected $guarded = ['users_id', 'companies_id'];
+
+    protected $fillable = [
+        'name',
+        'address',
+        'email',
+        'phone',
+        'cities_id',
+        'states_id',
+        'countries_id',
+        'state',
+        'city',
+        'zipcode',
+        'zip',
+        'address_2',
+        'is_default',
+        'is_active',
+    ];
 
     /**
      * Create a new factory instance for the model.
@@ -72,6 +94,11 @@ class CompaniesBranches extends BaseModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        return $this->getFileByName('photo');
     }
 
     /**
@@ -102,23 +129,43 @@ class CompaniesBranches extends BaseModel
     public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
+        $appId = app(Apps::class)->getId();
+        $companyBranch = app()->bound(CompaniesBranches::class)
+            ? app(CompaniesBranches::class)->company()->first()
+            : null;
 
-        return $query->join('users_associated_company', function ($join) use ($user) {
-            $join->on('users_associated_company.companies_id', '=', 'companies_branches.companies_id')
-                ->where('users_associated_company.is_deleted', '=', 0);
-        })
-        ->join('users_associated_apps', function ($join) {
-            $join->on('users_associated_apps.companies_id', '=', 'companies_branches.companies_id')
-                ->where('users_associated_apps.apps_id', app(Apps::class)->getId());
-        })
-        ->when(! $user->isAdmin(), function ($query) use ($user) {
-            $query->where('users_associated_company.users_id', $user->getId());
-        })
-        ->when(app()->bound(CompaniesBranches::class), function ($query) use ($user) {
-            $query->where('users_associated_apps.companies_id', app(CompaniesBranches::class)->company()->first()->getId());
-        })
-        ->where('companies_branches.is_deleted', '=', 0)
-        ->groupBy('companies_branches.id');
+        return $query
+            ->select('companies_branches.*') // Explicitly select all columns from companies_branches
+            ->where('companies_branches.is_deleted', 0) // Filter out deleted branches early
+            ->whereExists(function ($subQuery) use ($appId) {
+                $subQuery
+                    ->from('users_associated_company')
+                    ->whereColumn('users_associated_company.companies_id', 'companies_branches.companies_id')
+                    ->where('users_associated_company.is_deleted', 0);
+            })
+            ->whereExists(function ($subQuery) use ($appId) {
+                $subQuery
+                    ->from('users_associated_apps')
+                    ->whereColumn('users_associated_apps.companies_id', 'companies_branches.companies_id')
+                    ->where('users_associated_apps.apps_id', $appId);
+            })
+            ->when(
+                ! $user->isAdmin(),
+                function ($query) use ($user) {
+                    $query->whereExists(function ($subQuery) use ($user) {
+                        $subQuery
+                            ->from('users_associated_company')
+                            ->whereColumn('users_associated_company.companies_id', 'companies_branches.companies_id')
+                            ->where('users_associated_company.users_id', $user->getId());
+                    });
+                }
+            )
+            ->when(
+                $companyBranch,
+                function ($query) use ($companyBranch) {
+                    $query->where('companies_branches.companies_id', $companyBranch->getId());
+                }
+            );
     }
 
     public function users(): HasManyThrough
@@ -142,10 +189,5 @@ class CompaniesBranches extends BaseModel
         $branch->id = 0;
 
         return $branch;
-    }
-
-    public function getPhoto(): ?FilesystemEntities
-    {
-        return $this->getFileByName('photo');
     }
 }

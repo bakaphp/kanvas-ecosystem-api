@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions as ModelsRegions;
 use Kanvas\Souk\Orders\Models\Order;
 
 class UniqueOrderNumber implements ValidationRule
@@ -16,7 +17,7 @@ class UniqueOrderNumber implements ValidationRule
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected Regions $region
+        protected Regions|ModelsRegions $region
     ) {
     }
 

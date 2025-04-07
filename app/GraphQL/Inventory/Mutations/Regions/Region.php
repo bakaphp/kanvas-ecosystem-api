@@ -11,7 +11,7 @@ use Kanvas\Inventory\Regions\Repositories\RegionRepository as RegionRepository;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Inventory\Support\Validations\UniqueSlugRule;
+use Kanvas\Support\Validations\UniqueSlugRule;
 
 class Region
 {

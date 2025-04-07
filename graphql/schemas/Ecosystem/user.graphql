@@ -7,7 +7,9 @@ type User {
     description: String
     dob: String
     default_company: Int! @method(name: "defaultCompany")
+    default_company_uuid: String! @method(name: "defaultCompanyUuid")
     default_company_branch: Int! @method(name: "defaultCompanyBranch")
+    default_company_branch_uuid: String! @method(name: "defaultCompanyBranchUuid")
     email: Email! @method(name: "getAppEmail")
     is_active: Boolean! @method(name: "getAppIsActive")
     verify_two_factor: Boolean! @method(name: "runVerifyTwoFactorAuth")
@@ -17,6 +19,7 @@ type User {
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@address")
     sex: String
     user_active: Boolean!
+    timezone: String
     abilities: Mixed! @method(name: "getAbilitiesList")
     roles: Mixed! @method(name: "getRoles")
     mainRole: String!
@@ -87,7 +90,15 @@ type UserSocialInfo {
     total_like: Int
     total_followers: Int
     total_following: Int
+    total_blocked: Int
     total_lists: Int
+    is_following: Boolean
+    is_blocked: Boolean
+}
+
+type UserContactsMatchesFindings {
+    matched_contacts: [User!]!
+    unmatched_contacts: [String!]!
 }
 
 input LoginInput {
@@ -102,7 +113,7 @@ input SocialLoginInput {
 }
 
 input ForgotPasswordInput {
-    email: String! @rules(apply: ["required", "email"])
+    email: String! @rules(apply: ["required"])
 }
 
 input ResetPasswordInput {
@@ -143,6 +154,7 @@ input UpdateUserInput {
     address_2: String
     zip_code: Int
     welcome: Boolean
+    timezone: String
     city_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
     state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int
@@ -150,6 +162,25 @@ input UpdateUserInput {
     custom_fields: [CustomFieldEntityInput!]
     files: [FilesystemInputUrl!]
     role_ids: [ID!]
+}
+
+input UserContactInput {
+  first_name: String!
+  last_name: String!
+  phone_numbers: [PhoneNumberInput!]!
+  emails: [EmailInput!]!
+  company: String
+  job_title: String
+}
+
+input PhoneNumberInput {
+  type: String! # mobile, home, work
+  number: String!
+}
+
+input EmailInput {
+  type: String! # personal, work, other
+  email: Email!
 }
 
 extend type Mutation {
@@ -242,6 +273,10 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updatePhotoProfile"
         )
+    uploadFileToUser(id: ID!, file: Upload!): User!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@attachFileToUser"
+        )
     setToggleTwoFactorAuthIn30Days(active: Boolean!): Boolean!
         @guard
         @field(
@@ -251,6 +286,11 @@ extend type Mutation {
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@requestDeleteAccount"
+        )
+    checkUsersContactsMatch(contacts: [UserContactInput!]!): UserContactsMatchesFindings!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserContactsManagementMutation@checkUsersContactsMatch"
         )
 }
 
@@ -263,5 +303,47 @@ type Query @guard {
     userByDisplayName(displayname: String!): User!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersListQuery@getByDisplayNameFromApp"
+        )
+}
+
+extend type Query @guard {
+    users(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "description"
+                    "dob"
+                    "email"
+                    "is_active"
+                    "verify_two_factor"
+                    "sex"
+                    "user_active"
+                    "timezone"
+                    "mainRole"
+                    "welcome"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                ]
+            )
+        search: String @search
+    ): [User!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersBuilder@getAll"
+            scopes: ["fromApp", "notDeleted"]
         )
 }

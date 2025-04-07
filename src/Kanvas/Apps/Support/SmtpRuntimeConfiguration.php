@@ -29,6 +29,7 @@ class SmtpRuntimeConfiguration
     protected function loadSmtpSettingsFromSource(string $provider, HashTableInterface $source): array
     {
         return [
+            'scheme' => 'smtp',
             'transport' => 'smtp',
             'host' => $source->get('smtp_host'),
             'port' => $source->get('smtp_port'),

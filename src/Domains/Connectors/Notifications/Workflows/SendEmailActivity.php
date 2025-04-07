@@ -6,19 +6,15 @@ namespace Kanvas\Connectors\Notifications\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class SendEmailActivity extends Activity implements WorkflowActivityInterface
+class SendEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
-    public $tries = 10;
-
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

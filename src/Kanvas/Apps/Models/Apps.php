@@ -26,6 +26,7 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Apps Model.
@@ -49,6 +50,7 @@ class Apps extends BaseModel implements AppInterface
 {
     use HashTableTrait;
     use Cachable;
+    use CanUseWorkflow;
 
     /**
      * The table associated with the model.
@@ -132,6 +134,7 @@ class Apps extends BaseModel implements AppInterface
 
             return (int) $this->get('total_companies');
         }
+
         return (int) $totalCompanies;
     }
 
@@ -220,9 +223,9 @@ class Apps extends BaseModel implements AppInterface
         Users $user,
         int $isActive,
         ?int $userRoleId = null,
-        string $password = null,
-        string $companyUserIdentifier = null,
-        string $configuration = null
+        ?string $password = null,
+        ?string $companyUserIdentifier = null,
+        ?string $configuration = null
     ): UsersAssociatedApps {
         return UsersAssociatedApps::firstOrCreate([
             'users_id' => $user->getKey(),

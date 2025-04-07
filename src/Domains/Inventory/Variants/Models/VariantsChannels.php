@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Models;
 
 use Awobaz\Compoships\Compoships;
+use Baka\Casts\Json;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
@@ -23,6 +24,8 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  * @property int $channels_id
  * @property float $price
  * @property float $discount_price
+ * @property bool $is_published
+ * @property ?string $config = null
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
@@ -41,6 +44,30 @@ class VariantsChannels extends BaseModel
 
     protected $primaryKey = ['product_variants_warehouse_id', 'channels_id'];
     protected $forceDeleting = true;
+
+    protected function casts(): array
+    {
+        return [
+            'price' => 'decimal:2',
+            'discount_price' => 'decimal:2',
+            'config' => Json::class,
+        ];
+    }
+
+    public function getPriceAttribute(string|float $value): float
+    {
+        return (float) $value;
+    }
+
+    public function getDiscountPriceAttribute(string|float $value): float
+    {
+        return (float) $value;
+    }
+
+    public function getDiscountedPriceAttribute(string|float $value): float
+    {
+        return (float) $value;
+    }
 
     public function channel(): BelongsTo
     {

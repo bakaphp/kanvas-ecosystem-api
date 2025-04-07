@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Souk\Orders\Actions;
+
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Souk\Orders\DataTransferObject\DraftOrder;
+use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+
+use function Sentry\captureException;
+
+class CreateDraftOrderAction
+{
+    public bool $runWorkflow = true;
+
+    public function __construct(
+        protected DraftOrder $orderData
+    ) {
+    }
+
+    public function execute(): ModelsOrder
+    {
+        return DB::connection('commerce')->transaction(function () {
+            $order = new ModelsOrder();
+            $order->apps_id = $this->orderData->app->getId();
+            $order->region_id = $this->orderData->region->getId();
+            $order->companies_id = $this->orderData->branch->company->getId();
+            $order->people_id = $this->orderData->people->getId();
+            $order->users_id = $this->orderData->user->getId();
+            $order->user_email = $this->orderData->email;
+            $order->user_phone = $this->orderData->phone;
+            $order->token = null;
+            $order->shipping_address_id = $this->orderData?->shippingAddress?->getId() ?? null;
+            $order->billing_address_id = $this->orderData?->billingAddress?->getId() ?? null;
+            $order->total_gross_amount = $this->orderData->total;
+            $order->total_net_amount = $this->orderData->total - $this->orderData->taxes;
+            $order->shipping_price_gross_amount = $this->orderData->totalShipping;
+            $order->shipping_price_net_amount = $this->orderData->totalShipping;
+            $order->discount_amount = $this->orderData->totalDiscount;
+            $order->status = $this->orderData->status;
+            $order->fulfillment_status = 'pending';
+            $order->currency = $this->orderData->currency->code;
+            $order->metadata = $this->orderData->metadata;
+            $order->payment_gateway_names = $this->orderData->paymentGatewayName;
+            //$order->language_code = $this->orderData->languageCode;
+            $order->saveOrFail();
+
+            $order->addItems($this->orderData->items);
+
+            // Run after commit
+            DB::afterCommit(function () use ($order) {
+                if ($this->runWorkflow) {
+                    $order->fireWorkflow(
+                        WorkflowEnum::CREATED->value,
+                        true,
+                        [
+                            'app' => $this->orderData->app,
+                        ]
+                    );
+                }
+
+                try {
+                    $order->user->notify(new NewOrderNotification($order, [
+                        'app' => $this->orderData->app,
+                        'company' => $this->orderData->branch->company,
+                    ]));
+                } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                    //captureException($e);
+                }
+            });
+
+            return $order;
+        });
+    }
+}

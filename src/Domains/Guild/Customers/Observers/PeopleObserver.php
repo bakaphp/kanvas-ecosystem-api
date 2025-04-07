@@ -11,27 +11,27 @@ class PeopleObserver
 {
     public function created(People $people): void
     {
-        $people->fireWorkflow(
-            WorkflowEnum::CREATED->value,
-            true,
-            [
-                'app' => $people->app,
-            ]
-        );
+        /*   $people->fireWorkflow(
+              WorkflowEnum::CREATED->value,
+              true,
+              [
+                  'app' => $people->app,
+              ]
+          ); */
 
-        $people->clearLightHouseCache();
+        //$people->clearLightHouseCacheJob();
     }
 
     public function updated(People $people): void
     {
-        $people->fireWorkflow(
-            WorkflowEnum::UPDATED->value,
-            true,
-            [
-                'app' => $people->app,
-            ]
-        );
+        /*    $people->fireWorkflow(
+               WorkflowEnum::UPDATED->value,
+               true,
+               [
+                   'app' => $people->app,
+               ]
+           ); */
 
-        $people->clearLightHouseCache();
+        //$people->clearLightHouseCacheJob();
     }
 }

@@ -15,9 +15,11 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class CreateMessageFromReceiverJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $payload = $this->webhookRequest->payload;

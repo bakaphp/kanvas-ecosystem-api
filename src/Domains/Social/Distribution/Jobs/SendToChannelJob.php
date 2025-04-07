@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Social\Distribution\DistributionMessage;
+use Kanvas\Social\Channels\Services\DistributionMessageService;
 use Kanvas\Social\Messages\Models\Message;
 
 class SendToChannelJob implements ShouldQueue
@@ -30,7 +30,7 @@ class SendToChannelJob implements ShouldQueue
     public function handle()
     {
         foreach ($this->channels as $channel) {
-            DistributionMessage::sentToChannelFeed($channel, $this->message);
+            DistributionMessageService::sentToChannelFeed($channel, $this->message);
         }
     }
 }

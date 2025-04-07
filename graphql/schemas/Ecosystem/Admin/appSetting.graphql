@@ -3,7 +3,7 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@setAppSetting"
         )
-    deleteAppSetting(input: ModuleConfigInput!): Boolean!
+    deleteAppSetting(key: String!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@deleteAppSetting"
         )
@@ -17,5 +17,9 @@ extend type Query @guardByAppKey {
     adminAppSettings: [ModuleConfig!]!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getAppSetting"
+        )
+    adminAppSetting(key: String!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getAppSettingByKey"
         )
 }

@@ -23,10 +23,28 @@ input AttributesValueInput {
     value: Mixed!
 }
 
+input UpdateAttributesValueInput {
+    id: ID!
+    value: Mixed!
+}
+
+input AttributeTranslationInput {
+    name: String
+}
+
+input AttributeValueTranslationInput {
+    id: ID!
+    value: Mixed!
+}
+
 type Attributes {
     id: ID!
     uuid: String
     name: String
+    translation(languageCode: String!): AttributeTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     slug: String
     created_at: String
     updated_at: String
@@ -41,7 +59,21 @@ type Attributes {
 
 type AttributesValue {
     id: ID!
+    translation(languageCode: String!): AttributeValueTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     value: Mixed
+}
+
+type AttributeTranslation {
+    name: String
+    language: LanguageDisplay!
+}
+
+type AttributeValueTranslation {
+    value: String
+    language: LanguageDisplay!
 }
 
 type ProductAttribute {
@@ -67,6 +99,15 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@update"
         )
+    updateAttributeTranslations(
+        id: ID!
+        input: AttributeTranslationInput!
+        code: String!
+        values: [AttributeValueTranslationInput]
+    ): Attributes!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@updateAttributeTranslation"
+        )
     deleteAttribute(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@delete"
@@ -75,23 +116,8 @@ extend type Mutation @guard {
 extend type Query @guard {
     attributes(
         search: String @search
-        where: _ 
-            @whereConditions(
-                columns: [
-                    "uuid",
-                    "id",
-                    "name"
-                ]
-            )
-        orderBy: _
-            @orderBy(
-                columns: [
-                    "id"
-                    "created_at"
-                    "updated_at"
-                    "name"
-                ]
-            )
+        where: _ @whereConditions(columns: ["uuid", "id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Attributes!]!
         @paginate(
             defaultCount: 25

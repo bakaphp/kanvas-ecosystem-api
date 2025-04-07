@@ -30,17 +30,21 @@ input UserInteractionInput {
 }
 
 extend type Mutation @guard {
-    userLikeEntity(input: UserInteractionInput!): Boolean
+    userLikeEntity(input: UserInteractionInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\UsersInteractions\\UsersInteractionsManagement@like"
         )
-    userUnLikeEntity(input: UserInteractionInput!): Boolean
+    userUnLikeEntity(input: UserInteractionInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\UsersInteractions\\UsersInteractionsManagement@unlike"
         )
-    userDisLikeEntity(input: UserInteractionInput!): Boolean
+    userDisLikeEntity(input: UserInteractionInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\UsersInteractions\\UsersInteractionsManagement@dislike"
+        )
+    shareUser(id: ID!): String!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersInteractions\\UsersInteractionsManagement@shareUser"
         )
 }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Enums;
 
 use Baka\Contracts\EnumsInterface;
+use Override;
 
 enum InteractionEnum implements EnumsInterface
 {
@@ -22,10 +23,21 @@ enum InteractionEnum implements EnumsInterface
     case REPLY;
     case PIN;
     case VIEW;
+    case REPORT;
+    case BLOCK;
 
-    /**
-     * Get value.
-     */
+    // Google Interaction Types
+    case SEARCH;
+    case VIEW_ITEM;
+    case VIEW_ITEM_LIST;
+    case VIEW_HOME_PAGE;
+    case VIEW_CATEGORY_PAGE;
+    case ADD_TO_CART;
+    case PURCHASE;
+    case MEDIA_PLAY;
+    case MEDIA_COMPLETE;
+
+    #[Override]
     public function getValue(): mixed
     {
         return match ($this) {
@@ -43,6 +55,17 @@ enum InteractionEnum implements EnumsInterface
             self::REPLY => 'reply',
             self::PIN => 'pin',
             self::VIEW => 'view',
+            self::SEARCH => 'search',
+            self::VIEW_ITEM => 'view-item',
+            self::VIEW_ITEM_LIST => 'view-item-list',
+            self::VIEW_HOME_PAGE => 'view-home-page',
+            self::VIEW_CATEGORY_PAGE => 'view-category-page',
+            self::ADD_TO_CART => 'add-to-cart',
+            self::PURCHASE => 'purchase',
+            self::MEDIA_PLAY => 'media-play',
+            self::MEDIA_COMPLETE => 'media-complete',
+            self::REPORT => 'report',
+            self::BLOCK => 'block',
         };
     }
 

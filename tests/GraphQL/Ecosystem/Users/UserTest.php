@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Users;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
@@ -66,6 +67,8 @@ class UserTest extends TestCase
                     'sex' => 'U',
                     'phone_number' => fake()->phoneNumber(),
                     'address_1' => fake()->address(),
+                    'timezone' => 'America/New_York',
+                    'welcome' => true,
                     'custom_fields' => [
                         [
                             'name' => 'test',
@@ -182,6 +185,47 @@ class UserTest extends TestCase
         ->assertSee('time')
         ->assertSee('timezone')
         ->assertSee('refresh_token');
+    }
+
+    public function testDuplicateChangePassword()
+    {
+        $newPassword = 'abc12345676';
+        $currentPassword = 'abc12345676';
+        $userData = $this->graphQL(/** @lang GraphQL */ '
+            { 
+                me {
+                    id,
+                    uuid,
+                    email
+                }
+            }
+        ');
+
+        $userDataProfile = $userData->json();
+        $user = Users::getById($userDataProfile['data']['me']['id']);
+        $user->resetPassword($currentPassword, app(Apps::class));
+
+        $email = $userDataProfile['data']['me']['email'];
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation changePassword(
+                $current_password: String!
+                $new_password: String!
+                $new_password_confirmation: String
+            ) {
+                changePassword(
+                    current_password: $current_password
+                    new_password: $new_password
+                    new_password_confirmation: $new_password_confirmation)
+            }
+        ', [
+            'current_password' => $currentPassword,
+            'new_password' => $currentPassword,
+            'new_password_confirmation' => $currentPassword,
+        ])
+        ->assertSuccessful()
+        ->assertSee('errors')
+        ->assertSee('message');
     }
 
     public function testChangeEmail(): void
@@ -326,5 +370,43 @@ class UserTest extends TestCase
                 'requestDeleteAccount' => true,
             ],
         ]);
+    }
+
+    public function testUploadFileToUser()
+    {
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+            mutation uploadFileToUser($id: ID!, $file: Upload!) {
+                uploadFileToUser(id: $id, file: $file)
+                    { 
+                        id
+                        displayname
+                        files{
+                            data {
+                                name
+                                url
+                            }
+                        }
+                    } 
+                }
+            ',
+            'variables' => [
+                'id' => 0,
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('avatar.jpg'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)->assertSee('id')
+            ->assertSee('displayname')
+            ->assertSee('files')
+            ->assertSee('avatar.jpg');
     }
 }

@@ -24,12 +24,16 @@ type Address {
     zip: String
     country: Country
     is_default: Boolean!
+    countries: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: Cities @belongsTo(relation: "city")
 }
 
 input ContactInput {
     value: String!
     contacts_types_id: ID!
     weight: Int
+    id: ID
 }
 
 input AddressInput {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
@@ -51,6 +52,20 @@ class VariantsWarehouses extends BaseModel
     protected $cascadeDeletes = ['variantWarehousesStatusHistory', 'pricesHistory', 'variantChannels'];
 
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return [
+            'price' => 'decimal:2',
+            'quantity' => 'integer',
+            'config' => Json::class
+        ];
+    }
+
+    public function getPriceAttribute(string|float $value): float
+    {
+        return (float) $value;
+    }
 
     /**
      * channels.
@@ -114,13 +129,11 @@ class VariantsWarehouses extends BaseModel
 
     public function variantChannels(): HasMany
     {
-        return $this->hasMany(VariantsChannels::class, 'product_variants_warehouse_id')->where('is_published', 1);
+        return $this->hasMany(VariantsChannels::class, 'product_variants_warehouse_id');
     }
 
     /**
      * Get the status history with the status information.
-     *
-     * @return array
      */
     public function getStatusHistory(): array
     {
@@ -128,9 +141,9 @@ class VariantsWarehouses extends BaseModel
 
         foreach ($this->statusHistory as $status) {
             $statusHistories[] = [
-                "id" => $status->id,
-                "name" => $status->name,
-                "from_date" => $status->pivot->from_date
+                'id' => $status->id,
+                'name' => $status->name,
+                'from_date' => $status->pivot->from_date,
             ];
         };
 
@@ -142,6 +155,7 @@ class VariantsWarehouses extends BaseModel
         $total = VariantsWarehouses::where('warehouses_id', $this->warehouse->getId())
                 ->where('is_deleted', 0)
                 ->sum('quantity');
+
         return (int) $total;
     }
 }

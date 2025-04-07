@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Agents\Models\Agent;
@@ -28,7 +29,6 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 
 /**
  * Class Leads.
@@ -62,7 +62,7 @@ use Laravel\Scout\Searchable;
 class Lead extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use HasTagsTrait;
     use FollowersTrait;
     use CanUseWorkflow;
@@ -81,16 +81,9 @@ class Lead extends BaseModel
         return 'Lead';
     }
 
-    public function participants(): HasManyThrough
+    public function participants(): HasMany
     {
-        return $this->hasManyThrough(
-            People::class,
-            LeadParticipant::class,
-            'peoples_id',
-            'leads_id',
-            'id',
-            'id'
-        );
+        return $this->hasMany(LeadParticipant::class, 'leads_id', 'id');
     }
 
     public function systemModule(): BelongsTo
@@ -101,6 +94,11 @@ class Lead extends BaseModel
 
     public function scopeFilterSettings(Builder $query, mixed $user = null): Builder
     {
+        //super admin can see all leads
+        if (app()->bound(AppKey::class)) {
+            return $query;
+        }
+
         $app = app(Apps::class);
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
@@ -184,7 +182,7 @@ class Lead extends BaseModel
 
     public function type(): BelongsTo
     {
-        return $this->belongsTo(LeadType::class, 'lead_types_id', 'id');
+        return $this->belongsTo(LeadType::class, 'leads_types_id', 'id');
     }
 
     public function organization(): BelongsTo
@@ -205,6 +203,11 @@ class Lead extends BaseModel
     public function attempt(): BelongsTo
     {
         return $this->belongsTo(LeadAttempt::class, 'id', 'leads_id');
+    }
+
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(LeadAttempt::class, 'leads_id', 'id');
     }
 
     public function branch(): BelongsTo
@@ -228,6 +231,22 @@ class Lead extends BaseModel
     {
         $this->leads_status_id = 6; //change by dynamic
         $this->saveOrFail();
+    }
+
+    public function setDuplicate(): self
+    {
+        $duplicate = LeadStatus::where('name', 'Duplicate')->first();
+
+        if ($duplicate) {
+            $this->leads_status_id = $duplicate->getId();
+        }
+
+        return $this;
+    }
+
+    public function duplicate(): void
+    {
+        $this->setDuplicate()->saveOrFail();
     }
 
     protected static function newFactory()

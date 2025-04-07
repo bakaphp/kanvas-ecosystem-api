@@ -30,11 +30,24 @@ input RegionInputUpdate {
     is_default: Int
 }
 
+input RegionReferenceInput {
+    id: ID!
+    name: String
+    slug: String
+}
+
 extend type Query @guard {
     regions(
         where: _
             @whereConditions(
-                columns: ["name", "slug", "short_slug", "is_default", "companies_id"]
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "short_slug"
+                    "is_default"
+                    "companies_id"
+                ]
             )
         orderBy: _ @orderBy(columns: ["id", "name", "created_at", "is_default"])
     ): [Region!]!

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\ProductsTypes\Actions;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
@@ -37,13 +38,14 @@ class CreateProductTypeAction
 
         return ProductsTypes::firstOrCreate([
             'companies_id' => $this->data->company->getId(),
-            'name' => $this->data->name,
+            'slug' => $this->dto->slug ?? Str::slug($this->data->name),
             'apps_id' => app(Apps::class)->getId(),
         ], [
+            'name' => $this->data->name,
             'description' => $this->data->description,
             'weight' => $this->data->weight,
             'users_id' => $this->user->getId(),
-            'is_published' => $this->data->is_published
+            'is_published' => $this->data->isPublished
         ]);
     }
 }

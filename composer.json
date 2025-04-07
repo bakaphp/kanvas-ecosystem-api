@@ -12,58 +12,80 @@
     "require": {
         "php": "^8.2",
         "algolia/algoliasearch-client-php": "^3.4",
-        "algolia/scout-extended": "^3.0",
+        "algolia/scout-extended": "^3.1",
+        "automattic/woocommerce": "^3.1",
         "awobaz/compoships": "^2.2",
+        "bacon/bacon-qr-code": "^3.0",
         "berkayk/onesignal-laravel": "^2.0",
-        "darryldecode/cart": "dev-l11-compatibility",
+        "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
+        "echolabsdev/prism": "^0.37.0",
         "genealabs/laravel-model-caching": "^11.0",
         "google/apiclient": "^2.16",
+        "google/cloud-discoveryengine": "^1.1",
+        "google/cloud-recommendations-ai": "^0.8.0",
+        "grantholle/laravel-username-generator": "*",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
+        "imdhemy/laravel-purchases": "^1.14",
+        "knplabs/knp-snappy": "^1.5",
         "laravel-workflow/laravel-workflow": "^1.0.24",
+        "laravel/cashier": "^15.4.0",
         "laravel/framework": "^11.0",
         "laravel/octane": "^2.3",
         "laravel/sanctum": "^4.0",
-        "laravel/scout": "^10.2",
         "laravel/socialite": "^5.14.0",
         "laravel/tinker": "^2.7",
         "lcobucci/jwt": "^5.2",
         "league/csv": "^9.0",
         "league/flysystem-aws-s3-v3": "^3.12",
+        "league/oauth2-client": "2.7.0",
         "meilisearch/meilisearch-php": "^1.4",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^3.1.0",
         "nevadskiy/laravel-tree": "^0.5.0",
         "nuwave/lighthouse": "^6.0",
+        "openai-php/client": "^0.10.3",
         "phpclassic/php-shopify": "^1.2",
         "powersync/authorizenet-sdk-php": "^2.0",
         "pusher/pusher-php-server": "^7.2",
+        "recombee/php-api-client": "^5.0",
+        "rennokki/laravel-eloquent-query-cache": "^3.6",
+        "ryanwinchester/netsuite-php": "^2024.2",
         "sentry/sentry-laravel": "^4.2",
+        "shish/safe": "^2.6",
         "shopify/shopify-api": "^5.3",
         "silber/bouncer": "^1.0",
         "spatie/laravel-data": "^4.5",
         "spatie/laravel-google-cloud-storage": "^2.3",
         "spatie/laravel-health": "^1.27",
+        "spatie/laravel-image-optimizer": "^1.8",
         "spatie/laravel-queueable-action": "^2.15",
+        "spatie/laravel-translatable": "^6.9",
         "spatie/laravel-webhook-server": "^3.8",
-        "stripe/stripe-php": "^15.0",
+        "stripe/stripe-php": "^13.0",
         "swoole/ide-helper": "*",
         "symfony/expression-language": "^7.0",
         "symfony/http-client": "^7.0",
         "symfony/mailgun-mailer": "^7.0",
+        "thiagoprz/eloquent-composite-key": "^1.0",
         "twilio/sdk": "^8.0",
+        "typesense/laravel-scout-typesense-driver": "^5.2",
+        "typesense/typesense-php": "^4.2",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^14.0",
         "vlucas/phpdotenv": "^5.5",
-        "webleit/zohocrmapi": "^5.3"
+        "wearepixel/laravel-cart": "^1.0",
+        "webleit/zohocrmapi": "^5.3",
+        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
         "kitloong/laravel-migrations-generator": "^7.0",
+        "larastan/larastan": "^3.0",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
-        "phpunit/phpunit": "^11.1",
-        "phpstan/phpstan": "^1.4.7"
+        "phpstan/phpstan": "^2.0.1",
+        "phpunit/phpunit": "^11.1"
     },
     "autoload": {
         "psr-4": {
@@ -71,13 +93,16 @@
             "Kanvas\\": "src/Kanvas",
             "Baka\\": "src/Baka",
             "Kanvas\\Inventory\\": "src/Domains/Inventory",
+            "Kanvas\\Subscription\\": "src/Domains/Subscription",
             "Kanvas\\Social\\": "src/Domains/Social",
             "Kanvas\\Guild\\": "src/Domains/Guild",
             "Kanvas\\ContentEngine\\": "src/Domains/ContentEngine",
             "Kanvas\\Souk\\": "src/Domains/Souk",
             "Kanvas\\Workflow\\": "src/Domains/Workflow",
             "Kanvas\\Connectors\\": "src/Domains/Connectors",
+            "Kanvas\\Dashboard\\": "src/Domains/Dashboard",
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
+            "Kanvas\\Event\\": "src/Domains/Event",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -102,6 +127,17 @@
             "@php artisan key:generate --ansi"
         ],
         "test": "php artisan test",
+        "migrate-all-kanvas": [
+            "php artisan migrate",
+            "php artisan migrate --path database/migrations/Inventory/ --database inventory",
+            "php artisan migrate --path database/migrations/Social/ --database social",
+            "php artisan migrate --path database/migrations/Guild/ --database crm",
+            "php artisan migrate --path database/migrations/Souk/ --database commerce",
+            "php artisan migrate --path database/migrations/ActionEngine/ --database action_engine",
+            "php artisan migrate --path database/migrations/Subscription/ --database mysql",
+            "php artisan migrate --path database/migrations/Event/ --database event",
+            "php artisan migrate --path database/migrations/Workflow/ --database workflow"
+        ],
         "migrate-kanvas": [
             "php artisan migrate"
         ],
@@ -125,7 +161,14 @@
         ],
         "migrate-laravel-workflow": [
             "php artisan migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow"
-        ]
+        ],
+        "migrate-subscription": [
+            "php artisan migrate --path database/migrations/Subscription/ --database mysql"
+        ],
+        "migrate-events": [
+            "php artisan migrate --path database/migrations/Event/ --database event"
+        ],
+        "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
     "repositories": [
         {
@@ -136,7 +179,10 @@
     "extra": {
         "laravel": {
             "dont-discover": []
-        }
+        },
+        "google/apiclient-services": [
+            "Sheets"
+        ]
     },
     "config": {
         "optimize-autoloader": true,

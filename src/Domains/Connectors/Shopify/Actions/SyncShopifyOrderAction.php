@@ -11,14 +11,18 @@ use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
+use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 
 class SyncShopifyOrderAction
@@ -43,10 +47,10 @@ class SyncShopifyOrderAction
                 city: $this->orderData['shipping_address']['city'] ?? '',
                 state: $this->orderData['shipping_address']['province'] ?? '',
                 country: $this->orderData['shipping_address']['country'] ?? '',
-                zipcode: $this->orderData['shipping_address']['zip'] ?? ''
+                zip: $this->orderData['shipping_address']['zip'] ?? '',
+                address_type_id: AddressType::getByName(AddressTypeEnum::SHIPPING->value, $this->app)->getId()
             ))
             : null;
-
         $billingAddress = ! empty($this->orderData['billing_address']['address1']) ?
             $customer->addAddress(new Address(
                 address: $this->orderData['billing_address']['address1'],
@@ -54,7 +58,8 @@ class SyncShopifyOrderAction
                 city: $this->orderData['billing_address']['city'],
                 state: $this->orderData['billing_address']['province'],
                 country: $this->orderData['billing_address']['country'],
-                zipcode: $this->orderData['billing_address']['zip']
+                zip: $this->orderData['billing_address']['zip'],
+                address_type_id: AddressType::getByName(AddressTypeEnum::BILLING->value, $this->app)->getId()
             ))
             : null;
 
@@ -76,7 +81,7 @@ class SyncShopifyOrderAction
             taxes: (float)  $this->orderData['current_total_tax'],
             totalDiscount: (float)  $this->orderData['total_discounts'],
             totalShipping: (float)   $this->orderData['total_shipping_price_set']['shop_money']['amount'],
-            status: ! empty($this->orderData['cancelled_at']) ? 'cancelled' : 'completed',
+            status: ! empty($this->orderData['cancelled_at']) ? OrderStatusEnum::CANCELED->value : OrderStatusEnum::COMPLETED->value,
             orderNumber: (string) $this->orderData['order_number'],
             shippingMethod: $this->orderData['shipping_lines'][0]['title'] ?? null,
             currency: Currencies::getByCode($this->orderData['currency']),
@@ -105,8 +110,20 @@ class SyncShopifyOrderAction
             return $orderExist;
         }
 
-        $order = (new CreateOrderAction($order))->execute();
+        /**
+         * @todo for now disable workflow but this is not the solution
+         * we may need workflow in the future
+         */
+        $order = (new CreateOrderAction($order))->disableWorkflow()->execute();
         $order->setShopifyId($this->region, $this->orderData['id']);
+
+        $order->fireWorkflow(
+            WorkflowEnum::PULL->value,
+            true,
+            [
+                'app' => $this->app,
+            ]
+        );
 
         /**
          * @todo move to workflow
@@ -147,6 +164,9 @@ class SyncShopifyOrderAction
         }
     }
 
+    /**
+     * @todo move ot use the DTO method
+     */
     protected function getOrderItems(): DataCollection
     {
         $orderItems = [];
@@ -167,7 +187,7 @@ class SyncShopifyOrderAction
             $orderItems[] = new OrderItem(
                 app: $this->app,
                 variant: $variant,
-                name: $lineItem['name'],
+                name: (string) $lineItem['name'],
                 sku: (string) ($lineItem['sku'] ?? $lineItem['variant_id']),
                 quantity: $lineItem['quantity'],
                 price: (float) $lineItem['price'],

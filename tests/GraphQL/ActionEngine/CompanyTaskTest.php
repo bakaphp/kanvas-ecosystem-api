@@ -67,6 +67,29 @@ class CompanyTaskTest extends TestCase
         ])->json();
     }
 
+    public function testGetLeadTaskList()
+    {
+        $lead = $this->createLeadAndGetResponse();
+
+        $this->graphQL('
+        query taskLists {
+            taskLists {
+                data {
+                    id
+                    name
+                    config
+                    tasks {
+                        id
+                        name
+                        }       
+                    }
+                }
+            }
+        }
+    ', [
+    ])->assertOk();
+    }
+
     public function testGetLeadTaskEngagement()
     {
         $lead = $this->createLeadAndGetResponse();
@@ -101,24 +124,6 @@ class CompanyTaskTest extends TestCase
                 }
             }
         }
-    ', [
-        'lead_id' => $leadId, // Passing the lead ID to the GraphQL query
-    ])->assertOk();
-    }
-
-    public function testSubscribeToLeadTask()
-    {
-        $lead = $this->createLeadAndGetResponse();
-        $leadId = $lead['data']['createLead']['id'];
-
-        $this->graphQL('
-        subscription leadTaskItemUpdated($lead_id: ID!) {
-            leadTaskItemUpdated(lead_id: $lead_id) {
-                id
-                status
-            }
-        }
-
     ', [
         'lead_id' => $leadId, // Passing the lead ID to the GraphQL query
     ])->assertOk();

@@ -12,9 +12,12 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Validations\UniqueSkuRule;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateVariantsAction
 {
+    protected bool $runWorkflow = true;
+
     /**
      * __construct.
      */
@@ -30,7 +33,7 @@ class CreateVariantsAction
     public function execute(): Variants
     {
         CompaniesRepository::userAssociatedToCompany(
-            $this->variantDto->product->company()->get()->first(),
+            $this->variantDto->product->company,
             $this->user
         );
 
@@ -50,7 +53,7 @@ class CreateVariantsAction
             'apps_id' => $this->variantDto->product->apps_id,
         ];
 
-        return Variants::updateOrCreate(
+        $variant = Variants::updateOrCreate(
             $search,
             [
                 'name' => $this->variantDto->name,
@@ -63,7 +66,17 @@ class CreateVariantsAction
                 'ean' => $this->variantDto->ean,
                 'barcode' => $this->variantDto->barcode,
                 'serial_number' => $this->variantDto->serial_number,
+                'weight' => $this->variantDto->weight ?? 0,
             ]
         );
+
+        if ($this->runWorkflow) {
+            $variant->product->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true
+            );
+        }
+
+        return $variant;
     }
 }

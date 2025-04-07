@@ -38,13 +38,13 @@ class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
         );
 
         if (! $customer->email) {
-            Log::error('Customer email not found');
+            //Log::error('Customer email not found');
 
             return ['error' => 'Customer email not found ' . $customer->id];
         }
         $people = PeoplesRepository::getByEmail($customer->email, $company);
         if (! $people) {
-            Log::error('People not found');
+            //Log::error('People not found');
 
             return ['error' => 'People not found' . $customer->email];
 
@@ -55,7 +55,7 @@ class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
         $dto = new PeopleSubscriptionDTO(
             app: $app,
             people: $people,
-            subscription_type: $subscriptions['plan']['nickname'],
+            subscription_type: $subscriptions['plan']['nickname'] ?? $subscriptions['plan']['product'],
             status: '1',
             first_date: date('Y-m-d H:i:s', $subscriptions['created']),
             start_date: date('Y-m-d H:i:s', $subscriptions['current_period_start']),

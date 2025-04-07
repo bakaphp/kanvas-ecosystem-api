@@ -6,11 +6,13 @@ namespace Kanvas\Inventory\Variants\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class DeleteVariantsAction
 {
+    protected bool $runWorkflow = true;
+
     /**
      * __construct.
      */
@@ -30,12 +32,15 @@ class DeleteVariantsAction
             $this->user
         );
 
-        $totalVariant = Variants::fromCompany($this->variant->company)->count();
+        $response = $this->variant->delete();
 
-        if ($totalVariant === 1 && ! $this->variant->is_deleted) {
-            throw new ValidationException('There must be at least one variant for each product.');
+        if ($this->runWorkflow) {
+            $this->variant->fireWorkflow(
+                WorkflowEnum::DELETED->value,
+                true
+            );
         }
 
-        return $this->variant->delete();
+        return $response;
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
 
@@ -14,31 +15,39 @@ class UserDeviceMutation
      */
     public function register(mixed $root, array $req): bool
     {
+        $app = app(Apps::class);
         $req = $req['data'];
         $source = Sources::where('title', $req['source_site'])->firstOrFail();
         $user = auth()->user();
 
-        UserLinkedSources::updateOrCreate([
+        $result = UserLinkedSources::firstOrNew([
             'users_id' => $user->getId(),
             'source_id' => $source->getId(),
             'source_users_id_text' => $req['device_id'],
-        ], [
-            'source_users_id' => $user->getId(),
-            'source_username' => $user->displayname . ' ' . $source->title,
-            'is_deleted' => 0,
         ]);
+
+        // Update the attributes explicitly
+        $result->apps_id = $app->getId();
+        $result->source_users_id = $user->getId();
+        $result->source_username = $user->displayname . ' ' . $source->title;
+        $result->is_deleted = 0;
+
+        // Save the model
+        $result->saveOrFail();
 
         return true;
     }
 
     public function remove(mixed $root, array $req): bool
     {
+        $app = app(Apps::class);
         $req = $req['data'];
         $source = Sources::where('title', $req['source_site'])->firstOrFail();
         $user = auth()->user();
 
         return (bool) UserLinkedSources::where('users_id', $user->getId())
             ->where('source_id', $source->getId())
+            ->whereIn('apps_id', [$app->getId(), null])
             ->where('source_users_id_text', $req['device_id'])
             ->update([
                 'is_deleted' => 1,

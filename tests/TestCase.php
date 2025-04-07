@@ -2,6 +2,9 @@
 
 namespace Tests;
 
+use Dotenv\Dotenv;
+use Illuminate\Container\Container;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
@@ -13,10 +16,16 @@ class TestCase extends BaseTestCase
     use CreatesApplication;
     use MakesGraphQLRequests;
 
+    protected string $graphqlVersion = 'graphql';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Dotenv::createImmutable(base_path())->load(); //load .env not .env.testing
+    }
+
     /**
      * createUser.
-     *
-     * @return Users
      */
     public function createUser(): Users
     {
@@ -27,6 +36,20 @@ class TestCase extends BaseTestCase
             'lastname' => fake()->lastName,
         ]);
         $user = (new RegisterUsersAction($dto))->execute();
+
         return $user;
+    }
+
+    protected function graphQLEndpointUrl(array $routeParams = []): string
+    {
+        $config = Container::getInstance()->make(ConfigRepository::class);
+
+        $routeName = match ($this->graphqlVersion) {
+            'graphql' => $config->get('lighthouse.route.name'),
+            'graphql-2025-01' => $config->get('lighthouse-multi-schema.multi_schemas.schema1.route_name'),
+            default => $config->get('lighthouse.route.name'),
+        };
+
+        return route($routeName, $routeParams);
     }
 }

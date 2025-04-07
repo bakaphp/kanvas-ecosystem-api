@@ -6,11 +6,13 @@ namespace Kanvas\Connectors\Shopify\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 
 class ShopifyProductService
 {
@@ -41,8 +43,18 @@ class ShopifyProductService
         $this->mapFilesForImport($files);
 
         //attributes
-        $productTags = ! empty($shopifyProduct['tags']) ? explode($shopifyProduct['tags'], ',') : [];
+        $productTags = ! empty($shopifyProduct['tags']) ? explode(',', $shopifyProduct['tags']) : [];
+        $productTags = array_map(function ($tag) {
+            return ['name' => $tag];
+        }, $productTags);
         $productAttributes = [];
+
+        $productType = $shopifyProduct['product_type'] ?? 'Default';
+        $productCategory = ! empty($shopifyProduct['category']) ? $shopifyProduct['category']['name'] : 'Uncategorized';
+
+        if ($this->app->get(ConfigEnum::SHOPIFY_PRODUCT_TYPE_AS_CATEGORY->value)) {
+            $productCategory = $productType;
+        }
 
         return [
            'name' => $name,
@@ -53,7 +65,8 @@ class ShopifyProductService
            'price' => 0,
            'discountPrice' => 0,
            'quantity' => 1,
-           'isPublished' => true,
+           'isPublished' => (int) ($shopifyProduct['status'] == 'active'),
+           'status' => $shopifyProduct['status'],
            'files' => $this->files['files'] ?? [],
            'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
            'sourceId' => $productId,
@@ -63,13 +76,18 @@ class ShopifyProductService
                    'data' => $productId,
                ],
            ],
+           'vendor' => $shopifyProduct['vendor'],
            'categories' => [
                [
-                   'name' => ! empty($shopifyProduct['product_type']) ? $shopifyProduct['product_type'] : 'Uncategorized',
-                   'code' => ! empty($shopifyProduct['product_type']) ? $shopifyProduct['product_type'] : 'Uncategorized',
+                   'name' => $productCategory,
+                   'code' => ! empty($shopifyProduct['category']) ? Str::afterLast($shopifyProduct['category']['admin_graphql_api_id'], '/') : 'Uncategorized',
                    'is_published' => true,
                    'position' => 1,
                ],
+           ],
+           'productType' => [
+                'name' => $productType,
+                'weight' => 0,
            ],
            'attributes' => [],
            'variants' => $this->mapVariantsForImport($shopifyProduct['variants'], $shopifyProduct['options']),
@@ -79,6 +97,7 @@ class ShopifyProductService
                      'channel' => $this->channel->name,
                 ],
            ],
+           'tags' => $productTags,
         ];
     }
 
@@ -100,10 +119,15 @@ class ShopifyProductService
                 'files' => $this->files['filesSystemVariantImages'][$variant['id']] ?? [],
                 'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
                 'sourceId' => $variant['id'],
+                'barcode' => $variant['barcode'],
                 'custom_fields' => [
                     [
                         'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
                         'data' => $variant['id'],
+                    ],
+                    [
+                        'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_INVENTORY_ID->value, $this->company, $this->app, $this->region),
+                        'data' => $variant['inventory_item_id'],
                     ],
                 ],
                 'warehouse' => [
@@ -139,10 +163,11 @@ class ShopifyProductService
 
             $path = parse_url($file['src'], PHP_URL_PATH);
             $filename = basename($path);
+            $cleanedFilename = Str::before($filename, '?'); //shopify name may have query string
 
             $shopifyImage = [
                 'url' => $file['src'],
-                'name' => $filename,
+                'name' => $cleanedFilename,
             ];
             $fileSystem[] = $shopifyImage;
             if (! empty($file['variant_ids'])) {

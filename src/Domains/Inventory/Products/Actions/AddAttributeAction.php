@@ -6,14 +6,10 @@ namespace Kanvas\Inventory\Products\Actions;
 
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Models\ProductsAttributes;
 
 class AddAttributeAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         private Products $product,
         private Attributes $attribute,
@@ -21,18 +17,25 @@ class AddAttributeAction
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Products
     {
-        if (empty($this->value)) {
+        if ($this->value === null || $this->value === '') {
             return $this->product;
         }
-        if ($this->product->attributes()->find($this->attribute->getId())) {
-            $this->product->attributes()->syncWithoutDetaching([$this->attribute->getId() => ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]]);
+        //Avoid to use sync method on models that can be translatable even pivot tables.
+        $productAttribute = ProductsAttributes::where('products_id', $this->product->getId())
+                            ->where('attributes_id', $this->attribute->getId())
+                            ->first();
+
+        if ($productAttribute) {
+            $productAttribute->value = $this->value;
+            $productAttribute->update();
         } else {
-            $this->product->attributes()->attach($this->attribute->getId(), ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]);
+            $productAttribute = new ProductsAttributes();
+            $productAttribute->products_id = $this->product->getId();
+            $productAttribute->attributes_id = $this->attribute->getId();
+            $productAttribute->value = $this->value; //is_array($this->value) ? json_encode($this->value) : $this->value;
+            $productAttribute->save();
         }
 
         return $this->product;

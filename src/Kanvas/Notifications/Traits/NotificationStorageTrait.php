@@ -33,8 +33,27 @@ trait NotificationStorageTrait
             $userId = $notifiable->getId();
         }
 
-        //@todo if content is empty, we should return empty array
-        //@todo change to the new notification logic
+        // Create a filtered copy of the data array without the keys we want to exclude
+        $filteredData = [];
+        if (isset($this->data) && is_array($this->data)) {
+            $keysToExclude = [
+                'apps_id',
+                'entity',
+                'app',
+                'options',
+                'fromUser',
+                'company',
+                'via',
+                'user',
+            ];
+
+            foreach ($this->data as $key => $value) {
+                if (! in_array($key, $keysToExclude)) {
+                    $filteredData[$key] = $value;
+                }
+            }
+        }
+
         return [
             'users_id' => $userId,
             'from_users_id' => $fromUserId,
@@ -44,6 +63,7 @@ trait NotificationStorageTrait
             'notification_type_id' => $this->getType()->getId(),
             'entity_id' => method_exists($this->entity, 'getId') ? $this->entity->getId() : $this->entity->id,
             'content' => $this->message(),
+            'entity_content' => $filteredData ?? [],
             'read' => 0,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),

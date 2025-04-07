@@ -28,6 +28,13 @@ input UpdateChannelInput {
     is_published: Int
 }
 
+enum ChannelProductFilterEnum {
+    SLUG @enum(value: "products.slug")
+    UUID @enum(value: "products.uuid")
+    NAME @enum(value: "products.name")
+    SKU @enum(value: "products.sku")
+}
+
 extend type Mutation @guard {
     createChannel(input: CreateChannelInput!): Channel!
         @field(
@@ -51,28 +58,52 @@ extend type Query @guard {
         search: String @search
         where: _
             @whereConditions(
-                columns: [
-                    "id"
-                    "name"
-                    "uuid"
-                    "is_published"
-                    "slug"
-                ]
+                columns: ["id", "name", "uuid", "is_published", "slug"]
             )
         orderBy: _
             @orderBy(
-                columns: [
-                    "id"
-                    "name"
-                    "slug"
-                    "created_at"
-                    "updated_at"
-                ]
+                columns: ["id", "name", "slug", "created_at", "updated_at"]
             )
     ): [Channel!]
         @paginate(
             model: "Kanvas\\Inventory\\Channels\\Models\\Channels"
             scopes: ["fromApp", "fromCompany"]
+            defaultCount: 25
+        )
+}
+
+extend type Query {
+    channelProducts(
+        id: String!
+        search: String @search
+        visitor: VisitorEntityInput
+        where: _ @whereConditions(columnsEnum: ChannelProductFilterEnum)
+        hasAttributesValues: _
+            @whereHasConditions(
+                relation: "attributeValues"
+                columns: ["products_variants_id", "value", "attributes_id"]
+            )
+        whereRating: _
+            @whereConditions(
+                columns: ["rating"]
+                handler: "App\\GraphQL\\Social\\Handlers\\UsersRatingsHandler"
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "products_id"
+                    "status_id"
+                    "is_published"
+                    "rating"
+                ]
+            )
+    ): [Product!]
+        @paginate(
+            builder: "App\\GraphQL\\Inventory\\Builders\\Channels\\AllProductsPublishedOnChannel@allProductsPublishedInChannel"
             defaultCount: 25
         )
 }

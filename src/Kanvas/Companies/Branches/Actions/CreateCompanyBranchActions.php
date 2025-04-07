@@ -36,21 +36,20 @@ class CreateCompanyBranchActions
             $this->data->is_default = (int) StateEnums::YES->getValue();
         }
 
-        if ($this->data->is_default === StateEnums::YES->getValue()) {
+        if ($this->data->is_default === StateEnums::YES->getValue() && $company->branches()->count() == 1) {
             $company->branches()->update(['is_default' => StateEnums::NO->getValue()]);
         }
 
         $companyBranch = new CompaniesBranches();
+        $companyBranch->companies_id = $this->data->companies_id;
         $companyBranch->users_id = $this->data->users_id;
         $companyBranch->is_default = $this->data->is_default;
         $companyBranch->name = $this->data->name;
-        $companyBranch->address = $this->data->address;
         $companyBranch->email = $this->data->email;
         $companyBranch->phone = $this->data->phone;
         $companyBranch->zipcode = $this->data->zipcode;
         $companyBranch->is_active = $this->data->is_active;
-
-        $company->branches()->save($companyBranch);
+        $companyBranch->saveOrFail();
 
         if ($this->data->files) {
             $companyBranch->addMultipleFilesFromUrl($this->data->files);

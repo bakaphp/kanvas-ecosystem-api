@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Enums;
 
 use Baka\Contracts\EnumsInterface;
+use Override;
 
 enum AppEnums implements EnumsInterface
 {
@@ -25,6 +26,8 @@ enum AppEnums implements EnumsInterface
     case ECOSYSTEM_COMPANY_ID;
     case DEFAULT_APP_NAME;
     case DEFAULT_COUNTRY;
+    case DEFAULT_COMPANY_LOCALE;
+    case DEFAULT_APP_LOCALE;
     case DEFAULT_USER_LEVEL;
     case CURRENCY;
     case FILESYSTEM;
@@ -47,13 +50,15 @@ enum AppEnums implements EnumsInterface
     case KANVAS_APP_BRANCH_HEADER;
     case KANVAS_APP_COMPANY_AUTH_HEADER;
     case KANVAS_APP_REGION_HEADER;
+    case KANVAS_APP_CURRENT_LOCALE_CODE;
     case DISPLAYNAME_LOGIN;
     case ANONYMOUS_USER_ID;
     case DEFAULT_APP_JWT_TOKEN_NAME;
+    case CSV_DATE_FORMAT;
 
-    /**
-     * Get value.
-     */
+    case DEFAULT_PUBLIC_SEARCH_USER_ID;
+
+    #[Override]
     public function getValue(): mixed
     {
         return match ($this) {
@@ -94,11 +99,16 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_KEY_HEADER => 'X-Kanvas-Key',
             self::KANVAS_APP_BRANCH_HEADER => 'X-Kanvas-Location',
             self::KANVAS_APP_REGION_HEADER => 'X-Kanvas-Region',
+            self::KANVAS_APP_CURRENT_LOCALE_CODE => 'X-Kanvas-Locale-Code',
             self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization', //@deprecated
             self::DISPLAYNAME_LOGIN => 'displayname_login',
-            self::VERSION => '1.0-RC3',
+            self::VERSION => '1.35.1',
             self::ANONYMOUS_USER_ID => -1,
             self::DEFAULT_APP_JWT_TOKEN_NAME => 'kanvas-login',
+            self::CSV_DATE_FORMAT => 'csv_date_format',
+            self::DEFAULT_PUBLIC_SEARCH_USER_ID => 'public_search_user_id',
+            self::DEFAULT_COMPANY_LOCALE => 'default_company_locale',
+            self::DEFAULT_APP_LOCALE => 'default_app_locale',
         };
     }
 

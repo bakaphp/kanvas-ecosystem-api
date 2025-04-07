@@ -37,6 +37,7 @@ trait NotificationOneSignalTrait
             'title' => $messageContent['title'] ?? '',
             'subtitle' => $messageContent['subtitle'] ?? '',
             'apps_id' => $this->app->getId(),
+            'data' => $this->getData()
         ];
     }
 }

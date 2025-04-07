@@ -29,12 +29,14 @@ type LeadTaskEngagementItem {
     updated_at: DateTime
 }
 
-type Subscription {
-  leadTaskItemUpdated(lead_id: ID!): LeadTaskEngagementItem @subscription(class: "App\\GraphQL\\ActionEngine\\Subscriptions\\TaskItemSubscription") @guard
-}
-
 extend type Query @guard {
-    leadTaskItems(lead_id: ID!): [LeadTaskEngagementItem!]!
+    taskLists: [TaskList!]!
+        @paginate(
+            model: "Kanvas\\ActionEngine\\Tasks\\Models\\TaskList"
+            scopes: ["fromCompany", "notDeleted", "fromApp"]
+            defaultCount: 25
+        )
+    leadTaskItems(lead_id: ID!, task_list_id: ID): [LeadTaskEngagementItem!]!
         @paginate(
             builder: "App\\GraphQL\\ActionEngine\\Builders\\Engagements\\TaskEngagementBuilder@getLeadTaskItems"
             defaultCount: 25
@@ -43,7 +45,13 @@ extend type Query @guard {
 }
 
 extend type Mutation @guard {
-    changeTaskEngagementItemStatus(id: ID!, lead_id: ID!, status: String!): Boolean!
+    changeTaskEngagementItemStatus(
+        id: ID!
+        lead_id: ID!
+        status: String!
+        message_id: ID
+        config: Mixed
+    ): Boolean!
         @field(
             resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\TaskEngagementMutation@changeEngagementTaskItemStatus"
         )

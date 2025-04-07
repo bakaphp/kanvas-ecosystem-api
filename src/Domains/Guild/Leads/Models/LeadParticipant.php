@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
-use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
 use Kanvas\Guild\Models\BaseModel;
-use Laravel\Scout\Searchable;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Class Leads.
@@ -19,15 +18,14 @@ use Laravel\Scout\Searchable;
  * @property int $leads_id
  * @property int $peoples_id
  * @property int $participants_types_id
- *
  */
 class LeadParticipant extends BaseModel
 {
-    use HasCompositePrimaryKeyTrait;
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
 
-    protected $primaryKey = ['leads_id', 'peoples_id'];
+    use CanUseWorkflow;
+
     protected $table = 'leads_participants';
     protected $guarded = [];
 
@@ -35,7 +33,7 @@ class LeadParticipant extends BaseModel
     {
         return $this->belongsTo(
             People::class,
-            'people_id',
+            'peoples_id',
             'id'
         );
     }

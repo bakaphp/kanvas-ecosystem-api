@@ -3,28 +3,78 @@ type Action {
     name: String!
     slug: String!
     description: String
-    icon: String
+    icon: Mixed
     form_fields: Mixed
     form_config: Mixed
     is_active: Boolean!
     is_published: Boolean!
     collects_info: Boolean!
     config: Mixed
-    parent: Action
-    children: [Action!]
+    parent: Action @belongsTo(relation: "parent")
+    children: [Action!] @hasMany(relation: "children")
 }
 
 type CompanyAction {
     id: ID!
-    action: Action!
-    company: Company!
+    action: Action! @belongsTo
+    company: Company! @belongsTo
     name: String!
     description: String
+    config: Mixed
     form_config: Mixed
     status: String
     is_active: Boolean!
     is_published: Boolean!
     weight: Float!
-    parent: CompanyAction
-    children: [CompanyAction!]
+    pipeline: ActionPipeline @belongsTo
+    parent: CompanyAction @belongsTo(relation: "parent")
+    children: [CompanyAction!] @hasMany(relation: "children")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+}
+
+extend type Query @guard {
+    companyActions(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "actions_id"
+                    "companies_id"
+                    "companies_branches_id"
+                    "parent_id"
+                    "path"
+                    "pipelines_id"
+                    "is_active"
+                    "is_published"
+                    "weight"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "weight"
+                    "name"
+                    "weight"
+                    "is_default"
+                ]
+            )
+    ): [CompanyAction!]!
+        @paginate(
+            model: "Kanvas\\ActionEngine\\Actions\\Models\\CompanyAction"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            defaultCount: 25
+        )
 }

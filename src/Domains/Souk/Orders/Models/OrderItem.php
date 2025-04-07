@@ -11,6 +11,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
+use Override;
 
 /**
  * Class OrderItem
@@ -20,18 +21,19 @@ use Laravel\Scout\Searchable;
  * @property string $uuid
  * @property string $product_name
  * @property string $product_sku
- * @property int $quantity
+ * @property int|float $quantity
  * @property float|null $unit_price_net_amount
  * @property float|null $unit_price_gross_amount
  * @property bool $is_shipping_required
  * @property int $order_id
- * @property int $quantity_fulfilled
+ * @property int|float $quantity_fulfilled
  * @property int $variant_id
  * @property float|null $tax_rate
  * @property string|null $translated_product_name
  * @property string|null $currency
  * @property string|null $translated_variant_name
  * @property string $variant_name
+ * @property bool $is_public
  * @property bool $is_deleted
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -55,5 +57,55 @@ class OrderItem extends BaseModel
     public function variant(): BelongsTo
     {
         return $this->belongsTo(Variants::class, 'variant_id', 'id');
+    }
+
+    #[Override]
+    public function casts(): array
+    {
+        return [
+            'id' => 'integer',
+            'apps_id' => 'integer',
+            'uuid' => 'string',
+            'product_name' => 'string',
+            'product_sku' => 'string',
+            'quantity' => 'float',
+            'unit_price_net_amount' => 'float',
+            'unit_price_gross_amount' => 'float',
+            'is_shipping_required' => 'boolean',
+            'order_id' => 'integer',
+            'quantity_fulfilled' => 'float',
+            'variant_id' => 'integer',
+            'tax_rate' => 'float',
+            'translated_product_name' => 'string',
+            'currency' => 'string',
+            'translated_variant_name' => 'string',
+            'variant_name' => 'string',
+            'is_deleted' => 'boolean',
+            'is_public' => 'boolean',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
+        ];
+    }
+
+    public function getPrice(): float
+    {
+        return (float) $this->unit_price_net_amount;
+    }
+
+    public function setPublic(): void
+    {
+        $this->is_public = true;
+        $this->saveOrFail();
+    }
+
+    public function setPrivate(): void
+    {
+        $this->is_public = false;
+        $this->saveOrFail();
+    }
+
+    public function isPublic(): bool
+    {
+        return $this->is_public;
     }
 }

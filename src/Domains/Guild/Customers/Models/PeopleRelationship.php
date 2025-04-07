@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Traits\DynamicSearchableTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Models\BaseModel;
-use Laravel\Scout\Searchable;
 
 /**
  * Class Peoples.
@@ -17,11 +17,10 @@ use Laravel\Scout\Searchable;
  * @property int $apps_id
  * @property string $name
  * @property string|null $description
- *
  */
 class PeopleRelationship extends BaseModel
 {
-    use Searchable;
+    use DynamicSearchableTrait;
 
     protected $table = 'leads_participants_types';
     protected $guarded = [];

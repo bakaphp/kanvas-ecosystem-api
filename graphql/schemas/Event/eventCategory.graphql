@@ -1,0 +1,43 @@
+type EventCategory {
+    id: ID!
+    name: String!
+    slug: String!
+    user: User! @belongsTo(relation: "user")
+    companies: Company! @belongsTo(relation: "company")
+    parent: EventCategory @belongsTo(relation: "parent")
+    eventType: EventType @belongsTo(relation: "eventType")
+    eventClass: EventType @belongsTo(relation: "eventClass")
+    position: Int!
+    created_at: DateTime
+    updated_at: DateTime
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+}
+
+extend type Query @guard {
+    eventCategories(
+        search: String @search
+        where: _
+            @whereConditions(columns: ["id", "name", "slug", "companies_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [EventCategory!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\EventCategory"
+            defaultCount: 25
+        )
+}

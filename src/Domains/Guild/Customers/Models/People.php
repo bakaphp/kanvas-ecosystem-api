@@ -4,21 +4,24 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 
 /**
  * Class People.
@@ -43,7 +46,7 @@ use Laravel\Scout\Searchable;
 class People extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use HasTagsTrait;
     use CanUseWorkflow;
     use SocialInteractionsTrait;
@@ -78,6 +81,15 @@ class People extends BaseModel
             'peoples_id',
             'id'
         );
+    }
+
+    public function leads(): HasMany
+    {
+        return $this->hasMany(
+            Lead::class,
+            'people_id',
+            'id'
+        )->orderBy('created_at', 'desc');
     }
 
     public function emails(): HasMany
@@ -141,7 +153,7 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getById(ContactTypeEnum::EMAIL->value)->getId()
+                    ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId()
                 )
                 ->get();
     }
@@ -154,7 +166,7 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getById(ContactTypeEnum::PHONE->value)->getId()
+                    ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId()
                 )
                 ->get();
     }
@@ -164,7 +176,7 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getById(ContactTypeEnum::CELLPHONE->value)->getId()
+                    ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId()
                 )
                 ->get();
     }
@@ -186,6 +198,8 @@ class People extends BaseModel
 
     public function addAddress(DataTransferObjectAddress $address): Address
     {
+        $typeId = $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->app)->getId();
+
         return Address::updateOrCreate(
             [
                 'peoples_id' => $this->id,
@@ -193,10 +207,33 @@ class People extends BaseModel
                 'city' => $address->city,
                 'state' => $address->state,
                 'countries_id' => $address->country ? Countries::getByName($address->country)->getId() : null,
-                'zip' => $address->zipcode,
+                'zip' => $address->zip,
             ],
             [
                 'address_2' => $address->address_2,
+                'address_type_id' => $typeId, // @todo move to search
+            ]
+        );
+    }
+
+    public function addEmail(string $email): Contact
+    {
+        return Contact::updateOrCreate(
+            [
+                'peoples_id' => $this->id,
+                'value' => $email,
+                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId(),
+            ]
+        );
+    }
+
+    public function addPhone(string $phone): Contact
+    {
+        return Contact::updateOrCreate(
+            [
+                'peoples_id' => $this->id,
+                'value' => $phone,
+                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
             ]
         );
     }
@@ -208,7 +245,10 @@ class People extends BaseModel
 
     public function searchableAs(): string
     {
-        $customIndex = $this->app ? $this->app->get('app_custom_people_index') : null;
+        //$people = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $people = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
+        $app = $people->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_people_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'peoples');
     }

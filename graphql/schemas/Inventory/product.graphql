@@ -5,10 +5,15 @@ type Product {
     name: String!
     slug: String!
     description: String
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     short_description: String
     html_description: String
     warranty_terms: String
     upc: String
+    system_module: SystemModule! @method(name: "getSystemModule")
     status: Status
     files: [Filesystem!]!
         @cacheRedis
@@ -17,25 +22,40 @@ type Product {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     is_published: Boolean
-    created_at: String
-    updated_at: String
+    created_at: DateTime
+    updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
-    attributes: [ProductAttribute!]! @BelongsToMany
+    attributes: [ProductAttribute!]! @method(name: "visibleAttributes") @cacheRedis
     variants: [Variant!]! @HasMany
+    integrations: [IntegrationsEntityReference!]!
+        @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo
     companies: Company! @belongsTo(relation: "company")
+    usersRatings: [UserRating!] @hasMany(relation: "usersRatings")
+    rating: Float
+    weight: Float
     custom_fields: [CustomField!]!
-        @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     tags: [Tag!]
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+}
+### @todo extract this into its own type.
+type EntityExport {
+    url: String!
+    message: Mixed!
+}
+
+type ProductTranslation {
+    name: String
+    description: String
+    language: LanguageDisplay!
 }
 
 input ProductInput {
@@ -57,6 +77,7 @@ input ProductInput {
     attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
     price: Float
+    weight: Float
     company_id: ID
     custom_fields: [CustomFieldEntityInput!]
 }
@@ -70,26 +91,60 @@ input ProductAttributesInput {
 input ProductInputUpdate {
     products_types_id: Int
     name: String
+    slug: String
     description: String
     short_description: String
     html_description: String
     warranty_terms: String
     upc: String
     is_published: Boolean
+    weight: Float
     status: StatusReferenceInput
     attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
     categories: [ProductCategoriesReferenceInput!]
 }
 
+input ProductAttributeOrderBy {
+    name: String
+    sort: String
+    format: FormatSortAttribute!
+}
+
+input ProductTranslationInput {
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+}
+
+enum FormatSortAttribute {
+    NUMERIC
+    STRING
+    DATE
+}
+
 extend type Mutation @guard {
-    createProduct(input: ProductInput!): Product
+    createProduct(input: ProductInput!): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"
         )
-    updateProduct(id: ID!, input: ProductInputUpdate): Product
+    updateProduct(id: ID!, input: ProductInputUpdate): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
+        )
+    updateProductTranslations(
+        id: ID!
+        input: ProductTranslationInput!
+        code: String!
+    ): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductTranslation"
+        )
+    uploadFileToProduct(id: ID!, file: Upload!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductMediaMutation@attachFileToProduct"
         )
     deleteProduct(id: ID!): Boolean
         @field(
@@ -120,6 +175,9 @@ extend type Mutation @guard {
 extend type Query @guard {
     products(
         search: String @search
+        variantAttributeValue: String
+        variantAttributeOrderBy: ProductAttributeOrderBy
+        attributeOrderBy: ProductAttributeOrderBy
         where: _
             @whereConditions(
                 columns: [
@@ -131,8 +189,11 @@ extend type Query @guard {
                     "code"
                     "uuid"
                     "is_published"
+                    "rating"
                 ]
             )
+        hasVariants: _
+            @whereHasConditions(relation: "variants", columns: ["id", "sku"])
         hasCategories: _
             @whereHasConditions(relation: "categories", columns: ["id", "name"])
         hasWarehouses: _
@@ -160,11 +221,25 @@ extend type Query @guard {
                 relation: "customFields"
                 columns: ["name", "value"]
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "weight"
+                    "rating"
+                ]
+            )
     ): [Product!]!
         @paginate(
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
             defaultCount: 25
+        )
+    productsExport: EntityExport
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"
         )
 }

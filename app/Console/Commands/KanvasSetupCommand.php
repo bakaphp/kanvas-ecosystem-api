@@ -45,12 +45,16 @@ class KanvasSetupCommand extends Command
             'migrate --path database/migrations/Souk/ --database commerce',
             'migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow',
             'migrate --path database/migrations/ActionEngine/ --database action_engine',
+            'migrate --path database/migrations/Subscription/ --database mysql',
+            'migrate --path database/migrations/Event/ --database event',
             'db:seed',
             'db:seed --class=Database\\\Seeders\\\GuildSeeder --database crm',
             'kanvas:create-role Admin',
             'kanvas:create-role Users',
             'kanvas:create-role Agents',
             'kanvas:filesystem-setup',
+            'kanvas:create-workflow-status',
+            'kanvas:update-abilities',
         ];
 
         foreach ($commands as $command) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Companies;
 
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class CompanyBranchTest extends TestCase
@@ -18,6 +19,15 @@ class CompanyBranchTest extends TestCase
             'email' => fake()->email(),
             'country_code' => 'US',
             'is_active' => fake()->boolean(),
+            'countries_id' => 1,
+            'states_id' => 1,
+            'cities_id' => 1,
+            'address' => fake()->address(),
+            'address_2' => fake()->address(),
+            'city' => fake()->city(),
+            'state' => fake()->state(),
+            'country' => fake()->country(),
+            'zip' => fake()->postcode(),
         ];
     }
 
@@ -37,7 +47,16 @@ class CompanyBranchTest extends TestCase
                     is_default,
                     companies_id,
                     email,
-                    phone
+                    phone,
+                    address,
+                    address_2,
+                    city,
+                    state,
+                    country,
+                    zip,
+                    countries {
+                        id
+                    }
                 }
             }',
             [
@@ -47,8 +66,13 @@ class CompanyBranchTest extends TestCase
         ->assertSuccessful()
         ->assertSee('name', $branchData['name'])
         ->assertSee('email', $branchData['email'])
-        ->assertSee('phone', $branchData['phone']);
-
+        ->assertSee('phone', $branchData['phone'])
+        ->assertSee('address', $branchData['address'])
+        ->assertSee('address_2', $branchData['address_2'])
+        ->assertSee('city', $branchData['city'])
+        ->assertSee('state', $branchData['state'])
+        ->assertSee('country', $branchData['country'])
+        ->assertSee('zip', $branchData['zip']);
         $this->assertEquals($userCompanyBranchCount + 1, auth()->user()->branches()->count());
     }
 
@@ -193,5 +217,45 @@ class CompanyBranchTest extends TestCase
         )
             ->assertSuccessful()
             ->assertSee('true');
+    }
+
+    public function testUploadFileToCompanyBranch()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+            mutation uploadFileToCompanyBranch($id: ID!, $file: Upload!) {
+                uploadFileToCompanyBranch(id: $id, file: $file)
+                    { 
+                        id
+                        name
+                        files{
+                            data {
+                                name
+                                url
+                            }
+                        }
+                    } 
+                }
+            ',
+            'variables' => [
+                'id' => $company->branch->getId(),
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('branch.jpg'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)->assertSee('id')
+            ->assertSee('name')
+            ->assertSee('files')
+            ->assertSee('branch.jpg');
     }
 }

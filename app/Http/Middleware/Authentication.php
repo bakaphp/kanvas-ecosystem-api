@@ -31,6 +31,10 @@ class Authentication
             throw new Exception('Invalid Token');
         }
 
+        if ($token->isExpired(now())) {
+            throw new Exception('Token Expired');
+        }
+
         //  $user = $this->sessionUser($token, $request);
 
         /*   App::bind(Users::class, function () use ($user) {

@@ -1,13 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 x-common-queue-settings: &common-queue-settings
   restart: always
-  build:
-    context: .
-    dockerfile: 1.x.Dockerfile
+  image: php-app-image # Reuse the same built image
   extra_hosts:
     - "host.docker.internal:host-gateway"
-  command: 
+  command:
     - "sh"
     - "-c"
     - "php artisan config:cache && php artisan queue:work --tries=3 --timeout=3750"
@@ -29,12 +27,15 @@ services:
     build:
       context: .
       dockerfile: 1.x.Dockerfile
+    image: php-app-image # Build the image here
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: 
-    - "sh"
-    - "-c"
-    - "php artisan octane:start --server=swoole"
+    ports:
+      - "8000:8000"
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan octane:start --server=swoole"
     environment:
       WWWUSER: "${WWWUSER}"
       LARAVEL_SAIL: 1
@@ -71,10 +72,18 @@ services:
     <<: *common-queue-settings
     container_name: queue6
 
+  queue7:
+    <<: *common-queue-settings
+    container_name: queue7
+
+  queue8:
+    <<: *common-queue-settings
+    container_name: queue8
+
   queue-social:
     <<: *common-queue-settings
     container_name: queue-social
-    command: 
+    command:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue kanvas-social --tries=3 --timeout=3750"
@@ -82,25 +91,154 @@ services:
   queue-notifications:
     <<: *common-queue-settings
     container_name: queue-notifications
-    command: 
+    command:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=3750"
-  
+
+  queue-user-interactions:
+    <<: *common-queue-settings
+    container_name: queue-user-interactions
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=user-interactions --tries=3 --timeout=3750"
+
   batch-logger-queue:
     <<: *common-queue-settings
     container_name: batch-logger-queue
-    command: 
-        - "sh"
-        - "-c"
-        - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
 
+  queue-imports:
+    <<: *common-queue-settings
+    container_name: queue-imports
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
+
+  queue-imports2:
+    <<: *common-queue-settings
+    container_name: queue-imports2
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
+
+  queue-scout-worker-1:
+    <<: *common-queue-settings
+    container_name: queue-scout-worker-1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue scout --tries=3 --timeout=3750"
+
+  queue-scout-worker-2:
+    <<: *common-queue-settings
+    container_name: queue-scout-worker-2
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue scout --tries=3 --timeout=3750"
+
+  queue-scout-worker-3:
+    <<: *common-queue-settings
+    container_name: queue-scout-worker-3
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue scout --tries=3 --timeout=3750"
+  queue-scrapper:
+    <<: *common-queue-settings
+    container_name: queue-scrapper
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3  --timeout=3750"
+  queue-scrapper-worker-1:
+    <<: *common-queue-settings
+    container_name: queue-scrapper-worker-1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3  --timeout=3750"
+  queue-scrapper-worker-2:
+    <<: *common-queue-settings
+    container_name: queue-scrapper-worker-2
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3  --timeout=3750"
+  queue-scrapper-worker-3:
+    <<: *common-queue-settings
+    container_name: queue-scrapper-worker-3
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3  --timeout=3750"
+  queue-scrapper-worker-4:
+    <<: *common-queue-settings
+    container_name: queue-scrapper-worker-4
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3  --timeout=3750"
+  queue-sync-shopify:
+    <<: *common-queue-settings
+    container_name: queue-sync-shopify-queue
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3  --timeout=3750"
+  queue-sync-shopify-worker-1:
+    <<: *common-queue-settings
+    container_name: queue-sync-shopify-queue-worker-1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3  --timeout=3750"
+  queue-sync-shopify-worker-2:
+    <<: *common-queue-settings
+    container_name: queue-sync-shopify-queue-worker-2
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3  --timeout=3750"
+  queue-workflow-1:
+    <<: *common-queue-settings
+    container_name: queue-workflow-1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=workflow --tries=3  --timeout=3750"
+  queue-workflow-2:
+    <<: *common-queue-settings
+    container_name: queue-workflow-2
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=workflow --tries=3  --timeout=3750"
+  queue-workflow-3:
+    <<: *common-queue-settings
+    container_name: queue-workflow-3
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=workflow --tries=3  --timeout=3750"
+  queue-workflow-4:
+    <<: *common-queue-settings
+    container_name: queue-workflow-4
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=workflow --tries=3  --timeout=3750"
   laravel-scheduler:
     container_name: laravel-scheduler
     restart: always
-    build:
-      context: .
-      dockerfile: 1.x.Dockerfile
+    image: php-app-image # Reuse the same image here
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:
@@ -151,6 +289,22 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       retries: 3
       timeout: 5s
+
+#  puppeteer:
+#    image: browserless/chrome
+#    container_name: puppeteer${APP_CONTAINER_NAME}
+#    environment:
+      # Enable preloading to optimize performance
+      #- PREBOOT_CHROME=true
+      # Optional: Define the max concurrency if required
+      #- MAX_CONCURRENT_SESSIONS=10
+      # Optional: You can set a custom token for API security
+      # - TOKEN=your_secure_token
+#    ports:
+     # - "3000:3000" # Expose Puppeteer API on port 3000
+#    restart: always
+#    networks:
+#      - sail
 
 networks:
   sail:

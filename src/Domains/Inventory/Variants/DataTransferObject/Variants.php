@@ -23,7 +23,8 @@ class Variants extends Data
         public ?string $barcode = null,
         public ?string $serial_number = null,
         public ?string $slug = null,
-        public array $files = []
+        public array $files = [],
+        public ?float $weight = null
     ) {
     }
 
@@ -47,7 +48,8 @@ class Variants extends Data
             $request['barcode'] ?? null,
             $request['serial_number'] ?? null,
             $request['slug'] ?? null,
-            $request['files'] ?? []
+            $request['files'] ?? [],
+            $request['weight'] ?? null
         );
     }
 }

@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Services;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
@@ -36,6 +40,13 @@ class VariantService
         $variantsData = [];
 
         foreach ($variants as $variant) {
+            /**
+             * @todo file upload mapper set type
+             */
+            if (empty($variant['files'])) {
+                $variant['files'] = [];
+            }
+
             $variantDto = VariantsDto::from([
                 'product' => $product,
                 'products_id' => $product->getId(),
@@ -55,9 +66,11 @@ class VariantService
             if (isset($variant['custom_fields']) && ! empty($variant['custom_fields'])) {
                 $variantModel->setAllCustomFields($variant['custom_fields']);
             }
-
+            $attributes = $product->app->get(AttributeConfigEnum::DEFAULT_VARIANT_ATTRIBUTE->value);
+            $attributes = $attributes && is_array($attributes) ? $attributes : [];
             if (isset($variant['attributes'])) {
-                $variantModel->addAttributes($user, $variant['attributes']);
+                $attributes = array_merge($attributes, $variant['attributes']); // to do: refactor for default attributes variant
+                $variantModel->addAttributes($user, $attributes);
             }
 
             if (isset($variant['status']['id'])) {
@@ -74,7 +87,7 @@ class VariantService
 
             if (isset($variant['warehouses'])) {
                 foreach ($variant['warehouses'] as $warehouseData) {
-                    $warehouse = WarehouseRepository::getById((int) $warehouseData['id'], $company);
+                    $warehouse = WarehouseRepository::getById((int) $warehouseData['id'], $company, $product->app);
                     WarehouseService::addToWarehouses(
                         $variantModel,
                         $warehouse,
@@ -106,7 +119,7 @@ class VariantService
         $variant = [
             'name' => $product->name,
             'description' => $product->description,
-            'sku' => $productDto->sku ?? null,
+            'sku' => $productDto->sku ?? Str::slug($product->name),
         ];
 
         $variantDto = VariantsDto::from([
@@ -128,6 +141,12 @@ class VariantService
         } else {
             $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
         }
+
+        if (! empty($productDto->warehouses) && isset($productDto->warehouses[0]['quantity']) && isset($productDto->warehouses[0]['price'])) {
+            $variant['warehouse']['quantity'] = $productDto->warehouses[0]['quantity'];
+            $variant['warehouse']['price'] = $productDto->warehouses[0]['price'];
+        }
+
         $variantWarehouses = VariantsWarehouses::viaRequest($variantModel, $warehouse, $variant['warehouse'] ?? []);
 
         (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
@@ -190,5 +209,61 @@ class VariantService
                 $channel,
                 $variantChannelDto
             ))->execute();
+    }
+
+    public static function compareInventory(AppInterface $app, CompanyInterface $company, array $barcodeList): array
+    {
+        $chunks = array_chunk($barcodeList, 50);
+        $missingVariants = [];
+
+        foreach ($chunks as $chunk) {
+            $foundVariants = Variants::query()
+            ->where(
+                fn ($query) => $query
+                ->whereIn('barcode', $chunk)
+                ->orWhereIn('ean', $chunk)
+            )
+            // ->where('companies_id', $company->id)
+            // ->where('apps_id', $app->id)
+            ->pluck('barcode')
+            ->toArray();
+
+            $missingVariants = [
+                ...$missingVariants,
+                ...array_values(array_diff($chunk, $foundVariants))
+            ];
+        }
+
+        return $missingVariants;
+    }
+
+    public static function updateVariantBySku(AppInterface $app, CompanyInterface $company, array $productSkus): array
+    {
+        $missingSkus = [];
+        $changedBarcodes = [];
+
+        foreach ($productSkus as $variantData) {
+            $variant = Variants::query()
+            ->where([
+                'sku' => $variantData['sku'],
+                'companies_id' => $company->id,
+                'apps_id' => $app->id
+            ])
+            ->first();
+
+            if ($variant) {
+                $variant->barcode = $variantData['barcode'];
+                $variant->save();
+
+                $changedBarcodes[] = $variantData['barcode'];
+            } else {
+                $missingSkus[] = $variantData['sku'];
+            }
+        }
+
+        return [
+            "missing_skus" => $missingSkus,
+            "changed_barcodes" => $changedBarcodes
+        ];
     }
 }

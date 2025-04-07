@@ -11,7 +11,7 @@ type VariantChannel {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@getChannel"
         )
-    price: Float
+    price: Money!
     ean: String
     files: [Filesystem]
         @paginate(
@@ -23,21 +23,22 @@ type VariantChannel {
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]!
+    attributes: [VariantsAttributes!]! @hasMany(relation: "attributes")
 }
 type ChannelsPricesHistoryRelationship {
-    price: Float!
+    price: Money!
     from_date: String!
 }
 type VariantChannelRelationship {
     channels_id: ID! @rename(attribute: "id")
     name: String
     description: String
-    price: Float
-    discounted_price: Float
+    price: Money!
+    discounted_price: Money!
     warehouses_id: ID
     slug: String
     is_published: Boolean
+    config: Mixed
     prices_history: [ChannelsPricesHistoryRelationship!]!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@getChannelHistory"

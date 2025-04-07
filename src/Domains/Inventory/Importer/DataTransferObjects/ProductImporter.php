@@ -17,7 +17,7 @@ class ProductImporter extends Data
         public array $variants,
         public ?string $description = null,
         public array $categories = [],
-        public int $quantity = 0,
+        public int|float $quantity = 0,
         public bool $isPublished = true,
         public float $discountPrice = 0.0,
         public int $position = 0,
@@ -27,6 +27,7 @@ class ProductImporter extends Data
         public ?string $upc = null,
         public ?string $source = null,
         public ?string $sourceId = null,
+        public ?string $status = null,
         public array $files = [],
         public array $productType = [],
         public array $attributes = [],
@@ -37,6 +38,8 @@ class ProductImporter extends Data
                 'channel' => 'default',
             ],
         ],
+        public array $tags = [],
+        public ?string $vendor = null,
     ) {
     }
 

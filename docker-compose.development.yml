@@ -1,16 +1,14 @@
-version: '3.8'
+version: "3.8"
 
 x-common-queue-settings: &common-queue-settings
   restart: always
-  build:
-    context: .
-    dockerfile: development.Dockerfile
+  image: php-app-image # Use the built image for all the services
   extra_hosts:
     - "host.docker.internal:host-gateway"
-  command: 
+  command:
     - "sh"
     - "-c"
-    - "php artisan config:cache && php artisan queue:work --tries=3 --timeout=3750"
+    - "php artisan config:cache && php artisan queue:work --tries=3 --queue=default,notifications,kanvas-social,batch-logger,imports --timeout=3750"
   environment:
     WWWUSER: "${WWWUSER}"
     LARAVEL_SAIL: 1
@@ -21,7 +19,14 @@ x-common-queue-settings: &common-queue-settings
     - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
     - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
   networks:
-    - sail
+    - kanvas_docker_swarm_network
+  deploy:
+      replicas: 1
+      restart_policy:
+        condition: any  # Always restart, even if it exits successfully
+        delay: 5s       # Wait 5 seconds before restarting
+        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        window: 30s 
 
 services:
   php:
@@ -29,12 +34,15 @@ services:
     build:
       context: .
       dockerfile: development.Dockerfile
+    image: php-app-image # Build the image here and tag it
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: 
-    - "sh"
-    - "-c"
-    - "php artisan octane:start --server=swoole"
+    ports:
+      - "8000:8000"
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan octane:start --server=swoole --task-workers=10"
     environment:
       WWWUSER: "${WWWUSER}"
       LARAVEL_SAIL: 1
@@ -45,62 +53,119 @@ services:
       - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
       - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
     networks:
-      - sail
+      - kanvas_docker_swarm_network
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any  # Always restart, even if it exits successfully
+        delay: 5s       # Wait 5 seconds before restarting
+        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        window: 30s 
 
   queue:
     <<: *common-queue-settings
     container_name: queue
 
-  queue2:
-    <<: *common-queue-settings
-    container_name: queue2
-
-  queue3:
-    <<: *common-queue-settings
-    container_name: queue3
-
-  queue4:
-    <<: *common-queue-settings
-    container_name: queue4
-
-  queue5:
-    <<: *common-queue-settings
-    container_name: queue5
-
-  queue6:
-    <<: *common-queue-settings
-    container_name: queue6
-
   batch-logger-queue:
     <<: *common-queue-settings
     container_name: batch-logger-queue
-    command: 
-        - "sh"
-        - "-c"
-        - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
 
   queue-social:
     <<: *common-queue-settings
     container_name: queue-social
-    command: 
+    command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue kanvas-social --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue=kanvas-social --tries=3 --timeout=3750"
 
   queue-notifications:
     <<: *common-queue-settings
     container_name: queue-notifications
-    command: 
+    command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue=notifications --tries=3 --timeout=3750"
+
+  queue-user-interactions:
+    <<: *common-queue-settings
+    container_name: queue-user-interactions
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=user-interactions --tries=3 --timeout=3750"
+
+  queue-imports:
+    <<: *common-queue-settings
+    container_name: queue-imports
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=imports --tries=3 --timeout=3750"
+  queue-scrapper:
+    <<: *common-queue-settings
+    container_name: queue-scrapper
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=3750"
+    deploy:
+      replicas: 4
+      restart_policy:
+        condition: any  # Always restart, even if it exits successfully
+        delay: 5s       # Wait 5 seconds before restarting
+        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        window: 30s 
+  queue-sync-shopify:
+    <<: *common-queue-settings
+    container_name: queue-sync-shopify-queue
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3 --timeout=3750"
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: any  # Always restart, even if it exits successfully
+        delay: 5s       # Wait 5 seconds before restarting
+        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        window: 30s 
+  queue-scout-worker:
+    <<: *common-queue-settings
+    container_name: queue-scout-worker
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue scout --tries=3 --timeout=3750"
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: any  # Always restart, even if it exits successfully
+        delay: 5s       # Wait 5 seconds before restarting
+        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        window: 30s 
+  queue-workflow:
+    <<: *common-queue-settings
+    container_name: queue-workflow
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=workflow --tries=3 --timeout=3750"
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: any  # Always restart, even if it exits successfully
+        delay: 5s       # Wait 5 seconds before restarting
+        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        window: 30s 
 
   laravel-scheduler:
     container_name: laravel-scheduler
     restart: always
-    build:
-      context: .
-      dockerfile: development.Dockerfile
+    image: php-app-image # Use the same image for the scheduler
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:
@@ -117,7 +182,7 @@ services:
       - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
       - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
     networks:
-      - sail
+      - kanvas_docker_swarm_network
 
   nginx:
     image: nginx:latest
@@ -130,7 +195,7 @@ services:
       - ".:/var/www/html"
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
     networks:
-      - sail
+      - kanvas_docker_swarm_network
     depends_on:
       - php
     healthcheck:
@@ -138,23 +203,11 @@ services:
       retries: 3
       timeout: 5s
 
-  redis:
-    container_name: redis${APP_CONTAINER_NAME}
-    image: "redis:alpine"
-    ports:
-      - "${FORWARD_REDIS_PORT:-6379}:6379"
-    volumes:
-      - "sail-redis:/data"
-    networks:
-      - sail
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      retries: 3
-      timeout: 5s
-
 networks:
   sail:
     driver: bridge
+  kanvas_docker_swarm_network:
+    driver: overlay
 
 volumes:
   sail-redis:

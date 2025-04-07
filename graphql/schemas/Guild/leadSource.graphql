@@ -1,8 +1,7 @@
 type LeadSource {
     id: ID!
-    uuid: ID
+    uuid: ID!
     name: String!
-    uuid: String!
     description: String
     is_active: Boolean
     leadType: LeadType

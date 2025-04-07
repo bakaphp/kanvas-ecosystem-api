@@ -20,9 +20,9 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Enums\StatusEnums;
-use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserNotificationService;
@@ -33,10 +33,8 @@ class CreateUserAction
 {
     protected Apps $app;
     protected bool $runWorkflow = true;
+    protected bool $extraValidation = false;
 
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected RegisterInput $data,
         ?Apps $app = null
@@ -44,10 +42,6 @@ class CreateUserAction
         $this->app = $app ?? app(Apps::class);
     }
 
-    /**
-     * Invoke function.
-     * @psalm-suppress MixedArgument
-     */
     public function execute(): Users
     {
         $newUser = false;
@@ -78,14 +72,18 @@ class CreateUserAction
             $this->assignUserRole($user);
         }
 
-        if (! $company) {
+        if ($company === null) {
             $company = $this->createCompany($user);
         }
 
         $this->assignCompany($user);
 
         if ($newUser && $company !== null) {
-            $this->onBoarding($user, $company);
+            (new SetupService())->onBoarding(
+                $user,
+                $this->app,
+                $company
+            );
         }
 
         UserNotificationService::sendWelcomeEmail($this->app, $user, $company);
@@ -97,6 +95,7 @@ class CreateUserAction
                 [
                     'company' => $company,
                     'password' => $this->data->raw_password,
+                    'app' => $this->app,
                 ]
             );
         }
@@ -112,6 +111,49 @@ class CreateUserAction
         );
 
         // This is the second time that we need get user data without an exception.
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+    }
+
+    protected function validateNames(): void
+    {
+        $validator = Validator::make(
+            [
+                'firstname' => $this->data->firstname,
+                'lastname' => $this->data->lastname,
+            ],
+            [
+                'firstname' => 'required|different:lastname',
+                'lastname' => 'required|different:firstname',
+            ],
+            [
+                'firstname.different' => 'Registration information appears to be invalid.',
+                'lastname.different' => 'Registration information appears to be invalid.',
+            ]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+    }
+
+    protected function validatePhoneNumber(): void
+    {
+        $totalDigits = $this->app->get('register_user_phone_number_digits') ?? 10;
+
+        $validator = Validator::make(
+            [
+                'phone_number' => $this->data->phone_number,
+            ],
+            [
+                'phone_number' => ['nullable', 'numeric', 'digits_between:1,' . $totalDigits],
+            ],
+            [
+                'phone_number.digits_between' => 'Invalid phone number.',
+            ]
+        );
+
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
@@ -138,6 +180,7 @@ class CreateUserAction
         $user->user_login_tries = 0;
         $user->user_last_login_try = 0;
         $user->default_company = $this->data->default_company ?? StateEnums::NO->getValue();
+        $user->default_company_branch = StateEnums::NO->getValue();
         $user->session_time = time();
         $user->session_page = StateEnums::NO->getValue();
         $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
@@ -164,11 +207,14 @@ class CreateUserAction
         $roles = $this->data->role_ids;
         if (empty($roles)) {
             $defaultAppSettingsRole = $this->app->get(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue());
-            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::ADMIN->value)];
+            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::USER->value)];
         }
 
         foreach ($roles as $role) {
-            $userRole = RolesRepository::getByMixedParamFromCompany($role);
+            $userRole = RolesRepository::getByMixedParamFromCompany(
+                param: $role,
+                app: $this->app
+            );
 
             $assignRole = new AssignRoleAction(
                 $user,
@@ -188,9 +234,15 @@ class CreateUserAction
         try {
             $selectedRoleId = ! empty($this->data->role_ids) ? $this->data->role_ids[0] : $defaultRole;
 
-            $role = RolesRepository::getByMixedParamFromCompany($selectedRoleId);
+            $role = RolesRepository::getByMixedParamFromCompany(
+                param: $selectedRoleId,
+                app: $this->app
+            );
         } catch (Throwable $e) {
-            $role = RolesRepository::getByMixedParamFromCompany($defaultRole);
+            $role = RolesRepository::getByMixedParamFromCompany(
+                param: $defaultRole,
+                app: $this->app
+            );
         }
 
         (new AssignCompanyAction(
@@ -199,19 +251,6 @@ class CreateUserAction
             $role,
             $this->app
         ))->execute();
-    }
-
-    protected function onBoarding(Users $user, ?CompanyInterface $company = null): void
-    {
-        try {
-            OnBoardingJob::dispatch(
-                $user,
-                $company instanceof CompanyInterface ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
-                $this->app
-            );
-        } catch (Throwable $e) {
-            //no email sent
-        }
     }
 
     protected function createCompany(Users $user): CompanyInterface
@@ -225,12 +264,11 @@ class CreateUserAction
         );
 
         $company = $createCompany->execute();
-
-        $user->default_company = (int) $company->getId();
-        $user->default_company_branch = (int) $company->defaultBranch()->first()->getId();
-        $user->saveOrFail();
-
         $branch = $company->branch()->firstOrFail();
+
+        $user->default_company = (int) $company->id;
+        $user->default_company_branch = (int) $branch->id;
+        $user->saveOrFail();
 
         $action = new AssignCompanyAction($user, $branch);
         $action->execute();
@@ -241,5 +279,10 @@ class CreateUserAction
     public function disableWorkflow(): void
     {
         $this->runWorkflow = false;
+    }
+
+    public function enableExtraValidation(): void
+    {
+        $this->extraValidation = true;
     }
 }

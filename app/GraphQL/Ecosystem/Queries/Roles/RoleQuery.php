@@ -36,7 +36,11 @@ class RoleQuery
      */
     public function hasRole(mixed $_, array $request): bool
     {
-        $role = RolesRepository::getByMixedParamFromCompany($request['role']);
+        $app = app(Apps::class);
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: $request['role'],
+            app: $app
+        );
 
         $user = UsersRepository::getUserOfCompanyById(
             auth()->user()->getCurrentCompany(),

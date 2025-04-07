@@ -6,22 +6,38 @@ namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
+use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Inventory\Products\Models\Products;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class SyncProductWithShopifyActivity extends Activity
+use function Sentry\captureException;
+
+use Throwable;
+
+class SyncProductWithShopifyActivity extends KanvasActivity
 {
-    public $tries = 5;
+    public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
 
     public function execute(Products $product, Apps $app, array $params): array
     {
-        $syncProductWithShopify = new SyncProductWithShopifyAction($product);
-        $response = $syncProductWithShopify->execute();
+        $this->overwriteAppService($app);
 
-        return [
-            'company' => $product->company->getId(),
-            'product' => $product->getId(),
-            'shopify_response' => $response,
-        ];
+        try {
+            $syncProductWithShopify = new SyncProductWithShopifyAction($product);
+            $response = $syncProductWithShopify->execute();
+
+            return [
+                'company' => $product->company->getId(),
+                'product' => $product->getId(),
+                'shopify_response' => $response,
+            ];
+        } catch (Throwable $e) {
+            captureException($e);
+
+            return [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ];
+        }
     }
 }
