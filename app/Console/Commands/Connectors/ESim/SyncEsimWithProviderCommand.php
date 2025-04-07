@@ -233,7 +233,6 @@ class SyncEsimWithProviderCommand extends Command
 
         $validStates = ['released', 'installed', 'active', 'enabled', 'enable'];
         $isValidState = in_array(strtolower($response['state']), $validStates);
-
         $remainingData = $totalBytesData;
 
         if ($iccid && $isActive) {
