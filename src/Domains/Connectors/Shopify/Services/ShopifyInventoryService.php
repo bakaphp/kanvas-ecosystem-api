@@ -252,6 +252,7 @@ class ShopifyInventoryService
 
         $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions, $partNumber));
         $response = $shopifyProduct->Variant($shopifyProductVariantId)->delete();
+        $variant->del($variant->getShopifyId($this->warehouses->regions));
 
         return $response;
     }
