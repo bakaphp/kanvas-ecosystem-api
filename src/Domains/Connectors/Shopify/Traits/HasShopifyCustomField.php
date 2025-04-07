@@ -22,6 +22,15 @@ trait HasShopifyCustomField
         };
     }
 
+    public function delShopifyId(Regions $region, ?string $part = null): int|string|null
+    {
+        return match (true) {
+            $this instanceof Variants => $this->del(ShopifyConfigurationService::getVariantKey($this, $region)),
+            $this instanceof Order => $this->del(ShopifyConfigurationService::getOrderKey($region)),
+            default => $this->del(ShopifyConfigurationService::getProductKey($this, $region) . $part),
+        };
+    }
+
     public function setShopifyId(Regions $region, int|string $shopifyId, ?string $part = null): void
     {
         match (true) {
