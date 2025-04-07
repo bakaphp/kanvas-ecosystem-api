@@ -53,7 +53,7 @@ class PushOrderToCommerceAction
             'phone_number' => null,
             'product_id' => $commerceProductId,
             'product_name' => $firstItem->product_name,
-            'language' => null,
+            'language' => 'es',
             'destination' => $descriptionName,
             'client_imei' => null,
             //'client_imei' => $esim->esimStatus->imei ?? 'USER_SKIPPED',

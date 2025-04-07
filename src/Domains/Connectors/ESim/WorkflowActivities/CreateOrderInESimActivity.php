@@ -174,6 +174,8 @@ class CreateOrderInESimActivity extends KanvasActivity
         } else {
             $parentOrder = Order::getById($order->metadata['parent_order_id']);
             $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
+            $message->setPublic();
+
             $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
             $order->updateOrFail();
             $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
