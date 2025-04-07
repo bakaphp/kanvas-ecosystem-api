@@ -2,6 +2,9 @@ name: Deploy to EC2 and Update Docker Swarm Service
 
 on:
   push:
+    branches:
+      - "development"
+
   workflow_dispatch:
 
 jobs:
