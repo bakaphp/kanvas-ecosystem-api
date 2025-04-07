@@ -63,6 +63,15 @@ class WorkflowMutationManagement
             return $results->output();
         }
 
+        /**
+         * @todo this is a temporary solution to return the report
+         */
+        if ($workflowAction == 'after-id-verification') {
+            return [
+                'report' => 'passed',
+            ];
+        }
+
         return ['success' => true];
     }
 }

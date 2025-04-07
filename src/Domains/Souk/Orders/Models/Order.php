@@ -92,6 +92,7 @@ class Order extends BaseModel
         'weight' => 'float',
         'payment_gateway_names' => Json::class,
         'metadata' => Json::class,
+        'private_metadata' => Json::class,
     ];
 
     public function region(): BelongsTo
@@ -112,6 +113,11 @@ class Order extends BaseModel
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class, 'order_id', 'id')->where('is_public', 1);
+    }
+
+    public function allItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class, 'order_id', 'id');
     }
 
     public function shippingAddress(): BelongsTo
@@ -270,6 +276,42 @@ class Order extends BaseModel
     public function getPhone(): ?string
     {
         return $this->user_phone ?? $this->people->getPhones()->first()?->phone;
+    }
+
+    public function addMetadata(string $key, mixed $value): void
+    {
+        $metadata = $this->metadata ?? [];
+        $metadata[$key] = $value;
+
+        $this->metadata = $metadata;
+        $this->saveOrFail();
+    }
+
+    public function addPrivateMetadata(string $key, mixed $value): void
+    {
+        $metadata = $this->private_metadata ?? [];
+        $metadata[$key] = $value;
+
+        $this->private_metadata = $metadata;
+        $this->saveOrFail();
+    }
+
+    public function getMetadata(string $key): mixed
+    {
+        if ($this->metadata === null) {
+            return null;
+        }
+
+        return $this->metadata[$key] ?? null;
+    }
+
+    public function getPrivateMetadata(string $key): mixed
+    {
+        if ($this->private_metadata === null) {
+            return null;
+        }
+
+        return $this->private_metadata[$key] ?? null;
     }
 
     #[Override]

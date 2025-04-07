@@ -30,7 +30,7 @@ class PushOrderToCommerceAction
         $commerceProductId = $variant->product->getAttributeBySlug('commerce-product-id')?->value ?? '20';
         $variantDuration = $variant->getAttributeBySlug('variant-duration')?->value ?? null;
 
-        return Http::withHeaders([
+        $response = Http::withHeaders([
             'X-API-Key' => $this->order->app->get(ConfigurationEnum::COMMERCE_API_KEY->value),
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
@@ -68,6 +68,8 @@ class PushOrderToCommerceAction
             'agent_name' => null,
             'is_unlimited' => (int) ($this->esim->esimStatus->unlimited ?? false),
             'total' => $this->order->total_net_amount,
-        ])->json();
+        ]);
+
+        return $response->json();
     }
 }

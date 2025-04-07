@@ -32,4 +32,5 @@ service-account.json
 frankenphp
 frankenphp-worker.php
 google_auth.json
+google-play-service-account.json
 typesense-data/

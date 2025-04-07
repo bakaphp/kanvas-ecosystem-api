@@ -45,7 +45,7 @@ trait HasTranslationsDefaultFallback
                 // Detect stringified array inside JSON and fix it
                 foreach ($decodedValue as $locale => $value) {
                     if (is_string($value) && Str::isJson($value)) {
-                        $decodedValue[$locale] = json_decode($value, true);
+                        $decodedValue[$locale] = json_decode($value, true, 512, JSON_BIGINT_AS_STRING);
                     }
                 }
             }

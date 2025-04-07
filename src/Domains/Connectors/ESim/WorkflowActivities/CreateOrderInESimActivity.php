@@ -14,14 +14,21 @@ use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\KanvasActivity;
+
+use function Sentry\captureException;
+
+use Stripe\StripeClient;
 use Throwable;
 
 class CreateOrderInESimActivity extends KanvasActivity
@@ -60,6 +67,8 @@ class CreateOrderInESimActivity extends KanvasActivity
 
         $providerValue = strtolower($provider->value);
         $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
+        $isRefuelOrder = isset($order->metadata['parent_order_id']) && ! empty($order->metadata['parent_order_id']);
+        $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
 
         try {
             /**
@@ -84,6 +93,8 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $response = $createOrder->createOrder();
             }
         } catch (ClientException $e) {
+            captureException($e);
+
             return [
                 'status' => 'error',
                 'message' => 'Error creating order in eSim',
@@ -91,7 +102,6 @@ class CreateOrderInESimActivity extends KanvasActivity
             ];
         }
 
-        $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
         $order->metadata = array_merge(($order->metadata ?? []), $response);
         $order->completed();
         //$order->saveOrFail();
@@ -131,34 +141,43 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $response['data']['plan'] = $sku; //overwrite the plan with the sku
             }
         } catch (Throwable $e) {
+            captureException($e);
             // Log the exception or handle it as needed
         }
 
         //create the esim for the user
-        $messageType = (new CreateMessageTypeAction(
-            new MessageTypeInput(
-                $app->getId(),
-                0,
-                'esim',
-                'esim',
-            )
-        ))->execute();
-        $createMessage = new CreateMessageAction(
-            new MessageInput(
-                $app,
-                $order->company,
-                $order->user,
-                $messageType,
-                $response
-            ),
-            SystemModulesRepository::getByModelName(Order::class, $app),
-            $order->getId()
-        );
+        if (! $isRefuelOrder) {
+            $messageType = (new CreateMessageTypeAction(
+                new MessageTypeInput(
+                    $app->getId(),
+                    0,
+                    'esim',
+                    'esim',
+                )
+            ))->execute();
+            $createMessage = new CreateMessageAction(
+                new MessageInput(
+                    $app,
+                    $order->company,
+                    $order->user,
+                    $messageType,
+                    $response
+                ),
+                SystemModulesRepository::getByModelName(Order::class, $app),
+                $order->getId()
+            );
 
-        $message = $createMessage->execute();
-        $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
-        $order->updateOrFail();
-        $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
+            $message = $createMessage->execute();
+            $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
+            $order->updateOrFail();
+            $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
+        } else {
+            $parentOrder = Order::getById($order->metadata['parent_order_id']);
+            $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
+            $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
+            $order->updateOrFail();
+            $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
+        }
 
         return [
             'status' => 'success',
@@ -168,19 +187,50 @@ class CreateOrderInESimActivity extends KanvasActivity
         ];
     }
 
+    /**
+     * @todo this is ugly as hell and should be moved to a service
+     */
     protected function sendOrderToCommerce(Order $order, ESim $esim, string $providerValue): array
     {
         try {
             $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
             $woocommerceResponse = $woocommerceOrder->execute($providerValue);
+
+            $orderCommerceId = $woocommerceResponse['order']['id'];
+            $order->set(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value, $woocommerceResponse['order']['id']);
+
+            $stripe = new StripeClient($order->app->get(EnumsConfigurationEnum::STRIPE_SECRET_KEY->value));
+
+            $clientSecret = $order->checkout_token;
+            $paymentIntentId = explode('_secret_', $clientSecret)[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
+
+            $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
+
+            $commerceOrder = new WooCommerceOrderService($order->app);
+            $updateResponse = $commerceOrder->updateOrderStripePayment(
+                $orderCommerceId,
+                (string) $paymentIntent->latest_charge,
+                'completed',
+                $paymentIntent->toArray(),
+            );
+
+            if (! empty($woocommerceResponse['order']['number'])) {
+                //$order->order_number = $woocommerceResponse['order']['number'];
+            }
+            $order->addPrivateMetadata('stripe_payment_intent', $paymentIntent->toArray());
+
+            return [
+                'order' => $woocommerceResponse,
+                'update' => $updateResponse ?? null,
+            ];
         } catch (Throwable $e) {
-            $woocommerceResponse = [
+            captureException($e);
+
+            return [
                 'status' => 'error',
-                'message' => 'Error creating order in WooCommerce',
+                'message' => 'Error sending order to commerce',
                 'response' => $e->getMessage(),
             ];
         }
-
-        return $woocommerceResponse;
     }
 }

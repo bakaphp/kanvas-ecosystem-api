@@ -45,6 +45,7 @@ class PaymentManagementMutation
         $intent = PaymentIntent::create([
             'amount' => $totalAmount,
             'currency' => 'usd',
+            //'customer' => $customer->id,
             ]);
 
         return [

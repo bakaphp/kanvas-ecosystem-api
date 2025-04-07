@@ -31,7 +31,7 @@ type Order {
     checkout_token: String
     currency: String
     metadata: Mixed
-    private_metadata: String
+    private_metadata: Mixed
     is_deleted: Boolean!
     created_at: String!
     updated_at: String
@@ -193,8 +193,6 @@ input GooglePlayInAppPurchaseReceipt {
     product_id: ID!
     order_id: String!
     purchase_token: String!
-    purchase_time: Int!
-    purchase_state: Int!
     region_id: ID
     custom_fields: [CustomFieldEntityInput!]
 }

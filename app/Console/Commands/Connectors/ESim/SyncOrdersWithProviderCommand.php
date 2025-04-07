@@ -15,6 +15,8 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Souk\Orders\Models\Order;
 
+use function Sentry\captureException;
+
 class SyncOrdersWithProviderCommand extends Command
 {
     use KanvasJobsTrait;
@@ -92,6 +94,7 @@ class SyncOrdersWithProviderCommand extends Command
         try {
             $response = $customerService->getEsimInfo($iccid);
         } catch (Exception $e) {
+            captureException($e);
             $this->info("Order ID: {$order->id} does not have an ICCID.");
             $order->cancel();
             $order->fulfillCancelled();

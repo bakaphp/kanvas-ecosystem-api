@@ -24,7 +24,8 @@ class Variants extends Data
         public ?string $serial_number = null,
         public ?string $slug = null,
         public array $files = [],
-        public ?float $weight = null
+        public ?float $weight = null,
+        public ?bool $is_published = true
     ) {
     }
 
@@ -49,7 +50,8 @@ class Variants extends Data
             $request['serial_number'] ?? null,
             $request['slug'] ?? null,
             $request['files'] ?? [],
-            $request['weight'] ?? null
+            $request['weight'] ?? null,
+            $request['is_published'] ?? true
         );
     }
 }

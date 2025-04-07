@@ -174,4 +174,18 @@ class NetSuiteProductService
 
         return $products;
     }
+
+    public function pullNetsuiteProductsSku(array $barcodeList): array
+    {
+        $productSkus = [];
+
+        foreach ($barcodeList as $index => $barcode) {
+            $product = $this->searchProductByItemNumber($barcode);
+            $product = $this->getProductById($product[0]->internalId);
+            $productSkus[$barcode] = $this->getCustomField($product, "custitem5");
+            echo 'Product ' . $index . ' of ' . count($barcodeList) . ' processed';
+            echo PHP_EOL;
+        }
+        return $productSkus;
+    }
 }

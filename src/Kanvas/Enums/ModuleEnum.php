@@ -12,4 +12,7 @@ enum ModuleEnum: int
     case SOCIAL = 4;
     case WORKFLOW = 5;
     case ACTION_ENGINE = 6;
+    case INTEGRATION = 7;
+    case TRANSLATE = 8;
+    case SETTING = 9;
 }
