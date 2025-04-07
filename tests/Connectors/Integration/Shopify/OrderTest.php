@@ -115,6 +115,10 @@ final class OrderTest extends TestCase
 
         $order = $createOrder->execute();
 
+        foreach ($order->items as $item) {
+            $shopify->saveVariant($item->variant);
+        }
+
         $createShopifyDraftOrder = new CreateShopifyDraftOrderAction($order);
         $shopifyOrderId = $createShopifyDraftOrder->execute();
 
