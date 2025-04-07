@@ -440,8 +440,8 @@ class FollowTest extends TestCase
         $response = $this->graphQL(
             /** @lang GraphQL */
             '
-            query getWhoToFollow($user_id: ID!, static_recommendation: Boolean!, $first: Int) {
-                getWhoToFollow(user_id: $user_id, $static_recommendation: false, first: $first) {
+            query getWhoToFollow($user_id: ID!, $static_recommendation: Boolean!, $first: Int) {
+                getWhoToFollow(user_id: $user_id, static_recommendation: $static_recommendation, first: $first) {
                     data {
                         id
                         uuid
