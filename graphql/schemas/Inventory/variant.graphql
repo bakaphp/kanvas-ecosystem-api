@@ -14,6 +14,7 @@ type Variant {
     status: Status
     rating: Float
     weight: Float
+    is_published: Boolean
     translation(languageCode: String!): ProductTranslation
         @field(
             resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
