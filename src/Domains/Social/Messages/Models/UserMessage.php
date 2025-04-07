@@ -119,7 +119,10 @@ class UserMessage extends BaseModel
             ->where('user_messages.apps_id', $app->getId())
             ->where('user_messages.is_deleted', 0)
             ->where('user_messages.is_reported', 0)
+            ->where('user_messages.is_deleted', 0)
             ->where('messages.is_deleted', 0)
+            ->where('messages.is_public', 1)
+            ->orderBy('messages.created_at', 'desc')
             ->select('messages.*');
     }
 
@@ -130,7 +133,6 @@ class UserMessage extends BaseModel
         int $limit = 25
     ): ?UserMessage {
         $offset = ($pageNumber - 1) * $limit;
-
         return self::fromApp($app)
             ->where('users_id', $user->getId())
             ->notDeleted()
