@@ -196,7 +196,7 @@ class ShopifyInventoryService
             'quantity' => $quantity,
             'compare_at_price' => $discountedPrice ?? 0,
             'inventory_policy' => 'deny',
-            'published' => $price > 0,
+            'published' => $variant->is_published,
             'weight' => $variant->get(ConfigurationEnum::WEIGHT_UNIT->value) ?? 453.592,
             'weight_unit' => 'g',
         ];
@@ -353,7 +353,7 @@ class ShopifyInventoryService
             return;
         }
 
-        $response = $this->shopifySdk->Collect->post($collectData);
+        $this->shopifySdk->Collect->post($collectData);
     }
 
     /**
