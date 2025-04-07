@@ -61,6 +61,7 @@ class UpdateVariantsAction
                 'barcode' => $this->variantDto->barcode ?? $this->variant->barcode,
                 'serial_number' => $this->variantDto->serial_number ?? $this->variant->serial_number,
                 'weight' => $this->variantDto->weight ?? $this->variant->weight ?? 0,
+                'is_published' => $this->variantDto->is_published,
             ]
         );
 

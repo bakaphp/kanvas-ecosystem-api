@@ -22,7 +22,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\TestCase;
 
-final class OrderTest extends TestCase
+final class ZOrderTest extends TestCase
 {
     use HasShopifyConfiguration;
 
@@ -114,6 +114,17 @@ final class OrderTest extends TestCase
         );
 
         $order = $createOrder->execute();
+
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
+        foreach ($order->items as $item) {
+            $shopify->saveProduct($item->variant->product, StatusEnum::ACTIVE);
+            $shopify->saveVariant($item->variant);
+            $shopify->publishProduct($item->variant->product);
+        }
 
         $createShopifyDraftOrder = new CreateShopifyDraftOrderAction($order);
         $shopifyOrderId = $createShopifyDraftOrder->execute();
