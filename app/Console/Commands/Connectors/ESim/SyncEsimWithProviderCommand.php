@@ -206,7 +206,7 @@ class SyncEsimWithProviderCommand extends Command
         ];
     }
 
-    private function formatCmLinkResponse(Message $message, array $response, $cmLinkCustomerService): array
+    private function formatCmLinkResponse(Message $message, array $response, CustomerService $cmLinkCustomerService): array
     {
         $iccid = $message->message['data']['iccid'] ?? null;
         $existingActivationDate = $message->message['esim_status']['activationDate'] ?? null;
