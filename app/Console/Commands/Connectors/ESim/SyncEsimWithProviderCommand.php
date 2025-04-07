@@ -242,10 +242,8 @@ class SyncEsimWithProviderCommand extends Command
         $remainingData = $totalBytesData;
 
         if ($iccid && $isValidState) {
-            if (! empty($activePlan[0]['remainFlow'])) {
-                // Convert remainFlow to bytes - assuming it's in MB
-                $remainingData = (float)$activePlan[0]['remainFlow'] * 1024 * 1024; // Convert MB to bytes
-            }
+            // Convert remainFlow to bytes - assuming it's in MB
+            $remainingData = (float)$activePlan[0]['remainFlow'] * 1024 * 1024; // Convert MB to bytes
         } elseif ($isValidState == false && $remainingData <= 0) {
             $remainingData = $totalBytesData;
         }
