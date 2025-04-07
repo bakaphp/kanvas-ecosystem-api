@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::table('email_templates', function (Blueprint $table) {
             //
             $table->boolean('is_system')->default(false)->after('template');
+            $table->index(['is_system']);
         });
     }
 
