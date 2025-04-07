@@ -222,7 +222,7 @@ class SyncEsimWithProviderCommand extends Command
                 $activationDate = $userPlans['userDataBundles'][0]['activeTime'];
                 $activationDate = $existingActivationDate;
             }
-        } elseif (!empty($existingActivationDate)) {
+        } elseif (! empty($existingActivationDate)) {
             // If activation date already exists, preserve it
             $activationDate = $existingActivationDate;
         }
