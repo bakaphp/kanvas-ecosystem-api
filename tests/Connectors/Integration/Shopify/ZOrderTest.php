@@ -22,7 +22,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\TestCase;
 
-final class OrderTest extends TestCase
+final class ZOrderTest extends TestCase
 {
     use HasShopifyConfiguration;
 
