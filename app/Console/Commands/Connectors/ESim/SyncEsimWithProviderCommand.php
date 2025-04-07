@@ -209,22 +209,28 @@ class SyncEsimWithProviderCommand extends Command
     private function formatCmLinkResponse(Message $message, array $response, CustomerService $cmLinkCustomerService): array
     {
         $iccid = $message->message['data']['iccid'] ?? null;
-        $existingActivationDate = $message->message['esim_status']['activationDate'] ?? null;
         $userPlans = $cmLinkCustomerService->getUserPlans($iccid);
+
+        // Find the active plan with status = 3
+        $activePlan = null;
+        if ($iccid && ! empty($userPlans['userDataBundles'])) {
+            foreach ($userPlans['userDataBundles'] as $plan) {
+                if ($plan['status'] == 3) {
+                    $activePlan = $plan;
+                    break;
+                }
+            }
+        }
 
         $installedDate = $response['installTime'] ?? (! empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
         $status = strtolower($response['state']);
         $isActive = IccidStatusEnum::getStatus($status) == 'active';
 
         $activationDate = null;
-        if ($iccid && $isActive) {
-            if (! empty($userPlans['userDataBundles'][0]['activeTime'])) {
-                $activationDate = $userPlans['userDataBundles'][0]['activeTime'];
-                $activationDate = $existingActivationDate;
+        if ($iccid && $isActive && $activePlan) {
+            if (! empty($activePlan['activeTime'])) {
+                $activationDate = $activePlan['activeTime'];
             }
-        } elseif (! empty($existingActivationDate)) {
-            // If activation date already exists, preserve it
-            $activationDate = $existingActivationDate;
         }
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
@@ -235,7 +241,7 @@ class SyncEsimWithProviderCommand extends Command
         $isValidState = in_array(strtolower($response['state']), $validStates);
         $remainingData = $totalBytesData;
 
-        if ($iccid && $isActive) {
+        if ($iccid && $isValidState) {
             if (! empty($userPlans['userDataBundles'][0]['remainFlow'])) {
                 // Convert remainFlow to bytes - assuming it's in MB
                 $remainingData = (float)$userPlans['userDataBundles'][0]['remainFlow'] * 1024 * 1024; // Convert MB to bytes
