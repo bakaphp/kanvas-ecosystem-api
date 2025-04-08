@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Models;
@@ -80,7 +81,6 @@ class Message extends BaseModel
     use AsTree;
     use CanUseWorkflow;
     use HasLightHouseCache;
-    //use Cachable;
     use HasFilesystemTrait;
     use QueryCacheable;
 
@@ -159,7 +159,6 @@ class Message extends BaseModel
             return json_decode($value, true);
         }
 
-        // If all attempts fail, return original value
         return is_array($value) ? $value : [];
     }
 
