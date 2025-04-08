@@ -210,6 +210,7 @@ class SyncEsimWithProviderCommand extends Command
     {
         $iccid = $message->message['data']['iccid'] ?? null;
         $userPlans = $cmLinkCustomerService->getUserPlans($iccid);
+        $estTimezone = 'America/New_York';
 
         // Find the active plan with status = 3
         $activePlan = null;
@@ -251,33 +252,28 @@ class SyncEsimWithProviderCommand extends Command
         if ($iccid && isset($activePlan) && ! empty($activePlan['expireTime'])) {
             $expirationDate = $activePlan['expireTime'];
         } else {
-            $expirationBaseDate = $activationDate ?? $installedDate;
-            $expirationDate = Carbon::parse($expirationBaseDate)
-                ->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)
-                ->format('Y-m-d H:i:s');
-        }
-
-        /**
-         * @todo Move this to somewhere more central
-         */
-        if (now()->greaterThan(Carbon::parse($expirationDate))) {
-            $message->setPrivate();
-        } elseif ($isValidState) {
-            $message->setPublic();
-        } else {
-            $message->setPrivate();
+            if ($activationDate == null) {
+                $expirationDate = null;
+            } else {
+                $expirationBaseDate = $activationDate;
+                $expirationDate = Carbon::parse($expirationBaseDate)
+                    ->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)
+                    ->format('Y-m-d H:i:s');
+            }
         }
 
         // Initialize spentMessage as null
         $spentMessage = null;
-        $expirationDay = Carbon::parse($expirationDate);
-        $today = now();
+        if ($expirationDate != null) {
+            $expirationDay = Carbon::parse($expirationDate);
+        }
+        $today = Carbon::now()->setTimezone($estTimezone);
 
         if ($remainingData <= 0 && $isValidState == false) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
-        } elseif ($remainingData == 0 && $isValidState == true) {
+        } elseif ($remainingData == 0 && $isValidState == true && $expirationDate != null) {
             /**
              * @todo Move those spanish strings to app settings
              */
@@ -288,14 +284,31 @@ class SyncEsimWithProviderCommand extends Command
             }
         }
 
-        // Convert dates to EST timezone right before creating the ESimStatus object
-        $estTimezone = 'America/New_York';
-
         if ($activationDate) {
             $activationDate = Carbon::parse($activationDate)->setTimezone($estTimezone)->format('Y-m-d H:i:s');
         }
 
-        $expirationDate = Carbon::parse($expirationDate)->setTimezone($estTimezone)->format('Y-m-d H:i:s');
+        if ($expirationDate != null) {
+            $expirationDate = Carbon::parse($expirationDate)->setTimezone($estTimezone)->format('Y-m-d H:i:s');
+        }
+
+        /**
+         * @todo Move this to somewhere more central
+         */
+        if ($expirationDate == null) {
+            $expired = false;
+        } else {
+            $nowInEST = Carbon::now()->setTimezone($estTimezone);
+            $expired = $nowInEST->greaterThan($expirationDate);
+        }
+
+        if ($expired) {
+            $message->setPrivate();
+        } elseif ($isValidState) {
+            $message->setPublic();
+        } else {
+            $message->setPrivate();
+        }
 
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],

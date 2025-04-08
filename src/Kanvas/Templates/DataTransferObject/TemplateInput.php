@@ -27,8 +27,11 @@ class TemplateInput extends Data
         public Apps $app,
         public string $name,
         public string $template,
+        public ?string $subject = null,
+        public ?string $title = null,
+        public bool $isSystem = false,
         public ?Companies $company = null,
-        public ?Users $user = null
+        public ?Users $user = null,
     ) {
     }
 }

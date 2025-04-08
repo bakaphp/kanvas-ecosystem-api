@@ -7,12 +7,12 @@ namespace Kanvas\Connectors\Recombee\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Recombee\Client;
-use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Recombee\RecommApi\Client as RecommApiClient;
 use Recombee\RecommApi\Requests\RecommendItemsToUser;
 use Recombee\RecommApi\Requests\RecommendNextItems;
 use Recombee\RecommApi\Requests\RecommendUsersToUser;
+use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 use Throwable;
 
 class RecombeeUserRecommendationService
@@ -90,13 +90,12 @@ class RecombeeUserRecommendationService
     public function getUserToUserRecommendation(
         UserInterface $user,
         int $count = 10,
-        string $scenario = 'user-follow-suggestion-similar-interests',
+        string $scenario = ScenariosEnum::USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS->value,
         array $additionalOptions = []
     ): array {
         $options = array_merge([
             'scenario' => $scenario,
             'cascadeCreate' => true,
-            //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
         ], $additionalOptions);
 
         $recommendation = $this->client->send(
