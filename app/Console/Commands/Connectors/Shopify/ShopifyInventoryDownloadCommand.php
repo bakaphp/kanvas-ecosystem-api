@@ -57,7 +57,7 @@ class ShopifyInventoryDownloadCommand extends Command
         if ($this->option('handle') !== '') {
             $params['handle'] = $this->option('handle');
         }
-        
+
         $total = $downloadProduct->execute($params);
 
         $this->info($total . ' Products downloaded successfully from Shopify to warehouse. Running queue');
