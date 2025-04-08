@@ -1,4 +1,5 @@
 type Template {
+    id: ID!
     users_id: Int!
     companies_id: Int!
     user: User @belongsTo(relation: "user")
@@ -11,6 +12,9 @@ type Template {
     created_at: String
     updated_at: String
     is_deleted: Int
+    is_system: Boolean
+    title: String
+    subject: String
 }
 
 input TemplateInput {
@@ -18,6 +22,9 @@ input TemplateInput {
     parent_template_id: Int!
     template_variables: [TemplateVariableInput!]!
     template: String!
+    title: String
+    subject: String
+    is_system: Boolean
 }
 
 type TemplateVariables {
@@ -39,6 +46,10 @@ extend type Mutation @guard {
     updateTemplate(input: TemplateInput!): Template!
         @field(
             resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@createOrUpdate"
+        )
+    deleteTemplate(id: ID!): Boolean
+        @field(
+            resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@deleteTemplate"
         )
 }
 

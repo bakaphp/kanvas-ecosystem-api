@@ -1,4 +1,4 @@
-type Product {
+type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     id: ID!
     products_types_id: ID
     uuid: String!
@@ -46,6 +46,7 @@ type Product {
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
 }
+
 ### @todo extract this into its own type.
 type EntityExport {
     url: String!

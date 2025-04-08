@@ -81,7 +81,6 @@ class Message extends BaseModel
     use AsTree;
     use CanUseWorkflow;
     use HasLightHouseCache;
-    //use Cachable;
     use HasFilesystemTrait;
     use QueryCacheable;
 
@@ -98,6 +97,7 @@ class Message extends BaseModel
         'message' => Json::class,
         'message_types_id' => 'integer',
         'is_public' => 'integer',
+        'is_deleted' => 'boolean',
     ];
 
     #[Override]
@@ -159,7 +159,6 @@ class Message extends BaseModel
             return json_decode($value, true);
         }
 
-        // If all attempts fail, return original value
         return is_array($value) ? $value : [];
     }
 
