@@ -18,7 +18,7 @@ class ShopifyInventoryDownloadCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:inventory-download-from-shopify-sync {app_id} {branch_id} {warehouse_id} {channel_id?} {--sku=}';
+    protected $signature = 'kanvas:inventory-download-from-shopify-sync {app_id} {branch_id} {warehouse_id} {channel_id?} {--sku=} {--product_id=} {--handle=}';
 
     /**
      * The console command description.
@@ -47,7 +47,17 @@ class ShopifyInventoryDownloadCommand extends Command
             $channel
         );
 
-        $params = $this->option('sku') ? ['sku' => $this->option('sku')] : [];
+        $params = [];
+        if ($this->option('sku') !== '') {
+            $params['sku'] = $this->option('sku');
+        }
+        if ($this->option('product_id') !== '') {
+            $params['product_id'] = $this->option('product_id');
+        }
+        if ($this->option('handle') !== '') {
+            $params['handle'] = $this->option('handle');
+        }
+        
         $total = $downloadProduct->execute($params);
 
         $this->info($total . ' Products downloaded successfully from Shopify to warehouse. Running queue');
