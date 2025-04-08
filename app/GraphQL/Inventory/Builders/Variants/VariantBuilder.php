@@ -23,9 +23,28 @@ class VariantBuilder
         if (! $user->isAppOwner()) {
             //Variants::setSearchIndex($company->getId());
         }
+
         /**
          * @var Builder
          */
         return Variants::query();
+    }
+
+    public function filterByPublished(
+        Builder $builder,
+        ?bool $includeUnpublished,
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+       $includeUnpublished = (bool) ($args['includeUnpublished'] ?? $includeUnpublished);
+        // Default to showing only published variants unless
+        // includeUnpublished is explicitly set to true
+        if ($includeUnpublished !== true) {
+            $builder->where('is_published', true);
+        }
+
+        return $builder;
     }
 }
