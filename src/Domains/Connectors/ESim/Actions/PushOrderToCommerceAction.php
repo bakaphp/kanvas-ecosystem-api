@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ESim\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum as CMLinkEnumsConfigurationEnum;
 use Kanvas\Connectors\ESim\DataTransferObject\ESim;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WooCommerce\Enums\ConfigurationEnum as EnumsConfigurationEnum;
@@ -29,6 +30,7 @@ class PushOrderToCommerceAction
         $commerceSku = $variant->product->getAttributeBySlug('commerce-sku')?->value ?? 'esim-eu';
         $commerceProductId = $variant->product->getAttributeBySlug('commerce-product-id')?->value ?? '20';
         $variantDuration = $variant->getAttributeBySlug('variant-duration')?->value ?? null;
+        $sku = $variant->getAttributeBySlug(CMLinkEnumsConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $variant->sku;
 
         $response = Http::withHeaders([
             'X-API-Key' => $this->order->app->get(ConfigurationEnum::COMMERCE_API_KEY->value),
@@ -39,7 +41,7 @@ class PushOrderToCommerceAction
             'api' => $provider,
             'coverage' => strtolower($variant->product->productType->name),
             'destination_code' => $destination,
-            'sku' => $variant->sku, //$commerceSku,
+            'sku' => $sku, //$commerceSku,
             'from_kanvas' => true,
             'iccid' => $this->esim->iccid,
             'apn' => null,
