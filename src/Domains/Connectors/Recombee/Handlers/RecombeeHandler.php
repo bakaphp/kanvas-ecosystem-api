@@ -27,8 +27,8 @@ class RecombeeHandler extends BaseIntegration
 
         return ! empty(
             Client::getInstanceValidation(
-                $this->app, 
-                $this->company, 
+                $this->app,
+                $this->company,
                 $recombeeDto->region
             )->send(new ListItems()));
     }
