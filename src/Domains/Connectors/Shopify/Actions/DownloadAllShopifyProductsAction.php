@@ -13,6 +13,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
+use PHPShopify\ShopifySDK;
 
 class DownloadAllShopifyProductsAction
 {
@@ -33,9 +34,15 @@ class DownloadAllShopifyProductsAction
             $this->warehouses->region
         );
 
-        $productsToImport = isset($params['sku']) && ! empty($params['sku'])
-            ? $this->getProductsBySku($shopify, trim($params['sku']))
-            : $this->getAllProducts($shopify, $params);
+        if (isset($params['sku']) && ! empty($params['sku'])) {
+            $productsToImport = $this->getProductsBySku($shopify, trim($params['sku']));
+        } elseif (isset($params['product_id']) && ! empty($params['product_id'])) {
+            $productsToImport = $this->getProductById($shopify, trim($params['product_id']));
+        } elseif (isset($params['handle']) && ! empty($params['handle'])) {
+            $productsToImport = $this->getProductByHandle($shopify, trim($params['handle']));
+        } else {
+            $productsToImport = $this->getAllProducts($shopify, $params);
+        }
 
         if (count($productsToImport)) {
             $jobUuid = Str::uuid()->toString();
@@ -53,7 +60,44 @@ class DownloadAllShopifyProductsAction
         return count($productsToImport);
     }
 
-    private function getProductsBySku($shopify, string $sku): array
+    private function getProductByHandle(ShopifySDK $shopify, string $handle): array
+    {
+        $products = [];
+
+        // Using the Shopify API to query a product by its handle
+        $shopifyProducts = $shopify->Product()->get([
+            'handle' => $handle,
+            'limit' => 1,
+        ]);
+
+        // If a product is found with the given handle
+        if (is_array($shopifyProducts) && count($shopifyProducts) > 0) {
+            foreach ($shopifyProducts as $product) {
+                if (isset($product['handle']) && $product['handle'] === $handle) {
+                    $products[] = $this->mapProduct($product);
+
+                    break; // We only need the first match
+                }
+            }
+        }
+
+        return $products;
+    }
+
+    private function getProductById(ShopifySDK $shopify, string $productId): array
+    {
+        $products = [];
+
+        $shopifyProduct = $shopify->Product($productId)->get();
+
+        if ($shopifyProduct) {
+            $products[] = $this->mapProduct($shopifyProduct);
+        }
+
+        return $products;
+    }
+
+    private function getProductsBySku(ShopifySDK $shopify, string $sku): array
     {
         $products = [];
         $shopifyP = $shopify->Product();
@@ -86,7 +130,7 @@ class DownloadAllShopifyProductsAction
         return $products;
     }
 
-    private function getAllProducts($shopify, array $params): array
+    private function getAllProducts(ShopifySDK $shopify, array $params): array
     {
         $products = [];
         $shopifyP = $shopify->Product();
