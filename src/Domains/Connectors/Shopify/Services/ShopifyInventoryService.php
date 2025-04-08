@@ -103,7 +103,7 @@ class ShopifyInventoryService
             //$limitedVariants = $product->variants()->limit($variantLimit)->get();
             //ignore deleted variants
             $limitedVariants = $part['variants']->filter(fn ($variant) => ! $variant->is_deleted);
-
+            
             if ($shopifyProductId === null) {
                 foreach ($limitedVariants as $variant) {
                     $productInfo['variants'][] = $this->mapVariant($variant);
