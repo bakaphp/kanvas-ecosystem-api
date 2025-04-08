@@ -1,3 +1,4 @@
+
 <?php
 
 declare(strict_types=1);
@@ -98,7 +99,7 @@ class Message extends BaseModel
         'message' => Json::class,
         'message_types_id' => 'integer',
         'is_public' => 'integer',
-        'is_deleted' => 'integer',
+        'is_deleted' => 'boolean',
     ];
 
     #[Override]

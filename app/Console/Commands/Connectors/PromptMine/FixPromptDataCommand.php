@@ -24,7 +24,7 @@ class FixPromptDataCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:promptmine-fix-prompt-data {app_id} {companies_id} {message_type_id}';
+    protected $signature = 'kanvas:promptmine-fix-prompt-data {app_id} {companies_id} {message_type_id} {child_message_type_id}';
 
     /**
      * The console command description.
@@ -44,36 +44,38 @@ class FixPromptDataCommand extends Command
         $this->overwriteAppService($app);
         $messageTypeId = (int) $this->argument('message_type_id');
         $messageType = MessageType::find($messageTypeId);
+        $childMessageTypeId = (int) $this->argument('child_message_type_id');
+        $childMessageType = MessageType::find($childMessageTypeId);
         $companiesId = (int) $this->argument('companies_id');
 
         //Get all messages for the given message type and app
-        $this->SyncPromptData($app, $messageType, $companiesId);
+        $this->SyncPromptData($app, $messageType, $childMessageType, $companiesId);
     }
 
     /**
      * @todo how to avoid changing legit prompts and nugget data? Use the json validator?
      */
-    private function SyncPromptData($app, $messageType, $companiesId): void
+    private function SyncPromptData(Apps $app, MessageType $messageType, MessageType $childMessageType, int $companiesId): void
     {
         Message::fromApp($app)
             ->where('message_types_id', $messageType->getId())
             ->where('companies_id', $companiesId)
             ->where('is_deleted', 0)
             ->orderBy('id', 'asc')
-            ->chunk(100, function ($messages) {
+            ->chunk(100, function ($messages) use ($childMessageType) {
                 foreach ($messages as $message) {
                     try {
                         $this->fixPromptData($message);
 
                         if (count($message->children) == 0) {
                             //Generate child messages if it doesn't exist
-                            $this->createNuggetMessage($message);
+                            $this->createNuggetMessage($message, $childMessageType);
                             $this->info('--Child Nugget Message ID: ' . $message->getId() . ' created');
                             continue;
                         }
 
                         foreach ($message->children as $childMessage) {
-                            $validateMessageSchema = new MessageSchemaValidator($childMessage, MessageType::find(576), true);
+                            $validateMessageSchema = new MessageSchemaValidator($childMessage, $childMessageType, true);
                             $this->info('--Checking Child Nugget Message Schema of ID: ' . $childMessage->getId());
                             if ($validateMessageSchema->validate()) {
                                 $this->info('--Message Schema is OK');
@@ -214,7 +216,7 @@ class FixPromptDataCommand extends Command
         $message->save();
     }
 
-    private function createNuggetMessage(Message $parentMessage): void
+    private function createNuggetMessage(Message $parentMessage, MessageType $childMessageType): void
     {
         $messageData = is_array($parentMessage->message) ? $parentMessage->message : json_decode($parentMessage->message, true);
         $response = Prism::text()
@@ -229,7 +231,7 @@ class FixPromptDataCommand extends Command
             'uuid' => DB::raw('uuid()'),
             'companies_id' => $parentMessage->companies_id,
             'users_id' => $parentMessage->users_id,
-            'message_types_id' => 576,
+            'message_types_id' => $childMessageType->getId(),
             'message' => [
                 'title' => $messageData['title'],
                 "type" => "text-format",
