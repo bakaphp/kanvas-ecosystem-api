@@ -38,7 +38,7 @@ class VariantBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-       $includeUnpublished = (bool) ($args['includeUnpublished'] ?? $includeUnpublished);
+        $includeUnpublished = (bool) ($args['includeUnpublished'] ?? $includeUnpublished);
         // Default to showing only published variants unless
         // includeUnpublished is explicitly set to true
         if ($includeUnpublished !== true) {
