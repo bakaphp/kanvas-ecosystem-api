@@ -249,17 +249,13 @@ class SyncEsimWithProviderCommand extends Command
             $remainingData = $totalBytesData;
         }
 
-        if ($iccid && isset($activePlan) && ! empty($activePlan['expireTime'])) {
-            $expirationDate = $activePlan['expireTime'];
+        if ($activationDate == null) {
+            $expirationDate = null;
         } else {
-            if ($activationDate == null) {
-                $expirationDate = null;
-            } else {
-                $expirationBaseDate = $activationDate;
-                $expirationDate = Carbon::parse($expirationBaseDate)
-                    ->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)
-                    ->format('Y-m-d H:i:s');
-            }
+            $expirationBaseDate = $activationDate;
+            $expirationDate = Carbon::parse($expirationBaseDate)
+                ->addDays((int) $variant->getAttributeBySlug('esim-days')?->value)
+                ->format('Y-m-d H:i:s');
         }
 
         // Initialize spentMessage as null
