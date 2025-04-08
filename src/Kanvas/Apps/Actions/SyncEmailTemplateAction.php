@@ -91,13 +91,13 @@ class SyncEmailTemplateAction
             ],
         ];
 
-        $dto = new TemplateInput(
-            $this->app,
-            $templates[0]['name'],
-            $templates[0]['template'],
-            null,
-            $this->user
-        );
+        $dto = TemplateInput::from([
+            'app' => $this->app,
+            'name' => $templates[0]['name'],
+            'template' => $templates[0]['template'],
+            'user' => $this->user,
+            'is_system' => true
+        ]);
 
         $action = new CreateTemplateAction($dto);
         $parent = $action->execute();
@@ -106,14 +106,13 @@ class SyncEmailTemplateAction
         array_shift($templates);
 
         foreach ($templates as $template) {
-            $dto = new TemplateInput(
-                $this->app,
-                $template['name'],
-                $template['template'],
-                null,
-                $this->user
-            );
-
+            $dto = TemplateInput::from([
+                'app' => $this->app,
+                'name' => $template['name'],
+                'template' => $template['template'],
+                'user' => $this->user,
+                'is_system' => true
+            ]);
             $action = new CreateTemplateAction($dto);
             $action->execute(
                 (! in_array($template['name'], [PushNotificationTemplateEnum::DEFAULT->value, 'user-email-update']) ? $parent : null),
