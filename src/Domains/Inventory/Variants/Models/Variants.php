@@ -110,6 +110,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     protected $casts = [
         'is_published' => 'boolean',
+        'is_deleted' => 'boolean',
     ];
 
     protected $guarded = [];

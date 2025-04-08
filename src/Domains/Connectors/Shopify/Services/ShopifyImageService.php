@@ -86,23 +86,34 @@ class ShopifyImageService
             // Check if the image already exists
             $existingImages = $shopifyProduct->Image->get();
             $fileName = pathinfo($imageUrl, PATHINFO_BASENAME);
+            $existingImageId = null;
 
             foreach ($existingImages as $image) {
-                if ($image['alt'] === $fileName) {
-                    return false; // Image already exists, no need to upload
+                if ($image['alt'] === $fileName || $image['src'] === $imageUrl) {
+                    $existingImageId = $image['id'];
+
+                    break;
                 }
             }
 
-            // Add the image if it does not exist
-            $image = $this->addImage($variant->product, $imageUrl, $position, $partNumber);
+            // If image doesn't exist, upload it first
+            if ($existingImageId === null) {
+                $imageResponse = $shopifyProduct->Image->post([
+                    'src' => $imageUrl,
+                    'alt' => $fileName,
+                    'position' => $position,
+                ]);
 
-            if ($image) {
-                $shopifyVariantData = $shopifyVariant->get();
-                $shopifyVariant->put(['image_id' => $image['id']]);
-
-                if ($shopifyVariantData['image_id'] !== null) {
-                    $shopifyProduct->Image($shopifyVariantData['image_id'])->delete();
+                if (! isset($imageResponse['id'])) {
+                    return false;
                 }
+
+                $existingImageId = $imageResponse['id'];
+            }
+
+            // Associate the image with the variant
+            if ($existingImageId) {
+                $shopifyVariant->put(['image_id' => $existingImageId]);
 
                 return true;
             }
