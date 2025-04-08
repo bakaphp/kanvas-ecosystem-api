@@ -60,13 +60,20 @@ class SyncOrdersWithProviderCommand extends Command
             $qr = $order->metadata['data']['qr_code'] ?? null;
             $startDate = $order->metadata['data']['start_date'] ?? null;
 
-            if ($iccid == null) {
-                $this->info("Order ID: {$order->id} does not have an ICCID.");
+            $cancelCounter = $order->get('cancel_counter', 0);
+            $order->set('cancel_counter', $cancelCounter + 1);
+            $cancelCounter++;
+
+        if ($iccid == null) {
+            $this->info("Order ID: {$order->id} does not have an ICCID. Check count: {$cancelCounter}");
+            // Cancel and fulfill the order if it's been checked 3 times and still has no ICCID
+            if (($cancelCounter) >= 3) {
+                $this->info("Order ID: {$order->id} checked 3 times without ICCID. Cancelling.");
                 $order->cancel();
                 $order->fulfillCancelled();
-
-                continue;
             }
+            continue;
+        }
 
             $item = $order->items()->first();
             $variant = $item->variant;
