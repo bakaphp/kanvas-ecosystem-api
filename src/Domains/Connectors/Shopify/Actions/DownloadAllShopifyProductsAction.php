@@ -13,6 +13,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
+use PHPShopify\ShopifySDK;
 
 class DownloadAllShopifyProductsAction
 {
@@ -32,8 +33,6 @@ class DownloadAllShopifyProductsAction
             $this->warehouses->company,
             $this->warehouses->region
         );
-
-        $productsToImport = [];
 
         if (isset($params['sku']) && ! empty($params['sku'])) {
             $productsToImport = $this->getProductsBySku($shopify, trim($params['sku']));
@@ -61,7 +60,7 @@ class DownloadAllShopifyProductsAction
         return count($productsToImport);
     }
 
-    private function getProductByHandle($shopify, string $handle): array
+    private function getProductByHandle(ShopifySDK $shopify, string $handle): array
     {
         $products = [];
 
@@ -85,7 +84,7 @@ class DownloadAllShopifyProductsAction
         return $products;
     }
 
-    private function getProductById($shopify, string $productId): array
+    private function getProductById(ShopifySDK $shopify, string $productId): array
     {
         $products = [];
 
@@ -98,7 +97,7 @@ class DownloadAllShopifyProductsAction
         return $products;
     }
 
-    private function getProductsBySku($shopify, string $sku): array
+    private function getProductsBySku(ShopifySDK $shopify, string $sku): array
     {
         $products = [];
         $shopifyP = $shopify->Product();
@@ -131,7 +130,7 @@ class DownloadAllShopifyProductsAction
         return $products;
     }
 
-    private function getAllProducts($shopify, array $params): array
+    private function getAllProducts(ShopifySDK $shopify, array $params): array
     {
         $products = [];
         $shopifyP = $shopify->Product();
