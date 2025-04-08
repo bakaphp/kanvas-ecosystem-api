@@ -56,7 +56,7 @@ class PushOrderToCommerceAction
             'partner_id' => 6,
             'product_id' => $commerceProductId,
             'product_name' => $firstItem->product_name,
-            'language' => 'es',
+            'language' => 'es_ES',
             'destination' => $descriptionName,
             'client_imei' => null,
             'qr_code' => $this->esim->qrCode,
