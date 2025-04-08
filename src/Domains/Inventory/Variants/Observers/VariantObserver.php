@@ -21,7 +21,7 @@ class VariantObserver
         ->where('products_id', $variant->products_id)
         ->count();
 
-        if ($totalVariant === 1 && (int) $variant->is_deleted !== 0) {
+        if ($totalVariant === 1 && ! $variant->is_deleted) {
             throw new ValidationException('There must be at least one variant for each product.');
         }
     }
