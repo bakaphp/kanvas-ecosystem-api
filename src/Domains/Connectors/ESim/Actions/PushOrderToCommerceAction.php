@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ESim\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum as CMLinkEnumsConfigurationEnum;
 use Kanvas\Connectors\ESim\DataTransferObject\ESim;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WooCommerce\Enums\ConfigurationEnum as EnumsConfigurationEnum;
@@ -29,6 +30,7 @@ class PushOrderToCommerceAction
         $commerceSku = $variant->product->getAttributeBySlug('commerce-sku')?->value ?? 'esim-eu';
         $commerceProductId = $variant->product->getAttributeBySlug('commerce-product-id')?->value ?? '20';
         $variantDuration = $variant->getAttributeBySlug('variant-duration')?->value ?? null;
+        $sku = $variant->getAttributeBySlug(CMLinkEnumsConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $variant->sku;
 
         $response = Http::withHeaders([
             'X-API-Key' => $this->order->app->get(ConfigurationEnum::COMMERCE_API_KEY->value),
@@ -39,7 +41,7 @@ class PushOrderToCommerceAction
             'api' => $provider,
             'coverage' => strtolower($variant->product->productType->name),
             'destination_code' => $destination,
-            'sku' => $variant->sku, //$commerceSku,
+            'sku' => $sku, //$commerceSku,
             'from_kanvas' => true,
             'iccid' => $this->esim->iccid,
             'apn' => null,
@@ -51,7 +53,7 @@ class PushOrderToCommerceAction
             'matching_id' => $this->esim->matchingId,
             'smdp_address' => $this->esim->smdpAddress,
             'phone_number' => null,
-            "partner_id" => 6,
+            'partner_id' => 6,
             'product_id' => $commerceProductId,
             'product_name' => $firstItem->product_name,
             'language' => 'es',
@@ -62,7 +64,7 @@ class PushOrderToCommerceAction
             'client_email' => $this->order->user_email,
             'start_date' => null,
             'end_date' => null,
-            "client_name" => $this->order->people->firstname . ' ' . $this->order->people->lastname,
+            'client_name' => $this->order->people->firstname . ' ' . $this->order->people->lastname,
             'esim_status' => 'completed',
             'order_source' => 'mobile-app',
             'total_days' => $variantDuration,
