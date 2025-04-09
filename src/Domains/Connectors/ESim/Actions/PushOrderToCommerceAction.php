@@ -31,6 +31,7 @@ class PushOrderToCommerceAction
         $commerceProductId = $variant->product->getAttributeBySlug('commerce-product-id')?->value ?? '20';
         $variantDuration = $variant->getAttributeBySlug('variant-duration')?->value ?? null;
         $sku = $variant->getAttributeBySlug(CMLinkEnumsConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $variant->sku;
+        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
 
         $response = Http::withHeaders([
             'X-API-Key' => $this->order->app->get(ConfigurationEnum::COMMERCE_API_KEY->value),
@@ -43,6 +44,7 @@ class PushOrderToCommerceAction
             'destination_code' => $destination,
             'sku' => $sku, //$commerceSku,
             'from_kanvas' => true,
+            'is_recharge' => $isRefuelOrder,
             'iccid' => $this->esim->iccid,
             'apn' => null,
             'client_payment' => null,
