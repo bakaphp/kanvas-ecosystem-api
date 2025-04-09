@@ -213,13 +213,14 @@ class SyncEsimWithProviderCommand extends Command
         $estTimezone = 'America/New_York';
         $nowInEST = Carbon::now()->setTimezone($estTimezone);
 
+        $activePlan = null;
         if ($iccid && ! empty($userPlans['userDataBundles'])) {
             foreach ($userPlans['userDataBundles'] as $plan) {
                 if ($plan['status'] == 3) {
                     if (! empty($plan['expireTime'])) {
                         //Convert the expireTime to EST timezone before comparison
                         $expireTimeInEST = Carbon::parse($plan['expireTime'])->setTimezone($estTimezone);
-                        if ($expireTimeInEST->isPast()) {
+                        if ($nowInEST->greaterThan($expireTimeInEST)) {
                             continue;
                         }
                     }
