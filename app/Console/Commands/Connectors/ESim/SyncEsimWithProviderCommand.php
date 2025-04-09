@@ -212,13 +212,25 @@ class SyncEsimWithProviderCommand extends Command
         $userPlans = $cmLinkCustomerService->getUserPlans($iccid);
         $estTimezone = 'America/New_York';
 
-        // Find the active plan with status = 3
         $activePlan = null;
         if ($iccid && ! empty($userPlans['userDataBundles'])) {
             foreach ($userPlans['userDataBundles'] as $plan) {
                 if ($plan['status'] == 3) {
+                    if (! empty($plan['expireTime']) && Carbon::parse($plan['expireTime'])->isPast()) {
+                        continue;
+                    }
                     $activePlan = $plan;
                     break;
+                }
+            }
+
+            //If no valid active plan was found, look for a plan with status = 1
+            if ($activePlan === null) {
+                foreach ($userPlans['userDataBundles'] as $plan) {
+                    if ($plan['status'] == 1) {
+                        $activePlan = $plan;
+                        break;
+                    }
                 }
             }
         }
@@ -242,10 +254,10 @@ class SyncEsimWithProviderCommand extends Command
         $isValidState = in_array(strtolower($response['state']), $validStates);
         $remainingData = $totalBytesData;
 
-        if ($iccid && $isValidState) {
+        if ($iccid && $isActive) {
             // Convert remainFlow to bytes - assuming it's in MB
             $remainingData = (float)$activePlan['remainFlow'] * 1024 * 1024; // Convert MB to bytes
-        } elseif ($isValidState == false && $remainingData <= 0) {
+        } elseif ($isActive == false && $remainingData <= 0) {
             $remainingData = $totalBytesData;
         }
 
@@ -265,11 +277,11 @@ class SyncEsimWithProviderCommand extends Command
         }
         $today = Carbon::now()->setTimezone($estTimezone);
 
-        if ($remainingData <= 0 && $isValidState == false) {
+        if ($remainingData <= 0 && $isActive == false) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
-        } elseif ($remainingData == 0 && $isValidState == true && $expirationDate != null) {
+        } elseif ($remainingData == 0 && $isActive == true && $expirationDate != null) {
             /**
              * @todo Move those spanish strings to app settings
              */
