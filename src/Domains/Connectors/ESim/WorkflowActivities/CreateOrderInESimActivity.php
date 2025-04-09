@@ -168,6 +168,7 @@ class CreateOrderInESimActivity extends KanvasActivity
             );
 
             $message = $createMessage->execute();
+            $this->updateMessageMetaDataOrderNumber($message, $woocommerceResponse ?? []);
             $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
             $order->updateOrFail();
             $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
@@ -233,6 +234,21 @@ class CreateOrderInESimActivity extends KanvasActivity
                 'message' => 'Error sending order to commerce',
                 'response' => $e->getMessage(),
             ];
+        }
+    }
+
+    protected function updateMessageMetaDataOrderNumber(Message $message, array $commerceResponse): void
+    {
+        if (empty($commerceResponse)) {
+            return;
+        }
+
+        if (isset($message->message['order']['order_number']) && isset($commerceResponse['order']['order']['id'])) {
+            $messageData = $message->message;
+            $messageData['order']['order_number'] = $commerceResponse['order']['order']['id'];
+
+            $message->message = $messageData;
+            $message->saveOrFail();
         }
     }
 }
