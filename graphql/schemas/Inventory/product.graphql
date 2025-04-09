@@ -26,8 +26,14 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
-    attributes: [ProductAttribute!]! @method(name: "visibleAttributes") @cacheRedis
-    variants: [Variant!]! @HasMany
+    attributes: [ProductAttribute!]!
+        @method(name: "visibleAttributes")
+        @cacheRedis
+    variants(includeUnpublished: Boolean = false): [Variant!]!
+        @HasMany
+        @builder(
+            method: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"
+        )
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo

@@ -171,6 +171,15 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         return $this->belongsTo(Status::class, 'status_id');
     }
 
+    public function scopeFilterByPublished(Builder $query, bool $includeUnpublished = false): Builder
+    {
+        if (! $includeUnpublished) {
+            return $query->where('is_published', true);
+        }
+
+        return $query;
+    }
+
     /**
      * warehouses.
      */
