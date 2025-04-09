@@ -213,10 +213,10 @@ class SyncEsimWithProviderCommand extends Command
         $estTimezone = 'America/New_York';
 
         $activePlan = null;
-        if ($iccid && !empty($userPlans['userDataBundles'])) {
+        if ($iccid && ! empty($userPlans['userDataBundles'])) {
             foreach ($userPlans['userDataBundles'] as $plan) {
                 if ($plan['status'] == 3) {
-                    if (!empty($plan['expireTime']) && Carbon::parse($plan['expireTime'])->isPast()) {
+                    if (! empty($plan['expireTime']) && Carbon::parse($plan['expireTime'])->isPast()) {
                         continue;
                     }
                     $activePlan = $plan;
