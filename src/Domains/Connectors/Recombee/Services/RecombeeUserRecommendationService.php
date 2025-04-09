@@ -72,6 +72,8 @@ class RecombeeUserRecommendationService
         $options = array_merge([
             'scenario' => $scenario,
             'cascadeCreate' => true,
+            'rotationRate' => $this->app->get('for-you-feed-rotation-rate'), // a float from 0 to 1
+            'rotationTime' => $this->app->get('for-you-feed-rotation-time-seconds'), // In seconds
             //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
         ], $additionalOptions);
 
