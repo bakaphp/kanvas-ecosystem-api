@@ -211,13 +211,18 @@ class SyncEsimWithProviderCommand extends Command
         $iccid = $message->message['data']['iccid'] ?? null;
         $userPlans = $cmLinkCustomerService->getUserPlans($iccid);
         $estTimezone = 'America/New_York';
+        $nowInEST = Carbon::now()->setTimezone($estTimezone);
 
         $activePlan = null;
         if ($iccid && ! empty($userPlans['userDataBundles'])) {
             foreach ($userPlans['userDataBundles'] as $plan) {
                 if ($plan['status'] == 3) {
-                    if (! empty($plan['expireTime']) && Carbon::parse($plan['expireTime'])->isPast()) {
-                        continue;
+                    if (! empty($plan['expireTime'])) {
+                        //Convert the expireTime to EST timezone before comparison
+                        $expireTimeInEST = Carbon::parse($plan['expireTime'])->setTimezone($estTimezone);
+                        if ($nowInEST->greaterThan($expireTimeInEST)) {
+                            continue;
+                        }
                     }
                     $activePlan = $plan;
                     break;
@@ -256,7 +261,9 @@ class SyncEsimWithProviderCommand extends Command
 
         if ($iccid && $isActive) {
             // Convert remainFlow to bytes - assuming it's in MB
-            $remainingData = (float)$activePlan['remainFlow'] * 1024 * 1024; // Convert MB to bytes
+            if (isset($activePlan['remainFlow'])) {
+                $remainingData = (float)$activePlan['remainFlow'] * 1024 * 1024; // Convert MB to bytes
+            }
         } elseif ($isActive == false && $remainingData <= 0) {
             $remainingData = $totalBytesData;
         }
@@ -306,7 +313,6 @@ class SyncEsimWithProviderCommand extends Command
         if ($expirationDate == null) {
             $expired = false;
         } else {
-            $nowInEST = Carbon::now()->setTimezone($estTimezone);
             $expired = $nowInEST->greaterThan($expirationDate);
         }
 
