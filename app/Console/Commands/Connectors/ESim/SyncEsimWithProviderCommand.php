@@ -259,12 +259,12 @@ class SyncEsimWithProviderCommand extends Command
         $isValidState = in_array(strtolower($response['state']), $validStates);
         $remainingData = $totalBytesData;
 
-        if ($iccid && $isActive) {
+        if ($iccid && $isValidState) {
             // Convert remainFlow to bytes - assuming it's in MB
             if (isset($activePlan['remainFlow'])) {
                 $remainingData = (float)$activePlan['remainFlow'] * 1024 * 1024; // Convert MB to bytes
             }
-        } elseif ($isActive == false && $remainingData <= 0) {
+        } elseif ($isValidState == false && $remainingData <= 0) {
             $remainingData = $totalBytesData;
         }
 
@@ -284,11 +284,11 @@ class SyncEsimWithProviderCommand extends Command
         }
         $today = Carbon::now()->setTimezone($estTimezone);
 
-        if ($remainingData <= 0 && $isActive == false) {
+        if ($remainingData <= 0 && $isValidState == false) {
             $remainingData = $totalBytesData;
         } elseif ($remainingData > $totalBytesData) {
             $remainingData = $totalBytesData;
-        } elseif ($remainingData == 0 && $isActive == true && $expirationDate != null) {
+        } elseif ($remainingData == 0 && $isValidState == true && $expirationDate != null) {
             /**
              * @todo Move those spanish strings to app settings
              */
