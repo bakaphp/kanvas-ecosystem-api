@@ -26,7 +26,7 @@ class GenerateWhoToFollowRecommendationsAction
 
         $response = $recommendationService->getUserToUserRecommendation($user, $pageSize, $scenario);
 
-        $entityIds = collect($response)
+        $entityIds = collect($response['recomms'])
             ->pluck('id')
             ->unique()
             ->filter()
