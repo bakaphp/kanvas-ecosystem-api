@@ -32,7 +32,13 @@ class OrderExpirableTest extends TestCase
 
         $variantResponse = $this->createVariant(
             productId: $productResponse['id'],
-            warehouseData: $warehouseData
+            warehouseData: $warehouseData,
+            attributes: [
+                [
+                    'key' => 'timezone',
+                    'value' => 'America/New_York',
+                ],
+            ]
         )->json()['data']['createVariant'];
 
 
@@ -60,8 +66,8 @@ class OrderExpirableTest extends TestCase
             'region_id' => $region->getId(),
             'metadata' => [
                 'data' => [
-                    'start_at' => now()->subDays(2)->toDateTimeString(),
-                    'end_at' => now()->subDays(1)->toDateTimeString(),
+                    'start_at' => now()->subMinutes(32)->toDateTimeString(),
+                    'end_at' => now()->subMinutes(30)->toDateTimeString(),
                 ],
             ],
             'customer' => [

@@ -57,7 +57,7 @@ trait InventoryCases
             }', ['data' => $data]);
     }
 
-    public function createVariant(string $productId, array $warehouseData, array $data = []): TestResponse
+    public function createVariant(string $productId, array $warehouseData, array $data = [], array $attributes = []): TestResponse
     {
         if (empty($data)) {
             $data = [
@@ -74,6 +74,7 @@ trait InventoryCases
                         'name' => fake()->name,
                         'value' => fake()->name,
                     ],
+                    ...$attributes,
                 ],
             ];
         }

@@ -6,6 +6,7 @@ namespace App\Console\Commands\Souk;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
 use Kanvas\Souk\Orders\Models\Order;
@@ -75,16 +76,33 @@ class OrderFinishExpiredCommand extends Command
         ->whereNotFulfilled()
         ->whereNotNull('metadata')
         ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
-        ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) < ?", [$endTime])
+        // ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) < ?", [$endTime])
         ->orderBy('id', 'desc')
         ->with('items');
 
 
         $ordersInProgress = $query->get();
         $this->info('Found ' . $ordersInProgress->count() . ' orders in progress to finish for app ' . $app->name . ' at ' . $endTime);
+        $appTimeZone = $this->getAppTimeZone($app);
 
         foreach ($ordersInProgress as $order) {
-            $this->finishOrdersExpiredOrder($order);
+            $orderEndTime = $order->metadata['data']['end_at'];
+            $parkingTimeZone = $order->items->first(function ($item) {
+                return $item->variant->first()?->attributes->first(fn ($attribute) => $attribute->key === 'timezone')?->value;
+            })?->variant?->attributes?->first(fn ($attribute) => $attribute->key === 'timezone')?->value;
+            $orderEndTime = Carbon::parse($orderEndTime, $parkingTimeZone ?? $appTimeZone);
+            if ($orderEndTime->isPast()) {
+                $this->finishOrdersExpiredOrder($order);
+            }
         }
+    }
+
+    protected function getAppTimeZone(Apps $app): string
+    {
+        $appTimeZone = Settings::where([
+            'name' => 'timezone',
+            'apps_id' => $app->id,
+        ])->first();
+        return $appTimeZone->value;
     }
 }
