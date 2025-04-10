@@ -76,33 +76,26 @@ class OrderFinishExpiredCommand extends Command
         ->whereNotFulfilled()
         ->whereNotNull('metadata')
         ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
-        // ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) < ?", [$endTime])
+        ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) is not null")
         ->orderBy('id', 'desc')
         ->with('items');
 
 
         $ordersInProgress = $query->get();
         $this->info('Found ' . $ordersInProgress->count() . ' orders in progress to finish for app ' . $app->name . ' at ' . $endTime);
-        $appTimeZone = $this->getAppTimeZone($app);
+        $appTimeZone = $app->get('timezone');
 
         foreach ($ordersInProgress as $order) {
             $orderEndTime = $order->metadata['data']['end_at'];
+
             $parkingTimeZone = $order->items->first(function ($item) {
                 return $item->variant->first()?->attributes->first(fn ($attribute) => $attribute->key === 'timezone')?->value;
             })?->variant?->attributes?->first(fn ($attribute) => $attribute->key === 'timezone')?->value;
+
             $orderEndTime = Carbon::parse($orderEndTime, $parkingTimeZone ?? $appTimeZone);
             if ($orderEndTime->isPast()) {
                 $this->finishOrdersExpiredOrder($order);
             }
         }
-    }
-
-    protected function getAppTimeZone(Apps $app): string
-    {
-        $appTimeZone = Settings::where([
-            'name' => 'timezone',
-            'apps_id' => $app->id,
-        ])->first();
-        return $appTimeZone->value;
     }
 }

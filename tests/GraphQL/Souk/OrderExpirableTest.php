@@ -35,12 +35,11 @@ class OrderExpirableTest extends TestCase
             warehouseData: $warehouseData,
             attributes: [
                 [
-                    'key' => 'timezone',
+                    'name' => 'timezone',
                     'value' => 'America/New_York',
                 ],
             ]
         )->json()['data']['createVariant'];
-
 
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
@@ -66,8 +65,8 @@ class OrderExpirableTest extends TestCase
             'region_id' => $region->getId(),
             'metadata' => [
                 'data' => [
-                    'start_at' => now()->subMinutes(32)->toDateTimeString(),
-                    'end_at' => now()->subMinutes(30)->toDateTimeString(),
+                    'start_at' => now('America/New_York')->subMinutes(32)->toDateTimeString(),
+                    'end_at' => now('America/New_York')->subMinutes(30)->toDateTimeString(),
                 ],
             ],
             'customer' => [
