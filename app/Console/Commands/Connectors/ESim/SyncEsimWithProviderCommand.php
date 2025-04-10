@@ -328,6 +328,11 @@ class SyncEsimWithProviderCommand extends Command
         }
 
         $bundleStatus = isset($activePlan) ? IccidStatusEnum::getStatusById($activePlan['status']) : IccidStatusEnum::getStatus(strtolower($response['state']));
+
+        if (! $expired && $bundleStatus == 'active') {
+            $response['state'] = 'Enable';
+        }
+
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
             callTypeGroup: 'data',
@@ -349,7 +354,6 @@ class SyncEsimWithProviderCommand extends Command
         $esimStatusArray = $esimStatus->toArray();
         // Check and send notifications if needed
         $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
-
         return $esimStatusArray;
     }
 
