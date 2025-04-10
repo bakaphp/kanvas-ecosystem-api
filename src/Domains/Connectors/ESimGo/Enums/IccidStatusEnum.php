@@ -14,6 +14,7 @@ enum IccidStatusEnum: string
     case ACTIVE = 'active';
     case UNAVAILABLE = 'unavailable';
     case INACTIVE = 'inactive';
+    case REFUND = 'refund';
     case EXPIRED = 'expired';
     case RELEASED = 'released';
     case DELETED = 'delete';
@@ -63,7 +64,7 @@ enum IccidStatusEnum: string
             1 => self::PENDING->value,
             2 => self::EXPIRED->value,
             3 => self::ACTIVE->value,
-            99 => self::EXPIRED->value,
+            99 => self::REFUND->value,
             default => '',
         };
     }
