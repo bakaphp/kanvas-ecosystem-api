@@ -210,10 +210,14 @@ class CreateOrderInESimActivity extends KanvasActivity
 
             $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
 
-            $stripeService = new StripeCustomerService($order->app);
-            $stripe->paymentIntents->update($paymentIntentId, [
-                'customer' => $stripeService->getOrCreateCustomerByPerson($order->people)->id,
-            ]);
+            try {
+                $stripeService = new StripeCustomerService($order->app);
+                $stripe->paymentIntents->update($paymentIntentId, [
+                    'customer' => $stripeService->getOrCreateCustomerByPerson($order->people)->id,
+                ]);
+            } catch (Throwable $e) {
+                report($e);
+            }
 
             $commerceOrder = new WooCommerceOrderService($order->app);
             $updateResponse = $commerceOrder->updateOrderStripePayment(
