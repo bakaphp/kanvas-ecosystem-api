@@ -15,6 +15,7 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Connectors\Stripe\Services\StripeCustomerService;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -208,6 +209,11 @@ class CreateOrderInESimActivity extends KanvasActivity
             $paymentIntentId = explode('_secret_', $clientSecret)[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
 
             $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
+
+            $stripeService = new StripeCustomerService($order->app);
+            $stripe->paymentIntents->update($paymentIntentId, [
+                'customer' => $stripeService->getOrCreateCustomerByPerson($order->people)->id,
+            ]);
 
             $commerceOrder = new WooCommerceOrderService($order->app);
             $updateResponse = $commerceOrder->updateOrderStripePayment(
