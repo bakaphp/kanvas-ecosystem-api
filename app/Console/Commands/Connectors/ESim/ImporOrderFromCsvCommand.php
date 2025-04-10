@@ -186,11 +186,11 @@ class ImporOrderFromCsvCommand extends Command
                 'qrCode' => CreateEsimOrderAction::generateQrCode($order['lpa_code']),
                 'esimStatus' => ESimStatus::from([
                     'id' => $order['activation'],
-                    'callTypeGroup'=> 'data',
-                    'initialQuantity'=> FileSizeConverter::toBytes($items->first()->sku),
-                    'remainingQuantity'=> FileSizeConverter::toBytes($items->first()->sku),
+                    'callTypeGroup' => 'data',
+                    'initialQuantity' => FileSizeConverter::toBytes($items->first()->sku),
+                    'remainingQuantity' => FileSizeConverter::toBytes($items->first()->sku),
                     'assignmentDateTime' => $order['date_from'],
-                    'assignmentReference'=> $order['lpa_code'],
+                    'assignmentReference' => $order['lpa_code'],
                     'bundleState' => json_decode($order['activation'])->status,
                     'unlimited' => $kanvasOrder->items()->first()->variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
                 ]),
@@ -226,7 +226,6 @@ class ImporOrderFromCsvCommand extends Command
             $message = $createMessage->execute();
 
             $this->info("Order created: {$kanvasOrder->order_number}\n");
-            
         }
     }
 }
