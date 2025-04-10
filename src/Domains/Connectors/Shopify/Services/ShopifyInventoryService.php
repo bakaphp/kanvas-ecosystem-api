@@ -40,7 +40,7 @@ class ShopifyInventoryService
     /**
        * Split variants into chunks and create product title for each part.
        */
-    protected function prepareProductParts(Products $product, int $variantLimit): array
+    public function prepareProductParts(Products $product, int $variantLimit): array
     {
         //to avoid issues if one variant is deleted and it moves to the next part
         $variantChunks = $product->variants()->withTrashed()->orderBy('id')->get()->chunk($variantLimit);
@@ -91,7 +91,7 @@ class ShopifyInventoryService
                 'title' => $part['title'],
                 'handle' => $this->getPartHandle($product->slug, $partNumber),
                 'body_html' => $product->description,
-                'product_type' => $product->productsTypes?->name ?? 'default',
+                'product_type' => '', //$product->productsTypes?->name ?? 'default',
                 'status' => $product->hasPrice($this->warehouses, $channel) ? $status->value : StatusEnum::ARCHIVED->value,
                 'published_scope' => 'web',
                 'tags' => $product->tags->pluck('name')->implode(','),
@@ -140,6 +140,12 @@ class ShopifyInventoryService
             }
 
             $this->shopifyImageService->processEntityImage($product);
+
+            if ($product->is_published) {
+                $this->publishProduct($product);
+                ///$this->addToPublicationChannel($product);
+            }
+
             $allResponse[] = $this->shopifySdk->Product($shopifyProductId)->get();
         }
 
