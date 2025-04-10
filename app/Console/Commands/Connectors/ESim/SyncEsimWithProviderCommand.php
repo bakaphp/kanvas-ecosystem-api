@@ -14,7 +14,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
 use Kanvas\Connectors\CMLink\Services\CustomerService;
-use Kanvas\Connectors\CMLink\Services\OrderService as ServicesOrderService;
 use Kanvas\Connectors\EasyActivation\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
@@ -58,7 +57,6 @@ class SyncEsimWithProviderCommand extends Command
         $messages = Message::fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
-            ->whereIsPublic()
             ->orderBy('id', 'desc')
             ->get();
 
@@ -225,6 +223,7 @@ class SyncEsimWithProviderCommand extends Command
                         }
                     }
                     $activePlan = $plan;
+
                     break;
                 }
             }
@@ -234,6 +233,7 @@ class SyncEsimWithProviderCommand extends Command
                 foreach ($userPlans['userDataBundles'] as $plan) {
                     if ($plan['status'] == 1) {
                         $activePlan = $plan;
+
                         break;
                     }
                 }
@@ -242,7 +242,9 @@ class SyncEsimWithProviderCommand extends Command
 
         $installedDate = $response['installTime'] ?? (! empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
         $status = strtolower($response['state']);
-        $isActive = IccidStatusEnum::getStatus($status) == 'active';
+
+        $isActive = isset($activePlan['status']) ? IccidStatusEnum::getStatusById($activePlan['status']) == 'active' : IccidStatusEnum::getStatus($status) == 'active';
+        //$isActive = IccidStatusEnum::getStatus($status) == 'active';
 
         $activationDate = null;
         if ($iccid && $isActive && $activePlan) {
@@ -324,6 +326,7 @@ class SyncEsimWithProviderCommand extends Command
             $message->setPrivate();
         }
 
+        $bundleStatus = isset($activePlan) ? IccidStatusEnum::getStatusById($activePlan['status']) : IccidStatusEnum::getStatus(strtolower($response['state']));
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
             callTypeGroup: 'data',
@@ -331,7 +334,7 @@ class SyncEsimWithProviderCommand extends Command
             remainingQuantity: $remainingData,
             assignmentDateTime: $installedDate,
             assignmentReference: $response['activationCode'],
-            bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
+            bundleState: $bundleStatus,
             unlimited: $variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED->value,
             expirationDate: $expirationDate,
             imei: $message->message['data']['imei_number'] ?? null,
@@ -343,7 +346,6 @@ class SyncEsimWithProviderCommand extends Command
         );
 
         $esimStatusArray = $esimStatus->toArray();
-
         // Check and send notifications if needed
         $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
 

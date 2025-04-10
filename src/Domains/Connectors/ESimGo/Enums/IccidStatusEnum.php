@@ -56,4 +56,15 @@ enum IccidStatusEnum: string
             default => '',
         };
     }
+
+    public static function getStatusById(string|int $id): string
+    {
+        return match ($id) {
+            1 => self::PENDING->value,
+            2 => self::EXPIRED->value,
+            3 => self::ACTIVE->value,
+            99 => self::EXPIRED->value,
+            default => '',
+        };
+    }
 }
