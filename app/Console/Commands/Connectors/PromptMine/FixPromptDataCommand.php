@@ -74,6 +74,7 @@ class FixPromptDataCommand extends Command
                             continue;
                         }
 
+                        //Need to get just the first child message
                         foreach ($message->children as $childMessage) {
                             $validateMessageSchema = new MessageSchemaValidator($childMessage, $childMessageType, true);
                             $this->info('--Checking Child Nugget Message Schema of ID: ' . $childMessage->getId());
@@ -187,7 +188,13 @@ class FixPromptDataCommand extends Command
 
         if (! isset($messageData['title']) && isset($parentMessageData['title'])) {
             $messageData['title'] = $parentMessageData['title'];
-            $this->info('Added message title to message data' . $messageData['title']);
+            $this->info('Added message title to message data ' . $messageData['title']);
+        }
+
+        //This comes from old memo data.
+        if (isset($messageData['type']['name'])) {
+            unset($messageData['type']);
+            $this->info('Removed type from message data');
         }
 
         if (! isset($messageData['type']) && isset($parentMessageData['type'])) {
@@ -203,8 +210,38 @@ class FixPromptDataCommand extends Command
                 $messageData['nugget'] = $responseText;
             }
 
-            $this->info('Added message type to message data' . $messageData['type']);
+            $this->info('Added message type to message data: ' . $messageData['type']);
             $this->info('Added message nugget to message data');
+        }
+
+        if (isset($messageData['display_type'])) {
+            unset($messageData['display_type']);
+            $this->info('Removed display_type from message data');
+        }
+
+        if (isset($messageData['parts'])) {
+            unset($messageData['parts']);
+            $this->info('Removed parts from message data');
+        }
+
+        if (isset($messageData['description'])) {
+            unset($messageData['description']);
+            $this->info('Removed description from message data');
+        }
+
+        if (isset($messageData['created_at'])) {
+            unset($messageData['created_at']);
+            $this->info('Removed created_at from message data');
+        }
+
+        if (isset($messageData['updated_at'])) {
+            unset($messageData['updated_at']);
+            $this->info('Removed updated_at from message data');
+        }
+
+        if (isset($messageData['ai_model'])) {
+            unset($messageData['ai_model']);
+            $this->info('Removed ai_model from message data');
         }
 
         // if (isset($messageData['ai_nugged'])) {
