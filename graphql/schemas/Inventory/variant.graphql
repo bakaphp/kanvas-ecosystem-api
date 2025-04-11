@@ -62,6 +62,16 @@ type VariantPricingInfo {
     config: Mixed
 }
 
+type VariantAttributesValue {
+    variant: Variant!
+    attribute: Attributes!
+    translation(languageCode: String!): AttributeValueTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    value: Mixed
+}
+
 #@deprecated(reason: "Use the ProductAttributesInput type instead")
 input VariantsAttributesInput {
     id: ID
@@ -136,6 +146,15 @@ extend type Mutation @guard {
     ): Variant!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantTranslation"
+        )
+    updateVariantAttributeTranslations(
+        variant_id: ID!
+        attribute_id: ID!
+        code: String!
+        value: Mixed
+    ): VariantAttributesValue!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantAttributeTranslation"
         )
     uploadFileToVariant(id: ID!, file: Upload!): Product!
         @field(
