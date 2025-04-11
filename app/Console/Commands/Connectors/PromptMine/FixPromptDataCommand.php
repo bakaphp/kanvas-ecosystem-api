@@ -282,7 +282,6 @@ class FixPromptDataCommand extends Command
             ->where('id', $nuggetId)
             ->update(['path' => $parentMessage->getId() . "." . $nuggetId]);
 
-        
         foreach ($parentMessage->tags() as $tag) {
             DB::connection('social')->table('tags_entities')->insert([
                 'entity_id' => $nuggetId,
