@@ -76,12 +76,12 @@ class FixPromptDataCommand extends Command
 
                         //Need to get just the first child message
                         foreach ($message->children as $childMessage) {
-                            $validateMessageSchema = new MessageSchemaValidator($childMessage, $childMessageType, true);
-                            $this->info('--Checking Child Nugget Message Schema of ID: ' . $childMessage->getId());
-                            if ($validateMessageSchema->validate()) {
-                                $this->info('--Message Schema is OK');
-                                continue;
-                            }
+                            // $validateMessageSchema = new MessageSchemaValidator($childMessage, $childMessageType, true);
+                            // $this->info('--Checking Child Nugget Message Schema of ID: ' . $childMessage->getId());
+                            // if ($validateMessageSchema->validate()) {
+                            //     $this->info('--Message Schema is OK');
+                            //     continue;
+                            // }
 
                             $this->info('--Fixing Child Nugget Message Schema');
                             $this->fixNuggetData($childMessage);
@@ -97,13 +97,13 @@ class FixPromptDataCommand extends Command
     private function fixPromptData(Message $message): void
     {
         $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
-        $validateMessageSchema = new MessageSchemaValidator($message, MessageType::find($message->message_types_id), true);
+        // $validateMessageSchema = new MessageSchemaValidator($message, MessageType::find($message->message_types_id), true);
 
-        $this->info('--Checking Prompt Message Schema of ID: ' . $message->getId());
-        if ($validateMessageSchema->validate()) {
-            $this->info('-Prompt Message Schema is OK');
-            return;
-        }
+        // $this->info('--Checking Prompt Message Schema of ID: ' . $message->getId());
+        // if ($validateMessageSchema->validate()) {
+        //     $this->info('-Prompt Message Schema is OK');
+        //     return;
+        // }
         //Anything that is not a prompt, set as deleted
         if (! isset($messageData['prompt'])) {
             $message->is_deleted = 1;
