@@ -17,7 +17,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     protected ?string $apiUrl = null;
     protected const int MAX_STATUS_CHECKS = 30;
     protected const int STATUS_CHECK_DELAY = 2;
-
+    public $tries = 3;
+    
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
