@@ -120,7 +120,7 @@ class AttributeMutation
         $value = $req['value'];
         $productAttribute->setTranslation('value', $language->code, $value);
         $productAttribute->save();
-        
+
         return $productAttribute;
     }
 }
