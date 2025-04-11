@@ -8,7 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -71,8 +71,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         ],
                     ];
 
-                    $usersToNotify = Users::where('id', 2)->get();
-                    $user = Users::getById(2);
+                    $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
                     $notification = new Blank(
                         'id-verification-report',
                         [
@@ -84,10 +83,10 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                             'verificationData' => $verificationData,
                         ],
                         ['mail'],
-                        $user,
+                        $entity,
                     );
 
-                    $notification->setFromUser($user);
+                    $notification->setSubject('ID Verification Report');
                     Notification::send($usersToNotify, $notification);
 
                     return [
