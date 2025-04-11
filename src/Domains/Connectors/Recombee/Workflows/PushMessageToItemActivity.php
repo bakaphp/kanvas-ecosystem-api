@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Recombee\Workflows;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -13,6 +14,8 @@ use Override;
 
 class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    public $tries = 3;
+
     /**
      * @param \Kanvas\Social\Messages\Models\Message $message
      */
@@ -33,10 +36,18 @@ class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivi
             }
         }
 
-        $messageIndex = new RecombeeIndexService($app);
-        $messageIndex->createPromptMessageDatabase();
+        try {
+            $messageIndex = new RecombeeIndexService($app);
+            $messageIndex->createPromptMessageDatabase();
 
-        $result = $messageIndex->indexPromptMessage($message);
+            $result = $messageIndex->indexPromptMessage($message);
+        } catch (Exception $e) {
+            return [
+                'result' => false,
+                'message' => $e->getMessage(),
+                'id' => $message->id,
+            ];
+        }
 
         return [
             'result' => $result,
