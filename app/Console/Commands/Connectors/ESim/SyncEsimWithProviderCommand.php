@@ -214,34 +214,49 @@ class SyncEsimWithProviderCommand extends Command
         $nowInEST = Carbon::now()->setTimezone($estTimezone);
 
         $activePlan = null;
+        $planStatus = null;
+
+        // First determine if there's a valid active plan
         if ($iccid && ! empty($userPlans['userDataBundles'])) {
             foreach ($userPlans['userDataBundles'] as $plan) {
                 if ($plan['status'] == 3) {
                     if (! empty($plan['expireTime'])) {
-                        //Convert the expireTime to EST timezone before comparison
+                        // Convert the expireTime to EST timezone before comparison
                         $expireTimeInEST = Carbon::parse($plan['expireTime'])->setTimezone($estTimezone);
                         if ($nowInEST->greaterThan($expireTimeInEST)) {
                             continue;
                         }
                     }
                     $activePlan = $plan;
+                    $planStatus = 'active';
                     break;
                 }
             }
 
-            //If no valid active plan was found, look for a plan with status = 1
             if ($activePlan === null) {
                 foreach ($userPlans['userDataBundles'] as $plan) {
                     if ($plan['status'] == 1) {
                         $activePlan = $plan;
+                        $planStatus = 'released';
                         break;
                     }
                 }
             }
         }
 
+        $reportedState = strtolower($response['state']);
+
+        if ($planStatus !== null) {
+            $status = $planStatus;
+        } else {
+            // No conflict, use reported state
+            $status = $reportedState;
+        }
+
+        $validStates = ['released', 'installed', 'active', 'enabled', 'enable'];
+        $isValidState = in_array($status, $validStates);
+
         $installedDate = $response['installTime'] ?? (! empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
-        $status = strtolower($response['state']);
         $isActive = IccidStatusEnum::getStatus($status) == 'active';
 
         $activationDate = null;
@@ -255,8 +270,6 @@ class SyncEsimWithProviderCommand extends Command
         $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
         $totalBytesData = FileSizeConverter::toBytes($totalData);
 
-        $validStates = ['released', 'installed', 'active', 'enabled', 'enable'];
-        $isValidState = in_array(strtolower($response['state']), $validStates);
         $remainingData = $totalBytesData;
 
         if ($iccid && $isValidState) {
