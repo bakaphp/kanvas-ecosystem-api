@@ -26,11 +26,13 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             // Extract verification data from params
             $verificationData = $params['params'] ?? [];
 
+            $isShowRoom = $params['is_showroom'] ?? false;
+
             // Get person name from lead entity
             $name = $entity->title ?? $entity->people->name ?? 'Customer';
 
             // Process data to generate verification results
-            $verificationResults = $this->processIntellicheckData($verificationData, $name);
+            $verificationResults = $this->processIntellicheckData($verificationData, $name, $isShowRoom);
             $company = $entity->company;
 
             // Generate report HTML using the template
@@ -49,7 +51,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                 entity: $entity,
                 app: $app,
                 integration: IntegrationsEnum::INTELLICHECK,
-                integrationOperation: function ($entity, $app) use ($name, $verificationResults, $verificationData) {
+                integrationOperation: function ($entity, $app) use ($name, $verificationResults, $verificationData, $isShowRoom) {
                     $reportData = [
                         'name' => $name,
                         'status' => $verificationResults['status'],
@@ -80,6 +82,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                             'flags' => $reportData['flags'],
                             'failures' => $reportData['failures'],
                             'results' => $reportData['results'],
+                            'isShowRoom' => $isShowRoom,
                             'verificationData' => $verificationData,
                         ],
                         ['mail'],
@@ -111,7 +114,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
     /**
      * Process the Intellicheck data to determine verification status
      */
-    private function processIntellicheckData(array $verificationData, string $name): array
+    private function processIntellicheckData(array $verificationData, string $name, bool $isShowRoom = false): array
     {
         $flags = [];
         $failures = [];
@@ -133,11 +136,11 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         $flagGroups = [];
 
         // FACIAL CHECK
-        if (! ($facial['matched'] ?? false)) {
+        if (! ($facial['matched'] ?? false) && $isShowRoom === false) {
             $failures[] = 'Facial data not matched';
             $failureGroups[] = 'facial check fail';
         }
-        if (! ($facial['isLive'] ?? false)) {
+        if (! ($facial['isLive'] ?? false) && $isShowRoom === false) {
             $failures[] = 'Facial data is not live';
             $failureGroups[] = 'facial check fail';
         }
