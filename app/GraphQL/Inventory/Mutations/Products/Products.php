@@ -13,6 +13,7 @@ use Kanvas\Inventory\Products\Actions\UpdateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\DataTransferObject\Translate as ProductTranslateDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
+use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -164,5 +165,20 @@ class Products
         }
 
         return $product;
+    }
+
+    public function updateProductAttributeTranslation(mixed $root, array $req): ProductsAttributes
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $language = Languages::getByCode($req['code']);
+        $attribute = AttributesRepository::getById((int) $req['attribute_id'], $company);
+        $product = ProductsRepository::getById((int) $req['product_id'], $company);
+
+        $productAttribute = $product->attributeValues('attribute_id', $attribute->getId())->firstOrFail();
+        $value = $req['value'];
+        $productAttribute->setTranslation('value', $language->code, $value);
+        $productAttribute->save();
+
+        return $productAttribute;
     }
 }
