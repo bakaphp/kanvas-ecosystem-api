@@ -14,8 +14,6 @@ use Kanvas\Inventory\Attributes\DataTransferObject\Translate as AttributeTransla
 use Kanvas\Inventory\Attributes\Models\Attributes as AttributeModel;
 use Kanvas\Inventory\Attributes\Models\AttributesValues;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
-use Kanvas\Inventory\Products\Models\ProductsAttributes;
-use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Languages\Models\Languages;
 
 class AttributeMutation
