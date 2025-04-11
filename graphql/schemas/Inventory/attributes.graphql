@@ -72,7 +72,7 @@ type AttributeTranslation {
 }
 
 type AttributeValueTranslation {
-    value: String
+    value: Mixed
     language: LanguageDisplay!
 }
 
