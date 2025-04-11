@@ -108,19 +108,4 @@ class AttributeMutation
 
         return $attribute;
     }
-
-    public function updateProductAttributeTranslation(mixed $root, array $req): ProductsAttributes
-    {
-        $company = auth()->user()->getCurrentCompany();
-        $language = Languages::getByCode($req['code']);
-        $attribute = AttributesRepository::getById((int) $req['attribute_id'], $company);
-        $product = ProductsRepository::getById((int) $req['products_id'], $company);
-
-        $productAttribute = $product->attributeValues('attribute_id', $attribute->getId())->firstOrFail();
-        $value = $req['value'];
-        $productAttribute->setTranslation('value', $language->code, $value);
-        $productAttribute->save();
-
-        return $productAttribute;
-    }
 }

@@ -188,13 +188,13 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
         )
     updateProductAttributeTranslations(
-        products_id: ID!
+        product_id: ID!
         attribute_id: ID!
         code: String!
         value: Mixed
     ): ProductAttributesValue!
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@updateProductAttributeTranslation"
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductAttributeTranslation"
         )
 }
 
