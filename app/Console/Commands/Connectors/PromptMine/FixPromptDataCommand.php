@@ -202,9 +202,9 @@ class FixPromptDataCommand extends Command
 
             if (! isset($messageData['nugget']) || ! isset($messageData['image'])) {
                 $response = Prism::text()
-                ->using(Provider::Gemini, 'gemini-2.0-flash')
-                ->withPrompt($parentMessageData['prompt'])
-                ->generate();
+                    ->using(Provider::Gemini, 'gemini-2.0-flash')
+                    ->withPrompt($parentMessageData['prompt'])
+                    ->generate();
 
                 $responseText = str_replace(['```', 'json'], '', $response->text);
                 $messageData['nugget'] = $responseText;
@@ -257,9 +257,9 @@ class FixPromptDataCommand extends Command
     {
         $messageData = is_array($parentMessage->message) ? $parentMessage->message : json_decode($parentMessage->message, true);
         $response = Prism::text()
-                ->using(Provider::Gemini, 'gemini-2.0-flash')
-                ->withPrompt($messageData['prompt'])
-                ->generate();
+            ->using(Provider::Gemini, 'gemini-2.0-flash')
+            ->withPrompt($messageData['prompt'])
+            ->generate();
 
         $responseText = str_replace(['```', 'json'], '', $response->text);
         $nuggetId = DB::connection('social')->table('messages')->insertGetId([
@@ -281,6 +281,17 @@ class FixPromptDataCommand extends Command
         DB::connection('social')->table('messages')
             ->where('id', $nuggetId)
             ->update(['path' => $parentMessage->getId() . "." . $nuggetId]);
+
+        foreach ($parentMessage->tags() as $tag) {
+            DB::connection('social')->table('tags_entities')->insert([
+                'entity_id' => $nuggetId,
+                'tags_id' => $tag->getId(),
+                'users_id' => $parentMessage->users_id,
+                'taggable_type' => "Kanvas\Social\Messages\Models\Message",
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
 
         //Call fixNuggetData just in case something is missing
         $this->fixNuggetData(Message::find($nuggetId));
