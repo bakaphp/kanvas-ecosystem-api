@@ -76,7 +76,7 @@ class ShopifyChannelService
                 $shopifyProductIdPartNumber = $partNumber > 1 ? "-part-{$partNumber}" : null;
                 $shopifyProductId = $product->getShopifyId($this->warehouses->regions, $shopifyProductIdPartNumber);
 
-                if ($shopifyProductId !== null) {
+                if ($shopifyProductId === null) {
                     continue;
                 }
 
@@ -129,7 +129,7 @@ class ShopifyChannelService
                 $shopifyProductIdPartNumber = $partNumber > 1 ? "-part-{$partNumber}" : null;
                 $shopifyProductId = $product->getShopifyId($this->warehouses->regions, $shopifyProductIdPartNumber);
 
-                if ($shopifyProductId !== null) {
+                if ($shopifyProductId === null) {
                     continue;
                 }
 
@@ -173,8 +173,8 @@ class ShopifyChannelService
 
     protected function getOnlineStorePublicationId(): string
     {
-        // Try to get from config first gid://shopify/Publication/99888840
-        $defaultPublicationId = $this->app->get(ConfigEnum::SHOPIFY_PUBLICATION_ID->value);
+        // Try to get from config first
+        $defaultPublicationId = $this->company->get(ConfigEnum::SHOPIFY_PUBLICATION_ID->value);
         if ($defaultPublicationId) {
             return 'gid://shopify/Publication/' . $defaultPublicationId;
         }
