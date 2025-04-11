@@ -143,6 +143,8 @@ class ShopifyInventoryService
 
             if ($product->is_published) {
                 $this->publishProduct($product);
+                //$channelService = new ShopifyChannelService($this->app, $this->company, $this->warehouses);
+                //$channelService->addToPublicationChannel($product);
                 ///$this->addToPublicationChannel($product);
             }
 
