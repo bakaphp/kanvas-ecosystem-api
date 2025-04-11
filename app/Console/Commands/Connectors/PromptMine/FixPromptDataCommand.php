@@ -211,17 +211,23 @@ class FixPromptDataCommand extends Command
             $messageData['type'] = $parentMessageData['type'];
 
             $this->info('Added message type to message data: ' . $messageData['type']);
-        }
 
-        if (! isset($messageData['nugget'])) {
-            $response = Prism::text()
-                ->using(Provider::Gemini, 'gemini-2.0-flash')
-                ->withPrompt($parentMessageData['prompt'])
-                ->generate();
+            if (! isset($messageData['nugget']) && $messageData['type'] === 'text-format') {
+                $this->info('Generating nugget for message ID: ' . $message->getId());
+                $response = Prism::text()
+                    ->using(Provider::Gemini, 'gemini-2.0-flash')
+                    ->withPrompt($parentMessageData['prompt'])
+                    ->generate();
+    
+                $responseText = str_replace(['```', 'json'], '', $response->text);
+                $messageData['nugget'] = $responseText;
+                $this->info('Added message nugget to message data');
+            }
 
-            $responseText = str_replace(['```', 'json'], '', $response->text);
-            $messageData['nugget'] = $responseText;
-            $this->info('Added message nugget to message data');
+            if (isset($messageData['nugget']) && $messageData['type'] === 'image-format') {
+                unset($messageData['nugget']);
+                $this->info('Removed nugget from message data on image format');
+            }
         }
 
         if (isset($messageData['display_type'])) {
