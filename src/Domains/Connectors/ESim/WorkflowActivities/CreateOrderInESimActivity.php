@@ -15,6 +15,7 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Connectors\Stripe\Services\StripeCustomerService;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -168,12 +169,15 @@ class CreateOrderInESimActivity extends KanvasActivity
             );
 
             $message = $createMessage->execute();
+            $this->updateMessageMetaDataOrderNumber($message, $woocommerceResponse ?? []);
             $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
             $order->updateOrFail();
             $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
         } else {
             $parentOrder = Order::getById($order->metadata['parent_order_id']);
             $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
+            $message->setPublic();
+
             $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
             $order->updateOrFail();
             $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
@@ -206,6 +210,15 @@ class CreateOrderInESimActivity extends KanvasActivity
 
             $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
 
+            try {
+                $stripeService = new StripeCustomerService($order->app);
+                $stripe->paymentIntents->update($paymentIntentId, [
+                    'customer' => $stripeService->getOrCreateCustomerByPerson($order->people)->id,
+                ]);
+            } catch (Throwable $e) {
+                report($e);
+            }
+
             $commerceOrder = new WooCommerceOrderService($order->app);
             $updateResponse = $commerceOrder->updateOrderStripePayment(
                 $orderCommerceId,
@@ -231,6 +244,21 @@ class CreateOrderInESimActivity extends KanvasActivity
                 'message' => 'Error sending order to commerce',
                 'response' => $e->getMessage(),
             ];
+        }
+    }
+
+    protected function updateMessageMetaDataOrderNumber(Message $message, array $commerceResponse): void
+    {
+        if (empty($commerceResponse)) {
+            return;
+        }
+
+        if (isset($message->message['order']['order_number']) && isset($commerceResponse['order']['order']['id'])) {
+            $messageData = $message->message;
+            $messageData['order']['order_number'] = $commerceResponse['order']['order']['id'];
+
+            $message->message = $messageData;
+            $message->saveOrFail();
         }
     }
 }

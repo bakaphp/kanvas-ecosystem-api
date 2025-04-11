@@ -1,4 +1,4 @@
-type Product {
+type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     id: ID!
     products_types_id: ID
     uuid: String!
@@ -26,8 +26,14 @@ type Product {
     updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
-    attributes: [ProductAttribute!]! @method(name: "visibleAttributes") @cacheRedis
-    variants: [Variant!]! @HasMany
+    attributes: [ProductAttribute!]!
+        @method(name: "visibleAttributes")
+        @cacheRedis
+    variants(includeUnpublished: Boolean = false): [Variant!]!
+        @HasMany
+        @builder(
+            method: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"
+        )
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo
@@ -46,6 +52,7 @@ type Product {
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
 }
+
 ### @todo extract this into its own type.
 type EntityExport {
     url: String!
@@ -56,6 +63,16 @@ type ProductTranslation {
     name: String
     description: String
     language: LanguageDisplay!
+}
+
+type ProductAttributesValue {
+    product: Product!
+    attribute: Attributes!
+    translation(languageCode: String!): AttributeValueTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    value: Mixed
 }
 
 input ProductInput {
@@ -169,6 +186,15 @@ extend type Mutation @guard {
     addCategory(id: ID!, category_id: ID!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
+        )
+    updateProductAttributeTranslations(
+        product_id: ID!
+        attribute_id: ID!
+        code: String!
+        value: Mixed
+    ): ProductAttributesValue!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductAttributeTranslation"
         )
 }
 

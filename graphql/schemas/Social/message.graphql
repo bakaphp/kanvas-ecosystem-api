@@ -73,6 +73,7 @@ input MessageInput {
     distribution: DistributionInput
     tags: [TagInput!]
     slug: String
+    files: [Upload!]
 }
 
 input MessageUpdateInput {

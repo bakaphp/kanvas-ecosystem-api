@@ -16,6 +16,12 @@ type Category {
     weight: Int
     users: User!
     total_products: Int! @method(name: "getTotalProducts")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
 }
 
 input CategoryInput {
@@ -61,6 +67,10 @@ extend type Mutation @guard {
     deleteCategory(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@delete"
+        )
+    uploadFileToCategory(id: ID!, file: Upload!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\CategoryMediaMutation@attachFileToCategory"
         )
 }
 

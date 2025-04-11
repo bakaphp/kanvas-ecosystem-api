@@ -96,6 +96,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     protected $casts = [
         'is_published' => 'boolean',
+        'is_deleted' => 'boolean',
     ];
 
     protected $is_deleted;

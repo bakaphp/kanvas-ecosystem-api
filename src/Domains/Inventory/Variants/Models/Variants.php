@@ -110,6 +110,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     protected $casts = [
         'is_published' => 'boolean',
+        'is_deleted' => 'boolean',
     ];
 
     protected $guarded = [];
@@ -168,6 +169,15 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     public function status(): BelongsTo
     {
         return $this->belongsTo(Status::class, 'status_id');
+    }
+
+    public function scopeFilterByPublished(Builder $query, bool $includeUnpublished = false): Builder
+    {
+        if (! $includeUnpublished) {
+            return $query->where('is_published', true);
+        }
+
+        return $query;
     }
 
     /**

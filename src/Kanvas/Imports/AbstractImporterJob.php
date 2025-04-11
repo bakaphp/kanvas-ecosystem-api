@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\App;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Models\FilesystemImports;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions;
 
 abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
 {

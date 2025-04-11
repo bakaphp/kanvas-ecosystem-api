@@ -14,6 +14,7 @@ enum IccidStatusEnum: string
     case ACTIVE = 'active';
     case UNAVAILABLE = 'unavailable';
     case INACTIVE = 'inactive';
+    case REFUND = 'refund';
     case EXPIRED = 'expired';
     case RELEASED = 'released';
     case DELETED = 'delete';
@@ -53,6 +54,17 @@ enum IccidStatusEnum: string
             'not_active' => self::INACTIVE->value,
             'expired' => self::EXPIRED->value,
             'disable', 'disabled' => self::DISABLED->value,
+            default => '',
+        };
+    }
+
+    public static function getStatusById(string|int $id): string
+    {
+        return match ($id) {
+            1 => self::PENDING->value,
+            2 => self::EXPIRED->value,
+            3 => self::ACTIVE->value,
+            99 => self::REFUND->value,
             default => '',
         };
     }
