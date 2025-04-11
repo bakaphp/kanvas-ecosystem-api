@@ -221,11 +221,11 @@ class FixPromptDataCommand extends Command
                 $messageData['nugget'] = $responseText;
                 $this->info('Added message nugget to message data');
             }
+        }
 
-            if (isset($messageData['nugget']) && $messageData['type'] === 'image-format') {
-                unset($messageData['nugget']);
-                $this->info('Removed nugget from message data on image format');
-            }
+        if (isset($messageData['nugget']) && $messageData['type'] === 'image-format') {
+            unset($messageData['nugget']);
+            $this->info('Removed nugget from message data on image format');
         }
 
         if (isset($messageData['display_type'])) {
