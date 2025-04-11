@@ -14,6 +14,8 @@ use Kanvas\Inventory\Attributes\DataTransferObject\Translate as AttributeTransla
 use Kanvas\Inventory\Attributes\Models\Attributes as AttributeModel;
 use Kanvas\Inventory\Attributes\Models\AttributesValues;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
+use Kanvas\Inventory\Products\Models\ProductsAttributes;
+use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Languages\Models\Languages;
 
 class AttributeMutation
@@ -105,5 +107,20 @@ class AttributeMutation
         }
 
         return $attribute;
+    }
+
+    public function updateProductAttributeTranslation(mixed $root, array $req): ProductsAttributes
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $language = Languages::getByCode($req['code']);
+        $attribute = AttributesRepository::getById((int) $req['attribute_id'], $company);
+        $product = ProductsRepository::getById((int) $req['products_id'], $company);
+
+        $productAttribute = $product->attributeValues('attribute_id', $attribute->getId())->firstOrFail();
+        $value = $req['value'];
+        $productAttribute->setTranslation('value', $language->code, $value);
+        $productAttribute->save();
+        
+        return $productAttribute;
     }
 }
