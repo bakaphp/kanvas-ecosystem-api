@@ -157,10 +157,20 @@ class FixPromptDataCommand extends Command
             $this->info('Added payment to message data');
         }
 
-        // if (isset($messageData['ai_nugged'])) {
-        //     unset($messageData['ai_nugged']);
-        //     $this->info('Removed ai_nugged from message data');
-        // }
+        if (isset($messageData['ai_nugged'])) {
+            unset($messageData['ai_nugged']);
+            $this->info('Removed ai_nugged from message data');
+        }
+
+        if (isset($messageData['nugget'])) {
+            unset($messageData['nugget']);
+            $this->info('Removed nugget from message data');
+        }
+
+        if (isset($messageData['is_assistant'])) {
+            unset($messageData['is_assistant']);
+            $this->info('Removed is_assistant from message data');
+        }
 
         $message->message = $messageData;
         $message->save();
@@ -244,10 +254,15 @@ class FixPromptDataCommand extends Command
             $this->info('Removed ai_model from message data');
         }
 
-        // if (isset($messageData['ai_nugged'])) {
-        //     unset($messageData['ai_nugged']);
-        //     $this->info('Removed ai_nugged from message data');
-        // }
+        if (isset($messageData['ai_nugged'])) {
+            unset($messageData['ai_nugged']);
+            $this->info('Removed ai_nugged from message data');
+        }
+
+        if (isset($messageData['description'])) {
+            unset($messageData['description']);
+            $this->info('Removed description from message data');
+        }
 
         $message->message = $messageData;
         $message->save();
