@@ -33,6 +33,7 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
@@ -149,6 +150,7 @@ class KanvasWorkflowSynActionCommand extends Command
             StripePaymentIntentWebhookJob::class,
             UpdateOrderStripePaymentActivity::class,
             AttachFileToChecklistItemActivity::class,
+            PromptImageFilterActivity::class,
         ];
 
         $createdActions = [];
