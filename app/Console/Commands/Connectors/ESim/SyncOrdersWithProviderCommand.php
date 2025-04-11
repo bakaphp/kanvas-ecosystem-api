@@ -102,8 +102,16 @@ class SyncOrdersWithProviderCommand extends Command
         } catch (Exception $e) {
             captureException($e);
             $this->info("Order ID: {$order->id} does not have an ICCID.");
-            $order->cancel();
-            $order->fulfillCancelled();
+            $cancelCounter = $order->get('cancel_counter', 0);
+            $order->set('cancel_counter', $cancelCounter + 1);
+            $cancelCounter++;
+
+            $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
+            if (($cancelCounter) >= 3) {
+                $this->info("Order ID: {$order->id} checked 3 times without success. Cancelling.");
+                $order->cancel();
+                $order->fulfillCancelled();
+            }
 
             return;
         }
