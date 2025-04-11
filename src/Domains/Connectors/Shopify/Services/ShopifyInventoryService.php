@@ -91,7 +91,7 @@ class ShopifyInventoryService
                 'title' => $part['title'],
                 'handle' => $this->getPartHandle($product->slug, $partNumber),
                 'body_html' => $product->description,
-                'product_type' => '', //$product->productsTypes?->name ?? 'default',
+                'product_type' => $product->productsTypes?->name ?? 'default',
                 'status' => $product->hasPrice($this->warehouses, $channel) ? $status->value : StatusEnum::ARCHIVED->value,
                 'published_scope' => 'web',
                 'tags' => $product->tags->pluck('name')->implode(','),
