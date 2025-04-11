@@ -12,6 +12,7 @@ use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use PHPShopify\ShopifySDK;
 
@@ -22,7 +23,8 @@ class DownloadAllShopifyProductsAction
         protected Warehouses $warehouses,
         protected CompaniesBranches $branch,
         protected Users $user,
-        protected ?Channels $channel = null
+        protected ?Channels $channel = null,
+        protected ?Regions $region = null
     ) {
     }
 
@@ -31,7 +33,7 @@ class DownloadAllShopifyProductsAction
         $shopify = Client::getInstance(
             $this->app,
             $this->warehouses->company,
-            $this->warehouses->region
+            $this->region ?? $this->warehouses->region
         );
 
         if (isset($params['sku']) && ! empty($params['sku'])) {
@@ -52,7 +54,7 @@ class DownloadAllShopifyProductsAction
                 $productsToImport,
                 $this->branch,
                 $this->user,
-                $this->warehouses->region,
+                $this->region ?? $this->warehouses->region,
                 $this->app
             );
         }
@@ -158,7 +160,7 @@ class DownloadAllShopifyProductsAction
         $service = new ShopifyProductService(
             $this->app,
             $this->warehouses->company,
-            $this->warehouses->region,
+            $this->region ?? $this->warehouses->region,
             $shopifyProduct['id'],
             $this->user,
             $this->warehouses,

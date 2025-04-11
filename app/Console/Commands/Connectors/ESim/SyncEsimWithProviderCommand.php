@@ -14,7 +14,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
 use Kanvas\Connectors\CMLink\Services\CustomerService;
-use Kanvas\Connectors\CMLink\Services\OrderService as ServicesOrderService;
 use Kanvas\Connectors\EasyActivation\Services\OrderService;
 use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
@@ -229,6 +228,7 @@ class SyncEsimWithProviderCommand extends Command
                     }
                     $activePlan = $plan;
                     $planStatus = 'active';
+
                     break;
                 }
             }
@@ -238,6 +238,7 @@ class SyncEsimWithProviderCommand extends Command
                     if ($plan['status'] == 1) {
                         $activePlan = $plan;
                         $planStatus = 'released';
+
                         break;
                     }
                 }
@@ -337,6 +338,12 @@ class SyncEsimWithProviderCommand extends Command
             $message->setPrivate();
         }
 
+        $bundleStatus = isset($activePlan) ? IccidStatusEnum::getStatusById($activePlan['status']) : IccidStatusEnum::getStatus(strtolower($response['state']));
+
+        if (! $expired && $bundleStatus == 'active') {
+            $response['state'] = 'Enable';
+        }
+
         $esimStatus = new ESimStatus(
             id: $response['activationCode'],
             callTypeGroup: 'data',
@@ -344,7 +351,7 @@ class SyncEsimWithProviderCommand extends Command
             remainingQuantity: $remainingData,
             assignmentDateTime: $installedDate,
             assignmentReference: $response['activationCode'],
-            bundleState: IccidStatusEnum::getStatus(strtolower($response['state'])),
+            bundleState: $bundleStatus,
             unlimited: $variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED->value,
             expirationDate: $expirationDate,
             imei: $message->message['data']['imei_number'] ?? null,
@@ -356,10 +363,8 @@ class SyncEsimWithProviderCommand extends Command
         );
 
         $esimStatusArray = $esimStatus->toArray();
-
         // Check and send notifications if needed
         $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
-
         return $esimStatusArray;
     }
 
