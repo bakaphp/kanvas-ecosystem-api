@@ -142,6 +142,7 @@ input OrderCartInput {
 
 input UpdateOrderInput {
     items: [OrderLineItemInput]
+    fulfillment_status: String
     metadata: Mixed
 }
 
