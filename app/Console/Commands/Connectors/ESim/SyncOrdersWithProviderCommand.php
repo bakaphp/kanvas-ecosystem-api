@@ -60,11 +60,17 @@ class SyncOrdersWithProviderCommand extends Command
             $qr = $order->metadata['data']['qr_code'] ?? null;
             $startDate = $order->metadata['data']['start_date'] ?? null;
 
-            if ($iccid == null) {
-                $this->info("Order ID: {$order->id} does not have an ICCID.");
-                $order->cancel();
-                $order->fulfillCancelled();
+            $cancelCounter = $order->get('cancel_counter', 0);
+            $order->set('cancel_counter', $cancelCounter + 1);
+            $cancelCounter++;
 
+            if ($iccid == null) {
+                $this->info("Order ID: {$order->id} does not have an ICCID. Check count: {$cancelCounter}");
+                if (($cancelCounter) >= 3) {
+                    $this->info("Order ID: {$order->id} checked 3 times without ICCID. Cancelling.");
+                    $order->cancel();
+                    $order->fulfillCancelled();
+                }
                 continue;
             }
 
@@ -96,8 +102,16 @@ class SyncOrdersWithProviderCommand extends Command
         } catch (Exception $e) {
             captureException($e);
             $this->info("Order ID: {$order->id} does not have an ICCID.");
-            $order->cancel();
-            $order->fulfillCancelled();
+            $cancelCounter = $order->get('cancel_counter', 0);
+            $order->set('cancel_counter', $cancelCounter + 1);
+            $cancelCounter++;
+
+            $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
+            if (($cancelCounter) >= 3) {
+                $this->info("Order ID: {$order->id} checked 3 times without success. Cancelling.");
+                $order->cancel();
+                $order->fulfillCancelled();
+            }
 
             return;
         }
