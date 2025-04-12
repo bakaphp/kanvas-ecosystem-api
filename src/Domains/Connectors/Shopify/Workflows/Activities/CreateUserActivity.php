@@ -13,6 +13,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class CreateUserActivity extends KanvasActivity
@@ -33,38 +34,46 @@ class CreateUserActivity extends KanvasActivity
         $defaultRegion = Regions::getDefault($company);
         $currency = $company->currency ?? Currencies::where('code', 'USD')->first();
 
-        if (! $defaultRegion) {
-            return [
-                'status' => 'error',
-                'message' => 'Default region not found',
-                'user' => $user->getId(),
-                'company' => $company->getId(),
-            ];
-        }
+        return $this->executeIntegration(
+            entity: $user,
+            app: $app,
+            integration: IntegrationsEnum::SHOPIFY,
+            integrationOperation: function ($app) use ($user, $company, $defaultRegion, $params) {
+                if (! $defaultRegion) {
+                    return [
+                        'status' => 'error',
+                        'message' => 'Default region not found',
+                        'user' => $user->getId(),
+                        'company' => $company->getId(),
+                    ];
+                }
 
-        $client = Client::getInstance($app, $company, $defaultRegion);
-        $customer = [
-            'first_name' => $user->firstname,
-            'last_name' => $user->lastname,
-            'email' => $user->email,
-            'phone' => $user->phone,
-            'verified_email' => true,
-            'send_email_invite' => false,
-            'password' => $params['password'],
-            'password_confirmation' => $params['password'],
-        ];
+                $client = Client::getInstance($app, $company, $defaultRegion);
+                $customer = [
+                    'first_name' => $user->firstname,
+                    'last_name' => $user->lastname,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'verified_email' => true,
+                    'send_email_invite' => false,
+                    'password' => $params['password'],
+                    'password_confirmation' => $params['password'],
+                ];
 
-        $customer = $client->Customer->post($customer);
-        //$shopifyUserKey = CustomFieldEnum::USER_SHOPIFY_ID->value . '-' . $app->getId();
-        $shopifyUserKey = CustomFieldEnum::USER_SHOPIFY_ID->value;
-        $user->set($shopifyUserKey, $customer['id']);
+                $customer = $client->Customer->post($customer);
+                //$shopifyUserKey = CustomFieldEnum::USER_SHOPIFY_ID->value . '-' . $app->getId();
+                $shopifyUserKey = CustomFieldEnum::USER_SHOPIFY_ID->value;
+                $user->set($shopifyUserKey, $customer['id']);
 
-        return [
-            'status' => 'success',
-            'message' => 'Customer created successfully',
-            'shopify_id' => $customer['id'],
-            'user' => $user->getId(),
-            'company' => $company->getId(),
-        ];
+                return [
+                    'status' => 'success',
+                    'message' => 'Customer created successfully',
+                    'shopify_id' => $customer['id'],
+                    'user' => $user->getId(),
+                    'company' => $company->getId(),
+                ];
+            },
+            company: $company,
+        );
     }
 }
