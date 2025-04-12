@@ -10,7 +10,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "algolia/algoliasearch-client-php": "^3.4",
         "algolia/scout-extended": "^3.2",
         "automattic/woocommerce": "^3.1",
