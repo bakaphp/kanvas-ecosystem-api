@@ -106,7 +106,7 @@ trait ActivityIntegrationTrait
         } catch (Throwable $exception) {
             $status = $this->getStatus(StatusEnum::FAILED);
 
-            captureException($exception);
+            report($exception);
         }
 
         // Record integration history
