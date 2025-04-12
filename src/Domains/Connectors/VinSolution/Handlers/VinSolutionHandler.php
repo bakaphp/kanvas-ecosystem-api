@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\VinSolution\Handlers;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\VinSolution\Client;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Override;
 
 class VinSolutionHandler extends BaseIntegration
 {
+    #[Override]
     public function setup(): bool
     {
         $this->app->set(ConfigurationEnum::CLIENT_ID->value, $this->data['client_id']);
