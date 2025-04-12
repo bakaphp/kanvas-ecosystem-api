@@ -35,6 +35,7 @@ class Setup
     ];
 
     public array $leadSources = [
+        'Website',
         'Google',
         'Facebook',
         'Twitter',

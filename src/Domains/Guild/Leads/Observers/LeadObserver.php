@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -34,7 +33,7 @@ class LeadObserver
 
         // set the default status if not specified
         if (! $lead->leads_status_id) {
-            $lead->leads_status_id = LeadStatus::getDefault()->getId();
+            $lead->leads_status_id = LeadStatus::getDefault($lead->app)->getId();
         }
 
         // if no pipeline assign one

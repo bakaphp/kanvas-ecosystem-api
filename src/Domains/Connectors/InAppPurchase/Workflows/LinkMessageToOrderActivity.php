@@ -17,12 +17,16 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    public $tries = 3;
+
     /**
      * @param Model<Order> $order
      */
+    #[Override]
     public function execute(Model $order, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
@@ -34,7 +38,13 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
             ];
         }
 
-        $message = Message::getById($order->get('message_id'), $app);
+        $message = Message::fromApp($app)->where('id', $order->get('message_id'))->first();
+        if (! $message) {
+            return [
+                'message' => 'No message found',
+                'order' => $order->id,
+            ];
+        }
         $orderSystemModule = SystemModulesRepository::getByModelName(Order::class);
         (new CreateAppModuleMessageAction($message, $orderSystemModule, $order->getId()))->execute();
 
@@ -56,7 +66,6 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
                 description: 'Purchase Message Channel',
                 slug: 'PMC-' . $user->uuid
             ),
-            $order->user
         );
 
         $purchaseChannel = $newPurchaseMessageChannel->execute();

@@ -25,7 +25,7 @@ class CreateDraftOrderAction
 
     public function execute(): ModelsOrder
     {
-        return DB::connection('commerce')->transaction(function () {
+        $orderId = DB::connection('commerce')->transaction(function () {
             $order = new ModelsOrder();
             $order->apps_id = $this->orderData->app->getId();
             $order->region_id = $this->orderData->region->getId();
@@ -74,7 +74,9 @@ class CreateDraftOrderAction
                 }
             });
 
-            return $order;
+            return $order->id;
         });
+
+        return ModelsOrder::find($orderId);
     }
 }

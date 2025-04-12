@@ -42,6 +42,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
 use Override;
+use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  *  Class Message
@@ -80,10 +81,13 @@ class Message extends BaseModel
     use AsTree;
     use CanUseWorkflow;
     use HasLightHouseCache;
-    //use Cachable;
     use HasFilesystemTrait;
+    use QueryCacheable;
 
     protected $table = 'messages';
+    public $cacheFor = null;
+    public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
 
     protected $guarded = [
         'uuid',
@@ -93,6 +97,7 @@ class Message extends BaseModel
         'message' => Json::class,
         'message_types_id' => 'integer',
         'is_public' => 'integer',
+        'is_deleted' => 'boolean',
     ];
 
     #[Override]
@@ -154,7 +159,6 @@ class Message extends BaseModel
             return json_decode($value, true);
         }
 
-        // If all attempts fail, return original value
         return is_array($value) ? $value : [];
     }
 
@@ -225,6 +229,10 @@ class Message extends BaseModel
     public function shouldBeSearchable(): bool
     {
         if ($this->isDeleted() || ! $this->isPublic()) {
+            return false;
+        }
+
+        if ($this->app->get('message_disable_searchable')) {
             return false;
         }
 

@@ -17,8 +17,8 @@ class ESimStatus extends Data
         public readonly string $id,
         #[MapOutputName('call_type_group')]
         public readonly string $callTypeGroup,
-        public readonly int $initialQuantity,
-        public readonly int $remainingQuantity,
+        public readonly int|float $initialQuantity,
+        public readonly int|float $remainingQuantity,
         #[MapOutputName('assignment_date_time')]
         public readonly string $assignmentDateTime,
         #[MapOutputName('assignment_reference')]
@@ -34,7 +34,9 @@ class ESimStatus extends Data
         public readonly ?string $esimStatus = null,
         public readonly ?string $message = null,
         #[MapOutputName('installed_date')]
-        public readonly ?string $installedDate = null
+        public readonly ?string $installedDate = null,
+        public readonly ?string $activationDate = null,
+        public readonly ?string $spentMessage = null,
     ) {
     }
 }

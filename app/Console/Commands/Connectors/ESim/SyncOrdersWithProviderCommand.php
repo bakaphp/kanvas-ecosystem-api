@@ -15,6 +15,8 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Souk\Orders\Models\Order;
 
+use function Sentry\captureException;
+
 class SyncOrdersWithProviderCommand extends Command
 {
     use KanvasJobsTrait;
@@ -43,6 +45,8 @@ class SyncOrdersWithProviderCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
+        Order::disableSearchSyncing();
+
         $company = Companies::getById((int) $this->argument('company_id'));
 
         $orders = Order::fromApp($app)->fromCompany($company)->notDeleted()->whereNotFulfilled()->orderBy('id', 'desc')->get();
@@ -56,11 +60,17 @@ class SyncOrdersWithProviderCommand extends Command
             $qr = $order->metadata['data']['qr_code'] ?? null;
             $startDate = $order->metadata['data']['start_date'] ?? null;
 
-            if ($iccid == null) {
-                $this->info("Order ID: {$order->id} does not have an ICCID.");
-                $order->cancel();
-                $order->fulfillCancelled();
+            $cancelCounter = $order->get('cancel_counter', 0);
+            $order->set('cancel_counter', $cancelCounter + 1);
+            $cancelCounter++;
 
+            if ($iccid == null) {
+                $this->info("Order ID: {$order->id} does not have an ICCID. Check count: {$cancelCounter}");
+                if (($cancelCounter) >= 3) {
+                    $this->info("Order ID: {$order->id} checked 3 times without ICCID. Cancelling.");
+                    $order->cancel();
+                    $order->fulfillCancelled();
+                }
                 continue;
             }
 
@@ -90,9 +100,18 @@ class SyncOrdersWithProviderCommand extends Command
         try {
             $response = $customerService->getEsimInfo($iccid);
         } catch (Exception $e) {
+            captureException($e);
             $this->info("Order ID: {$order->id} does not have an ICCID.");
-            $order->cancel();
-            $order->fulfillCancelled();
+            $cancelCounter = $order->get('cancel_counter', 0);
+            $order->set('cancel_counter', $cancelCounter + 1);
+            $cancelCounter++;
+
+            $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
+            if (($cancelCounter) >= 3) {
+                $this->info("Order ID: {$order->id} checked 3 times without success. Cancelling.");
+                $order->cancel();
+                $order->fulfillCancelled();
+            }
 
             return;
         }

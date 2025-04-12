@@ -7,7 +7,7 @@ type Order {
     token: String
     billing_address_id: Int
     shipping_address_id: Int
-    order_number: Int
+    order_number: Int @method(name: "getOrderNumber")
     user_id: Int @deprecated(reason: "Use user field instead")
     user: User! @belongsTo
     people: People! @belongsTo
@@ -31,7 +31,7 @@ type Order {
     checkout_token: String
     currency: String
     metadata: Mixed
-    private_metadata: String
+    private_metadata: Mixed
     is_deleted: Boolean!
     created_at: String!
     updated_at: String
@@ -49,11 +49,11 @@ type OrderItem {
     uuid: String!
     product_name: String!
     product_sku: String!
-    quantity: Int!
+    quantity: Float!
     unit_price_net_amount: Money!
     unit_price_gross_amount: Money!
     is_shipping_required: Boolean
-    quantity_fulfilled: Int
+    quantity_fulfilled: Float
     variant: Variant! @belongsTo
     tax_rate: Money!
     translated_product_name: String
@@ -74,7 +74,7 @@ type PaymentResult {
 
 type OrderItemImport {
     variant_id: Int
-    quantity: Int
+    quantity: Float
 }
 
 type ImportOrderCsvResult {
@@ -140,6 +140,12 @@ input OrderCartInput {
     metadata: Mixed
 }
 
+input UpdateOrderInput {
+    items: [OrderLineItemInput]
+    fulfillment_status: String
+    metadata: Mixed
+}
+
 input DraftOrderInput {
     email: String!
     phone: String
@@ -154,7 +160,7 @@ input DraftOrderInput {
 
 input OrderLineItemInput {
     variant_id: ID!
-    quantity: Int!
+    quantity: Float!
 }
 
 input PaymentInput {
@@ -188,8 +194,6 @@ input GooglePlayInAppPurchaseReceipt {
     product_id: ID!
     order_id: String!
     purchase_token: String!
-    purchase_time: Int!
-    purchase_state: Int!
     region_id: ID
     custom_fields: [CustomFieldEntityInput!]
 }
@@ -207,6 +211,10 @@ extend type Mutation @guard {
     createDraftOrder(input: DraftOrderInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
+        )
+    updateOrder(id: ID!, input: UpdateOrderInput!): OrderResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@update"
         )
     createOrderFromAppleInAppPurchase(
         input: AppleInAppPurchaseReceipt!

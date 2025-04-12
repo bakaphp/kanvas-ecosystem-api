@@ -68,7 +68,7 @@ class GenerateUserMessageJob implements ShouldQueue
         $recommendationEngine = $this->app->get('social-user-feed-recommendation-engine') ?? 'local';
         $pageSize = $this->app->get('user-message-page-size') ?? 350;
         $cleanUserFeed = $this->app->get('social-clean-user-feed') ?? true;
-        $isDevelopment = ! App::environment('production');
+        $isDevelopment = App::environment('production') === false;
 
         if ($recommendationEngine == 'google') {
             $generateUserMessage = new GenerateGoogleUserMessageAction(

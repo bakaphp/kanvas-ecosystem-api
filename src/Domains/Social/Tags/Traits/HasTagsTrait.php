@@ -74,12 +74,26 @@ trait HasTagsTrait
 
     public function removeTag(string $tag): void
     {
-        $this->tags()->where('name', $tag)->delete();
+        $tagModel = ModelsTag::fromApp($this->app)->where('name', $tag)->first();
+
+        if ($tagModel) {
+            TagEntity::where('entity_id', $this->getId())
+            ->where('tags_id', $tagModel->getId())
+            ->where('taggable_type', static::class)
+            ->delete();
+        }
     }
 
     public function removeTags(array $tags): void
     {
-        $this->tags()->whereIn('name', $tags)->delete();
+        $tagIds = ModelsTag::fromApp($this->app)->whereIn('name', $tags)->pluck('id');
+
+        if ($tagIds->isNotEmpty()) {
+            TagEntity::where('entity_id', $this->getId())
+                ->whereIn('tags_id', $tagIds)
+                ->where('taggable_type', static::class)
+                ->delete();
+        }
     }
 
     public function syncTags(array $tags): void

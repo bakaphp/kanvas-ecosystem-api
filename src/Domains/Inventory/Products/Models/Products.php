@@ -14,6 +14,7 @@ use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Exception;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -31,6 +32,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Builders\ProductSortAttributeBuilder;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
+use Kanvas\Inventory\Products\Observers\ProductsObserver;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
@@ -68,6 +70,7 @@ use Override;
  * @property string $published_at
  * @property bool $is_deleted
  */
+#[ObservedBy(ProductsObserver::class)]
 class Products extends BaseModel implements EntityIntegrationInterface
 {
     use UuidTrait;
@@ -93,6 +96,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     protected $casts = [
         'is_published' => 'boolean',
+        'is_deleted' => 'boolean',
     ];
 
     protected $is_deleted;
@@ -293,7 +297,16 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
 
+    /**
+     * productTypes.
+     * @deprecated
+     */
     public function productsType(): BelongsTo
+    {
+        return $this->belongsTo(ProductsTypes::class, 'products_types_id');
+    }
+
+    public function productType(): BelongsTo
     {
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
@@ -309,6 +322,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->isPublished();
     }
 
+    /**
+     * @todo refactor this method is to long
+     */
     public function toSearchableArray(): array
     {
         $product = [
@@ -366,18 +382,24 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 // Initialize prices array
                 $product['prices'] = [];
 
+                // Temporary array to collect all prices
+                $allPrices = [];
+
                 // Loop through each variant
-                $this->variants->each(function ($variant) use (&$product) {
+                $this->variants->each(function ($variant) use (&$allPrices) {
                     // Each variant has its own channels, so get them
                     if ($variant->channels && $variant->channels->count() > 0) {
-                        $variant->channels->each(function ($channel) use (&$product) {
+                        $variant->channels->each(function ($channel) use (&$allPrices) {
                             // Get company by slug
                             try {
                                 $company = Companies::getByUuid($channel->slug);
 
                                 if ($company) {
-                                    // Add price to the prices array
-                                    $product['prices']['price_b2b_' . $company->getId()] = (float) $channel->price;
+                                    // Store price with company ID for later sorting
+                                    $allPrices[] = [
+                                        'company_id' => $company->getId(),
+                                        'price' => (float) $channel->price,
+                                    ];
                                 }
                             } catch (Exception $e) {
                                 // Do nothing
@@ -385,6 +407,24 @@ class Products extends BaseModel implements EntityIntegrationInterface
                         });
                     }
                 });
+
+                // Create an associative array to track highest price per company_id
+                $highestPrices = [];
+
+                // Loop through all prices just once
+                foreach ($allPrices as $priceData) {
+                    $companyId = $priceData['company_id'];
+
+                    // Only store if this company isn't tracked yet or if this price is higher
+                    if (! isset($highestPrices[$companyId]) || $priceData['price'] > $highestPrices[$companyId]) {
+                        $highestPrices[$companyId] = $priceData['price'];
+                    }
+                }
+
+                // Add the highest prices to the product
+                foreach ($highestPrices as $companyId => $price) {
+                    $product['prices']['price_b2b_' . $companyId] = $price;
+                }
             }
         }
 

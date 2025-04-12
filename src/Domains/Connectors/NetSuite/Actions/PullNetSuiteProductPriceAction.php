@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\NetSuite\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
@@ -29,6 +30,7 @@ class PullNetSuiteProductPriceAction
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $mainAppCompany,
+        protected UserInterface $user
     ) {
         $this->service = new NetSuiteCustomerService($app, $mainAppCompany);
         $this->productService = new NetSuiteProductService($app, $mainAppCompany);
@@ -58,15 +60,15 @@ class PullNetSuiteProductPriceAction
 
         $variantWarehouse = $variant->variantWarehouses()->firstOrFail();
 
-        if ($setMinimumQuantity) {
-            $warehouseOptions = $this->getWarehouseOptions($netsuiteProductInfo, $variantWarehouse, $defaultWarehouse);
-        }
+        $warehouseOptions = $this->getWarehouseOptions($netsuiteProductInfo, $variantWarehouse, $defaultWarehouse);
 
-        $mapPrice =  $this->productService->getProductMapPrice($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
+        $mapPrice =  (float) $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
+        $colorCode =  $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value);
 
         $config = [
             'map_price' => $mapPrice,
-            ...(isset($warehouseOptions["minimum_quantity"]) ? ["minimum_quantity" => $warehouseOptions["minimum_quantity"]] : []),
+            ...(isset($warehouseOptions["minimum_quantity"]) && $setMinimumQuantity ? ["minimum_quantity" => $warehouseOptions["minimum_quantity"]] : []),
+
         ];
 
         if (isset($warehouseOptions["quantity"]) && $warehouseOptions["quantity"] !== null) {
@@ -77,10 +79,19 @@ class PullNetSuiteProductPriceAction
         $variantWarehouse->config =  $config ?? null;
         $variantWarehouse->saveOrFail();
 
+        $variant->addAttributes($this->user, [
+            [
+                'name' => 'color_code',
+                'value' => $colorCode,
+            ]
+        ]);
+
+
         return [
             'company' => $this->mainAppCompany->getId(),
             'item' => $barcode,
             'config' => $config,
+            "options" => $warehouseOptions,
         ];
     }
 

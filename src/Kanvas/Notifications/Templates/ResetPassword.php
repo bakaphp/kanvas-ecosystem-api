@@ -5,6 +5,7 @@ namespace Kanvas\Notifications\Templates;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
+use Override;
 
 /**
  * @deprecated version 2 , move to DynamicKanvasNotification
@@ -13,6 +14,7 @@ class ResetPassword extends Notification
 {
     public ?string $templateName = EmailTemplateEnum::RESET_PASSWORD->value;
 
+    #[Override]
     public function getData(): array
     {
         //replace url for app link

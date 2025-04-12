@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\Recombee;
 
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
@@ -43,10 +44,14 @@ class IndexMessagesRecombeeCommand extends Command
         $messageIndex->createPromptMessageDatabase();
 
         foreach ($cursor as $message) {
-            $result = $messageIndex->indexPromptMessage($message);
+            try {
+                $result = $messageIndex->indexPromptMessage($message);
 
-            $this->info('Message ID: ' . $message->getId() . ' indexed with result: ' . $result);
-            $this->output->progressAdvance();
+                $this->info('Message ID: ' . $message->getId() . ' indexed with result: ' . $result);
+                $this->output->progressAdvance();
+            } catch (Exception $e) {
+                $this->error('Error indexing message ID: ' . $message->getId() . ' with error: ' . $e->getMessage());
+            }
         }
 
         $this->output->progressFinish();

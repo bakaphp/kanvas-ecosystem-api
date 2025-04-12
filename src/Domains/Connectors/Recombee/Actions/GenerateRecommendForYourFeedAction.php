@@ -21,8 +21,12 @@ class GenerateRecommendForYourFeedAction
     ) {
     }
 
-    public function execute(UserInterface $user, int $page = 1, int $pageSize = 25): LengthAwarePaginator
-    {
+    public function execute(
+        UserInterface $user,
+        int $page = 1,
+        int $pageSize = 25,
+        string $scenario = 'for-you-feed'
+    ): LengthAwarePaginator {
         $recommendationService = new RecombeeUserRecommendationService($this->app);
 
         if ($page > 1) {
@@ -30,10 +34,11 @@ class GenerateRecommendForYourFeedAction
             $response = $recommendationService->getUserForYouFeed(
                 user: $user,
                 count: $pageSize,
-                recommId: $recommendationId
+                recommId: $recommendationId,
+                scenario: $scenario
             );
         } else {
-            $response = $recommendationService->getUserForYouFeed($user, $pageSize);
+            $response = $recommendationService->getUserForYouFeed($user, $pageSize, $scenario);
         }
 
         $recommendation = $response['recomms'];

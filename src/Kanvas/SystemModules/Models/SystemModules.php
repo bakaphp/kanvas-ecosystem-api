@@ -111,6 +111,7 @@ class SystemModules extends BaseModel
     {
         $mapping = [
             Lead::class => 'Gewaer\\Models\\Leads',
+            People::class => 'Gewaer\\Models\\Peoples\\Peoples',
             Message::class => 'Gewaer\\Models\\Messages',
             Companies::class => 'Gewaer\\Models\\Companies',
             // Message::class => 'Kanvas\Packages\Social\Models\Messages',
@@ -132,10 +133,28 @@ class SystemModules extends BaseModel
             'user' => Users::class,
             'company' => Companies::class,
             'branch' => CompaniesBranches::class,
-            'region' =>  Regions::class,
-           ];
+            'region' => Regions::class,
+        ];
 
         return $internalMapping[strtolower($slug)] ?? throw new InvalidArgumentException('Entity ' . $slug . ' not found');
+    }
+
+    public static function getSlugBySystemModuleNameSpace(string $namespace): string
+    {
+        $internalMapping = [
+            Lead::class => 'lead',
+            People::class => 'people',
+            Message::class => 'message',
+            Products::class => 'product',
+            Variants::class => 'variant',
+            Order::class => 'order',
+            Users::class => 'user',
+            Companies::class => 'company',
+            CompaniesBranches::class => 'branch',
+            Regions::class => 'region',
+        ];
+
+        return $internalMapping[$namespace] ?? throw new InvalidArgumentException('Namespace ' . $namespace . ' not found');
     }
 
     public function abilities(): BelongsToMany

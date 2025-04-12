@@ -235,4 +235,104 @@ class UsersListsTest extends TestCase
             ],
         ]);
     }
+    public function testAddEntityToList()
+    {
+        $message = Message::factory()->create();
+        $input = [
+            'name' => fake()->name(),
+            'description' => fake()->text(),
+            'is_public' => fake()->boolean(),
+            'is_default' => fake()->boolean(),
+        ];
+        $response = $this->graphQL(
+            '
+                mutation createUserList($input: UserListInput!) {
+                    createUserList(input: $input) {
+                        id
+                    }
+                }
+            ',
+            [
+                'input' => $input,
+            ]
+        );
+        $id = $response->json('data.createUserList.id');
+
+        $this->graphQL(
+            '
+                mutation addEntityToUserList($entity: EntityInput!) {
+                    addEntityToUserList(entity: $entity) 
+                }
+            ',
+            [
+                'entity' => [
+                    'users_lists_id' => $id,
+                    'entity_id' => $message->id,
+                    'entity_type' => 'message',
+                ],
+            ]
+        )->assertJson([
+            'data' => [
+                'addEntityToUserList' => true,
+            ],
+        ]);
+    }
+
+    public function testRemoveEntityFromList()
+    {
+        $message = Message::factory()->create();
+        $input = [
+            'name' => fake()->name(),
+            'description' => fake()->text(),
+            'is_public' => fake()->boolean(),
+            'is_default' => fake()->boolean(),
+        ];
+        $response = $this->graphQL(
+            '
+                mutation createUserList($input: UserListInput!) {
+                    createUserList(input: $input) {
+                        id
+                    }
+                }
+            ',
+            [
+                'input' => $input,
+            ]
+        );
+        $id = $response->json('data.createUserList.id');
+
+        $this->graphQL(
+            '
+                mutation addEntityToUserList($entity: EntityInput!) {
+                    addEntityToUserList(entity: $entity) 
+                }
+            ',
+            [
+                'entity' => [
+                    'users_lists_id' => $id,
+                    'entity_id' => $message->id,
+                    'entity_type' => 'message',
+                ],
+            ]
+        );
+
+        $this->graphQL(
+            '
+                mutation removeEntityFromUserList($entity: EntityInput!) {
+                    removeEntityFromUserList(entity: $entity) 
+                }
+            ',
+            [
+                'entity' => [
+                    'users_lists_id' => $id,
+                    'entity_id' => $message->id,
+                    'entity_type' => 'message',
+                ],
+            ]
+        )->assertJson([
+            'data' => [
+                'removeEntityFromUserList' => true,
+            ],
+        ]);
+    }
 }

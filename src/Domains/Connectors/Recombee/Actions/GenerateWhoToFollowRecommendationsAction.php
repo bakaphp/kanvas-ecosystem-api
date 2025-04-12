@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Users\Models\Users;
+use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 
 class GenerateWhoToFollowRecommendationsAction
 {
@@ -19,13 +20,13 @@ class GenerateWhoToFollowRecommendationsAction
     ) {
     }
 
-    public function execute(UserInterface $user, int $pageSize = 10): Builder
+    public function execute(UserInterface $user, int $pageSize = 10, string $scenario = ScenariosEnum::USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS->value): Builder
     {
         $recommendationService = new RecombeeUserRecommendationService($this->app);
 
-        $response = $recommendationService->getUserToUserRecommendation($user, $pageSize, 'user-follow-suggestion-similar-interests');
+        $response = $recommendationService->getUserToUserRecommendation($user, $pageSize, $scenario);
 
-        $entityIds = collect($response)
+        $entityIds = collect($response['recomms'])
             ->pluck('id')
             ->unique()
             ->filter()

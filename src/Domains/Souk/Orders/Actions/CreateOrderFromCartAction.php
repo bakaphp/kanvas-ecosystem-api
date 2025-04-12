@@ -121,7 +121,6 @@ class CreateOrderFromCartAction
         $order = (new CreateOrderAction($order))->execute();
 
         $this->cart->clear();
-
         return $order;
     }
 
@@ -142,7 +141,7 @@ class CreateOrderFromCartAction
                 variant: $variant,
                 name: (string) $lineItem['name'],
                 sku: (string) ($variant->sku ?? $lineItem['id']),
-                quantity: (int) $lineItem['quantity'],
+                quantity: (float) $lineItem['quantity'],
                 price: (float) $lineItem['price'],
                 tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),

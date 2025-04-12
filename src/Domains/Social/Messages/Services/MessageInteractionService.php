@@ -98,6 +98,18 @@ class MessageInteractionService
         return $userInteraction;
     }
 
+    public function report(UserInterface $who, ?string $note = null): UsersInteractions
+    {
+        $this->incrementInteractionCount('total_reported');
+
+        $userInteraction = $this->createInteraction($who, InteractionEnum::REPORT->getValue());
+        $userMessage = $this->addToUserMessage($who);
+        $userMessage->is_reported = 1;
+        $userMessage->saveOrFail();
+
+        return $userInteraction;
+    }
+
     protected function incrementInteractionCount(string $interactionType): void
     {
         $this->message->$interactionType++;

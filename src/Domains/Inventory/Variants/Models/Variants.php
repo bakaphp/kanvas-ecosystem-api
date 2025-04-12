@@ -57,9 +57,11 @@ use Override;
  * @property string html_description
  * @property string sku
  * @property int status_id
+ * @property int is_published
  * @property string ean
  * @property string barcode
  * @property string serial_number
+ * @property int is_deleted
  */
 #[ObservedBy(VariantObserver::class)]
 class Variants extends BaseModel implements EntityIntegrationInterface
@@ -102,7 +104,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         'sku',
         'ean',
         'weight',
+        'is_published',
         'apps_id',
+    ];
+
+    protected $casts = [
+        'is_published' => 'boolean',
+        'is_deleted' => 'boolean',
     ];
 
     protected $guarded = [];
@@ -127,7 +135,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     public function isPublished(): bool
     {
-        return (int) $this->is_deleted === 0;
+        return (int) $this->is_deleted === 0 && $this->is_published;
     }
 
     /**
@@ -161,6 +169,15 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     public function status(): BelongsTo
     {
         return $this->belongsTo(Status::class, 'status_id');
+    }
+
+    public function scopeFilterByPublished(Builder $query, bool $includeUnpublished = false): Builder
+    {
+        if (! $includeUnpublished) {
+            return $query->where('is_published', true);
+        }
+
+        return $query;
     }
 
     /**

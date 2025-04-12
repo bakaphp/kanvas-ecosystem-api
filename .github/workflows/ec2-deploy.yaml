@@ -50,11 +50,8 @@ jobs:
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
+
             docker restart queue-scrapper
-            docker restart queue-scrapper-worker-1
-            docker restart queue-scrapper-worker-2
-            docker restart queue-scrapper-worker-3
-            docker restart queue-scrapper-worker-4
             docker restart queue
             docker restart queue-imports
             docker restart queue-notifications
@@ -62,26 +59,29 @@ jobs:
             docker restart laravel-scheduler
             docker restart queue-sync-shopify-queue
             docker restart queue-sync-shopify-queue-worker-1
-            docker restart queue-sync-shopify-queue-worker-1
-            docker restart queue-sync-shopify-queue-worker-2
+            docker stop queue-sync-shopify-queue-worker-2
             docker restart queue-scout-worker-1
-            docker restart queue-scout-worker-2
-            docker restart queue-scout-worker-3
+            docker stop queue-scout-worker-2
             docker restart queue-workflow-1
-            docker restart queue-workflow-2
-            docker restart queue-workflow-3
+            docker stop queue-workflow-2
+            docker stop queue-workflow-3
             docker restart batch-logger-queue
             docker restart queue-user-interactions
+            docker stop queue-scrapper-worker-1
+            docker stop queue-scrapper-worker-2
+            docker stop queue-scrapper-worker-3
+            docker stop queue-scrapper-worker-4
+            docker stop queue-scout-worker-3
             if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
-              docker restart queue-imports2
-              docker restart queue2
-              docker restart queue3
-              docker restart queue4
-              docker restart queue5
-              docker restart queue6
-              docker restart queue7
-              docker restart queue8
-              docker restart queue-workflow-4
+              docker stop queue-imports2
+              docker stop queue2
+              docker stop queue3
+              docker stop queue4
+              docker stop queue5
+              docker stop queue6
+              docker stop queue7
+              docker stop queue8
+              docker stop queue-workflow-4
             fi
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload

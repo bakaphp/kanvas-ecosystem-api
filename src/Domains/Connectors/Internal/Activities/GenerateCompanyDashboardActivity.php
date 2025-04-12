@@ -16,10 +16,12 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 use Throwable;
 
 class GenerateCompanyDashboardActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

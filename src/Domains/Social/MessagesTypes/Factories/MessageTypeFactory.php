@@ -23,6 +23,15 @@ class MessageTypeFactory extends Factory
             'verb' => 'create',
             'template' => '<fake>',
             'templates_plura' => '<fake>',
+            'message_schema' => json_encode([
+                'required' => ['name', 'email'],
+                'optional' => ['phone'],
+                'types' => [
+                    'name' => 'string',
+                    'email' => 'string',
+                    'phone' => 'string'
+                ]
+            ])
         ];
     }
 }

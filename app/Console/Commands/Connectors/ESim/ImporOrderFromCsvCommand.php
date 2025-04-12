@@ -5,50 +5,50 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\ESim;
 
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Console\Command;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Regions\Models\Regions;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\ESim\Actions\ImportOrderFromCsvAction;
-use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
-use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
-use League\Csv\Reader;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Kanvas\Souk\Orders\DataTransferObject\Order as OrderDTO;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
+use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Customers\DataTransferObject\Contact;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
-use Spatie\LaravelData\DataCollection;
-use Kanvas\Users\Models\Users;
-use Kanvas\Currencies\Models\Currencies;
-use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
+use Kanvas\Souk\Orders\DataTransferObject\Order as OrderDTO;
+use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
+use League\Csv\Reader;
+use Spatie\LaravelData\DataCollection;
 
 class ImporOrderFromCsvCommand extends Command
 {
+    use KanvasJobsTrait;
     public Apps $app;
     public Companies $company;
     public Regions $region;
     public Users $user;
     public string $url;
-    use KanvasJobsTrait;
-    protected $signature = "kanvas:import-order-from-csv {app_id} {company_id} {region_id} {user_id} {url}";
-
+    protected $signature = 'kanvas:import-order-from-csv {app_id} {company_id} {region_id} {user_id} {url}';
 
     public function handle(): void
     {
-        $this->app = Apps::getById($this->argument("app_id"));
-        $this->company = Companies::getById($this->argument("company_id"));
-        $this->region = Regions::getById($this->argument("region_id"));
-        $this->user = UsersRepository::getUserOfAppById((int)$this->argument("user_id"), $this->app);
-        $this->url = $this->argument("url");
+        $this->app = Apps::getById($this->argument('app_id'));
+        $this->company = Companies::getById($this->argument('company_id'));
+        $this->region = Regions::getById($this->argument('region_id'));
+        $this->user = UsersRepository::getUserOfAppById((int)$this->argument('user_id'), $this->app);
+        $this->url = $this->argument('url');
         $this->process();
     }
 
@@ -62,7 +62,7 @@ class ImporOrderFromCsvCommand extends Command
             Storage::put("downloads/{$fileName}", $response->body());
             $path = Storage::path("downloads/{$fileName}");
         } else {
-            $this->error("Error al descargar el archivo.");
+            $this->error('Failed to download the file.');
         }
         $reader = Reader::createFromPath($path, 'r');
         $reader->setHeaderOffset(0);
@@ -73,9 +73,10 @@ class ImporOrderFromCsvCommand extends Command
         $app = $this->app;
         $company = $this->company;
         foreach ($collection as $order) {
-            $kanvasOrder = Order::getByCustomField('order_reference', $order['order_reference'], $company);
+            $kanvasOrder = Order::getByCustomField(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value, $order['order_reference'], $company);
             if ($kanvasOrder) {
                 $this->info('Order already exists: ' . $kanvasOrder->order_number);
+
                 continue;
             }
             $items = $collection->where('order_reference', $order['order_reference']);
@@ -101,6 +102,7 @@ class ImporOrderFromCsvCommand extends Command
                             currency: Currencies::getByCode('USD'),
                             quantityShipped: 0
                         );
+
                         return $orderItem;
                     }
                 }
@@ -111,8 +113,8 @@ class ImporOrderFromCsvCommand extends Command
                     [
                         'value' => $order['email'],
                         'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                        'weight' => 0
-                    ]
+                        'weight' => 0,
+                    ],
                 ];
                 $name = explode(' ', $order['name']);
                 $peopleDto = new PeopleDTO(
@@ -130,12 +132,18 @@ class ImporOrderFromCsvCommand extends Command
             }
             $total = $items->sum('price');
             $items = OrderItem::collect($items, DataCollection::class);
+
+            try {
+                $user = UsersRepository::getByEmail($order['email']);
+            } catch (Exception $e) {
+                continue;
+            }
             $dto = OrderDTO::from([
                 'app' => $this->app,
                 'region' => $this->region,
                 'company' => $this->company,
                 'people' => $people,
-                'user' => $this->user,
+                'user' => $user,
                 'token' => $order['key'],
                 'orderNumber' => '',
                 'total' => (float) $total,
@@ -145,14 +153,12 @@ class ImporOrderFromCsvCommand extends Command
                 'status' => OrderStatusEnum::COMPLETED->value,
                 'checkoutToken' => '',
                 'currency' => Currencies::getByCode('USD'),
-                'items' => $items
+                'items' => $items,
             ]);
-            $kanvasOrder = (
-                new CreateOrderAction(
-                    $dto
-                )
-            )->execute();
-            $kanvasOrder->set('order_reference', $order['order_reference']);
+            $action = new CreateOrderAction($dto);
+            $action->disableWorkflow();
+            $kanvasOrder = $action->execute();
+            $kanvasOrder->set(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value, $order['order_reference']);
             $this->info("Order created: {$kanvasOrder->order_number}\n");
         }
     }

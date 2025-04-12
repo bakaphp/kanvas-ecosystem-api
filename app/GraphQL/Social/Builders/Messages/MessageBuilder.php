@@ -14,13 +14,15 @@ use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Recombee\Actions\GenerateRecommendForYourFeedAction;
+use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Jobs\UserInteractionJob;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
-use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use Kanvas\Social\Messages\Models\UserMessage;
+use Kanvas\Users\Enums\UserConfigEnum;
+use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class MessageBuilder
 {
@@ -57,6 +59,11 @@ class MessageBuilder
                 $query->whereHas('tags', function (Builder $q) use ($slug) {
                     $q->where('slug', $slug);
                 });
+            }
+
+            $messageCacheTime = (int) $app->get('message_tags_cache_time');
+            if ($messageCacheTime > 0) {
+                $query->cacheFor($messageCacheTime);
             }
         }
 
@@ -119,12 +126,26 @@ class MessageBuilder
         }
 
         /**
+         * @todo same thing don't like this, we need a better way to handle this
+         */
+        $scenario = ConfigurationEnum::FOR_YOU_SCENARIO;
+        if ($app->get('trending-if-no-interaction')) {
+            $hasDoneAnyInteraction = ! empty($user->get(UserConfigEnum::USER_INTERACTIONS->value));
+            $scenario = $hasDoneAnyInteraction ? ConfigurationEnum::FOR_YOU_SCENARIO : ConfigurationEnum::TRENDING_SCENARIO;
+        }
+
+        /**
          * @todo this is tied to recombee, we need to move it to a per application
          * configuration
          */
         $recombeeUserRecommendationService = new GenerateRecommendForYourFeedAction($app, $company);
 
-        return $recombeeUserRecommendationService->execute($user, $currentPage, $args['first'] ?? 15);
+        return $recombeeUserRecommendationService->execute(
+            $user,
+            $currentPage,
+            $args['first'] ?? 15,
+            $scenario->value
+        );
     }
 
     public function getFollowingFeed(
@@ -135,7 +156,15 @@ class MessageBuilder
     ): Builder {
         $user = auth()->user();
         $app = app(Apps::class);
-        return UserMessage::getFollowingFeed($user, $app);
+
+        $messageTypeId = $app->get('social-user-message-filter-message-type');
+
+        return UserMessage::getUserMessageFollowingFeed($user, $app)->when(
+            $messageTypeId !== null,
+            function ($query) use ($messageTypeId) {
+                return $query->where('messages.message_types_id', $messageTypeId);
+            }
+        );
     }
 
     public function getChannelMessages(

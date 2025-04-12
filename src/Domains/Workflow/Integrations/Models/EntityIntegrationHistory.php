@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Integrations\Models;
 
+use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
@@ -26,6 +27,8 @@ class EntityIntegrationHistory extends BaseModel
     ];
 
     protected $casts = [
+        'response' => Json::class,
+        'exception' => Json::class,
         'is_deleted' => 'boolean',
     ];
 

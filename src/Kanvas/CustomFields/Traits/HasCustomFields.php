@@ -19,7 +19,9 @@ use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 trait HasCustomFields
 {
@@ -64,19 +66,28 @@ trait HasCustomFields
         }
 
         $companyId = $this->companies_id ?? 0;
+        $currentClass = get_class($this);
+        $legacySystemModule = SystemModules::getLegacyNamespace($currentClass);
+        $hasLegacySystemModule = $legacySystemModule !== $currentClass;
 
-        $results = DB::select('
-            SELECT name, value
-                FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
-                WHERE
-                    companies_id = ?
-                    AND model_name = ?
-                    AND entity_id = ?
-        ', [
-            $companyId,
-            get_class($this),
-            $this->getKey(),
-        ]);
+        // Build the query dynamically
+        $query = 'SELECT name, value 
+            FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
+            WHERE companies_id = ? AND entity_id = ?';
+
+        $parameters = [$companyId, $this->getKey()];
+
+        // Add model_name condition based on legacy status
+        if ($hasLegacySystemModule) {
+            $query .= ' AND (model_name = ? OR model_name = ?)';
+            $parameters[] = $currentClass;
+            $parameters[] = $legacySystemModule;
+        } else {
+            $query .= ' AND model_name = ?';
+            $parameters[] = $currentClass;
+        }
+
+        $results = DB::select($query, $parameters);
 
         $listOfCustomFields = [];
 
@@ -191,7 +202,7 @@ trait HasCustomFields
     public function getCustomField(string $name): ?AppsCustomFields
     {
         return AppsCustomFields::where('companies_id', $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue())
-                                ->where('model_name', get_class($this))
+                                ->whereIn('model_name', [get_class($this), SystemModules::getLegacyNamespace(get_class($this))]) //allow legacy
                                 ->where('entity_id', $this->getKey())
                                 ->where('name', $name)
                                 ->first();
@@ -239,6 +250,32 @@ trait HasCustomFields
             'name' => $name,
             'value' => $value,
         ]);
+
+        /**
+         * @todo remove this once legacy is removed
+         */
+        try {
+            $useLegacySystemModule = isset($this->app) && $this->app->get('legacy_custom_field_' . SystemModules::getSlugBySystemModuleNameSpace($modelName));
+            if ($useLegacySystemModule) {
+                $modelName = SystemModules::getLegacyNamespace($modelName);
+                $customField = AppsCustomFields::updateOrCreate([
+                    'companies_id' => $companyId,
+                    'model_name' => $modelName,
+                    'entity_id' => $this->getKey(),
+                    'name' => $name,
+                ], [
+                    'companies_id' => $companyId,
+                    'users_id' => $user !== null ? $user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
+                    'model_name' => $modelName,
+                    'entity_id' => $this->getKey(),
+                    'label' => $name,
+                    'name' => $name,
+                    'value' => $value,
+                ]);
+            }
+        } catch (Throwable $e) {
+            // do nothing
+        }
 
         if (method_exists($this, 'fireWorkflow')) {
             $this->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELD->value);
@@ -416,12 +453,11 @@ trait HasCustomFields
      * If something happened to redis
      * And we need to re insert all the custom fields
      * for this entity , we run this method.
+     * @deprecated
      */
     public function reCacheCustomFields(): void
     {
-        foreach ($this->getAll(fromRedis: false) as $key => $value) {
-            $this->setInRedis($key, $value);
-        }
+        $this->reGenerateRedisCustomFields();
     }
 
     /**
@@ -429,16 +465,24 @@ trait HasCustomFields
      */
     public static function getByCustomField(string $name, mixed $value, ?Companies $company = null): ?Model
     {
+        return self::getByCustomFieldBuilder($name, $value, $company)->first();
+    }
+
+    public static function getByCustomFieldBuilder(string $name, mixed $value, ?Companies $company = null): Builder
+    {
         $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $table = (new static())->getTable();
 
-        return self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
+        $query = self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
             ->where('apps_custom_fields.companies_id', $company)
             ->where('apps_custom_fields.model_name', static::class)
-            ->where('apps_custom_fields.name', $name)
-            ->where('apps_custom_fields.value', $value)
-            ->select($table . '.*')
-            ->first();
+            ->where('apps_custom_fields.name', $name);
+
+        if ($value !== null) {
+            $query->where('apps_custom_fields.value', $value);
+        }
+
+        return $query->select($table . '.*');
     }
 
     protected function clearCustomFieldsCacheIfNeeded(): void

@@ -23,7 +23,8 @@ class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
             $mainCompany = Companies::getById($mainCompanyId);
             $syncNetSuiteProduct = new PullNetSuiteProductPriceAction(
                 $this->receiver->app,
-                $mainCompany
+                $mainCompany,
+                $this->receiver->user
             );
             $productSyncResult = $syncNetSuiteProduct->execute($barcode);
             $successMessage = 'NetSuite Product Synced';
