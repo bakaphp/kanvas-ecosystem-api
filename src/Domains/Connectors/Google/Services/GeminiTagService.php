@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Google\Services;
 
 use Baka\Support\Str;
-use EchoLabs\Prism\Enums\Provider;
-use EchoLabs\Prism\Prism;
+use Prism\Prism\Prism;
+use Prism\Prism\Enums\Provider;
 
 class GeminiTagService
 {
