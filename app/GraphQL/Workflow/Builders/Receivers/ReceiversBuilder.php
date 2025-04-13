@@ -39,12 +39,15 @@ class ReceiversBuilder
         $receiversWebhookCallsTable = ReceiverWebhookCall::getFullTableName();
         $receiversWebhookTable = ReceiverWebhook::getFullTableName();
 
+        $receiversWebhookAlias = 'rw_has_action';
+        $receiversWebhookTable = ReceiverWebhook::getFullTableName();
+
         $root->select([
-            'receiver_webhook_calls.*',
-            'receiver_webhook_calls.id as id',
+            "$receiversWebhookCallsTable.*",
+            "$receiversWebhookCallsTable.id as id",
         ])
-        ->join($receiversWebhookTable, $receiversWebhookCallsTable . '.receiver_webhooks_id', '=', $receiversWebhookTable . '.id')
-        ->join($actionTable, $receiversWebhookTable . '.action_id', '=', $actionTable . '.id')
+        ->join("$receiversWebhookTable as $receiversWebhookAlias", "$receiversWebhookCallsTable.receiver_webhooks_id", '=', "$receiversWebhookAlias.id")
+        ->join($actionTable, "$receiversWebhookAlias.action_id", '=', "$actionTable.id")
         ->distinct();
 
         if (isset($args['HAS']['condition'])) {
@@ -53,8 +56,7 @@ class ReceiversBuilder
             if ($column && $value) {
                 $root->when(
                     $value,
-                    fn ($query) =>
-                    $query->where($actionTable . '.' . $column, $value)
+                    fn ($query) => $query->where("$actionTable.$column", $value)
                 );
             }
         }

@@ -87,6 +87,15 @@ class MessageManagementMutation
         );
         $message = $action->execute();
 
+        if (! empty($data->files)) {
+            $this->handleFileUpload(
+                model: $message,
+                app: $app,
+                user: $user,
+                files: $data->files
+            );
+        }
+
         if (! key_exists('distribution', $messageData)) {
             return $message;
         }

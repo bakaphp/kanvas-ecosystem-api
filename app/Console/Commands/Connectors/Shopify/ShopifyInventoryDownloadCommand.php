@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Actions\DownloadAllShopifyProductsAction;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 
 class ShopifyInventoryDownloadCommand extends Command
 {
@@ -18,7 +19,7 @@ class ShopifyInventoryDownloadCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:inventory-download-from-shopify-sync {app_id} {branch_id} {warehouse_id} {channel_id?}';
+    protected $signature = 'kanvas:inventory-download-from-shopify-sync {app_id} {branch_id} {warehouse_id} {channel_id?} {region_id?} {--sku=} {--product_id=} {--handle=}';
 
     /**
      * The console command description.
@@ -38,16 +39,29 @@ class ShopifyInventoryDownloadCommand extends Command
         $branch = CompaniesBranches::getById((int) $this->argument('branch_id'));
         $warehouse = Warehouses::fromApp($app)->fromCompany($branch->company)->where('id', $this->argument('warehouse_id'))->firstOrFail();
         $channel = $this->argument('channel_id') ? Channels::fromApp($app)->fromCompany($branch->company)->where('id', $this->argument('channel_id'))->firstOrFail() : null;
+        $region = $this->argument('region_id') ? Regions::fromApp($app)->fromCompany($branch->company)->where('id', $this->argument('region_id'))->firstOrFail() : null;
 
         $downloadProduct = new DownloadAllShopifyProductsAction(
             $warehouse->app,
             $warehouse,
             $branch,
             $branch->company->user,
-            $channel
+            $channel,
+            $region
         );
 
-        $total = $downloadProduct->execute();
+        $params = [];
+        if ($this->option('sku') !== '') {
+            $params['sku'] = $this->option('sku');
+        }
+        if ($this->option('product_id') !== '') {
+            $params['product_id'] = $this->option('product_id');
+        }
+        if ($this->option('handle') !== '') {
+            $params['handle'] = $this->option('handle');
+        }
+
+        $total = $downloadProduct->execute($params);
 
         $this->info($total . ' Products downloaded successfully from Shopify to warehouse. Running queue');
 

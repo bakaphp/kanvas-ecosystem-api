@@ -176,9 +176,16 @@ class PushPeopleAction
         if ($driversLicenseData) {
             try {
                 $driversLicense = DriversLicense::fromArray($driversLicenseData);
-                $birthDay = Carbon::createFromFormat(DateHelper::detectDateFormat($driversLicense->birthDate), $driversLicense->birthDate, 'UTC');
-                $expirationData = Carbon::createFromFormat(DateHelper::detectDateFormat($driversLicense->expirationDate), $driversLicense->expirationDate, 'UTC');
-                $issueDate = Carbon::createFromFormat(DateHelper::detectDateFormat($driversLicense->issueDate), $driversLicense->issueDate, 'UTC');
+
+                // Helper function to safely format date
+                $formatDate = function ($dateString) {
+                    if (empty($dateString)) {
+                        return null;
+                    }
+                    $format = DateHelper::detectDateFormat($dateString);
+
+                    return $format ? Carbon::createFromFormat($format, $dateString, 'UTC')->format('Y-m-d\TH:i:s.u\Z') : null;
+                };
 
                 return [
                     'State' => $driversLicense->state,
@@ -187,9 +194,9 @@ class PushPeopleAction
                     'PostalCode' => $driversLicense->zipCode,
                     'Country' => 'USA',
                     'LicenseID' => $driversLicense->documentNumber,
-                    'DateOfBirth' => $birthDay->format('Y-m-d\TH:i:s.u\Z'),
-                    'ExpirationDate' => $expirationData->format('Y-m-d\TH:i:s.u\Z'),
-                    'IssueDate' => $issueDate->format('Y-m-d\TH:i:s.u\Z'),
+                    'DateOfBirth' => $formatDate($driversLicense->birthDate),
+                    'ExpirationDate' => $formatDate($driversLicense->expirationDate),
+                    'IssueDate' => $formatDate($driversLicense->issueDate),
                     'Sex' => $driversLicense->sex,
                 ];
             } catch (Throwable $e) {

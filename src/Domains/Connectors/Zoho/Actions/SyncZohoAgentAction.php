@@ -61,7 +61,7 @@ class SyncZohoAgentAction
                     new RegisterInput(
                         firstname: $firstName,
                         lastname: $lastName,
-                        displayname: Random::generateDisplayNameFromEmail($this->email),
+                        displayname: Random::generateDisplayNameFromEmail($this->email, $this->app),
                         email: $this->email,
                         password: Str::random(11),
                         branch: $this->company->defaultBranch //assign user to default branch
@@ -162,7 +162,7 @@ class SyncZohoAgentAction
                 new RegisterInput(
                     firstname: $ownerFirstName,
                     lastname: $ownerLastName,
-                    displayname: Random::generateDisplayNameFromEmail($owner['email']),
+                    displayname: Random::generateDisplayNameFromEmail($owner['email'], $this->app),
                     email: $owner['email'],
                     password: Str::random(11),
                     branch: $this->company->defaultBranch //assign user to default branch

@@ -8,10 +8,12 @@ use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Recombee\Client;
 use Kanvas\Connectors\Recombee\DataTransferObject\RecombeeSetup;
 use Kanvas\Connectors\Recombee\Services\RecombeeService;
+use Override;
 use Recombee\RecommApi\Requests\ListItems;
 
 class RecombeeHandler extends BaseIntegration
 {
+    #[Override]
     public function setup(): bool
     {
         $recombeeDto = new RecombeeSetup(
@@ -23,13 +25,8 @@ class RecombeeHandler extends BaseIntegration
             recombeeRegion: $this->data['recombee_region']
         );
 
-        RecombeeService::recombeeSetup($recombeeDto);
+        RecombeeService::setup($recombeeDto);
 
-        return ! empty(
-            Client::getInstanceValidation(
-                $this->app,
-                $this->company,
-                $recombeeDto->region
-            )->send(new ListItems()));
+        return ! empty(new Client($this->app)->getClient()->send(new ListItems()));
     }
 }

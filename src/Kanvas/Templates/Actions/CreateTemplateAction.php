@@ -27,12 +27,15 @@ class CreateTemplateAction
             'apps_id' => $this->template->app->getKey(),
             'companies_id' => $this->template->company ? $this->template->company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue(),
             'name' => $this->template->name,
+            'title' => $this->template->title,
+            'subject' => $this->template->subject,
         ];
 
         $attributes = [
             'users_id' => $this->template->user ? $this->template->user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
             'template' => $this->template->template,
             'parent_template_id' => $parent ? $parent->getId() : 0,
+            'is_system' => $this->template->isSystem,
         ];
 
         if ($overwrite) {

@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Social\Messages\Actions\CheckMessageContentAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class CheckMessageContentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         if ((new CheckMessageContentAction($entity->message, $app))->execute()) {

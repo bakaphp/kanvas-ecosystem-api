@@ -66,8 +66,6 @@ class AuthTest extends TestCase
      * Test if the user is allow to login using social media
      * @todo Look for a way to generate and pass the user token for the login using
      * a test account.
-     *
-     * @return void
      */
     public function testSocialLogin(): void
     {
@@ -285,5 +283,26 @@ class AuthTest extends TestCase
         )
         ->assertSuccessful()
         ->assertSee('resetPassword');
+    }
+
+    public function testForgotPasswordDisplayname(): void
+    {
+        $loginData = self::loginData();
+        $email = $loginData->getEmail();
+        $userData = Users::getByEmail($loginData->getEmail());
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation forgotPassword($data: ForgotPasswordInput!) {
+                forgotPassword(data: $data)
+            }',
+            [
+                'data' => [
+                    'email' => $userData->displayname,
+                ],
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('forgotPassword');
     }
 }

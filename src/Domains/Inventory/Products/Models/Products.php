@@ -96,6 +96,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     protected $casts = [
         'is_published' => 'boolean',
+        'is_deleted' => 'boolean',
     ];
 
     protected $is_deleted;
@@ -321,6 +322,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->isPublished();
     }
 
+    /**
+     * @todo refactor this method is to long
+     */
     public function toSearchableArray(): array
     {
         $product = [
@@ -378,18 +382,24 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 // Initialize prices array
                 $product['prices'] = [];
 
+                // Temporary array to collect all prices
+                $allPrices = [];
+
                 // Loop through each variant
-                $this->variants->each(function ($variant) use (&$product) {
+                $this->variants->each(function ($variant) use (&$allPrices) {
                     // Each variant has its own channels, so get them
                     if ($variant->channels && $variant->channels->count() > 0) {
-                        $variant->channels->each(function ($channel) use (&$product) {
+                        $variant->channels->each(function ($channel) use (&$allPrices) {
                             // Get company by slug
                             try {
                                 $company = Companies::getByUuid($channel->slug);
 
                                 if ($company) {
-                                    // Add price to the prices array
-                                    $product['prices']['price_b2b_' . $company->getId()] = (float) $channel->price;
+                                    // Store price with company ID for later sorting
+                                    $allPrices[] = [
+                                        'company_id' => $company->getId(),
+                                        'price' => (float) $channel->price,
+                                    ];
                                 }
                             } catch (Exception $e) {
                                 // Do nothing
@@ -397,6 +407,24 @@ class Products extends BaseModel implements EntityIntegrationInterface
                         });
                     }
                 });
+
+                // Create an associative array to track highest price per company_id
+                $highestPrices = [];
+
+                // Loop through all prices just once
+                foreach ($allPrices as $priceData) {
+                    $companyId = $priceData['company_id'];
+
+                    // Only store if this company isn't tracked yet or if this price is higher
+                    if (! isset($highestPrices[$companyId]) || $priceData['price'] > $highestPrices[$companyId]) {
+                        $highestPrices[$companyId] = $priceData['price'];
+                    }
+                }
+
+                // Add the highest prices to the product
+                foreach ($highestPrices as $companyId => $price) {
+                    $product['prices']['price_b2b_' . $companyId] = $price;
+                }
             }
         }
 

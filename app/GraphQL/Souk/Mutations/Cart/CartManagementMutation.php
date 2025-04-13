@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Cart;
 
 use Illuminate\Support\Facades\App;
+use Joelwmale\Cart\CartCondition;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Cart\Services\CartService;
-use Wearepixel\Cart\CartCondition;
 
 class CartManagementMutation
 {
@@ -22,6 +22,7 @@ class CartManagementMutation
         $cart = app('cart')->session($user->getId());
 
         $addToCartAction = new AddToCartAction($app, $user, $currentUserCompany);
+
         return $addToCartAction->execute($cart, $request['items']);
     }
 
@@ -55,6 +56,7 @@ class CartManagementMutation
     {
         $user = auth()->user();
         $cart = app('cart')->session($user->getId());
+        $app = app(Apps::class);
 
         /**
          * @todo add https://github.com/wearepixel/laravel-cart#adding-a-condition-to-the-cart-cartcondition
@@ -63,21 +65,21 @@ class CartManagementMutation
         $isDevelopment = App::environment('development');
 
         /**
-         * @todo temp condition for development so they can test
+         * @todo for the love of god move this to a specific module
          */
-        if ($isDevelopment && ! empty($discountCodes)) {
-            if (strtolower($discountCodes[0]) !== 'kanvas') {
+        if (! empty($discountCodes) && $app->get('temp-use-discount-codes')) {
+            if (strtolower($discountCodes[0]) !== 'app15') {
                 throw new ModelNotFoundException('Discount code not found');
             }
 
             $tenPercentOff = new CartCondition([
-              'name' => 'KANVAS',
+              'name' => 'APP15',
               'type' => 'discount',
               'target' => 'subtotal',
-              'value' => '-10%',
+              'value' => '-15%',
               'minimum' => 1,
               'order' => 1,
-                    ]);
+            ]);
 
             $cart->condition($tenPercentOff);
         }

@@ -27,6 +27,7 @@ class DistributeMessagesToUsersJob implements ShouldQueue
         protected Apps $app,
         protected array $params = [],
     ) {
+        $this->onQueue('kanvas-social');
     }
 
     /**

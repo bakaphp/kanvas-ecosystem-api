@@ -10,11 +10,6 @@ use Kanvas\Regions\Models\Regions;
 
 class RecombeeSetup
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         public CompanyInterface $company,
         public AppInterface $app,
@@ -25,15 +20,12 @@ class RecombeeSetup
     ) {
     }
 
-    /**
-     * fromArray.
-     */
-    public static function viaRequest(array $data, AppInterface $app, CompanyInterface $company): self
+    public static function fromArray(array $data, AppInterface $app, CompanyInterface $company): self
     {
         return new self(
             $company,
             $app,
-            Regions::getById($data['region_id']),
+            Regions::getById($data['region_id'], $app),
             $data['database_id'],
             $data['private_token'],
             $data['recombee_region']

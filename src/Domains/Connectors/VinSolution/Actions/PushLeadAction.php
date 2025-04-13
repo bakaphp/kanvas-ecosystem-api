@@ -141,15 +141,12 @@ class PushLeadAction
 
     protected function addCoBuyer(): ?People
     {
-        if ($this->lead->get(CustomFieldEnum::LEAD_CO_BUYER_PROCESSED->value)) {
-            return null;
-        }
-
         // Find co-buyer participant type
         $coBuyerType = $this->lead->participants()
             ->whereHas('type', function ($query) {
                 $query->where('name', 'Co-buyer');
             })
+            ->latest()
             ->first();
 
         if (! $coBuyerType) {

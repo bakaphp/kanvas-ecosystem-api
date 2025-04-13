@@ -10,6 +10,9 @@ return [
     'app' => [
         'id' => env('KANVAS_APP_ID'),
         'frontend_url' => env('KANVAS_FRONTEND_URL'),
+        'google' => [
+            'google_play_credentials_json' => env('GOOGLE_PLAY_CREDENTIALS'),
+        ],
     ],
     'jwt' => [
         'secretKey' => env('APP_JWT_TOKEN'),

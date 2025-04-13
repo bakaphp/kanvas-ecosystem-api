@@ -33,7 +33,7 @@ class LeadObserver
 
         // set the default status if not specified
         if (! $lead->leads_status_id) {
-            $lead->leads_status_id = LeadStatus::getDefault()->getId();
+            $lead->leads_status_id = LeadStatus::getDefault($lead->app)->getId();
         }
 
         // if no pipeline assign one

@@ -13,12 +13,14 @@ use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class ExtractCompanyNameFromPeopleEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     /**
      * @param People $people
      */
+    #[Override]
     public function execute(Model $people, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

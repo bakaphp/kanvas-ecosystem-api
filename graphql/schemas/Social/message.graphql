@@ -21,7 +21,7 @@ type Message {
     total_children: Int
     total_purchase: Int
     parent: Message @cacheRedis
-    user: User! @cacheRedis
+    user: User!
     children: [Message!] @hasMany(type: PAGINATOR)
     messageType: MessageType! @cacheRedis
     appModuleMessage: AppModuleMessage @cacheRedis
@@ -73,6 +73,7 @@ input MessageInput {
     distribution: DistributionInput
     tags: [TagInput!]
     slug: String
+    files: [Upload!]
 }
 
 input MessageUpdateInput {
@@ -340,7 +341,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getFollowingFeed"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["notDeleted"]
         )
 
     channelMessages(

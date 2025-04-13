@@ -14,8 +14,8 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 class ProductService
 {
     public function __construct(
-        private Channels $channels,
-        private Warehouses $warehouse
+        protected Channels $channels,
+        protected Warehouses $warehouse
     ) {
     }
 
@@ -36,6 +36,7 @@ class ProductService
             'discountPrice' => $price['discount'],
             'slug' => Str::slug($product['asin']),
             'sku' => $product['asin'],
+            'source' => 'amazon',
             'source_id' => $product['asin'],
             'files' => $this->mapFilesystem(product: ['image' => $product['image'],'images' => $product['images']]),
             'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
@@ -77,8 +78,6 @@ class ProductService
                 ],
             ],
         ];
-        $product['variants'][] = $product;
-
         return $product;
     }
 
@@ -119,20 +118,19 @@ class ProductService
 
     public function mapCategories(array $product): array
     {
-        $categories = explode(' › ', $product['product_category']);
+        $categories = explode('›', $product['product_category']);
         $mapCategories = [];
         $position = 1;
         foreach ($categories as $category) {
             $mapCategories[] = [
                 'name' => $category,
-                'source_id' => null,
+                'source_id' => $product['product_category'],
                 'isPublished' => true,
                 'position' => $position,
                 'code' => null,
             ];
             $position++;
         }
-
         return $mapCategories;
     }
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\ActionEngine\Tasks\Models;
 
 use Baka\Casts\Json;
-use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -31,7 +30,6 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 #[ObservedBy([TaskEngagementItemObserver::class])]
 class TaskEngagementItem extends BaseModel
 {
-    use HasCompositePrimaryKeyTrait;
     use CanUseWorkflow;
 
     protected $table = 'company_task_engagement_items';
@@ -40,8 +38,6 @@ class TaskEngagementItem extends BaseModel
     protected $casts = [
         'config' => Json::class,
     ];
-
-    protected $primaryKey = ['task_list_item_id','lead_id'];
 
     public function item(): BelongsTo
     {

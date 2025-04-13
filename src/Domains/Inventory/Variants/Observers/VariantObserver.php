@@ -17,6 +17,7 @@ class VariantObserver
     public function deleting(Variants $variant): void
     {
         $totalVariant = Variants::fromCompany($variant->company)
+        ->fromApp($variant->app)
         ->where('products_id', $variant->products_id)
         ->count();
 

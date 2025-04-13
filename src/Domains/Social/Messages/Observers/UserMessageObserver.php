@@ -11,16 +11,22 @@ class UserMessageObserver
 {
     public function created(UserMessage $userMessage): void
     {
-        (new UpdateInteractionCount($userMessage->message))->execute();
+        if ($userMessage->message) {
+            (new UpdateInteractionCount($userMessage->message))->execute();
+        }
     }
 
     public function updated(UserMessage $userMessage): void
     {
-        (new UpdateInteractionCount($userMessage->message))->execute();
+        if ($userMessage->message) {
+            (new UpdateInteractionCount($userMessage->message))->execute();
+        }
     }
 
     public function deleted(UserMessage $userMessage): void
     {
-        (new UpdateInteractionCount($userMessage->message))->execute();
+        if ($userMessage->message) {
+            (new UpdateInteractionCount($userMessage->message))->execute();
+        }
     }
 }
