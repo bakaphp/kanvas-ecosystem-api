@@ -88,6 +88,12 @@ return [
             'connection' => 'model-cache',
             'lock_connection' => 'default',
         ],
+        
+        'cart' => [
+            'driver' => 'redis',
+            'connection' => 'cart',
+            'lock_connection' => 'default',
+        ],
 
         'dynamodb' => [
             'driver' => 'dynamodb',

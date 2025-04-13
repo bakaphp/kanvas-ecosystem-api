@@ -28,6 +28,7 @@
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
         "imdhemy/laravel-purchases": "^1.14",
+        "joelwmale/laravel-cart": "^1.2",
         "knplabs/knp-snappy": "^1.5",
         "laravel-workflow/laravel-workflow": "^1.0.24",
         "laravel/cashier": "^15.6.0",
@@ -73,7 +74,6 @@
         "typesense/laravel-scout-typesense-driver": "dev-l12-compatibility",
         "typesense/typesense-php": "^4.2",
         "vlucas/phpdotenv": "^5.5",
-        "joelwmale/laravel-cart": "^1.2",
         "webleit/zohocrmapi": "dev-master",
         "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5.1"
     },
@@ -170,10 +170,6 @@
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
     "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/laravel-shift/laravelshoppingcart.git"
-        },
         {
             "type": "vcs",
             "url": "https://github.com/bakaphp/ZohoCrmApi.git"
