@@ -88,7 +88,7 @@ return [
             'connection' => 'model-cache',
             'lock_connection' => 'default',
         ],
-        
+
         'cart' => [
             'driver' => 'redis',
             'connection' => 'cart',
