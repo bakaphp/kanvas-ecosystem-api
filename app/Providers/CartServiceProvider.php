@@ -14,7 +14,7 @@ class CartServiceProvider extends CartCartServiceProvider
     #[Override]
     public function register()
     {
-        $this->app->bind('cart', function ($app) {
+        $this->app->singleton('cart', function ($app) {
             $config = config('cart');
             $events = $app['events'];
 
