@@ -68,14 +68,13 @@ class SyncNetSuiteCustomerItemsListAction
         $totalProcessed = 0;
         $setMinimumQuantity = $this->app->get(ConfigurationEnum::NET_SUITE_MINIMUM_PRODUCT_QUANTITY->value);
         $defaultWarehouse = $this->mainAppCompany->get(ConfigurationEnum::NET_SUITE_DEFAULT_WAREHOUSE->value);
-        $config = null;
-        $netsuiteProductQuantity = null;
         $missed = [];
         foreach ($listOrProductVariantsBarCodeIds as $bardCodeId) {
+            $config = null;
             $variant = Variants::fromApp($this->app)
-                    ->fromCompany($this->mainAppCompany)
-                    ->where('barcode', $bardCodeId->item->name)
-                    ->first();
+                ->fromCompany($this->mainAppCompany)
+                ->where('barcode', $bardCodeId->item->name)
+                ->first();
 
             if (! $variant) {
                 $missed[] = $bardCodeId->item->name;
@@ -85,34 +84,43 @@ class SyncNetSuiteCustomerItemsListAction
 
             $variantWarehouse = $variant->variantWarehouses()->firstOrFail();
 
-            if ($setMinimumQuantity) {
-                try {
-                    $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($variant->barcode);
-                    $netsuiteProductInfo = $this->productService->getProductById($searchNetsuiteProductInfo[0]->internalId);
-                    $netsuiteProductQuantity = $this->productService->getInventoryQuantityByLocation(
-                        $netsuiteProductInfo,
-                        $variantWarehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value) ?? $defaultWarehouse
-                    );
-                    $netsuiteProductPrice = $this->productService->getProductPrice($netsuiteProductInfo);
-                    $netsuiteProductMapPrice = $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
-                    $config = [
-                        'minimum_quantity' => $netsuiteProductInfo->minimumQuantity,
-                        'map_price' => $netsuiteProductMapPrice,
-                    ];
-                } catch (Exception $e) {
-                    //$config['minimum_quantity'] = 0;
-                    $missed[] = $bardCodeId->item->name;
-                }
-            }
+            $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($variant->barcode);
+            $netsuiteProductInfo = $this->productService->getProductById($searchNetsuiteProductInfo[0]->internalId);
 
             /**
              * @todo , this logic to update the quantity and price should be moved to a dedicated action / workflow
              */
-            if (isset($netsuiteProductQuantity) && $netsuiteProductQuantity !== null) {
-                $variantWarehouse->quantity = $netsuiteProductQuantity;
-                $variantWarehouse->price = $netsuiteProductPrice ?? 0;
+
+            try {
+                $warehouseOptions = $this->getWarehouseOptions($netsuiteProductInfo, $variantWarehouse, $defaultWarehouse);
+
+                $mapPrice =  (float) $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
+                $colorCode =  $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value);
+
+                $config = [
+                    'map_price' => $mapPrice,
+                    ...(isset($warehouseOptions["minimum_quantity"]) && $setMinimumQuantity ? ["minimum_quantity" => $warehouseOptions["minimum_quantity"]] : []),
+                ];
+
+                if (isset($warehouseOptions["quantity"]) && $warehouseOptions["quantity"] !== null) {
+                    $variantWarehouse->quantity = $warehouseOptions["quantity"];
+                    $variantWarehouse->price = $warehouseOptions["price"] ?? 0;
+                }
+
+                $variantWarehouse->config =  $config ?? null;
                 $variantWarehouse->saveOrFail();
+
+                $variant->addAttributes($this->mainAppCompany->user, [
+                    [
+                        'name' => 'color_code',
+                        'value' => $colorCode,
+                    ]
+                ]);
+            } catch (Exception $e) {
+                //$config['minimum_quantity'] = 0;
+                $missed[] = $bardCodeId->item->name;
             }
+
 
             $addVariantToChannel = new AddVariantToChannelAction(
                 $variantWarehouse,
@@ -137,5 +145,24 @@ class SyncNetSuiteCustomerItemsListAction
             'total_missed' => count($missed),
             'products_not_found' => $missed,
         ];
+    }
+
+    private function getWarehouseOptions($netsuiteProductInfo, $variantWarehouse = null, $defaultWarehouse = null)
+    {
+        $config = [];
+        try {
+            $config['quantity'] = $this->productService->getInventoryQuantityByLocation(
+                $netsuiteProductInfo,
+                $variantWarehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value) ?? $defaultWarehouse
+            );
+
+            $config['price'] = $this->productService->getProductPrice($netsuiteProductInfo);
+
+            $config['minimum_quantity'] = $netsuiteProductInfo->minimumQuantity;
+        } catch (Exception) {
+            return $config;
+        }
+
+        return $config;
     }
 }

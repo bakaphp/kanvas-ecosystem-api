@@ -53,6 +53,12 @@ class ShopifyVariantMetafieldService
             $type = $this->determineType($attribute->value);
             $attributeValue = $type === 'json' ? json_encode($attribute->value) : $attribute->value;
 
+            if ($attributeValue === null || $attributeValue === '') {
+                $this->deleteMetaFieldIfExists($shopifyMetaFields, $attribute, $shopifyProduct, $shopifyProductVariantId);
+
+                continue;
+            }
+
             $mutationGraphql = [
                 'namespace' => 'attributes',
                 'key' => $attribute->name,
@@ -74,7 +80,7 @@ class ShopifyVariantMetafieldService
     {
         $metaFieldId = $shopifyMetaFields[$this->region->id][$attribute->id] ?? null;
 
-        if ($metaFieldId) {
+        if ($metaFieldId !== null) {
             try {
                 $shopifyProduct->Variant($shopifyProductVariantId)->Metafield($metaFieldId)->delete();
             } catch (Exception $e) {

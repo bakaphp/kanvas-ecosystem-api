@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 
 class FollowQueries
 {
@@ -45,6 +46,10 @@ class FollowQueries
          * so we can use any service to get the recommendation , and change it by app
          */
         $generateUserToUserRecommendation = new GenerateWhoToFollowRecommendationsAction($app, $company);
+
+        if ($request['static_recommendation']) {
+            return $generateUserToUserRecommendation->execute($user, $request['first'] ?? 10, ScenariosEnum::STATIC_USERS_RECOMMENDATION->value);
+        }
 
         return $generateUserToUserRecommendation->execute($user, $request['first'] ?? 10);
     }

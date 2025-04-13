@@ -89,6 +89,12 @@ return [
             'lock_connection' => 'default',
         ],
 
+        'cart' => [
+            'driver' => 'redis',
+            'connection' => 'cart',
+            'lock_connection' => 'default',
+        ],
+
         'dynamodb' => [
             'driver' => 'dynamodb',
             'key' => env('AWS_ACCESS_KEY_ID'),

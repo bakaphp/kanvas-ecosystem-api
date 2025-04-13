@@ -21,6 +21,7 @@ use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 trait HasCustomFields
 {
@@ -201,7 +202,7 @@ trait HasCustomFields
     public function getCustomField(string $name): ?AppsCustomFields
     {
         return AppsCustomFields::where('companies_id', $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue())
-                                ->where('model_name', get_class($this))
+                                ->whereIn('model_name', [get_class($this), SystemModules::getLegacyNamespace(get_class($this))]) //allow legacy
                                 ->where('entity_id', $this->getKey())
                                 ->where('name', $name)
                                 ->first();
@@ -249,6 +250,32 @@ trait HasCustomFields
             'name' => $name,
             'value' => $value,
         ]);
+
+        /**
+         * @todo remove this once legacy is removed
+         */
+        try {
+            $useLegacySystemModule = isset($this->app) && $this->app->get('legacy_custom_field_' . SystemModules::getSlugBySystemModuleNameSpace($modelName));
+            if ($useLegacySystemModule) {
+                $modelName = SystemModules::getLegacyNamespace($modelName);
+                $customField = AppsCustomFields::updateOrCreate([
+                    'companies_id' => $companyId,
+                    'model_name' => $modelName,
+                    'entity_id' => $this->getKey(),
+                    'name' => $name,
+                ], [
+                    'companies_id' => $companyId,
+                    'users_id' => $user !== null ? $user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
+                    'model_name' => $modelName,
+                    'entity_id' => $this->getKey(),
+                    'label' => $name,
+                    'name' => $name,
+                    'value' => $value,
+                ]);
+            }
+        } catch (Throwable $e) {
+            // do nothing
+        }
 
         if (method_exists($this, 'fireWorkflow')) {
             $this->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELD->value);

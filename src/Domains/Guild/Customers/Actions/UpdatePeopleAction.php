@@ -54,6 +54,7 @@ class UpdatePeopleAction
 
         if ($this->peopleData->contacts->count()) {
             $contacts = [];
+            $keepIDs = [];
             foreach ($this->peopleData->contacts as $contact) {
                 $existingContact = $this->people->contacts()
                 ->where('value', $contact->value)
@@ -64,6 +65,7 @@ class UpdatePeopleAction
                         'value' => $contact->value,
                         'weight' => $contact->weight,
                     ]);
+                    $keepIDs[] = $contact->id;
                     continue;
                 }
 
@@ -75,6 +77,7 @@ class UpdatePeopleAction
                     ]);
                 }
             }
+            $this->people->contacts()->whereNotIn('id', $keepIDs)->delete();
 
             if (count($contacts) > 0) {
                 $this->people->contacts()->saveMany($contacts);

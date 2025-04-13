@@ -8,11 +8,13 @@ use Baka\Support\Str;
 use Kanvas\Connectors\Stripe\Traits\CashierWebhookTrait;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Laravel\Cashier\Cashier;
+use Override;
 
 class CashierStripeWebhookJob extends ProcessWebhookJob
 {
     use CashierWebhookTrait;
 
+    #[Override]
     public function execute(): array
     {
         //$regionId = $this->receiver->configuration['region_id'];

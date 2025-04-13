@@ -23,6 +23,8 @@ enum InteractionEnum implements EnumsInterface
     case REPLY;
     case PIN;
     case VIEW;
+    case REPORT;
+    case BLOCK;
 
     // Google Interaction Types
     case SEARCH;
@@ -62,6 +64,8 @@ enum InteractionEnum implements EnumsInterface
             self::PURCHASE => 'purchase',
             self::MEDIA_PLAY => 'media-play',
             self::MEDIA_COMPLETE => 'media-complete',
+            self::REPORT => 'report',
+            self::BLOCK => 'block',
         };
     }
 

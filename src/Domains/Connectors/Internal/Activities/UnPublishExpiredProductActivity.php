@@ -6,15 +6,13 @@ namespace Kanvas\Connectors\Internal\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class UnPublishExpiredProductActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    /**
-     * @param Products $product
-     */
+    #[Override]
     public function execute(Model $product, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

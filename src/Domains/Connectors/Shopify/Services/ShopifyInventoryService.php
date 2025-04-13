@@ -40,7 +40,7 @@ class ShopifyInventoryService
     /**
        * Split variants into chunks and create product title for each part.
        */
-    protected function prepareProductParts(Products $product, int $variantLimit): array
+    public function prepareProductParts(Products $product, int $variantLimit): array
     {
         //to avoid issues if one variant is deleted and it moves to the next part
         $variantChunks = $product->variants()->withTrashed()->orderBy('id')->get()->chunk($variantLimit);
@@ -140,6 +140,14 @@ class ShopifyInventoryService
             }
 
             $this->shopifyImageService->processEntityImage($product);
+
+            if ($product->is_published) {
+                $this->publishProduct($product);
+                //$channelService = new ShopifyChannelService($this->app, $this->company, $this->warehouses);
+                //$channelService->addToPublicationChannel($product);
+                ///$this->addToPublicationChannel($product);
+            }
+
             $allResponse[] = $this->shopifySdk->Product($shopifyProductId)->get();
         }
 
@@ -196,7 +204,7 @@ class ShopifyInventoryService
             'quantity' => $quantity,
             'compare_at_price' => $discountedPrice ?? 0,
             'inventory_policy' => 'deny',
-            'published' => $price > 0,
+            'published' => $variant->is_published,
             'weight' => $variant->get(ConfigurationEnum::WEIGHT_UNIT->value) ?? 453.592,
             'weight_unit' => 'g',
         ];
@@ -252,6 +260,7 @@ class ShopifyInventoryService
 
         $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions, $partNumber));
         $response = $shopifyProduct->Variant($shopifyProductVariantId)->delete();
+        $variant->delShopifyId($this->warehouses->regions);
 
         return $response;
     }
@@ -353,7 +362,7 @@ class ShopifyInventoryService
             return;
         }
 
-        $response = $this->shopifySdk->Collect->post($collectData);
+        $this->shopifySdk->Collect->post($collectData);
     }
 
     /**

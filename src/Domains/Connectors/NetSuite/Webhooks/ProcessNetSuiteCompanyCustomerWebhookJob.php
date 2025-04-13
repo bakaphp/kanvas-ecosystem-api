@@ -7,10 +7,13 @@ namespace Kanvas\Connectors\NetSuite\Webhooks;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         //$regionId = $this->receiver->configuration['region_id'];
@@ -38,11 +41,20 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
                 $company
             );
             $syncNetSuiteCustomerWithCompany->execute();
+
+            Products::fromApp($this->receiver->app)
+               ->fromCompany($mainCompany)
+               ->where('is_published', 1)
+               ->searchable();
+
+            return [
+                'message' => 'NetSuite Company Synced',
+                'netSuiteCompanyId' => $netSuiteCompanyId,
+            ];
         }
 
         return [
-            'message' => 'NetSuite Company Synced',
-            'netSuiteCompanyId' => $netSuiteCompanyId,
+            'message' => 'Not a NetSuite Company',
         ];
     }
 }
