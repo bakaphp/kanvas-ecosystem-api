@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Cart\Services;
 
 use Kanvas\Inventory\Variants\Models\Variants;
-use Wearepixel\Cart\Cart;
+use Joelwmale\Cart\Cart;
 
 class CartService
 {
