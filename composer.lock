@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dcfa2de502814afe42352894267c3cbe",
+    "content-hash": "398d7b6e61d8d83cb0c4f1cc4980fd33",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -2214,16 +2214,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.59.0",
+            "version": "v0.61.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "356f0ddbe02b9559ca141359377cad4046d7e5f3"
+                "reference": "7ab7875492fe4fa1f8ef121732e3e9f31116cac9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/356f0ddbe02b9559ca141359377cad4046d7e5f3",
-                "reference": "356f0ddbe02b9559ca141359377cad4046d7e5f3",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/7ab7875492fe4fa1f8ef121732e3e9f31116cac9",
+                "reference": "7ab7875492fe4fa1f8ef121732e3e9f31116cac9",
                 "shasum": ""
             },
             "require": {
@@ -2275,7 +2275,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.59.0"
+                "source": "https://github.com/prism-php/prism/tree/v0.61.0"
             },
             "funding": [
                 {
@@ -2283,7 +2283,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-04-10T18:21:01+00:00"
+            "time": "2025-04-12T19:34:32+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -17765,6 +17765,6 @@
     "platform": {
         "php": "^8.4"
     },
-    "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "platform-dev": [],
+    "plugin-api-version": "2.3.0"
 }
