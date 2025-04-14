@@ -170,7 +170,7 @@ class SyncOrdersWithProviderCommand extends Command
             return;
         }
 
-        if (!empty($response)) {
+        if (! empty($response)) {
             if (isset($response['status']) && $response['status'] === 'active') {
                 $order->fulfill();
                 $order->completed();
