@@ -58,6 +58,7 @@ enum AppEnums implements EnumsInterface
     case CSV_DATE_FORMAT;
 
     case DEFAULT_PUBLIC_SEARCH_USER_ID;
+    case KANVAS_CART_SESSION;
 
     #[Override]
     public function getValue(): mixed
@@ -111,6 +112,7 @@ enum AppEnums implements EnumsInterface
             self::DEFAULT_COMPANY_LOCALE => 'default_company_locale',
             self::DEFAULT_APP_LOCALE => 'default_app_locale',
             self::KANVAS_IDENTIFIER => 'X-Kanvas-Identifier',
+            self::KANVAS_CART_SESSION => 'Kanvas-Cart-Session',
         };
     }
 

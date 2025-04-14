@@ -66,12 +66,11 @@ class KanvasAppKeyMiddleware
         $kanvasIdentifierHeader = AppEnums::KANVAS_IDENTIFIER->getValue();
 
         try {
-            // dd($kanvasIdentifierHeader);
             $kanvasIdentifier = auth()->user() ? auth()->user()->getId() : $request->header($kanvasIdentifierHeader);
             if (! $kanvasIdentifier) {
                 return;
             }
-            app()->scoped('cart-session', fn () => $kanvasIdentifier);
+            app()->scoped(AppEnums::KANVAS_IDENTIFIER->getValue(), fn () => $kanvasIdentifier);
         } catch (Throwable $e) {
             response()->json(['message' => 'No App configured with this key: ' . $kanvasIdentifier], 500)->send();
 

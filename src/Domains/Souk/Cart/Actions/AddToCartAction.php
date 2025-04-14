@@ -18,8 +18,8 @@ class AddToCartAction
 {
     public function __construct(
         protected Apps $app,
-        protected Users $user,
-        protected Companies $company
+        protected Companies $company,
+        protected ?Users $user=null,
     ) {
     }
 

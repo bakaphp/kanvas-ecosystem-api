@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Cart\Services\CartService;
+use Kanvas\Enums\AppEnums;
 
 class CartManagementMutation
 {
@@ -20,15 +21,14 @@ class CartManagementMutation
         $company = $user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company;
         $currentUserCompany = $company;
         $app = app(Apps::class);
-        $cart = app('cart')->session(app('cart-session'));
-        $addToCartAction = new AddToCartAction($app, $user, $currentUserCompany);
+        $cart = app('cart')->session(app(AppEnums::KANVAS_CART_SESSION->getValue()));
+        $addToCartAction = new AddToCartAction($app, $currentUserCompany, $user);
         return $addToCartAction->execute($cart, $request['items']);
     }
 
     public function update(mixed $root, array $request): array
     {
-        $user = auth()->user();
-        $cart = app('cart')->session($user->getId());
+        $cart = app('cart')->session(app(AppEnums::KANVAS_CART_SESSION->getValue()));
 
         if (! $cart->has($request['variant_id'])) {
             return [];
@@ -44,7 +44,7 @@ class CartManagementMutation
     public function remove(mixed $root, array $request): array
     {
         $user = auth()->user();
-        $cart = app('cart')->session($user->getId());
+        $cart = app('cart')->session(app(AppEnums::KANVAS_CART_SESSION->getValue()));
 
         $cart->remove($request['variant_id']);
 
@@ -54,7 +54,7 @@ class CartManagementMutation
     public function discountCodesUpdate(mixed $root, array $request): array
     {
         $user = auth()->user();
-        $cart = app('cart')->session($user->getId());
+        $cart = app('cart')->session(app(AppEnums::KANVAS_CART_SESSION->getValue()));
         $app = app(Apps::class);
 
         /**
@@ -91,7 +91,7 @@ class CartManagementMutation
     public function clear(mixed $root, array $request): bool
     {
         $user = auth()->user();
-        $cart = app('cart')->session($user->getId());
+        $cart = app('cart')->session(app(AppEnums::KANVAS_CART_SESSION->getValue()));
         $cart->clearAllConditions();
 
         return $cart->clear();
