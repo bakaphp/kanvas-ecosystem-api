@@ -18,7 +18,8 @@ class AiraloService
     }
 
     /**
-     * Get eSIM status information from Airalo.
+     * Get eSIM status information from Simlimites.
+     * @todo Change it later to direct connection to airalo instead of simlimites
      */
     public function getEsimStatus(string $iccid, string $bundle): array
     {
