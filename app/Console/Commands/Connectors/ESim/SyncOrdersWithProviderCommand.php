@@ -109,8 +109,8 @@ class SyncOrdersWithProviderCommand extends Command
             $cancelCounter++;
 
             $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
-            if (($cancelCounter) >= 3) {
-                $this->info("Order ID: {$order->id} checked 3 times without success. Cancelling.");
+            if ($cancelCounter >= 3) {
+                $this->warn("Order ID: {$order->id} has been checked 3 times without success. Cancelling.");
                 $order->cancel();
                 $order->fulfillCancelled();
             }

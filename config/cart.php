@@ -8,27 +8,30 @@ return [
      * Formatting
      * ---------------------------------------------------------------
      */
-    'format_numbers' => env('SHOPPING_FORMAT_VALUES', false),
+    'format_numbers' => env('LARAVEL_CART_FORMAT_VALUES', false),
 
-    'decimals' => env('SHOPPING_DECIMALS', 2),
+    'decimals' => env('LARAVEL_CART_DECIMALS', 0),
+
+    'round_mode' => env('LARAVEL_CART_ROUND_MODE', 'down'),
 
     'dec_point' => env('SHOPPING_DEC_POINT', '.'),
 
     'thousands_sep' => env('SHOPPING_THOUSANDS_SEP', ','),
-
     /*
      * ---------------------------------------------------------------
-     * persistence
+     * Storage
      * ---------------------------------------------------------------
-     *
-     * the configuration for persisting cart
      */
-    'storage' => RedisStorage::class,
+    'driver' => 'database',
 
-    /*
-     * ---------------------------------------------------------------
-     * Events
-     * ---------------------------------------------------------------
-     */
-    'events' => null,
+    'storage' => [
+        'redis' => RedisStorage::class,
+        'session',
+        'database' => [
+            'model' => \Kanvas\Souk\Cart\Support\RedisStorage::class,
+            'id' => 'session_id',
+            'items' => 'items',
+            'conditions' => 'conditions',
+        ],
+    ],
 ];

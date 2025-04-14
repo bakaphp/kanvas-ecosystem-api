@@ -207,7 +207,7 @@ class CreateUserAction
         $roles = $this->data->role_ids;
         if (empty($roles)) {
             $defaultAppSettingsRole = $this->app->get(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue());
-            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::USER->value)];
+            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::ADMIN->value)];
         }
 
         foreach ($roles as $role) {

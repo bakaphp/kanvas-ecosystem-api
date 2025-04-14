@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Workflow\Mutations\Integrations;
 
-use Kanvas\Inventory\Status\Models\Status as StatusModel;
-use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Exceptions\InternalServerErrorException;
@@ -16,16 +14,12 @@ use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as ModelsIntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Integrations\Validations\ConfigValidation;
+use Kanvas\Workflow\Models\Integrations;
 
 class IntegrationsMutation
 {
     /**
      * create.
-     *
-     * @param  mixed $rootValue
-     * @param  array $args
-     *
-     * @return StatusModel
      */
     public function createIntegrationCompany(mixed $rootValue, array $request): ModelsIntegrationsCompany
     {

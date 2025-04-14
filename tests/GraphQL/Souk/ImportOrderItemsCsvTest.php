@@ -37,7 +37,7 @@ class ImportOrderItemsCsvTest extends TestCase
         ];
 
         $map = [
-            '0' => ['variables.file']
+            '0' => ['variables.file'],
         ];
 
         $file = [
@@ -46,21 +46,20 @@ class ImportOrderItemsCsvTest extends TestCase
 
         $response = $this->multipartGraphQL($operations, $map, $file);
         $response->assertJson([
-            "data" => [
-                "importOrderCsv" => [
-                    "message" => "No valid order items found",
-                    "status" => "error"
-                ]
-            ]
+            'data' => [
+                'importOrderCsv' => [
+                    'message' => 'No valid order items found',
+                    'status' => 'error',
+                ],
+            ],
         ]);
     }
-
 
     public function testImportOrderItemsCsv(): void
     {
         $user = $this->createUser();
         $app = app(Apps::class);
-        $cart = app('cart')->session($user->getId());
+
         $regionResponse = $this->createRegion()->json()['data']['createRegion'];
         $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct()->json()['data']['createProduct'];
@@ -114,7 +113,7 @@ class ImportOrderItemsCsvTest extends TestCase
         ];
 
         $map = [
-            '0' => ['variables.file']
+            '0' => ['variables.file'],
         ];
 
         $csv = $this->getValidProductsCsvContent([
@@ -136,16 +135,37 @@ class ImportOrderItemsCsvTest extends TestCase
 
         $response = $this->multipartGraphQL($operations, $map, $file);
         $response->assertJson([
-            "data" => [
-                "importOrderCsv" => [
-                    "message" => "Items processed successfully",
-                    "status" => "success"
-                ]
-            ]
+            'data' => [
+                'importOrderCsv' => [
+                    'message' => 'Items processed successfully',
+                    'status' => 'success',
+                ],
+            ],
         ]);
 
+        $cartQuery = $this->graphQL(/** @lang GraphQL */ '
+            {
+                cart {
+                    id
+                    items {
+                        id
+                        name
+                        price
+                        variant {
+                            id
+                            name
+                            sku
+                        }
+                        quantity
+                        attributes
+                    }
+                    total
+                }
+            }
+            ');
 
-        $cartItems = $cart->getContent()->toArray();
+        $cartItems = $cartQuery->json()['data']['cart']['items'];
+
         $this->assertCount(2, $cartItems);
     }
 
@@ -216,7 +236,7 @@ class ImportOrderItemsCsvTest extends TestCase
         ];
 
         $map = [
-            '0' => ['variables.file']
+            '0' => ['variables.file'],
         ];
 
         $csv = $this->getValidProductsCsvContent([
@@ -238,12 +258,12 @@ class ImportOrderItemsCsvTest extends TestCase
 
         $response = $this->multipartGraphQL($operations, $map, $file);
         $response->assertJson([
-            "data" => [
-                "importOrderCsv" => [
-                    "message" => "Not enough stock for product {$variantResponse['name']}, Not enough stock for product {$variantResponse2['name']}",
-                    "status" => "error"
-                ]
-            ]
+            'data' => [
+                'importOrderCsv' => [
+                    'message' => "Not enough stock for product {$variantResponse['name']}, Not enough stock for product {$variantResponse2['name']}",
+                    'status' => 'error',
+                ],
+            ],
         ]);
     }
 
