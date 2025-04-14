@@ -8,22 +8,29 @@ use Baka\Contracts\AppInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Connectors\Airalo\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ValidationException;
 
 class Client
 {
     protected string $baseUrl;
+    protected string $appToken;
     protected GuzzleClient $client;
 
     public function __construct(
         protected AppInterface $app
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
+        $this->appToken = $this->app->get(ConfigurationEnum::APP_TOKEN->value);
+
+        if (empty($this->baseUri) || empty($this->appToken)) {
+            throw new ValidationException('ESim configuration is missing');
+        }
 
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUrl,
             'headers' => [
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json'
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->appToken,
             ],
         ]);
     }
