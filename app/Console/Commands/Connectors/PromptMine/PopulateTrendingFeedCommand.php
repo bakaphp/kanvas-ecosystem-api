@@ -49,17 +49,17 @@ class PopulateTrendingFeedCommand extends Command
         $populateTrendingFeedAction = new PopulateTrendingFeedAction($app, $company, true);
         $populateTrendingFeedAction->execute();
 
-       /*  $tag = (new CreateTagAction(
-            new Tag(
-                $app,
-                $company->user,
-                $company,
-                'trending'
-            )
-        ))->execute();
-        $tag->name = 'Trending';
-        $tag->is_feature = 1;
-        $tag->saveOrFail(); */
+        /*  $tag = (new CreateTagAction(
+             new Tag(
+                 $app,
+                 $company->user,
+                 $company,
+                 'trending'
+             )
+         ))->execute();
+         $tag->name = 'Trending';
+         $tag->is_feature = 1;
+         $tag->saveOrFail(); */
 
         return;
     }
