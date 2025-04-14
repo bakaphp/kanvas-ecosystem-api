@@ -6,5 +6,5 @@ namespace Kanvas\Connectors\Airalo\Enums;
 
 enum ConfigurationEnum: string
 {
-    case API_URL = 'api.simlimites.com';
+    case BASE_URL = 'AIRALO_BASE_URL';
 }

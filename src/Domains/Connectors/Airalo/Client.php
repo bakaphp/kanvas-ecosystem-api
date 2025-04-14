@@ -17,7 +17,7 @@ class Client
     public function __construct(
         protected AppInterface $app
     ) {
-        $this->baseUrl = $this->app->get(ConfigurationEnum::API_URL->value);
+        $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
 
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUrl,
