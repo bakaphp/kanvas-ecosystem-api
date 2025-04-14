@@ -8,7 +8,11 @@ use Baka\Contracts\AppInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -25,74 +29,91 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $messageFiles = $entity->getFiles();
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
 
-        if (empty($this->apiUrl)) {
-            return [
-                'result' => false,
-                'message' => 'API URL not configured',
-            ];
-        }
-
-        if ($messageFiles->isEmpty()) {
-            return [
-                'result' => false,
-                'message' => 'Message does not have any files',
-            ];
-        }
-
-        $fileUrl = $messageFiles->first()->url;
+        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
 
         try {
-            // Step 1: Submit the image for processing
-            $submitResponse = $this->submitImage($fileUrl);
-
-            if (! isset($submitResponse['request_id'])) {
-                return [
-                    'result' => false,
-                    'message' => 'Failed to submit image for processing',
-                ];
-            }
-
-            $requestId = $submitResponse['request_id'];
-
-            // Step 2: Check processing status until complete
-            $statusResponse = $this->checkProcessingStatus($requestId);
-
-            if ($statusResponse['status'] !== 'COMPLETED') {
-                return [
-                    'result' => false,
-                    'message' => 'Image processing did not complete successfully',
-                ];
-            }
-
-            // Step 3: Get the processed image result
-            $resultResponse = $this->getProcessingResult($requestId);
-
-            if (! isset($resultResponse['data']['image']['url'])) {
-                return [
-                    'result' => false,
-                    'message' => 'Failed to retrieve processed image',
-                ];
-            }
-
-            $processedImageUrl = $resultResponse['data']['image']['url'];
-
-            return [
-                'message' => 'Image processed successfully',
-                'result' => true,
-                'user_id' => $entity->user->getId(),
-                'message_data' => $entity->message,
-                'message_id' => $entity->getId(),
-                'processed_image_url' => $processedImageUrl,
-                'original_image_url' => $fileUrl,
-                'request_id' => $requestId,
-            ];
-        } catch (Exception $e) {
-            return [
-                'result' => false,
-                'message_id' => $entity->getId(),
-                'message' => 'Error processing image: ' . $e->getMessage(),
-            ];
+            $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
+            $company = $branch->company;
+        } catch (ModelNotFoundException $e) {
+            $company = $entity->company;
         }
+
+        return $this->executeIntegration(
+            entity: $entity,
+            app: $app,
+            integration: IntegrationsEnum::PROMPT_MINE,
+            integrationOperation: function ($entity) use ($messageFiles) {
+                if (empty($this->apiUrl)) {
+                    return [
+                        'result' => false,
+                        'message' => 'API URL not configured',
+                    ];
+                }
+
+                if ($messageFiles->isEmpty()) {
+                    return [
+                        'result' => false,
+                        'message' => 'Message does not have any files',
+                    ];
+                }
+
+                $fileUrl = $messageFiles->first()->url;
+
+                try {
+                    // Step 1: Submit the image for processing
+                    $submitResponse = $this->submitImage($fileUrl);
+
+                    if (! isset($submitResponse['request_id'])) {
+                        return [
+                            'result' => false,
+                            'message' => 'Failed to submit image for processing',
+                        ];
+                    }
+
+                    $requestId = $submitResponse['request_id'];
+
+                    // Step 2: Check processing status until complete
+                    $statusResponse = $this->checkProcessingStatus($requestId);
+
+                    if ($statusResponse['status'] !== 'COMPLETED') {
+                        return [
+                            'result' => false,
+                            'message' => 'Image processing did not complete successfully',
+                        ];
+                    }
+
+                    // Step 3: Get the processed image result
+                    $resultResponse = $this->getProcessingResult($requestId);
+
+                    if (! isset($resultResponse['data']['image']['url'])) {
+                        return [
+                            'result' => false,
+                            'message' => 'Failed to retrieve processed image',
+                        ];
+                    }
+
+                    $processedImageUrl = $resultResponse['data']['image']['url'];
+
+                    return [
+                        'message' => 'Image processed successfully',
+                        'result' => true,
+                        'user_id' => $entity->user->getId(),
+                        'message_data' => $entity->message,
+                        'message_id' => $entity->getId(),
+                        'processed_image_url' => $processedImageUrl,
+                        'original_image_url' => $fileUrl,
+                        'request_id' => $requestId,
+                    ];
+                } catch (Exception $e) {
+                    return [
+                        'result' => false,
+                        'message_id' => $entity->getId(),
+                        'message' => 'Error processing image: ' . $e->getMessage(),
+                    ];
+                }
+            },
+            company: $company,
+        );
     }
 
     /**
