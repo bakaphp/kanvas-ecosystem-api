@@ -6,6 +6,7 @@ namespace App\GraphQL\Souk\Mutations\Cart;
 
 use Illuminate\Support\Facades\App;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Cart\Services\CartService;
@@ -16,13 +17,11 @@ class CartManagementMutation
     public function add(mixed $root, array $request): array
     {
         $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $company = $user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company;
         $currentUserCompany = $company;
         $app = app(Apps::class);
-        $cart = app('cart')->session($user->getId());
-
+        $cart = app('cart')->session(app('cart-session'));
         $addToCartAction = new AddToCartAction($app, $user, $currentUserCompany);
-
         return $addToCartAction->execute($cart, $request['items']);
     }
 

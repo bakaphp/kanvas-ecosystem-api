@@ -29,7 +29,7 @@ class KanvasAppKeyMiddleware
 
         $this->handleCompanyBranch($request);
         $this->handleAppKey($request);
-
+        $this->handleKanvasIdentifier($request);
         return $next($request);
     }
 
@@ -58,6 +58,24 @@ class KanvasAppKeyMiddleware
 
                 return ;
             }
+        }
+    }
+
+    public function handleKanvasIdentifier(Request $request): void
+    {
+        $kanvasIdentifierHeader = AppEnums::KANVAS_IDENTIFIER->getValue();
+
+        try {
+            // dd($kanvasIdentifierHeader);
+            $kanvasIdentifier = auth()->user() ? auth()->user()->getId() : $request->header($kanvasIdentifierHeader);
+            if (! $kanvasIdentifier) {
+                return;
+            }
+            app()->scoped('cart-session', fn () => $kanvasIdentifier);
+        } catch (Throwable $e) {
+            response()->json(['message' => 'No App configured with this key: ' . $kanvasIdentifier], 500)->send();
+
+            return ;
         }
     }
 

@@ -28,7 +28,7 @@ input CartItemInput {
     attributes: Mixed
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByKanvasIdentifier {
     addToCart(items: [CartItemInput!]!): [CartItem!]!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@add"
