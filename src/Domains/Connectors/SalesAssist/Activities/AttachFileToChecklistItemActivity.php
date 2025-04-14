@@ -12,6 +12,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -49,7 +50,16 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
             SystemModulesRepository::getByModelName(SystemModules::getLegacyNamespace(People::class), $app)->getId(),
         ];
         $lead = $entity->lead;
-        $people = People::getById($peopleId, $app);
+
+        try {
+            $people = People::getById($peopleId, $app);
+        } catch (ModelNotFoundException $e) {
+            return [
+                'result' => false,
+                'message' => 'People not found with id ' . $peopleId,
+            ];
+        }
+
         $latestFile = FilesystemEntities::query()
             ->where('entity_id', $people->getId())
             ->whereIn('system_modules_id', $systemModuleIds)
