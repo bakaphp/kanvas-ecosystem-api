@@ -11,8 +11,8 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
-use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use EchoLabs\Prism\Enums\Provider;
+use EchoLabs\Prism\Prism;
 
 class PromptCreatorAgentCommand extends Command
 {
