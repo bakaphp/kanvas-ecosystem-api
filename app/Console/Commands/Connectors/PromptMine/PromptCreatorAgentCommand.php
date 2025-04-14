@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use GuzzleHttp\Client;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Prism\Prism\Enums\Provider;
@@ -32,7 +33,7 @@ class PromptCreatorAgentCommand extends Command
         $this->app = $app;
         $this->overwriteAppService($app);
 
-        $this->url = 'https://graphapi.kanvas.dev/graphql'; //$app->get('graphql-url');
+        $this->url = $app->get('graphql-url');
         $this->appId = $app->key;
 
         // Get the current hour and date
@@ -99,7 +100,7 @@ class PromptCreatorAgentCommand extends Command
             'is_assistant' => false,
             'ai_model' => $model,
             'ai_nugged' => [
-                'description' => $nugget['description'],
+                'description' => $nugget['description'] ?? '',
                 'title' => $prompt['title'],
                 'ai_model' => $model,
                 'nugget' => $nugget['nugget'],
@@ -111,27 +112,37 @@ class PromptCreatorAgentCommand extends Command
             'type' => 'text-format',
         ];
 
-        print_r($message);
-        die();
+        $recipients = $app->get('test-creator-agent-email');
+        if (empty($recipients)) {
+            $this->error('No email address found for test creator agent. Exiting.');
 
-        // Usage example:
-        // $prompt = $this->generateViralPrompt($agentPersonality);
-        // $nugget = $this->generateNugget($prompt['prompt']);
-        // $message = $this->formatMessage($prompt, $nugget);
-        // return $message;
-
-        if ($prompt) {
-            // Post the generated prompt as a message
-            $messageId = $this->postMessage($token, $prompt['title'], $prompt['prompt'], $currentAgent);
-
-            if ($messageId) {
-                $this->info('Successfully posted prompt with message ID: ' . $messageId);
-            } else {
-                $this->error('Failed to post the prompt');
-            }
-        } else {
-            $this->error('Failed to generate a viral prompt');
+            return;
         }
+        $subject = 'Test creator agent output - ' . $currentAgent['email'];
+        Mail::raw(json_encode($message, JSON_PRETTY_PRINT), function ($message) use ($recipients, $subject) {
+            foreach ($recipients as $recipient) {
+                $message->to($recipient);
+            }
+            $message->subject($subject);
+
+            // Optional: Add CC, BCC, or other properties
+            // $message->cc('cc@example.com');
+            // $message->bcc('bcc@example.com');
+            // $message->from('sender@example.com', 'Sender Name');
+        });
+
+        /*  if ($prompt) {
+             // Post the generated prompt as a message
+             $messageId = $this->postMessage($token, $message, 'prompt', true);
+
+             if ($messageId) {
+                 $this->info('Successfully posted prompt with message ID: ' . $messageId);
+             } else {
+                 $this->error('Failed to post the prompt');
+             }
+         } else {
+             $this->error('Failed to generate a viral prompt');
+         } */
 
         $this->info('Creator agent ' . $currentAgent['email'] . ' completed work for hour ' . $currentHour);
     }
@@ -178,6 +189,7 @@ Creator Bio:
 2. **Goal**: "Generate [specific output]."  
 3. **Constraints**: "Use [framework/tone/length]."  
 4. **CTA**: Include a clear section for user input.
+5.  New lines must be separated with \n
 
 #### **Step 3: Quality Check**  
 - **Surprise Test**: Would this output make someone screenshot it?  
@@ -254,7 +266,7 @@ OUTPUT REQUIREMENTS:
 - Must be self-contained and actionable
 - Must maintain contextual relevance
 - Must demonstrate clear enhancement from original prompt
-- If it has paragraphs, divide it by \n\n
+- New lines must be separated with \n
 
 When processing prompts, optimize for:
 - Clarity of instruction
@@ -361,20 +373,20 @@ ADVANCEPROMPT;
      * @param array $agent The agent data
      * @return int|null The message ID if successful, null otherwise
      */
-    protected function postMessage(string $token, string $title, string $content, array $agent): ?int
+    protected function postMessage(string $token, array $messageContent, string $verb, bool $isPublic = true): ?int
     {
         $mutation = <<<GQL
-mutation createMessage(\$message: MessageInput!) {
-  createMessage(message: \$message) {
-    id
-  }
-}
-GQL;
+        mutation createMessage(\$input: MessageInput!) {
+          createMessage(input: \$input) {
+            id
+          }
+        }
+        GQL;
 
         $messageData = [
-            'title' => $title,
-            'body' => $content,
-            'is_published' => true,
+            'message_verb' => $verb,
+            'message' => $messageContent,
+            'is_public' => (int) $isPublic,
         ];
 
         try {
@@ -387,7 +399,7 @@ GQL;
                     'json' => [
                         'query' => $mutation,
                         'variables' => [
-                            'message' => $messageData,
+                            'input' => $messageData, // Changed from 'message' to 'input'
                         ],
                     ],
                 ]

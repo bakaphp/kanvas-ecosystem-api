@@ -49,7 +49,7 @@ class PopulateTrendingFeedCommand extends Command
         $populateTrendingFeedAction = new PopulateTrendingFeedAction($app, $company, true);
         $populateTrendingFeedAction->execute();
 
-        $tag = (new CreateTagAction(
+       /*  $tag = (new CreateTagAction(
             new Tag(
                 $app,
                 $company->user,
@@ -59,7 +59,7 @@ class PopulateTrendingFeedCommand extends Command
         ))->execute();
         $tag->name = 'Trending';
         $tag->is_feature = 1;
-        $tag->saveOrFail();
+        $tag->saveOrFail(); */
 
         return;
     }
