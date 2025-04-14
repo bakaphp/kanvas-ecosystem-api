@@ -197,6 +197,7 @@ extend type Query @guard {
                     "uuid"
                     "is_published"
                     "rating"
+                    "users_id"
                 ]
             )
         hasVariants: _
