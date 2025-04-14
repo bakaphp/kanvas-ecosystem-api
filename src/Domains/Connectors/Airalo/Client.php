@@ -22,7 +22,7 @@ class Client
         $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
         $this->appToken = $this->app->get(ConfigurationEnum::APP_TOKEN->value);
 
-        if (empty($this->baseUri) || empty($this->appToken)) {
+        if (empty($this->baseUrl) || empty($this->appToken)) {
             throw new ValidationException('ESim configuration is missing');
         }
 
