@@ -42,7 +42,6 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
                         'message' => 'Message does not have an AI model',
                     ];
                 }
-                
                 UserConfig::updateOrCreate(
                     [
                         'users_id' => $entity->user->getId(),
