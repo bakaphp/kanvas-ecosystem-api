@@ -22,12 +22,12 @@ class CreateNuggetMessageAction
     {
         $createNuggetMessage = new CreateMessageAction(
             messageInput: MessageInput::fromArray(
-            [
-                'parent_id' => $this->parentMessage->getId(),
-                'parent_unique_id' => $this->parentMessage->getUniqueId(),
-                'message' => $this->messageData,
-                'is_public' => 1,
-            ],
+                [
+                    'parent_id' => $this->parentMessage->getId(),
+                    'parent_unique_id' => $this->parentMessage->getUniqueId(),
+                    'message' => $this->messageData,
+                    'is_public' => 1,
+                ],
                 $this->parentMessage->user,
                 MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app->getId()),
                 $this->parentMessage->company,
