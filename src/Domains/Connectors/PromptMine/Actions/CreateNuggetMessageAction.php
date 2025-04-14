@@ -20,7 +20,7 @@ class CreateNuggetMessageAction
 
     public function execute(): Message
     {
-        $createNuggetMessage = new CreateMessageAction(
+        $nuggetMessage = (new CreateMessageAction(
             messageInput: MessageInput::fromArray(
                 [
                     'parent_id' => $this->parentMessage->getId(),
@@ -33,12 +33,7 @@ class CreateNuggetMessageAction
                 $this->parentMessage->company,
                 $this->parentMessage->app,
             )
-        );
-
-        $nuggetMessage = $createNuggetMessage->execute();
-        DB::connection('social')->table('messages')
-            ->where('id', $nuggetMessage->getId())
-            ->update(['path' => $this->parentMessage->getId() . "." . $nuggetMessage->getId()]);
+        ))->execute();
 
         $nuggetMessage->addTags($this->parentMessage->tags()->toArray());
         $this->parentMessage->total_children++;
