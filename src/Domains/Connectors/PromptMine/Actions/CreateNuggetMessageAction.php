@@ -36,23 +36,11 @@ class CreateNuggetMessageAction
         );
 
         $nuggetMessage = $createNuggetMessage->execute();
-
         DB::connection('social')->table('messages')
             ->where('id', $nuggetMessage->getId())
             ->update(['path' => $this->parentMessage->getId() . "." . $nuggetMessage->getId()]);
 
-        foreach ($this->parentMessage->tags() as $tag) {
-            DB::connection('social')->table('tags_entities')->insert([
-                'entity_id' => $nuggetMessage->getId(),
-                'tags_id' => $tag->getId(),
-                'users_id' => $this->parentMessage->users_id,
-                'taggable_type' => Message::class,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ]);
-        }
-
-        // Update total children on parent message
+        $nuggetMessage->addTags($this->parentMessage->tags()->toArray());
         $this->parentMessage->total_children++;
         $this->parentMessage->save();
         return $nuggetMessage;
