@@ -134,7 +134,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         $params['via'] ?? ['database']
                     );
 
-
                     $config = [
                         'email_template' => null,
                         'push_template' => $pushTemplate,
@@ -150,14 +149,13 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'destination_type' => 'MESSAGE',
                         'destination_event' => 'NEW_MESSAGE',
                     ];
-            
                     try {
+                        // Send notification to the user
                         $newMessageNotification = new CustomMessageNotification(
                             $entity,
                             $config,
                             $config['via']
                         );
-            
                         $entity->user->notify($newMessageNotification);
                     } catch (InternalServerErrorException $e) {
                         return [

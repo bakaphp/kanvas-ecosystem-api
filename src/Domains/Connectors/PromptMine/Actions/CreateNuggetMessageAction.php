@@ -21,7 +21,8 @@ class CreateNuggetMessageAction
     public function execute(): Message
     {
         $createNuggetMessage = new CreateMessageAction(
-            messageInput: MessageInput::fromArray([
+            messageInput: MessageInput::fromArray(
+            [
                 'parent_id' => $this->parentMessage->getId(),
                 'parent_unique_id' => $this->parentMessage->getUniqueId(),
                 'message' => $this->messageData,
