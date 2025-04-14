@@ -29,6 +29,7 @@ class OrderService
         return match (strtolower($provider->value)) {
             strtolower(ProviderEnum::E_SIM_GO->value) => $this->eSimGoOrder($item),
             strtolower(ProviderEnum::EASY_ACTIVATION->value) => $this->easyActivationOrder($item),
+            strtolower(ProviderEnum::AIRALO->value) => $this->airaloOrder($item),
             default => [],
         };
     }
@@ -116,6 +117,37 @@ class OrderService
             'language' => 'en',
             'user' => $this->getUserDetails(),
             'client' => $this->getClientDetails(),
+        ]);
+    }
+
+    protected function airaloOrder(OrderItem $item): array
+    {
+        $esimPlan = $item->variant->getAttributeByName('esim_bundle_type');
+        $esimDays = $item->variant->getAttributeByName('esim_days');
+        $totalDays = $esimDays ? $esimDays->value : 7;
+        $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
+
+        $metaData = $this->order->metadata;
+        $imeiNumber = $metaData['deviceImei'] ?? null;
+
+        // Get the agent name
+        $agentName = $this->order->user->firstname . ' ' . $this->order->user->lastname;
+
+        // Create client details with IMEI number
+        $clientDetails = $this->getClientDetails();
+        $clientDetails['imei_number'] = $imeiNumber;
+
+        return $this->client->post('/api/v2/airalo/create/order', [
+            'quantity' => $item->quantity,
+            'plan' => $esimPlan->value,
+            'type' => 'sim',
+            'description' => $item->quantity . ' ' . $esimPlan->value,
+            'agent_name' => $agentName,
+            'device_id' => $channelId,
+            'total' => (string) $this->order->total_net_amount,
+            'total_days' => (string) $totalDays,
+            'client' => $clientDetails,
+            'language' => 'en',
         ]);
     }
 

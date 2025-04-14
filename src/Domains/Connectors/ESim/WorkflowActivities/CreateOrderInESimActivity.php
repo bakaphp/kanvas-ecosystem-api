@@ -140,6 +140,14 @@ class CreateOrderInESimActivity extends KanvasActivity
                 ];
                 $response['data']['plan_origin'] = $response['data']['plan'];
                 $response['data']['plan'] = $sku; //overwrite the plan with the sku
+            } elseif ($providerValue === strtolower(ProviderEnum::AIRALO->value)) {
+                $response['esim_status'] = [
+                    'expiration_date' => null,
+                    'esim_status' => $response['data']['status'] ?? null,
+                    'phone_number' => null,
+                ];
+                $response['data']['plan_origin'] = $response['data']['plan'] ?? null;
+                $response['data']['plan'] = $sku; // Overwrite the plan with the sku
             }
         } catch (Throwable $e) {
             captureException($e);

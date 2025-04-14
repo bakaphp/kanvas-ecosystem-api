@@ -8,6 +8,6 @@ enum ProviderEnum: string
 {
     case E_SIM_GO = 'EsimGo';
     case EASY_ACTIVATION = 'EasyActivations';
-    case AIROLA = 'Airola';
+    case AIRALO = 'Airalo';
     case CMLINK = 'CMLink';
 }
