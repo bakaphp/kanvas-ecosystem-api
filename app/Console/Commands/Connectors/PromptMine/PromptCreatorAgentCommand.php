@@ -21,6 +21,7 @@ class PromptCreatorAgentCommand extends Command
     protected $description = 'Generate and post viral AI prompts using creator agents';
     protected ?string $url = null;
     protected ?string $appId = null;
+    protected ?Apps $app = null;
 
     /**
      * Execute the console command.
@@ -28,6 +29,7 @@ class PromptCreatorAgentCommand extends Command
     public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('app_id'));
+        $this->app = $app;
         $this->overwriteAppService($app);
 
         $this->url = 'https://graphapi.kanvas.dev/graphql'; //$app->get('graphql-url');
@@ -85,8 +87,38 @@ class PromptCreatorAgentCommand extends Command
         // Generate a prompt using Gemini
         $prompt = $this->generateViralPrompt($agentPersonality);
 
-        print_r($prompt);
+        $nugget = $this->generateNugget($prompt['prompt']);
+
+        // Function to return the formatted message array
+
+        $model = $this->getRandomModel();
+
+        $message = [
+            'title' => $prompt['title'],
+            'prompt' => $prompt['prompt'],
+            'is_assistant' => false,
+            'ai_model' => $model,
+            'ai_nugged' => [
+                'description' => $nugget['description'],
+                'title' => $prompt['title'],
+                'ai_model' => $model,
+                'nugget' => $nugget['nugget'],
+                'id' => 2053,
+                'type' => 'text-format',
+                'created_at' => time() * 1000, // Current timestamp in milliseconds
+                'updated_at' => time() * 1000,  // Current timestamp in milliseconds
+            ],
+            'type' => 'text-format',
+        ];
+
+        print_r($message);
         die();
+
+        // Usage example:
+        // $prompt = $this->generateViralPrompt($agentPersonality);
+        // $nugget = $this->generateNugget($prompt['prompt']);
+        // $message = $this->formatMessage($prompt, $nugget);
+        // return $message;
 
         if ($prompt) {
             // Post the generated prompt as a message
@@ -192,6 +224,133 @@ PROMPT;
             return null;
         }
     }
+
+    protected function generateNugget(string $prompt): ?array
+    {
+        $nuggetGenerator = <<<ADVANCEPROMPT
+# Advanced Prompt Enhancement System
+
+You are a specialized AI assistant focused on transforming user prompts into optimized, actionable instructions. Your core purpose is prompt enhancement and immediate execution.
+
+CORE RESPONSIBILITIES:
+1. Transform incomplete prompts into comprehensive instructions
+2. Generate relevant title using \"# Title\" format
+3. Execute enhanced prompts without additional user input
+4. Replace variables with contextually appropriate values
+5. Maintain minimum response length of 80 characters
+
+OPERATIONAL GUIDELINES:
+- Provide complete solutions in single responses without follow-up questions
+- Begin all outputs with descriptive titles in \"# Title\" format
+- Generate detailed, implementation-ready content
+- Replace any variables (e.g. {{industry}}) with logical values based on context
+- Ensure responses are thorough while maintaining clarity and focus
+- Adapt tone and complexity to match intended use case
+- Preserve original prompt intent while adding necessary detail and structure
+
+OUTPUT REQUIREMENTS:
+- Minimum length: 80 characters and maximum length: 3000 characters
+- Must include title
+- Must be self-contained and actionable
+- Must maintain contextual relevance
+- Must demonstrate clear enhancement from original prompt
+- If it has paragraphs, divide it by \n\n
+
+When processing prompts, optimize for:
+- Clarity of instruction
+- Actionable specificity
+- Logical completeness
+- Contextual appropriateness
+- Implementation readiness
+
+PROMPT: $prompt
+
+
+### **Final Output Format**  
+Return ONLY a **true JSON object**, avoiding markdown:
+{  
+  "title": "", 
+  "nugget": "the nugget text", 
+  "description": "short description of the nugget less than 100 characters",
+}  
+ADVANCEPROMPT;
+
+        try {
+            $response = Prism::text()
+            ->using(Provider::Gemini, 'gemini-2.0-flash')
+            ->withPrompt($nuggetGenerator)
+                ->asText();
+
+            $responseText = str_replace(['```', 'json'], '', $response->text);
+
+            if (! Str::isJson($responseText)) {
+                $this->error('Invalid response from Prism: ' . $responseText);
+
+                return null;
+            }
+
+            $promptData = json_decode($responseText, true);
+
+            if (! isset($promptData['title']) || ! isset($promptData['nugget'])) {
+                $this->error('Missing required fields in prompt data');
+
+                return null;
+            }
+
+            return $promptData;
+        } catch (\Exception $e) {
+            $this->error('Exception generating viral prompt: ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * Get a random AI model from the available models
+     *
+     * @param bool $freeOnly Whether to only return free models (price = 0 and is_locked = false)
+     * @return array The randomly selected model information with provider key
+     */
+    public function getRandomModel($freeOnly = true)
+    {
+        $models = $this->app->get('llm_list_categorization_prod');
+        $allModelValues = [];
+
+        // Extract all model values into a flat array
+        foreach ($models as $category) {
+            foreach ($category['value'] as $provider) {
+                foreach ($provider['value'] as $model) {
+                    // If freeOnly is true, only include free models
+                    if (! $freeOnly || ($model['payment']['price'] == 0 && ! $model['payment']['is_locked'])) {
+                        // Store model with provider information
+                        $allModelValues[] = [
+                            'key' => $provider['key'],
+                            'value' => $model['model'],
+                            'name' => $model['name'],
+                            'payment' => $model['payment'],
+                            'icon' => $model['icon'],
+                            'isDefault' => $model['isDefault'],
+                            'isNew' => $model['isNew'],
+                        ];
+                    }
+                }
+            }
+        }
+
+        // If no models match the criteria, return null
+        if (empty($allModelValues)) {
+            return null;
+        }
+
+        // Select a random model
+        $randomIndex = array_rand($allModelValues);
+
+        return $allModelValues[$randomIndex];
+    }
+
+    // Example usage:
+    // $randomModel = getRandomModel();
+    // echo "Selected model: " . $randomModel['name'] . " (" . $randomModel['provider'] . ")";
 
     /**
      * Post a message with the generated prompt
