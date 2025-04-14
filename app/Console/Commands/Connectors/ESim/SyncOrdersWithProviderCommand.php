@@ -9,11 +9,11 @@ use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Airalo\Services\AiraloService;
 use Kanvas\Connectors\CMLink\Services\CustomerService;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
-use Kanvas\Connectors\Airalo\Services\AiraloService;
 use Kanvas\Souk\Orders\Models\Order;
 
 class SyncOrdersWithProviderCommand extends Command
@@ -103,10 +103,10 @@ class SyncOrdersWithProviderCommand extends Command
             $response = $customerService->getEsimInfo($iccid);
         } catch (Exception $e) {
             report($e);
-            $this->error("Error processing Order ID: {$order->id} - {$e->getMessage()}");
-
-            $cancelCounter = $order->get('cancel_counter', 0) + 1;
-            $order->set('cancel_counter', $cancelCounter);
+            $this->info("Order ID: {$order->id} does not have an ICCID.");
+            $cancelCounter = $order->get('cancel_counter', 0);
+            $order->set('cancel_counter', $cancelCounter + 1);
+            $cancelCounter++;
 
             $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
             if ($cancelCounter >= 3) {
@@ -131,14 +131,14 @@ class SyncOrdersWithProviderCommand extends Command
             $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
         } catch (Exception $e) {
             report($e);
-            $this->error("Error processing Order ID: {$order->id} - {$e->getMessage()}");
-
-            $cancelCounter = $order->get('cancel_counter', 0) + 1;
-            $order->set('cancel_counter', $cancelCounter);
+            $this->info("Order ID: {$order->id} does not have an ICCID.");
+            $cancelCounter = $order->get('cancel_counter', 0);
+            $order->set('cancel_counter', $cancelCounter + 1);
+            $cancelCounter++;
 
             $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
-            if ($cancelCounter >= 3) {
-                $this->warn("Order ID: {$order->id} has been checked 3 times without success. Cancelling.");
+            if (($cancelCounter) >= 3) {
+                $this->info("Order ID: {$order->id} checked 3 times without success. Cancelling.");
                 $order->cancel();
                 $order->fulfillCancelled();
             }
@@ -162,7 +162,7 @@ class SyncOrdersWithProviderCommand extends Command
         try {
             $response = $airaloService->getEsimStatus($iccid, $bundle);
         } catch (Exception $e) {
-            captureException($e);
+            report($e);
             $this->info("Order ID: {$order->id} does not have a valid ICCID or encountered an error.");
             $cancelCounter = $order->get('cancel_counter', 0);
             $order->set('cancel_counter', $cancelCounter + 1);
