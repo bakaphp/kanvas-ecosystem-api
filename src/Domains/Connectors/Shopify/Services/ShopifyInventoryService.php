@@ -40,7 +40,7 @@ class ShopifyInventoryService
     /**
        * Split variants into chunks and create product title for each part.
        */
-    protected function prepareProductParts(Products $product, int $variantLimit): array
+    public function prepareProductParts(Products $product, int $variantLimit): array
     {
         //to avoid issues if one variant is deleted and it moves to the next part
         $variantChunks = $product->variants()->withTrashed()->orderBy('id')->get()->chunk($variantLimit);
@@ -140,6 +140,14 @@ class ShopifyInventoryService
             }
 
             $this->shopifyImageService->processEntityImage($product);
+
+            if ($product->is_published) {
+                $this->publishProduct($product);
+                //$channelService = new ShopifyChannelService($this->app, $this->company, $this->warehouses);
+                //$channelService->addToPublicationChannel($product);
+                ///$this->addToPublicationChannel($product);
+            }
+
             $allResponse[] = $this->shopifySdk->Product($shopifyProductId)->get();
         }
 

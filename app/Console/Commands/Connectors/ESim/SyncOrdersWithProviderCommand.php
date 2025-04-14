@@ -15,8 +15,6 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Souk\Orders\Models\Order;
 
-use function Sentry\captureException;
-
 class SyncOrdersWithProviderCommand extends Command
 {
     use KanvasJobsTrait;
@@ -60,10 +58,17 @@ class SyncOrdersWithProviderCommand extends Command
             $qr = $order->metadata['data']['qr_code'] ?? null;
             $startDate = $order->metadata['data']['start_date'] ?? null;
 
+            $cancelCounter = $order->get('cancel_counter', 0);
+            $order->set('cancel_counter', $cancelCounter + 1);
+            $cancelCounter++;
+
             if ($iccid == null) {
-                $this->info("Order ID: {$order->id} does not have an ICCID.");
-                $order->cancel();
-                $order->fulfillCancelled();
+                $this->info("Order ID: {$order->id} does not have an ICCID. Check count: {$cancelCounter}");
+                if (($cancelCounter) >= 3) {
+                    $this->info("Order ID: {$order->id} checked 3 times without ICCID. Cancelling.");
+                    $order->cancel();
+                    $order->fulfillCancelled();
+                }
 
                 continue;
             }
@@ -94,10 +99,18 @@ class SyncOrdersWithProviderCommand extends Command
         try {
             $response = $customerService->getEsimInfo($iccid);
         } catch (Exception $e) {
-            captureException($e);
-            $this->info("Order ID: {$order->id} does not have an ICCID.");
-            $order->cancel();
-            $order->fulfillCancelled();
+            report($e);
+            $this->error("Error processing Order ID: {$order->id} - {$e->getMessage()}");
+
+            $cancelCounter = $order->get('cancel_counter', 0) + 1;
+            $order->set('cancel_counter', $cancelCounter);
+
+            $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
+            if ($cancelCounter >= 3) {
+                $this->warn("Order ID: {$order->id} has been checked 3 times without success. Cancelling.");
+                $order->cancel();
+                $order->fulfillCancelled();
+            }
 
             return;
         }
@@ -114,9 +127,18 @@ class SyncOrdersWithProviderCommand extends Command
         try {
             $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
         } catch (Exception $e) {
-            $this->info("Order ID: {$order->id} does not have an ICCID.");
-            $order->cancel();
-            $order->fulfillCancelled();
+            report($e);
+            $this->error("Error processing Order ID: {$order->id} - {$e->getMessage()}");
+
+            $cancelCounter = $order->get('cancel_counter', 0) + 1;
+            $order->set('cancel_counter', $cancelCounter);
+
+            $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
+            if ($cancelCounter >= 3) {
+                $this->warn("Order ID: {$order->id} has been checked 3 times without success. Cancelling.");
+                $order->cancel();
+                $order->fulfillCancelled();
+            }
 
             return;
         }

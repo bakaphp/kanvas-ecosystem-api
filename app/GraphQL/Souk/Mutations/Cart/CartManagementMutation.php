@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Cart;
 
 use Illuminate\Support\Facades\App;
+use Joelwmale\Cart\CartCondition;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Cart\Services\CartService;
-use Wearepixel\Cart\CartCondition;
 
 class CartManagementMutation
 {

@@ -10,9 +10,12 @@ use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    public $tries = 3;
+
     /**
      * @param \Kanvas\Social\Messages\Models\Message $message
      */
@@ -33,10 +36,18 @@ class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivi
             }
         }
 
-        $messageIndex = new RecombeeIndexService($app);
-        $messageIndex->createPromptMessageDatabase();
+        try {
+            $messageIndex = new RecombeeIndexService($app);
+            $messageIndex->createPromptMessageDatabase();
 
-        $result = $messageIndex->indexPromptMessage($message);
+            $result = $messageIndex->indexPromptMessage($message);
+        } catch (Throwable $e) {
+            return [
+                'result' => false,
+                'message' => $e->getMessage(),
+                'id' => $message->id,
+            ];
+        }
 
         return [
             'result' => $result,

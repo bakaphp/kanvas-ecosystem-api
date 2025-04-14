@@ -1,0 +1,190 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
+
+use Baka\Contracts\AppInterface;
+use Exception;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Http;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\KanvasActivity;
+use Override;
+
+class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
+{
+    protected ?string $apiUrl = null;
+    protected const int MAX_STATUS_CHECKS = 30;
+    protected const int STATUS_CHECK_DELAY = 2;
+    public $tries = 3;
+
+    #[Override]
+    public function execute(Model $entity, AppInterface $app, array $params): array
+    {
+        $messageFiles = $entity->getFiles();
+        $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
+
+        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+
+        try {
+            $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
+            $company = $branch->company;
+        } catch (ModelNotFoundException $e) {
+            $company = $entity->company;
+        }
+
+        return $this->executeIntegration(
+            entity: $entity,
+            app: $app,
+            integration: IntegrationsEnum::PROMPT_MINE,
+            integrationOperation: function ($entity) use ($messageFiles) {
+                if (empty($this->apiUrl)) {
+                    return [
+                        'result' => false,
+                        'message' => 'API URL not configured',
+                    ];
+                }
+
+                if ($messageFiles->isEmpty()) {
+                    return [
+                        'result' => false,
+                        'message' => 'Message does not have any files',
+                    ];
+                }
+
+                $fileUrl = $messageFiles->first()->url;
+
+                try {
+                    // Step 1: Submit the image for processing
+                    $submitResponse = $this->submitImage($fileUrl);
+
+                    if (! isset($submitResponse['request_id'])) {
+                        return [
+                            'result' => false,
+                            'message' => 'Failed to submit image for processing',
+                        ];
+                    }
+
+                    $requestId = $submitResponse['request_id'];
+
+                    // Step 2: Check processing status until complete
+                    $statusResponse = $this->checkProcessingStatus($requestId);
+
+                    if ($statusResponse['status'] !== 'COMPLETED') {
+                        return [
+                            'result' => false,
+                            'message' => 'Image processing did not complete successfully',
+                        ];
+                    }
+
+                    // Step 3: Get the processed image result
+                    $resultResponse = $this->getProcessingResult($requestId);
+
+                    if (! isset($resultResponse['data']['image']['url'])) {
+                        return [
+                            'result' => false,
+                            'message' => 'Failed to retrieve processed image',
+                        ];
+                    }
+
+                    $processedImageUrl = $resultResponse['data']['image']['url'];
+
+                    return [
+                        'message' => 'Image processed successfully',
+                        'result' => true,
+                        'user_id' => $entity->user->getId(),
+                        'message_data' => $entity->message,
+                        'message_id' => $entity->getId(),
+                        'processed_image_url' => $processedImageUrl,
+                        'original_image_url' => $fileUrl,
+                        'request_id' => $requestId,
+                    ];
+                } catch (Exception $e) {
+                    return [
+                        'result' => false,
+                        'message_id' => $entity->getId(),
+                        'message' => 'Error processing image: ' . $e->getMessage(),
+                    ];
+                }
+            },
+            company: $company,
+        );
+    }
+
+    /**
+     * Submit an image for processing
+     */
+    protected function submitImage(string $imageUrl): array
+    {
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+        ])->post($this->apiUrl, [
+            'operation' => 'submit',
+            'image_url' => $imageUrl,
+            'model' => 'fal-ai/ghiblify',
+        ]);
+
+        return $response->json();
+    }
+
+    /**
+     * Check the processing status of a submitted image
+     */
+    protected function checkProcessingStatus(string $requestId): array
+    {
+        $attempts = 0;
+        $statusResponse = [];
+
+        while ($attempts < self::MAX_STATUS_CHECKS) {
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+            ])->post($this->apiUrl, [
+                'operation' => 'status',
+                'requestId' => $requestId,
+                'model' => 'fal-ai/ghiblify',
+                'logs' => true,
+            ]);
+
+            $statusResponse = $response->json();
+
+            if ($statusResponse['status'] === 'COMPLETED') {
+                break;
+            }
+
+            if ($statusResponse['status'] === 'FAILED') {
+                throw new Exception('Image processing failed for this request' . $requestId);
+            }
+
+            // Wait before checking again
+            sleep(self::STATUS_CHECK_DELAY);
+            $attempts++;
+        }
+
+        if ($attempts >= self::MAX_STATUS_CHECKS) {
+            throw new Exception('Image processing timed out' . $requestId);
+        }
+
+        return $statusResponse;
+    }
+
+    /**
+     * Get the result of a processed image
+     */
+    protected function getProcessingResult(string $requestId): array
+    {
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+        ])->post($this->apiUrl, [
+            'operation' => 'result',
+            'requestId' => $requestId,
+            'model' => 'fal-ai/ghiblify',
+        ]);
+
+        return $response->json();
+    }
+}

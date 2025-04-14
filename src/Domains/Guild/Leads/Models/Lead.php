@@ -29,6 +29,7 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 
 /**
  * Class Leads.
@@ -76,6 +77,7 @@ class Lead extends BaseModel
         return $this->belongsTo(People::class, 'people_id', 'id');
     }
 
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'Lead';
@@ -249,6 +251,7 @@ class Lead extends BaseModel
         $this->setDuplicate()->saveOrFail();
     }
 
+    #[Override]
     protected static function newFactory()
     {
         return new LeadFactory();
