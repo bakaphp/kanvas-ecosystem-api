@@ -21,7 +21,6 @@ class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
     {
         try {
             $userData = $this->webhookRequest->payload;
-
             if (empty($userData['email']) || empty($userData['firstname']) || empty($userData['lastname'])) {
                 return [
                     'message' => 'Missing required user data',
@@ -61,7 +60,6 @@ class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
                 'status' => 'success'
             ];
         } catch (ModelNotFoundException) {
-            // Usuario existe pero no en esta app, lo registramos
             $this->registerExistingUserInApp($user, $userData);
 
             return [
