@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.342.21",
+            "version": "3.342.24",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "f4d501414c553ddeea2efc9c77f72e58bd899823"
+                "reference": "cd7e1cbed4cb52c3aad31a647d1645594ff208eb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/f4d501414c553ddeea2efc9c77f72e58bd899823",
-                "reference": "f4d501414c553ddeea2efc9c77f72e58bd899823",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/cd7e1cbed4cb52c3aad31a647d1645594ff208eb",
+                "reference": "cd7e1cbed4cb52c3aad31a647d1645594ff208eb",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.21"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.24"
             },
-            "time": "2025-04-04T18:20:53+00:00"
+            "time": "2025-04-09T18:22:32+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -1886,26 +1886,29 @@
         },
         {
             "name": "doctrine/deprecations",
-            "version": "1.1.4",
+            "version": "1.1.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/deprecations.git",
-                "reference": "31610dbb31faa98e6b5447b62340826f54fbc4e9"
+                "reference": "459c2f5dd3d6a4633d3b5f46ee2b1c40f57d3f38"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/deprecations/zipball/31610dbb31faa98e6b5447b62340826f54fbc4e9",
-                "reference": "31610dbb31faa98e6b5447b62340826f54fbc4e9",
+                "url": "https://api.github.com/repos/doctrine/deprecations/zipball/459c2f5dd3d6a4633d3b5f46ee2b1c40f57d3f38",
+                "reference": "459c2f5dd3d6a4633d3b5f46ee2b1c40f57d3f38",
                 "shasum": ""
             },
             "require": {
                 "php": "^7.1 || ^8.0"
             },
+            "conflict": {
+                "phpunit/phpunit": "<=7.5 || >=13"
+            },
             "require-dev": {
-                "doctrine/coding-standard": "^9 || ^12",
-                "phpstan/phpstan": "1.4.10 || 2.0.3",
+                "doctrine/coding-standard": "^9 || ^12 || ^13",
+                "phpstan/phpstan": "1.4.10 || 2.1.11",
                 "phpstan/phpstan-phpunit": "^1.0 || ^2",
-                "phpunit/phpunit": "^7.5 || ^8.5 || ^9.5",
+                "phpunit/phpunit": "^7.5 || ^8.5 || ^9.6 || ^10.5 || ^11.5 || ^12",
                 "psr/log": "^1 || ^2 || ^3"
             },
             "suggest": {
@@ -1925,9 +1928,9 @@
             "homepage": "https://www.doctrine-project.org/",
             "support": {
                 "issues": "https://github.com/doctrine/deprecations/issues",
-                "source": "https://github.com/doctrine/deprecations/tree/1.1.4"
+                "source": "https://github.com/doctrine/deprecations/tree/1.1.5"
             },
-            "time": "2024-12-07T21:18:45+00:00"
+            "time": "2025-04-07T20:06:18+00:00"
         },
         {
             "name": "doctrine/inflector",
@@ -2404,16 +2407,16 @@
         },
         {
             "name": "firebase/php-jwt",
-            "version": "v6.11.0",
+            "version": "v6.11.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/firebase/php-jwt.git",
-                "reference": "8f718f4dfc9c5d5f0c994cdfd103921b43592712"
+                "reference": "d1e91ecf8c598d073d0995afa8cd5c75c6e19e66"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/firebase/php-jwt/zipball/8f718f4dfc9c5d5f0c994cdfd103921b43592712",
-                "reference": "8f718f4dfc9c5d5f0c994cdfd103921b43592712",
+                "url": "https://api.github.com/repos/firebase/php-jwt/zipball/d1e91ecf8c598d073d0995afa8cd5c75c6e19e66",
+                "reference": "d1e91ecf8c598d073d0995afa8cd5c75c6e19e66",
                 "shasum": ""
             },
             "require": {
@@ -2461,9 +2464,9 @@
             ],
             "support": {
                 "issues": "https://github.com/firebase/php-jwt/issues",
-                "source": "https://github.com/firebase/php-jwt/tree/v6.11.0"
+                "source": "https://github.com/firebase/php-jwt/tree/v6.11.1"
             },
-            "time": "2025-01-23T05:11:06+00:00"
+            "time": "2025-04-09T20:32:01+00:00"
         },
         {
             "name": "fruitcake/php-cors",
@@ -2662,16 +2665,16 @@
         },
         {
             "name": "google/apiclient",
-            "version": "v2.18.2",
+            "version": "v2.18.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client.git",
-                "reference": "d8d201ba8a189a3cd7fb34e4da569f2ed440eee7"
+                "reference": "4eee42d201eff054428a4836ec132944d271f051"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client/zipball/d8d201ba8a189a3cd7fb34e4da569f2ed440eee7",
-                "reference": "d8d201ba8a189a3cd7fb34e4da569f2ed440eee7",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client/zipball/4eee42d201eff054428a4836ec132944d271f051",
+                "reference": "4eee42d201eff054428a4836ec132944d271f051",
                 "shasum": ""
             },
             "require": {
@@ -2725,9 +2728,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client/issues",
-                "source": "https://github.com/googleapis/google-api-php-client/tree/v2.18.2"
+                "source": "https://github.com/googleapis/google-api-php-client/tree/v2.18.3"
             },
-            "time": "2024-12-16T22:52:40+00:00"
+            "time": "2025-04-08T21:59:36+00:00"
         },
         {
             "name": "google/apiclient-services",
@@ -4869,16 +4872,16 @@
         },
         {
             "name": "laravel/octane",
-            "version": "v2.8.3",
+            "version": "v2.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/octane.git",
-                "reference": "f3eee159192d72319ee8e612abc17eacffb47c97"
+                "reference": "8288269fab27a6163a2f2bd4f3115bd057432bcd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/octane/zipball/f3eee159192d72319ee8e612abc17eacffb47c97",
-                "reference": "f3eee159192d72319ee8e612abc17eacffb47c97",
+                "url": "https://api.github.com/repos/laravel/octane/zipball/8288269fab27a6163a2f2bd4f3115bd057432bcd",
+                "reference": "8288269fab27a6163a2f2bd4f3115bd057432bcd",
                 "shasum": ""
             },
             "require": {
@@ -4955,7 +4958,7 @@
                 "issues": "https://github.com/laravel/octane/issues",
                 "source": "https://github.com/laravel/octane"
             },
-            "time": "2025-04-01T14:17:29+00:00"
+            "time": "2025-04-04T02:30:58+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -10701,16 +10704,16 @@
         },
         {
             "name": "spatie/laravel-data",
-            "version": "4.14.1",
+            "version": "4.15.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-data.git",
-                "reference": "edd61b4dca5acdcfd1e3b7f2c19b75e83730f87c"
+                "reference": "cb97afe6c0dadeb2e76ea1b7220cd04ed33dcca9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/edd61b4dca5acdcfd1e3b7f2c19b75e83730f87c",
-                "reference": "edd61b4dca5acdcfd1e3b7f2c19b75e83730f87c",
+                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/cb97afe6c0dadeb2e76ea1b7220cd04ed33dcca9",
+                "reference": "cb97afe6c0dadeb2e76ea1b7220cd04ed33dcca9",
                 "shasum": ""
             },
             "require": {
@@ -10723,6 +10726,7 @@
             "require-dev": {
                 "fakerphp/faker": "^1.14",
                 "friendsofphp/php-cs-fixer": "^3.0",
+                "inertiajs/inertia-laravel": "^2.0",
                 "livewire/livewire": "^3.0",
                 "mockery/mockery": "^1.6",
                 "nesbot/carbon": "^2.63|^3.0",
@@ -10771,7 +10775,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-data/issues",
-                "source": "https://github.com/spatie/laravel-data/tree/4.14.1"
+                "source": "https://github.com/spatie/laravel-data/tree/4.15.1"
             },
             "funding": [
                 {
@@ -10779,7 +10783,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-03-17T13:54:28+00:00"
+            "time": "2025-04-10T06:06:27+00:00"
         },
         {
             "name": "spatie/laravel-google-cloud-storage",
@@ -11093,16 +11097,16 @@
         },
         {
             "name": "spatie/laravel-package-tools",
-            "version": "1.92.0",
+            "version": "1.92.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-package-tools.git",
-                "reference": "dd46cd0ed74015db28822d88ad2e667f4496a6f6"
+                "reference": "d09b767cdc04eae748c1b70a0df8be79bf992691"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/dd46cd0ed74015db28822d88ad2e667f4496a6f6",
-                "reference": "dd46cd0ed74015db28822d88ad2e667f4496a6f6",
+                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/d09b767cdc04eae748c1b70a0df8be79bf992691",
+                "reference": "d09b767cdc04eae748c1b70a0df8be79bf992691",
                 "shasum": ""
             },
             "require": {
@@ -11141,7 +11145,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-package-tools/issues",
-                "source": "https://github.com/spatie/laravel-package-tools/tree/1.92.0"
+                "source": "https://github.com/spatie/laravel-package-tools/tree/1.92.1"
             },
             "funding": [
                 {
@@ -11149,7 +11153,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-03-27T08:34:10+00:00"
+            "time": "2025-04-10T12:34:43+00:00"
         },
         {
             "name": "spatie/laravel-queueable-action",
@@ -14809,16 +14813,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.4.1",
+            "version": "8.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php.git",
-                "reference": "637358562caf326883f2ad0ed77c487bc6f2cdc9"
+                "reference": "a68a13ed8ddc720d5adb580cbc22b4fd80dc6b38"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/637358562caf326883f2ad0ed77c487bc6f2cdc9",
-                "reference": "637358562caf326883f2ad0ed77c487bc6f2cdc9",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/a68a13ed8ddc720d5adb580cbc22b4fd80dc6b38",
+                "reference": "a68a13ed8ddc720d5adb580cbc22b4fd80dc6b38",
                 "shasum": ""
             },
             "require": {
@@ -14856,9 +14860,9 @@
             ],
             "support": {
                 "issues": "https://github.com/twilio/twilio-php/issues",
-                "source": "https://github.com/twilio/twilio-php/tree/8.4.1"
+                "source": "https://github.com/twilio/twilio-php/tree/8.5.0"
             },
-            "time": "2025-03-20T10:30:10+00:00"
+            "time": "2025-04-07T15:34:07+00:00"
         },
         {
             "name": "typesense/laravel-scout-typesense-driver",
@@ -16764,16 +16768,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "11.5.15",
+            "version": "11.5.17",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "4b6a4ee654e5e0c5e1f17e2f83c0f4c91dee1f9c"
+                "reference": "fd2e863a2995cdfd864fb514b5e0b28b09895b5c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/4b6a4ee654e5e0c5e1f17e2f83c0f4c91dee1f9c",
-                "reference": "4b6a4ee654e5e0c5e1f17e2f83c0f4c91dee1f9c",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/fd2e863a2995cdfd864fb514b5e0b28b09895b5c",
+                "reference": "fd2e863a2995cdfd864fb514b5e0b28b09895b5c",
                 "shasum": ""
             },
             "require": {
@@ -16845,7 +16849,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.5.15"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.5.17"
             },
             "funding": [
                 {
@@ -16861,7 +16865,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-03-23T16:02:11+00:00"
+            "time": "2025-04-08T07:59:11+00:00"
         },
         {
             "name": "sebastian/cli-parser",
