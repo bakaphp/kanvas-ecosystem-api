@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Users\Models\UserConfig;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -41,7 +42,16 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
                         'message' => 'Message does not have an AI model',
                     ];
                 }
-                $entity->user->set('llm_last_choice', $messageData['ai_model']);
+                UserConfig::updateOrCreate(
+                    [
+                        'users_id' => $entity->user->getId(),
+                        'name' => 'llm_last_choice',
+                    ],
+                    [
+                        'value' => $messageData['ai_model'],
+                        'is_public' => 1,
+                    ],
+                );
 
                 return [
                     'message' => 'LLM choice saved',
