@@ -291,7 +291,7 @@ ADVANCEPROMPT;
             $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt($nuggetGenerator)
-                ->asText();
+                ->generate();
 
             $responseText = str_replace(['```', 'json'], '', $response->text);
 
