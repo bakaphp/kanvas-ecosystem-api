@@ -4187,16 +4187,16 @@
         },
         {
             "name": "joelwmale/laravel-cart",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/joelwmale/laravel-cart.git",
-                "reference": "e810eb4ef48ed651f9c1d3aaa13f797e500fca3c"
+                "reference": "4c02310bf728acdff5cc65efdaf5cb6684ca99ce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/joelwmale/laravel-cart/zipball/e810eb4ef48ed651f9c1d3aaa13f797e500fca3c",
-                "reference": "e810eb4ef48ed651f9c1d3aaa13f797e500fca3c",
+                "url": "https://api.github.com/repos/joelwmale/laravel-cart/zipball/4c02310bf728acdff5cc65efdaf5cb6684ca99ce",
+                "reference": "4c02310bf728acdff5cc65efdaf5cb6684ca99ce",
                 "shasum": ""
             },
             "require": {
@@ -4251,9 +4251,9 @@
             ],
             "support": {
                 "issues": "https://github.com/joelwmale/laravel-cart/issues",
-                "source": "https://github.com/joelwmale/laravel-cart/tree/1.2.0"
+                "source": "https://github.com/joelwmale/laravel-cart/tree/1.2.1"
             },
-            "time": "2025-02-25T06:55:44+00:00"
+            "time": "2025-04-14T06:53:35+00:00"
         },
         {
             "name": "kelunik/certificate",
@@ -17765,6 +17765,6 @@
     "platform": {
         "php": "^8.4"
     },
-    "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "platform-dev": [],
+    "plugin-api-version": "2.3.0"
 }
