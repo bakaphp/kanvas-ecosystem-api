@@ -85,7 +85,6 @@ class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
 
     private function registerExistingUserInApp(Users $user, array $userData): void
     {
-
         $registerInput = $this->prepareRegisterInput([
             'email' => $user->email,
             'firstname' => $user->firstname,
@@ -107,7 +106,6 @@ class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
 
     private function updateExistingUser(Users $user, array $userData): void
     {
-
         $user->firstname = $userData['firstname'] ?? $user->firstname;
         $user->lastname = $userData['lastname'] ?? $user->lastname;
         $user->displayname = $userData['displayname'] ?? $user->firstname . ' ' . $user->lastname;
