@@ -53,7 +53,6 @@ class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
     {
         try {
             UsersRepository::belongsToThisApp($user, $this->receiver->app);
-
             $this->updateExistingUser($user, $userData);
 
             return [
@@ -64,7 +63,7 @@ class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
         } catch (ModelNotFoundException) {
             // Usuario existe pero no en esta app, lo registramos
             $this->registerExistingUserInApp($user, $userData);
-            
+
             return [
                 'message' => 'User exists but was added to this app',
                 'user_id' => $user->getId(),
@@ -82,7 +81,7 @@ class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
         if (isset($userData['run_workflow']) && $userData['run_workflow'] === false) {
             $createUserAction->disableWorkflow();
         }
-        
+
         return $createUserAction->execute();
     }
 
@@ -104,7 +103,7 @@ class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
         if (isset($userData['run_workflow']) && $userData['run_workflow'] === false) {
             $createUserAction->disableWorkflow();
         }
-        
+
         $createUserAction->execute();
     }
 
@@ -120,7 +119,7 @@ class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
         if (! empty($userData['custom_fields'])) {
             $user->setAll($userData['custom_fields']);
         }
-        
+
         $user->saveOrFail();
     }
 
