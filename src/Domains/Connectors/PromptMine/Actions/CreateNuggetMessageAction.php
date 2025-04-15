@@ -35,7 +35,7 @@ class CreateNuggetMessageAction
             )
         ))->execute();
 
-        $nuggetMessage->addTags($this->parentMessage->tags->toArray());
+        $nuggetMessage->addTags($this->parentMessage->tags->pluck('name'));
         $this->parentMessage->total_children++;
         $this->parentMessage->save();
         return $nuggetMessage;
