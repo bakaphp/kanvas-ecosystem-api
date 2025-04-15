@@ -19,6 +19,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants as VariantModel;
+use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
@@ -295,5 +296,20 @@ class Variants
         }
 
         return $variant;
+    }
+
+    public function updateVariantAttributeTranslation(mixed $root, array $req): VariantsAttributes
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $language = Languages::getByCode($req['code']);
+        $attribute = AttributesRepository::getById((int) $req['attribute_id'], $company);
+        $variant = VariantsRepository::getById((int) $req['variant_id'], $company);
+
+        $variantAttribute = $variant->attributeValues('attribute_id', $attribute->getId())->firstOrFail();
+        $value = $req['value'];
+        $variantAttribute->setTranslation('value', $language->code, $value);
+        $variantAttribute->save();
+
+        return $variantAttribute;
     }
 }

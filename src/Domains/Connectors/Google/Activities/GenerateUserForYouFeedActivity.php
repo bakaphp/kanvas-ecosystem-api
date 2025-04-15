@@ -11,11 +11,12 @@ use Kanvas\Connectors\Google\Actions\GenerateGoogleUserMessageAction;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class GenerateUserForYouFeedActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     //public $tries = 10;
-
+    #[Override]
     public function execute(Model $user, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

@@ -12,7 +12,7 @@ use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Orders\Jobs\ProcessOrderItemJob;
 use Kanvas\Souk\Orders\Services\OrderItemService;
 use Kanvas\Users\Models\Users;
-use Wearepixel\Cart\Cart;
+use Joelwmale\Cart\Cart;
 
 class ProcessOrderItemAction
 {

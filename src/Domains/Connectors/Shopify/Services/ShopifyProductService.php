@@ -105,8 +105,6 @@ class ShopifyProductService
     {
         foreach ($variants as $variant) {
             $variantName = $variant['title'];
-            $options = array_filter([$variant['option1'], $variant['option2'], $variant['option3']]);
-            $variantName .= ' ' . implode(' ', $options);
 
             $productVariants[] = [
                 'name' => $variantName,

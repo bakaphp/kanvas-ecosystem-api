@@ -15,6 +15,7 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Connectors\Stripe\Services\StripeCustomerService;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -139,6 +140,14 @@ class CreateOrderInESimActivity extends KanvasActivity
                 ];
                 $response['data']['plan_origin'] = $response['data']['plan'];
                 $response['data']['plan'] = $sku; //overwrite the plan with the sku
+            } elseif ($providerValue === strtolower(ProviderEnum::AIRALO->value)) {
+                $response['esim_status'] = [
+                    'expiration_date' => null,
+                    'esim_status' => $response['data']['status'] ?? null,
+                    'phone_number' => null,
+                ];
+                $response['data']['plan_origin'] = $response['data']['plan'] ?? null;
+                $response['data']['plan'] = $sku; // Overwrite the plan with the sku
             }
         } catch (Throwable $e) {
             captureException($e);
@@ -208,6 +217,15 @@ class CreateOrderInESimActivity extends KanvasActivity
             $paymentIntentId = explode('_secret_', $clientSecret)[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
 
             $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
+
+            try {
+                $stripeService = new StripeCustomerService($order->app);
+                $stripe->paymentIntents->update($paymentIntentId, [
+                    'customer' => $stripeService->getOrCreateCustomerByPerson($order->people)->id,
+                ]);
+            } catch (Throwable $e) {
+                report($e);
+            }
 
             $commerceOrder = new WooCommerceOrderService($order->app);
             $updateResponse = $commerceOrder->updateOrderStripePayment(

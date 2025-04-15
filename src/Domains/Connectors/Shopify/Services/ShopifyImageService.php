@@ -52,16 +52,17 @@ class ShopifyImageService
             $shopifyProduct = $this->shopifySdk->Product($product->getShopifyId($this->region, $partNumber));
 
             $fileName = pathinfo($imageUrl, PATHINFO_BASENAME);
+            $alt = $product->name;
             // Check if the image already exists
             $existingImages = $shopifyProduct->Image->get();
             foreach ($existingImages as $image) {
-                if ($image['alt'] === $fileName || $image['src'] === $imageUrl) {
+                if ($image['alt'] == $fileName || $image['alt'] === $alt || $image['src'] === $imageUrl) {
                     return null; // Image already exists, no need to upload
                 }
             }
 
             // Add the image if it does not exist
-            $response = $shopifyProduct->Image->post(['src' => $imageUrl, 'alt' => $fileName]);
+            $response = $shopifyProduct->Image->post(['src' => $imageUrl, 'alt' => $alt]);
 
             return $response;
         } catch (Exception $e) {
@@ -86,10 +87,11 @@ class ShopifyImageService
             // Check if the image already exists
             $existingImages = $shopifyProduct->Image->get();
             $fileName = pathinfo($imageUrl, PATHINFO_BASENAME);
+            $alt = $variant->product->name . ' - ' . $variant->name;
             $existingImageId = null;
 
             foreach ($existingImages as $image) {
-                if ($image['alt'] === $fileName || $image['src'] === $imageUrl) {
+                if ($image['alt'] == $fileName || $image['alt'] === $alt || $image['src'] === $imageUrl) {
                     $existingImageId = $image['id'];
 
                     break;
@@ -100,7 +102,7 @@ class ShopifyImageService
             if ($existingImageId === null) {
                 $imageResponse = $shopifyProduct->Image->post([
                     'src' => $imageUrl,
-                    'alt' => $fileName,
+                    'alt' => $alt,
                     'position' => $position,
                 ]);
 

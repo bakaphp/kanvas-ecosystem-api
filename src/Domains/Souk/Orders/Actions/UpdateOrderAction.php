@@ -51,6 +51,7 @@ class UpdateOrderAction
                     ...($this->orderData['metadata']['data'] ?? []),
                 ],
             ];
+            $this->order->fulfillment_status = $this->orderData['fulfillment_status'] ?? $this->order->fulfillment_status;
             $this->order->saveOrFail();
 
             if ($hasItems) {

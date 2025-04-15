@@ -9,8 +9,8 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use EchoLabs\Prism\Enums\Provider;
-use EchoLabs\Prism\Prism;
+use Prism\Prism\Prism;
+use Prism\Prism\Enums\Provider;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
 use Throwable;
@@ -76,12 +76,12 @@ class FixPromptDataCommand extends Command
 
                         //Need to get just the first child message
                         foreach ($message->children as $childMessage) {
-                            $validateMessageSchema = new MessageSchemaValidator($childMessage, $childMessageType, true);
-                            $this->info('--Checking Child Nugget Message Schema of ID: ' . $childMessage->getId());
-                            if ($validateMessageSchema->validate()) {
-                                $this->info('--Message Schema is OK');
-                                continue;
-                            }
+                            // $validateMessageSchema = new MessageSchemaValidator($childMessage, $childMessageType, true);
+                            // $this->info('--Checking Child Nugget Message Schema of ID: ' . $childMessage->getId());
+                            // if ($validateMessageSchema->validate()) {
+                            //     $this->info('--Message Schema is OK');
+                            //     continue;
+                            // }
 
                             $this->info('--Fixing Child Nugget Message Schema');
                             $this->fixNuggetData($childMessage);
@@ -97,13 +97,13 @@ class FixPromptDataCommand extends Command
     private function fixPromptData(Message $message): void
     {
         $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
-        $validateMessageSchema = new MessageSchemaValidator($message, MessageType::find($message->message_types_id), true);
+        // $validateMessageSchema = new MessageSchemaValidator($message, MessageType::find($message->message_types_id), true);
 
-        $this->info('--Checking Prompt Message Schema of ID: ' . $message->getId());
-        if ($validateMessageSchema->validate()) {
-            $this->info('-Prompt Message Schema is OK');
-            return;
-        }
+        // $this->info('--Checking Prompt Message Schema of ID: ' . $message->getId());
+        // if ($validateMessageSchema->validate()) {
+        //     $this->info('-Prompt Message Schema is OK');
+        //     return;
+        // }
         //Anything that is not a prompt, set as deleted
         if (! isset($messageData['prompt'])) {
             $message->is_deleted = 1;
@@ -157,10 +157,20 @@ class FixPromptDataCommand extends Command
             $this->info('Added payment to message data');
         }
 
-        // if (isset($messageData['ai_nugged'])) {
-        //     unset($messageData['ai_nugged']);
-        //     $this->info('Removed ai_nugged from message data');
-        // }
+        if (isset($messageData['ai_nugged'])) {
+            unset($messageData['ai_nugged']);
+            $this->info('Removed ai_nugged from message data');
+        }
+
+        if (isset($messageData['nugget'])) {
+            unset($messageData['nugget']);
+            $this->info('Removed nugget from message data');
+        }
+
+        if (isset($messageData['is_assistant'])) {
+            unset($messageData['is_assistant']);
+            $this->info('Removed is_assistant from message data');
+        }
 
         $message->message = $messageData;
         $message->save();
@@ -200,18 +210,22 @@ class FixPromptDataCommand extends Command
         if (! isset($messageData['type']) && isset($parentMessageData['type'])) {
             $messageData['type'] = $parentMessageData['type'];
 
-            if (! isset($messageData['nugget']) || ! isset($messageData['image'])) {
+            $this->info('Added message type to message data: ' . $messageData['type']);
+            if (! isset($messageData['nugget']) && $messageData['type'] === 'text-format') {
+                $this->info('Generating nugget for message ID: ' . $message->getId());
                 $response = Prism::text()
-                ->using(Provider::Gemini, 'gemini-2.0-flash')
-                ->withPrompt($parentMessageData['prompt'])
-                ->generate();
-
+                    ->using(Provider::Gemini, 'gemini-2.0-flash')
+                    ->withPrompt($parentMessageData['prompt'])
+                    ->generate();
                 $responseText = str_replace(['```', 'json'], '', $response->text);
                 $messageData['nugget'] = $responseText;
+                $this->info('Added message nugget to message data');
             }
+        }
 
-            $this->info('Added message type to message data: ' . $messageData['type']);
-            $this->info('Added message nugget to message data');
+        if (isset($messageData['nugget']) && $messageData['type'] === 'image-format') {
+            unset($messageData['nugget']);
+            $this->info('Removed nugget from message data on image format');
         }
 
         if (isset($messageData['display_type'])) {
@@ -244,10 +258,15 @@ class FixPromptDataCommand extends Command
             $this->info('Removed ai_model from message data');
         }
 
-        // if (isset($messageData['ai_nugged'])) {
-        //     unset($messageData['ai_nugged']);
-        //     $this->info('Removed ai_nugged from message data');
-        // }
+        if (isset($messageData['ai_nugged'])) {
+            unset($messageData['ai_nugged']);
+            $this->info('Removed ai_nugged from message data');
+        }
+
+        if (isset($messageData['description'])) {
+            unset($messageData['description']);
+            $this->info('Removed description from message data');
+        }
 
         $message->message = $messageData;
         $message->save();
@@ -257,9 +276,9 @@ class FixPromptDataCommand extends Command
     {
         $messageData = is_array($parentMessage->message) ? $parentMessage->message : json_decode($parentMessage->message, true);
         $response = Prism::text()
-                ->using(Provider::Gemini, 'gemini-2.0-flash')
-                ->withPrompt($messageData['prompt'])
-                ->generate();
+            ->using(Provider::Gemini, 'gemini-2.0-flash')
+            ->withPrompt($messageData['prompt'])
+            ->generate();
 
         $responseText = str_replace(['```', 'json'], '', $response->text);
         $nuggetId = DB::connection('social')->table('messages')->insertGetId([
@@ -281,6 +300,17 @@ class FixPromptDataCommand extends Command
         DB::connection('social')->table('messages')
             ->where('id', $nuggetId)
             ->update(['path' => $parentMessage->getId() . "." . $nuggetId]);
+
+        foreach ($parentMessage->tags() as $tag) {
+            DB::connection('social')->table('tags_entities')->insert([
+                'entity_id' => $nuggetId,
+                'tags_id' => $tag->getId(),
+                'users_id' => $parentMessage->users_id,
+                'taggable_type' => "Kanvas\Social\Messages\Models\Message",
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
 
         //Call fixNuggetData just in case something is missing
         $this->fixNuggetData(Message::find($nuggetId));
