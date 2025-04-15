@@ -12,7 +12,7 @@ use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
-use Wearepixel\Cart\Cart;
+use Joelwmale\Cart\Cart;
 
 class AddToCartAction
 {

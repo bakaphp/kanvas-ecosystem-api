@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "eb185cac6cc312fdcde36558b52b2e73",
+    "content-hash": "511078635094e718fda7dbd66b573ad1",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.342.26",
+            "version": "3.342.27",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "99f6f8521117534990e608e040b083015465c49c"
+                "reference": "4c18299000c34ab4903100fe68721d6f26c7cdf2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/99f6f8521117534990e608e040b083015465c49c",
-                "reference": "99f6f8521117534990e608e040b083015465c49c",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/4c18299000c34ab4903100fe68721d6f26c7cdf2",
+                "reference": "4c18299000c34ab4903100fe68721d6f26c7cdf2",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.26"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.27"
             },
-            "time": "2025-04-11T18:10:41+00:00"
+            "time": "2025-04-14T18:08:09+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -4241,6 +4241,76 @@
             "time": "2025-03-19T14:43:43+00:00"
         },
         {
+            "name": "joelwmale/laravel-cart",
+            "version": "1.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/joelwmale/laravel-cart.git",
+                "reference": "4c02310bf728acdff5cc65efdaf5cb6684ca99ce"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/joelwmale/laravel-cart/zipball/4c02310bf728acdff5cc65efdaf5cb6684ca99ce",
+                "reference": "4c02310bf728acdff5cc65efdaf5cb6684ca99ce",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/auth": "^10.0|^11.0|^12.0",
+                "illuminate/container": "^10.0|^11.0|^12.0",
+                "illuminate/database": "^10.0|^11.0|^12.0",
+                "illuminate/support": "^10.0|^11.0|^12.0",
+                "illuminate/validation": "^10.0|^11.0|^12.0",
+                "php": ">=8.2"
+            },
+            "require-dev": {
+                "larapack/dd": "dev-master",
+                "laravel/pint": "^1.21",
+                "mockery/mockery": "^1.6",
+                "pestphp/pest": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Cart": "Joelwmale\\Cart\\Facades\\CartFacade"
+                    },
+                    "providers": [
+                        "Joelwmale\\Cart\\CartServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Joelwmale\\Cart\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Darryl Fernandez",
+                    "email": "engrdarrylfernandez@gmail.com"
+                },
+                {
+                    "name": "Joel Male",
+                    "email": "joel@joelmale.com"
+                }
+            ],
+            "description": "A cart implementation for Laravel",
+            "keywords": [
+                "cart",
+                "laravel",
+                "shopping cart"
+            ],
+            "support": {
+                "issues": "https://github.com/joelwmale/laravel-cart/issues",
+                "source": "https://github.com/joelwmale/laravel-cart/tree/1.2.1"
+            },
+            "time": "2025-04-14T06:53:35+00:00"
+        },
+        {
             "name": "kelunik/certificate",
             "version": "v1.1.3",
             "source": {
@@ -4872,16 +4942,16 @@
         },
         {
             "name": "laravel/octane",
-            "version": "v2.9.0",
+            "version": "v2.9.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/octane.git",
-                "reference": "8288269fab27a6163a2f2bd4f3115bd057432bcd"
+                "reference": "445002b2551c837d60cda4324259063c356dfb56"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/octane/zipball/8288269fab27a6163a2f2bd4f3115bd057432bcd",
-                "reference": "8288269fab27a6163a2f2bd4f3115bd057432bcd",
+                "url": "https://api.github.com/repos/laravel/octane/zipball/445002b2551c837d60cda4324259063c356dfb56",
+                "reference": "445002b2551c837d60cda4324259063c356dfb56",
                 "shasum": ""
             },
             "require": {
@@ -4958,7 +5028,7 @@
                 "issues": "https://github.com/laravel/octane/issues",
                 "source": "https://github.com/laravel/octane"
             },
-            "time": "2025-04-04T02:30:58+00:00"
+            "time": "2025-04-13T21:10:35+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -6393,16 +6463,16 @@
         },
         {
             "name": "meilisearch/meilisearch-php",
-            "version": "v1.13.0",
+            "version": "v1.14.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/meilisearch/meilisearch-php.git",
-                "reference": "16a3c31ddbe8eaec3aa1e1da3bada906d57dfc66"
+                "reference": "860c6f81e81abb5040c50031512b21ae59a26a97"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/meilisearch/meilisearch-php/zipball/16a3c31ddbe8eaec3aa1e1da3bada906d57dfc66",
-                "reference": "16a3c31ddbe8eaec3aa1e1da3bada906d57dfc66",
+                "url": "https://api.github.com/repos/meilisearch/meilisearch-php/zipball/860c6f81e81abb5040c50031512b21ae59a26a97",
+                "reference": "860c6f81e81abb5040c50031512b21ae59a26a97",
                 "shasum": ""
             },
             "require": {
@@ -6454,9 +6524,9 @@
             ],
             "support": {
                 "issues": "https://github.com/meilisearch/meilisearch-php/issues",
-                "source": "https://github.com/meilisearch/meilisearch-php/tree/v1.13.0"
+                "source": "https://github.com/meilisearch/meilisearch-php/tree/v1.14.0"
             },
-            "time": "2025-02-17T12:48:45+00:00"
+            "time": "2025-04-14T12:32:57+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
@@ -8449,16 +8519,16 @@
         },
         {
             "name": "phpdocumentor/reflection-docblock",
-            "version": "5.6.1",
+            "version": "5.6.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpDocumentor/ReflectionDocBlock.git",
-                "reference": "e5e784149a09bd69d9a5e3b01c5cbd2e2bd653d8"
+                "reference": "92dde6a5919e34835c506ac8c523ef095a95ed62"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpDocumentor/ReflectionDocBlock/zipball/e5e784149a09bd69d9a5e3b01c5cbd2e2bd653d8",
-                "reference": "e5e784149a09bd69d9a5e3b01c5cbd2e2bd653d8",
+                "url": "https://api.github.com/repos/phpDocumentor/ReflectionDocBlock/zipball/92dde6a5919e34835c506ac8c523ef095a95ed62",
+                "reference": "92dde6a5919e34835c506ac8c523ef095a95ed62",
                 "shasum": ""
             },
             "require": {
@@ -8507,9 +8577,9 @@
             "description": "With this component, a library can provide support for annotations via DocBlocks or otherwise retrieve information that is embedded in a DocBlock.",
             "support": {
                 "issues": "https://github.com/phpDocumentor/ReflectionDocBlock/issues",
-                "source": "https://github.com/phpDocumentor/ReflectionDocBlock/tree/5.6.1"
+                "source": "https://github.com/phpDocumentor/ReflectionDocBlock/tree/5.6.2"
             },
-            "time": "2024-12-07T09:39:29+00:00"
+            "time": "2025-04-13T19:20:35+00:00"
         },
         {
             "name": "phpdocumentor/type-resolver",
@@ -10094,16 +10164,16 @@
         },
         {
             "name": "sentry/sentry",
-            "version": "4.10.0",
+            "version": "4.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-php.git",
-                "reference": "2af937d47d8aadb8dab0b1d7b9557e495dd12856"
+                "reference": "ebf67deb9902b6da58a4b3383cbd12fed3f4f555"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/2af937d47d8aadb8dab0b1d7b9557e495dd12856",
-                "reference": "2af937d47d8aadb8dab0b1d7b9557e495dd12856",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/ebf67deb9902b6da58a4b3383cbd12fed3f4f555",
+                "reference": "ebf67deb9902b6da58a4b3383cbd12fed3f4f555",
                 "shasum": ""
             },
             "require": {
@@ -10167,7 +10237,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-php/issues",
-                "source": "https://github.com/getsentry/sentry-php/tree/4.10.0"
+                "source": "https://github.com/getsentry/sentry-php/tree/4.11.0"
             },
             "funding": [
                 {
@@ -10179,7 +10249,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2024-11-06T07:44:19+00:00"
+            "time": "2025-04-14T09:04:23+00:00"
         },
         {
             "name": "sentry/sentry-laravel",
