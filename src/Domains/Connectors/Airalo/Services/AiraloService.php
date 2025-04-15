@@ -23,6 +23,6 @@ class AiraloService
      */
     public function getEsimStatus(string $iccid, string $bundle): array
     {
-        return $this->client->get('/api/v1/airalo/check/status/' . $iccid . '/' . $bundle);
+        return $this->client->get('/api/v1/airalo/check/status/' . $iccid);
     }
 }
