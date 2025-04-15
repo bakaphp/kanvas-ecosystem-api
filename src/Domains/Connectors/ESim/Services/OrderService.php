@@ -24,7 +24,13 @@ class OrderService
     public function createOrder(): array
     {
         $item = $this->order->items()->first();
-        $provider = $item->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+        //$provider = $item->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+        $variantProvider = $item->variant->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value);
+
+        // Fall back to product provider if variant provider is empty
+        $provider = ! empty($variantProvider)
+            ? $variantProvider
+            : $item->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
 
         return match (strtolower($provider->value)) {
             strtolower(ProviderEnum::E_SIM_GO->value) => $this->eSimGoOrder($item),
