@@ -56,7 +56,7 @@ class ProcessOrderItemAction
         }
 
         // Add the items to the cart.
-        $addToCartAction = new AddToCartAction($this->app,  $this->currentUserCompany, $this->user);
+        $addToCartAction = new AddToCartAction($this->app, $this->currentUserCompany, $this->user);
         $addToCartAction->execute($cart, $result['validItems']);
 
         // Return the items processed.
