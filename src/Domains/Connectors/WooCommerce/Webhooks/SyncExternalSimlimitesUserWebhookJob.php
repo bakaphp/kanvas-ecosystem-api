@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 use Override;
 use Throwable;
 
-class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
+class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
 {
     #[Override]
     public function execute(): array
