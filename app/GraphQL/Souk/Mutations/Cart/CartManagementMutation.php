@@ -91,7 +91,7 @@ class CartManagementMutation
     public function clear(mixed $root, array $request): bool
     {
         $user = auth()->user();
-        $cart = app('cart')->session(app(AppEnums::KANVAS_CART_SESSION->getValue()));
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $cart->clearAllConditions();
 
         return $cart->clear();

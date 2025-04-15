@@ -17,6 +17,8 @@ class CartTest extends TestCase
         $region = $variantWarehouse->warehouse->region;
         $company = $region->company;
 
+        $this->app['auth']->forgetGuards();
+
         $this->graphQL(
             /** @lang GraphQL */
             '
