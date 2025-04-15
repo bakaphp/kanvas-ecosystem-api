@@ -29,7 +29,7 @@ class CreateNuggetMessageAction
                     'is_public' => 1,
                 ],
                 $this->parentMessage->user,
-                MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app->getId()),
+                MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app),
                 $this->parentMessage->company,
                 $this->parentMessage->app,
             )
