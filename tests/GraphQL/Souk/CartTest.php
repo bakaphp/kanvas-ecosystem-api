@@ -172,4 +172,70 @@ class CartTest extends TestCase
             ],
         ]);
     }
+
+    public function testCart(): void
+    {
+        $variantWarehouse = VariantsWarehouses::first();
+
+        $region = $variantWarehouse->warehouse->region;
+        $company = $region->company;
+        $uuid = Str::uuid();
+
+        $this->app['auth']->forgetGuards();
+
+        $this->graphQL(
+            /** @lang GraphQL */
+            '
+            mutation($items: [CartItemInput!]!) {
+                addToCart(items: $items) {
+                        id
+                        quantity
+                    }
+                }
+        ',
+            [
+                'items' => [
+                    [
+                        'variant_id' => $variantWarehouse->products_variants_id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ],
+            [],
+            [
+                'X-Kanvas-Location' => $company->branch->uuid,
+                'X-Kanvas-Identifier' => $uuid,
+            ],
+        );
+        $this->graphQL(
+            /** @lang GraphQL */
+            '
+            query {
+                cart {
+                    items {
+                        id
+                        quantity
+                    }
+                }
+            }
+        ',
+            [],
+            [],
+            [
+                'X-Kanvas-Location' => $company->branch->uuid,
+                'X-Kanvas-Identifier' => $uuid,
+            ],
+        )->assertJson([
+            'data' => [
+                'cart' => [
+                    'items' => [
+                        [
+                            'id' => $variantWarehouse->products_variants_id,
+                            'quantity' => 1,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
 }
