@@ -14,7 +14,6 @@ use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Exception;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -304,6 +303,11 @@ class Message extends BaseModel
         }
 
         return (bool)$this->is_locked;
+    }
+
+    public function getUniqueId(): string
+    {
+        return (string) $this->verb . '-' . (string) $this->visitor_id;
     }
 
     public static function getUserMessageCountInTimeFrame(
