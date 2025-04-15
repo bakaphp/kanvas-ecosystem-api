@@ -11,6 +11,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Override;
 use Throwable;
 
@@ -121,7 +122,7 @@ class SyncExternalSimlimitesUserWebhookJob extends ProcessWebhookJob
 
     private function prepareRegisterInput(array $userData): RegisterInput
     {
-        $password = $userData['password'] ?? null;
+        $password = $userData['password'] ?? Hash::make(Str::random(10));
         $rawPassword = $userData['password'] ?? null;
 
         return new RegisterInput(

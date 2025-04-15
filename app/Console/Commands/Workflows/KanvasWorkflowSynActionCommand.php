@@ -57,6 +57,7 @@ use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Webhooks\StripePaymentIntentWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Connectors\Esim\Webhooks\SyncExternalSimlimitesUserWebhookJob;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
@@ -153,6 +154,7 @@ class KanvasWorkflowSynActionCommand extends Command
             AttachFileToChecklistItemActivity::class,
             PromptImageFilterActivity::class,
             IdVerificationReportActivity::class,
+            SyncExternalSimlimitesUserWebhookJob::class,
         ];
 
         $createdActions = [];
