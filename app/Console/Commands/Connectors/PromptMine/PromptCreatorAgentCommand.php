@@ -11,8 +11,8 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
-use EchoLabs\Prism\Enums\Provider;
-use EchoLabs\Prism\Prism;
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Prism;
 
 class PromptCreatorAgentCommand extends Command
 {
@@ -291,7 +291,7 @@ ADVANCEPROMPT;
             $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt($nuggetGenerator)
-                ->generate();
+                ->asText();
 
             $responseText = str_replace(['```', 'json'], '', $response->text);
 

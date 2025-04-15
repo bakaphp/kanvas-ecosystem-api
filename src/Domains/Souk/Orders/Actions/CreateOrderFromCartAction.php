@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
@@ -22,7 +23,6 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Spatie\LaravelData\DataCollection;
-use Wearepixel\Cart\Cart;
 
 class CreateOrderFromCartAction
 {
@@ -66,7 +66,7 @@ class CreateOrderFromCartAction
             ));
         }
 
-        $hasItemsInCart = ! empty($this->cart) && $this->cart->getTotal() > 0;
+        $hasItemsInCart = ! $this->cart->isEmpty(); //&& $this->cart->getTotal() > 0;
         if ($hasItemsInCart) {
             $total = $this->cart->getTotal();
             $totalTax = ($this->cart->getTotal()) - ($this->cart->getSubTotal());
@@ -121,6 +121,7 @@ class CreateOrderFromCartAction
         $order = (new CreateOrderAction($order))->execute();
 
         $this->cart->clear();
+
         return $order;
     }
 

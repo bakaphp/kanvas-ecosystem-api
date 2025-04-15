@@ -17,7 +17,7 @@ enum RolesEnums: string
     case DEVELOPER = 'Developer';
     case MANAGER = 'Managers';
 
-    case KEY_MAP = "roles:abilities";
+    case KEY_MAP = 'roles:abilities';
 
     /**
      * Roles are scoped by app
@@ -35,10 +35,10 @@ enum RolesEnums: string
         $role = match (strtolower($slug)) {
             'owner' => self::OWNER,
             'admin' => self::ADMIN,
-            'user' => self::USER,
-            'agent' => self::AGENT,
-            'developer' => self::DEVELOPER,
-            'manager' => self::MANAGER,
+            'user', 'users' => self::USER,
+            'agent', 'agents' => self::AGENT,
+            'developer', 'developers' => self::DEVELOPER,
+            'manager', 'managers' => self::MANAGER,
             default => self::ADMIN
         };
 
