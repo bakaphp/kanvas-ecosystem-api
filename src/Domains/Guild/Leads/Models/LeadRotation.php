@@ -33,14 +33,15 @@ class LeadRotation extends BaseModel
         return $this->hasMany(LeadRotationAgent::class, 'leads_rotations_id');
     }
 
-    public function getRandomLeadsRotationsAgents(): Collection
+    public function getLeadsRotationsAgents(): Collection
     {
-        return $this->agents()->where('is_deleted', 0)->inRandomOrder()->get();
+        // Get agents in a consistent order instead of random
+        return $this->agents()->where('is_deleted', 0)->orderBy('id')->get();
     }
 
     public function getAgent(): UserInterface
     {
-        $agents = $this->getRandomLeadsRotationsAgents();
+        $agents = $this->getLeadsRotationsAgents();
         if ($agents->isEmpty()) {
             throw new RuntimeException("This rotation doesn't have any users assigned to it " . $this->id);
         }
@@ -48,17 +49,41 @@ class LeadRotation extends BaseModel
         $this->increment('hits');
         $this->save();
 
-        foreach ($agents as $agent) {
-            $calculatedPercent = ($agent->hits / $this->hits) * 100;
-            if ($calculatedPercent < $agent->percent) {
-                $agent->increment('hits');
-                $agent->save();
+        // Calculate current percentage for each agent
+        $agentsWithCurrentPercent = $agents->map(function ($agent) {
+            $agent->currentPercent = ($agent->hits / $this->hits) * 100;
 
-                return $agent->user;
+            return $agent;
+        });
+
+        // Find agents below their target percentage
+        $eligibleAgents = $agentsWithCurrentPercent->filter(function ($agent) {
+            return $agent->currentPercent < $agent->percent;
+        });
+
+        // If no agents are below their percentage, reset hits to maintain the ratio
+        if ($eligibleAgents->isEmpty()) {
+            // Optional: Reset all agent hits to maintain the ratio going forward
+            // This prevents the numbers from growing too large over time
+            $resetRatio = 0.5; // Reset to 50% of current values
+            foreach ($agents as $agent) {
+                $agent->hits = intval($agent->hits * $resetRatio);
+                $agent->save();
             }
+            $this->hits = intval($this->hits * $resetRatio);
+            $this->save();
+
+            // Now select the agent with the largest deficit compared to their target percentage
+            $agent = $agentsWithCurrentPercent->sortBy(function ($agent) {
+                return $agent->currentPercent / $agent->percent;
+            })->first();
+        } else {
+            // Find the agent with the largest percentage deficit
+            $agent = $eligibleAgents->sortBy(function ($agent) {
+                return $agent->currentPercent / $agent->percent;
+            })->first();
         }
 
-        $agent = $agents->first();
         $agent->increment('hits');
         $agent->save();
 
