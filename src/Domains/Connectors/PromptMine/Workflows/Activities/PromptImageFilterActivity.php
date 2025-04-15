@@ -6,23 +6,23 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Exception;
+use finfo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\InternalServerErrorException;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
+use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Illuminate\Http\UploadedFile;
-use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
-use Kanvas\Exceptions\InternalServerErrorException;
 use Override;
-use finfo;
 
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -51,7 +51,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity) use ($messageFiles, $pushTemplate) {
+            integrationOperation: function ($entity) use ($messageFiles, $pushTemplate, $params) {
                 if (empty($this->apiUrl)) {
                     return [
                         'result' => false,
@@ -123,7 +123,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     $createNuggetMessage = (new CreateNuggetMessageAction(
                         parentMessage: $entity,
                         messageData: [
-                            'title' => $entity->message->message['title'],
+                            'title' => $entity->message['title'],
                             'type' => 'image-format',
                             'image' => $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path,
                         ],
@@ -139,8 +139,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'push_template' => $pushTemplate,
                         'app' => $entity->app,
                         'company' => $entity->company,
-                        'message' => "Your image for $entity->message['title'] has been processed",
-                        'title' => "Image Processed",
+                        'message' => "Your image for {$entity->message['title']} has been processed",
+                        'title' => 'Image Processed',
                         'metadata' => $entity->getMessage(),
                         'via' => $endViaList,
                         'message_owner_id' => $entity->user->getId(),
@@ -149,6 +149,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'destination_type' => 'MESSAGE',
                         'destination_event' => 'NEW_MESSAGE',
                     ];
+
                     try {
                         // Send notification to the user
                         $newMessageNotification = new CustomMessageNotification(
@@ -158,6 +159,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         );
                         $entity->user->notify($newMessageNotification);
                     } catch (InternalServerErrorException $e) {
+                        report($e);
+
                         return [
                             'result' => false,
                             'message' => 'Error in notification to user',
@@ -177,6 +180,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'request_id' => $requestId,
                     ];
                 } catch (Exception $e) {
+                    report($e);
+
                     return [
                         'result' => false,
                         'message_id' => $entity->getId(),
