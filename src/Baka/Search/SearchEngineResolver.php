@@ -40,9 +40,9 @@ class SearchEngineResolver
     public function resolveEngine(?Model $model = null, ?Apps $app = null): Engine
     {
         // As for this stage, the code doesn't know in which app need to set the index.
-
         try {
-            $model = ! $model->searchableDeleteRecord() ? $model : $model->withTrashed()->find($model->id);
+            $modelObject = ! $model->searchableDeleteRecord() ? $model : $model->withTrashed()->find($model->id);
+            $model = $modelObject ?? $model;
         } catch (BadMethodCallException $e) {
             $model = $model;
         }
@@ -53,7 +53,6 @@ class SearchEngineResolver
         $modelSpecificEngine = $model !== null ? $app->get($model->getTable() . '_search_engine') : null;
         // Use model-specific engine if available, otherwise use default
         $engine = $modelSpecificEngine ?? $defaultEngine;
-
         $searchSettings = $app->get($engine . '_search_settings') ?? [];
 
         return match ($engine) {
@@ -94,9 +93,7 @@ class SearchEngineResolver
             'nodes' => $nodes,
             'connection_timeout_seconds' => $connectionTimeout,
         ];
-
         $maxItemsPerPage = $searchSettings['typesense_max_items_per_page'] ?? 1000;
-
         $client = new TypesenseClient($config);
 
         // Assuming the constructor takes a client and a chunk size

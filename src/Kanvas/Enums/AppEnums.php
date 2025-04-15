@@ -51,11 +51,11 @@ enum AppEnums implements EnumsInterface
     case KANVAS_APP_COMPANY_AUTH_HEADER;
     case KANVAS_APP_REGION_HEADER;
     case KANVAS_APP_CURRENT_LOCALE_CODE;
+    case KANVAS_IDENTIFIER;
     case DISPLAYNAME_LOGIN;
     case ANONYMOUS_USER_ID;
     case DEFAULT_APP_JWT_TOKEN_NAME;
     case CSV_DATE_FORMAT;
-
     case DEFAULT_PUBLIC_SEARCH_USER_ID;
 
     #[Override]
@@ -109,6 +109,7 @@ enum AppEnums implements EnumsInterface
             self::DEFAULT_PUBLIC_SEARCH_USER_ID => 'public_search_user_id',
             self::DEFAULT_COMPANY_LOCALE => 'default_company_locale',
             self::DEFAULT_APP_LOCALE => 'default_app_locale',
+            self::KANVAS_IDENTIFIER => 'X-Kanvas-Identifier',
         };
     }
 

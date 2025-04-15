@@ -6,23 +6,23 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Exception;
+use finfo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\InternalServerErrorException;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
+use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Illuminate\Http\UploadedFile;
-use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
-use Kanvas\Exceptions\InternalServerErrorException;
 use Override;
-use finfo;
 
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -118,11 +118,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     $filesystem = new FilesystemServices($entity->app);
                     $fileSystemRecord = $filesystem->upload($uploadedFile, $entity->user);
 
+                    $title = $entity->message['title'] ?? 'Image Processed';
                     // Step 4: Create a new nugget message with the processed image
                     $createNuggetMessage = (new CreateNuggetMessageAction(
                         parentMessage: $entity,
                         messageData: [
-                            'title' => $entity->message->message['title'],
+                            'title' => $title,
                             'type' => 'image-format',
                             'image' => $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path,
                         ],
@@ -138,8 +139,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'push_template' => $params['push_template'],
                         'app' => $entity->app,
                         'company' => $entity->company,
-                        'message' => "Your image for $entity->message['title'] has been processed",
-                        'title' => "Image Processed",
+                        'message' => "Your image for {$title} has been processed",
+                        'title' => 'Image Processed',
                         'metadata' => $entity->getMessage(),
                         'via' => $endViaList,
                         'message_owner_id' => $entity->user->getId(),
@@ -148,6 +149,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'destination_type' => 'MESSAGE',
                         'destination_event' => 'NEW_MESSAGE',
                     ];
+
                     try {
                         // Send notification to the user
                         $newMessageNotification = new CustomMessageNotification(
@@ -157,6 +159,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         );
                         $entity->user->notify($newMessageNotification);
                     } catch (InternalServerErrorException $e) {
+                        report($e);
+
                         return [
                             'result' => false,
                             'message' => 'Error in notification to user',
@@ -176,6 +180,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'request_id' => $requestId,
                     ];
                 } catch (Exception $e) {
+                    report($e);
+
                     return [
                         'result' => false,
                         'message_id' => $entity->getId(),
