@@ -6,6 +6,7 @@ namespace App\GraphQL\Souk\Queries\Cart;
 
 use Kanvas\Souk\Cart\Services\CartService;
 use Kanvas\Enums\AppEnums;
+
 class CartQuery
 {
     public function index(): array
