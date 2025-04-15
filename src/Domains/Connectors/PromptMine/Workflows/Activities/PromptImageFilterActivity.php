@@ -119,11 +119,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     $filesystem = new FilesystemServices($entity->app);
                     $fileSystemRecord = $filesystem->upload($uploadedFile, $entity->user);
 
+                    $title = $entity->message['title'] ?? 'Image Processed';
                     // Step 4: Create a new nugget message with the processed image
                     $createNuggetMessage = (new CreateNuggetMessageAction(
                         parentMessage: $entity,
                         messageData: [
-                            'title' => $entity->message['title'],
+                            'title' => $title,
                             'type' => 'image-format',
                             'image' => $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path,
                         ],
@@ -139,7 +140,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'push_template' => $pushTemplate,
                         'app' => $entity->app,
                         'company' => $entity->company,
-                        'message' => "Your image for {$entity->message['title']} has been processed",
+                        'message' => "Your image for {$title} has been processed",
                         'title' => 'Image Processed',
                         'metadata' => $entity->getMessage(),
                         'via' => $endViaList,
