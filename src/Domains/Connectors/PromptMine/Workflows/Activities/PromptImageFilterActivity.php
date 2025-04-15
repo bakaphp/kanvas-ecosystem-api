@@ -34,6 +34,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $emailTemplate = $params['email_template'];
         $pushTemplate = $params['push_template'];
         $messageFiles = $entity->getFiles();
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
@@ -51,7 +52,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity) use ($messageFiles, $pushTemplate) {
+            integrationOperation: function ($entity) use ($messageFiles, $pushTemplate, $emailTemplate) {
                 if (empty($this->apiUrl)) {
                     return [
                         'result' => false,
@@ -135,7 +136,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     );
 
                     $config = [
-                        'email_template' => null,
+                        'email_template' => $emailTemplate,
                         'push_template' => $pushTemplate,
                         'app' => $entity->app,
                         'company' => $entity->company,
