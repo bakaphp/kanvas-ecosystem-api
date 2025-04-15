@@ -49,22 +49,16 @@ class LeadRotation extends BaseModel
         $this->increment('hits');
         $this->save();
 
-        // Calculate current percentage for each agent
-        $agentsWithCurrentPercent = $agents->map(function ($agent) {
-            $agent->currentPercent = ($agent->hits / $this->hits) * 100;
+        // Calculate current percentage for each agent but don't store it as a model attribute
+        $eligibleAgents = $agents->filter(function ($agent) {
+            $currentPercent = ($agent->hits / $this->hits) * 100;
 
-            return $agent;
-        });
-
-        // Find agents below their target percentage
-        $eligibleAgents = $agentsWithCurrentPercent->filter(function ($agent) {
-            return $agent->currentPercent < $agent->percent;
+            return $currentPercent < $agent->percent;
         });
 
         // If no agents are below their percentage, reset hits to maintain the ratio
         if ($eligibleAgents->isEmpty()) {
-            // Optional: Reset all agent hits to maintain the ratio going forward
-            // This prevents the numbers from growing too large over time
+            // Reset all agent hits to maintain the ratio going forward
             $resetRatio = 0.5; // Reset to 50% of current values
             foreach ($agents as $agent) {
                 $agent->hits = intval($agent->hits * $resetRatio);
@@ -74,13 +68,17 @@ class LeadRotation extends BaseModel
             $this->save();
 
             // Now select the agent with the largest deficit compared to their target percentage
-            $agent = $agentsWithCurrentPercent->sortBy(function ($agent) {
-                return $agent->currentPercent / $agent->percent;
+            $agent = $agents->sortBy(function ($agent) {
+                $currentPercent = ($agent->hits / $this->hits) * 100;
+
+                return $currentPercent / $agent->percent;
             })->first();
         } else {
             // Find the agent with the largest percentage deficit
             $agent = $eligibleAgents->sortBy(function ($agent) {
-                return $agent->currentPercent / $agent->percent;
+                $currentPercent = ($agent->hits / $this->hits) * 100;
+
+                return $currentPercent / $agent->percent;
             })->first();
         }
 
