@@ -21,14 +21,14 @@ class CartManagementMutation
         $company = $user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company;
         $currentUserCompany = $company;
         $app = app(Apps::class);
-        $cart = app('cart')->session(app(AppEnums::KANVAS_CART_SESSION->getValue()));
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $addToCartAction = new AddToCartAction($app, $currentUserCompany, $user);
         return $addToCartAction->execute($cart, $request['items']);
     }
 
     public function update(mixed $root, array $request): array
     {
-        $cart = app('cart')->session(app(AppEnums::KANVAS_CART_SESSION->getValue()));
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
 
         if (! $cart->has($request['variant_id'])) {
             return [];
@@ -44,7 +44,7 @@ class CartManagementMutation
     public function remove(mixed $root, array $request): array
     {
         $user = auth()->user();
-        $cart = app('cart')->session(app(AppEnums::KANVAS_CART_SESSION->getValue()));
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
 
         $cart->remove($request['variant_id']);
 
@@ -54,7 +54,7 @@ class CartManagementMutation
     public function discountCodesUpdate(mixed $root, array $request): array
     {
         $user = auth()->user();
-        $cart = app('cart')->session(app(AppEnums::KANVAS_CART_SESSION->getValue()));
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
 
         /**

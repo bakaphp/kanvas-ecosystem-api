@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Directives;
 
+use Kanvas\Enums\AppEnums;
 use Nuwave\Lighthouse\Auth\GuardDirective;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
@@ -37,8 +38,8 @@ class GuardByKanvasIdentifierDirective extends GuardDirective
                 ResolveInfo $resolveInfo
             ) use ($previousResolver) {
                 $request = $context->request();
-
-                if (! app()->bound('cart-session')) {
+                $kanvasIdentifier = AppEnums::KANVAS_IDENTIFIER->getValue();
+                if (! app($kanvasIdentifier)) {
                     $this->unauthenticated(['No Cart Session Identifier']);
                 }
 

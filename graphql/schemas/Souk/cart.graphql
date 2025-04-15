@@ -51,7 +51,7 @@ extend type Mutation @guardByKanvasIdentifier {
         )
 }
 
-extend type Query @guard {
+extend type Query @guardByKanvasIdentifier {
     cart: Cart
         @field(resolver: "App\\GraphQL\\Souk\\Queries\\Cart\\CartQuery@index")
 }
