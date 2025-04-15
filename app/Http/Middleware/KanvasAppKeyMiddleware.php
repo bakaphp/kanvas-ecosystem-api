@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use Baka\Support\Str;
 use Closure;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class KanvasAppKeyMiddleware
         $this->handleCompanyBranch($request);
         $this->handleAppKey($request);
         $this->handleKanvasIdentifier($request);
+
         return $next($request);
     }
 
@@ -66,15 +68,23 @@ class KanvasAppKeyMiddleware
         $kanvasIdentifierHeader = AppEnums::KANVAS_IDENTIFIER->getValue();
 
         try {
-            $kanvasIdentifier = auth()->user() ? auth()->user()->getId() : $request->header($kanvasIdentifierHeader);
-            if (! $kanvasIdentifier) {
-                return;
+            if (auth()->user()) {
+                // For logged-in users, use their ID
+                $kanvasIdentifier = auth()->user()->getId();
+            } else {
+                // For non-logged-in users, get identifier from header and validate UUID format
+                $kanvasIdentifier = $request->header($kanvasIdentifierHeader);
+
+                if ($kanvasIdentifier === null || empty($kanvasIdentifier) || ! Str::isUuid($kanvasIdentifier)) {
+                    return;
+                }
             }
+
             app()->scoped(AppEnums::KANVAS_IDENTIFIER->getValue(), fn () => $kanvasIdentifier);
         } catch (Throwable $e) {
-            response()->json(['message' => 'No App configured with this key: ' . $kanvasIdentifier], 500)->send();
+            response()->json(['message' => 'No App configured with this key: ' . ($kanvasIdentifier ?? 'unknown')], 500)->send();
 
-            return ;
+            return;
         }
     }
 

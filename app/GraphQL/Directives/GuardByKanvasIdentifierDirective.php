@@ -39,7 +39,8 @@ class GuardByKanvasIdentifierDirective extends GuardDirective
             ) use ($previousResolver) {
                 $request = $context->request();
                 $kanvasIdentifier = AppEnums::KANVAS_IDENTIFIER->getValue();
-                if (! app($kanvasIdentifier)) {
+                
+                if (! app()->bound($kanvasIdentifier)) {
                     $this->unauthenticated(['No Cart Session Identifier']);
                 }
 

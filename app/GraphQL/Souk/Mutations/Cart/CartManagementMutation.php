@@ -8,10 +8,10 @@ use Illuminate\Support\Facades\App;
 use Joelwmale\Cart\CartCondition;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Cart\Services\CartService;
-use Kanvas\Enums\AppEnums;
 
 class CartManagementMutation
 {
@@ -19,10 +19,16 @@ class CartManagementMutation
     {
         $user = auth()->user();
         $company = $user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company;
+
+        if (! $company) {
+            throw new ModelNotFoundException('No company found');
+        }
+
         $currentUserCompany = $company;
         $app = app(Apps::class);
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $addToCartAction = new AddToCartAction($app, $currentUserCompany, $user);
+
         return $addToCartAction->execute($cart, $request['items']);
     }
 
