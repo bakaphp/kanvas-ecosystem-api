@@ -93,7 +93,7 @@ class Message extends BaseModel
     ];
 
     protected $casts = [
-        'message' => 'array',
+        'message' => Json::class,
         'message_types_id' => 'integer',
         'is_public' => 'integer',
         'is_deleted' => 'boolean',
