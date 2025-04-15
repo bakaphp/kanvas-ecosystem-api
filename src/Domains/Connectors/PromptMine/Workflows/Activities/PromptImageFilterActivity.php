@@ -125,7 +125,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         messageData: [
                             'title' => $title,
                             'type' => 'image-format',
-                            'image' => str_replace('\\\/', '/', $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path),
+                            'image' => $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path,
                         ],
                     ))->execute();
 
