@@ -18,18 +18,78 @@ class ReceiversBuilder
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $receiversWebhookCalls = ReceiverWebhookCall::query()
+        // Check if we're querying for a specific ID - simplified condition check
+        $isQueryingById = false;
+        $where = $args['where'] ?? [];
+
+        // Check top level
+        if (isset($where['column']) && $where['column'] === 'receiver_webhook_calls.id' &&
+            isset($where['operator']) && $where['operator'] === '=' && ! empty($where['value'])) {
+            $isQueryingById = true;
+        }
+
+        // Check AND array
+        if (! $isQueryingById && isset($where['AND']) && is_array($where['AND'])) {
+            foreach ($where['AND'] as $condition) {
+                if (isset($condition['column']) && $condition['column'] === 'receiver_webhook_calls.id' &&
+                    isset($condition['operator']) && $condition['operator'] === '=' && ! empty($condition['value'])) {
+                    $isQueryingById = true;
+
+                    break;
+                }
+            }
+        }
+
+        $query = ReceiverWebhookCall::query()
             ->join('receiver_webhooks', 'receiver_webhook_calls.receiver_webhooks_id', '=', 'receiver_webhooks.id')
             ->where('receiver_webhooks.apps_id', $app->getId())
             ->where('receiver_webhooks.companies_id', $company->getId())
             ->where('receiver_webhooks.is_deleted', 0)
-            ->where('receiver_webhook_calls.is_deleted', 0)
-            ->select([
+            ->where('receiver_webhook_calls.is_deleted', 0);
+
+        // Apply where conditions - simplified
+        if (isset($where['column']) && isset($where['operator']) && isset($where['value'])) {
+            $query->where($where['column'], $where['operator'], $where['value']);
+        }
+
+        if (isset($where['AND']) && is_array($where['AND'])) {
+            foreach ($where['AND'] as $condition) {
+                if (isset($condition['column']) && isset($condition['operator']) && isset($condition['value'])) {
+                    $query->where($condition['column'], $condition['operator'], $condition['value']);
+                }
+            }
+        }
+
+        // Select columns based on query type
+        if ($isQueryingById) {
+            $query->select([
                 'receiver_webhook_calls.*',
                 'receiver_webhooks.name',
             ]);
+        } else {
+            $query->select([
+                'receiver_webhook_calls.id',
+                'receiver_webhook_calls.uuid',
+                'receiver_webhook_calls.url',
+                'receiver_webhook_calls.receiver_webhooks_id',
+                'receiver_webhook_calls.status',
+                'receiver_webhook_calls.created_at',
+                'receiver_webhook_calls.updated_at',
+                'receiver_webhook_calls.is_deleted',
+                'receiver_webhooks.name',
+            ]);
+        }
 
-        return $receiversWebhookCalls;
+        // Apply ordering - simplified
+        if (isset($args['orderBy']) && is_array($args['orderBy'])) {
+            foreach ($args['orderBy'] as $orderBy) {
+                if (isset($orderBy['column']) && isset($orderBy['order'])) {
+                    $query->orderBy($orderBy['column'], $orderBy['order']);
+                }
+            }
+        }
+
+        return $query;
     }
 
     public function getHasAction(mixed $root, array $args): Builder
