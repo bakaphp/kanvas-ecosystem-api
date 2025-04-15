@@ -6,13 +6,13 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Exception;
 use Illuminate\Http\UploadedFile;
+use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Orders\Jobs\ProcessOrderItemJob;
 use Kanvas\Souk\Orders\Services\OrderItemService;
 use Kanvas\Users\Models\Users;
-use Wearepixel\Cart\Cart;
 
 class ProcessOrderItemAction
 {
@@ -56,7 +56,7 @@ class ProcessOrderItemAction
         }
 
         // Add the items to the cart.
-        $addToCartAction = new AddToCartAction($this->app, $this->user, $this->currentUserCompany);
+        $addToCartAction = new AddToCartAction($this->app, $this->currentUserCompany, $this->user);
         $addToCartAction->execute($cart, $result['validItems']);
 
         // Return the items processed.
