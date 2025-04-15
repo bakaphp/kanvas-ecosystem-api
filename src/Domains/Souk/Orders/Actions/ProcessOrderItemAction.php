@@ -6,7 +6,7 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Exception;
 use Illuminate\Http\UploadedFile;
-use Joelwmale\Cart\Cart;
+use Wearepixel\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
