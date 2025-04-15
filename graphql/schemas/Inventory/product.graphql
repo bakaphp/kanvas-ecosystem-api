@@ -131,7 +131,15 @@ enum FormatSortAttribute {
     STRING
     DATE
 }
-
+type ProductAttributesValue {
+    product: Product!
+    attribute: Attributes!
+    translation(languageCode: String!): AttributeValueTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    value: Mixed
+}
 extend type Mutation @guard {
     createProduct(input: ProductInput!): Product!
         @field(
@@ -176,6 +184,15 @@ extend type Mutation @guard {
     addCategory(id: ID!, category_id: ID!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
+        )
+    updateProductAttributeTranslations(
+        product_id: ID!
+        attribute_id: ID!
+        code: String!
+        value: Mixed
+    ): ProductAttributesValue!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductAttributeTranslation"
         )
 }
 
