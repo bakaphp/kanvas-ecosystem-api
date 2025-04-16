@@ -43,7 +43,7 @@ class GenerateRecommendForYourFeedAction
 
         $recommendation = $response['recomms'];
         $recommendationId = $response['recommId'];
-        $user->set(CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID->value, $recommendationId);
+        // $user->set(CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID->value, $recommendationId);
 
         $entityIds = collect($recommendation)
             ->pluck('id')
