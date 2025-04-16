@@ -22,6 +22,7 @@ use Kanvas\Locations\Models\Countries;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 
 /**
  * Class People.
@@ -60,6 +61,7 @@ class People extends BaseModel
         'dob' => 'datetime:Y-m-d',
     ];
 
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'People';
@@ -191,6 +193,7 @@ class People extends BaseModel
         return preg_replace('/\s+/', ' ', $name);
     }
 
+    #[Override]
     protected static function newFactory()
     {
         return new PeopleFactory();
@@ -238,6 +241,7 @@ class People extends BaseModel
         );
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return $this->is_deleted == 0;
@@ -320,5 +324,110 @@ class People extends BaseModel
         ];
 
         return $people;
+    }
+
+    /**
+     * The Typesense schema to be created for the People model.
+     */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                    'sort' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'firstname',
+                    'type' => 'string',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'middlename',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'lastname',
+                    'type' => 'string',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'dob',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'users_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'updated_at',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'files',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'organizations',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'employment_history',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'tags',
+                    'type' => 'string[]',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'custom_fields',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'contacts',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'address',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+        ];
     }
 }

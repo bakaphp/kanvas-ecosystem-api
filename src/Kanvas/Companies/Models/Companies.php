@@ -47,6 +47,7 @@ use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
+use Override;
 
 /**
  * Companies Model.
@@ -96,6 +97,7 @@ class Companies extends BaseModel implements CompanyInterface
      *
      * @return \Illuminate\Database\Eloquent\Factories\Factory
      */
+    #[Override]
     protected static function newFactory()
     {
         return CompaniesFactory::new();
@@ -104,6 +106,7 @@ class Companies extends BaseModel implements CompanyInterface
     /**
      * CompaniesBranches relationship.
      */
+    #[Override]
     public function branches(): HasMany
     {
         return $this->hasMany(CompaniesBranches::class, 'companies_id');
@@ -113,6 +116,7 @@ class Companies extends BaseModel implements CompanyInterface
      * Default Branch.
      * @psalm-suppress MixedReturnStatement
      */
+    #[Override]
     public function defaultBranch(): HasOne
     {
         return $this->hasOne(
@@ -124,6 +128,7 @@ class Companies extends BaseModel implements CompanyInterface
     /**
      * CompaniesBranches relationship.
      */
+    #[Override]
     public function branch(): HasOne
     {
         return $this->hasOne(CompaniesBranches::class, 'companies_id');
@@ -132,6 +137,7 @@ class Companies extends BaseModel implements CompanyInterface
     /**
      * CompaniesGroups relationship.
      */
+    #[Override]
     public function groups(): BelongsToMany
     {
         return $this->belongsToMany(CompaniesGroups::class, 'companies_associations');
@@ -159,9 +165,7 @@ class Companies extends BaseModel implements CompanyInterface
         );
     }
 
-    /**
-     * Users relationship.
-     */
+    #[Override]
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
@@ -213,6 +217,7 @@ class Companies extends BaseModel implements CompanyInterface
         return Defaults::SEARCHABLE_INDEX->getValue();
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
@@ -238,6 +243,7 @@ class Companies extends BaseModel implements CompanyInterface
         return (int) ($this->get('total_branches') ?? (new CompaniesTotalBranchesAction($this))->execute());
     }
 
+    #[Override]
     public static function getById(mixed $id, ?AppInterface $app = null): self
     {
         try {
@@ -399,5 +405,139 @@ class Companies extends BaseModel implements CompanyInterface
                 'You are not allowed to perform this action for company ' . $this->name
             );
         }
+    }
+
+    /**
+     * The Typesense schema to be created for the Companies model.
+     */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'users_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'system_modules_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'currency_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                    'sort' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'profile_image',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'website',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'address',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'zipcode',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'email',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'language',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'timezone',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'phone',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'country_code',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'is_active',
+                    'type' => 'bool',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'is_deleted',
+                    'type' => 'bool',
+                ],
+                [
+                    'name' => 'has_activities',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps',
+                    'type' => 'int64[]',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'users',
+                    'type' => 'int64[]',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'total_users',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'total_branches',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'updated_at',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,
+        ];
     }
 }
