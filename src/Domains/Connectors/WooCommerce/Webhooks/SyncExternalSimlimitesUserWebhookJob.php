@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Esim\Webhooks;
+namespace Kanvas\Connectors\WooCommerce\Webhooks;
 
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Actions\CreateUserAction;
@@ -29,10 +29,11 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
                 ];
             }
 
-            try {
-                $user = Users::getByEmail($userData['email']);
-                return $this->handleExistingUser($user, $userData);
-            } catch (ModelNotFoundException) {
+            $userExists = $this->checkUserExists($userData['email']);
+
+            if ($userExists) {
+                return $this->handleExistingUser($userData);
+            } else {
                 $user = $this->createNewUser($userData);
 
                 return [
@@ -49,25 +50,45 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
         }
     }
 
-    private function handleExistingUser(Users $user, array $userData): array
+    private function checkUserExists(string $email): bool
     {
         try {
-            UsersRepository::belongsToThisApp($user, $this->receiver->app);
-            $this->updateExistingUser($user, $userData);
-
-            return [
-                'message' => 'User already exists in this app, data updated',
-                'user_id' => $user->getId(),
-                'status' => 'success'
-            ];
+            $user = Users::getByEmail($email);
+            try {
+                UsersRepository::belongsToThisApp($user, $this->receiver->app);
+                return true;
+            } catch (ModelNotFoundException) {
+                return true;
+            }
         } catch (ModelNotFoundException) {
-            $this->registerExistingUserInApp($user, $userData);
+            return false;
+        }
+    }
 
-            return [
-                'message' => 'User exists but was added to this app',
-                'user_id' => $user->getId(),
-                'status' => 'success'
-            ];
+    private function handleExistingUser(array $userData): array
+    {
+        try {
+            $user = Users::getByEmail($userData['email']);
+            try {
+                UsersRepository::belongsToThisApp($user, $this->receiver->app);
+                $this->updateExistingUser($user, $userData);
+
+                return [
+                    'message' => 'User already exists in this app, data updated',
+                    'user_id' => $user->getId(),
+                    'status' => 'success'
+                ];
+            } catch (ModelNotFoundException) {
+                $this->registerExistingUserInApp($user, $userData);
+
+                return [
+                    'message' => 'User exists but was added to this app',
+                    'user_id' => $user->getId(),
+                    'status' => 'success'
+                ];
+            }
+        } catch (ModelNotFoundException $e) {
+            throw $e;
         }
     }
 
@@ -91,7 +112,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
             'firstname' => $user->firstname,
             'lastname' => $user->lastname,
             'displayname' => $user->displayname,
-            'password' => $userData['password'] ?? null,
+            'password' => $userData['password'],
             'phone_number' => $user->phone_number,
             'cell_phone_number' => $user->cell_phone_number,
             'custom_fields' => $userData['custom_fields'] ?? [],
