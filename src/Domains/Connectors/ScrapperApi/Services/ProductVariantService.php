@@ -12,13 +12,19 @@ class ProductVariantService extends ProductService
     {
         $codes = $this->getAsinsFromProduct($product['customization_options']);
         $variants = [];
-        foreach ($codes as $code) {
+
+        $limit = (int) $this->warehouse->app->get('limit-product-scrapper');
+
+        foreach ($codes as $key => $code) {
             if (! $code) {
                 continue;
             }
 
             $variant = (new ScrapperRepository($this->channels->app))->getByAsin($code);
-            $variant['price'] = $variant['pricing'];
+            if (! key_exists('pricing', $variant)) {
+                continue;
+            }
+            $variant['price'] = str_replace('$', '', $variant['pricing']);
             if (key_exists('list_price', $variant)) {
                 $variant['original_price'] = [
                     'price' => $variant['list_price'],
@@ -27,6 +33,9 @@ class ProductVariantService extends ProductService
             $variant['image'] = $variant['images'][0];
             $variant['asin'] = $code;
             $variants[] = $this->mapProduct($variant);
+            if ($key >= $limit) {
+                break;
+            }
         }
 
         return $variants;

@@ -44,7 +44,7 @@ class ScrapperProcessorAction
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
         $channels = Channels::getDefault($this->companyBranch->company);
         $repository = new ScrapperRepository($this->app);
-        $service = new ProductVariantService($channels, $warehouse);
+        $service = new ProductVariantService($channels, $warehouse, $this->user);
         foreach ($this->results as $i => $result) {
             try {
                 $product = $repository->getByAsin($result['asin']);
@@ -60,7 +60,6 @@ class ScrapperProcessorAction
                 } else {
                     $mappedProduct['variants'] = $mappedProduct;
                 }
-
                 try {
                     $product = (
                         new ProductImporterAction(
@@ -72,46 +71,56 @@ class ScrapperProcessorAction
                             true
                         )
                     )->execute();
-                } catch (\Throwable $e) {
+                } catch (\Exception $e) {
                     Log::error($e->getMessage());
                     Log::debug($e->getTraceAsString());
 
                     continue;
                 }
-                $metafields = $this->getMetaFields(product: $product);
 
-                $shopifyProductId = $product->getShopifyId($warehouse->regions);
-                if (! $shopifyProductId) {
-                    $shopifyProduct = (new CreateProductGraphql(
+                if ($this->app->get('ScrapperApi-Index-Shopify')) {
+                    $metafields = $this->getMetaFields(product: $product);
+                    $shopifyProductId = $product->getShopifyId($warehouse->regions);
+                    if (! $shopifyProductId) {
+                        $shopifyProduct = (new CreateProductGraphql(
+                            $this->app,
+                            $this->companyBranch,
+                            $warehouse,
+                            $product,
+                            $metafields
+                        ))->execute();
+                    } else {
+                        $shopifyProduct = (new UpdateProductGraphql(
+                            $this->app,
+                            $this->companyBranch,
+                            $warehouse,
+                            $product,
+                            $metafields
+                        ))->execute();
+                    }
+                    $variants = (new CreateProductVariantGraphql(
                         $this->app,
                         $this->companyBranch,
                         $warehouse,
-                        $product,
-                        $metafields
+                        $product
                     ))->execute();
-                } else {
-                    $shopifyProduct = (new UpdateProductGraphql(
+                    $images = (new ImagesGraphql(
                         $this->app,
                         $this->companyBranch,
                         $warehouse,
-                        $product,
-                        $metafields
+                        $product
                     ))->execute();
+
+                    (new SaveCustomFieldDataAction(
+                        $warehouse,
+                        $product,
+                        $this->region,
+                        $originalName
+                    ))->execute();
+
+                    Log::info(message: 'Product synced with Shopify');
                 }
-                $variants = (new CreateProductVariantGraphql(
-                    $this->app,
-                    $this->companyBranch,
-                    $warehouse,
-                    $product
-                ))->execute();
-                $images = (new ImagesGraphql(
-                    $this->app,
-                    $this->companyBranch,
-                    $warehouse,
-                    $product
-                ))->execute();
 
-                Log::info(message: 'Product synced with Shopify');
                 if ($this->uuid) {
                     ProductScrapperEvent::dispatch(
                         $this->app,
@@ -122,12 +131,6 @@ class ScrapperProcessorAction
                         $images,
                     );
                 }
-                (new SaveCustomFieldDataAction(
-                    $warehouse,
-                    $product,
-                    $this->region,
-                    $originalName
-                ))->execute();
             } catch (\Throwable $e) {
                 Log::error($e->getMessage());
                 Log::debug($e->getTraceAsString());
