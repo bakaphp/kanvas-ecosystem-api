@@ -693,7 +693,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
-                    'optional' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',
