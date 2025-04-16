@@ -60,9 +60,7 @@ class ScrapperProcessorAction
                 } else {
                     $mappedProduct['variants'] = $mappedProduct;
                 }
-
                 try {
-                    Log::debug('Product mapped', $mappedProduct);
                     $product = (
                         new ProductImporterAction(
                             ProductImporter::from($mappedProduct),

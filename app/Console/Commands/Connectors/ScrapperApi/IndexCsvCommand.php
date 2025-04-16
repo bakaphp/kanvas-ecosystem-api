@@ -44,37 +44,37 @@ class IndexCsvCommand extends Command
         $reader->setEscape('');
 
         $records = $reader->getRecords();
-        $collection = collect($records);
-        foreach ($collection as $product) {
+        $collection = collect(value: $records);
+        foreach ($collection as $record) {
             $app = Apps::getById((int) $this->argument('app_id'));
             $branch = CompaniesBranches::getById((int) $this->argument('branch_id'));
             $regions = Regions::getById((int) $this->argument('region_id'));
             $user = Users::getById((int) $this->argument('userId'));
-            if (preg_match('/(?:dp|gp\/product)\/([A-Z0-9]{10})/', $product['Product Link-href'], $matches)) {
+            if (preg_match('/(?:dp|gp\/product)\/([A-Z0-9]{10})/', $record['Product Link-href'], $matches)) {
                 $asin = $matches[1];
             } else {
                 $this->info('Asin not foundsin not found');
             }
-            $repository = new ScrapperRepository($app);
-            $this->info('Asin: ' . $asin);
-            $product = $repository->getByAsin($asin);
-            $product['asin'] = $asin;
-            $product['price'] = str_replace('$', '', $product['pricing']);
-
-            if (! key_exists('pricing', $product)) {
-                return;
-            }
-
-            if (key_exists('list_price', $product)) {
-                $product['original_price'] = [
-                    'price' => $product['list_price'],
-                ];
-            }
-            $product['price'] = str_replace('$', '', $product['pricing']);
-            $product['image'] = $product['images'][0];
-            $product['asin'] = $asin;
 
             try {
+                $repository = new ScrapperRepository($app);
+                $this->info('Asin: ' . $asin);
+                $product = $repository->getByAsin($asin);
+                $product['asin'] = $asin;
+
+                if (! key_exists('pricing', $product)) {
+                    continue;
+                }
+
+                if (key_exists('list_price', $product)) {
+                    $product['original_price'] = [
+                        'price' => $product['list_price'],
+                    ];
+                }
+                $product['price'] = str_replace('$', '', $product['pricing']);
+                $product['image'] = $product['images'][0];
+                $product['asin'] = $asin;
+
                 // $action = new ScrapperAction(
                 //     $app,
                 //     $user,
@@ -96,12 +96,11 @@ class IndexCsvCommand extends Command
                 $scrapperProducts[] = $asin;
                 $app->set('scrapperProducts', json_encode($scrapperProducts));
             } catch (\Throwable $e) {
+                $this->error('Error: ' . $e->getMessage());
                 $scrapperProducts = $app->get('failedScrapperProducts');
                 $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
                 $scrapperProducts[] = $asin;
                 $app->set('failedScrapperProducts', json_encode($scrapperProducts));
-                $this->error('Error: ' . $e->getMessage());
-                $this->error('Trace: ' . $e->getTraceAsString());
             }
         }
     }
