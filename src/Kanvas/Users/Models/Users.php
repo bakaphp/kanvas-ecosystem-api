@@ -1020,7 +1020,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
-                    'optional' => true,
                 ],
                 [
                     'name' => 'updated_at',

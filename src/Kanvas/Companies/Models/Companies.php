@@ -528,7 +528,6 @@ class Companies extends BaseModel implements CompanyInterface
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
-                    'optional' => true,
                 ],
                 [
                     'name' => 'updated_at',
