@@ -65,12 +65,12 @@ class IndexCsvCommand extends Command
                 return;
             }
 
-            $product['price'] = str_replace('$', '', $product['pricing']);
             if (key_exists('list_price', $product)) {
                 $product['original_price'] = [
                     'price' => $product['list_price'],
                 ];
             }
+            $product['price'] = str_replace('$', '', $product['pricing']);
             $product['image'] = $product['images'][0];
             $product['asin'] = $asin;
 
