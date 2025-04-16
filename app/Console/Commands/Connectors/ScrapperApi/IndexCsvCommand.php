@@ -91,7 +91,15 @@ class IndexCsvCommand extends Command
                     null
                 ));
                 $action->execute();
+                $scrapperProducts = $app->get('scrapperProducts');
+                $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
+                $scrapperProducts[] = $asin;
+                $app->set('scrapperProducts', json_encode($scrapperProducts));
             } catch (\Throwable $e) {
+                $scrapperProducts = $app->get('failedScrapperProducts');
+                $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
+                $scrapperProducts[] = $asin;
+                $app->set('failedScrapperProducts', json_encode($scrapperProducts));
                 $this->error('Error: ' . $e->getMessage());
                 $this->error('Trace: ' . $e->getTraceAsString());
             }
