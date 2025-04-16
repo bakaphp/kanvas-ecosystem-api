@@ -59,7 +59,6 @@ class IndexCsvCommand extends Command
             $this->info('Asin: ' . $asin);
             $product = $repository->getByAsin($asin);
             $product['asin'] = $asin;
-            $product['price'] = str_replace('$', '', $product['pricing']);
 
             if (! key_exists('pricing', $product)) {
                 return;
