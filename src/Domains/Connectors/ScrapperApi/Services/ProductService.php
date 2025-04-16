@@ -10,12 +10,14 @@ use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Users\Models\Users;
 
 class ProductService
 {
     public function __construct(
         protected Channels $channels,
-        protected Warehouses $warehouse
+        protected Warehouses $warehouse,
+        protected Users $users,
     ) {
     }
 
@@ -32,8 +34,8 @@ class ProductService
         $product = [
             'name' => TranslateToSpanishAction::execute($name) ?? $name,
             'description' => TranslateToSpanishAction::execute($this->getDescription($product)) ?? $this->getDescription($product),
-            'price' => $price['total'],
-            'discountPrice' => $price['discount'],
+            'price' => $amazonPrice,
+            'discountPrice' => $amazonPrice,
             'slug' => Str::slug($product['asin']),
             'sku' => $product['asin'],
             'source' => 'amazon',
@@ -45,9 +47,9 @@ class ProductService
             'warehouses' => [
                 [
                     'id' => $this->warehouse->id,
-                    'price' => (float) $price['total'],
+                    'price' => (float) $amazonPrice,
                     'warehouse' => $this->warehouse->name,
-                    'quantity' => 10,
+                    'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
                     'sku' => $product['asin'],
                     'is_new' => true,
                     'channel' => $this->channels->name,
@@ -78,6 +80,7 @@ class ProductService
                 ],
             ],
         ];
+
         return $product;
     }
 
@@ -121,16 +124,17 @@ class ProductService
         $categories = explode('›', $product['product_category']);
         $mapCategories = [];
         $position = 1;
-        foreach ($categories as $category) {
+        foreach ($categories as $key => $category) {
             $mapCategories[] = [
                 'name' => $category,
                 'source_id' => $product['product_category'],
                 'isPublished' => true,
-                'position' => $position,
+                'position' => $key,
                 'code' => null,
             ];
             $position++;
         }
+
         return $mapCategories;
     }
 
