@@ -6,18 +6,19 @@ namespace Kanvas\Connectors\Shopify\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
+use Kanvas\Connectors\Contracts\BaseConfigurationService;
+use Kanvas\Connectors\Contracts\IntegrationDtoInterface;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 
-class ShopifyConfigurationService
+class ShopifyConfigurationService extends BaseConfigurationService
 {
     /**
      * Set the shopify credentials into companies custom fields.
      */
-    public static function setup(ShopifyDto $data): bool
+    public static function setup(IntegrationDtoInterface $data): bool
     {
         $clientCredentialNaming = self::generateCredentialKey($data->company, $data->app, $data->region);
 

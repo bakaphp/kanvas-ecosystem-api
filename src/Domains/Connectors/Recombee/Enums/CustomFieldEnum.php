@@ -8,4 +8,5 @@ enum CustomFieldEnum: string
 {
     case USER_FOR_YOU_FEED_RECOMM_ID = 'recombee-for-you-feed-id';
     case USER_WHO_TO_FOLLOW_RECOMM_ID = 'recombee-who-to-follow-id';
+    case RECOMBEE_CREDENTIAL = 'RECOMBEE_CREDENTIAL';
 }

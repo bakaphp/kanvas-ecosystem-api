@@ -6,6 +6,6 @@ namespace Kanvas\Connectors\Recombee\Enums;
 
 enum ScenariosEnum: string
 {
-    case USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS = 'user-follow-suggestion-similar-interests';
+    case USER_FOLLOW_SUGGESTIONS_SIMILAR_INTERESTS = 'user-follow-suggestion-similar-interests';
     case STATIC_USERS_RECOMMENDATION = 'static-users-recommendation';
 }

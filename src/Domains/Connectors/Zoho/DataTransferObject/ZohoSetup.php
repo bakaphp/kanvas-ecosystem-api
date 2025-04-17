@@ -2,14 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Shopify\DataTransferObject;
+namespace Kanvas\Connectors\Zoho\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\Contracts\IntegrationDtoInterface;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions;
 
-class Shopify implements IntegrationDtoInterface
+class ZohoSetup
 {
     /**
      * __construct.
@@ -20,9 +19,9 @@ class Shopify implements IntegrationDtoInterface
         public CompanyInterface $company,
         public AppInterface $app,
         public Regions $region,
-        public string $apiKey,
-        public string $apiSecret,
-        public string $shopUrl,
+        public string $clientId,
+        public string $clientSecret,
+        public string $refreshToken
     ) {
     }
 
@@ -37,7 +36,7 @@ class Shopify implements IntegrationDtoInterface
             Regions::getById($data['region_id']),
             $data['client_id'],
             $data['client_secret'],
-            $data['shop_url'],
+            $data['refresh_token']
         );
     }
 }

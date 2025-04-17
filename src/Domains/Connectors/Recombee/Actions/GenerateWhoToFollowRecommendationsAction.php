@@ -20,7 +20,7 @@ class GenerateWhoToFollowRecommendationsAction
     ) {
     }
 
-    public function execute(UserInterface $user, int $pageSize = 10, string $scenario = ScenariosEnum::USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS->value): Builder
+    public function execute(UserInterface $user, int $pageSize = 10, string $scenario = ScenariosEnum::USER_FOLLOW_SUGGESTIONS_SIMILAR_INTERESTS->value): Builder
     {
         $recommendationService = new RecombeeUserRecommendationService($this->app);
 

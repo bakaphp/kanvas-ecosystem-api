@@ -5,29 +5,36 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Recombee;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Regions\Models\Regions as KanvasRegions;
 use Recombee\RecommApi\Client as RecommApiClient;
 
 class Client
 {
-    protected RecommApiClient $client;
+    protected RecommApiClient $instance;
 
     public function __construct(
         protected AppInterface $app,
-        ?string $recombeeDatabase = null,
-        ?string $recombeeApiKey = null,
-        ?string $recombeeRegion = null
+        protected ?string $recombeeDatabase = null,
+        protected ?string $recombeeApiKey = null,
+        protected ?string $recombeeRegion = null
     ) {
-        $recombeeDatabase = (string) ($recombeeDatabase ?? $app->get(ConfigurationEnum::RECOMBEE_DATABASE->value));
-        $recombeeApiKey = (string) ($recombeeApiKey ?? $app->get(ConfigurationEnum::RECOMBEE_API_KEY->value));
-        $recombeeRegion = (string) ($recombeeRegion ?? $app->get(ConfigurationEnum::RECOMBEE_REGION->value) ?? 'ca-east');
+        $this->instance = $this->createInstance($app);
+    }
+
+    protected function createInstance(AppInterface $app): RecommApiClient
+    {
+        $recombeeDatabase = (string) ($this->recombeeDatabase ?? $app->get(ConfigurationEnum::RECOMBEE_DATABASE->value));
+        $recombeeApiKey = (string) ($this->recombeeApiKey ?? $app->get(ConfigurationEnum::RECOMBEE_API_KEY->value));
+        $recombeeRegion = (string) ($this->recombeeRegion ?? $app->get(ConfigurationEnum::RECOMBEE_REGION->value) ?? 'ca-east');
 
         if (empty($recombeeDatabase) || empty($recombeeApiKey)) {
             throw new ValidationException('Recombee database and api key are required');
         }
 
-        $this->client = new RecommApiClient(
+        return new RecommApiClient(
             $recombeeDatabase,
             $recombeeApiKey,
             [
@@ -38,6 +45,6 @@ class Client
 
     public function getClient(): RecommApiClient
     {
-        return $this->client;
+        return $this->instance;
     }
 }
