@@ -11,12 +11,19 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use PHPShopify\AuthHelper;
 use PHPShopify\ShopifySDK;
 use Sentry\Laravel\Facade as Sentry;
 
+/**
+ * TODO like we started with receivers, this is tied in to shopify
+ * but we need to make it oauth agnostic
+ * @package App\Http\Controllers
+ */
 class OAuthIntegrationController extends BaseController
 {
     /**
@@ -32,7 +39,7 @@ class OAuthIntegrationController extends BaseController
 
         ['receiver' => $receiver, 'app' => $app] = $result;
 
-        $shopDomain = $receiver->config['shop_domain'] ?? $request->get('shop');
+        $shopDomain = $receiver->configuration['shop_domain'] ?? $request->get('shop');
         $shopDomain .= '.myshopify.com';
 
         // Configure the Shopify SDK with redirect URL
@@ -41,14 +48,26 @@ class OAuthIntegrationController extends BaseController
 
         // Generate a nonce for security
         $nonce = Str::random(20);
-        session(['shopify_nonce_' . $app->getId() => $nonce]);
-        session(['shopify_shop_' . $app->getId() => $shopDomain]);
+
+        // Store state in Redis instead of session
+        $stateKey = 'shopify_oauth:' . $uuid;
+        Redis::setex($stateKey, 1800, json_encode([
+            'nonce' => $nonce,
+            'shop' => $shopDomain,
+            'app_id' => $app->getId(),
+        ]));
 
         // Get the authorization URL
         $scopes = $app->get('shopify_scopes') ?? 'read_products,write_products,read_orders,write_orders';
-        $authUrl = AuthHelper::createAuthRequest($scopes, $shopDomain, $nonce);
 
-        return redirect($authUrl);
+        $authUrl = AuthHelper::createAuthRequest(
+            scopes: $scopes,
+            redirectUrl: $redirectUrl,
+            state: $nonce,
+            return: true,
+        );
+
+        return redirect()->away($authUrl);
     }
 
     /**
@@ -60,6 +79,7 @@ class OAuthIntegrationController extends BaseController
         $shop = $request->get('shop');
         $code = $request->get('code');
         $hmac = $request->get('hmac');
+        $_GET = $request->query->all();
 
         if (! $shop || ! $code || ! $hmac) {
             return response()->json(['error' => 'Missing required parameters'], 400);
@@ -73,13 +93,28 @@ class OAuthIntegrationController extends BaseController
         }
 
         ['receiver' => $receiver, 'app' => $app] = $result;
+        $region = Regions::getByIdFromCompanyApp($receiver->configuration['region_id'], $receiver->company, $app);
 
-        // Verify shop and nonce from session
-        $nonce = session('shopify_nonce_' . $app->getId());
-        $sessionShop = session('shopify_shop_' . $app->getId());
+        // Retrieve state from Redis
+        $stateKey = 'shopify_oauth:' . $uuid;
+        $stateJson = Redis::get($stateKey);
+
+        if (! $stateJson) {
+            return response()->json(['error' => 'OAuth state expired or invalid'], 400);
+        }
+
+        $state = json_decode($stateJson, true);
+        $nonce = $state['nonce'] ?? null;
+        $sessionShop = $state['shop'] ?? null;
 
         if (! $nonce || $shop !== $sessionShop) {
-            return response()->json(['error' => 'Invalid session or shop mismatch'], 400);
+            return response()->json([
+                'error' => 'Invalid state or shop mismatch',
+                'details' => [
+                    'expected_shop' => $sessionShop,
+                    'received_shop' => $shop,
+                ],
+            ], 400);
         }
 
         // Configure the Shopify SDK
@@ -101,15 +136,16 @@ class OAuthIntegrationController extends BaseController
             // Get shop details to verify the token
             $shopInfo = $shopify->Shop->get();
 
+            //$app->getId() . '-' . $company->getId() . '-' . $region->getId()
             // Store the token and info in the app
-            $app->set('shopify_access_token', [
+            $app->set('shopify-access-token-' . $receiver->company->id . '-' . $region->id, [
                 'access_token' => $accessToken,
                 'shop_info' => $shopInfo,
                 'shop_domain' => $shop,
             ]);
 
-            // Clear the session data
-            $this->clearSessionData($app);
+            // Clean up Redis state
+            $this->clearRedisState($uuid);
 
             return response()->json([
                 'success' => true,
@@ -126,8 +162,8 @@ class OAuthIntegrationController extends BaseController
                 Sentry::captureException($e);
             });
 
-            // Clear session data
-            $this->clearSessionData($app);
+            // Clean up Redis state
+            $this->clearRedisState($uuid);
 
             return response()->json([
                 'error' => 'Authentication error',
@@ -161,7 +197,7 @@ class OAuthIntegrationController extends BaseController
             App::scoped(Apps::class, fn () => $receiver->app);
         }
 
-        return ['receiver' => $receiver, 'app' => $app];
+        return ['receiver' => $receiver, 'app' => $receiver->app];
     }
 
     /**
@@ -169,9 +205,14 @@ class OAuthIntegrationController extends BaseController
      */
     private function configureShopifySDK(Apps $app, string $shopDomain, ?string $redirectUrl = null): array
     {
+        if (! Str::startsWith($shopDomain, ['http://', 'https://'])) {
+            $shopDomain = 'https://' . $shopDomain;
+        }
+
         $config = [
             'ApiKey' => $app->get('shopify-api-key'),
             'ApiSecret' => $app->get('shopify-api-secret'),
+            'SharedSecret' => $app->get('shopify-api-secret'),
             'ShopUrl' => $shopDomain,
             'ApiVersion' => $app->get('shopify-api-version') ?? '2025-01',
         ];
@@ -187,13 +228,11 @@ class OAuthIntegrationController extends BaseController
     }
 
     /**
-     * Clear session data for the app
+     * Clear Redis state data
      */
-    private function clearSessionData(Apps $app): void
+    private function clearRedisState(string $uuid): void
     {
-        session()->forget([
-            'shopify_nonce_' . $app->getId(),
-            'shopify_shop_' . $app->getId(),
-        ]);
+        $stateKey = 'shopify_oauth:' . $uuid;
+        Redis::del($stateKey);
     }
 }
