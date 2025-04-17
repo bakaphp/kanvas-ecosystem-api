@@ -131,7 +131,7 @@ class OAuthIntegrationController extends BaseController
             $accessToken = AuthHelper::getAccessToken($code);
 
             if (! $accessToken) {
-                throw new \Exception('Failed to get access token');
+                throw new Exception('Failed to get access token');
             }
 
             // Initialize the SDK with the access token
@@ -149,7 +149,16 @@ class OAuthIntegrationController extends BaseController
                 'shop_info' => $shopInfo,
                 'shop_domain' => $shop,
             ];
-            $app->set('shopify-access-token-' . $receiver->company->id . '-' . $region->id, $accessTokenResult);
+
+            //if its company base or app base setting
+            $receiver->company->set('shopify-access-token-' . $receiver->company->id . '-' . $region->id, $accessTokenResult);
+            $shopifyStoresConfig = $app->get('shopify_stores_config') ?? [];
+
+            $shopifyStoresConfig[$shop] = [
+                'access_token' => $accessToken,
+                'shop_info' => $shopInfo,
+            ];
+            $app->set('shopify_stores_config', $shopifyStoresConfig);
 
             // Clean up Redis state
             $this->clearRedisState($uuid);
