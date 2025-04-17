@@ -30,9 +30,9 @@ class OAuthIntegrationController extends BaseController
             return $result;
         }
 
-        ['app' => $app] = $result;
+        ['receiver' => $receiver, 'app' => $app] = $result;
 
-        $shopDomain = 'devkanvas';
+        $shopDomain = $receiver->config['shop_domain'] ?? $request->get('shop');
         $shopDomain .= '.myshopify.com';
 
         // Configure the Shopify SDK with redirect URL
