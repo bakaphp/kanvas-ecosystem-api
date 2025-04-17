@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use Baka\Support\Str;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,9 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use PHPShopify\AuthHelper;
 use PHPShopify\ShopifySDK;
 use Sentry\Laravel\Facade as Sentry;
@@ -47,7 +50,8 @@ class OAuthIntegrationController extends BaseController
         $this->configureShopifySDK($app, $shopDomain, $redirectUrl);
 
         // Generate a nonce for security
-        $nonce = Str::random(20);
+        $webhookRequest = (new ProcessWebhookAttemptAction($receiver, $request))->execute();
+        $nonce = $webhookRequest->uuid;
 
         // Store state in Redis instead of session
         $stateKey = 'shopify_oauth:' . $uuid;
@@ -117,6 +121,8 @@ class OAuthIntegrationController extends BaseController
             ], 400);
         }
 
+        $receiverCall = ReceiverWebhookCall::where('uuid', $nonce)->notDeleted()->first();
+
         // Configure the Shopify SDK
         $this->configureShopifySDK($app, $shop);
 
@@ -138,21 +144,27 @@ class OAuthIntegrationController extends BaseController
 
             //$app->getId() . '-' . $company->getId() . '-' . $region->getId()
             // Store the token and info in the app
-            $app->set('shopify-access-token-' . $receiver->company->id . '-' . $region->id, [
+            $accessTokenResult = [
                 'access_token' => $accessToken,
                 'shop_info' => $shopInfo,
                 'shop_domain' => $shop,
-            ]);
+            ];
+            $app->set('shopify-access-token-' . $receiver->company->id . '-' . $region->id, $accessTokenResult);
 
             // Clean up Redis state
             $this->clearRedisState($uuid);
+
+            $receiverCall->update([
+                'status' => 'success',
+                'results' => $accessTokenResult,
+            ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Successfully authenticated with Shopify',
                 'shop' => $shopInfo['name'],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Sentry::withScope(function ($scope) use ($e, $uuid, $request) {
                 $scope->setContext('Request Data', [
                     'uuid' => $uuid,
@@ -164,6 +176,15 @@ class OAuthIntegrationController extends BaseController
 
             // Clean up Redis state
             $this->clearRedisState($uuid);
+
+            $receiverCall->update([
+                'status' => 'failed',
+                'exception' => [
+                    'code' => $e->getCode(),
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ],
+            ]);
 
             return response()->json([
                 'error' => 'Authentication error',
