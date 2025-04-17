@@ -42,7 +42,7 @@ class GenerateRecommendForYourFeedAction
         }
 
         $recommendation = $response['recomms'];
-        $recommendationId = $response['recommId'];
+        //$recommendationId = $response['recommId'];
         // $user->set(CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID->value, $recommendationId);
 
         $entityIds = collect($recommendation)
@@ -54,11 +54,17 @@ class GenerateRecommendForYourFeedAction
         $totalRecords = $this->app->get('social-user-message-filter-total-records') ?? 500;
         if (empty($entityIds)) {
             return new LengthAwarePaginator(
+                collect([]),
+                0,
+                $pageSize,
+                $page
+            );
+            /* return new LengthAwarePaginator(
                 UserMessage::getForYouFeed($user, $this->app)->forPage($page, $pageSize)->get(),
                 $totalRecords,
                 $pageSize,
                 $page
-            );
+            ); */
         }
 
         $messageTypeId = $this->app->get('social-user-message-filter-message-type');
