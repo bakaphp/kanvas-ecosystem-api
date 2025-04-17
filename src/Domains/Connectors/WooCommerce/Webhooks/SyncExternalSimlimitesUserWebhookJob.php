@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WooCommerce\Webhooks;
 
-use Kanvas\Auth\DataTransferObject\RegisterInput;
-use Kanvas\Auth\Actions\CreateUserAction;
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Kanvas\Auth\Actions\CreateUserAction;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
 
@@ -25,7 +25,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
             if (empty($userData['email']) || empty($userData['firstname']) || empty($userData['lastname'])) {
                 return [
                     'message' => 'Missing required user data',
-                    'status' => 'error'
+                    'status' => 'error',
                 ];
             }
 
@@ -39,13 +39,13 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
                 return [
                     'message' => 'New user created successfully',
                     'user_id' => $user->getId(),
-                    'status' => 'success'
+                    'status' => 'success',
                 ];
             }
         } catch (Throwable $e) {
             return [
                 'message' => 'Error processing user creation: ' . $e->getMessage(),
-                'status' => 'error'
+                'status' => 'error',
             ];
         }
     }
@@ -54,8 +54,10 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     {
         try {
             $user = Users::getByEmail($email);
+
             try {
                 UsersRepository::belongsToThisApp($user, $this->receiver->app);
+
                 return true;
             } catch (ModelNotFoundException) {
                 return true;
@@ -69,6 +71,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     {
         try {
             $user = Users::getByEmail($userData['email']);
+
             try {
                 UsersRepository::belongsToThisApp($user, $this->receiver->app);
                 $this->updateExistingUser($user, $userData);
@@ -76,7 +79,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
                 return [
                     'message' => 'User already exists in this app, data updated',
                     'user_id' => $user->getId(),
-                    'status' => 'success'
+                    'status' => 'success',
                 ];
             } catch (ModelNotFoundException) {
                 $this->registerExistingUserInApp($user, $userData);
@@ -84,7 +87,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
                 return [
                     'message' => 'User exists but was added to this app',
                     'user_id' => $user->getId(),
-                    'status' => 'success'
+                    'status' => 'success',
                 ];
             }
         } catch (ModelNotFoundException $e) {
