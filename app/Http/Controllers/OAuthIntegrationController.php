@@ -149,7 +149,7 @@ class OAuthIntegrationController extends BaseController
                 'shop_info' => $shopInfo,
                 'shop_domain' => $shop,
             ];
-            $app->set('shopify-access-token-' . $receiver->company->id . '-' . $region->id,  $accessTokenResult);
+            $app->set('shopify-access-token-' . $receiver->company->id . '-' . $region->id, $accessTokenResult);
 
             // Clean up Redis state
             $this->clearRedisState($uuid);
