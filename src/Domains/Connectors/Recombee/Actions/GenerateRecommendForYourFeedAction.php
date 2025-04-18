@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
@@ -39,6 +40,10 @@ class GenerateRecommendForYourFeedAction
             );
         } else {
             $response = $recommendationService->getUserForYouFeed($user, $pageSize, $scenario);
+            if (empty($response['recomms'])) {
+                // you've seen it all? wtf , well lets go to fallback trending
+                $response = $recommendationService->getUserForYouFeed($user, $pageSize, ConfigurationEnum::TRENDING_SCENARIO->value);
+            }
         }
 
         $recommendation = $response['recomms'];
