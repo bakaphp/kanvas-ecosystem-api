@@ -8,9 +8,11 @@ use Kanvas\Connectors\Shopify\Services\ShopifyOrderService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $integrationCompanyId = $this->receiver->configuration['integration_company_id'];
