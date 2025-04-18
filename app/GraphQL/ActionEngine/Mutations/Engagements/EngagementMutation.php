@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\ActionEngine\Mutations\Engagements;
 
+use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Support\Url;
 use Kanvas\ActionEngine\Actions\Models\Action;
@@ -40,7 +41,9 @@ class EngagementMutation
         $people = ! empty($request['people_id']) ? People::getByIdFromCompanyApp($request['people_id'], $company, $app) : $lead->people;
         $receiver = ! empty($request['receiver_id']) ? LeadReceiver::getByIdFromCompanyApp($request['receiver_id'], $company, $app) : ($lead->receiver ?? LeadReceiver::getDefault($company, $app));
         $requestId = $request['request_id'];
-        $action = $request['action'];
+        $parentAction = $this->getActionInfo($app, $request['action']);
+        $action = $parentAction['parent'];
+
         $checkListId = $request['task_id'] ?? 0;
         $source = $request['source'];
         $via = $request['via'] ?? 'copy';
@@ -73,6 +76,10 @@ class EngagementMutation
         $request['actions_slug'] = $action;
         $request['cid'] = $lead->company->uuid;
         $request['bcid'] = $lead->branch ? $lead->branch->uuid : null;
+
+        if (! empty($parentAction['form_type'])) {
+            $request['form_type'] = $parentAction['form_type'];
+        }
 
         $extraField = ! empty($request['extraField']) ? $request['extraField'] : null;
         $companyActionId = $request['company_action_id'] ?? null;
@@ -320,5 +327,28 @@ class EngagementMutation
         ]);
 
         return $engagement;
+    }
+
+    private function getActionInfo(AppInterface $app, string $childSlug): array
+    {
+        $actionMappings = $app->get('sub-action-mappings');
+        $result = [
+            'parent' => $childSlug, // Default to original slug if not found
+            'form_type' => null,     // Default to null if not found
+        ];
+
+        foreach ($actionMappings as $group => $mappings) {
+            if (array_key_exists($childSlug, $mappings)) {
+                $result['parent'] = $mappings[$childSlug]['parent'];
+
+                if (isset($mappings[$childSlug]['form_type'])) {
+                    $result['form_type'] = $mappings[$childSlug]['form_type'];
+                }
+
+                break;
+            }
+        }
+
+        return $result;
     }
 }
