@@ -5,18 +5,22 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Traits;
 
 use Baka\Enums\StateEnums;
+use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use RuntimeException;
 
@@ -76,12 +80,28 @@ trait HasFilesystemTrait
 
     public function addMultipleFilesFromUrl(array $files): bool
     {
+        $filesystem = new FilesystemServices($this->app ?? app(Apps::class));
+
         foreach ($files as $file) {
             if (! isset($file['url']) || ! isset($file['name'])) {
                 throw new ValidationException('Missing url || name index');
             }
 
-            $this->addFileFromUrl($file['url'], $file['name']);
+            if ($file instanceof UploadedFile) {
+                // Validate file extension
+                if (! in_array($file->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
+                    throw new Exception('Invalid file format ' . $file->extension());
+                }
+
+                // Attach file to the entity
+                $action = new AttachFilesystemAction(
+                    $filesystem->upload($file, $this->user),
+                    $this
+                );
+                $action->execute($file->getClientOriginalName());
+            } else {
+                $this->addFileFromUrl($file['url'], $file['name']);
+            }
         }
 
         return true;
