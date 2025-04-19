@@ -23,16 +23,25 @@ readonly class CreateLeadAttemptAction
     ) {
     }
 
-    /**
-     *  @psalm-suppress MixedReturnStatement
-     */
     public function execute(): LeadAttempt
     {
+        // Create a copy of the request so we can safely modify it
+        $sanitizedRequest = $this->request;
+
+        // Remove any file uploads from the request before storing
+        if (isset($sanitizedRequest['input']['files'])) {
+            foreach ($sanitizedRequest['input']['files'] as $key => $file) {
+                if (isset($file['file'])) {
+                    unset($sanitizedRequest['input']['files'][$key]['file']);
+                }
+            }
+        }
+
         return LeadAttempt::create([
             'companies_id' => $this->company->getId(),
             'apps_id' => $this->app->getId(),
             'header' => $this->headers,
-            'request' => $this->request,
+            'request' => $sanitizedRequest, // Use the sanitized request
             'ip' => $this->ip,
             'source' => $this->source,
             'public_key' => $this->request['public_key'] ?? null,

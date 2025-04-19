@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Http\Testing\File;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -87,18 +88,18 @@ trait HasFilesystemTrait
                 throw new ValidationException('Missing url || name index');
             }
 
-            if ($file instanceof UploadedFile) {
+            if (isset($file['file']) && $file['file'] instanceof UploadedFile) {
                 // Validate file extension
-                if (! in_array($file->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
+                if (! in_array($file['file']->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
                     throw new Exception('Invalid file format ' . $file->extension());
                 }
 
                 // Attach file to the entity
                 $action = new AttachFilesystemAction(
-                    $filesystem->upload($file, $this->user),
+                    $filesystem->upload($file['file'], $this->user),
                     $this
                 );
-                $action->execute($file->getClientOriginalName());
+                $action->execute($file['file']->getClientOriginalName());
             } else {
                 $this->addFileFromUrl($file['url'], $file['name']);
             }
