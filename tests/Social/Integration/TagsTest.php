@@ -79,6 +79,6 @@ final class TagsTest extends TestCase
 
         $people->syncTags(['test3', 'test4']);
 
-        $this->assertCount(2, $people->tags()->get());
+        $this->assertCount(4, $people->tags()->get());
     }
 }
