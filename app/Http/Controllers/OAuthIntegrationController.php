@@ -77,7 +77,7 @@ class OAuthIntegrationController extends BaseController
     /**
      * Handle the OAuth callback from Shopify
      */
-    public function callback(string $uuid, Request $request): JsonResponse
+    public function callback(string $uuid, Request $request): JsonResponse|RedirectResponse|Redirector
     {
         // Validate required parameters
         $shop = $request->get('shop');
@@ -167,6 +167,11 @@ class OAuthIntegrationController extends BaseController
                 'status' => 'success',
                 'results' => $accessTokenResult,
             ]);
+
+            $redirectUrl = $receiver->configuration['redirect_url'] ?? null;
+            if ($redirectUrl !== null && filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
+                return redirect()->away($redirectUrl);
+            }
 
             return response()->json([
                 'success' => true,
