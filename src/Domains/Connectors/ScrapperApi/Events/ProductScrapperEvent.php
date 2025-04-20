@@ -23,7 +23,6 @@ class ProductScrapperEvent implements ShouldBroadcast
         protected Products $product,
         protected float $price,
         protected ?string $shopifyProductId = null,
-        protected ?array $images = [],
     ) {
     }
 
@@ -36,7 +35,7 @@ class ProductScrapperEvent implements ShouldBroadcast
             'title' => $this->product->name,
             'image' => $this->product->getFiles()[0]->url,
             'price' => $this->price,
-            'images' => $this->images,
+            'images' => $this->product->getFiles(),
             'discounted_price' => 0
         ];
     }

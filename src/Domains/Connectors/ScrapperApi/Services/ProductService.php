@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ScrapperApi\Services;
 
 use Illuminate\Support\Str;
 use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
+use Kanvas\Connectors\ScrapperApi\Actions\CreateCategoriesAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
@@ -31,6 +32,12 @@ class ProductService
         $amazonPrice = $product['price'];
         $price = $this->calcDiscountPrice($product);
         $name = Str::limit($product['name'], 255);
+        $category = (new CreateCategoriesAction(
+            $this->channels->app,
+            $this->users,
+            $this->channels->company,
+            $product['product_category']
+        ))->execute();
         $product = [
             'name' => TranslateToSpanishAction::execute($name) ?? $name,
             'description' => TranslateToSpanishAction::execute($this->getDescription($product)) ?? $this->getDescription($product),
@@ -43,7 +50,11 @@ class ProductService
             'files' => $this->mapFilesystem(product: ['image' => $product['image'],'images' => $product['images']]),
             'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
             'isPublished' => true,
-            'categories' => $this->mapCategories($product),
+            'categories' => [
+                [
+                    'slug' => $category->slug,
+                ],
+            ],
             'warehouses' => [
                 [
                     'id' => $this->warehouse->id,
@@ -117,25 +128,6 @@ class ProductService
         }
 
         return $attributes;
-    }
-
-    public function mapCategories(array $product): array
-    {
-        $categories = explode('›', $product['product_category']);
-        $mapCategories = [];
-        $position = 1;
-        foreach ($categories as $key => $category) {
-            $mapCategories[] = [
-                'name' => $category,
-                'source_id' => $product['product_category'],
-                'isPublished' => true,
-                'position' => $key,
-                'code' => null,
-            ];
-            $position++;
-        }
-
-        return $mapCategories;
     }
 
     public function calcWeight(array $product): float

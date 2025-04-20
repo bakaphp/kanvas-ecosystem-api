@@ -17,6 +17,7 @@ use Kanvas\Inventory\Traits\ScopesTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
+use Nevadskiy\Tree\AsTree;
 
 class Categories extends BaseModel
 {
@@ -25,6 +26,7 @@ class Categories extends BaseModel
     use ScopesTrait;
     use DatabaseSearchableTrait;
     use HasTranslationsDefaultFallback;
+    use AsTree;
 
     protected $table = 'categories';
     protected $guarded = [];

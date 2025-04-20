@@ -203,6 +203,12 @@ class ProductImporterAction
                 );
             }
 
+            if (isset($category['slug'])) {
+                $categoryModel = Categories::where('slug', $category['slug'])
+                    ->where('companies_id', $this->company->getId())
+                    ->first();
+            }
+
             if ($categoryModel) {
                 $this->product->categories()->syncWithoutDetaching([$categoryModel->getId()]);
             } else {

@@ -128,7 +128,6 @@ class ScrapperProcessorAction
                         $product,
                         $product->variants()->first()->getPrice($warehouse),
                         $product->getShopifyId($this->region),
-                        $images,
                     );
                 }
             } catch (\Throwable $e) {

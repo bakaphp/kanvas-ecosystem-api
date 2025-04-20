@@ -24,7 +24,7 @@ class Categories extends Data
         public CompanyInterface $company,
         public UserInterface $user,
         public string $name,
-        public int $parent_id = 0,
+        public ?int $parent_id = null,
         public int|string $position = 0,
         public bool $is_published = true,
         public int $weight = 0,
