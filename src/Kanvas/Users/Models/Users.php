@@ -32,6 +32,7 @@ use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
+use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -604,11 +605,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user = $this->getAppProfile($app);
 
         if (! Hash::check($currentPassword, (string) $user->password)) {
-            throw new InternalServerErrorException('Current password is incorrect');
+            throw new AuthenticationException('Current password is incorrect');
         }
 
         if (Hash::check($newPassword, (string) $user->password)) {
-            throw new InternalServerErrorException('The new password cannot be the same as your current password');
+            throw new AuthenticationException('The new password cannot be the same as your current password');
         }
 
         return $this->resetPassword($newPassword, $app);
