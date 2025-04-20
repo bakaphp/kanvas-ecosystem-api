@@ -116,7 +116,7 @@ final class Client
             );
         }
 
-        if ($app->get('shopify-use-access-token') === true) {
+        if ((bool) $app->get('shopify-use-access-token') === true) {
             return (new ShopifySDK())->config([
                 'ShopUrl' => $shopUrl,
                 'ApiKey' => $clientKey,
