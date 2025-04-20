@@ -216,7 +216,7 @@ class ProductImporterAction
                     'app' => $this->app,
                     'user' => $this->user,
                     'company' => $this->company,
-                    'parent_id' => $category['parent_id'] ?? 0,
+                    'parent_id' => $category['parent_id'] ?? null,
                     'name' => $category['name'],
                     'code' => $category['code'],
                     'position' => $category['position'],

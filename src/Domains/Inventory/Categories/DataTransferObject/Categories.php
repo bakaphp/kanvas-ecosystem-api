@@ -47,7 +47,7 @@ class Categories extends Data
             isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
             $user,
             $request['name'],
-            $request['parent_id'] ?? 0,
+            $request['parent_id'] ?? null,
             $request['position'] ?? 0,
             $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
             $request['weight'] ?? 0,

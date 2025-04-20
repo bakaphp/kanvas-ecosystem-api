@@ -68,7 +68,7 @@ class Setup
                 $this->company,
                 $this->user,
                 StateEnums::DEFAULT_NAME->getValue(),
-                StateEnums::DEFAULT_PARENT_ID->getValue(),
+                StateEnums::DEFAULT_PARENT_ID->getValue() ?? null,
                 StateEnums::DEFAULT_POSITION->getValue(),
                 (bool) StateEnums::YES->getValue(),
             ),
