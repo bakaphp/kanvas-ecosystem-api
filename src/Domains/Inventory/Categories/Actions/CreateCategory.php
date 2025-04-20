@@ -25,8 +25,6 @@ class CreateCategory
 
     /**
      * execute.
-     *
-     * @return Categories
      */
     public function execute(): Categories
     {
@@ -42,10 +40,10 @@ class CreateCategory
         ], [
             'name' => $this->dto->name,
             'users_id' => $this->dto->user->getId(),
-            'parent_id' => $this->dto->parent_id ?? null,
+            'parent_id' => $this->dto->parent_id ? $this->dto->parent_id : null,
             'code' => $this->dto->code,
             'position' => $this->dto->position,
-            'is_published' => $this->dto->is_published
+            'is_published' => $this->dto->is_published,
         ]);
     }
 }
