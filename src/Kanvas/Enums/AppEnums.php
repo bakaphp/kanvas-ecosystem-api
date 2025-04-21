@@ -102,7 +102,7 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_CURRENT_LOCALE_CODE => 'X-Kanvas-Locale-Code',
             self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization', //@deprecated
             self::DISPLAYNAME_LOGIN => 'displayname_login',
-            self::VERSION => '1.35.1',
+            self::VERSION => '1.38.1',
             self::ANONYMOUS_USER_ID => -1,
             self::DEFAULT_APP_JWT_TOKEN_NAME => 'kanvas-login',
             self::CSV_DATE_FORMAT => 'csv_date_format',

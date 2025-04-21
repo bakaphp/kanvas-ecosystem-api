@@ -7,12 +7,13 @@ namespace Kanvas\Connectors\Recombee\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Recombee\Client;
+use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 use Recombee\RecommApi\Client as RecommApiClient;
 use Recombee\RecommApi\Requests\RecommendItemsToUser;
 use Recombee\RecommApi\Requests\RecommendNextItems;
 use Recombee\RecommApi\Requests\RecommendUsersToUser;
-use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 use Throwable;
 
 class RecombeeUserRecommendationService
@@ -40,7 +41,7 @@ class RecombeeUserRecommendationService
         ?string $recommId = null
     ): array {
         $recommendationOptions = [
-            'rotationRate' => 0.0,
+            'rotationRate' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_RATE->value ?? '0.2'),
             // Uncomment when ready to use configuration
             // 'rotationTime' => $this->config->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value, 7200.0),
         ];

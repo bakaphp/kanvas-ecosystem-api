@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
@@ -329,5 +330,227 @@ class Order extends BaseModel
         }
 
         return $this->order_number;
+    }
+
+    /**
+     * The Typesense schema to be created for the Order model.
+     * Note: Currently, Order model has shouldBeSearchable() set to return false.
+     * This schema would be used if that changes in the future.
+     */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'region_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'order_number',
+                    'type' => 'int64',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'tracking_client_id',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'user_email',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'user_phone',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'users_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'people_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'total_gross_amount',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'total_net_amount',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'shipping_price_gross_amount',
+                    'type' => 'float',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'shipping_price_net_amount',
+                    'type' => 'float',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'discount_amount',
+                    'type' => 'float',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'discount_name',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'language_code',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'status',
+                    'type' => 'string',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'fulfillment_status',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'shipping_method_name',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'shipping_method_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'currency',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'customer_note',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'weight',
+                    'type' => 'float',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'estimate_shipping_date',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'shipped_date',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'payment_gateway_names',
+                    'type' => 'string[]',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'items',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'people',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'region',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'billing_address',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'shipping_address',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'tags',
+                    'type' => 'string[]',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'metadata',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'updated_at',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,
+        ];
+    }
+
+    /**
+     * Define the searchable index name.
+     */
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_order_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'orders');
     }
 }

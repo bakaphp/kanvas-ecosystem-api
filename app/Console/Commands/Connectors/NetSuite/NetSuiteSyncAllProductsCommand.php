@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\NetSuite;
 
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
-use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
-use Kanvas\Inventory\Variants\Services\VariantService;
+use Kanvas\Users\Models\Users;
 use League\Csv\Reader;
 
 class NetSuiteSyncAllProductsCommand extends Command
@@ -22,7 +22,7 @@ class NetSuiteSyncAllProductsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:netsuite-sync-products {app_id} {company_id} {filePath}';
+    protected $signature = 'kanvas:netsuite-sync-products {app_id} {company_id} {user_id} {filePath}';
 
     /**
      * The console command description.
@@ -33,16 +33,16 @@ class NetSuiteSyncAllProductsCommand extends Command
 
     public function handle(): void
     {
-        //@todo make this run for multiple apps by looking for them at apps settings flag
         $app = Apps::getById($this->argument('app_id'));
         $this->overwriteAppService($app);
         $company = Companies::getById($this->argument('company_id'));
-        $companyUser = $company->users()->first();
+        $user = Users::getById($this->argument('user_id'));
+        $missingProducts = [];
 
         $syncNetSuiteProduct = new PullNetSuiteProductPriceAction(
             $app,
             $company,
-            $companyUser
+            $user
         );
 
         $csvFilePath = $this->argument('filePath');
@@ -51,11 +51,19 @@ class NetSuiteSyncAllProductsCommand extends Command
         $barcodeList = array_keys($productList);
         $this->output->progressStart(count($barcodeList));
         foreach ($barcodeList as $barcode) {
-            $code = (string) $barcode;
-            $syncNetSuiteProduct->execute($code);
+            try {
+                $code = (string) $barcode;
+                $syncNetSuiteProduct->execute($code);
+            } catch (Exception $e) {
+                $this->error('Error syncing product ' . $code . ': ' . $e->getMessage());
+                $missingProducts[] = $code;
+            }
             $this->output->progressAdvance();
         }
         $this->output->progressFinish();
+        if (count($missingProducts) > 0) {
+            $this->error('Missing products: ' . implode(', ', $missingProducts));
+        }
     }
 
     private function getProductList(string $csvFilePath): array

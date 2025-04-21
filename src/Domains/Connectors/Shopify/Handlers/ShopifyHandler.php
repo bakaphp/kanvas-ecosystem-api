@@ -8,9 +8,11 @@ use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
 use Kanvas\Connectors\Shopify\ShopifyService;
+use Override;
 
 class ShopifyHandler extends BaseIntegration
 {
+    #[Override]
     public function setup(): bool
     {
         $shopifyDto = new ShopifyDto(

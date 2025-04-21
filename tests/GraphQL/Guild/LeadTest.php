@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Illuminate\Http\UploadedFile;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
@@ -150,6 +151,100 @@ class LeadTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testCreateLeadWithDirectFileUpload(): void
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $title = fake()->title();
+
+        // Prepare the operations part of the multipart request
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+            mutation($input: LeadInput!) {
+                createLead(input: $input) {                
+                    title
+                    files {
+                        data{
+                        uuid
+                        name
+                        url
+                        }
+                    }
+                }
+            }
+        ',
+            'variables' => [
+                'input' => [
+                    'branch_id' => $branch->getId(),
+                    'title' => $title,
+                    'pipeline_stage_id' => 0,
+                    'people' => [
+                        'firstname' => fake()->firstName(),
+                        'lastname' => fake()->lastName(),
+                        'contacts' => [
+                            [
+                                'value' => fake()->email(),
+                                'contacts_types_id' => 1,
+                                'weight' => 0,
+                            ],
+                        ],
+                        'address' => [
+                            [
+                                'address' => fake()->address(),
+                                'city' => fake()->city(),
+                                'state' => fake()->state(),
+                                'country' => fake()->country(),
+                                'zip' => fake()->postcode(),
+                            ],
+                        ],
+                        'custom_fields' => [],
+                    ],
+                    'organization' => [
+                        'name' => fake()->company(),
+                        'address' => fake()->address(),
+                    ],
+                    'custom_fields' => [
+                        [
+                            'name' => 'test',
+                            'data' => 'test',
+                        ],
+                    ],
+                    'files' => [
+                        [
+                            'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                            'name' => 'dummy.pdf',
+                        ],
+                        [
+                            'url' => 'none',
+                            'name' => 'dummy2.pdf',
+                            'file' => null, // This will be mapped to the actual file
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        // Define the map for the file in the multipart request
+        $map = [
+            '0' => ['variables.input.files.1.file'],
+        ];
+
+        // Create the file for the multipart request
+        $file = [
+            '0' => UploadedFile::fake()->create('avatar.jpg'),
+        ];
+
+        // Send the multipart GraphQL request
+        $this->multipartGraphQL($operations, $map, $file)
+            ->assertJson([
+                'data' => [
+                    'createLead' => [
+                        'title' => $title,
+                    ],
+                ],
+            ]);
     }
 
     public function testUpdateLead()
