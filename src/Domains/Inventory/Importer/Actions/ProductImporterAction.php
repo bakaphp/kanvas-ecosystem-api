@@ -205,7 +205,8 @@ class ProductImporterAction
 
             if (isset($category['slug'])) {
                 $categoryModel = Categories::where('slug', $category['slug'])
-                    ->where('companies_id', $this->company->getId())
+                    ->fromApp($this->app)
+                    ->fromCompany($this->company)
                     ->first();
             }
 

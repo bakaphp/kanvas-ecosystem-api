@@ -53,7 +53,6 @@ class ScrapperProcessorAction
                     continue;
                 }
                 $originalName = $product['name'];
-
                 $mappedProduct = $service->mapProduct($product);
                 if ($product['customization_options']) {
                     $mappedProduct['variants'] = $service->mapVariant($product);

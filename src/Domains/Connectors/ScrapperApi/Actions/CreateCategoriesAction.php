@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Inventory\Categories\Actions\CreateCategory;
+use Kanvas\Inventory\Categories\Actions\UpdateCategory;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Users\Models\Users;
@@ -32,16 +33,17 @@ class CreateCategoriesAction
                 'user' => $this->user,
                 'name' => $category,
                 'position' => $key,
-                'parent_id' => null,
+                'parent_id' => $parentCategories ? $parentCategories->id : null,
             ]);
-            $action = new CreateCategory($dto, $this->user);
+            $action = new UpdateCategory($dto, $this->user);
             $category = $action->execute();
-            if ($parentCategories) {
-                $category = $category->parent()->associate($parentCategories);
-                $category->save();
-            } else {
-                $category->parent_id = null;
-                $category->save();
+            if (! $category->parent_id) {
+                DB::connection('inventory')
+                    ->table('categories')
+                    ->where('id', $category->id)
+                    ->update([
+                        'path' => $category->id,
+                    ]);
             }
             $parentCategories = $category;
         }
