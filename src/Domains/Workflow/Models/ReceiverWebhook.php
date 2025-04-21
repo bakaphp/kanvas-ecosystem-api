@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Workflow\Factories\ReceiverWebhookFactory;
+use Override;
 
 /**
  * @property int $id
@@ -65,6 +66,7 @@ class ReceiverWebhook extends BaseModel
         return $this->hasMany(ReceiverWebhookCall::class, 'receiver_webhooks_id');
     }
 
+    #[Override]
     protected static function newFactory(): Factory
     {
         return ReceiverWebhookFactory::new();

@@ -25,7 +25,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
         if (! isset($messageContent['image']) && ! isset($messageContent['ai_image'])) {
             return [
                 'result' => false,
-                'message' => 'Message does not have an AI image url',
+                'message' => 'Message does not have an image url',
             ];
         }
 

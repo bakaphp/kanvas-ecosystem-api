@@ -22,6 +22,8 @@ type Category {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
+    children: [Category!] @hasMany(type: PAGINATOR)
+    products: [Product!] @belongsToMany(relation: "products", type: PAGINATOR)
 }
 
 input CategoryInput {
@@ -87,6 +89,7 @@ extend type Query @guard {
                     "uuid"
                     "is_published"
                     "position"
+                    "id"
                 ]
             )
         orderBy: _

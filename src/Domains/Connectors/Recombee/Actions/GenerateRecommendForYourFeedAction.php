@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
@@ -39,11 +40,15 @@ class GenerateRecommendForYourFeedAction
             );
         } else {
             $response = $recommendationService->getUserForYouFeed($user, $pageSize, $scenario);
+            if (empty($response['recomms'])) {
+                // you've seen it all? wtf , well lets go to fallback trending
+                $response = $recommendationService->getUserForYouFeed($user, $pageSize, ConfigurationEnum::TRENDING_SCENARIO->value);
+            }
         }
 
         $recommendation = $response['recomms'];
-        $recommendationId = $response['recommId'];
-        $user->set(CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID->value, $recommendationId);
+        //$recommendationId = $response['recommId'];
+        // $user->set(CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID->value, $recommendationId);
 
         $entityIds = collect($recommendation)
             ->pluck('id')
@@ -54,16 +59,23 @@ class GenerateRecommendForYourFeedAction
         $totalRecords = $this->app->get('social-user-message-filter-total-records') ?? 500;
         if (empty($entityIds)) {
             return new LengthAwarePaginator(
+                collect([]),
+                0,
+                $pageSize,
+                $page
+            );
+            /* return new LengthAwarePaginator(
                 UserMessage::getForYouFeed($user, $this->app)->forPage($page, $pageSize)->get(),
                 $totalRecords,
                 $pageSize,
                 $page
-            );
+            ); */
         }
 
         $messageTypeId = $this->app->get('social-user-message-filter-message-type');
         $builder = Message::fromApp($this->app)
             ->whereIn('id', $entityIds)
+            ->where('is_public', 1)
             ->where('is_deleted', 0)
             ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
                 return $query->where('messages.message_types_id', $messageTypeId);

@@ -294,7 +294,7 @@ class SyncEsimWithProviderCommand extends Command
         // Initialize spentMessage as null
         $spentMessage = null;
         if ($expirationDate != null) {
-            $expirationDay = Carbon::parse($expirationDate);
+            $expirationDay = Carbon::parse($expirationDate)->setTimezone($estTimezone);
         }
         $today = Carbon::now()->setTimezone($estTimezone);
 

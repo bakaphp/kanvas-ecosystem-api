@@ -6,17 +6,17 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Exception;
 use Illuminate\Http\UploadedFile;
+use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Orders\Jobs\ProcessOrderItemJob;
 use Kanvas\Souk\Orders\Services\OrderItemService;
 use Kanvas\Users\Models\Users;
-use Joelwmale\Cart\Cart;
 
 class ProcessOrderItemAction
 {
-    private const LIMIT_ITEMS_PER_REQUEST = 100;
+    private const int LIMIT_ITEMS_PER_REQUEST = 100;
 
     public function __construct(
         protected Apps $app,
@@ -56,7 +56,7 @@ class ProcessOrderItemAction
         }
 
         // Add the items to the cart.
-        $addToCartAction = new AddToCartAction($this->app, $this->user, $this->currentUserCompany);
+        $addToCartAction = new AddToCartAction($this->app, $this->currentUserCompany, $this->user);
         $addToCartAction->execute($cart, $result['validItems']);
 
         // Return the items processed.

@@ -203,6 +203,13 @@ class ProductImporterAction
                 );
             }
 
+            if (isset($category['slug'])) {
+                $categoryModel = Categories::where('slug', $category['slug'])
+                    ->fromApp($this->app)
+                    ->fromCompany($this->company)
+                    ->first();
+            }
+
             if ($categoryModel) {
                 $this->product->categories()->syncWithoutDetaching([$categoryModel->getId()]);
             } else {
@@ -210,7 +217,7 @@ class ProductImporterAction
                     'app' => $this->app,
                     'user' => $this->user,
                     'company' => $this->company,
-                    'parent_id' => $category['parent_id'] ?? 0,
+                    'parent_id' => $category['parent_id'] ?? null,
                     'name' => $category['name'],
                     'code' => $category['code'],
                     'position' => $category['position'],

@@ -116,6 +116,14 @@ final class Client
             );
         }
 
+        if ((bool) $app->get('shopify-use-access-token') === true) {
+            return (new ShopifySDK())->config([
+                'ShopUrl' => $shopUrl,
+                'ApiKey' => $clientKey,
+                'AccessToken' => $clientSecret,
+            ]);
+        }
+
         return (new ShopifySDK())->config([
             'ShopUrl' => $shopUrl,
             'ApiKey' => $clientKey,

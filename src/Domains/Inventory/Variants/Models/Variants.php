@@ -603,4 +603,100 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             ->where('sku', $sku)
             ->firstOrFail();
     }
+
+    /**
+     * The Typesense schema to be created for the Variants model.
+     */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'products_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                    'sort' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'files',
+                    'type' => 'object[]',
+                ],
+                [
+                    'name' => 'company',
+                    'type' => 'object',
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'slug',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'sku',
+                    'type' => 'string',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'status',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'warehouses',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'channels',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'short_description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'attributes',
+                    'type' => 'object',
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'weight',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+        ];
+    }
 }

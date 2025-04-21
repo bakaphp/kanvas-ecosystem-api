@@ -65,16 +65,6 @@ type ProductTranslation {
     language: LanguageDisplay!
 }
 
-type ProductAttributesValue {
-    product: Product!
-    attribute: Attributes!
-    translation(languageCode: String!): AttributeValueTranslation
-        @field(
-            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
-        )
-    value: Mixed
-}
-
 input ProductInput {
     products_types_id: ID
     sku: String @rules(apply: ["required_without:variants"])
@@ -141,7 +131,15 @@ enum FormatSortAttribute {
     STRING
     DATE
 }
-
+type ProductAttributesValue {
+    product: Product!
+    attribute: Attributes!
+    translation(languageCode: String!): AttributeValueTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    value: Mixed
+}
 extend type Mutation @guard {
     createProduct(input: ProductInput!): Product!
         @field(

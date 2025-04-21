@@ -24,7 +24,13 @@ class OrderService
     public function createOrder(): array
     {
         $item = $this->order->items()->first();
-        $provider = $item->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+        //$provider = $item->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+        $variantProvider = $item->variant->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value);
+
+        // Fall back to product provider if variant provider is empty
+        $provider = ! empty($variantProvider)
+            ? $variantProvider
+            : $item->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
 
         return match (strtolower($provider->value)) {
             strtolower(ProviderEnum::E_SIM_GO->value) => $this->eSimGoOrder($item),
@@ -81,6 +87,7 @@ class OrderService
             'total_days' => $totalDays->value,
             'wc_order_id' => 0,
             'device_id' => $channelId,
+            'from_kanvas' => 1,
             'client' => $this->getClientDetails(),
         ]);
     }
@@ -115,6 +122,7 @@ class OrderService
             'total' => $this->order->total_net_amount,
             'total_days' => $totalDays,
             'language' => 'en',
+            'from_kanvas' => 1,
             'user' => $this->getUserDetails(),
             'client' => $this->getClientDetails(),
         ]);
@@ -147,6 +155,7 @@ class OrderService
             'total' => (string) $this->order->total_net_amount,
             'total_days' => (string) $totalDays,
             'client' => $clientDetails,
+            'from_kanvas' => 1,
             'language' => 'en',
         ]);
     }

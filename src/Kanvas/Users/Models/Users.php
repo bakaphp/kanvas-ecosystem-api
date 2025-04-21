@@ -32,6 +32,7 @@ use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
+use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -63,6 +64,7 @@ use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -209,6 +211,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get id.
      */
+    #[Override]
     public function getId(): int
     {
         return (int) $this->getKey();
@@ -217,6 +220,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get uuid.
      */
+    #[Override]
     public function getUuid(): string
     {
         return $this->uuid;
@@ -245,6 +249,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * use distinct() to avoid duplicate apps.
      * @psalm-suppress MixedReturnStatement
      */
+    #[Override]
     public function apps(): HasManyThrough
     {
         // return $this->hasMany(Companies::class, 'users_id');
@@ -268,6 +273,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * use distinct() to avoid duplicate companies.
      * @psalm-suppress MixedReturnStatement
      */
+    #[Override]
     public function companies(): HasManyThrough
     {
         // return $this->hasMany(Companies::class, 'users_id');
@@ -329,6 +335,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * Get the current user information for the running app.
      * @psalm-suppress MixedReturnStatement
      */
+    #[Override]
     public function getAppProfile(AppInterface $app): UsersAssociatedApps
     {
         try {
@@ -373,6 +380,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * CompaniesBranches relationship.
      * @psalm-suppress MixedReturnStatement
      */
+    #[Override]
     public function branches(): HasManyThrough
     {
         return $this->hasManyThrough(
@@ -397,6 +405,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * notifications.
      * @psalm-suppress MixedReturnStatement
      */
+    #[Override]
     public function notifications(): HasMany
     {
         return $this->hasMany(Notifications::class, 'users_id')
@@ -422,6 +431,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get User's email.
      */
+    #[Override]
     public function getEmail(): string
     {
         return $this->email;
@@ -430,6 +440,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get user by there email address.
      */
+    #[Override]
     public static function getByEmail(string $email): self
     {
         $user = self::notDeleted()
@@ -450,6 +461,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * is the user active?
      */
+    #[Override]
     public function isActive(): bool
     {
         return (bool) $this->user_active;
@@ -458,6 +470,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Determine if a user is banned.
      */
+    #[Override]
     public function isBanned(): bool
     {
         return ! $this->isActive() && $this->banned === 'Y';
@@ -536,6 +549,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get the current company in the user session.
      */
+    #[Override]
     public function getCurrentCompany(): CompanyInterface
     {
         try {
@@ -552,6 +566,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get the current company in the user session.
      */
+    #[Override]
     public function getCurrentBranch(): CompaniesBranches
     {
         try {
@@ -590,11 +605,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user = $this->getAppProfile($app);
 
         if (! Hash::check($currentPassword, (string) $user->password)) {
-            throw new InternalServerErrorException('Current password is incorrect');
+            throw new AuthenticationException('Current password is incorrect');
         }
 
         if (Hash::check($newPassword, (string) $user->password)) {
-            throw new InternalServerErrorException('The new password cannot be the same as your current password');
+            throw new AuthenticationException('The new password cannot be the same as your current password');
         }
 
         return $this->resetPassword($newPassword, $app);
@@ -688,6 +703,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * Is the owner of the current app.
      *  @psalm-suppress MixedReturnStatement
      */
+    #[Override]
     public function isAppOwner(): bool
     {
         if (app()->bound(AppKey::class) && $this->isAn(RolesEnums::OWNER->value)) {
@@ -697,6 +713,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return false;
     }
 
+    #[Override]
     public function isAdmin(): bool
     {
         return $this->isAppOwner() || $this->isAn(RolesEnums::ADMIN->value) || $this->isAn(RolesEnums::OWNER->value);
@@ -860,5 +877,159 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function getCurrentDeviceId(): ?string
     {
         return $this->currentDeviceId;
+    }
+
+    /**
+     * The Typesense schema to be created for the Users model.
+     */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'firstname',
+                    'type' => 'string',
+                    'sort' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'lastname',
+                    'type' => 'string',
+                    'sort' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'displayname',
+                    'type' => 'string',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'email',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'apps',
+                    'type' => 'int64[]',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'companies',
+                    'type' => 'int64[]',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'roles_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'default_company',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'default_company_branch',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'city_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'state_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'country_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'user_active',
+                    'type' => 'bool',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'banned',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'timezone',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'language',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'phone_number',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'cell_phone_number',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'location',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'karma',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'votes',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'votes_points',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'is_deleted',
+                    'type' => 'bool',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'updated_at',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,
+        ];
     }
 }

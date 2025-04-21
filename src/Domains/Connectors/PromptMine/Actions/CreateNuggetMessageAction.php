@@ -20,22 +20,25 @@ class CreateNuggetMessageAction
 
     public function execute(): Message
     {
-        $nuggetMessage = (new CreateMessageAction(
-            messageInput: MessageInput::fromArray(
-                [
-                    'parent_id' => $this->parentMessage->getId(),
-                    'parent_unique_id' => $this->parentMessage->getUniqueId(),
-                    'message' => $this->messageData,
-                    'is_public' => 1,
-                ],
-                $this->parentMessage->user,
-                MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app->getId()),
-                $this->parentMessage->company,
-                $this->parentMessage->app,
-            )
-        ))->execute();
+        $messageTypeValue = $this->messageData['type'] == 'text-format' ? 'nugget' : 'image';
+        $nuggetMessage = Message::on('social')->create([
+            'parent_id' => $this->parentMessage->getId(),
+            'apps_id' => $this->parentMessage->apps_id,
+            'uuid' => DB::raw('uuid()'),
+            'companies_id' => $this->parentMessage->companies_id,
+            'users_id' => $this->parentMessage->users_id,
+            'message_types_id' => MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app)->getId(),
+            'message' => [
+                'title' => $this->messageData['title'],
+                "type" => $this->messageData['type'],
+                $messageTypeValue => $this->messageData[$messageTypeValue],
+            ],
+            'is_public' => $this->messageData['is_public'] ?? 1,
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
 
-        $nuggetMessage->addTags($this->parentMessage->tags()->toArray());
+        $nuggetMessage->addTags($this->parentMessage->tags->pluck('name')->toArray());
         $this->parentMessage->total_children++;
         $this->parentMessage->save();
         return $nuggetMessage;

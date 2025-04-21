@@ -256,4 +256,204 @@ class Lead extends BaseModel
     {
         return new LeadFactory();
     }
+
+    /**
+     * The Typesense schema to be created for the Lead model.
+     */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'users_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'companies_branches_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'leads_receivers_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'leads_owner_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'leads_status_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'leads_sources_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'pipeline_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'pipeline_stage_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'people_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'organization_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'leads_types_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'status',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'title',
+                    'type' => 'string',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'firstname',
+                    'type' => 'string',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'lastname',
+                    'type' => 'string',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'email',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'phone',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'reason_lost',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'is_duplicate',
+                    'type' => 'bool',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'owner',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'people',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'organization',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'source',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'status_object',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'type',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'pipeline',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'stage',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'tags',
+                    'type' => 'string[]',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'updated_at',
+                    'type' => 'int64',
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,
+        ];
+    }
+
+    /**
+     * Define the searchable index name.
+     */
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_lead_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'leads');
+    }
 }
