@@ -22,7 +22,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     public function execute(): array
     {
             $userData = $this->webhookRequest->payload;
-            if (empty($userData['email']) || empty($userData['firstname']) || empty($userData['lastname'])) {
+            if (empty($userData['email']) || empty($userData['first_name']) || empty($userData['last_name'])) {
                 return [
                     'message' => 'Missing required user data',
                     'status' => 'error',
