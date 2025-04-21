@@ -19,13 +19,11 @@ final class UserConfigTest extends TestCase
     {
         $user = auth()->user();
         $app = app(Apps::class);
-
         $app->set('in_app_user_settings_keys', [
             'preference_1',
             'preference_2',
             'preference_3',
         ]);
-        
         $preferences = [
             'preference_1' => 1,
             'preference_2' => 1,
