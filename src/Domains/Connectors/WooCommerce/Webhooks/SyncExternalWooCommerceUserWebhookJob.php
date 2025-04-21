@@ -43,6 +43,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
                 ];
             }
         } catch (Throwable $e) {
+            report($e);
             return [
                 'message' => 'Error processing user creation: ' . $e->getMessage(),
                 'status' => 'error',
