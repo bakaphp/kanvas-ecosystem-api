@@ -58,7 +58,7 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Social\\Interactions\\Models\\UsersInteractions"
             defaultCount: 25
-            scopes: ["fromApp", "fromUser"]
+            scopes: ["fromApp", "fromUser", "notDeleted"]
         )
 }
 
