@@ -24,7 +24,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     {
         try {
             $userData = $this->webhookRequest->payload;
-            if (empty($userData['email']) || empty($userData['firstname']) || empty($userData['lastname'])) {
+            if (empty($userData['email']) || empty($userData['first_name']) || empty($userData['last_name'])) {
                 return [
                     'message' => 'Missing required user data',
                     'status' => 'error',
@@ -133,8 +133,8 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
 
     private function updateExistingUser(Users $user, array $userData): void
     {
-        $user->firstname = $userData['firstname'] ?? $user->firstname;
-        $user->lastname = $userData['lastname'] ?? $user->lastname;
+        $user->firstname = $userData['first_name'] ?? $user->firstname;
+        $user->lastname = $userData['last_name'] ?? $user->lastname;
         $user->displayname = $userData['displayname'] ?? $user->firstname . ' ' . $user->lastname;
         $user->phone_number = $userData['phone_number'] ?? $user->phone_number;
         $user->cell_phone_number = $userData['cell_phone_number'] ?? $user->cell_phone_number;
@@ -154,9 +154,9 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
 
         return new RegisterInput(
             email: $userData['email'],
-            firstname: $userData['firstname'],
-            lastname: $userData['lastname'],
-            displayname: $userData['displayname'] ?? $userData['firstname'] . ' ' . $userData['lastname'],
+            firstname: $userData['first_name'],
+            lastname: $userData['last_name'],
+            displayname: $userData['displayname'] ?? $userData['first_name'] . ' ' . $userData['last_name'],
             password: $password,
             raw_password: $rawPassword,
             phone_number: $userData['phone_number'] ?? null,
