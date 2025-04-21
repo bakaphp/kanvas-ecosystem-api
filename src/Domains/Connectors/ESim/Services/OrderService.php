@@ -87,6 +87,7 @@ class OrderService
             'total_days' => $totalDays->value,
             'wc_order_id' => 0,
             'device_id' => $channelId,
+            'from_kanvas' => 1,
             'client' => $this->getClientDetails(),
         ]);
     }
@@ -121,6 +122,7 @@ class OrderService
             'total' => $this->order->total_net_amount,
             'total_days' => $totalDays,
             'language' => 'en',
+            'from_kanvas' => 1,
             'user' => $this->getUserDetails(),
             'client' => $this->getClientDetails(),
         ]);
@@ -153,6 +155,7 @@ class OrderService
             'total' => (string) $this->order->total_net_amount,
             'total_days' => (string) $totalDays,
             'client' => $clientDetails,
+            'from_kanvas' => 1,
             'language' => 'en',
         ]);
     }

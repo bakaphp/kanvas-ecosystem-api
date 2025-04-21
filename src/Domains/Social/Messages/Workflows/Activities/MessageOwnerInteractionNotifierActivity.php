@@ -57,6 +57,10 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
         unset($metaData['ai_nugged']); //@todo move this to a customization
         unset($metaData['nugget']); //@todo move this to a customization
 
+        if (isset($metaData['prompt'])) {
+            $metaData['prompt'] = ''; //@todo move this to a customization
+        }
+
         $config = [
             'email_template' => $emailTemplate,
             'push_template' => $pushTemplate,
