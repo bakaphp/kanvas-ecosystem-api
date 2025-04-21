@@ -6,12 +6,14 @@ namespace Kanvas\Connectors\WooCommerce\Webhooks;
 
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Override;
 
 class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
@@ -140,6 +142,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     {
         $password = $userData['password'] ?? Hash::make(Str::random(10));
         $rawPassword = $userData['password'] ?? null;
+        $userRoleId = $userData['role_ids'] ?? RolesRepository::getByNameFromCompany(RolesEnums::USER->value, $this->receiver->company, $this->receiver->app)->id;
 
         return new RegisterInput(
             email: $userData['email'],
@@ -152,7 +155,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
             cell_phone_number: $userData['cell_phone_number'] ?? null,
             custom_fields: $userData['custom_fields'] ?? [],
             branch: $this->receiver->company->defaultBranch,
-            role_ids: $userData['role_ids'] ?? null,
+            role_ids: [$userRoleId],
         );
     }
 }
