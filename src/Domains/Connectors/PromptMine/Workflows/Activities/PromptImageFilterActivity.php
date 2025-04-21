@@ -178,6 +178,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'processed_image_url' => $processedImageUrl,
                         'original_image_url' => $fileUrl,
                         'request_id' => $requestId,
+                        'config' => $config,
                     ];
                 } catch (Exception $e) {
                     report($e);
