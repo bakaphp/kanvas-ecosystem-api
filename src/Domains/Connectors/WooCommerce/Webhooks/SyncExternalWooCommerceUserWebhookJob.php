@@ -13,6 +13,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Override;
 use Throwable;
 
@@ -149,7 +150,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     {
         $password = $userData['password'] ?? Hash::make(Str::random(10));
         $rawPassword = $userData['password'] ?? null;
-        $userRoleId = RolesEnums::USER->value;
+        $userRoleId = $userData['role_ids'] ?? RolesRepository::getByNameFromCompany(RolesEnums::USER->value, $this->receiver->company)->id;
 
         return new RegisterInput(
             email: $userData['email'],
