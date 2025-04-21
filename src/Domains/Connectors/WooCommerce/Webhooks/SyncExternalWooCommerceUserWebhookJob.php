@@ -150,7 +150,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     {
         $password = $userData['password'] ?? Hash::make(Str::random(10));
         $rawPassword = $userData['password'] ?? null;
-        $userRoleId = $userData['role_ids'] ?? RolesRepository::getByNameFromCompany(RolesEnums::USER->value, $this->receiver->company)->id;
+        $userRoleId = $userData['role_ids'] ?? RolesRepository::getByNameFromCompany(RolesEnums::USER->value, $this->receiver->company, $this->receiver->app)->id;
 
         return new RegisterInput(
             email: $userData['email'],
