@@ -24,6 +24,7 @@ class SyncProductWithShopifyWithIntegrationActivity extends KanvasActivity
         $this->overwriteAppService($app);
         $response = [];
         $exception = null;
+        $rule = $params['rule'] ?? null;
         $status = Status::where('slug', StatusEnum::ACTIVE->value)
         ->where('apps_id', 0)
         ->first();
@@ -69,7 +70,7 @@ class SyncProductWithShopifyWithIntegrationActivity extends KanvasActivity
                         response: $historyResponse ?? null,
                         exception: $exception,
                         workflowId: $this->workflowId(),
-                        rule: $params['rule']
+                        rule: $rule
                     );
 
                     (new AddEntityIntegrationHistoryAction(
