@@ -21,7 +21,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
     {
         $leadId = $params['entity_id'] ?? null;
 
-        $lead = Lead::fromApp($app)->getById($leadId);
+        $lead = $entity;
         if ($lead === null) {
             return [
                 'result' => false,

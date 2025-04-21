@@ -21,7 +21,7 @@ class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInter
     {
         $peopleId = $params['entity_id'] ?? null;
 
-        $people = People::fromApp($app)->getById($peopleId);
+        $people = $entity;
         if ($people === null) {
             return [
                 'result' => false,
