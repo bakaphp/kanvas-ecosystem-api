@@ -107,7 +107,7 @@ class IntegrationsMutation
 
     public function integrationWorkflowRetry(mixed $root, array $request): bool
     {
-        $integrationWorkflow = EntityIntegrationHistory::getById((int) $request['id']);
+        $integrationWorkflow = EntityIntegrationHistory::getById((int) $request['id'], app(Apps::class));
 
         CompaniesRepository::userAssociatedToCompany(
             $integrationWorkflow->integrationCompany->company,
