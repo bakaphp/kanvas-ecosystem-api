@@ -22,7 +22,7 @@ class SaveUserAppPreferencesAction
         $activeUserAppSettings = $this->app->get('in_app_user_settings_keys');
         foreach ($this->$activeUserAppSettings->toArray() as $key) {
 
-            if (!array_key_exists($key, $this->preferences)) {
+            if (! array_key_exists($key, $this->preferences)) {
                 continue;
             }
             $this->user->set($key, $this->preferences[$key]);
