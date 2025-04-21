@@ -13,6 +13,7 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\AccessControlList\Actions\ForbiddenRolesUsersAction;
+
 class RemoveCompanyAction
 {
     public Users $user;
