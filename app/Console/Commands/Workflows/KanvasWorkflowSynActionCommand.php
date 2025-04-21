@@ -40,6 +40,8 @@ use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
@@ -155,6 +157,8 @@ class KanvasWorkflowSynActionCommand extends Command
             PromptImageFilterActivity::class,
             IdVerificationReportActivity::class,
             SyncExternalWooCommerceUserWebhookJob::class,
+            PullLeadActivity::class,
+            PullPeopleActivity::class,
         ];
 
         $createdActions = [];
