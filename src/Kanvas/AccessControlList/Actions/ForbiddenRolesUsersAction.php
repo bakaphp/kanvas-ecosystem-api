@@ -24,9 +24,8 @@ class ForbiddenRolesUsersAction
     {
         Bouncer::scope()->to(RolesEnums::getScope($this->app, $this->company));
         $roles = $this->user->getRoles();
-        foreach($roles as $role) {
+        foreach ($roles as $role) {
             $this->user->retract($role->name);
         }
-
     }
 }
