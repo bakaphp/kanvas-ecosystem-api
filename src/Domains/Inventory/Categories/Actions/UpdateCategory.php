@@ -16,7 +16,7 @@ class UpdateCategory extends CreateCategory
             $this->dto->company,
             $this->user
         );
-        
+
         return Categories::updateOrCreate([
             'companies_id' => $this->dto->company->getId(),
             'apps_id' => $this->dto->app->getId(),
@@ -29,6 +29,5 @@ class UpdateCategory extends CreateCategory
             'position' => $this->dto->position,
             'is_published' => $this->dto->is_published,
         ]);
-
     }
 }
