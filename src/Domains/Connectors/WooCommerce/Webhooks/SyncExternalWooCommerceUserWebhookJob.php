@@ -15,39 +15,31 @@ use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Override;
-use Throwable;
 
 class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
 {
     #[Override]
     public function execute(): array
     {
-        try {
             $userData = $this->webhookRequest->payload;
-            if (empty($userData['email']) || empty($userData['first_name']) || empty($userData['last_name'])) {
+            if (empty($userData['email']) || empty($userData['firstname']) || empty($userData['lastname'])) {
                 return [
                     'message' => 'Missing required user data',
                     'status' => 'error',
                 ];
             }
 
-            $userExists = $this->checkUserExists($userData['email']);
+        $userExists = $this->checkUserExists($userData['email']);
 
-            if ($userExists) {
-                return $this->handleExistingUser($userData);
-            } else {
-                $user = $this->createNewUser($userData);
+        if ($userExists) {
+            return $this->handleExistingUser($userData);
+        } else {
+            $user = $this->createNewUser($userData);
 
-                return [
-                    'message' => 'New user created successfully',
-                    'user_id' => $user->getId(),
-                    'status' => 'success',
-                ];
-            }
-        } catch (Throwable $e) {
             return [
-                'message' => 'Error processing user creation: ' . $e->getMessage(),
-                'status' => 'error',
+                'message' => 'New user created successfully',
+                'user_id' => $user->getId(),
+                'status' => 'success',
             ];
         }
     }
