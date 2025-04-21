@@ -46,6 +46,9 @@ type WorkflowIntegrationsHistory {
     response: Mixed
     exception: Mixed
     trigger: String
+        @method(
+            name: "getTrigger"
+        )
     created_at: DateTime
 }
 
@@ -84,6 +87,10 @@ extend type Mutation @guard {
     integrationCompanyIsActive(input: IntegrationCompanyActive!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@integrationCompanyIsActive"
+        )
+    integrationWorkflowRetry(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@integrationWorkflowRetry"
         )
 }
 
