@@ -11,6 +11,7 @@ use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
+use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as ModelsIntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Integrations\Validations\ConfigValidation;
@@ -102,5 +103,24 @@ class IntegrationsMutation
         );
 
         return $integrationCompany->isActive((bool) $request['input']['is_active']);
+    }
+
+    public function integrationWorkflowRetry(mixed $root, array $request): bool
+    {
+        $integrationWorkflow = EntityIntegrationHistory::getById((int) $request['id']);
+
+        CompaniesRepository::userAssociatedToCompany(
+            $integrationWorkflow->integrationCompany->company,
+            auth()->user()
+        );
+
+        $subject = $integrationWorkflow->entity()->first();
+
+        $subject->fireWorkflow(
+            $integrationWorkflow->rules->type->name,
+            true
+        );
+
+        return true;
     }
 }
