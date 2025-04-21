@@ -30,7 +30,7 @@ class CreateUserInteractionAction
             'interactions_id' => $this->userInteractionData->interaction->getId(),
             'notes' => $this->userInteractionData->notes,
         ])
-        : UsersInteractions::firstOrCreate([
+        : UsersInteractions::updateOrCreate([
             'users_id' => $this->userInteractionData->user->getId(),
             'apps_id' => $this->userInteractionData->interaction->apps_id,
             'entity_id' => $this->userInteractionData->entity_id,
@@ -38,6 +38,7 @@ class CreateUserInteractionAction
             'interactions_id' => $this->userInteractionData->interaction->getId(),
         ], [
             'notes' => $this->userInteractionData->notes,
+            'is_deleted' => 0,
         ]);
 
         if ($addToCache) {
