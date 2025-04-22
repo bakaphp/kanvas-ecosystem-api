@@ -135,7 +135,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                             'title' => $title,
                             'type' => 'image-format',
                             'image' => $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path,
-                            'parent_id' => $entity->parent_id,
                         ],
                     ))->execute();
 
@@ -155,6 +154,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'via' => $endViaList,
                         'message_owner_id' => $entity->user->getId(),
                         'message_id' => $entity->getId(),
+                        'parent_message_id' => $entity->parent_id,
                         'destination_id' => $entity->getId(),
                         'destination_type' => 'MESSAGE',
                         'destination_event' => 'NEW_MESSAGE',
