@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Rules\Models\Rule;
 use Spatie\LaravelData\Data;
 
 class EntityIntegrationHistory extends Data
@@ -18,6 +19,7 @@ class EntityIntegrationHistory extends Data
         public IntegrationsCompany $integrationCompany,
         public Status $status,
         public EntityIntegrationInterface|Model $entity,
+        public ?Rule $rule = null,
         public mixed $response = null,
         public mixed $exception = null,
         public ?int $workflowId = null

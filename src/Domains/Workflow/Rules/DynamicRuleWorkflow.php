@@ -52,6 +52,8 @@ class DynamicRuleWorkflow extends Workflow
         }
 
         unset($params['app']); //don't pass the app to the activity via the param array
+        $params['rule'] = $rule;
+
         foreach ($rule->workflowActivities as $workflowActivity) {
             $activity = $workflowActivity->activity;
 

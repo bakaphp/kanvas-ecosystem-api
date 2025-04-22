@@ -36,6 +36,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         $messageFiles = $entity->getFiles();
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
+        $imageFilter = $params['image_filter'] ?? 'cartoonify';
 
         $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
 
@@ -50,7 +51,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity) use ($messageFiles, $params) {
+            integrationOperation: function ($entity) use ($messageFiles, $params, $imageFilter) {
                 if (empty($this->apiUrl)) {
                     return [
                         'result' => false,
@@ -69,11 +70,13 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                 try {
                     // Step 1: Submit the image for processing
-                    $submitResponse = $this->submitImage($fileUrl);
+                    $submitResponse = $this->submitImage($fileUrl, $imageFilter);
 
                     if (! isset($submitResponse['request_id'])) {
                         return [
                             'result' => false,
+                            'response' => $submitResponse,
+                            'filter' => $imageFilter,
                             'message' => 'Failed to submit image for processing',
                         ];
                     }
@@ -81,26 +84,32 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     $requestId = $submitResponse['request_id'];
 
                     // Step 2: Check processing status until complete
-                    $statusResponse = $this->checkProcessingStatus($requestId);
+                    $statusResponse = $this->checkProcessingStatus($requestId, $imageFilter);
 
                     if ($statusResponse['status'] !== 'COMPLETED') {
                         return [
                             'result' => false,
+                            'response' => $statusResponse,
+                            'filter' => $imageFilter,
+                            'request_id' => $requestId,
                             'message' => 'Image processing did not complete successfully',
                         ];
                     }
 
                     // Step 3: Get the processed image result
-                    $resultResponse = $this->getProcessingResult($requestId);
+                    $resultResponse = $this->getProcessingResult($requestId, $imageFilter);
+                    $processedImageUrl = $this->extractImageUrl($resultResponse);
 
-                    if (! isset($resultResponse['data']['image']['url'])) {
+                    if ($processedImageUrl === null) {
                         return [
                             'result' => false,
+                            'response' => $resultResponse,
+                            'filter' => $imageFilter,
+                            'request_id' => $requestId,
                             'message' => 'Failed to retrieve processed image',
                         ];
                     }
 
-                    $processedImageUrl = $resultResponse['data']['image']['url'];
                     $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
                     $fileName = basename($tempFilePath);
 
@@ -118,7 +127,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     $filesystem = new FilesystemServices($entity->app);
                     $fileSystemRecord = $filesystem->upload($uploadedFile, $entity->user);
 
-                    $title = $entity->message['title'] ?? 'Image Processed';
+                    $title = $entity->message['title'] ?? 'your prompt';
                     // Step 4: Create a new nugget message with the processed image
                     $createNuggetMessage = (new CreateNuggetMessageAction(
                         parentMessage: $entity,
@@ -126,6 +135,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                             'title' => $title,
                             'type' => 'image-format',
                             'image' => $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path,
+                            'parent_id' => $entity->parent_id,
                         ],
                     ))->execute();
 
@@ -141,7 +151,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'company' => $entity->company,
                         'message' => "Your image for {$title} has been processed",
                         'title' => 'Image Processed',
-                        'metadata' => $entity->getMessage(),
+                        'metadata' => $createNuggetMessage->getMessage(),
                         'via' => $endViaList,
                         'message_owner_id' => $entity->user->getId(),
                         'message_id' => $entity->getId(),
@@ -178,6 +188,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'processed_image_url' => $processedImageUrl,
                         'original_image_url' => $fileUrl,
                         'request_id' => $requestId,
+                        'config' => $config,
                     ];
                 } catch (Exception $e) {
                     report($e);
@@ -196,14 +207,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $imageUrl): array
+    protected function submitImage(string $imageUrl, string $imageFilter): array
     {
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
         ])->post($this->apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
-            'model' => 'fal-ai/ghiblify',
+            'model' => 'fal-ai/' . $imageFilter,
         ]);
 
         return $response->json();
@@ -212,7 +223,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Check the processing status of a submitted image
      */
-    protected function checkProcessingStatus(string $requestId): array
+    protected function checkProcessingStatus(string $requestId, string $imageFilter): array
     {
         $attempts = 0;
         $statusResponse = [];
@@ -223,7 +234,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             ])->post($this->apiUrl, [
                 'operation' => 'status',
                 'requestId' => $requestId,
-                'model' => 'fal-ai/ghiblify',
+                'model' => 'fal-ai/' . $imageFilter,
                 'logs' => true,
             ]);
 
@@ -252,16 +263,34 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Get the result of a processed image
      */
-    protected function getProcessingResult(string $requestId): array
+    protected function getProcessingResult(string $requestId, string $imageFilter): array
     {
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
         ])->post($this->apiUrl, [
             'operation' => 'result',
             'requestId' => $requestId,
-            'model' => 'fal-ai/ghiblify',
+            'model' => 'fal-ai/' . $imageFilter,
         ]);
 
         return $response->json();
+    }
+
+    private function extractImageUrl(array $resultResponse): ?string
+    {
+        // Check for data.image.url format
+        if (isset($resultResponse['data']['image']['url'])) {
+            return $resultResponse['data']['image']['url'];
+        }
+
+        // Check for data.images[0].url format
+        if (isset($resultResponse['data']['images']) &&
+            is_array($resultResponse['data']['images']) &&
+            ! empty($resultResponse['data']['images']) &&
+            isset($resultResponse['data']['images'][0]['url'])) {
+            return $resultResponse['data']['images'][0]['url'];
+        }
+
+        return null;
     }
 }
