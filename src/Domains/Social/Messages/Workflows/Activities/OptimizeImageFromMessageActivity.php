@@ -16,6 +16,8 @@ use Kanvas\Workflow\KanvasActivity;
 
 class OptimizeImageFromMessageActivity extends KanvasActivity
 {
+    public $tries = 3;
+
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
