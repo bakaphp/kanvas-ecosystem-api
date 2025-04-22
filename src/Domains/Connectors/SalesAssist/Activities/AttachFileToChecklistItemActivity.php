@@ -75,6 +75,10 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
                 ->latest()
                 ->first();
         } else {
+            $systemModuleIds = [
+                SystemModulesRepository::getByModelName(Lead::class, $app)->getId(),
+                SystemModulesRepository::getByModelName(SystemModules::getLegacyNamespace(Lead::class), $app)->getId(),
+            ];
             $latestFile = FilesystemEntities::query()
                 ->where('entity_id', $lead->getId())
                 ->whereIn('system_modules_id', $systemModuleIds)
