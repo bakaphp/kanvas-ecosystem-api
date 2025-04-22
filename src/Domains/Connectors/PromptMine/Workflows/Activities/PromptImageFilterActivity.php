@@ -75,6 +75,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     if (! isset($submitResponse['request_id'])) {
                         return [
                             'result' => false,
+                            'response' => $submitResponse,
+                            'filter' => $imageFilter,
                             'message' => 'Failed to submit image for processing',
                         ];
                     }
@@ -87,6 +89,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     if ($statusResponse['status'] !== 'COMPLETED') {
                         return [
                             'result' => false,
+                            'response' => $statusResponse,
+                            'filter' => $imageFilter,
+                            'request_id' => $requestId,
                             'message' => 'Image processing did not complete successfully',
                         ];
                     }
@@ -97,6 +102,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     if (! isset($resultResponse['data']['image']['url'])) {
                         return [
                             'result' => false,
+                            'response' => $resultResponse,
+                            'filter' => $imageFilter,
+                            'request_id' => $requestId,
                             'message' => 'Failed to retrieve processed image',
                         ];
                     }
