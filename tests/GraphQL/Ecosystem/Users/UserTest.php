@@ -409,4 +409,30 @@ class UserTest extends TestCase
             ->assertSee('files')
             ->assertSee('avatar.jpg');
     }
+
+    public function testSaveUserAppPreferences()
+    {
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation saveUserAppPreferences(
+                $preferences: Mixed!
+            ) {
+            saveUserAppPreferences(
+            preferences: $preferences
+            )
+        }
+        ',
+            [
+                'preferences' => [
+                    'preference_1' => 1,
+                    'preference_2' => 1,
+                    'preference_3' => 0,
+                ],
+            ]
+        )->assertJson([
+            'data' => [
+                'saveUserAppPreferences' => true,
+            ],
+        ]);
+    }
 }
