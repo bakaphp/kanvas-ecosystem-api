@@ -43,7 +43,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
         );
 
         $metaData = $message->getMessage();
-        $keysToUnset = ['ai_nugged', 'nugget'];
+        $keysToUnset = ['ai_nugged', 'nugget', 'ai_image'];
         foreach ($keysToUnset as $key) {
             unset($metaData[$key]); // @todo move this to a customization
         }
