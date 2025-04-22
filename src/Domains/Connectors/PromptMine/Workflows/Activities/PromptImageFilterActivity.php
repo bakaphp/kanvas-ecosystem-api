@@ -98,8 +98,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                     // Step 3: Get the processed image result
                     $resultResponse = $this->getProcessingResult($requestId, $imageFilter);
+                    $processedImageUrl = $this->extractImageUrl($resultResponse);
 
-                    if (! isset($resultResponse['data']['image']['url'])) {
+                    if ($processedImageUrl === null) {
                         return [
                             'result' => false,
                             'response' => $resultResponse,
@@ -109,7 +110,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         ];
                     }
 
-                    $processedImageUrl = $resultResponse['data']['image']['url'];
                     $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
                     $fileName = basename($tempFilePath);
 
@@ -274,5 +274,23 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ]);
 
         return $response->json();
+    }
+
+    private function extractImageUrl(array $resultResponse): ?string
+    {
+        // Check for data.image.url format
+        if (isset($resultResponse['data']['image']['url'])) {
+            return $resultResponse['data']['image']['url'];
+        }
+
+        // Check for data.images[0].url format
+        if (isset($resultResponse['data']['images']) &&
+            is_array($resultResponse['data']['images']) &&
+            ! empty($resultResponse['data']['images']) &&
+            isset($resultResponse['data']['images'][0]['url'])) {
+            return $resultResponse['data']['images'][0]['url'];
+        }
+
+        return null;
     }
 }
