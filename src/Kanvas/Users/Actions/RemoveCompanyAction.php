@@ -12,6 +12,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\AccessControlList\Actions\ForbiddenRolesUsersAction;
 
 class RemoveCompanyAction
 {
@@ -65,5 +66,10 @@ class RemoveCompanyAction
                 $this->branch
             )->delete();
         }
+        (new ForbiddenRolesUsersAction(
+            $this->app,
+            $this->user,
+            $this->company
+        ))->execute();
     }
 }
