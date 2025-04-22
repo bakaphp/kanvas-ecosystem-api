@@ -333,7 +333,7 @@ class UserManagementMutation
         ];
     }
 
-    public function saveUserAppPreferences(mixed $rootValue, array $request): void
+    public function saveUserAppPreferences(mixed $rootValue, array $request): bool
     {
         $user = auth()->user();
         $app = app(Apps::class);
@@ -344,5 +344,7 @@ class UserManagementMutation
             app: $app,
             preferences: $preferences
         ))->execute();
+
+        return true;
     }
 }
