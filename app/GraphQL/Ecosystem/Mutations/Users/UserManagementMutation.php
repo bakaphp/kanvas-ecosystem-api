@@ -36,6 +36,7 @@ use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserContactsService;
+use Kanvas\Users\Actions\SaveUserAppPreferencesAction;
 
 class UserManagementMutation
 {
@@ -330,5 +331,20 @@ class UserManagementMutation
             "matching_contacts" => $matchingContacts,
             "nonmatching_contacts" => array_diff_key($contactsEmails, array_flip($matchingContacts))
         ];
+    }
+
+    public function saveUserAppPreferences(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $preferences = $request['preferences'];
+
+        (new SaveUserAppPreferencesAction(
+            user: $user,
+            app: $app,
+            preferences: $preferences
+        ))->execute();
+
+        return true;
     }
 }

@@ -292,6 +292,11 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserContactsManagementMutation@checkUsersContactsMatch"
         )
+    saveUserAppPreferences(preferences: Mixed!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@saveUserAppPreferences"
+        )
 }
 
 type Query @guard {
