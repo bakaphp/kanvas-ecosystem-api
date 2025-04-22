@@ -61,12 +61,14 @@ class SyncOrdersWithProviderCommand extends Command
             $startDate = $order->metadata['data']['start_date'] ?? null;
 
             $cancelCounter = $order->get('cancel_counter', 0);
-            $order->set('cancel_counter', $cancelCounter + 1);
-            $cancelCounter++;
+            if ($cancelCounter < 3) {
+                $cancelCounter++;
+                $order->set('cancel_counter', $cancelCounter);
+            }
 
             if ($iccid == null) {
                 $this->info("Order ID: {$order->id} does not have an ICCID. Check count: {$cancelCounter}");
-                if (($cancelCounter) >= 3) {
+                if ($cancelCounter >= 3) {
                     $this->info("Order ID: {$order->id} checked 3 times without ICCID. Cancelling.");
                     $order->cancel();
                     $order->fulfillCancelled();
@@ -104,9 +106,12 @@ class SyncOrdersWithProviderCommand extends Command
         } catch (Exception $e) {
             report($e);
             $this->info("Order ID: {$order->id} does not have an ICCID.");
+
             $cancelCounter = $order->get('cancel_counter', 0);
-            $order->set('cancel_counter', $cancelCounter + 1);
-            $cancelCounter++;
+            if ($cancelCounter < 3) {
+                $cancelCounter++;
+                $order->set('cancel_counter', $cancelCounter);
+            }
 
             $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
             if ($cancelCounter >= 3) {
@@ -132,12 +137,15 @@ class SyncOrdersWithProviderCommand extends Command
         } catch (Exception $e) {
             report($e);
             $this->info("Order ID: {$order->id} does not have an ICCID.");
+
             $cancelCounter = $order->get('cancel_counter', 0);
-            $order->set('cancel_counter', $cancelCounter + 1);
-            $cancelCounter++;
+            if ($cancelCounter < 3) {
+                $cancelCounter++;
+                $order->set('cancel_counter', $cancelCounter);
+            }
 
             $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
-            if (($cancelCounter) >= 3) {
+            if ($cancelCounter >= 3) {
                 $this->info("Order ID: {$order->id} checked 3 times without success. Cancelling.");
                 $order->cancel();
                 $order->fulfillCancelled();
@@ -164,12 +172,15 @@ class SyncOrdersWithProviderCommand extends Command
         } catch (Exception $e) {
             report($e);
             $this->info("Order ID: {$order->id} does not have a valid ICCID or encountered an error.");
+
             $cancelCounter = $order->get('cancel_counter', 0);
-            $order->set('cancel_counter', $cancelCounter + 1);
-            $cancelCounter++;
+            if ($cancelCounter < 3) {
+                $cancelCounter++;
+                $order->set('cancel_counter', $cancelCounter);
+            }
 
             $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
-            if (($cancelCounter) >= 3) {
+            if ($cancelCounter >= 3) {
                 $this->info("Order ID: {$order->id} checked 3 times without success. Cancelling.");
                 $order->cancel();
                 $order->fulfillCancelled();
