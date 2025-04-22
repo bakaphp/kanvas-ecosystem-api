@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Intellicheck\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -92,6 +93,25 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     $notification->setSubject('ID Verification Report');
                     Notification::send($usersToNotify, $notification);
 
+                    //generate PDF
+                    $pdfReport = PdfService::generatePdfFromTemplate(
+                        $app,
+                        $entity->user,
+                        'id-verification-report',
+                        $entity,
+                        [
+                            'message' => $reportData['message'],
+                            'status' => $reportData['status'],
+                            'flags' => $reportData['flags'],
+                            'failures' => $reportData['failures'],
+                            'results' => $reportData['results'],
+                            'isShowRoom' => $isShowRoom,
+                            'verificationData' => $verificationData,
+                        ]
+                    );
+
+                    $entity->addFile($pdfReport, 'id-verification');
+
                     return [
                         'report' => $reportData['status'],
                         'result' => true,
@@ -147,7 +167,38 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         $results['facial_match_probability'] = $facial['matchProbability'] ?? null;
         $results['facial_liveness_probability'] = $facial['livenessProbability'] ?? null;
 
-        // OCR CHECK
+        // OCR CHECK - NEW RULE
+        // Check for any "False" values in the OCR match fields (any false value causes failure)
+        $hasOcrFailure = false;
+        $ocrMatchFields = [
+            'isDlClassMatch',
+            'isDobMatch',
+            'isHeightMatch',
+            'isAddressMatch',
+            'isIssueDateMatch',
+            'isDocumentNumberMatch',
+            'isIssuerNameMatch',
+            'isRealIdMatch',
+            'isSexMatch',
+            'isExpirationDateMatch',
+            'isNameMatch',
+        ];
+
+        $ocrFailedFields = [];
+        foreach ($ocrMatchFields as $field) {
+            // Check if the field is present and is explicitly false (not null)
+            if (isset($ocrMatch[$field]) && $ocrMatch[$field] === false) {
+                $hasOcrFailure = true;
+                $ocrFailedFields[] = $field;
+            }
+        }
+
+        if ($hasOcrFailure) {
+            $failures[] = 'OCR verification failed: ' . implode(', ', $ocrFailedFields);
+            $failureGroups[] = 'OCR mismatch';
+        }
+
+        // Count total matches for reporting purposes (even though we're using the new rule)
         $ocrRequiredMatches = array_filter([
             $ocrMatch['isDlClassMatch'] ?? false,
             $ocrMatch['isDobMatch'] ?? false,
@@ -165,16 +216,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         $totalOcrMatches = count($ocrRequiredMatches);
         $ocrMatchScore = $totalOcrMatches > 0 ? $totalOcrMatches / 11 * 100 : 0;
         $results['ocr_required_matches'] = $ocrMatchScore;
-        $ocMatch = $ocrMatchScore >= 75;
-
-        if ($ocrMatchScore < 50) {
-            $failures[] = 'OCR match score below 50%';
-            $failureGroups[] = 'OCR mismatch';
-        } elseif ($ocrMatchScore < 75) {
-            $flags[] = 'OCR match score below 75%';
-            $flagGroups[] = 'OCR mismatch';
-            $flagNotice = true;
-        }
+        $ocMatch = ! $hasOcrFailure;  // OCR match is true if there are no failures
 
         // ID CHECK
         $isExpired = strtolower($idCheck['expired'] ?? 'no') === 'yes';
@@ -197,7 +239,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             $flagGroups[] = 'ID check incomplete';
         }
 
-        // BEHAVIOR RISKS
+        // BEHAVIOR RISKS - NEW RULE (remove failure conditions, only keep flag)
         $riskScore = $ipqsAddress['transaction_details']['risk_score'] ?? 0;
         $results['risk_score'] = $riskScore;
 
@@ -209,32 +251,16 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         $fraudChance = $ipqsFraud['fraud_chance'] ?? 0;
         $results['fraud_chance'] = $fraudChance;
 
-        // Count scores above thresholds
-        $scoresAbove90 = 0;
+        // Count scores above thresholds - only consider flagging now
         $scoresAbove75 = 0;
         foreach ([$riskScore, $fraudScore, $fraudChance] as $score) {
-            if ($score >= 90) {
-                $scoresAbove90++;
-            }
             if ($score >= 75) {
                 $scoresAbove75++;
             }
         }
 
-        // Add score-based failures/flags
-        if ($scoresAbove90 >= 2) {
-            $failures[] = 'Multiple risk scores >= 90';
-            $failureGroups[] = 'behavior risk';
-            if ($riskScore >= 90) {
-                $failures[] = 'Risk score';
-            }
-            if ($fraudScore >= 90) {
-                $failures[] = 'Fraud score';
-            }
-            if ($fraudChance >= 90) {
-                $failures[] = 'Fraud chance';
-            }
-        } elseif ($scoresAbove75 >= 2) {
+        // Add score-based flags (no failures for risk scores now)
+        if ($scoresAbove75 >= 2) {
             $flags[] = 'Multiple risk scores >= 75';
             if ($riskScore >= 75) {
                 $flags[] = 'Risk score';
