@@ -183,11 +183,6 @@ input EmailInput {
   email: Email!
 }
 
-input PreferencesInput {
-  key: String!
-  value: Boolean!
-}
-
 extend type Mutation {
     login(data: LoginInput!): TokenResponse!
         @field(
@@ -297,7 +292,7 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserContactsManagementMutation@checkUsersContactsMatch"
         )
-    saveUserAppPreferences(preferences: [PreferencesInput!]!): Boolean!
+    saveUserAppPreferences(preferences: Mixed!): Boolean!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@saveUserAppPreferences"
