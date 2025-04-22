@@ -71,4 +71,13 @@ class LeadFactory extends Factory
             ];
         });
     }
+
+    public function withReceiverId(int $receiverId)
+    {
+        return $this->state(function (array $attributes) use ($receiverId) {
+            return [
+                'leads_receivers_id' => $receiverId,
+            ];
+        });
+    }
 }
