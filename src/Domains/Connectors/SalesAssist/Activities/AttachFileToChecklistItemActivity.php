@@ -37,6 +37,7 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
 
         $peopleId = $config['people_id'] ?? null;
         $fileUpload = $config['file_upload'] ?? null;
+        $peopleFromLead = false;
 
         if ($peopleId === null && $fileUpload === null) {
             return [
@@ -51,6 +52,12 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
         ];
         $lead = $entity->lead;
 
+        if ($peopleId === null) {
+            //this is using the lead people Id
+            $peopleId = $lead->people->id;
+            $peopleFromLead = true;
+        }
+
         try {
             $people = People::getById($peopleId, $app);
         } catch (ModelNotFoundException $e) {
@@ -60,12 +67,22 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
             ];
         }
 
-        $latestFile = FilesystemEntities::query()
-            ->where('entity_id', $people->getId())
-            ->whereIn('system_modules_id', $systemModuleIds)
-            ->where('companies_id', $lead->companies_id)
-            ->latest()
-            ->first();
+        if (! $peopleFromLead) {
+            $latestFile = FilesystemEntities::query()
+                ->where('entity_id', $people->getId())
+                ->whereIn('system_modules_id', $systemModuleIds)
+                ->where('companies_id', $lead->companies_id)
+                ->latest()
+                ->first();
+        } else {
+            $latestFile = FilesystemEntities::query()
+                ->where('entity_id', $lead->getId())
+                ->whereIn('system_modules_id', $systemModuleIds)
+                ->where('companies_id', $lead->companies_id)
+                ->where('field_name', 'LIKE', '%Drivers_License%')
+                ->latest()
+                ->first();
+        }
 
         if ($latestFile === null) {
             return [
