@@ -129,14 +129,21 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                     $title = $entity->message['title'] ?? 'your prompt';
                     // Step 4: Create a new nugget message with the processed image
+                    $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
                     $createNuggetMessage = (new CreateNuggetMessageAction(
                         parentMessage: $entity,
                         messageData: [
                             'title' => $title,
                             'type' => 'image-format',
-                            'image' => $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path,
+                            'image' => $cdnImageUrl,
                         ],
                     ))->execute();
+
+
+                    $messageCopy = $entity->message;
+                    $messageCopy['ai_image'] = $cdnImageUrl;
+                    $entity->message = $messageCopy;
+                    $entity->save();
 
                     $endViaList = array_map(
                         [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
@@ -150,12 +157,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'company' => $entity->company,
                         'message' => "Your image for {$title} has been processed",
                         'title' => 'Image Processed',
-                        'metadata' => $createNuggetMessage->getMessage(),
+                        'metadata' => $entity->getMessage(),
                         'via' => $endViaList,
                         'message_owner_id' => $entity->user->getId(),
-                        'message_id' => $createNuggetMessage->getId(),
-                        'parent_message_id' => $createNuggetMessage->getId(),
-                        'destination_id' => $createNuggetMessage->getId(),
+                        'message_id' => $entity->getId(),
+                        'parent_message_id' => $entity->getId(),
+                        'destination_id' => $entity->getId(),
                         'destination_type' => 'MESSAGE',
                         'destination_event' => 'NEW_MESSAGE',
                     ];
