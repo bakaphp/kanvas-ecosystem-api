@@ -144,9 +144,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         'metadata' => $createNuggetMessage->getMessage(),
                         'via' => $endViaList,
                         'message_owner_id' => $entity->user->getId(),
-                        'message_id' => $entity->getId(),
-                        'parent_message_id' => $entity->parent_id,
-                        'destination_id' => $entity->getId(),
+                        'message_id' => $createNuggetMessage->getId(),
+                        'parent_message_id' => $createNuggetMessage->getId(),
+                        'destination_id' => $createNuggetMessage->getId(),
                         'destination_type' => 'MESSAGE',
                         'destination_event' => 'NEW_MESSAGE',
                     ];
