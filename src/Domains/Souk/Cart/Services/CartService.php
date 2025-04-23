@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Cart\Services;
 
-use Kanvas\Inventory\Variants\Models\Variants;
 use Joelwmale\Cart\Cart;
+use Kanvas\Inventory\Variants\Models\Variants;
 
 class CartService
 {
@@ -41,12 +41,18 @@ class CartService
         /**
          * @todo move to DTO
          */
+        $shipping = $this->cart->getCondition('Shipping');
         return [
             'id' => 'default',
             'items' => $cartItems, //$this->cart->getContent()->toArray(),
             'discounts' => $discounts,
             'total_discount' => $totalDiscount,
             'total' => $this->cart->getTotal(),
+            'shipping' => [
+                'name' => $shipping->getName(),
+                'value' => $shipping->getValue(),
+                'attributes' => $shipping->getAttributes()
+            ]
         ];
     }
 }
