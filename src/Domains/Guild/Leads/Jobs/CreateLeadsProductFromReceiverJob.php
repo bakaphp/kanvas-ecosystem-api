@@ -21,13 +21,4 @@ class CreateLeadsProductFromReceiverJob extends CreateLeadsFromReceiverJob
         $payload['field_maps'] = $fieldMaps;
         $sendLeadEmailsAction->execute($payload, $users, $notificationMode);
     }
-
-    protected function mapCustomFields(array $customFields): array
-    {
-        $fieldMaps = [];
-        foreach ($customFields as $customField) {
-            $fieldMaps[$customField['name']] = $customField['data'];
-        }
-        return $fieldMaps;
-    }
 }
