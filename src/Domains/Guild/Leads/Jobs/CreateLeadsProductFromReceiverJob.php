@@ -6,11 +6,12 @@ namespace Kanvas\Guild\Leads\Jobs;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Leads\Actions\SendLeadEmailsAction;
+use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class CreateLeadsProductFromReceiverJob extends CreateLeadsFromReceiverJob
 {
-    protected function sendLeadEmails(string $emailTemplate, Model $user, Lead $lead, array $payload): void
+    protected function sendLeadEmails(string $emailTemplate, array $users, Lead $lead, array $payload, LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL): void
     {
         $sendLeadEmailsAction = new SendLeadEmailsAction($lead, $emailTemplate);
         $fieldMaps = $this->mapCustomFields($payload['custom_fields']);
@@ -18,7 +19,7 @@ class CreateLeadsProductFromReceiverJob extends CreateLeadsFromReceiverJob
             $payload['product'] = $sendLeadEmailsAction->getProduct($fieldMaps['product_id']);
         }
         $payload['field_maps'] = $fieldMaps;
-        $sendLeadEmailsAction->execute($payload, $user);
+        $sendLeadEmailsAction->execute($payload, $users, $notificationMode);
     }
 
     protected function mapCustomFields(array $customFields): array

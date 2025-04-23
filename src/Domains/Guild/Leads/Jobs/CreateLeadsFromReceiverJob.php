@@ -15,6 +15,8 @@ use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
 use Kanvas\Guild\Leads\Actions\SendLeadEmailsAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
+use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
+use Kanvas\Guild\Leads\Enums\LeadNotificationUserModeEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Users\Models\Users;
@@ -75,6 +77,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             $leadOwner = $leadReceiver->rotation->getAgent();
             $payload['leads_owner_id'] = $leadOwner->getId();
             $user = $leadOwner;
+            $emailTemplate = $leadReceiver->rotation->config['email_template'] ?? $emailTemplate;
         }
 
         $createLead = new CreateLeadAction(
@@ -90,7 +93,15 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
 
         if ($emailTemplate) {
             $emailReceiverUser = $userFlag === 'user' ? $leadReceiver->user : $user;
-            $this->sendLeadEmails($emailTemplate, $emailReceiverUser, $lead, $payload);
+            $notificationMode = isset($leadReceiver->rotation->config['notification_mode']) ? LeadNotificationModeEnum::get($leadReceiver->rotation->config['notification_mode']) : LeadNotificationModeEnum::NOTIFY_ALL;
+            $notificationUserMode = isset($leadReceiver->rotation->config['notification_user_mode']) ? LeadNotificationUserModeEnum::get($leadReceiver->rotation->config['notification_user_mode']) : LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS;
+            $users = $notificationUserMode === LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS 
+            ? collect([$emailReceiverUser])
+            ->merge($leadReceiver->rotation->agents?->pluck('users') ?? [])
+            ->flatten()
+            ->all()
+            : [$emailReceiverUser];
+            $this->sendLeadEmails($emailTemplate, $users, $lead, $payload, $notificationMode);
         }
 
         $lead->fireWorkflow(
@@ -169,9 +180,9 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         return $finalJson;
     }
 
-    protected function sendLeadEmails(string $emailTemplate, Model $user, ModelsLead $lead, array $payload): void
+    protected function sendLeadEmails(string $emailTemplate, array $users, ModelsLead $lead, array $payload, LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL): void
     {
         $sendLeadEmailsAction = new SendLeadEmailsAction($lead, $emailTemplate);
-        $sendLeadEmailsAction->execute($payload, $user);
+        $sendLeadEmailsAction->execute($payload, $users, $notificationMode);
     }
 }
