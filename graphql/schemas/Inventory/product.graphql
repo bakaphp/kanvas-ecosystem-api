@@ -112,6 +112,12 @@ input ProductInputUpdate {
     categories: [ProductCategoriesReferenceInput!]
 }
 
+input NearByLocationInput {
+    lat: Float!
+    long: Float!
+    radius: Float! # in kilometers
+}
+
 input ProductAttributeOrderBy {
     name: String
     sort: String
@@ -202,6 +208,7 @@ extend type Query @guard {
         variantAttributeValue: String
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy
+        nearByLocation: NearByLocationInput
         where: _
             @whereConditions(
                 columns: [

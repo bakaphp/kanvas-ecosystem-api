@@ -50,6 +50,9 @@ class ProductBuilder
             );
         }
 
+        if (! empty($args['nearByLocation'])) {
+            $query->filterByNearLocation($args['nearByLocation']);
+        }
         return $query;
     }
 
