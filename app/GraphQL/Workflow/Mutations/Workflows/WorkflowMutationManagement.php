@@ -34,7 +34,7 @@ class WorkflowMutationManagement
         }
 
         if (! class_exists($entityClass)) {
-            throw new Exception('Entity ' . $entityClass . ' not found');
+            throw new Exception('Entity '.$entityClass.' not found');
         }
 
         try {
@@ -46,7 +46,7 @@ class WorkflowMutationManagement
                 ? $entityClass::getByUuid($entityId, $app)
                 : $entityClass::getById($entityId, $app);
         } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
-            throw new ExceptionsModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found");
+            throw new ExceptionsModelNotFoundException('Record '.class_basename($entityClass)." {$entityId} not found");
         }
 
         //validate action

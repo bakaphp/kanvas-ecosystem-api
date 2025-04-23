@@ -11,11 +11,11 @@ use Kanvas\Inventory\Models\BaseModel;
 /**
  * Class Variants Price History.
  *
- * @property int $product_variants_warehouse_id
- * @property int $price
+ * @property int    $product_variants_warehouse_id
+ * @property int    $price
  * @property string $from_date
  * @property string $created_at
- * @property bool $is_deleted
+ * @property bool   $is_deleted
  */
 class VariantsWarehousesPriceHistory extends BaseModel
 {

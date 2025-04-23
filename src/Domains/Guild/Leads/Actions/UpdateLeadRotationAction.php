@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
-use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\DataTransferObject\LeadRotation as LeadRotationDto;
-use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Users\Models\Users;
+use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\Models\LeadRotationAgent;
+use Kanvas\Users\Models\Users;
 
 class UpdateLeadRotationAction
 {
@@ -21,11 +20,11 @@ class UpdateLeadRotationAction
     public function execute(): LeadRotation
     {
         $this->leadRotation->update([
-            'companies_id' => $this->leadRotationDto->company->getId(),
-            'apps_id' => $this->leadRotationDto->app->getId(),
-            'name' => $this->leadRotationDto->name,
+            'companies_id'          => $this->leadRotationDto->company->getId(),
+            'apps_id'               => $this->leadRotationDto->app->getId(),
+            'name'                  => $this->leadRotationDto->name,
             'leads_rotations_email' => $this->leadRotationDto->leadsRotationsEmail,
-            'hits' => $this->leadRotationDto->hits
+            'hits'                  => $this->leadRotationDto->hits,
         ]);
         if ($this->leadRotationDto->agents) {
             $this->leadRotation->agents()->delete();

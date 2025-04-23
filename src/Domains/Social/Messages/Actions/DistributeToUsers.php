@@ -21,11 +21,11 @@ class DistributeToUsers
 
         $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
         $activity = [
-                    'username' => '',
-                    'entity_namespace' => '',
-                    'text' => ' ',
-                    'type' => $activityType->id,
-            ];
+            'username'         => '',
+            'entity_namespace' => '',
+            'text'             => ' ',
+            'type'             => $activityType->id,
+        ];
 
         FillUserMessage::dispatch($this->message, $this->message->user, $activity)->onQueue('message');
     }

@@ -24,7 +24,7 @@ class IndexTagsCommand extends Command
      */
     public function handle(): void
     {
-        /** @var Apps $app  */
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
         $company = Companies::find($this->argument('companies_id'));
@@ -44,12 +44,11 @@ class IndexTagsCommand extends Command
         foreach ($cursor as $tag) {
             $result = $tagsIndex->indexTags($tag);
 
-            $this->info('Tag ID: ' . $tag->getId() . ' indexed with result: ' . $result);
+            $this->info('Tag ID: '.$tag->getId().' indexed with result: '.$result);
             $this->output->progressAdvance();
         }
 
         $this->output->progressFinish();
 
-        return;
     }
 }

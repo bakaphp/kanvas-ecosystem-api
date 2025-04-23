@@ -15,8 +15,6 @@ class SetNotificationSettingAction
     /**
      * __construct.
      *
-     * @param  array $data
-     *
      * @return void
      */
     public function __construct(
@@ -38,7 +36,7 @@ class SetNotificationSettingAction
             $notificationSettings->users_id = $this->user->id;
             $notificationSettings->apps_id = $this->app->id;
             $notificationSettings->notifications_types_id = $this->notificationType->id;
-            $notificationSettings->is_enabled = (int)false;
+            $notificationSettings->is_enabled = (int) false;
             $notificationSettings->channels = $channels;
         } else {
             $notificationSettings->is_enabled = (int) ! $notificationSettings->is_enabled;

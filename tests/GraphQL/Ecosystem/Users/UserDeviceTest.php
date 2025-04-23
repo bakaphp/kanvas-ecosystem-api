@@ -15,8 +15,8 @@ class UserDeviceTest extends TestCase
         $source = Sources::firstOrFail();
 
         return [
-            'source_site' => $source->title,
-            'device_id' => Str::uuid(),
+            'source_site'     => $source->title,
+            'device_id'       => Str::uuid(),
             'source_username' => 'kanvasniche',
         ];
     }

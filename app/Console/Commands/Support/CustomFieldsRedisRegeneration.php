@@ -36,7 +36,7 @@ class CustomFieldsRedisRegeneration extends Command
 
         $className = $this->argument('className');
         if (! class_exists($className)) {
-            $this->error('Class does not exist ' . $className);
+            $this->error('Class does not exist '.$className);
 
             return;
         }
@@ -54,7 +54,7 @@ class CustomFieldsRedisRegeneration extends Command
             $entities->each(function ($entity) {
                 if (method_exists($entity, 'reCacheCustomFields')) {
                     $entity->reCacheCustomFields();
-                    $this->info('Regenerating custom fields for ' . get_class($entity) . ' with id ' . $entity->getId());
+                    $this->info('Regenerating custom fields for '.get_class($entity).' with id '.$entity->getId());
                 }
             });
 

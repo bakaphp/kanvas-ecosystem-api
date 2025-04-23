@@ -136,19 +136,19 @@ final class ProductTest extends TestCase
         $variants = [];
         for ($i = 0; $i < 2; $i++) {
             $variants[] = [
-                'name' => fake()->name,
-                'apps_id' => $product->app->getId(),
-                'companies_id' => $product->company->getId(),
-                'users_id' => $product->user->getId(),
-                'sku' => fake()->uuid,
-                'description' => fake()->sentence,
+                'name'              => fake()->name,
+                'apps_id'           => $product->app->getId(),
+                'companies_id'      => $product->company->getId(),
+                'users_id'          => $product->user->getId(),
+                'sku'               => fake()->uuid,
+                'description'       => fake()->sentence,
                 'short_description' => fake()->sentence,
-                'html_description' => fake()->sentence,
-                'status_id' => 1,
-                'ean' => fake()->uuid,
-                'barcode' => fake()->uuid,
-                'serial_number' => fake()->uuid,
-                'weight' => 1,
+                'html_description'  => fake()->sentence,
+                'status_id'         => 1,
+                'ean'               => fake()->uuid,
+                'barcode'           => fake()->uuid,
+                'serial_number'     => fake()->uuid,
+                'weight'            => 1,
             ];
         }
 
@@ -162,11 +162,11 @@ final class ProductTest extends TestCase
             $shopifyResponse[0]['title']
         );
         $this->assertEquals(
-            $product->name . ' (Part 2)',
+            $product->name.' (Part 2)',
             $shopifyResponse[1]['title']
         );
         $this->assertEquals(
-            $product->name . ' (Part 3)',
+            $product->name.' (Part 3)',
             $shopifyResponse[2]['title']
         );
     }

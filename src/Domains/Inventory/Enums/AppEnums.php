@@ -18,7 +18,7 @@ enum AppEnums implements EnumsInterface
     {
         return match ($this) {
             self::PRODUCT_VARIANTS_SEARCH_INDEX => 'products_variants_company_',
-            self::PRODUCT_SEARCH_INDEX => 'products_company_',
+            self::PRODUCT_SEARCH_INDEX          => 'products_company_',
         };
     }
 }

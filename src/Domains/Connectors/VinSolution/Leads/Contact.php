@@ -56,7 +56,7 @@ class Contact
         $params = http_build_query($params);
 
         $response = $client->get(
-            '/gateway/v1/contact?dealerId=' . $dealer->id . '&userId=' . $user->id . '&searchText=' . $search . '&' . $params,
+            '/gateway/v1/contact?dealerId='.$dealer->id.'&userId='.$user->id.'&searchText='.$search.'&'.$params,
         );
 
         return $response;
@@ -71,7 +71,7 @@ class Contact
         $data['DealerId'] = $dealer->id;
         $data['UserId'] = $user->id;
 
-        $response = $client->get('/gateway/v1/contact/' . $contactId . '?dealerId=' . $dealer->id . '&userId=' . $user->id);
+        $response = $client->get('/gateway/v1/contact/'.$contactId.'?dealerId='.$dealer->id.'&userId='.$user->id);
 
         return new Contact($response[0]);
     }
@@ -194,7 +194,7 @@ class Contact
             }
         }
 
-        $response = $client->put('/gateway/v1/contact/' . $this->id, json_encode($data));
+        $response = $client->put('/gateway/v1/contact/'.$this->id, json_encode($data));
 
         $data['ContactId'] = $this->id;
 

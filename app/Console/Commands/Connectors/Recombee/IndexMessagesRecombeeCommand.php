@@ -47,15 +47,14 @@ class IndexMessagesRecombeeCommand extends Command
             try {
                 $result = $messageIndex->indexPromptMessage($message);
 
-                $this->info('Message ID: ' . $message->getId() . ' indexed with result: ' . $result);
+                $this->info('Message ID: '.$message->getId().' indexed with result: '.$result);
                 $this->output->progressAdvance();
             } catch (Exception $e) {
-                $this->error('Error indexing message ID: ' . $message->getId() . ' with error: ' . $e->getMessage());
+                $this->error('Error indexing message ID: '.$message->getId().' with error: '.$e->getMessage());
             }
         }
 
         $this->output->progressFinish();
 
-        return;
     }
 }

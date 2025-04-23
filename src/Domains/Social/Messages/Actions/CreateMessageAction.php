@@ -28,22 +28,22 @@ class CreateMessageAction
     {
         return DB::connection('social')->transaction(function () {
             $data = [
-                'apps_id' => $this->messageInput->app->getId(),
-                'parent_id' => $this->messageInput->parent_id,
+                'apps_id'          => $this->messageInput->app->getId(),
+                'parent_id'        => $this->messageInput->parent_id,
                 'parent_unique_id' => $this->messageInput->parent_unique_id,
-                'companies_id' => $this->messageInput->company->getId(),
-                'users_id' => $this->messageInput->user->getId(),
+                'companies_id'     => $this->messageInput->company->getId(),
+                'users_id'         => $this->messageInput->user->getId(),
                 'message_types_id' => $this->messageInput->type->getId(),
-                'message' => $this->messageInput->message,
-                'reactions_count' => $this->messageInput->reactions_count,
-                'comments_count' => $this->messageInput->comments_count,
-                'total_liked' => $this->messageInput->total_liked,
-                'total_disliked' => $this->messageInput->total_disliked,
-                'total_saved' => $this->messageInput->total_saved,
-                'total_shared' => $this->messageInput->total_shared,
-                'ip_address' => $this->messageInput->ip_address,
-                'is_public' => $this->messageInput->is_public,
-                'slug' => $this->messageInput->slug,
+                'message'          => $this->messageInput->message,
+                'reactions_count'  => $this->messageInput->reactions_count,
+                'comments_count'   => $this->messageInput->comments_count,
+                'total_liked'      => $this->messageInput->total_liked,
+                'total_disliked'   => $this->messageInput->total_disliked,
+                'total_saved'      => $this->messageInput->total_saved,
+                'total_shared'     => $this->messageInput->total_shared,
+                'ip_address'       => $this->messageInput->ip_address,
+                'is_public'        => $this->messageInput->is_public,
+                'slug'             => $this->messageInput->slug,
             ];
 
             $validator = Validator::make($data, [

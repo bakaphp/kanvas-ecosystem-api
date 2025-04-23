@@ -31,11 +31,11 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
         ->first();
         $date = new Carbon($payload['published_at']);
         $data = [
-            'name' => $payload['title'],
-            'slug' => $payload['slug'],
-            'type_id' => $eventType->getId(),
+            'name'        => $payload['title'],
+            'slug'        => $payload['slug'],
+            'type_id'     => $eventType->getId(),
             'category_id' => $category->getId(),
-            'dates' => [
+            'dates'       => [
                 [
                     'date' => $date->format('Y-m-d'),
                 ],
@@ -62,7 +62,7 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
         $eventType = match ($primaryTag['name']) {
             CustomFieldEnum::GHOST_EVENT_WEB_FORUM->value => $app->get(CustomFieldEventWebhookEnum::WEBHOOK_WEB_FORUM_EVENT->value),
             CustomFieldEnum::GHOST_EVENT_IS_REPORT->value => $app->get(CustomFieldEventWebhookEnum::WEBHOOK_IS_REPORT_EVENT->value),
-            default => null,
+            default                                       => null,
         };
         if ($eventType === null) {
             return null;

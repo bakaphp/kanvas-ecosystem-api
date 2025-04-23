@@ -25,7 +25,7 @@ trait DatabaseSearchableTrait
     public function toSearchableArray(): array
     {
         return [
-            'id' => $this->id,
+            'id'   => $this->id,
             'name' => $this->name,
         ];
     }

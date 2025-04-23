@@ -65,7 +65,7 @@ class SyncPeopleWithNetSuiteAction
 
         if (! $updateResponse->writeResponse->status->isSuccess) {
             throw new Exception(
-                'Error updating customer: ' .
+                'Error updating customer: '.
                 ($updateResponse->writeResponse->status->statusDetail[0]->message ?? 'Unknown error')
             );
         }

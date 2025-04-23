@@ -18,13 +18,13 @@ class ProductsTest extends TestCase
     public function testSave(): void
     {
         $data = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
-            'weight' => 1,
-            'attributes' => [
+            'sku'         => fake()->time,
+            'weight'      => 1,
+            'attributes'  => [
                 [
-                    'name' => fake()->name,
+                    'name'  => fake()->name,
                     'value' => fake()->name,
                 ],
             ],
@@ -43,12 +43,12 @@ class ProductsTest extends TestCase
         $attributeName = fake()->name;
         $sku = fake()->time;
         $data = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'sku' => $sku,
-            'attributes' => [
+            'sku'         => $sku,
+            'attributes'  => [
                 [
-                    'name' => $attributeName,
+                    'name'  => $attributeName,
                     'value' => 0,
                 ],
             ],
@@ -77,28 +77,29 @@ class ProductsTest extends TestCase
         $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
         // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
     }
+
     public function testSortByVariantAttributes(): void
     {
         $attributeName = fake()->name;
         $sku = fake()->time;
         $data = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'sku' => $sku,
-            'attributes' => [
+            'sku'         => $sku,
+            'attributes'  => [
                 [
-                    'name' => $attributeName,
+                    'name'  => $attributeName,
                     'value' => 0,
                 ],
             ],
         ];
         $data['variants'][] = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'sku' => $sku,
-            'attributes' => [
+            'sku'         => $sku,
+            'attributes'  => [
                 [
-                    'name' => $attributeName,
+                    'name'  => $attributeName,
                     'value' => 0,
                 ],
             ],
@@ -126,6 +127,7 @@ class ProductsTest extends TestCase
         $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
         // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
     }
+
     /**
      * test get product.
      */
@@ -158,9 +160,9 @@ class ProductsTest extends TestCase
         $id = $response->json()['data']['createProduct']['id'];
 
         $data = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'weight' => 1,
+            'weight'      => 1,
         ];
         $this->graphQL('
         mutation($data: ProductInputUpdate! $id: ID!) {
@@ -269,9 +271,9 @@ class ProductsTest extends TestCase
     {
         // Create product with default variant
         $productData = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku'         => fake()->time,
         ];
         $productResponse = $this->graphQL('
         mutation($data: ProductInput!) {
@@ -324,8 +326,8 @@ class ProductsTest extends TestCase
         $id = $response->json()['data']['createProduct']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name . ' en',
-            'description' => fake()->text . ' en'
+            'name'        => fake()->name.' en',
+            'description' => fake()->text.' en',
         ];
         $response = $this->graphQL('
             mutation($dataUpdate: ProductTranslationInput!, $id: ID!, $code: String!) {
@@ -344,10 +346,10 @@ class ProductsTest extends TestCase
                     }
                 }
             }', [
-                'dataUpdate' => $dataUpdate,
-                'id' => $id,
-                'code' => $language->code
-            ]);
+            'dataUpdate' => $dataUpdate,
+            'id'         => $id,
+            'code'       => $language->code,
+        ]);
 
         $this->assertEquals(
             $dataUpdate['name'],

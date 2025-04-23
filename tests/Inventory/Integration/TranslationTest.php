@@ -33,15 +33,15 @@ final class TranslationTest extends TestCase
             sku: $sku,
             warehouses: [[
                 'quantity' => 10,
-                'price' => 0.29,
+                'price'    => 0.29,
             ],
             ]
         );
 
         $product = (new CreateProductAction($productData, $user))->execute();
-        $product->setTranslation('name', 'es', $product->name . ' es');
+        $product->setTranslation('name', 'es', $product->name.' es');
 
         $this->assertEquals($product->name, $product->getTranslation('name', 'en'));
-        $this->assertEquals($product->name . ' es', $product->getTranslation('name', 'es'));
+        $this->assertEquals($product->name.' es', $product->getTranslation('name', 'es'));
     }
 }

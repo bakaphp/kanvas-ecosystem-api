@@ -23,7 +23,7 @@ class ProductsRepository
 
     public static function getBySourceKey(string $key, string $id): Products
     {
-        $key = $key . '_id';
+        $key = $key.'_id';
 
         return Products::getByCustomField($key, $id);
     }

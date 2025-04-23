@@ -27,6 +27,7 @@ class CreateLeadsProductFromReceiverJob extends CreateLeadsFromReceiverJob
         foreach ($customFields as $customField) {
             $fieldMaps[$customField['name']] = $customField['data'];
         }
+
         return $fieldMaps;
     }
 }

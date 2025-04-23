@@ -23,21 +23,21 @@ class CreateUserInteractionAction
     ): UsersInteractions {
         $userInteraction = $allowDuplicate
         ? UsersInteractions::create([
-            'users_id' => $this->userInteractionData->user->getId(),
-            'apps_id' => $this->userInteractionData->interaction->apps_id,
-            'entity_id' => $this->userInteractionData->entity_id,
+            'users_id'         => $this->userInteractionData->user->getId(),
+            'apps_id'          => $this->userInteractionData->interaction->apps_id,
+            'entity_id'        => $this->userInteractionData->entity_id,
             'entity_namespace' => $this->userInteractionData->entity_namespace,
-            'interactions_id' => $this->userInteractionData->interaction->getId(),
-            'notes' => $this->userInteractionData->notes,
+            'interactions_id'  => $this->userInteractionData->interaction->getId(),
+            'notes'            => $this->userInteractionData->notes,
         ])
         : UsersInteractions::updateOrCreate([
-            'users_id' => $this->userInteractionData->user->getId(),
-            'apps_id' => $this->userInteractionData->interaction->apps_id,
-            'entity_id' => $this->userInteractionData->entity_id,
+            'users_id'         => $this->userInteractionData->user->getId(),
+            'apps_id'          => $this->userInteractionData->interaction->apps_id,
+            'entity_id'        => $this->userInteractionData->entity_id,
             'entity_namespace' => $this->userInteractionData->entity_namespace,
-            'interactions_id' => $this->userInteractionData->interaction->getId(),
+            'interactions_id'  => $this->userInteractionData->interaction->getId(),
         ], [
-            'notes' => $this->userInteractionData->notes,
+            'notes'      => $this->userInteractionData->notes,
             'is_deleted' => 0,
         ]);
 

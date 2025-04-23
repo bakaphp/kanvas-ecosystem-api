@@ -36,8 +36,6 @@ class ShopifyInventorySyncCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -77,6 +75,5 @@ class ShopifyInventorySyncCommand extends Command
             }
         }
 
-        return;
     }
 }

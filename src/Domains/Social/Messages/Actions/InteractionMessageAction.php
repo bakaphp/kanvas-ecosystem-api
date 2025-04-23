@@ -29,15 +29,14 @@ class InteractionMessageAction
             $text = 'reported this message';
         }
 
-
         $userMessage = (new CreateUserMessageAction(
             $this->message,
             $this->user,
             [
                 'entity_namespace' => $this->message::class,
-                'username' => $this->user->displayname,
-                'type' => $this->activityType->value,
-                'text' => $text,
+                'username'         => $this->user->displayname,
+                'type'             => $this->activityType->value,
+                'text'             => $text,
             ]
         ))->execute();
 

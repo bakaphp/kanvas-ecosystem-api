@@ -27,11 +27,11 @@ class Setup
     public array $leadTypes = [
         'Cold' => 'Cold',
         'Warm' => 'Warm',
-        'Hot' => 'Hot',
-        'IQL' => 'Information Qualified Lead',
-        'SRL' => 'Sales-Ready Lead',
-        'MQL' => 'Marketing Qualified Leads',
-        'SQL' => 'Sales Qualified Lead',
+        'Hot'  => 'Hot',
+        'IQL'  => 'Information Qualified Lead',
+        'SRL'  => 'Sales-Ready Lead',
+        'MQL'  => 'Marketing Qualified Leads',
+        'SQL'  => 'Sales Qualified Lead',
     ];
 
     public array $leadSources = [
@@ -104,22 +104,22 @@ class Setup
 
         foreach ($this->leadTypes as $key => $value) {
             LeadType::firstOrCreate([
-                'name' => $key,
+                'name'         => $key,
                 'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
+                'apps_id'      => $this->app->getId(),
             ], [
-               'description' => $value,
+                'description' => $value,
             ]);
         }
 
         foreach ($this->leadSources as $key => $value) {
             LeadSource::firstOrCreate([
-                'name' => $value,
+                'name'         => $value,
                 'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
+                'apps_id'      => $this->app->getId(),
             ], [
-               'description' => $value ?? null,
-               'leads_types_id' => null,
+                'description'    => $value ?? null,
+                'leads_types_id' => null,
             ]);
         }
 
@@ -129,19 +129,19 @@ class Setup
 
         $defaultPipelineName = 'Default Leads';
         $defaultPipeline = Pipeline::firstOrCreate([
-            'name' => $defaultPipelineName,
-            'companies_id' => $this->company->getId(),
+            'name'              => $defaultPipelineName,
+            'companies_id'      => $this->company->getId(),
             'system_modules_id' => $leadSystemModule->getId(),
         ], [
-            'users_id' => $this->user->getId(),
+            'users_id'   => $this->user->getId(),
             'is_default' => StateEnums::YES->getValue(),
-            'weight' => 0,
+            'weight'     => 0,
         ]);
 
         $weight = 1;
         foreach ($this->defaultStages as $key => $value) {
             PipelineStage::firstOrCreate([
-                'name' => $value,
+                'name'         => $value,
                 'pipelines_id' => $defaultPipeline->getId(),
             ], [
                 'weight' => $weight++,
@@ -150,15 +150,15 @@ class Setup
 
         LeadReceiver::firstOrCreate([
             'companies_branches_id' => $this->company->defaultBranch()->firstOrFail()->getId(),
-            'companies_id' => $this->company->getId(),
-            'apps_id' => $this->app->getId(),
-            'is_default' => StateEnums::YES->getValue(),
+            'companies_id'          => $this->company->getId(),
+            'apps_id'               => $this->app->getId(),
+            'is_default'            => StateEnums::YES->getValue(),
         ], [
-            'users_id' => $this->user->getId(),
-            'agents_id' => $this->user->getId(),
-            'name' => 'Default Receiver',
+            'users_id'     => $this->user->getId(),
+            'agents_id'    => $this->user->getId(),
+            'name'         => 'Default Receiver',
             'rotations_id' => 0,
-            'source_name' => 'Default Receiver',
+            'source_name'  => 'Default Receiver',
         ]);
 
         foreach ($this->leadStatus as $key => $value) {

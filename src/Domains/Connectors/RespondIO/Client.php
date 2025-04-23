@@ -31,7 +31,7 @@ class Client
     {
         $response = Http::withToken($this->bearerToken)
                         ->withOptions($params)
-                        ->post($this->baseUrl . $path, $data);
+                        ->post($this->baseUrl.$path, $data);
 
         return $response->json() ?? [];
     }
@@ -39,10 +39,10 @@ class Client
     public function sendMessage(string $phone, string $message, array $params = []): array
     {
         if (! Str::startsWith($phone, ['1', '+'])) {
-            $phone = '+1' . $phone;
+            $phone = '+1'.$phone;
         }
         if (! Str::startsWith($phone, ['+'])) {
-            $phone = '+' . $phone;
+            $phone = '+'.$phone;
         }
 
         $path = "/contact/phone:$phone/message";

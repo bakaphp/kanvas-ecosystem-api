@@ -53,9 +53,9 @@ class PushNotificationsHandlerJob implements ShouldQueue
             $oneSignalRestApiKey = $this->app->get(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue());
 
             match (true) {
-                empty($oneSignalAppId) => throw new Exception($this->app->name . ' OneSignal App ID is not set'),
-                empty($oneSignalRestApiKey) => throw new Exception($this->app->name . ' OneSignal Rest API Key is not set'),
-                default => null,
+                empty($oneSignalAppId)      => throw new Exception($this->app->name.' OneSignal App ID is not set'),
+                empty($oneSignalRestApiKey) => throw new Exception($this->app->name.' OneSignal Rest API Key is not set'),
+                default                     => null,
             };
 
             $oneSignalClient = new OneSignalClient(

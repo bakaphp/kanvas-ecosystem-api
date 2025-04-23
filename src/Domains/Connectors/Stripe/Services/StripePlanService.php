@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Subscription\Plans\Repositories\PlanRepository;
 
 class StripePlanService
 {
@@ -27,11 +26,11 @@ class StripePlanService
         $status = $webhookPlan['active'];
 
         return [
-            'apps_id' => $this->app->getId(),
-            'name' => $name,
+            'apps_id'     => $this->app->getId(),
+            'name'        => $name,
             'description' => $description,
-            'stripe_id' => $this->stripePlanId,
-            'is_active' => $status,
+            'stripe_id'   => $this->stripePlanId,
+            'is_active'   => $status,
         ];
     }
 }

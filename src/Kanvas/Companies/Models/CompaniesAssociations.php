@@ -13,7 +13,6 @@ use Kanvas\Models\BaseModel;
  * @property int $companies_groups_id
  * @property int $companies_id
  * @property int $is_default
- *
  */
 class CompaniesAssociations extends BaseModel
 {
@@ -26,8 +25,6 @@ class CompaniesAssociations extends BaseModel
 
     /**
      * CompaniesGroups relationship.
-     *
-     * @return BelongsTo
      */
     public function companiesGroups(): BelongsTo
     {
@@ -36,8 +33,6 @@ class CompaniesAssociations extends BaseModel
 
     /**
      * Companies relationship.
-     *
-     * @return BelongsTo
      */
     public function companies(): BelongsTo
     {

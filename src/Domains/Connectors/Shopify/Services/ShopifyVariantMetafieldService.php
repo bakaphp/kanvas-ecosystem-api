@@ -19,10 +19,10 @@ class ShopifyVariantMetafieldService
 {
     protected ShopifySDK $shopifySdk;
     protected array $types = [
-        'string' => 'multi_line_text_field',
-        'json' => 'json',
+        'string'  => 'multi_line_text_field',
+        'json'    => 'json',
         'integer' => 'number_integer',
-        'double' => 'number_decimal',
+        'double'  => 'number_decimal',
     ];
 
     public function __construct(
@@ -60,10 +60,10 @@ class ShopifyVariantMetafieldService
             }
 
             $mutationGraphql = [
-                'namespace' => 'attributes',
-                'key' => $attribute->name,
-                'value' => $attributeValue,
-                'type' => $this->types[$type],
+                'namespace'  => 'attributes',
+                'key'        => $attribute->name,
+                'value'      => $attributeValue,
+                'type'       => $this->types[$type],
                 'variant_id' => $shopifyProductVariantId,
             ];
             $metaField = $shopifyProduct->Variant($shopifyProductVariantId)->Metafield->post($mutationGraphql);
@@ -95,9 +95,9 @@ class ShopifyVariantMetafieldService
         $type = gettype($value);
 
         return match ($type) {
-            'array' => 'json',
+            'array'  => 'json',
             'string' => Str::isJson($value) ? 'json' : 'string',
-            default => $type,
+            default  => $type,
         };
     }
 

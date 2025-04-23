@@ -32,7 +32,7 @@ class ProductReceiverJob extends ProcessWebhookJob
 
         return [
             'message' => 'Product created successfully',
-            'order' => $createProduct->execute()->getId(),
+            'order'   => $createProduct->execute()->getId(),
         ];
     }
 }

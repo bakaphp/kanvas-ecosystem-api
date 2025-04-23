@@ -19,7 +19,7 @@ class UsersInteractionsTest extends TestCase
             ',
             [
                 'input' => [
-                    'entity_id' => fake()->uuid(),
+                    'entity_id'        => fake()->uuid(),
                     'entity_namespace' => Lead::class,
                 ],
             ]
@@ -31,7 +31,7 @@ class UsersInteractionsTest extends TestCase
     public function testUserUnlikeEntity()
     {
         $input = [
-            'entity_id' => fake()->uuid(),
+            'entity_id'        => fake()->uuid(),
             'entity_namespace' => Lead::class,
         ];
         $this->graphQL(
@@ -55,14 +55,14 @@ class UsersInteractionsTest extends TestCase
                 'input' => $input,
             ]
         )->assertJson([
-             'data' => ['userUnLikeEntity' => true],
-         ]);
+            'data' => ['userUnLikeEntity' => true],
+        ]);
     }
 
     public function testDisLikeEntity()
     {
         $input = [
-            'entity_id' => fake()->uuid(),
+            'entity_id'        => fake()->uuid(),
             'entity_namespace' => Lead::class,
         ];
 
@@ -93,7 +93,7 @@ class UsersInteractionsTest extends TestCase
                 'id' => $user->getId(),
             ]
         )->assertJson([
-            'data' => ['shareUser' => '/' . $user->displayname],
+            'data' => ['shareUser' => '/'.$user->displayname],
         ]);
     }
 }

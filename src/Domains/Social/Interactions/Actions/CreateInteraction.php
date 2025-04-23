@@ -24,9 +24,9 @@ class CreateInteraction
          */
         return Interactions::firstOrCreate([
             'apps_id' => $this->interaction->app->getId(),
-            'name' => $this->interaction->name,
+            'name'    => $this->interaction->name,
         ], [
-            'title' => $this->interaction->title,
+            'title'       => $this->interaction->title,
             'description' => $this->interaction->description,
         ]);
     }

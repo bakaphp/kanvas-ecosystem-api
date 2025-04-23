@@ -16,19 +16,19 @@ final class RenderTest extends TestCase
     {
         $createParentTemplate = new CreateTemplateAction(
             TemplateInput::from([
-                'app' => app(Apps::class),
-                'name' => 'parent',
+                'app'      => app(Apps::class),
+                'name'     => 'parent',
                 'template' => '<html><body>Body Here [body]</body></html>',
-                ])
+            ])
         );
         $parentTemplate = $createParentTemplate->execute();
 
         $childTemplate = new CreateTemplateAction(
             TemplateInput::from([
-                'app' => app(Apps::class),
-                'name' => 'child',
+                'app'      => app(Apps::class),
+                'name'     => 'child',
                 'template' => 'Im the kid',
-                ])
+            ])
         );
         $childTemplate = $childTemplate->execute();
         $childTemplate->addParentTemplate($parentTemplate);

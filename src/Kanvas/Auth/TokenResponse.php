@@ -24,15 +24,15 @@ class TokenResponse
     public static function format(Users $user, array $token): array
     {
         return [
-            'sessionId' => $token['sessionId'],
-            'token' => $token['token'],
-            'refresh_token' => $token['refresh_token'],
-            'time' => date('Y-m-d H:i:s'),
-            'expires' => $token['token_expiration'],
+            'sessionId'             => $token['sessionId'],
+            'token'                 => $token['token'],
+            'refresh_token'         => $token['refresh_token'],
+            'time'                  => date('Y-m-d H:i:s'),
+            'expires'               => $token['token_expiration'],
             'refresh_token_expires' => $token['refresh_token_expiration'],
-            'id' => $user->getId(),
-            'uuid' => $user->uuid,
-            'timezone' => $user->timezone,
+            'id'                    => $user->getId(),
+            'uuid'                  => $user->uuid,
+            'timezone'              => $user->timezone,
         ];
     }
 }

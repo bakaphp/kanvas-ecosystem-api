@@ -17,9 +17,9 @@ enum StatusEnums implements EnumsInterface
     {
         return match ($this) {
             self::ANONYMOUS => -1,
-            self::ACTIVE => 1,
-            self::INACTIVE => 0,
-            self::INVITED => 2
+            self::ACTIVE    => 1,
+            self::INACTIVE  => 0,
+            self::INVITED   => 2
         };
     }
 }

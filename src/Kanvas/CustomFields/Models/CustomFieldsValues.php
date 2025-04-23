@@ -10,15 +10,15 @@ use Kanvas\Models\BaseModel;
 /**
  * CustomFieldsModules Model.
  *
- * @property int $id
- * @property int $custom_fields_id
- * @property int $is_default
+ * @property int    $id
+ * @property int    $custom_fields_id
+ * @property int    $is_default
  * @property string $label
  * @property string $value
  * @property string $attributes
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_delete
+ * @property int    $is_delete
  */
 class CustomFieldsValues extends BaseModel
 {
@@ -31,8 +31,6 @@ class CustomFieldsValues extends BaseModel
 
     /**
      * Custom field modules.
-     *
-     * @return BelongsTo
      */
     public function customField(): BelongsTo
     {

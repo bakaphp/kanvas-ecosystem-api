@@ -26,12 +26,12 @@ trait SearchProductWorkflowTrait
         $app->fireWorkflow(
             event: WorkflowEnum::SEARCH->value,
             params: [
-                'app' => $app,
-                'user' => $user,
+                'app'           => $app,
+                'user'          => $user,
                 'companyBranch' => $companyBranch,
-                'region' => $region,
-                'search' => $search,
-                'uuid' => Str::uuid(),
+                'region'        => $region,
+                'search'        => $search,
+                'uuid'          => Str::uuid(),
             ]
         );
     }

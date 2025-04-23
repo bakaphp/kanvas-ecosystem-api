@@ -28,11 +28,11 @@ class CreateCategoriesAction
         $parentCategories = null;
         foreach ($categories as $key => $category) {
             $dto = CategoriesDto::from([
-                'app' => $this->app,
-                'company' => $this->company,
-                'user' => $this->user,
-                'name' => $category,
-                'position' => $key,
+                'app'       => $this->app,
+                'company'   => $this->company,
+                'user'      => $this->user,
+                'name'      => $category,
+                'position'  => $key,
                 'parent_id' => $parentCategories ? $parentCategories->id : null,
             ]);
             $action = new UpdateCategory($dto, $this->user);

@@ -15,10 +15,9 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Override;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ProductImporterJob extends AbstractImporterJob
 {
@@ -68,7 +67,7 @@ class ProductImporterJob extends AbstractImporterJob
             } catch (Throwable $e) {
                 $errorDetails = [
                     'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
+                    'trace'   => $e->getTraceAsString(),
                     'request' => $request,
                 ];
                 $errors[] = $errorDetails;
@@ -88,15 +87,15 @@ class ProductImporterJob extends AbstractImporterJob
         $this->executeWorkflow(
             $company,
             [
-                'app' => $this->app,
-                'company' => $company,
-                'total_items' => $totalItems,
+                'app'                        => $this->app,
+                'company'                    => $company,
+                'total_items'                => $totalItems,
                 'total_process_successfully' => $totalProcessSuccessfully,
-                'total_process_failed' => $totalProcessFailed,
-                'created' => $created,
-                'updated' => $updated,
-                'errors' => $errors,
-                'process_product_ids' => $processProductIds,
+                'total_process_failed'       => $totalProcessFailed,
+                'created'                    => $created,
+                'updated'                    => $updated,
+                'errors'                     => $errors,
+                'process_product_ids'        => $processProductIds,
             ]
         );
 
@@ -122,19 +121,19 @@ class ProductImporterJob extends AbstractImporterJob
         Companies $company
     ): void {
         $subscriptionData = [
-                   'jobUuid' => $this->jobUuid,
-                   'status' => 'completed',
-                   'results' => [
-                       'total_items' => $totalItems,
-                       'total_process_successfully' => $totalProcessSuccessfully,
-                       'total_process_failed' => $totalProcessFailed,
-                       'created' => $created,
-                       'updated' => $updated,
-                   ],
-                   'exception' => $errors,
-                   //'user' => $this->user,
-                  // 'company' => $company,
-               ];
+            'jobUuid' => $this->jobUuid,
+            'status'  => 'completed',
+            'results' => [
+                'total_items'                => $totalItems,
+                'total_process_successfully' => $totalProcessSuccessfully,
+                'total_process_failed'       => $totalProcessFailed,
+                'created'                    => $created,
+                'updated'                    => $updated,
+            ],
+            'exception' => $errors,
+            //'user' => $this->user,
+            // 'company' => $company,
+        ];
 
         ProductImportEvent::dispatch(
             $this->app,

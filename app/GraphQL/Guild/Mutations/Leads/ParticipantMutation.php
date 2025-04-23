@@ -24,7 +24,7 @@ class ParticipantMutation
     }
 
     /**
-     * Remove participant
+     * Remove participant.
      */
     public function remove(mixed $root, array $req): bool
     {

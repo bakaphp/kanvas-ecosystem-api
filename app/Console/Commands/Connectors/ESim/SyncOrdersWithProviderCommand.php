@@ -36,8 +36,6 @@ class SyncOrdersWithProviderCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -88,15 +86,14 @@ class SyncOrdersWithProviderCommand extends Command
             }
 
             match (strtolower($provider->value)) {
-                strtolower(ProviderEnum::E_SIM_GO->value) => $this->esimGoFulfillment($eSimService, $order, $iccid, $bundle),
+                strtolower(ProviderEnum::E_SIM_GO->value)        => $this->esimGoFulfillment($eSimService, $order, $iccid, $bundle),
                 strtolower(ProviderEnum::EASY_ACTIVATION->value) => [],
-                strtolower(ProviderEnum::CMLINK->value) => $this->cmLinkFulfillment($cmLinkCustomerService, $order, $iccid),
-                strtolower(ProviderEnum::AIRALO->value) => $this->airaloFulfillment($airaloService, $order, $iccid, $bundle),
-                default => [],
+                strtolower(ProviderEnum::CMLINK->value)          => $this->cmLinkFulfillment($cmLinkCustomerService, $order, $iccid),
+                strtolower(ProviderEnum::AIRALO->value)          => $this->airaloFulfillment($airaloService, $order, $iccid, $bundle),
+                default                                          => [],
             };
         }
 
-        return;
     }
 
     protected function cmLinkFulfillment(CustomerService $customerService, Order $order, string $iccid): void
@@ -195,7 +192,7 @@ class SyncOrdersWithProviderCommand extends Command
                 $order->completed();
                 $this->info("Syncing order ID: {$order->id}");
             } else {
-                $this->info("Order ID: {$order->id} is not active. Status: " . ($response['status'] ?? 'unknown'));
+                $this->info("Order ID: {$order->id} is not active. Status: ".($response['status'] ?? 'unknown'));
             }
         }
     }

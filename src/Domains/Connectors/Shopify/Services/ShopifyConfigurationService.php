@@ -22,9 +22,9 @@ class ShopifyConfigurationService
         $clientCredentialNaming = self::generateCredentialKey($data->company, $data->app, $data->region);
 
         $configData = [
-            CustomFieldEnum::SHOPIFY_API_KEY->value => $data->apiKey,
+            CustomFieldEnum::SHOPIFY_API_KEY->value    => $data->apiKey,
             CustomFieldEnum::SHOPIFY_API_SECRET->value => $data->apiSecret,
-            CustomFieldEnum::SHOP_URL->value => $data->shopUrl,
+            CustomFieldEnum::SHOP_URL->value           => $data->shopUrl,
         ];
 
         return $data->company->set(
@@ -35,7 +35,7 @@ class ShopifyConfigurationService
 
     public static function generateCredentialKey(CompanyInterface $company, AppInterface $app, Regions $region): string
     {
-        return CustomFieldEnum::SHOPIFY_API_CREDENTIAL->value . '-' . $app->getId() . '-' . $company->getId() . '-' . $region->getId();
+        return CustomFieldEnum::SHOPIFY_API_CREDENTIAL->value.'-'.$app->getId().'-'.$company->getId().'-'.$region->getId();
     }
 
     public static function getProductKey(Products $product, Regions $region): string
@@ -60,6 +60,6 @@ class ShopifyConfigurationService
 
     public static function getKey(string $key, CompanyInterface $company, AppInterface $app, Regions $region): string
     {
-        return $key . '-' . $app->getId() . '-' . $company->getId() . '-' . $region->getId();
+        return $key.'-'.$app->getId().'-'.$company->getId().'-'.$region->getId();
     }
 }

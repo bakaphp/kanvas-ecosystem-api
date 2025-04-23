@@ -28,8 +28,6 @@ class ScoutMessageReindexCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -38,18 +36,17 @@ class ScoutMessageReindexCommand extends Command
 
         $this->reindex($app);
 
-        return;
     }
 
     public function reindex(Apps $app)
     {
-        $this->info('Reindex scout index for message App ' . $app->name);
+        $this->info('Reindex scout index for message App '.$app->name);
         $messages = Message::fromApp($app)
             ->where('is_public', 1)
             ->where('message_types_id', $this->argument('message_types_id'))
             ->where('is_deleted', 0);
 
-        $this->info('Total messages to reindexed: ' . $messages->count());
+        $this->info('Total messages to reindexed: '.$messages->count());
         $messages->searchable();
     }
 }

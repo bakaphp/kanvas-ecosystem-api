@@ -31,7 +31,7 @@ class UsersFollowsRepository
         $socialConnection = config('database.connections.social.database');
         $app = $app ?? app(Apps::class);
 
-        return Users::join($socialConnection . '.users_follows', 'users.id', '=', 'users_follows.entity_id')
+        return Users::join($socialConnection.'.users_follows', 'users.id', '=', 'users_follows.entity_id')
                 ->where('users_follows.apps_id', $app->getId())
                 ->where('users_follows.is_deleted', 0)
                 ->where('users_follows.users_id', $user->id)
@@ -59,7 +59,7 @@ class UsersFollowsRepository
         $socialConnection = config('database.connections.social.database');
         $app = $app ?? app(Apps::class);
 
-        return Users::join($socialConnection . '.users_follows', 'users.id', '=', 'users_follows.users_id')
+        return Users::join($socialConnection.'.users_follows', 'users.id', '=', 'users_follows.users_id')
                 ->where('users_follows.apps_id', $app->getId())
                 ->where('users_follows.is_deleted', 0)
                 ->where('users_follows.entity_id', $entity->id)
@@ -75,10 +75,10 @@ class UsersFollowsRepository
         $app = $app ?? app(Apps::class);
 
         return UsersFollows::where('users_follows.users_id', $user->id)
-            ->join($ecosystemConnection . '.users_associated_apps', 'users_follows.users_id', '=', 'users_associated_apps.users_id')
-            ->where($ecosystemConnection . '.users_associated_apps.apps_id', $app->getId())
-            ->where($ecosystemConnection . '.users_associated_apps.is_deleted', 0)
-            ->where($ecosystemConnection . '.users_associated_apps.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->join($ecosystemConnection.'.users_associated_apps', 'users_follows.users_id', '=', 'users_associated_apps.users_id')
+            ->where($ecosystemConnection.'.users_associated_apps.apps_id', $app->getId())
+            ->where($ecosystemConnection.'.users_associated_apps.is_deleted', 0)
+            ->where($ecosystemConnection.'.users_associated_apps.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
             ->where('users_follows.is_deleted', 0);
     }
 

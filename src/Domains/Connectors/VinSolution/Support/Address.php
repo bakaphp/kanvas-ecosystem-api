@@ -39,15 +39,15 @@ class Address
         $type = $this->address->type && $this->address->type->name == AddressEnum::PREVIOUS_HOME->value ? 'Previous' : 'Primary';
 
         return [
-            'AddressId' => $this->index,
-            'AddressType' => $type ,
-            'StreetAddress' => $this->getValue($this->address->address),
+            'AddressId'      => $this->index,
+            'AddressType'    => $type,
+            'StreetAddress'  => $this->getValue($this->address->address),
             'StreetAddress2' => null,
-            'City' => $this->getCity(),
-            'PostalCode' => $this->getValue($this->address->zip),
-            'County' => $this->getValue($this->address->county),
-            'State' => $this->getState(),
-            'Duration' => null,
+            'City'           => $this->getCity(),
+            'PostalCode'     => $this->getValue($this->address->zip),
+            'County'         => $this->getValue($this->address->county),
+            'State'          => $this->getState(),
+            'Duration'       => null,
         ];
     }
 

@@ -67,7 +67,7 @@ trait NotificationRenderTrait
     }
 
     /**
-     * Given the HTML for the current email notification
+     * Given the HTML for the current email notification.
      */
     protected function getEmailTemplate(): string
     {
@@ -84,9 +84,9 @@ trait NotificationRenderTrait
     }
 
     /**
-     * setTemplateName
+     * setTemplateName.
      *
-     * @param  mixed $name
+     * @param mixed $name
      */
     public function setTemplateName(string $name): self
     {
@@ -103,7 +103,7 @@ trait NotificationRenderTrait
     }
 
     /**
-     * setData
+     * setData.
      */
     public function setData(array $data): self
     {

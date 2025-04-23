@@ -33,7 +33,7 @@ class RemoveCompanyAction
     }
 
     /**
-     * execute
+     * execute.
      */
     public function execute(): void
     {

@@ -71,8 +71,8 @@ class GenerateGoogleUserMessageAction
 
                 $existingUserMessage = UserMessage::withTrashed()->where([
                     'messages_id' => $messageId->getId(),
-                    'users_id' => $this->user->getId(),
-                    'apps_id' => $this->app->getId(),
+                    'users_id'    => $this->user->getId(),
+                    'apps_id'     => $this->app->getId(),
                 ])
                 ->lockForUpdate()
                 ->first();
@@ -85,10 +85,10 @@ class GenerateGoogleUserMessageAction
                 } else {
                     UserMessage::create([
                         'messages_id' => $messageId->getId(),
-                        'users_id' => $this->user->getId(),
-                        'apps_id' => $this->app->getId(),
-                        'is_deleted' => 0,
-                        'created_at' => Carbon::now()->subSeconds($totalSeconds - ($index * $secondsInterval)),
+                        'users_id'    => $this->user->getId(),
+                        'apps_id'     => $this->app->getId(),
+                        'is_deleted'  => 0,
+                        'created_at'  => Carbon::now()->subSeconds($totalSeconds - ($index * $secondsInterval)),
                     ]);
                 }
             }

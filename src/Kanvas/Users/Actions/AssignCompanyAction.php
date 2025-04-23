@@ -37,7 +37,7 @@ class AssignCompanyAction
     }
 
     /**
-     * execute
+     * execute.
      */
     public function execute(): void
     {
@@ -73,7 +73,7 @@ class AssignCompanyAction
          */
         if ($app->get(AppSettingsEnums::USE_LEGACY_ROLES->getValue(), false)) {
             if (! $roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
-                $roleLegacy = $app->name . '.' . $this->user->role()->notDeleted()->first()->name;
+                $roleLegacy = $app->name.'.'.$this->user->role()->notDeleted()->first()->name;
             }
 
             $assignRoleLegacy = new ActionsAssignRoleAction($this->user, $this->company, $app);

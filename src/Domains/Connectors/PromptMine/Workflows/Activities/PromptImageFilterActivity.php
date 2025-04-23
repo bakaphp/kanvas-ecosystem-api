@@ -54,14 +54,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             integrationOperation: function ($entity) use ($messageFiles, $params, $imageFilter) {
                 if (empty($this->apiUrl)) {
                     return [
-                        'result' => false,
+                        'result'  => false,
                         'message' => 'API URL not configured',
                     ];
                 }
 
                 if ($messageFiles->isEmpty()) {
                     return [
-                        'result' => false,
+                        'result'  => false,
                         'message' => 'Message does not have any files',
                     ];
                 }
@@ -74,10 +74,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                     if (! isset($submitResponse['request_id'])) {
                         return [
-                            'result' => false,
+                            'result'   => false,
                             'response' => $submitResponse,
-                            'filter' => $imageFilter,
-                            'message' => 'Failed to submit image for processing',
+                            'filter'   => $imageFilter,
+                            'message'  => 'Failed to submit image for processing',
                         ];
                     }
 
@@ -88,11 +88,11 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                     if ($statusResponse['status'] !== 'COMPLETED') {
                         return [
-                            'result' => false,
-                            'response' => $statusResponse,
-                            'filter' => $imageFilter,
+                            'result'     => false,
+                            'response'   => $statusResponse,
+                            'filter'     => $imageFilter,
                             'request_id' => $requestId,
-                            'message' => 'Image processing did not complete successfully',
+                            'message'    => 'Image processing did not complete successfully',
                         ];
                     }
 
@@ -102,11 +102,11 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                     if ($processedImageUrl === null) {
                         return [
-                            'result' => false,
-                            'response' => $resultResponse,
-                            'filter' => $imageFilter,
+                            'result'     => false,
+                            'response'   => $resultResponse,
+                            'filter'     => $imageFilter,
                             'request_id' => $requestId,
-                            'message' => 'Failed to retrieve processed image',
+                            'message'    => 'Failed to retrieve processed image',
                         ];
                     }
 
@@ -132,9 +132,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     $createNuggetMessage = (new CreateNuggetMessageAction(
                         parentMessage: $entity,
                         messageData: [
-                            'title' => $title,
-                            'type' => 'image-format',
-                            'image' => $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path,
+                            'title'     => $title,
+                            'type'      => 'image-format',
+                            'image'     => $entity->app->get('cloud-cdn').'/'.$fileSystemRecord->path,
                             'parent_id' => $entity->parent_id,
                         ],
                     ))->execute();
@@ -145,18 +145,18 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     );
 
                     $config = [
-                        'email_template' => $params['email_template'],
-                        'push_template' => $params['push_template'],
-                        'app' => $entity->app,
-                        'company' => $entity->company,
-                        'message' => "Your image for {$title} has been processed",
-                        'title' => 'Image Processed',
-                        'metadata' => $createNuggetMessage->getMessage(),
-                        'via' => $endViaList,
-                        'message_owner_id' => $entity->user->getId(),
-                        'message_id' => $entity->getId(),
-                        'destination_id' => $entity->getId(),
-                        'destination_type' => 'MESSAGE',
+                        'email_template'    => $params['email_template'],
+                        'push_template'     => $params['push_template'],
+                        'app'               => $entity->app,
+                        'company'           => $entity->company,
+                        'message'           => "Your image for {$title} has been processed",
+                        'title'             => 'Image Processed',
+                        'metadata'          => $createNuggetMessage->getMessage(),
+                        'via'               => $endViaList,
+                        'message_owner_id'  => $entity->user->getId(),
+                        'message_id'        => $entity->getId(),
+                        'destination_id'    => $entity->getId(),
+                        'destination_type'  => 'MESSAGE',
                         'destination_event' => 'NEW_MESSAGE',
                     ];
 
@@ -172,31 +172,31 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         report($e);
 
                         return [
-                            'result' => false,
-                            'message' => 'Error in notification to user',
+                            'result'    => false,
+                            'message'   => 'Error in notification to user',
                             'exception' => $e,
                         ];
                     }
 
                     return [
-                        'message' => 'Image processed successfully',
-                        'result' => true,
-                        'user_id' => $entity->user->getId(),
-                        'message_data' => $entity->message,
-                        'message_id' => $entity->getId(),
-                        'nugget_message_id' => $createNuggetMessage->getId(),
+                        'message'             => 'Image processed successfully',
+                        'result'              => true,
+                        'user_id'             => $entity->user->getId(),
+                        'message_data'        => $entity->message,
+                        'message_id'          => $entity->getId(),
+                        'nugget_message_id'   => $createNuggetMessage->getId(),
                         'processed_image_url' => $processedImageUrl,
-                        'original_image_url' => $fileUrl,
-                        'request_id' => $requestId,
-                        'config' => $config,
+                        'original_image_url'  => $fileUrl,
+                        'request_id'          => $requestId,
+                        'config'              => $config,
                     ];
                 } catch (Exception $e) {
                     report($e);
 
                     return [
-                        'result' => false,
+                        'result'     => false,
                         'message_id' => $entity->getId(),
-                        'message' => 'Error processing image: ' . $e->getMessage(),
+                        'message'    => 'Error processing image: '.$e->getMessage(),
                     ];
                 }
             },
@@ -205,7 +205,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     }
 
     /**
-     * Submit an image for processing
+     * Submit an image for processing.
      */
     protected function submitImage(string $imageUrl, string $imageFilter): array
     {
@@ -214,14 +214,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ])->post($this->apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
-            'model' => 'fal-ai/' . $imageFilter,
+            'model'     => 'fal-ai/'.$imageFilter,
         ]);
 
         return $response->json();
     }
 
     /**
-     * Check the processing status of a submitted image
+     * Check the processing status of a submitted image.
      */
     protected function checkProcessingStatus(string $requestId, string $imageFilter): array
     {
@@ -234,8 +234,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             ])->post($this->apiUrl, [
                 'operation' => 'status',
                 'requestId' => $requestId,
-                'model' => 'fal-ai/' . $imageFilter,
-                'logs' => true,
+                'model'     => 'fal-ai/'.$imageFilter,
+                'logs'      => true,
             ]);
 
             $statusResponse = $response->json();
@@ -245,7 +245,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             }
 
             if ($statusResponse['status'] === 'FAILED') {
-                throw new Exception('Image processing failed for this request' . $requestId);
+                throw new Exception('Image processing failed for this request'.$requestId);
             }
 
             // Wait before checking again
@@ -254,14 +254,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         if ($attempts >= self::MAX_STATUS_CHECKS) {
-            throw new Exception('Image processing timed out' . $requestId);
+            throw new Exception('Image processing timed out'.$requestId);
         }
 
         return $statusResponse;
     }
 
     /**
-     * Get the result of a processed image
+     * Get the result of a processed image.
      */
     protected function getProcessingResult(string $requestId, string $imageFilter): array
     {
@@ -270,7 +270,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ])->post($this->apiUrl, [
             'operation' => 'result',
             'requestId' => $requestId,
-            'model' => 'fal-ai/' . $imageFilter,
+            'model'     => 'fal-ai/'.$imageFilter,
         ]);
 
         return $response->json();

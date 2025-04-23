@@ -12,11 +12,10 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Attributes\Enums\AttributeTypeEnum;
 use Kanvas\Inventory\Attributes\Models\AttributesTypes;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
-
-use function Laravel\Prompts\info;
-
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
+
+use function Laravel\Prompts\info;
 
 class CreateAttributeTypeCommand extends Command
 {
@@ -50,19 +49,21 @@ class CreateAttributeTypeCommand extends Command
             // Validation
             $validator = Validator::make($data, [
                 'app_id' => 'required_with:name',
-                'name' => 'required_with:app_id',
+                'name'   => 'required_with:app_id',
             ]);
 
             if ($validator->fails()) {
                 foreach ($validator->errors()->all() as $error) {
                     $this->error($error);
                 }
+
                 return;
             }
 
             $app = Apps::getById($this->option('app_id'));
             $this->overwriteAppService($app);
             $this->createPrivateAttributeTYpe($app, $data['name']);
+
             return;
         }
 
@@ -72,46 +73,46 @@ class CreateAttributeTypeCommand extends Command
     public function createGlobalAttributesTypes(): void
     {
         AttributesTypes::firstOrCreate([
-            'name' => AttributeTypeEnum::INPUT->value,
-            'apps_id' => 0,
+            'name'         => AttributeTypeEnum::INPUT->value,
+            'apps_id'      => 0,
             'companies_id' => 0,
         ], [
-            'slug' => Str::slug(AttributeTypeEnum::INPUT->value),
-            'users_id' => 0
+            'slug'     => Str::slug(AttributeTypeEnum::INPUT->value),
+            'users_id' => 0,
         ]);
 
         AttributesTypes::firstOrCreate([
-            'name' => AttributeTypeEnum::CHECKBOX->value,
-            'apps_id' => 0,
+            'name'         => AttributeTypeEnum::CHECKBOX->value,
+            'apps_id'      => 0,
             'companies_id' => 0,
         ], [
-            'slug' => Str::slug(AttributeTypeEnum::CHECKBOX->value),
-            'users_id' => 0
+            'slug'     => Str::slug(AttributeTypeEnum::CHECKBOX->value),
+            'users_id' => 0,
         ]);
 
         AttributesTypes::firstOrCreate([
-            'name' => AttributeTypeEnum::JSON->value,
-            'apps_id' => 0,
+            'name'         => AttributeTypeEnum::JSON->value,
+            'apps_id'      => 0,
             'companies_id' => 0,
         ], [
-            'slug' => Str::slug(AttributeTypeEnum::JSON->value),
-            'users_id' => 0
+            'slug'     => Str::slug(AttributeTypeEnum::JSON->value),
+            'users_id' => 0,
         ]);
 
         info('Attribute Types created for all apps');
     }
 
-    public function createPrivateAttributeTYpe(Apps $app, String $name): void
+    public function createPrivateAttributeTYpe(Apps $app, string $name): void
     {
         AttributesTypes::firstOrCreate([
-            'name' => $name,
+            'name'    => $name,
             'apps_id' => (int) $app->getId(),
         ], [
-            'slug' => Str::slug($name),
-            'users_id' => 0,
+            'slug'         => Str::slug($name),
+            'users_id'     => 0,
             'companies_id' => 0,
         ]);
 
-        info('Attribute Type ' . $name . ' created for app - ' . $app->getId());
+        info('Attribute Type '.$name.' created for app - '.$app->getId());
     }
 }

@@ -7,9 +7,9 @@ namespace Kanvas\Users\Models;
 use Kanvas\Models\BaseModel;
 
 /**
- * @property int $id
- * @property int $apps_id
- * @property int $users_id
+ * @property int    $id
+ * @property int    $apps_id
+ * @property int    $users_id
  * @property string $email
  * @property string $request_date
  * @property string $reason

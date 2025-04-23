@@ -76,9 +76,9 @@ class SyncLeadToZohoAction
                     Sentry::withScope(function ($scope) use ($zohoData, $lead, $e) {
                         $scope->setContext('Lead Zoho Data', [
                             'zohoData' => $zohoData,
-                            'leadId' => $lead->getId(),
-                            'details' => $e->details(),
-                            'message' => (string) $e->response()->getBody(),
+                            'leadId'   => $lead->getId(),
+                            'details'  => $e->details(),
+                            'message'  => (string) $e->response()->getBody(),
                         ]);
 
                         captureException($e);
@@ -112,7 +112,7 @@ class SyncLeadToZohoAction
         $memberNumber = (string) $zohoLead->getMemberNumber();
 
         if (empty($memberNumber) && $lead->user()->exists()) {
-            $memberNumber = (string) $lead->user()->firstOrFail()->get('member_number_' . $company->getId());
+            $memberNumber = (string) $lead->user()->firstOrFail()->get('member_number_'.$company->getId());
         }
 
         if (! empty($memberNumber)) {

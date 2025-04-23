@@ -12,7 +12,7 @@ use Kanvas\Models\BaseModel;
 /**
  * CompaniesAssociations Model.
  *
- * @property int $companies_id
+ * @property int    $companies_id
  * @property string $name
  * @property string $value
  */

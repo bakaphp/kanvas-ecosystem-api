@@ -31,8 +31,6 @@ class NetSuiteDownloadCustomerCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -51,6 +49,5 @@ class NetSuiteDownloadCustomerCommand extends Command
 
         $this->info("Customer {$newCompany->name} downloaded successfully \n");
 
-        return;
     }
 }

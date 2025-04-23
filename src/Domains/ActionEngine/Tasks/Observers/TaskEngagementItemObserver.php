@@ -19,16 +19,16 @@ class TaskEngagementItemObserver
 
         TaskEngagementItemEvent::dispatch(
             DataTransferObjectTaskEngagementItem::from([
-            'leadId' => $taskEngagementItem->lead_id,
-            'taskListItemId' => $taskEngagementItem->task_list_item_id,
-        ])
+                'leadId'         => $taskEngagementItem->lead_id,
+                'taskListItemId' => $taskEngagementItem->task_list_item_id,
+            ])
         );
 
         $taskEngagementItem->fireWorkflow(
             WorkflowEnum::UPDATED->value,
             true,
             [
-                'app' => $taskEngagementItem->item->app,
+                'app'     => $taskEngagementItem->item->app,
                 'company' => $taskEngagementItem->item->company,
             ]
         );

@@ -17,10 +17,10 @@ class CreateReactionAction
     public function execute(): Reaction
     {
         $reaction = Reaction::firstOrCreate([
-            'apps_id' => $this->reactionDto->apps->getId(),
+            'apps_id'      => $this->reactionDto->apps->getId(),
             'companies_id' => $this->reactionDto->companies->getId(),
-            'name' => $this->reactionDto->name,
-            'icon' => $this->reactionDto->icon,
+            'name'         => $this->reactionDto->name,
+            'icon'         => $this->reactionDto->icon,
         ]);
 
         return $reaction;

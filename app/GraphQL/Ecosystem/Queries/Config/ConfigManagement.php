@@ -52,8 +52,8 @@ class ConfigManagement
         $settings = [];
         foreach ($data as $key => $value) {
             $settings[] = [
-                'key' => $key,
-                'value' => gettype($value['value']) != 'array' ? (string)$value['value'] : $value['value'],
+                'key'    => $key,
+                'value'  => gettype($value['value']) != 'array' ? (string) $value['value'] : $value['value'],
                 'public' => $user->isAdmin() ? (bool) $value['public'] : false,
             ];
         }

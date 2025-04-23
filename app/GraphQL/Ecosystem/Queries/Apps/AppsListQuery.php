@@ -11,17 +11,15 @@ class AppsListQuery
 {
     /**
      * Get user from the current company.
-     *
-     * @param mixed $rootValue
      */
     public function getAppSettings($rootValue, array $request): array
     {
         $app = AppsRepository::findFirstByKey((string) $request['key']);
 
         return [
-            'name' => $app->name,
+            'name'        => $app->name,
             'description' => $app->description,
-            'settings' => $app->getAllSettings(true, true),
+            'settings'    => $app->getAllSettings(true, true),
         ];
     }
 
@@ -30,9 +28,9 @@ class AppsListQuery
         $app = app(Apps::class);
 
         return [
-            'name' => $app->name,
+            'name'        => $app->name,
             'description' => $app->description,
-            'settings' => $app->getAllSettings(true),
+            'settings'    => $app->getAllSettings(true),
         ];
     }
 }

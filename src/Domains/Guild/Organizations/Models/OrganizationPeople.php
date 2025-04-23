@@ -13,8 +13,8 @@ use Kanvas\Guild\Models\BaseModel;
 /**
  * Class Organization.
  *
- * @property int $organizations_id
- * @property int $peoples_id
+ * @property int    $organizations_id
+ * @property int    $peoples_id
  * @property string $created_at
  */
 class OrganizationPeople extends BaseModel
@@ -49,7 +49,7 @@ class OrganizationPeople extends BaseModel
     {
         return self::firstOrCreate([
             'organizations_id' => $organization->getId(),
-            'peoples_id' => $people->getId(),
+            'peoples_id'       => $people->getId(),
         ], [
             'created_at' => date('Y-m-d H:i:s'),
         ]);

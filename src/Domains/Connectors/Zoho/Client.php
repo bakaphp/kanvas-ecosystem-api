@@ -35,14 +35,14 @@ class Client
     public static function getInstance(AppInterface $app, CompanyInterface $company): ZohoCrm
     {
         $redis = RedisAdapter::createConnection(
-            'redis://' . config('database.redis.default.host')
+            'redis://'.config('database.redis.default.host')
         );
 
         $cache = new RedisAdapter(
             // the object that stores a valid connection to your Redis system
             $redis,
             // set namespace separate per company we don't have key conflict
-            $namespace = 'company' . $company->getId(),
+            $namespace = 'company'.$company->getId(),
             // the default lifetime (in seconds) for cache items that do not define their
             // own lifetime, with a value 0 causing items to be stored indefinitely (i.e.
             // until RedisAdapter::clear() is invoked or the server(s) are purged)
@@ -55,7 +55,7 @@ class Client
             $configZohoKey = $company->get(FlagEnum::APP_GLOBAL_ZOHO->value) ? 'app' : 'company';
             $configZohoKeyId = $company->get(FlagEnum::APP_GLOBAL_ZOHO->value) ? $app->name : $company->name;
 
-            throw new ValidationException('Zoho keys are not set for ' . $configZohoKey . ' ' . $configZohoKeyId);
+            throw new ValidationException('Zoho keys are not set for '.$configZohoKey.' '.$configZohoKeyId);
         }
 
         $oAuthClient = new OAuthClient(

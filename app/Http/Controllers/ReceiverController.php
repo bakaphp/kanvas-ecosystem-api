@@ -28,7 +28,7 @@ class ReceiverController extends BaseController
         if (! $receiver) {
             Sentry::withScope(function ($scope) use ($uuid, $request) {
                 $scope->setContext('Request Data', [
-                    'uuid' => $uuid,
+                    'uuid'    => $uuid,
                     'payload' => $request->all(),
                 ]);
                 Sentry::captureMessage("Receiver not found for UUID: {$uuid}");

@@ -22,8 +22,8 @@ class SendEmailActivity extends KanvasActivity implements WorkflowActivityInterf
         if (! isset($params['template_name']) || ! isset($params['data']) || ! $params['toEmail']) {
             return [
                 'message' => 'Missing required params template_name or data or toEmail',
-                'data' => $params,
-                'user' => $entity->getId(),
+                'data'    => $params,
+                'user'    => $entity->getId(),
             ];
         }
 
@@ -46,8 +46,8 @@ class SendEmailActivity extends KanvasActivity implements WorkflowActivityInterf
 
         return [
             'message' => 'Email sent successfully',
-            'data' => $params,
-            'entity' => [
+            'data'    => $params,
+            'entity'  => [
                 get_class($entity),
                 $entity->getId(),
             ],

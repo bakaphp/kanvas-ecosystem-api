@@ -5,16 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VinSolution\Leads;
 
 use Kanvas\Connectors\VinSolution\Client;
-use Kanvas\Connectors\VinSolution\Dealers\Dealer;
-use Kanvas\Connectors\VinSolution\Dealers\User;
 
 class Status
 {
     /**
      * Get all lead source.
-     *
-     * @param Dealer $dealer
-     * @param User $user
      */
     public static function getAll(): array
     {

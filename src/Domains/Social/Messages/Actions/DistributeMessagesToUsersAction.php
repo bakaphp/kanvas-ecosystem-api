@@ -30,17 +30,17 @@ class DistributeMessagesToUsersAction
                 foreach ($userFollows as $userFollow) {
                     $userMessage = UserMessage::updateOrCreate(
                         [
-                            'apps_id' => $this->app->getId(),
+                            'apps_id'     => $this->app->getId(),
                             'messages_id' => $this->message->getId(),
-                            'users_id' => $userFollow->users_id,
-                            'created_at' => $this->message->created_at,
+                            'users_id'    => $userFollow->users_id,
+                            'created_at'  => $this->message->created_at,
                         ],
                         [
                             'is_deleted' => 0,
                         ]
                     );
 
-                    Log::info('Distributed message: ' . $this->message->getId() . ' to user: ' . $userMessage->users_id);
+                    Log::info('Distributed message: '.$this->message->getId().' to user: '.$userMessage->users_id);
                 }
             });
 

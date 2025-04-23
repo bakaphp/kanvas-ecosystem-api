@@ -14,7 +14,7 @@ use Kanvas\Social\Models\BaseModel;
 /**
  * Class Interactions.
  *
- * @property int $id
+ * @property int    $id
  * @property string $entity_id
  * @property string $entity_namespace
  * @property string $interactions_id
@@ -54,9 +54,9 @@ class EntityInteractions extends BaseModel
     {
         return EntityInteractionsRepository::getEntityInteractions(
             LikeEntityInput::from([
-                'entity_id' => $this->entity_id,
-                'entity_namespace' => $this->entity_namespace,
-                'interacted_entity_id' => $this->interacted_entity_id,
+                'entity_id'                   => $this->entity_id,
+                'entity_namespace'            => $this->entity_namespace,
+                'interacted_entity_id'        => $this->interacted_entity_id,
                 'interacted_entity_namespace' => $this->interacted_entity_namespace,
             ])
         );

@@ -8,7 +8,7 @@ class PdfGenerator
 {
     protected static string $apiUrl;
     protected static array $options = [
-        'format' => 'A4', // PDF format
+        'format'          => 'A4', // PDF format
         'printBackground' => true, // Include background colors/images
     ];
 
@@ -22,7 +22,7 @@ class PdfGenerator
         self::init();
 
         $data = [
-            'url' => $url,
+            'url'     => $url,
             'options' => array_merge(self::$options, $options),
         ];
 
@@ -34,7 +34,7 @@ class PdfGenerator
         self::init();
 
         $data = [
-            'html' => $html,
+            'html'    => $html,
             'options' => array_merge(self::$options, $options),
         ];
 
@@ -45,7 +45,7 @@ class PdfGenerator
      * Generate a PDF using the Puppeteer API.
      *
      * @param array $data The payload to send to Puppeteer.
-     * @param string|null $fileName Optional file name for the generated PDF.
+     *
      * @return string|null The storage path of the generated PDF or null on failure.
      */
     protected static function generatePdf(array $data): ?string
@@ -60,7 +60,7 @@ class PdfGenerator
         $response = curl_exec($ch);
 
         if ($response === false) {
-            logger()->error('Error generating PDF: ' . curl_error($ch));
+            logger()->error('Error generating PDF: '.curl_error($ch));
             curl_close($ch);
 
             return null;

@@ -33,7 +33,7 @@ class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
 
         if (! $variant) {
             return [
-                'message' => 'Variant not found for ' . $this->webhookRequest->payload['inventory_item_id'],
+                'message' => 'Variant not found for '.$this->webhookRequest->payload['inventory_item_id'],
             ];
         }
 
@@ -47,7 +47,7 @@ class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
 
         if (! $warehouses) {
             return [
-                'message' => 'Warehouse not found for ' . $integrationCompany->region_id,
+                'message' => 'Warehouse not found for '.$integrationCompany->region_id,
             ];
         }
 
@@ -61,8 +61,8 @@ class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
         $variant->updateQuantityInWarehouse($warehouses, $this->webhookRequest->payload['available']);
 
         return [
-            'message' => 'Inventory level updated successfully',
-            'location_id' => $this->webhookRequest->payload['location_id'],
+            'message'           => 'Inventory level updated successfully',
+            'location_id'       => $this->webhookRequest->payload['location_id'],
             'inventory_item_id' => $this->webhookRequest->payload['inventory_item_id'],
         ];
     }

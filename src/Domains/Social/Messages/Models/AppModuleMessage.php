@@ -11,16 +11,17 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 
 /**
- * class AppModuleMessage
- * @property int $message_id
- * @property int $message_types_id
- * @property int $apps_id
- * @property int $companies_id
+ * class AppModuleMessage.
+ *
+ * @property int    $message_id
+ * @property int    $message_types_id
+ * @property int    $apps_id
+ * @property int    $companies_id
  * @property string $system_modules
- * @property int $entity_id
+ * @property int    $entity_id
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_deleted
+ * @property int    $is_deleted
  */
 class AppModuleMessage extends BaseModel
 {
@@ -55,6 +56,6 @@ class AppModuleMessage extends BaseModel
 
     public function hasEntityOfClass(string $className): bool
     {
-        return (bool)$this->entity::class == $className;
+        return (bool) $this->entity::class == $className;
     }
 }

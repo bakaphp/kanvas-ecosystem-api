@@ -12,11 +12,11 @@ use Kanvas\ActionEngine\Models\BaseModel;
 /**
  * Class Tasks.
  *
- * @property int $id
+ * @property int    $id
  * @property string $uuid
- * @property int $apps_id
- * @property int $companies_id
- * @property int $users_id
+ * @property int    $apps_id
+ * @property int    $companies_id
+ * @property int    $users_id
  * @property string $name
  * @property string $config
  */

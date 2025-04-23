@@ -40,21 +40,21 @@ final class CompanySubscriptionTest extends TestCase
         $prices = [
             [
                 'apps_plans_id' => 1,
-                'stripe_id' => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
-                'amount' => 59.00,
-                'currency' => 'USD',
-                'interval' => 'year',
-                'is_default' => 1,
-                'created_at' => now(),
+                'stripe_id'     => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
+                'amount'        => 59.00,
+                'currency'      => 'USD',
+                'interval'      => 'year',
+                'is_default'    => 1,
+                'created_at'    => now(),
             ],
             [
                 'apps_plans_id' => 1,
-                'stripe_id' => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
-                'amount' => 5.00,
-                'currency' => 'USD',
-                'interval' => 'monthly',
-                'is_default' => 0,
-                'created_at' => now(),
+                'stripe_id'     => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
+                'amount'        => 5.00,
+                'currency'      => 'USD',
+                'interval'      => 'monthly',
+                'is_default'    => 0,
+                'created_at'    => now(),
             ],
         ];
 
@@ -74,10 +74,10 @@ final class CompanySubscriptionTest extends TestCase
         $paymentMethod = $cashier->paymentMethods->create([
             'type' => 'card',
             'card' => [
-                'number' => '4242424242424242',
+                'number'    => '4242424242424242',
                 'exp_month' => 8,
-                'exp_year' => date('Y') + 5,
-                'cvc' => '314',
+                'exp_year'  => date('Y') + 5,
+                'cvc'       => '314',
             ],
         ]);
 

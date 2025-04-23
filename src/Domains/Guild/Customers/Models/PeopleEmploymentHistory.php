@@ -9,15 +9,15 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 
 /**
- * Class PeopleEmploymentHistory
+ * Class PeopleEmploymentHistory.
  *
- * @property int $id
- * @property int $organizations_id
- * @property int $peoples_id
- * @property string $apps_id
- * @property string $position
- * @property null|float $income
- * @property string $start_date
+ * @property int         $id
+ * @property int         $organizations_id
+ * @property int         $peoples_id
+ * @property string      $apps_id
+ * @property string      $position
+ * @property null|float  $income
+ * @property string      $start_date
  * @property null|string $end_date
  * @property int status
  * @property null|string $income_type

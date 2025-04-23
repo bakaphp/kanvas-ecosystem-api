@@ -52,14 +52,14 @@ class CountriesGraphqlTest extends TestCase
             }
         ',
             [
-            'name' => $name,
-            'stateName' => $stateName,
-            'cityName' => $cityName,
-        ],
+                'name'      => $name,
+                'stateName' => $stateName,
+                'cityName'  => $cityName,
+            ],
             [],
             [
-            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
-        ]
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
         )->assertJson([
             'data' => [
                 'createCountry' => [
@@ -112,7 +112,6 @@ class CountriesGraphqlTest extends TestCase
         $app = app(Apps::class);
         $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
-
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
                 $id: ID!
@@ -132,15 +131,15 @@ class CountriesGraphqlTest extends TestCase
             }
         ',
             [
-            'id' => $country->id,
-            'name' => $name,
-            'code' => $country->code,
-            'flag' => $country->flag,
-        ],
+                'id'   => $country->id,
+                'name' => $name,
+                'code' => $country->code,
+                'flag' => $country->flag,
+            ],
             [],
             [
-            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
-        ]
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
         );
         $this->assertArrayHasKey('data', $response);
     }
@@ -181,13 +180,13 @@ class CountriesGraphqlTest extends TestCase
                 'countries' => [
                     'data' => [
                         [
-                            'id' => $country->id,
+                            'id'   => $country->id,
                             'name' => $country->name,
                         ],
                     ],
                     'paginatorInfo' => [
                         'currentPage' => 1,
-                        'lastPage' => 1,
+                        'lastPage'    => 1,
                     ],
                 ],
             ],
@@ -234,11 +233,11 @@ class CountriesGraphqlTest extends TestCase
                 'countries' => [
                     'data' => [
                         [
-                            'id' => $state->countries_id,
-                            'name' => $state->country->name,
+                            'id'     => $state->countries_id,
+                            'name'   => $state->country->name,
                             'states' => [
                                 [
-                                    'id' => $state->id,
+                                    'id'   => $state->id,
                                     'name' => $state->name,
                                 ],
                             ],
@@ -246,7 +245,7 @@ class CountriesGraphqlTest extends TestCase
                     ],
                     'paginatorInfo' => [
                         'currentPage' => 1,
-                        'lastPage' => 1,
+                        'lastPage'    => 1,
                     ],
                 ],
             ],

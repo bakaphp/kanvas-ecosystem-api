@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Queries\Cart;
 
-use Kanvas\Souk\Cart\Services\CartService;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Souk\Cart\Services\CartService;
 
 class CartQuery
 {

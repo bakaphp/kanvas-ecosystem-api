@@ -28,8 +28,6 @@ class GuildSetupCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -45,9 +43,8 @@ class GuildSetupCommand extends Command
         ))->run();
 
         $this->newLine();
-        $this->info('Guild setup for Company ' . $company->name . ' completed successful');
+        $this->info('Guild setup for Company '.$company->name.' completed successful');
         $this->newLine();
 
-        return;
     }
 }

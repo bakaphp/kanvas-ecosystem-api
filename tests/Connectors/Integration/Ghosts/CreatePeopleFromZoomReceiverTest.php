@@ -31,103 +31,103 @@ final class CreatePeopleFromZoomReceiverTest extends TestCase
         $company = $user->getCurrentCompany();
 
         $eventType = EventType::create([
-              'companies_id' => $company->getId(),
-              'apps_id' => $app->getId(),
-              'users_id' => $user->getId(),
-              'name' => fake()->name,
-          ]);
-        $eventClass = EventClass::create([
-            'name' => 'Default',
-            'is_default' => 1,
             'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => $user->getId(),
+            'apps_id'      => $app->getId(),
+            'users_id'     => $user->getId(),
+            'name'         => fake()->name,
+        ]);
+        $eventClass = EventClass::create([
+            'name'         => 'Default',
+            'is_default'   => 1,
+            'companies_id' => $company->getId(),
+            'apps_id'      => $app->getId(),
+            'users_id'     => $user->getId(),
         ]);
         $eventCategory = EventCategory::create([
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-            'event_type_id' => $eventType->getId(),
+            'apps_id'        => $app->getId(),
+            'companies_id'   => $company->getId(),
+            'users_id'       => $user->getId(),
+            'event_type_id'  => $eventType->getId(),
             'event_class_id' => $eventClass->getId(),
-            'name' => 'Default',
-            'slug' => 'default',
+            'name'           => 'Default',
+            'slug'           => 'default',
         ]);
         Theme::create([
-            'apps_id' => $app->getId(),
+            'apps_id'      => $app->getId(),
             'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-            'name' => 'Default',
-            'is_default' => 1,
+            'users_id'     => $user->getId(),
+            'name'         => 'Default',
+            'is_default'   => 1,
         ]);
         ThemeArea::create([
-            'apps_id' => $app->getId(),
+            'apps_id'      => $app->getId(),
             'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-            'name' => 'Default',
-            'is_default' => 1,
+            'users_id'     => $user->getId(),
+            'name'         => 'Default',
+            'is_default'   => 1,
         ]);
         ThemeArea::create([
-            'apps_id' => $app->getId(),
+            'apps_id'      => $app->getId(),
             'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-            'name' => 'Virtual',
-            'is_default' => 0,
+            'users_id'     => $user->getId(),
+            'name'         => 'Virtual',
+            'is_default'   => 0,
         ]);
         EventStatus::create([
-            'apps_id' => $app->getId(),
+            'apps_id'      => $app->getId(),
             'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-            'name' => 'Default',
-            'is_default' => 1,
+            'users_id'     => $user->getId(),
+            'name'         => 'Default',
+            'is_default'   => 1,
         ]);
         ParticipantType::create([
-            'apps_id' => $app->getId(),
+            'apps_id'      => $app->getId(),
             'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-            'name' => 'Attendee',
+            'users_id'     => $user->getId(),
+            'name'         => 'Attendee',
         ]);
         $zoomId = fake()->uuid;
         $zoomUrl = "https://us04web.zoom.us/j/{$zoomId}";
 
         $eventDto = EventDTO::fromMultiple($app, $user, $company, [
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'slug' => fake()->slug,
+            'name'         => fake()->name,
+            'description'  => fake()->text,
+            'slug'         => fake()->slug,
             'meeting_link' => $zoomUrl,
-            'type_id' => $eventType->getId(),
-            'category_id' => $eventCategory->getId(),
+            'type_id'      => $eventType->getId(),
+            'category_id'  => $eventCategory->getId(),
         ]);
         $event = (new CreateEventAction($eventDto))->execute();
         $this->assertEquals($zoomUrl, $event->meeting_link);
         $workflowAction = WorkflowAction::firstOrCreate([
-            'name' => 'Create Participant',
+            'name'       => 'Create Participant',
             'model_name' => CreateParticipantFromMeetingZoomJob::class,
         ]);
         $payload = [
-            'event' => 'meeting.participant_joined',
+            'event'    => 'meeting.participant_joined',
             'event_ts' => $zoomId,
-            'payload' => [
+            'payload'  => [
                 'account_id' => 'AAAAAABBBB',
-                'object' => [
-                    'id' => $zoomId,
-                    'uuid' => fake()->uuid,
-                    'host_id' => 'x1yCzABCDEfg23HiJKl4mN',
-                    'topic' => 'My Meeting',
-                    'type' => 8,
-                    'start_time' => '2021-07-13T21:44:51Z',
-                    'timezone' => 'America/Los_Angeles',
-                    'duration' => 60,
+                'object'     => [
+                    'id'          => $zoomId,
+                    'uuid'        => fake()->uuid,
+                    'host_id'     => 'x1yCzABCDEfg23HiJKl4mN',
+                    'topic'       => 'My Meeting',
+                    'type'        => 8,
+                    'start_time'  => '2021-07-13T21:44:51Z',
+                    'timezone'    => 'America/Los_Angeles',
+                    'duration'    => 60,
                     'participant' => [
-                        'user_id' => fake()->uuid,
-                        'user_name' => fake()->name,
-                        'id' => fake()->uuid(),
-                        'participant_uuid' => fake()->uuid(),
-                        'date_time' => fake()->dateTime,
-                        'email' => fake()->email,
-                        'registrant_id' => 'abcdefghij0-klmnopq23456',
+                        'user_id'             => fake()->uuid,
+                        'user_name'           => fake()->name,
+                        'id'                  => fake()->uuid(),
+                        'participant_uuid'    => fake()->uuid(),
+                        'date_time'           => fake()->dateTime,
+                        'email'               => fake()->email,
+                        'registrant_id'       => 'abcdefghij0-klmnopq23456',
                         'participant_user_id' => 'rstuvwxyza789-cde',
-                        'customer_key' => '349589LkJyeW',
-                        'phone_number' => '8615250064084',
+                        'customer_key'        => '349589LkJyeW',
+                        'phone_number'        => '8615250064084',
                     ],
                 ],
             ],
@@ -139,7 +139,7 @@ final class CreatePeopleFromZoomReceiverTest extends TestCase
             ->company($company->getId())
             ->create([
                 'action_id' => $workflowAction->getId(),
-        ]);
+            ]);
 
         $request = Request::create('https://localhost/ghosttest', 'POST', $payload);
 

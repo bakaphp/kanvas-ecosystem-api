@@ -13,7 +13,7 @@ use Kanvas\Users\Models\Users;
 class UnFollowAction
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -26,7 +26,7 @@ class UnFollowAction
     }
 
     /**
-     * execute
+     * execute.
      */
     public function execute(): bool
     {

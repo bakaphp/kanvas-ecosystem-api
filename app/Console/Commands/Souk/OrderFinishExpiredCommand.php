@@ -37,13 +37,13 @@ class OrderFinishExpiredCommand extends Command
             $this->checkApps($appsId);
         } else {
             $appsIds = Settings::where([
-                'name' => 'check_expired_orders',
+                'name'  => 'check_expired_orders',
                 'value' => '1',
             ])->select('apps_id')->get()->pluck('apps_id');
-            $this->info('Checking ' . $appsIds->count() . ' apps');
+            $this->info('Checking '.$appsIds->count().' apps');
             foreach ($appsIds as $appsId) {
                 $this->checkApps($appsId);
-                $this->info('Checked ' . $appsId);
+                $this->info('Checked '.$appsId);
             }
         }
     }
@@ -59,9 +59,9 @@ class OrderFinishExpiredCommand extends Command
             // Mark order as completed
             $order->fulfill();
             $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $variantWarehouse->quantity + 1);
-            $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
+            $this->info('Finished order '.$order->id.' for app '.$order->app->name);
         } else {
-            $this->info('No items found for order ' . $order->id . ' for app ' . $order->app->name . ' with ' . count($order->items) . ' items');
+            $this->info('No items found for order '.$order->id.' for app '.$order->app->name.' with '.count($order->items).' items');
         }
     }
 
@@ -80,9 +80,8 @@ class OrderFinishExpiredCommand extends Command
         ->orderBy('id', 'desc')
         ->with('items');
 
-
         $ordersInProgress = $query->get();
-        $this->info('Found ' . $ordersInProgress->count() . ' orders in progress to finish for app ' . $app->name . ' at ' . $endTime);
+        $this->info('Found '.$ordersInProgress->count().' orders in progress to finish for app '.$app->name.' at '.$endTime);
         $appTimeZone = $app->get('timezone');
 
         foreach ($ordersInProgress as $order) {

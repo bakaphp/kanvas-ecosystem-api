@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
-use Spatie\LaravelData\DataCollection;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Spatie\LaravelData\DataCollection;
 
 class UpdateOrderAction
 {
@@ -73,10 +73,10 @@ class UpdateOrderAction
 
                 try {
                     $this->order->user->notify(new NewOrderNotification($this->order, [
-                        'app' => $this->order->app,
+                        'app'     => $this->order->app,
                         'company' => $this->order->company,
                     ]));
-                } catch (ModelNotFoundException | EloquentModelNotFoundException $e) {
+                } catch (ModelNotFoundException|EloquentModelNotFoundException $e) {
                     // Handle notification failure
                 }
 
@@ -103,7 +103,6 @@ class UpdateOrderAction
             return $this->order;
         });
     }
-
 
     public function disableWorkflow(): self
     {

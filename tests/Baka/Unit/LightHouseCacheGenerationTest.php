@@ -22,13 +22,13 @@ class LightHouseCacheGenerationTest extends TestCase
 
         // Create a model instance for testing
         $peopleData = [
-            'apps_id' => $app->getId(),
-            'users_id' => $user->getId(),
-            'firstname' => fake()->firstName,
-            'middlename' => fake()->lastName,
-            'lastname' => fake()->lastName,
-            'name' => fake()->name,
-            'dob' => fake()->date(),
+            'apps_id'      => $app->getId(),
+            'users_id'     => $user->getId(),
+            'firstname'    => fake()->firstName,
+            'middlename'   => fake()->lastName,
+            'lastname'     => fake()->lastName,
+            'name'         => fake()->name,
+            'dob'          => fake()->date(),
             'companies_id' => $user->getCurrentCompany()->getId(),
         ];
 
@@ -44,7 +44,7 @@ class LightHouseCacheGenerationTest extends TestCase
         $items = 25;
 
         $separator = CacheKeyAndTagsGenerator::SEPARATOR;
-        $key = CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName . $separator . $people->getId() . ':' . $relationship . ':first:' . $items;
+        $key = CacheKeyAndTagsGenerator::PREFIX.$separator.$graphTypeName.$separator.$people->getId().':'.$relationship.':first:'.$items;
         $this->assertInstanceOf(LengthAwarePaginator::class, $redis->get($key));
     }
 }

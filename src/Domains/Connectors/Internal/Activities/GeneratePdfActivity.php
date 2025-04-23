@@ -24,14 +24,14 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
 
         if ($pdfTemplate === null) {
             return [
-                'message' => 'No template configured to generate pdf',
+                'message'   => 'No template configured to generate pdf',
                 'entity_id' => $entity->getId(),
             ];
         }
 
         if ($pdfFileName === null) {
             return [
-                'message' => 'No file name configured to generate pdf',
+                'message'   => 'No file name configured to generate pdf',
                 'entity_id' => $entity->getId(),
             ];
         }
@@ -56,10 +56,10 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
         }
 
         return [
-            'message' => 'Pdf generated successfully',
+            'message'   => 'Pdf generated successfully',
             'entity_id' => $entity->getId(),
-            'file_id' => $pdfFile->getId(),
-            'file_url' => $pdfFile->url,
+            'file_id'   => $pdfFile->getId(),
+            'file_url'  => $pdfFile->url,
         ];
     }
 }

@@ -27,7 +27,7 @@ class GenerateMessageTagsWithAiActivity extends KanvasActivity implements Workfl
 
         return [
             'message' => 'Tags added to the message',
-            'tags' => $messageTags->tags->toArray(),
+            'tags'    => $messageTags->tags->toArray(),
         ];
     }
 }

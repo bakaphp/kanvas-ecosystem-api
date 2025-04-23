@@ -27,10 +27,10 @@ class MessageTypeTest extends TestCase
             ',
             [
                 'input' => [
-                    'name' => $name,
-                    'languages_id' => $language->id,
-                    'verb' => 'test - ' . $name,
-                    'template' => '<fake>',
+                    'name'            => $name,
+                    'languages_id'    => $language->id,
+                    'verb'            => 'test - '.$name,
+                    'template'        => '<fake>',
                     'templates_plura' => '<fake>',
                 ],
             ]
@@ -61,10 +61,10 @@ class MessageTypeTest extends TestCase
             ',
             [
                 'input' => [
-                    'name' => $name,
-                    'languages_id' => $language->id,
-                    'verb' => 'test - ' . $name,
-                    'template' => '<fake>',
+                    'name'            => $name,
+                    'languages_id'    => $language->id,
+                    'verb'            => 'test - '.$name,
+                    'template'        => '<fake>',
                     'templates_plura' => '<fake>',
                 ],
             ]
@@ -83,19 +83,19 @@ class MessageTypeTest extends TestCase
                 }
             ',
             [
-                'id' => $response->json('data.createMessageType.id'),
+                'id'    => $response->json('data.createMessageType.id'),
                 'input' => [
-                    'name' => $name . ' - updated',
-                    'languages_id' => $language->id,
-                    'verb' => 'test - ' . $name,
-                    'template' => '<fake>',
+                    'name'            => $name.' - updated',
+                    'languages_id'    => $language->id,
+                    'verb'            => 'test - '.$name,
+                    'template'        => '<fake>',
                     'templates_plura' => '<fake>',
                 ],
             ]
         )->assertJson([
             'data' => [
                 'updateMessageType' => [
-                    'name' => $name . ' - updated',
+                    'name' => $name.' - updated',
                 ],
             ],
         ]);
@@ -119,10 +119,10 @@ class MessageTypeTest extends TestCase
             ',
             [
                 'input' => [
-                    'name' => $name,
-                    'languages_id' => $language->id,
-                    'verb' => 'test - ' . $name,
-                    'template' => '<fake>',
+                    'name'            => $name,
+                    'languages_id'    => $language->id,
+                    'verb'            => 'test - '.$name,
+                    'template'        => '<fake>',
                     'templates_plura' => '<fake>',
                 ],
             ]

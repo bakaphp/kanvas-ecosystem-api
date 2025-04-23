@@ -36,18 +36,18 @@ class SocialUserCounterResetCommand extends Command
         try {
             $app = Apps::getById($this->argument('app_id'));
         } catch (ModelNotFoundException $e) {
-            $this->error('App not found with id ' . $this->argument('app_id'));
+            $this->error('App not found with id '.$this->argument('app_id'));
 
             return;
         }
 
         $this->overwriteAppService($app);
 
-        $this->info('Resetting social counter for app: ' . $this->argument('app_id'));
+        $this->info('Resetting social counter for app: '.$this->argument('app_id'));
 
         UserAppRepository::getAllAppUsers($app)->chunk(100, function ($users) use ($app) {
             foreach ($users as $user) {
-                $this->info('Resetting social counter for user: ' . $user->getId());
+                $this->info('Resetting social counter for user: '.$user->getId());
                 $user->resetSocialCount($app);
             }
         });

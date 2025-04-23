@@ -23,13 +23,14 @@ class UpdateStagePipelineAction
 
     /**
      * execute.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function execute(): ModelsPipelineStage
     {
         //stage have to have unique name
         $data = [
-            'name' => $this->stageData->name,
+            'name'         => $this->stageData->name,
             'pipelines_id' => $this->stageData->pipeline->getId(),
         ];
 
@@ -51,7 +52,6 @@ class UpdateStagePipelineAction
         $this->stage->weight = $this->stageData->weight;
         $this->stage->rotting_days = $this->stageData->rotting_days;
         $this->stage->saveOrFail();
-
 
         return $this->stage;
     }

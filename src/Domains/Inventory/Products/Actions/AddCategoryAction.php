@@ -21,7 +21,7 @@ class AddCategoryAction
         ProductsCategories::firstOrCreate(
             [
                 'categories_id' => $this->category->getId(),
-                'products_id' => $this->product->getId(),
+                'products_id'   => $this->product->getId(),
             ]
         );
     }

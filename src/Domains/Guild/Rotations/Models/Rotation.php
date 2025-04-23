@@ -12,10 +12,12 @@ use Kanvas\Users\Models\Users;
 
 /**
  * Class Rotation.
+ *
  * @deprecated version 2.0
- * @property int $id
- * @property int $users_id
- * @property int $companies_id
+ *
+ * @property int    $id
+ * @property int    $users_id
+ * @property int    $companies_id
  * @property string $name
  */
 class Rotation extends BaseModel

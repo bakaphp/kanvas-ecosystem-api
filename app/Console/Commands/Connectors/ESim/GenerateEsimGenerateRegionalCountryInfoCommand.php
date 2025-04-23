@@ -202,15 +202,15 @@ class GenerateEsimGenerateRegionalCountryInfoCommand extends Command
         $countryInfo = [];
 
         foreach ($products as $product) {
-            $this->info('Processing ' . $productTypeName . ' product: ' . $product->name);
+            $this->info('Processing '.$productTypeName.' product: '.$product->name);
 
             foreach ($this->countriesByRegion[$product->name] as $countryData) {
-                $this->info('Processing country: ' . $countryData['name']);
+                $this->info('Processing country: '.$countryData['name']);
 
                 $country = Countries::where('code', $countryData['code'])->first();
 
                 if ($country === null) {
-                    $this->error('Country not found: ' . $countryData['name']);
+                    $this->error('Country not found: '.$countryData['name']);
 
                     continue;
                 }
@@ -237,7 +237,7 @@ class GenerateEsimGenerateRegionalCountryInfoCommand extends Command
                 $firstVariant = $productWithAttributes?->variants?->first();
 
                 if ($firstVariant === null) {
-                    $this->error('No variants found for product: ' . $product->name . ' in country: ' . $country);
+                    $this->error('No variants found for product: '.$product->name.' in country: '.$country);
 
                     continue;
                 }
@@ -246,11 +246,11 @@ class GenerateEsimGenerateRegionalCountryInfoCommand extends Command
                 $speed = $firstVariant->getAttributeBySlug('variant-speed')?->value;
 
                 $countryInfo[] = [
-                    'country' => $country,
-                    'flag' => 'https://flagcdn.com/w320/' . $countryCode . '.png',
+                    'country'  => $country,
+                    'flag'     => 'https://flagcdn.com/w320/'.$countryCode.'.png',
                     'carriers' => [
                         [
-                            'name' => $network,
+                            'name'     => $network,
                             'networks' => [
                                 $speed,
                             ],

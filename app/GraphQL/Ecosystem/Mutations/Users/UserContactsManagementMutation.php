@@ -39,7 +39,7 @@ class UserContactsManagementMutation
         }
 
         return [
-            'matched_contacts' => $matchingContacts,
+            'matched_contacts'   => $matchingContacts,
             'unmatched_contacts' => array_flip($contactsEmails),
         ];
     }

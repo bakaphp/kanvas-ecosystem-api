@@ -49,11 +49,11 @@ class Client
         $path = '/export';
         $params = [
             'start' => $startFormatted,
-            'end' => $endFormatted,
+            'end'   => $endFormatted,
         ];
 
         $response = Http::withBasicAuth($this->apiKey, $this->apiSecret)
-                        ->get($this->baseUrl . $path, $params);
+                        ->get($this->baseUrl.$path, $params);
 
         if ($response->failed()) {
             throw new ValidationException('Failed to fetch data from Amplitude API.');

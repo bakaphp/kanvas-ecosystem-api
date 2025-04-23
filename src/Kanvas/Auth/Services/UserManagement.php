@@ -25,7 +25,7 @@ class UserManagement
     }
 
     /**
-     * Update current user data with $data
+     * Update current user data with $data.
      */
     public function update(array $data): Users
     {

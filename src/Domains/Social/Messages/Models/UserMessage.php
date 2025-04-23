@@ -19,19 +19,20 @@ use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
 /**
- *  Class UserMessage
- *  @property int $message_id
- *  @property int $users_id
- *  @property int $apps_id
- *  @property int $is_liked
- *  @property int $is_disliked
- *  @property int $is_saved
- *  @property int $is_shared
- *  @property int $is_reported
- *  @property string $notes
- *  @property string $reactions
- *  @property string $saved_lists
- *  @property string $activities
+ *  Class UserMessage.
+ *
+ * @property int    $message_id
+ * @property int    $users_id
+ * @property int    $apps_id
+ * @property int    $is_liked
+ * @property int    $is_disliked
+ * @property int    $is_saved
+ * @property int    $is_shared
+ * @property int    $is_reported
+ * @property string $notes
+ * @property string $reactions
+ * @property string $saved_lists
+ * @property string $activities
  */
 #[ObservedBy([UserMessageObserver::class])]
 class UserMessage extends BaseModel
@@ -49,7 +50,7 @@ class UserMessage extends BaseModel
     public const UPDATED_AT = null;
 
     /**
-     * message
+     * message.
      */
     public function message(): BelongsTo
     {
@@ -57,7 +58,7 @@ class UserMessage extends BaseModel
     }
 
     /**
-     * Get all of the activities for the UserMessage
+     * Get all of the activities for the UserMessage.
      */
     public function activities(): HasMany
     {
@@ -77,17 +78,18 @@ class UserMessage extends BaseModel
                     return $query->where('messages.message_types_id', $messageTypeId);
                 })
                 ->where('messages.users_id', '<>', $user->getId()) //for now we are not showing liked messages
-                #->where('user_messages.is_liked', 0) //for now we are not showing liked messages
+                //->where('user_messages.is_liked', 0) //for now we are not showing liked messages
                 ->where('user_messages.is_disliked', 0) //for now we are not showing disliked messages
                 ->where('user_messages.is_reported', 0) //for now we are not showing disliked messages
-                #->where('user_messages.is_shared', 0) //for now we are not showing disliked messages
+                //->where('user_messages.is_shared', 0) //for now we are not showing disliked messages
                 ->where('user_messages.is_deleted', 0) //for now we are not showing saved messages
                 ->orderBy('user_messages.created_at', 'asc') //top recommendation , we are now listing last
                 ->select('messages.*');
     }
 
     /**
-     * get following feed by full query
+     * get following feed by full query.
+     *
      * @throws InvalidArgumentException
      */
     public static function getFollowingFeed(UserInterface $user, AppInterface $app): EloquentBuilder
@@ -108,7 +110,8 @@ class UserMessage extends BaseModel
     }
 
     /**
-     * Get following feed base on user tables
+     * Get following feed base on user tables.
+     *
      * @throws InvalidArgumentException
      */
     public static function getUserMessageFollowingFeed(UserInterface $user, AppInterface $app): EloquentBuilder
@@ -131,6 +134,7 @@ class UserMessage extends BaseModel
         int $limit = 25
     ): ?UserMessage {
         $offset = ($pageNumber - 1) * $limit;
+
         return self::fromApp($app)
             ->where('users_id', $user->getId())
             ->notDeleted()

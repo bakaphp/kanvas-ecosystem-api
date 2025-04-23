@@ -4,18 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
-use Kanvas\Apps\Models\Apps;
-use Tests\GraphQL\Inventory\Traits\InventoryCases;
-use Tests\TestCase;
 use Illuminate\Support\Facades\Artisan;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
+use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\TestCase;
 
 class OrderExpirableTest extends TestCase
 {
     use InventoryCases;
-
 
     public function testOrderExpirable(): void
     {
@@ -35,7 +34,7 @@ class OrderExpirableTest extends TestCase
             warehouseData: $warehouseData,
             attributes: [
                 [
-                    'name' => 'timezone',
+                    'name'  => 'timezone',
                     'value' => 'America/New_York',
                 ],
             ]
@@ -49,7 +48,6 @@ class OrderExpirableTest extends TestCase
             warehouseData: $warehouseData
         );
 
-
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
             warehouseId: $warehouseResponse['id'],
@@ -61,28 +59,28 @@ class OrderExpirableTest extends TestCase
         $variantWarehouse = $channel?->productVariantWarehouse()->first();
 
         $data = [
-            'email' => fake()->email(),
+            'email'     => fake()->email(),
             'region_id' => $region->getId(),
-            'metadata' => [
+            'metadata'  => [
                 'data' => [
                     'start_at' => now('America/New_York')->subMinutes(32)->toDateTimeString(),
-                    'end_at' => now('America/New_York')->subMinutes(30)->toDateTimeString(),
+                    'end_at'   => now('America/New_York')->subMinutes(30)->toDateTimeString(),
                 ],
             ],
             'customer' => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
+                'lastname'  => fake()->lastName(),
             ],
             'shipping_address' => [
-                'address' => fake()->address(),
+                'address'   => fake()->address(),
                 'address_2' => fake()->postcode(),
-                'city' => fake()->city(),
-                'state' => fake()->state(),
+                'city'      => fake()->city(),
+                'state'     => fake()->state(),
             ],
             'items' => [
                 [
                     'variant_id' => $variantResponse['id'],
-                    'quantity' => 1,
+                    'quantity'   => 1,
                 ],
             ],
         ];
@@ -99,7 +97,6 @@ class OrderExpirableTest extends TestCase
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
-
 
         $order = $response->json()['data']['createDraftOrder'];
         $order = Order::fromApp($app)->find($order['id']);

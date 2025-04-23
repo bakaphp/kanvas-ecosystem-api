@@ -10,25 +10,24 @@ use Kanvas\Social\Interactions\Models\Interactions;
 enum UserEventEnum: string
 {
     /**
-    * setEventType , types from google
-    *
-    * - `search`: Search for Documents.
-    * - `view-item`: Detailed page view of a Document.
-    * - `view-item-list`: View of a panel or ordered list of Documents.
-    * - `view-home-page`: View of the home page.
-    * - `view-category-page`: View of a category page, e.g., Home > Men > Jeans.
-    *
-    * Retail-related values:
-    *
-    * - `add-to-cart`: Add item(s) to cart, e.g., in retail online shopping.
-    * - `purchase`: Purchase item(s).
-    *
-    * Media-related values:
-    *
-    * - `media-play`: Start/resume watching a video, playing a song, etc.
-    * - `media-complete`: Finished or stopped midway through a video, song, etc.
-    */
-
+     * setEventType , types from google.
+     *
+     * - `search`: Search for Documents.
+     * - `view-item`: Detailed page view of a Document.
+     * - `view-item-list`: View of a panel or ordered list of Documents.
+     * - `view-home-page`: View of the home page.
+     * - `view-category-page`: View of a category page, e.g., Home > Men > Jeans.
+     *
+     * Retail-related values:
+     *
+     * - `add-to-cart`: Add item(s) to cart, e.g., in retail online shopping.
+     * - `purchase`: Purchase item(s).
+     *
+     * Media-related values:
+     *
+     * - `media-play`: Start/resume watching a video, playing a song, etc.
+     * - `media-complete`: Finished or stopped midway through a video, song, etc.
+     */
     case SEARCH = 'search';
     case VIEW_ITEM = 'view-item';
     case VIEW_ITEM_LIST = 'view-item-list';
@@ -54,17 +53,17 @@ enum UserEventEnum: string
     public static function convertInteractionToEvent(Interactions $interaction): ?string
     {
         return match ($interaction->name) {
-            InteractionEnum::LIKE->getValue() => self::VIEW_ITEM->value,
-            InteractionEnum::SAVE->getValue() => self::VIEW_ITEM->value,
+            InteractionEnum::LIKE->getValue()    => self::VIEW_ITEM->value,
+            InteractionEnum::SAVE->getValue()    => self::VIEW_ITEM->value,
             InteractionEnum::COMMENT->getValue() => self::VIEW_ITEM->value,
-            InteractionEnum::SHARE->getValue() => self::VIEW_ITEM->value,
-            InteractionEnum::TAG->getValue() => self::VIEW_ITEM->value,
-            InteractionEnum::REPLY->getValue() => self::VIEW_ITEM->value,
-            InteractionEnum::PIN->getValue() => self::PURCHASE->value,
-            InteractionEnum::VIEW->getValue() => self::VIEW_ITEM->value,
-            self::VIEW_HOME_PAGE->value => self::VIEW_HOME_PAGE->value,
-            self::VIEW_ITEM->value => self::VIEW_ITEM->value,
-            default => null
+            InteractionEnum::SHARE->getValue()   => self::VIEW_ITEM->value,
+            InteractionEnum::TAG->getValue()     => self::VIEW_ITEM->value,
+            InteractionEnum::REPLY->getValue()   => self::VIEW_ITEM->value,
+            InteractionEnum::PIN->getValue()     => self::PURCHASE->value,
+            InteractionEnum::VIEW->getValue()    => self::VIEW_ITEM->value,
+            self::VIEW_HOME_PAGE->value          => self::VIEW_HOME_PAGE->value,
+            self::VIEW_ITEM->value               => self::VIEW_ITEM->value,
+            default                              => null
         };
     }
 }

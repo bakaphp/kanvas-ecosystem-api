@@ -12,6 +12,7 @@ class VariantsChannelRepository
     /**
      * this is a temp solution to filter variants / product by attributes
      * we should aim for shopify query implementation in the future.
+     *
      * @psalm-suppress MissingClosureParamType
      * @psalm-suppress UndefinedMethod
      * @psalm-suppress InvalidArgument
@@ -27,8 +28,8 @@ class VariantsChannelRepository
         $index = 1;
 
         foreach ($attributes as $name => $value) {
-            $alias = 'pva' . $index; // Aliases for each join
-            $attrAlias = 'a' . $index;
+            $alias = 'pva'.$index; // Aliases for each join
+            $attrAlias = 'a'.$index;
 
             // Join products_variants_attributes table
             $query->join(
@@ -63,8 +64,8 @@ class VariantsChannelRepository
 
         // Handle millage separately with the same JSON handling logic
         if ($millage !== null && is_array($millage) && count($millage) === 2) {
-            $alias = 'pva' . $index;
-            $attrAlias = 'a' . $index;
+            $alias = 'pva'.$index;
+            $attrAlias = 'a'.$index;
 
             $query->join(
                 "products_variants_attributes as $alias",

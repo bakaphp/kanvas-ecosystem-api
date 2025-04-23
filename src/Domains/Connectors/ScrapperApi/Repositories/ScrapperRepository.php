@@ -20,10 +20,10 @@ class ScrapperRepository
 
     protected function makeRequest(string $url, array $queryParams): array
     {
-        $response = Http::timeout(60)->get($this->baseUri . $url, $queryParams);
+        $response = Http::timeout(60)->get($this->baseUri.$url, $queryParams);
 
         if ($response->failed()) {
-            throw new Exception('Request failed with status: ' . $response->status());
+            throw new Exception('Request failed with status: '.$response->status());
         }
 
         return $response->json();
@@ -32,20 +32,20 @@ class ScrapperRepository
     public function getByAsin(string $asin): array
     {
         return $this->makeRequest('/structured/amazon/product', [
-            'api_key' => $this->app->get(ConfigEnum::SCRAPPER_API_KEY->value),
-            'asin' => $asin,
+            'api_key'      => $this->app->get(ConfigEnum::SCRAPPER_API_KEY->value),
+            'asin'         => $asin,
             'country_code' => 'us',
-            'tld' => 'com',
+            'tld'          => 'com',
         ]);
     }
 
     public function getSearch(string $search): array
     {
         $response = $this->makeRequest('/structured/amazon/search', [
-            'api_key' => $this->app->get(ConfigEnum::SCRAPPER_API_KEY->value),
-            'query' => $search,
+            'api_key'      => $this->app->get(ConfigEnum::SCRAPPER_API_KEY->value),
+            'query'        => $search,
             'country_code' => 'us',
-            'tld' => 'com',
+            'tld'          => 'com',
         ]);
 
         return $response['results'] ?? [];

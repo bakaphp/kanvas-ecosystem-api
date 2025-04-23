@@ -59,8 +59,8 @@ class FilesystemServices
     public function getStorageByDisk(): Filesystem
     {
         return match ($this->app->get('filesystem-service')) {
-            'gcs' => $this->buildGoogleCloudStorage(),
-            's3' => $this->buildS3Storage(),
+            'gcs'   => $this->buildGoogleCloudStorage(),
+            's3'    => $this->buildS3Storage(),
             default => $this->buildS3Storage(),
         };
     }
@@ -75,19 +75,19 @@ class FilesystemServices
         }
 
         return Storage::build([
-            'driver' => 'gcs',
-            'key_file' => $this->app->get('service-account-file'), // optional: Array of data that substitutes the .json file (see below)
-            'bucket' => $this->app->get('cloud-bucket'),
-            'storage_api_uri' => $this->app->get('cloud-cdn'), // see: Public URLs below
-            'apiEndpoint' => null, // set storageClient apiEndpoint
-            'visibility' => 'public', // optional: public|private
+            'driver'             => 'gcs',
+            'key_file'           => $this->app->get('service-account-file'), // optional: Array of data that substitutes the .json file (see below)
+            'bucket'             => $this->app->get('cloud-bucket'),
+            'storage_api_uri'    => $this->app->get('cloud-cdn'), // see: Public URLs below
+            'apiEndpoint'        => null, // set storageClient apiEndpoint
+            'visibility'         => 'public', // optional: public|private
             'visibility_handler' => \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class, // optional: set to \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class to enable uniform bucket level access
-            'metadata' => ['cacheControl' => 'public,max-age=86400'], // optional: default metadata
+            'metadata'           => ['cacheControl' => 'public,max-age=86400'], // optional: default metadata
         ]);
     }
 
     /**
-     * Build an on-demand aws s3 storage using the (must) already saved service-account-file
+     * Build an on-demand aws s3 storage using the (must) already saved service-account-file.
      */
     public function buildS3Storage(): Filesystem
     {
@@ -98,15 +98,15 @@ class FilesystemServices
         }
 
         return Storage::build([
-            'driver' => 's3',
-            'key' => $aws['key'],
-            'secret' => $aws['secret'],
-            'region' => $aws['region'],
-            'bucket' => $this->app->get('cloud-bucket'),
-            'url' => $this->app->get('cloud-cdn'),
-            'path' => $this->app->get('cloud-bucket-path') ?? '/',
-            'use_path_style_endpoint' => (bool)$this->app->get('use_path_style_endpoint') ?? false,
-            'endpoint' => $aws['endpoint'] ?? null,
+            'driver'                  => 's3',
+            'key'                     => $aws['key'],
+            'secret'                  => $aws['secret'],
+            'region'                  => $aws['region'],
+            'bucket'                  => $this->app->get('cloud-bucket'),
+            'url'                     => $this->app->get('cloud-cdn'),
+            'path'                    => $this->app->get('cloud-bucket-path') ?? '/',
+            'use_path_style_endpoint' => (bool) $this->app->get('use_path_style_endpoint') ?? false,
+            'endpoint'                => $aws['endpoint'] ?? null,
         ]);
     }
 
@@ -125,7 +125,7 @@ class FilesystemServices
 
         $fileContent = $diskS3->get($path);
         $filename = basename($path);
-        $path = storage_path('app/csv/' . $filename);
+        $path = storage_path('app/csv/'.$filename);
         file_put_contents($path, $fileContent);
 
         return $path;
@@ -144,7 +144,7 @@ class FilesystemServices
         }
 
         // Save to a temporary file
-        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '_' . $originalName;
+        $tempFilePath = sys_get_temp_dir().'/'.uniqid().'_'.$originalName;
         file_put_contents($tempFilePath, $decodedContent);
 
         return $this->upload(
@@ -171,7 +171,7 @@ class FilesystemServices
             $extension = pathinfo($path, PATHINFO_EXTENSION);
         }
 
-        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $extension;
+        $tempFilePath = sys_get_temp_dir().'/'.uniqid().'.'.$extension;
 
         // Get the image content
         $imageContent = file_get_contents($imageUrl);

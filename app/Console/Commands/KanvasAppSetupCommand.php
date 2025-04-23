@@ -27,8 +27,6 @@ class KanvasAppSetupCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -53,15 +51,15 @@ class KanvasAppSetupCommand extends Command
 
         $data = AppInput::from(
             [
-                'name' => $name,
-                'url' => $url,
-                'description' => $description,
-                'domain' => $domain,
-                'is_actived' => 1,
-                'ecosystem_auth' => (int)$ecosystemAuth,
-                'payments_active' => (int)$paymentsActive,
-                'is_public' => (int)$isPublic,
-                'domain_based' => 0,
+                'name'            => $name,
+                'url'             => $url,
+                'description'     => $description,
+                'domain'          => $domain,
+                'is_actived'      => 1,
+                'ecosystem_auth'  => (int) $ecosystemAuth,
+                'payments_active' => (int) $paymentsActive,
+                'is_public'       => (int) $isPublic,
+                'domain_based'    => 0,
             ]
         );
 
@@ -69,9 +67,8 @@ class KanvasAppSetupCommand extends Command
         $app = $createApp->execute();
 
         $this->newLine();
-        $this->info("App {$app->name} successfully created! : Api Key " . $app->key);
+        $this->info("App {$app->name} successfully created! : Api Key ".$app->key);
         $this->newLine();
 
-        return;
     }
 }

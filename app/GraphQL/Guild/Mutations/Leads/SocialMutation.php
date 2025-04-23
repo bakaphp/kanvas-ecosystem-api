@@ -10,7 +10,7 @@ use Kanvas\Social\Follows\Models\UsersFollows;
 class SocialMutation
 {
     /**
-     * follow a lead
+     * follow a lead.
      */
     public function follow(mixed $root, array $req): bool
     {
@@ -24,7 +24,7 @@ class SocialMutation
     }
 
     /**
-     * unFollow a lead
+     * unFollow a lead.
      */
     public function unFollow(mixed $root, array $req): bool
     {

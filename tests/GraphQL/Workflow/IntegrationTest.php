@@ -36,10 +36,10 @@ class IntegrationTest extends TestCase
         $this->assertArrayHasKey('id', $response->json()['data']['integrations']['data'][0]);
 
         $region = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
+            'name'        => 'Test Region',
+            'slug'        => 'test-region',
+            'short_slug'  => 'test-region',
+            'is_default'  => 1,
             'currency_id' => 1,
         ];
         $regionResponse = $this->graphQL('
@@ -64,9 +64,9 @@ class IntegrationTest extends TestCase
         $integration = $response->json()['data']['integrations']['data'][0];
         $company = auth()->user()->getCurrentCompany();
         $credentials = [
-            'client_id' => getenv('TEST_SHOPIFY_API_KEY'),
+            'client_id'     => getenv('TEST_SHOPIFY_API_KEY'),
             'client_secret' => getenv('TEST_SHOPIFY_API_SECRET'),
-            'shop_url' => getenv('TEST_SHOPIFY_SHOP_URL'),
+            'shop_url'      => getenv('TEST_SHOPIFY_SHOP_URL'),
         ];
 
         $data = [
@@ -74,13 +74,13 @@ class IntegrationTest extends TestCase
                 'id' => $integration['id'],
             ],
             'company_id' => $company->getId(),
-            'region' => [
+            'region'     => [
                 'id' => $regionResponse['data']['createRegion']['id'],
             ],
             'config' => [
-                'client_id' => $credentials['client_id'],
+                'client_id'     => $credentials['client_id'],
                 'client_secret' => $credentials['client_secret'],
-                'shop_url' => $credentials['shop_url'],
+                'shop_url'      => $credentials['shop_url'],
             ],
         ];
 
@@ -113,10 +113,10 @@ class IntegrationTest extends TestCase
         $this->assertArrayHasKey('id', $response->json()['data']['integrations']['data'][0]);
 
         $region = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
+            'name'        => 'Test Region',
+            'slug'        => 'test-region',
+            'short_slug'  => 'test-region',
+            'is_default'  => 1,
             'currency_id' => 1,
         ];
         $regionResponse = $this->graphQL('
@@ -142,9 +142,9 @@ class IntegrationTest extends TestCase
         $company = auth()->user()->getCurrentCompany();
 
         $credentials = [
-            'client_id' => getenv('TEST_SHOPIFY_API_KEY'),
+            'client_id'     => getenv('TEST_SHOPIFY_API_KEY'),
             'client_secret' => getenv('TEST_SHOPIFY_API_SECRET'),
-            'shop_url' => getenv('TEST_SHOPIFY_SHOP_URL'),
+            'shop_url'      => getenv('TEST_SHOPIFY_SHOP_URL'),
         ];
 
         $data = [
@@ -152,13 +152,13 @@ class IntegrationTest extends TestCase
                 'id' => $integration['id'],
             ],
             'company_id' => $company->getId(),
-            'region' => [
+            'region'     => [
                 'id' => $regionResponse['data']['createRegion']['id'],
             ],
             'config' => [
-                'client_id' => $credentials['client_id'],
+                'client_id'     => $credentials['client_id'],
                 'client_secret' => $credentials['client_secret'],
-                'shop_url' => $credentials['shop_url'],
+                'shop_url'      => $credentials['shop_url'],
             ],
         ];
 

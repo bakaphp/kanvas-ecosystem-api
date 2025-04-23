@@ -55,19 +55,19 @@ trait NotificationStorageTrait
         }
 
         return [
-            'users_id' => $userId,
-            'from_users_id' => $fromUserId,
-            'companies_id' => $companiesId,
-            'apps_id' => $this->app->getId(),
-            'system_modules_id' => $this->getType()->system_modules_id,
+            'users_id'             => $userId,
+            'from_users_id'        => $fromUserId,
+            'companies_id'         => $companiesId,
+            'apps_id'              => $this->app->getId(),
+            'system_modules_id'    => $this->getType()->system_modules_id,
             'notification_type_id' => $this->getType()->getId(),
-            'entity_id' => method_exists($this->entity, 'getId') ? $this->entity->getId() : $this->entity->id,
-            'content' => $this->message(),
-            'entity_content' => $filteredData ?? [],
-            'read' => 0,
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-            'is_deleted' => 0,
+            'entity_id'            => method_exists($this->entity, 'getId') ? $this->entity->getId() : $this->entity->id,
+            'content'              => $this->message(),
+            'entity_content'       => $filteredData ?? [],
+            'read'                 => 0,
+            'created_at'           => date('Y-m-d H:i:s'),
+            'updated_at'           => date('Y-m-d H:i:s'),
+            'is_deleted'           => 0,
         ];
     }
 }

@@ -32,7 +32,7 @@ final class ProcessWebhookJobTest extends TestCase
         $title = 'New Order';
         $payload = [
             'title' => $title,
-            'body' => json_encode(['order_id' => 1]),
+            'body'  => json_encode(['order_id' => 1]),
         ];
 
         // Create a new Request instance with the payload
@@ -45,7 +45,7 @@ final class ProcessWebhookJobTest extends TestCase
         Queue::fake();
 
         // Create a concrete class for the abstract ProcessWebhookJob class
-        $job = new class ($webhookRequest) extends ProcessWebhookJob {
+        $job = new class($webhookRequest) extends ProcessWebhookJob {
             public function execute(): array
             {
                 return ['result' => $this->webhookRequest->payload];

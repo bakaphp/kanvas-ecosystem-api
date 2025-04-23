@@ -23,9 +23,9 @@ class UserTest extends TestCase
     {
         if (empty(self::$loginData)) {
             self::$loginData = LoginInput::from([
-                'email' => fake()->email,
+                'email'    => fake()->email,
                 'password' => fake()->password(8),
-                'ip' => request()->ip(),
+                'ip'       => request()->ip(),
             ]);
         }
 
@@ -58,17 +58,17 @@ class UserTest extends TestCase
                 }
             }',
             [
-                'id' => 0,
+                'id'   => 0,
                 'data' => [
-                    'firstname' => $firstname,
-                    'lastname' => $lastname,
-                    'displayname' => $displayname,
-                    'description' => fake()->text(30),
-                    'sex' => 'U',
-                    'phone_number' => fake()->phoneNumber(),
-                    'address_1' => fake()->address(),
-                    'timezone' => 'America/New_York',
-                    'welcome' => true,
+                    'firstname'     => $firstname,
+                    'lastname'      => $lastname,
+                    'displayname'   => $displayname,
+                    'description'   => fake()->text(30),
+                    'sex'           => 'U',
+                    'phone_number'  => fake()->phoneNumber(),
+                    'address_1'     => fake()->address(),
+                    'timezone'      => 'America/New_York',
+                    'welcome'       => true,
                     'custom_fields' => [
                         [
                             'name' => 'test',
@@ -78,7 +78,7 @@ class UserTest extends TestCase
                     'files' => [
                         [
                             'name' => 'photo',
-                            'url' => fake()->url,
+                            'url'  => fake()->url,
                         ],
                     ],
                 ],
@@ -125,8 +125,8 @@ class UserTest extends TestCase
                     new_password_confirmation: $new_password_confirmation)
             }
         ', [
-            'current_password' => $currentPassword,
-            'new_password' => $newPassword,
+            'current_password'          => $currentPassword,
+            'new_password'              => $newPassword,
             'new_password_confirmation' => $newPassword,
         ])->assertJson([
             'data' => [
@@ -149,7 +149,7 @@ class UserTest extends TestCase
 
         ', [
             'data' => [
-                'email' => $email,
+                'email'    => $email,
                 'password' => $currentPassword,
             ],
         ])
@@ -173,7 +173,7 @@ class UserTest extends TestCase
 
         ', [
             'data' => [
-                'email' => $email,
+                'email'    => $email,
                 'password' => $newPassword,
             ],
         ])
@@ -219,8 +219,8 @@ class UserTest extends TestCase
                     new_password_confirmation: $new_password_confirmation)
             }
         ', [
-            'current_password' => $currentPassword,
-            'new_password' => $currentPassword,
+            'current_password'          => $currentPassword,
+            'new_password'              => $currentPassword,
             'new_password_confirmation' => $currentPassword,
         ])
         ->assertSuccessful()
@@ -283,7 +283,7 @@ class UserTest extends TestCase
             }
         ',
             [
-            'displayname' => $user->displayname,
+                'displayname' => $user->displayname,
             ],
             [],
             [
@@ -292,7 +292,7 @@ class UserTest extends TestCase
         )->assertJson([
             'data' => [
                 'userByDisplayName' => [
-                    'id' => $user->getId(),
+                    'id'    => $user->getId(),
                     'email' => $user->email,
                 ],
             ],
@@ -304,8 +304,8 @@ class UserTest extends TestCase
         $app = app(Apps::class);
 
         $input = [
-            'key' => 'test',
-            'value' => 'test',
+            'key'         => 'test',
+            'value'       => 'test',
             'entity_uuid' => Users::getById(1)->uuid,
         ];
         $this->graphQL(/** @lang GraphQL */
@@ -315,7 +315,7 @@ class UserTest extends TestCase
             }
         ',
             [
-            'input' => $input,
+                'input' => $input,
             ],
             [],
             [
@@ -333,8 +333,8 @@ class UserTest extends TestCase
         $app = app(Apps::class);
 
         $input = [
-            'key' => 'test',
-            'value' => 'test',
+            'key'         => 'test',
+            'value'       => 'test',
             'entity_uuid' => Users::getById(1)->uuid,
         ];
         $this->graphQL(/** @lang GraphQL */
@@ -344,7 +344,7 @@ class UserTest extends TestCase
             }
         ',
             [
-            'input' => $input,
+                'input' => $input,
             ],
             [],
             [
@@ -391,7 +391,7 @@ class UserTest extends TestCase
                 }
             ',
             'variables' => [
-                'id' => 0,
+                'id'   => 0,
                 'file' => null,
             ],
         ];

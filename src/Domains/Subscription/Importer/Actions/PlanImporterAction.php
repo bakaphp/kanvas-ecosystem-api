@@ -32,13 +32,13 @@ class PlanImporterAction
             DB::connection('mysql')->beginTransaction();
 
             $planDto = PlanDto::from([
-                'app' => $this->app,
-                'user' => $this->user,
-                'apps_id' => $this->importedPlan->apps_id,
-                'name' => $this->importedPlan->name,
+                'app'         => $this->app,
+                'user'        => $this->user,
+                'apps_id'     => $this->importedPlan->apps_id,
+                'name'        => $this->importedPlan->name,
                 'description' => $this->importedPlan->description,
-                'stripe_id' => $this->importedPlan->stripe_id,
-                'is_active' => $this->importedPlan->is_active,
+                'stripe_id'   => $this->importedPlan->stripe_id,
+                'is_active'   => $this->importedPlan->is_active,
             ]);
 
             try {

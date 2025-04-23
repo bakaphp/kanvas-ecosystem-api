@@ -35,16 +35,16 @@ final class UpdateSubscriptionTest extends TestCase
         $stripe = new StripeClient($app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
         $customer = $stripe->customers->create([
             'email' => $people->getEmails()[0]->value,
-            'name' => $people->getName(),
+            'name'  => $people->getName(),
         ]);
         $paymentMethod = $stripe->paymentMethods->create([
-          'type' => 'card',
-          'card' => [
-            'number' => '4242424242424242',
-            'exp_month' => 8,
-            'exp_year' => 2026,
-            'cvc' => '314',
-          ],
+            'type' => 'card',
+            'card' => [
+                'number'    => '4242424242424242',
+                'exp_month' => 8,
+                'exp_year'  => 2026,
+                'cvc'       => '314',
+            ],
         ]);
 
         $stripe->paymentMethods->attach(
@@ -59,7 +59,7 @@ final class UpdateSubscriptionTest extends TestCase
         $prices = $stripe->prices->all();
         $stripe->subscriptions->create([
             'customer' => $customer->id,
-            'items' => [
+            'items'    => [
                 ['price' => $prices->data[0]->id],
             ],
         ]);
@@ -73,7 +73,7 @@ final class UpdateSubscriptionTest extends TestCase
         ];
 
         $workflowAction = WorkflowAction::firstOrCreate([
-            'name' => 'Update People Subscription',
+            'name'       => 'Update People Subscription',
             'model_name' => UpdatePeopleStripeSubscriptionJob::class,
         ]);
 
@@ -82,7 +82,7 @@ final class UpdateSubscriptionTest extends TestCase
                ->user($user->getId())
                ->company($company->getId())
                ->create([
-                      'action_id' => $workflowAction->getId(),
+                   'action_id' => $workflowAction->getId(),
                ]);
 
         $request = Request::create('https://localhost/shopifytest', 'POST', $payload);

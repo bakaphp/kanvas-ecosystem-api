@@ -15,7 +15,6 @@ use UnexpectedValueException;
  * PHP version 5
  *
  * @category Authentication
- * @package  Authentication_JWT
  *
  * @author   Neuman Vong <neuman@twilio.com>
  * @author   Anant Narayanan <anant@php.net>
@@ -55,19 +54,19 @@ class JWT
     /**
      * Decodes a JWT string into a PHP object.
      *
-     * @param string        $jwt            The JWT
-     * @param string|array  $key            The key, or map of keys.
-     *                                      If the algorithm used is asymmetric, this is the public key
-     * @param array         $allowed_algs   List of supported verification algorithms
-     *                                      Supported algorithms are 'HS256', 'HS384', 'HS512' and 'RS256'
+     * @param string       $jwt          The JWT
+     * @param string|array $key          The key, or map of keys.
+     *                                   If the algorithm used is asymmetric, this is the public key
+     * @param array        $allowed_algs List of supported verification algorithms
+     *                                   Supported algorithms are 'HS256', 'HS384', 'HS512' and 'RS256'
+     *
+     * @throws UnexpectedValueException  Provided JWT was invalid
+     * @throws SignatureInvalidException Provided JWT was invalid because the signature verification failed
+     * @throws BeforeValidException      Provided JWT is trying to be used before it's eligible as defined by 'nbf'
+     * @throws BeforeValidException      Provided JWT is trying to be used before it's been created as defined by 'iat'
+     * @throws ExpiredException          Provided JWT has since expired, as defined by the 'exp' claim
      *
      * @return object The JWT's payload as a PHP object
-     *
-     * @throws UnexpectedValueException     Provided JWT was invalid
-     * @throws SignatureInvalidException    Provided JWT was invalid because the signature verification failed
-     * @throws BeforeValidException         Provided JWT is trying to be used before it's eligible as defined by 'nbf'
-     * @throws BeforeValidException         Provided JWT is trying to be used before it's been created as defined by 'iat'
-     * @throws ExpiredException             Provided JWT has since expired, as defined by the 'exp' claim
      *
      * @uses jsonDecode
      * @uses urlsafeB64Decode
@@ -119,13 +118,12 @@ class JWT
     /**
      * Converts and signs a PHP object or array into a JWT string.
      *
-     * @param object|array  $payload    PHP object or array
-     * @param string        $key        The secret key.
-     *                                  If the algorithm used is asymmetric, this is the private key
-     * @param string        $alg        The signing algorithm.
-     *                                  Supported algorithms are 'HS256', 'HS384', 'HS512' and 'RS256'
-     * @param mixed         $keyId
-     * @param array         $head       An array with header elements to attach
+     * @param object|array $payload PHP object or array
+     * @param string       $key     The secret key.
+     *                              If the algorithm used is asymmetric, this is the private key
+     * @param string       $alg     The signing algorithm.
+     *                              Supported algorithms are 'HS256', 'HS384', 'HS512' and 'RS256'
+     * @param array        $head    An array with header elements to attach
      *
      * @return string A signed JWT
      *
@@ -155,14 +153,14 @@ class JWT
     /**
      * Sign a string with a given key and algorithm.
      *
-     * @param string            $msg    The message to sign
-     * @param string|resource   $key    The secret key
-     * @param string            $alg    The signing algorithm.
-     *                                  Supported algorithms are 'HS256', 'HS384', 'HS512' and 'RS256'
-     *
-     * @return string An encrypted message
+     * @param string          $msg The message to sign
+     * @param string|resource $key The secret key
+     * @param string          $alg The signing algorithm.
+     *                             Supported algorithms are 'HS256', 'HS384', 'HS512' and 'RS256'
      *
      * @throws DomainException Unsupported algorithm was specified
+     *
+     * @return string An encrypted message
      */
     public static function sign($msg, $key, $alg = 'HS256')
     {
@@ -190,14 +188,14 @@ class JWT
      * Verify a signature with the message, key and method. Not all methods
      * are symmetric, so we must have a separate verify and sign method.
      *
-     * @param string            $msg        The original message (header and body)
-     * @param string            $signature  The original signature
-     * @param string|resource   $key        For HS*, a string key works. for RS*, must be a resource of an openssl public key
-     * @param string            $alg        The algorithm
-     *
-     * @return bool
+     * @param string          $msg       The original message (header and body)
+     * @param string          $signature The original signature
+     * @param string|resource $key       For HS*, a string key works. for RS*, must be a resource of an openssl public key
+     * @param string          $alg       The algorithm
      *
      * @throws DomainException Invalid Algorithm or OpenSSL failure
+     *
+     * @return bool
      */
     private static function verify($msg, $signature, $key, $alg)
     {
@@ -217,7 +215,7 @@ class JWT
 
                 // returns 1 on success, 0 on failure, -1 on error.
                 throw new DomainException(
-                    'OpenSSL error: ' . openssl_error_string()
+                    'OpenSSL error: '.openssl_error_string()
                 );
             case 'hash_hmac':
             default:
@@ -233,7 +231,7 @@ class JWT
                 }
                 $status |= (static::safeStrlen($signature) ^ static::safeStrlen($hash));
 
-                return ($status === 0);
+                return $status === 0;
         }
     }
 
@@ -242,9 +240,9 @@ class JWT
      *
      * @param string $input JSON string
      *
-     * @return object Object representation of JSON string
-     *
      * @throws DomainException Provided string was invalid JSON
+     *
+     * @return object Object representation of JSON string
      */
     public static function jsonDecode($input)
     {
@@ -260,7 +258,7 @@ class JWT
              *them to strings) before decoding, hence the preg_replace() call.
              */
             $max_int_length = strlen((string) PHP_INT_MAX) - 1;
-            $json_without_bigints = preg_replace('/:\s*(-?\d{' . $max_int_length . ',})/', ': "$1"', $input);
+            $json_without_bigints = preg_replace('/:\s*(-?\d{'.$max_int_length.',})/', ': "$1"', $input);
             $obj = json_decode($json_without_bigints);
         }
 
@@ -278,9 +276,9 @@ class JWT
      *
      * @param object|array $input A PHP object or array
      *
-     * @return string JSON representation of the PHP object or array
-     *
      * @throws DomainException Provided object could not be encoded to valid JSON
+     *
+     * @return string JSON representation of the PHP object or array
      */
     public static function jsonEncode($input)
     {
@@ -334,17 +332,17 @@ class JWT
     private static function handleJsonError($errno)
     {
         $messages = [
-            JSON_ERROR_DEPTH => 'Maximum stack depth exceeded',
+            JSON_ERROR_DEPTH          => 'Maximum stack depth exceeded',
             JSON_ERROR_STATE_MISMATCH => 'Invalid or malformed JSON',
-            JSON_ERROR_CTRL_CHAR => 'Unexpected control character found',
-            JSON_ERROR_SYNTAX => 'Syntax error, malformed JSON',
-            JSON_ERROR_UTF8 => 'Malformed UTF-8 characters', //PHP >= 5.3.3
+            JSON_ERROR_CTRL_CHAR      => 'Unexpected control character found',
+            JSON_ERROR_SYNTAX         => 'Syntax error, malformed JSON',
+            JSON_ERROR_UTF8           => 'Malformed UTF-8 characters', //PHP >= 5.3.3
         ];
 
         throw new DomainException(
             isset($messages[$errno])
             ? $messages[$errno]
-            : 'Unknown JSON error: ' . $errno
+            : 'Unknown JSON error: '.$errno
         );
     }
 

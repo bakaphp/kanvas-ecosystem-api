@@ -9,10 +9,10 @@ use InvalidArgumentException;
 class FileSizeConverter
 {
     /**
-    * Convert a human-readable file size string (e.g., "500MB", "2GB", "500 MB", "2 GB", "0") to bytes.
-    *
-    * @throws InvalidArgumentException
-    */
+     * Convert a human-readable file size string (e.g., "500MB", "2GB", "500 MB", "2 GB", "0") to bytes.
+     *
+     * @throws InvalidArgumentException
+     */
     public static function toBytes(string|int $size): int
     {
         $size = (string) $size;
@@ -27,7 +27,7 @@ class FileSizeConverter
         }
 
         $units = [
-            'B' => 1,
+            'B'  => 1,
             'KB' => 1000,
             'MB' => 1000000,
             'GB' => 1000000000,

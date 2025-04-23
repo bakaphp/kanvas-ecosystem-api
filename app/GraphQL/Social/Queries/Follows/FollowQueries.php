@@ -7,9 +7,9 @@ namespace App\GraphQL\Social\Queries\Follows;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
+use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 
 class FollowQueries
 {

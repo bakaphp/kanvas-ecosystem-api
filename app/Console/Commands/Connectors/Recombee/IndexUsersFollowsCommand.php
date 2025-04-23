@@ -52,12 +52,11 @@ class IndexUsersFollowsCommand extends Command
         foreach ($cursor as $userFollow) {
             $result = $usersFollowsIndex->indexUsersFollows($userFollow, $company, $messageType);
 
-            $this->info('Users Follows ID: ' . $userFollow->getId() . ' indexed with result: ' . $result);
+            $this->info('Users Follows ID: '.$userFollow->getId().' indexed with result: '.$result);
             $this->output->progressAdvance();
         }
 
         $this->output->progressFinish();
 
-        return;
     }
 }

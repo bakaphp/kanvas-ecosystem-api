@@ -37,10 +37,10 @@ class VariantWarehouseBuilder
         /**
          * @var Builder
          */
-        return ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
-            ->where($variantWarehouse->getTable() . '.warehouses_id', $warehouse->getId())
-            ->where($variantWarehouse->getTable() . '.is_deleted', 0)
-            ->where($variantWarehouse->getTable() . '.is_published', 1);
+        return ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable().'.products_variants_id', '=', $variants->getTable().'.id')
+            ->where($variantWarehouse->getTable().'.warehouses_id', $warehouse->getId())
+            ->where($variantWarehouse->getTable().'.is_deleted', 0)
+            ->where($variantWarehouse->getTable().'.is_published', 1);
     }
 
     public function getVariantsByStatus(
@@ -64,6 +64,7 @@ class VariantWarehouseBuilder
             ->unless(auth()->user()->isAppOwner(), function (Builder $status) {
                 $status->fromCompany(auth()->user()->getCurrentCompany());
             });
+
             return $status->firstOrFail()->getId();
         })->toArray();
 
@@ -75,15 +76,16 @@ class VariantWarehouseBuilder
         //set index
         //ModelsVariants::setSearchIndex((int) $warehouse->companies_id);
 
-        $builder = ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
-        ->whereIn($variantWarehouse->getTable() . '.status_id', $statusId)
-        ->where($variantWarehouse->getTable() . '.is_deleted', 0)
-        ->where($variants->getTable() . '.is_deleted', 0)
-        ->select($variants->getTable() . '.*');
+        $builder = ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable().'.products_variants_id', '=', $variants->getTable().'.id')
+        ->whereIn($variantWarehouse->getTable().'.status_id', $statusId)
+        ->where($variantWarehouse->getTable().'.is_deleted', 0)
+        ->where($variants->getTable().'.is_deleted', 0)
+        ->select($variants->getTable().'.*');
 
         if (! auth()->user()->isAppOwner()) {
-            $builder->where($variantWarehouse->getTable() . '.warehouses_id', '=', $warehouse->getId());
+            $builder->where($variantWarehouse->getTable().'.warehouses_id', '=', $warehouse->getId());
         }
+
         /**
          * @var Builder
          */

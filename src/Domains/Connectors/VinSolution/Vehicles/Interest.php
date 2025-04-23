@@ -32,7 +32,7 @@ class Interest
     {
         $client = new Client($dealer->id, $user->id);
 
-        $response = $client->get('/vehicles/interest?leadId=' . $leadsId, [
+        $response = $client->get('/vehicles/interest?leadId='.$leadsId, [
             'headers' => [
                 'Accept' => 'application/vnd.coxauto.v1+json',
             ],
@@ -53,7 +53,7 @@ class Interest
         }
 
         $interest = [];
-        $interest['lead'] = 'https://api.vinsolutions.com/leads/id/' . $leadsId;
+        $interest['lead'] = 'https://api.vinsolutions.com/leads/id/'.$leadsId;
         $interest['vehicles'][] = $data;
 
         $response = $client->post(
@@ -77,7 +77,7 @@ class Interest
         $client = new Client($dealer->id, $user->id);
 
         $response = $client->put(
-            '/vehicles/interest/id/' . $id,
+            '/vehicles/interest/id/'.$id,
             json_encode(
                 $data
             ),
@@ -115,7 +115,7 @@ class Interest
         }
 
         return [
-            'id' => $id,
+            'id'      => $id,
             'vehicle' => $filteredVehicle,
         ];
     }

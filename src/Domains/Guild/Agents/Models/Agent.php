@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Agents\Models;
 
 use Baka\Contracts\CompanyInterface;
-use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -17,17 +16,17 @@ use Kanvas\Users\Models\Users;
 /**
  * Class Agent.
  *
- * @property int $id
- * @property int $users_id
- * @property int $companies_id
+ * @property int      $id
+ * @property int      $users_id
+ * @property int      $companies_id
  * @property int|null $apps_id
- * @property string $name
- * @property string $users_linked_source_id
- * @property string $member_id
- * @property int $status_id
- * @property int $total_leads
- * @property int $owner_id
- * @property string $owner_linked_source_id
+ * @property string   $name
+ * @property string   $users_linked_source_id
+ * @property string   $member_id
+ * @property int      $status_id
+ * @property int      $total_leads
+ * @property int      $owner_id
+ * @property string   $owner_linked_source_id
  */
 class Agent extends BaseModel
 {
@@ -56,13 +55,13 @@ class Agent extends BaseModel
     }
 
     /**
-     * For the Enum in graph
+     * For the Enum in graph.
      */
     public function status(): Attribute
     {
         return Attribute::make(
             get: fn () => [
-                'id' => $this->status_id,
+                'id'   => $this->status_id,
                 'name' => $this->status_id,
             ]
         );
@@ -94,7 +93,7 @@ class Agent extends BaseModel
         $lookingForSpecificUser = $query->wheresContain('users_id', '=', $user->getId());
 
         if ($company->get(AgentFilterEnum::FITTER_BY_USER->value) && ! $lookingForSpecificUser) {
-            $memberId = $user->get('member_number_' . $company->getId()) ? $user->get('member_number_' . $company->getId()) : $user->getId();
+            $memberId = $user->get('member_number_'.$company->getId()) ? $user->get('member_number_'.$company->getId()) : $user->getId();
 
             return $query->where('owner_id', $memberId);
         } elseif ($company->get(AgentFilterEnum::FITTER_BY_OWNER->value) && ! $lookingForSpecificUser) {

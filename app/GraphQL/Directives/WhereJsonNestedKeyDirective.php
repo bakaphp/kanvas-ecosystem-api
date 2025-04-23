@@ -46,7 +46,7 @@ SDL;
     ): QueryBuilder|EloquentBuilder|Relation {
         $key = $this->directiveArgValue('key');
         $nestedKey = $value['nested_key'];
-        $combinedKey = "$key->" . $nestedKey;
+        $combinedKey = "$key->".$nestedKey;
 
         return $builder->whereJsonContains($combinedKey, $value['value']);
     }

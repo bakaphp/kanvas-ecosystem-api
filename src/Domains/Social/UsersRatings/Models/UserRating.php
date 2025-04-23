@@ -11,13 +11,13 @@ use Kanvas\Social\UsersRatings\Observers\UserRatingObserver;
 use Kanvas\SystemModules\Models\SystemModules;
 
 /**
- * @property int $id
- * @property int $users_id
- * @property int $companies_id
- * @property int $apps_id
- * @property int $system_modules_id
- * @property int $entity_id
- * @property float $ratings
+ * @property int    $id
+ * @property int    $users_id
+ * @property int    $companies_id
+ * @property int    $apps_id
+ * @property int    $system_modules_id
+ * @property int    $entity_id
+ * @property float  $ratings
  * @property string $comment
  */
 #[ObservedBy([UserRatingObserver::class])]

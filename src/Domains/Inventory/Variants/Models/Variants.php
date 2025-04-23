@@ -84,7 +84,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
-    public $translatable = ['name','description','short_description','html_description'];
+    public $translatable = ['name', 'description', 'short_description', 'html_description'];
 
     protected $table = 'products_variants';
     protected $touches = ['attributes'];
@@ -110,7 +110,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     protected $casts = [
         'is_published' => 'boolean',
-        'is_deleted' => 'boolean',
+        'is_deleted'   => 'boolean',
     ];
 
     protected $guarded = [];
@@ -308,6 +308,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     /**
      * Add/create new attributes from a variant.
+     *
      * @psalm-suppress MixedAssignment
      * @psalm-suppress MixedArrayAccess
      * @psalm-suppress MixedPropertyFetch
@@ -323,15 +324,15 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                 $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
             } elseif (! empty($attribute['name'])) {
                 $attributesDto = AttributesDto::from([
-                    'app' => app(Apps::class),
-                    'user' => $user,
-                    'company' => $this->product->company,
-                    'name' => $attribute['name'],
-                    'value' => $attribute['value'],
-                    'isVisible' => true,
+                    'app'          => app(Apps::class),
+                    'user'         => $user,
+                    'company'      => $this->product->company,
+                    'name'         => $attribute['name'],
+                    'value'        => $attribute['value'],
+                    'isVisible'    => true,
                     'isSearchable' => true,
-                    'isFiltrable' => true,
-                    'slug' => Str::slug($attribute['name']),
+                    'isFiltrable'  => true,
+                    'slug'         => Str::slug($attribute['name']),
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
@@ -345,7 +346,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                         $this->user,
                         [
                             [
-                                'id' => $attributeModel->getId(),
+                                'id'    => $attributeModel->getId(),
                                 'value' => $attribute['value'],
                             ],
                         ],
@@ -359,7 +360,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     public function addAttribute(string $name, mixed $value): void
     {
         $this->addAttributes($this->user, [[
-            'name' => $name,
+            'name'  => $name,
             'value' => $value,
         ]]);
     }
@@ -376,55 +377,55 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     public function toSearchableArray(): array
     {
         $variant = [
-            'objectID' => $this->uuid,
-            'id' => $this->id,
+            'objectID'    => $this->uuid,
+            'id'          => $this->id,
             'products_id' => $this->products_id,
-            'name' => $this->name,
-            'files' => $this->getFiles()->take(5)->map(function ($files) {
+            'name'        => $this->name,
+            'files'       => $this->getFiles()->take(5)->map(function ($files) {
                 return [
-                    'uuid' => $files->uuid,
-                    'name' => $files->name,
-                    'url' => $files->url,
-                    'size' => $files->size,
+                    'uuid'       => $files->uuid,
+                    'name'       => $files->name,
+                    'url'        => $files->url,
+                    'size'       => $files->size,
                     'field_name' => $files->field_name,
                     'attributes' => $files->attributes,
                 ];
             }),
             'company' => [
-                'id' => $this?->product?->companies_id,
+                'id'   => $this?->product?->companies_id,
                 'name' => $this?->product?->company?->name,
             ],
-            'uuid' => $this->uuid,
-            'slug' => $this->slug,
-            'sku' => $this->sku,
+            'uuid'   => $this->uuid,
+            'slug'   => $this->slug,
+            'sku'    => $this->sku,
             'status' => [
-                'id' => $this->status->id ?? null,
+                'id'   => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,
             ],
             'warehouses' => $this->variantWarehouses->map(function ($variantWarehouses) {
                 return [
-                    'id' => $variantWarehouses->warehouse->getId(),
-                    'name' => $variantWarehouses->warehouse->name,
-                    'price' => $variantWarehouses->price,
+                    'id'       => $variantWarehouses->warehouse->getId(),
+                    'name'     => $variantWarehouses->warehouse->name,
+                    'price'    => $variantWarehouses->price,
                     'quantity' => $variantWarehouses->quantity,
-                    'status' => [
-                        'id' => $variantWarehouses?->status ? $variantWarehouses->status->getId() : null,
+                    'status'   => [
+                        'id'   => $variantWarehouses?->status ? $variantWarehouses->status->getId() : null,
                         'name' => $variantWarehouses?->status ? $variantWarehouses->status->name : null,
                     ],
                 ];
             }),
             'channels' => $this->channels->map(function ($channels) {
                 return [
-                    'id' => $channels->getId(),
-                    'name' => $channels->name,
-                    'price' => (float) $channels->price,
+                    'id'           => $channels->getId(),
+                    'name'         => $channels->name,
+                    'price'        => (float) $channels->price,
                     'is_published' => $channels->is_published,
                 ];
             }),
-            'description' => null, //$this->description,
+            'description'       => null, //$this->description,
             'short_description' => null, //$this->short_description,
-            'attributes' => [],
-            'apps_id' => $this->apps_id,
+            'attributes'        => [],
+            'apps_id'           => $this->apps_id,
         ];
         $attributes = $this->attributes()->get();
         foreach ($attributes as $attribute) {
@@ -442,21 +443,21 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     {
         $variant = [
             'objectID' => $this->uuid,
-            'id' => $this->id,
-            'name' => $this->name,
-            'company' => [
-                'id' => $this?->product?->companies_id,
+            'id'       => $this->id,
+            'name'     => $this->name,
+            'company'  => [
+                'id'   => $this?->product?->companies_id,
                 'name' => $this?->product?->company?->name,
             ],
             'uuid' => $this->uuid,
             'slug' => $this->slug,
-            'sku' => $this->sku,
+            'sku'  => $this->sku,
 
             'channels' => $this->channels->map(function ($channels) {
                 return [
-                    'id' => $channels->getId(),
-                    'name' => $channels->name,
-                    'price' => (float) $channels->price,
+                    'id'           => $channels->getId(),
+                    'name'         => $channels->name,
+                    'price'        => (float) $channels->price,
                     'is_published' => $channels->is_published,
                 ];
             }),
@@ -481,7 +482,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
         $customIndex = $app->get('app_custom_product_variant_index') ?? null;
 
-        return config('scout.prefix') . ($customIndex ?? 'product_variant_index');
+        return config('scout.prefix').($customIndex ?? 'product_variant_index');
     }
 
     public static function search($query = '', $callback = null)
@@ -610,7 +611,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     public function typesenseCollectionSchema(): array
     {
         return [
-            'name' => $this->searchableAs(),
+            'name'   => $this->searchableAs(),
             'fields' => [
                 [
                     'name' => 'objectID',
@@ -625,9 +626,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'name',
-                    'type' => 'string',
-                    'sort' => true,
+                    'name'  => 'name',
+                    'type'  => 'string',
+                    'sort'  => true,
                     'facet' => true,
                 ],
                 [
@@ -647,33 +648,33 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                     'type' => 'string',
                 ],
                 [
-                    'name' => 'sku',
-                    'type' => 'string',
+                    'name'  => 'sku',
+                    'type'  => 'string',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'status',
-                    'type' => 'object',
+                    'name'     => 'status',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'warehouses',
-                    'type' => 'object[]',
+                    'name'     => 'warehouses',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'channels',
-                    'type' => 'object[]',
+                    'name'     => 'channels',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'description',
-                    'type' => 'string',
+                    'name'     => 'description',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'short_description',
-                    'type' => 'string',
+                    'name'     => 'short_description',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
@@ -685,10 +686,10 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'weight',
-                    'type' => 'float',
+                    'name'     => 'weight',
+                    'type'     => 'float',
                     'optional' => true,
-                    'sort' => true,
+                    'sort'     => true,
                 ],
                 [
                     'name' => 'created_at',
@@ -696,7 +697,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+            'enable_nested_fields'  => true,  // Enable nested fields support for complex objects
         ];
     }
 }

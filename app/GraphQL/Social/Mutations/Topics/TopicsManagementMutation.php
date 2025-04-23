@@ -53,7 +53,7 @@ class TopicsManagementMutation
             $req['entityNamespace']
         );
 
-        return  $attachEntityToTopic->execute();
+        return $attachEntityToTopic->execute();
     }
 
     public function detachTopicFromEntity(mixed $rootValue, array $req): Topic
@@ -65,7 +65,7 @@ class TopicsManagementMutation
             $req['entityNamespace']
         );
 
-        return  $detachEntityFromTopic->execute();
+        return $detachEntityFromTopic->execute();
     }
 
     public function followTopic(mixed $rootValue, array $req): Topic

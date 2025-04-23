@@ -66,7 +66,7 @@ class RouteServiceProvider extends ServiceProvider
     {
         return
         [
-            'prefix' => config('kanvas.application.routes.prefix'),
+            'prefix'     => config('kanvas.application.routes.prefix'),
             'middleware' => config('kanvas.application.routes.middleware'),
         ];
     }

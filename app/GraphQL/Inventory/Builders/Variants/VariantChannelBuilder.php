@@ -38,16 +38,16 @@ class VariantChannelBuilder
          * @var Builder
          */
         return ModelsVariants::select(
-            $variants->getTable() . '.*',
+            $variants->getTable().'.*',
             DB::raw("'{$channel->name}' as channel_name"), //add channel name
-            $variantsChannel->getTable() . '.price',
-            $variantsChannel->getTable() . '.discounted_price',
-            $variantsChannel->getTable() . '.is_published',
+            $variantsChannel->getTable().'.price',
+            $variantsChannel->getTable().'.discounted_price',
+            $variantsChannel->getTable().'.is_published',
         )
-        ->join($variantsChannel->getTable(), $variantsChannel->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
-        ->where($variantsChannel->getTable() . '.channels_id', $channel->getId())
-        ->where($variantsChannel->getTable() . '.is_deleted', 0)
-        ->where($variantsChannel->getTable() . '.is_published', 1);
+        ->join($variantsChannel->getTable(), $variantsChannel->getTable().'.products_variants_id', '=', $variants->getTable().'.id')
+        ->where($variantsChannel->getTable().'.channels_id', $channel->getId())
+        ->where($variantsChannel->getTable().'.is_deleted', 0)
+        ->where($variantsChannel->getTable().'.is_published', 1);
     }
 
     public function allVariantsPublishedInChannelFilterByAttributes(
@@ -73,8 +73,8 @@ class VariantChannelBuilder
         //ModelsVariants::setSearchIndex((int) $channel->companies_id);
 
         /**
-        * @var Builder
-        */
+         * @var Builder
+         */
         return VariantsChannelRepository::filterByAttributes(
             $channel->uuid,
             $attributes,
@@ -83,7 +83,7 @@ class VariantChannelBuilder
     }
 
     /**
-     * Format channel data from builder
+     * Format channel data from builder.
      */
     public function getChannel(mixed $root, array $req): array
     {
@@ -102,15 +102,15 @@ class VariantChannelBuilder
 
         //@todo doesnt work with search
         return [
-            'name' => $root->channel_name,
-            'price' => $root->price ?? 0.00,
+            'name'             => $root->channel_name,
+            'price'            => $root->price ?? 0.00,
             'discounted_price' => $root->discounted_price ?? 0.00,
-            'is_published' => $root->is_published,
+            'is_published'     => $root->is_published,
         ];
     }
 
     /**
-     * Get filter variant by channel
+     * Get filter variant by channel.
      */
     public function getHasChannel(mixed $root, array $req): Collection
     {
@@ -125,7 +125,7 @@ class VariantChannelBuilder
     }
 
     /**
-     * Get channel price history
+     * Get channel price history.
      */
     public function getChannelHistory(mixed $root): array
     {

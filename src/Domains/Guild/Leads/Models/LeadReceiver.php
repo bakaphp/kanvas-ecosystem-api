@@ -18,22 +18,22 @@ use Kanvas\Users\Models\Users;
 /**
  * Class LeadReceiver.
  *
- * @property int $id
- * @property string $uuid
- * @property int|null $apps_id
- * @property int $companies_id
- * @property int|null $companies_branches_id
- * @property string $name
- * @property int $users_id
- * @property int $agents_id
- * @property int $rotations_id
- * @property int $leads_sources_id
- * @property int $leads_types_id
- * @property string $source_name
+ * @property int         $id
+ * @property string      $uuid
+ * @property int|null    $apps_id
+ * @property int         $companies_id
+ * @property int|null    $companies_branches_id
+ * @property string      $name
+ * @property int         $users_id
+ * @property int         $agents_id
+ * @property int         $rotations_id
+ * @property int         $leads_sources_id
+ * @property int         $leads_types_id
+ * @property string      $source_name
  * @property string|null $template
- * @property int $is_default
- * @property int $total_leads
- * @property int $is_default
+ * @property int         $is_default
+ * @property int         $total_leads
+ * @property int         $is_default
  */
 #[ObservedBy(LeadReceiverObserver::class)]
 class LeadReceiver extends BaseModel
@@ -49,7 +49,7 @@ class LeadReceiver extends BaseModel
     ];
 
     /**
-     * rotation
+     * rotation.
      */
     public function rotation(): BelongsTo
     {

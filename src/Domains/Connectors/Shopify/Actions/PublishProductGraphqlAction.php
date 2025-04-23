@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
 
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Connectors\Shopify\Client;
-use Throwable;
 use Exception;
-use Illuminate\Support\Facades\Log;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Throwable;
 
 class PublishProductGraphqlAction
 {
@@ -29,7 +28,7 @@ class PublishProductGraphqlAction
         try {
             $client = Client::getInstance($this->app, $this->branch->company, $this->warehouse->regions);
 
-            $graphql = <<<QUERY
+            $graphql = <<<'QUERY'
             {
               publications(first: 10) {
                 edges {
@@ -45,9 +44,9 @@ class PublishProductGraphqlAction
             foreach ($response['data']['publications']['edges'] as $publication) {
                 $publicationId = $publication['node']['id'];
 
-                $graphql = <<<QUERY
-                mutation productPublish(\$input: ProductPublishInput!) {
-                  productPublish(input: \$input) {
+                $graphql = <<<'QUERY'
+                mutation productPublish($input: ProductPublishInput!) {
+                  productPublish(input: $input) {
                         userErrors {
                             field
                             message
@@ -58,12 +57,12 @@ class PublishProductGraphqlAction
 
                 $productId = $this->products->getShopifyId($this->warehouse->regions);
                 $variables = [
-                    "input" => [
-                        "id" => "gid://shopify/Product/{$productId}",
+                    'input' => [
+                        'id'                  => "gid://shopify/Product/{$productId}",
                         'productPublications' => [
-                            "publicationId" => $publicationId,
-                        ]
-                    ]
+                            'publicationId' => $publicationId,
+                        ],
+                    ],
                 ];
                 $response = $client->GraphQL->post($graphql, null, null, $variables);
                 // if ($response['data']['productPublish']['userErrors']) {

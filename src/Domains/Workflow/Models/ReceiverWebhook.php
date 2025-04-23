@@ -14,18 +14,18 @@ use Kanvas\Workflow\Factories\ReceiverWebhookFactory;
 use Override;
 
 /**
- * @property int $id
+ * @property int    $id
  * @property string $uuid
- * @property int $apps_id
- * @property int $action_id
- * @property int $companies_id
- * @property int $users_id
+ * @property int    $apps_id
+ * @property int    $action_id
+ * @property int    $companies_id
+ * @property int    $users_id
  * @property string $name
  * @property string $description
- * @property array $configuration
- * @property bool $is_active
- * @property bool $run_async
- * @property bool $is_deleted
+ * @property array  $configuration
+ * @property bool   $is_active
+ * @property bool   $run_async
+ * @property bool   $is_deleted
  * @property string $created_at
  * @property string $updated_at
  */
@@ -51,9 +51,9 @@ class ReceiverWebhook extends BaseModel
 
     protected $casts = [
         'configuration' => Json::class,
-        'is_active' => 'boolean',
-        'run_async' => 'boolean',
-        'is_deleted' => 'boolean',
+        'is_active'     => 'boolean',
+        'run_async'     => 'boolean',
+        'is_deleted'    => 'boolean',
     ];
 
     public function action(): BelongsTo

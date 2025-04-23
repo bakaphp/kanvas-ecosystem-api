@@ -60,8 +60,8 @@ class GenerateStripeSignupLinkForUserActivity extends KanvasActivity
         $serviceAgreement = strtolower($countryCode) === 'us' ? 'full' : 'recipient';
 
         $account = Account::create([
-            'country' => $countryCode,
-            'type' => 'express',
+            'country'      => $countryCode,
+            'type'         => 'express',
             'capabilities' => [
                 'transfers' => [
                     'requested' => true,
@@ -80,13 +80,13 @@ class GenerateStripeSignupLinkForUserActivity extends KanvasActivity
     private function createAccountLink(UserInterface $user, Apps $app): AccountLink
     {
         $displayName = preg_replace('/\s+/', '', $user->displayname);
-        $baseUrl = $app->url . '/' . strtolower(Str::cleanup($displayName)) . '/settings';
+        $baseUrl = $app->url.'/'.strtolower(Str::cleanup($displayName)).'/settings';
 
         return AccountLink::create([
-            'account' => $user->get(ConfigurationEnum::STRIPE_USER_ID->value),
+            'account'     => $user->get(ConfigurationEnum::STRIPE_USER_ID->value),
             'refresh_url' => $baseUrl,
-            'return_url' => $baseUrl . '/content-monetization', //@todo change
-            'type' => 'account_onboarding',
+            'return_url'  => $baseUrl.'/content-monetization', //@todo change
+            'type'        => 'account_onboarding',
         ]);
     }
 

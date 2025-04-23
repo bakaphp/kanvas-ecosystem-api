@@ -26,9 +26,9 @@ class AdminInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
                     'custom_fields' => [],
                 ],
             ]
@@ -53,9 +53,9 @@ class AdminInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
                     'custom_fields' => [],
 
                 ],
@@ -74,10 +74,10 @@ class AdminInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'password' => fake()->password(8),
-                    'invite_hash' => $invite['invite_hash'],
+                    'firstname'    => fake()->firstName(),
+                    'lastname'     => fake()->lastName(),
+                    'password'     => fake()->password(8),
+                    'invite_hash'  => $invite['invite_hash'],
                     'phone_number' => fake()->phoneNumber(),
 
                 ],
@@ -107,9 +107,9 @@ class AdminInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
                     'custom_fields' => [],
                 ],
             ]
@@ -144,9 +144,9 @@ class AdminInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
                     'custom_fields' => [],
                 ],
             ]
@@ -188,9 +188,9 @@ class AdminInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'email' => fake()->email(),
+                    'email'     => fake()->email(),
                     'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'lastname'  => fake()->lastName(),
                 ],
             ]
         );
@@ -208,7 +208,7 @@ class AdminInviteTest extends TestCase
                 }',
             [
 
-                    'hash' => $invite['invite_hash'],
+                'hash' => $invite['invite_hash'],
             ]
         )
         ->assertSuccessful()

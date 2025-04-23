@@ -28,8 +28,6 @@ class EventSetupCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -44,9 +42,8 @@ class EventSetupCommand extends Command
         ))->run();
 
         $this->newLine();
-        $this->info('Event setup for Company ' . $company->name . ' and App ' . $app->name . ' completed successfully');
+        $this->info('Event setup for Company '.$company->name.' and App '.$app->name.' completed successfully');
         $this->newLine();
 
-        return;
     }
 }

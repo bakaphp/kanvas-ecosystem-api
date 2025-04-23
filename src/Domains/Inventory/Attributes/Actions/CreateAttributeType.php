@@ -19,8 +19,6 @@ class CreateAttributeType
 
     /**
      * execute.
-     *
-     * @return AttributesTypes
      */
     public function execute(): AttributesTypes
     {
@@ -30,12 +28,12 @@ class CreateAttributeType
         );
 
         return AttributesTypes::firstOrCreate([
-            'name' => $this->dto->name,
+            'name'         => $this->dto->name,
             'companies_id' => $this->dto->company->getId(),
-            'apps_id' => $this->dto->app->getId(),
+            'apps_id'      => $this->dto->app->getId(),
         ], [
-            'users_id' => $this->user->getId(),
-            'slug' => $this->dto->slug,
+            'users_id'   => $this->user->getId(),
+            'slug'       => $this->dto->slug,
             'is_default' => $this->dto->isDefault,
         ]);
     }

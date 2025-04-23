@@ -51,7 +51,7 @@ class UsersInteractionsManagement
         $createUserInteraction->execute();
 
         $shareUrl = $app->get(AppEnum::SHAREABLE_PROFILE_LINK->value) ?? '';
-        $shareUrl .= '/' . $sharedUser->getAppProfile($app)->displayname;
+        $shareUrl .= '/'.$sharedUser->getAppProfile($app)->displayname;
 
         return $shareUrl;
     }

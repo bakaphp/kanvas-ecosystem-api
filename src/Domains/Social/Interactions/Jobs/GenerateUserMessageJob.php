@@ -46,7 +46,7 @@ class GenerateUserMessageJob implements ShouldQueue
      */
     public function uniqueId()
     {
-        return 'generate_user_message_' . $this->user->getId() . '_' . $this->app->getId();
+        return 'generate_user_message_'.$this->user->getId().'_'.$this->app->getId();
     }
 
     public function middleware(): array
@@ -128,10 +128,10 @@ class GenerateUserMessageJob implements ShouldQueue
             foreach ($randomMessages as $index => $message) {
                 // Lock the record if it exists, or prepare to create a new one
                 $existingUserMessage = UserMessage::withTrashed()->where([
-                        'messages_id' => $message->id,
-                        'users_id' => $this->user->getId(),
-                        'apps_id' => $this->app->getId(),
-                    ])
+                    'messages_id' => $message->id,
+                    'users_id'    => $this->user->getId(),
+                    'apps_id'     => $this->app->getId(),
+                ])
                     ->lockForUpdate()
                     ->first();
 
@@ -143,10 +143,10 @@ class GenerateUserMessageJob implements ShouldQueue
                 } else {
                     UserMessage::create([
                         'messages_id' => $message->id,
-                        'users_id' => $this->user->getId(),
-                        'apps_id' => $this->app->getId(),
-                        'is_deleted' => 0,
-                        'created_at' => Carbon::now()->subSeconds($totalSeconds - ($index * $secondsInterval)),
+                        'users_id'    => $this->user->getId(),
+                        'apps_id'     => $this->app->getId(),
+                        'is_deleted'  => 0,
+                        'created_at'  => Carbon::now()->subSeconds($totalSeconds - ($index * $secondsInterval)),
                     ]);
                 }
             }

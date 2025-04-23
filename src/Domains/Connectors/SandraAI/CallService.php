@@ -32,9 +32,9 @@ class CallService
         ])->post($this->apiEndpoint, $payload);
 
         $response = [
-            'status' => $response->successful(),
+            'status'      => $response->successful(),
             'status_code' => $response->status(),
-            'body' => $response->json() ?: $response->body(),
+            'body'        => $response->json() ?: $response->body(),
         ];
 
         $lead->set('sandraai_response', $response);
@@ -46,18 +46,18 @@ class CallService
     {
         return [
             'use_case' => $this->useCase,
-            'lead' => [
-                'id' => (string) $lead->id,
-                'uuid' => $lead->uuid,
-                'title' => $lead->title,
+            'lead'     => [
+                'id'        => (string) $lead->id,
+                'uuid'      => $lead->uuid,
+                'title'     => $lead->title,
                 'firstname' => $lead->firstname,
-                'lastname' => $lead->lastname,
-                'company' => [
+                'lastname'  => $lead->lastname,
+                'company'   => [
                     'id' => (string) $lead->companies_id,
                 ],
                 'people' => [
-                    'id' => (string) $lead->people_id,
-                    'name' => $lead->people->name ?? "{$lead->firstname} {$lead->lastname}",
+                    'id'       => (string) $lead->people_id,
+                    'name'     => $lead->people->name ?? "{$lead->firstname} {$lead->lastname}",
                     'contacts' => $this->formatContacts($lead->people),
                 ],
                 'receiver' => [
@@ -79,7 +79,7 @@ class CallService
                 'stage' => [
                     'name' => $lead->stage->name ?? 'New',
                 ],
-                'owner' => $this->formatOwner($lead->owner),
+                'owner'         => $this->formatOwner($lead->owner),
                 'custom_fields' => [
                     'data' => $this->getCustomFields($lead),
                 ],
@@ -94,8 +94,8 @@ class CallService
 
         foreach ($fields as $key => $value) {
             $customFields[] = [
-            'name' => $key,
-            'value' => $value,
+                'name'  => $key,
+                'value' => $value,
             ];
         }
 
@@ -133,24 +133,24 @@ class CallService
     {
         if (! $owner) {
             return [
-                'id' => '',
+                'id'        => '',
                 'firstname' => '',
-                'lastname' => '',
-                'email' => '',
-                'contact' => [
-                    'phone_number' => '',
+                'lastname'  => '',
+                'email'     => '',
+                'contact'   => [
+                    'phone_number'      => '',
                     'cell_phone_number' => '',
                 ],
             ];
         }
 
         return [
-            'id' => (string) $owner->id,
+            'id'        => (string) $owner->id,
             'firstname' => $owner->firstname,
-            'lastname' => $owner->lastname,
-            'email' => $owner->email,
-            'contact' => [
-                'phone_number' => $owner->phone ?? '',
+            'lastname'  => $owner->lastname,
+            'email'     => $owner->email,
+            'contact'   => [
+                'phone_number'      => $owner->phone ?? '',
                 'cell_phone_number' => $owner->cell_phone ?? '',
             ],
         ];

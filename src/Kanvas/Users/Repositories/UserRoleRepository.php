@@ -7,7 +7,6 @@ namespace Kanvas\Users\Repositories;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Contracts\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Users\Models\Users;

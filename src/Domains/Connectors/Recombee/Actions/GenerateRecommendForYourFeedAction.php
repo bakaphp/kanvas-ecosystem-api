@@ -80,7 +80,7 @@ class GenerateRecommendForYourFeedAction
             ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
                 return $query->where('messages.message_types_id', $messageTypeId);
             })
-            ->orderByRaw('FIELD(id, ' . implode(',', $entityIds) . ')');
+            ->orderByRaw('FIELD(id, '.implode(',', $entityIds).')');
 
         return new LengthAwarePaginator(
             $builder->get(),

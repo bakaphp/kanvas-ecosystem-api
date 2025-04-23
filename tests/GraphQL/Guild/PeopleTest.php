@@ -30,31 +30,31 @@ class PeopleTest extends TestCase
         if (empty($input)) {
             $input = [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-                'contacts' => [
+                'lastname'  => fake()->lastName(),
+                'contacts'  => [
                     [
-                        'value' => fake()->email(),
+                        'value'             => fake()->email(),
                         'contacts_types_id' => 1,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                     [
-                        'value' => fake()->phoneNumber(),
+                        'value'             => fake()->phoneNumber(),
                         'contacts_types_id' => 2,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [
                     [
                         'address' => fake()->address(),
-                        'city' => fake()->city(),
-                        'county' => fake()->city(),
-                        'state' => fake()->state(),
+                        'city'    => fake()->city(),
+                        'county'  => fake()->city(),
+                        'state'   => fake()->state(),
                         'country' => fake()->country(),
-                        'zip' => fake()->postcode(),
+                        'zip'     => fake()->postcode(),
                     ],
                 ],
                 'custom_fields' => [],
-                'organization' => fake()->company(),
+                'organization'  => fake()->company(),
             ];
         }
 
@@ -79,36 +79,36 @@ class PeopleTest extends TestCase
         $firstname = fake()->firstName();
         $middlename = fake()->firstName();
         $lastname = fake()->lastName();
-        $name = $firstname . ' ' . $middlename . ' ' . $lastname;
+        $name = $firstname.' '.$middlename.' '.$lastname;
 
         $input = [
-            'firstname' => $firstname,
+            'firstname'  => $firstname,
             'middlename' => $middlename, // @todo remove this
-            'lastname' => $lastname,
-            'contacts' => [
+            'lastname'   => $lastname,
+            'contacts'   => [
                 [
-                    'value' => fake()->email(),
+                    'value'             => fake()->email(),
                     'contacts_types_id' => 1,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
                 [
-                    'value' => fake()->phoneNumber(),
+                    'value'             => fake()->phoneNumber(),
                     'contacts_types_id' => 2,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
             ],
             'address' => [
                 [
                     'address' => fake()->address(),
-                    'city' => fake()->city(),
-                    'county' => fake()->city(),
-                    'state' => fake()->state(),
+                    'city'    => fake()->city(),
+                    'county'  => fake()->city(),
+                    'state'   => fake()->state(),
                     'country' => fake()->country(),
-                    'zip' => fake()->postcode(),
+                    'zip'     => fake()->postcode(),
                 ],
             ],
             'custom_fields' => [],
-            'organization' => fake()->company(),
+            'organization'  => fake()->company(),
         ];
 
         $this->graphQL('
@@ -125,10 +125,10 @@ class PeopleTest extends TestCase
         ])->assertJson([
             'data' => [
                 'createPeople' => [
-                    'firstname' => $firstname,
+                    'firstname'  => $firstname,
                     'middlename' => $middlename,
-                    'lastname' => $lastname,
-                    'name' => $name,
+                    'lastname'   => $lastname,
+                    'name'       => $name,
                 ],
             ],
         ]);
@@ -141,10 +141,10 @@ class PeopleTest extends TestCase
         $firstname = fake()->firstName();
         $middlename = fake()->firstName();
         $lastname = fake()->lastName();
-        $name = $firstname . ' ' . $middlename . ' ' . $lastname;
+        $name = $firstname.' '.$middlename.' '.$lastname;
 
         $organizationInput = [
-            'name' => fake()->company(),
+            'name'    => fake()->company(),
             'address' => fake()->address(),
         ];
 
@@ -156,44 +156,44 @@ class PeopleTest extends TestCase
                 }
             }
         ', [
-           'input' => $organizationInput,
+            'input' => $organizationInput,
         ])->json();
 
         $input = [
-            'firstname' => $firstname,
+            'firstname'  => $firstname,
             'middlename' => $middlename, // @todo remove this
-            'lastname' => $lastname,
-            'contacts' => [
+            'lastname'   => $lastname,
+            'contacts'   => [
                 [
-                    'value' => fake()->email(),
+                    'value'             => fake()->email(),
                     'contacts_types_id' => 1,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
                 [
-                    'value' => fake()->phoneNumber(),
+                    'value'             => fake()->phoneNumber(),
                     'contacts_types_id' => 2,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
             ],
             'address' => [
                 [
                     'address' => fake()->address(),
-                    'city' => fake()->city(),
-                    'county' => fake()->city(),
-                    'state' => fake()->state(),
+                    'city'    => fake()->city(),
+                    'county'  => fake()->city(),
+                    'state'   => fake()->state(),
                     'country' => fake()->country(),
-                    'zip' => fake()->postcode(),
+                    'zip'     => fake()->postcode(),
                 ],
             ],
-            'custom_fields' => [],
+            'custom_fields'           => [],
             'peopleEmploymentHistory' => [
                 [
                     'organizations_id' => $response['data']['createOrganization']['id'],
-                    'position' => 'developer',
-                    'start_date' => fake()->date(),
-                    'end_date' => fake()->date(),
-                    'income' => 1000,
-                    'status' => 1,
+                    'position'         => 'developer',
+                    'start_date'       => fake()->date(),
+                    'end_date'         => fake()->date(),
+                    'income'           => 1000,
+                    'status'           => 1,
                 ],
             ],
             'organization' => fake()->company(),
@@ -208,19 +208,19 @@ class PeopleTest extends TestCase
             }
         }
     ', [
-             'input' => $input,
-    ]);
+            'input' => $input,
+        ]);
         $response->assertJsonStructure([
-                     'data' => [
-                         'createPeople' => [
-                             'employment_history' => [
-                                 [
-                                     'id',
-                                 ],
-                             ],
-                         ],
-                     ],
-                 ]);
+            'data' => [
+                'createPeople' => [
+                    'employment_history' => [
+                        [
+                            'id',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
     }
 
     public function testUpdatePeople()
@@ -232,27 +232,27 @@ class PeopleTest extends TestCase
 
         $input = [
             'firstname' => $firstname,
-            'lastname' => $lastname,
-            'contacts' => [
+            'lastname'  => $lastname,
+            'contacts'  => [
                 [
-                    'value' => fake()->email(),
+                    'value'             => fake()->email(),
                     'contacts_types_id' => 1,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
                 [
-                    'value' => fake()->phoneNumber(),
+                    'value'             => fake()->phoneNumber(),
                     'contacts_types_id' => 2,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
             ],
             'address' => [
                 [
                     'address' => fake()->address(),
-                    'city' => fake()->city(),
-                    'county' => fake()->city(),
-                    'state' => fake()->state(),
+                    'city'    => fake()->city(),
+                    'county'  => fake()->city(),
+                    'state'   => fake()->state(),
                     'country' => fake()->country(),
-                    'zip' => fake()->postcode(),
+                    'zip'     => fake()->postcode(),
                 ],
             ],
             'custom_fields' => [],
@@ -262,12 +262,12 @@ class PeopleTest extends TestCase
         $peopleId = $response['data']['createPeople']['id'];
         $firstname = fake()->firstName();
         $lastname = fake()->lastName();
-        $name = $firstname . ' ' . $lastname;
+        $name = $firstname.' '.$lastname;
         $input = [
-            'firstname' => $firstname,
-            'lastname' => $lastname,
-            'contacts' => [],
-            'address' => [],
+            'firstname'     => $firstname,
+            'lastname'      => $lastname,
+            'contacts'      => [],
+            'address'       => [],
             'custom_fields' => [],
         ];
         $response = $this->graphQL('
@@ -278,17 +278,17 @@ class PeopleTest extends TestCase
             }
         }
     ', [
-            'id' => $peopleId,
+            'id'    => $peopleId,
             'input' => $input,
-    ]);
+        ]);
         $response->assertJson([
-                'data' => [
-                    'updatePeople' => [
-                        'id' => $peopleId,
-                        'name' => $name,
-                    ],
+            'data' => [
+                'updatePeople' => [
+                    'id'   => $peopleId,
+                    'name' => $name,
                 ],
-            ]);
+            ],
+        ]);
     }
 
     public function testUpdateContactPeople()
@@ -300,27 +300,27 @@ class PeopleTest extends TestCase
 
         $input = [
             'firstname' => $firstname,
-            'lastname' => $lastname,
-            'contacts' => [
+            'lastname'  => $lastname,
+            'contacts'  => [
                 [
-                    'value' => fake()->email(),
+                    'value'             => fake()->email(),
                     'contacts_types_id' => 1,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
                 [
-                    'value' => fake()->phoneNumber(),
+                    'value'             => fake()->phoneNumber(),
                     'contacts_types_id' => 2,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
             ],
             'address' => [
                 [
                     'address' => fake()->address(),
-                    'city' => fake()->city(),
-                    'county' => fake()->city(),
-                    'state' => fake()->state(),
+                    'city'    => fake()->city(),
+                    'county'  => fake()->city(),
+                    'state'   => fake()->state(),
                     'country' => fake()->country(),
-                    'zip' => fake()->postcode(),
+                    'zip'     => fake()->postcode(),
                 ],
             ],
             'custom_fields' => [],
@@ -347,18 +347,18 @@ class PeopleTest extends TestCase
 
         $firstname = fake()->firstName();
         $lastname = fake()->lastName();
-        $name = $firstname . ' ' . $lastname;
+        $name = $firstname.' '.$lastname;
         $input = [
             'firstname' => $firstname,
-            'lastname' => $lastname,
-            'contacts' => [
+            'lastname'  => $lastname,
+            'contacts'  => [
                 [
-                    'id' => $contactId,
-                    'value' => fake()->email(),
+                    'id'                => $contactId,
+                    'value'             => fake()->email(),
                     'contacts_types_id' => 1,
-                ]
+                ],
             ],
-            'address' => [],
+            'address'       => [],
             'custom_fields' => [],
         ];
         $response = $this->graphQL('
@@ -373,23 +373,23 @@ class PeopleTest extends TestCase
             }
         }
     ', [
-            'id' => $peopleId,
+            'id'    => $peopleId,
             'input' => $input,
-            ]);
+        ]);
         $response->assertJson([
-                'data' => [
-                    'updatePeople' => [
-                        'id' => $peopleId,
-                        'name' => $name,
-                        'contacts' => [
-                            [
-                                'id' => $contactId,
-                                'value' => $input['contacts'][0]['value'],
-                            ]
-                        ]
+            'data' => [
+                'updatePeople' => [
+                    'id'       => $peopleId,
+                    'name'     => $name,
+                    'contacts' => [
+                        [
+                            'id'    => $contactId,
+                            'value' => $input['contacts'][0]['value'],
+                        ],
                     ],
                 ],
-            ]);
+            ],
+        ]);
     }
 
     public function testDeletePeople()
@@ -400,27 +400,27 @@ class PeopleTest extends TestCase
 
         $input = [
             'firstname' => fake()->firstName(),
-            'lastname' => fake()->lastName(),
-            'contacts' => [
+            'lastname'  => fake()->lastName(),
+            'contacts'  => [
                 [
-                    'value' => fake()->email(),
+                    'value'             => fake()->email(),
                     'contacts_types_id' => 1,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
                 [
-                    'value' => fake()->phoneNumber(),
+                    'value'             => fake()->phoneNumber(),
                     'contacts_types_id' => 2,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
             ],
             'address' => [
                 [
                     'address' => fake()->address(),
-                    'city' => fake()->city(),
-                    'county' => fake()->city(),
-                    'state' => fake()->state(),
+                    'city'    => fake()->city(),
+                    'county'  => fake()->city(),
+                    'state'   => fake()->state(),
                     'country' => fake()->country(),
-                    'zip' => fake()->postcode(),
+                    'zip'     => fake()->postcode(),
                 ],
             ],
             'custom_fields' => [],
@@ -451,27 +451,27 @@ class PeopleTest extends TestCase
 
         $input = [
             'firstname' => fake()->firstName(),
-            'lastname' => fake()->lastName(),
-            'contacts' => [
+            'lastname'  => fake()->lastName(),
+            'contacts'  => [
                 [
-                    'value' => fake()->email(),
+                    'value'             => fake()->email(),
                     'contacts_types_id' => 1,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
                 [
-                    'value' => fake()->phoneNumber(),
+                    'value'             => fake()->phoneNumber(),
                     'contacts_types_id' => 2,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
             ],
             'address' => [
                 [
                     'address' => fake()->address(),
-                    'city' => fake()->city(),
-                    'county' => fake()->city(),
-                    'state' => fake()->state(),
+                    'city'    => fake()->city(),
+                    'county'  => fake()->city(),
+                    'state'   => fake()->state(),
                     'country' => fake()->country(),
-                    'zip' => fake()->postcode(),
+                    'zip'     => fake()->postcode(),
                 ],
             ],
             'custom_fields' => [],
@@ -486,24 +486,24 @@ class PeopleTest extends TestCase
                 deletePeople(id: $id)
             }
         ', [
-                'id' => $peopleId,
-            ])->assertJson([
-                'data' => [
-                    'deletePeople' => true,
-                ],
-            ]);
+            'id' => $peopleId,
+        ])->assertJson([
+            'data' => [
+                'deletePeople' => true,
+            ],
+        ]);
 
         $this->graphQL('
             mutation($id: ID!) {
                 restorePeople(id: $id)
             }
         ', [
-                'id' => $peopleId,
-            ])->assertJson([
-                'data' => [
-                    'restorePeople' => true,
-                ],
-            ]);
+            'id' => $peopleId,
+        ])->assertJson([
+            'data' => [
+                'restorePeople' => true,
+            ],
+        ]);
     }
 
     public function testImportUsers()
@@ -513,33 +513,33 @@ class PeopleTest extends TestCase
         $firstname = fake()->firstName();
         $middlename = fake()->firstName();
         $lastname = fake()->lastName();
-        $name = $firstname . ' ' . $middlename . ' ' . $lastname;
+        $name = $firstname.' '.$middlename.' '.$lastname;
 
         $peoplesToImport = [
             [
-                'firstname' => $firstname,
+                'firstname'  => $firstname,
                 'middlename' => $middlename, // @todo remove this
-                'lastname' => $lastname,
-                'contacts' => [
+                'lastname'   => $lastname,
+                'contacts'   => [
                     [
-                        'value' => fake()->email(),
+                        'value'             => fake()->email(),
                         'contacts_types_id' => 1,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                     [
-                        'value' => fake()->phoneNumber(),
+                        'value'             => fake()->phoneNumber(),
                         'contacts_types_id' => 2,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [
                     [
                         'address' => fake()->address(),
-                        'city' => fake()->city(),
-                        'county' => fake()->city(),
-                        'state' => fake()->state(),
+                        'city'    => fake()->city(),
+                        'county'  => fake()->city(),
+                        'state'   => fake()->state(),
                         'country' => fake()->country(),
-                        'zip' => fake()->postcode(),
+                        'zip'     => fake()->postcode(),
                     ],
                 ],
                 'custom_fields' => [
@@ -552,30 +552,30 @@ class PeopleTest extends TestCase
                         'data' => 'developer',
                     ],
                 ],
-            ],[
-                'firstname' => fake()->firstName(),
+            ], [
+                'firstname'  => fake()->firstName(),
                 'middlename' => fake()->firstName(), // @todo remove this
-                'lastname' => fake()->lastName(),
-                'contacts' => [
+                'lastname'   => fake()->lastName(),
+                'contacts'   => [
                     [
-                        'value' => fake()->email(),
+                        'value'             => fake()->email(),
                         'contacts_types_id' => 1,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                     [
-                        'value' => fake()->phoneNumber(),
+                        'value'             => fake()->phoneNumber(),
                         'contacts_types_id' => 2,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [
                     [
                         'address' => fake()->address(),
-                        'city' => fake()->city(),
-                        'county' => fake()->city(),
-                        'state' => fake()->state(),
+                        'city'    => fake()->city(),
+                        'county'  => fake()->city(),
+                        'state'   => fake()->state(),
                         'country' => fake()->country(),
-                        'zip' => fake()->postcode(),
+                        'zip'     => fake()->postcode(),
                     ],
                 ],
                 'custom_fields' => [
@@ -609,27 +609,27 @@ class PeopleTest extends TestCase
 
         $input = [
             'firstname' => $firstname,
-            'lastname' => $lastname,
-            'contacts' => [
+            'lastname'  => $lastname,
+            'contacts'  => [
                 [
-                    'value' => fake()->email(),
+                    'value'             => fake()->email(),
                     'contacts_types_id' => 1,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
                 [
-                    'value' => fake()->phoneNumber(),
+                    'value'             => fake()->phoneNumber(),
                     'contacts_types_id' => 2,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
             ],
             'address' => [
                 [
                     'address' => fake()->address(),
-                    'city' => fake()->city(),
-                    'county' => fake()->city(),
-                    'state' => fake()->state(),
+                    'city'    => fake()->city(),
+                    'county'  => fake()->city(),
+                    'state'   => fake()->state(),
                     'country' => fake()->country(),
-                    'zip' => fake()->postcode(),
+                    'zip'     => fake()->postcode(),
                 ],
             ],
             'custom_fields' => [],
@@ -643,10 +643,10 @@ class PeopleTest extends TestCase
             }
         ');
         $response->assertJsonStructure([
-                'data' => [
-                    'peopleCount',
-                ],
-            ]);
+            'data' => [
+                'peopleCount',
+            ],
+        ]);
         $this->assertTrue(is_int($response['data']['peopleCount']));
     }
 
@@ -659,27 +659,27 @@ class PeopleTest extends TestCase
 
         $input = [
             'firstname' => $firstname,
-            'lastname' => $lastname,
-            'contacts' => [
+            'lastname'  => $lastname,
+            'contacts'  => [
                 [
-                    'value' => fake()->email(),
+                    'value'             => fake()->email(),
                     'contacts_types_id' => 1,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
                 [
-                    'value' => fake()->phoneNumber(),
+                    'value'             => fake()->phoneNumber(),
                     'contacts_types_id' => 2,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
             ],
             'address' => [
                 [
                     'address' => fake()->address(),
-                    'city' => fake()->city(),
-                    'county' => fake()->city(),
-                    'state' => fake()->state(),
+                    'city'    => fake()->city(),
+                    'county'  => fake()->city(),
+                    'state'   => fake()->state(),
                     'country' => fake()->country(),
-                    'zip' => fake()->postcode(),
+                    'zip'     => fake()->postcode(),
                 ],
             ],
             'custom_fields' => [],
@@ -695,10 +695,10 @@ class PeopleTest extends TestCase
             }
         ');
         $response->assertJsonStructure([
-                'data' => [
-                    'peopleCountBySubscriptionType',
-                ],
-            ]);
+            'data' => [
+                'peopleCountBySubscriptionType',
+            ],
+        ]);
         $this->assertTrue(is_int($response['data']['peopleCountBySubscriptionType']));
     }
 }

@@ -31,11 +31,11 @@ class AppleDriver implements DriverInterface
         $displayname = Random::generateDisplayName($data['email']);
 
         return User::from([
-            'id' => $data['sub'],
-            'email' => $data['email'],
+            'id'       => $data['sub'],
+            'email'    => $data['email'],
             'nickname' => $displayname,
-            'name' => $displayname,
-            'token' => $token,
+            'name'     => $displayname,
+            'token'    => $token,
         ]);
     }
 }

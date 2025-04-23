@@ -21,20 +21,20 @@ class MessageNotificationTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $data = [
-            'description' => 'As the 2024',
-            'title' => 'What You Need to Know',
+            'description'  => 'As the 2024',
+            'title'        => 'What You Need to Know',
             'display_type' => [
-                'id' => '1',
+                'id'   => '1',
                 'name' => 'bullet',
             ],
             'parts' => [
                 [
-                    'id' => 6934,
+                    'id'    => 6934,
                     'title' => 'What You Need to Know',
                 ],
             ],
             'type' => [
-                'id' => '1',
+                'id'   => '1',
                 'name' => 'Single',
             ],
             'created_at' => 1729675973544,
@@ -75,12 +75,12 @@ class MessageNotificationTest extends TestCase
         );
 
         $result = $activity->execute($message, $app, [
-            'message' => sprintf('New message from %s', $user->displayname),
-            'title' => 'New Message',
-            'subject' => 'New Message',
-            'via' => ['database'],
+            'message'  => sprintf('New message from %s', $user->displayname),
+            'title'    => 'New Message',
+            'subject'  => 'New Message',
+            'via'      => ['database'],
             'metadata' => [
-                'destination_type' => 'MESSAGE',
+                'destination_type'  => 'MESSAGE',
                 'destination_event' => 'NEW_MESSAGE',
             ],
         ]);

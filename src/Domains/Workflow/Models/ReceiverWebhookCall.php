@@ -28,11 +28,11 @@ class ReceiverWebhookCall extends BaseModel
     ];
 
     protected $casts = [
-        'headers' => Json::class,
-        'payload' => Json::class,
-        'status' => 'string',
+        'headers'   => Json::class,
+        'payload'   => Json::class,
+        'status'    => 'string',
         'exception' => Json::class,
-        'results' => Json::class,
+        'results'   => Json::class,
     ];
 
     public function receiverWebhook(): BelongsTo
