@@ -95,14 +95,16 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             $emailReceiverUser = $userFlag === 'user' ? $leadReceiver->user : $user;
             $notificationMode = isset($leadReceiver->rotation->config['notification_mode']) ? LeadNotificationModeEnum::get($leadReceiver->rotation->config['notification_mode']) : LeadNotificationModeEnum::NOTIFY_ALL;
             $notificationUserMode = isset($leadReceiver->rotation->config['notification_user_mode']) ? LeadNotificationUserModeEnum::get($leadReceiver->rotation->config['notification_user_mode']) : LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS;
-            $users = $notificationUserMode === LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS 
+            $users = $notificationUserMode === LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS && $leadReceiver->rotation?->agents?->count() > 0
             ? collect([$emailReceiverUser])
             ->merge($leadReceiver->rotation->agents?->pluck('users') ?? [])
             ->flatten()
             ->all()
             : [$emailReceiverUser];
-            $this->sendLeadEmails($emailTemplate, $users, $lead, $payload, $notificationMode);
-        }
+
+            $payload['fieldMaps'] = $this->mapCustomFields($payload['custom_fields']);
+                $this->sendLeadEmails($emailTemplate, $users, $lead, $payload, $notificationMode);
+            }
 
         $lead->fireWorkflow(
             WorkflowEnum::AFTER_RUNNING_RECEIVER->value,
@@ -184,5 +186,14 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
     {
         $sendLeadEmailsAction = new SendLeadEmailsAction($lead, $emailTemplate);
         $sendLeadEmailsAction->execute($payload, $users, $notificationMode);
+    }
+
+    protected function mapCustomFields(array $customFields): array
+    {
+        $fieldMaps = [];
+        foreach ($customFields as $customField) {
+            $fieldMaps[$customField['name']] = $customField['data'];
+        }
+        return $fieldMaps;
     }
 }

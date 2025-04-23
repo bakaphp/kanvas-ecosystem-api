@@ -126,6 +126,65 @@ class ProductsTest extends TestCase
         $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
         // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
     }
+
+    public function testFilterByNearByLocation(): void
+    {
+        $sku = fake()->time;
+        $data = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => $sku,
+            'attributes' => [
+                [
+                    'name' => 'coordinates',
+                    'value' => [
+                        "lat" => 18.463449,
+                        "long" => -66.117866
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->createProduct($data);
+        unset($data['id']);
+        unset($data['sku']);
+
+        $location = [
+            'lat' => 18.500000,
+            'long' => -66.150000,
+        ];
+        $response = $this->graphQL(
+            "
+            query {
+                products(
+                   nearByLocation: { lat: {$location['lat']}, long: {$location['long']}, radius: 1 }
+                ) {
+                    data {
+                        name
+                        description
+                    }
+                }
+            }"
+        );
+
+        // assert that there's no product is near by location
+        $this->assertEmpty($response->json()['data']['products']['data']);
+
+        $response = $this->graphQL(
+            "query {
+                products(
+                   nearByLocation: { lat: {$location['lat']}, long: {$location['long']}, radius: 5.62 }
+                ) {
+                    data {
+                        name
+                        description
+                    }
+                }
+            }"
+        );
+        // assert that there's one product is near by location
+        $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
+    }
     /**
      * test get product.
      */
@@ -344,10 +403,10 @@ class ProductsTest extends TestCase
                     }
                 }
             }', [
-                'dataUpdate' => $dataUpdate,
-                'id' => $id,
-                'code' => $language->code
-            ]);
+            'dataUpdate' => $dataUpdate,
+            'id' => $id,
+            'code' => $language->code
+        ]);
 
         $this->assertEquals(
             $dataUpdate['name'],
