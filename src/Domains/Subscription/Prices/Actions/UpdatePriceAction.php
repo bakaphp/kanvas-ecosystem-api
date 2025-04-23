@@ -31,9 +31,9 @@ class UpdatePriceAction
         }
         $this->price->update([
             'is_active' => $this->dto->is_active,
-            'amount' => $this->dto->amount,
-            'currency' => $this->dto->currency,
-            'interval' => $this->dto->interval,
+            'amount'    => $this->dto->amount,
+            'currency'  => $this->dto->currency,
+            'interval'  => $this->dto->interval,
         ]);
 
         return $this->price;

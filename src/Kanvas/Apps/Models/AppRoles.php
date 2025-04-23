@@ -10,7 +10,7 @@ use Kanvas\Models\BaseModel;
 /**
  * AppsRoles Class.
  *
- * @property int $apps_id
+ * @property int    $apps_id
  * @property string $roles_name
  */
 class AppRoles extends BaseModel

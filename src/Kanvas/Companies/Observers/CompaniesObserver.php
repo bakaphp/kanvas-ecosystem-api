@@ -77,11 +77,11 @@ class CompaniesObserver
         $assignRole = new AssignRoleAction($user, $company, $app);
         $assignRole->execute(AppEnums::DEFAULT_ROLE_NAME->getValue());
 
-        if (! $user->get(Companies::cacheKey())) {
+        if (!$user->get(Companies::cacheKey())) {
             $user->set(Companies::cacheKey(), $company->id);
         }
 
-        if (! $user->get($company->branchCacheKey())) {
+        if (!$user->get($company->branchCacheKey())) {
             $user->set($company->branchCacheKey(), $branch->id);
         }
 

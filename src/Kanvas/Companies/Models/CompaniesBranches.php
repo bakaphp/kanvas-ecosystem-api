@@ -24,21 +24,21 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
 /**
  * Companies Model.
  *
- * @property int $companies_id
- * @property int $users_id
+ * @property int    $companies_id
+ * @property int    $users_id
  * @property string $name
  * @property string $address
  * @property string $address_2
  * @property string $email
  * @property string $phone
  * @property string $zipcode
- * @property int $cities_id
- * @property int $states_id
- * @property int $countries_id
+ * @property int    $cities_id
+ * @property int    $states_id
+ * @property int    $countries_id
  * @property string $state
  * @property string $city
- * @property int $is_default
- * @property int $is_active
+ * @property int    $is_default
+ * @property int    $is_active
  */
 class CompaniesBranches extends BaseModel
 {
@@ -111,7 +111,7 @@ class CompaniesBranches extends BaseModel
 
     public function getTotalUsersAttribute(): int
     {
-        if (! $this->get('total_users')) {
+        if (!$this->get('total_users')) {
             $this->set('total_users', $this->users()->count());
         }
 
@@ -120,7 +120,7 @@ class CompaniesBranches extends BaseModel
 
     public function shouldBeSearchable(): bool
     {
-        return ! $this->isDeleted();
+        return !$this->isDeleted();
     }
 
     /**
@@ -137,7 +137,7 @@ class CompaniesBranches extends BaseModel
         return $query
             ->select('companies_branches.*') // Explicitly select all columns from companies_branches
             ->where('companies_branches.is_deleted', 0) // Filter out deleted branches early
-            ->whereExists(function ($subQuery) use ($appId) {
+            ->whereExists(function ($subQuery) {
                 $subQuery
                     ->from('users_associated_company')
                     ->whereColumn('users_associated_company.companies_id', 'companies_branches.companies_id')
@@ -150,7 +150,7 @@ class CompaniesBranches extends BaseModel
                     ->where('users_associated_apps.apps_id', $appId);
             })
             ->when(
-                ! $user->isAdmin(),
+                !$user->isAdmin(),
                 function ($query) use ($user) {
                     $query->whereExists(function ($subQuery) use ($user) {
                         $subQuery

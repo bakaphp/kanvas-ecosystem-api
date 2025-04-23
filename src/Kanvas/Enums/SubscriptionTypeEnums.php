@@ -20,9 +20,9 @@ enum SubscriptionTypeEnums implements EnumsInterface
     public function getValue(): mixed
     {
         return match ($this) {
-            self::GROUP => 1,
+            self::GROUP   => 1,
             self::COMPANY => 2,
-            self::BRANCH => 3,
+            self::BRANCH  => 3,
         };
     }
 }

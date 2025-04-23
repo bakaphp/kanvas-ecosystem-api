@@ -31,7 +31,7 @@ class ProductsTypes extends Data
     /**
      * fromArray.
      *
-     * @param  array $data
+     * @param array $data
      *
      * @return ProductsTypes
      */

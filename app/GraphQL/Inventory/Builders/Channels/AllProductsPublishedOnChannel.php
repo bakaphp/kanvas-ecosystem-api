@@ -12,12 +12,12 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Traits\SearchProductWorkflowTrait;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Kanvas\Inventory\Products\Traits\SearchProductWorkflowTrait;
 
 class AllProductsPublishedOnChannel
 {
@@ -39,7 +39,7 @@ class AllProductsPublishedOnChannel
         $app = app(Apps::class);
         $companyBranch = app(CompaniesBranches::class);
         $region = Regions::getDefault($companyBranch->company, $app);
-        if (! $userId = $app->get(AppEnums::fromName('DEFAULT_PUBLIC_SEARCH_USER_ID'))) {
+        if (!$userId = $app->get(AppEnums::fromName('DEFAULT_PUBLIC_SEARCH_USER_ID'))) {
             throw new ModelNotFoundException('User default search not configured');
         }
         $user = UsersRepository::getUserOfAppById($userId, $app);
@@ -52,11 +52,11 @@ class AllProductsPublishedOnChannel
         );
         $variantsChannelTable = $variantsChannel->getTable();
         $query = Products::query()
-                ->join($variants->getTable(), $variants->getTable() . '.products_id', '=', 'products.id')
-                ->join($variantsChannelTable, $variantsChannelTable . '.products_variants_id', '=', $variants->getTable() . '.id')
-                ->where($variantsChannelTable . '.channels_id', $channel->getId())
-                ->where($variantsChannelTable . '.is_deleted', 0)
-                ->where($variantsChannelTable . '.is_published', 1)
+                ->join($variants->getTable(), $variants->getTable().'.products_id', '=', 'products.id')
+                ->join($variantsChannelTable, $variantsChannelTable.'.products_variants_id', '=', $variants->getTable().'.id')
+                ->where($variantsChannelTable.'.channels_id', $channel->getId())
+                ->where($variantsChannelTable.'.is_deleted', 0)
+                ->where($variantsChannelTable.'.is_published', 1)
                 ->select('products.*')
                 ->distinct();
 

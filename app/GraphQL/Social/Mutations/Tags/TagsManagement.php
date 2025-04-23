@@ -32,7 +32,7 @@ class TagsManagement
     {
         $app = app(Apps::class);
 
-        $tag = Tag::when(! auth()->user()->isAdmin(), function ($query) {
+        $tag = Tag::when(!auth()->user()->isAdmin(), function ($query) {
             return $query->where('users_id', auth()->user()->getId());
         })->where('id', $request['id'])
             ->fromApp($app)
@@ -46,13 +46,12 @@ class TagsManagement
     public function delete(mixed $root, array $request): bool
     {
         $app = app(Apps::class);
-        $tag = Tag::when(! auth()->user()->isAdmin(), function ($query) {
+        $tag = Tag::when(!auth()->user()->isAdmin(), function ($query) {
             return $query->where('users_id', auth()->user()->getId());
         })
             ->where('id', $request['id'])
             ->fromApp($app)
             ->firstOrFail();
-
 
         return $tag->delete();
     }
@@ -65,7 +64,7 @@ class TagsManagement
         if ($isFollowing) {
             return (new UnFollowAction(auth()->user(), $tag))->execute();
         } else {
-            return (bool)(new FollowAction(auth()->user(), $tag))->execute();
+            return (bool) (new FollowAction(auth()->user(), $tag))->execute();
         }
     }
 
@@ -92,7 +91,7 @@ class TagsManagement
             //'entity_namespace' => $systemModule->model_name,
             //'apps_id' => $tag->apps_id,
             //'companies_id' => $user->getCurrentCompany()->getId(),
-            'users_id' => $user->getId(),
+            'users_id'      => $user->getId(),
             'taggable_type' => $systemModule->model_name,
         ]);
 

@@ -55,7 +55,7 @@ class IndexPromptRecombeeCommand extends Command
             try {
                 $result = $messageIndex->indexPromptMessage($message);
 
-                $this->info('Message ID: ' . $message->getId() . ' indexed with result: ' . $result);
+                $this->info('Message ID: '.$message->getId().' indexed with result: '.$result);
                 $this->output->progressAdvance();
             } catch (Throwable $e) {
                 $this->output->error($e->getMessage());
@@ -64,6 +64,5 @@ class IndexPromptRecombeeCommand extends Command
 
         $this->output->progressFinish();
 
-        return;
     }
 }

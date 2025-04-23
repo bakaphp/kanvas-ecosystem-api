@@ -48,14 +48,14 @@ class VariantService
             }
 
             $variantDto = VariantsDto::from([
-                'product' => $product,
+                'product'     => $product,
                 'products_id' => $product->getId(),
                 ...$variant,
             ]);
 
             $existVariantUpdate = Variants::fromCompany($product->company)->fromApp($product->app)->where('sku', $variantDto->sku);
 
-            if (! $existVariantUpdate->exists()) {
+            if (!$existVariantUpdate->exists()) {
                 $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
             } else {
                 $variantModel = (new UpdateVariantsAction($existVariantUpdate->first(), $variantDto, $user))->execute();
@@ -63,7 +63,7 @@ class VariantService
 
             $company = $variantDto->product->company;
 
-            if (isset($variant['custom_fields']) && ! empty($variant['custom_fields'])) {
+            if (isset($variant['custom_fields']) && !empty($variant['custom_fields'])) {
                 $variantModel->setAllCustomFields($variant['custom_fields']);
             }
             $attributes = $product->app->get(AttributeConfigEnum::DEFAULT_VARIANT_ATTRIBUTE->value);
@@ -81,7 +81,7 @@ class VariantService
                 $variantModel->setStatus($status);
             }
 
-            if (! empty($variantDto->files)) {
+            if (!empty($variantDto->files)) {
                 $variantModel->overWriteFiles($variantDto->files);
             }
 
@@ -117,13 +117,13 @@ class VariantService
     public static function createDefaultVariant(Products $product, UserInterface $user, ?ProductDto $productDto = null): Variants
     {
         $variant = [
-            'name' => $product->name,
+            'name'        => $product->name,
             'description' => $product->description,
-            'sku' => $productDto->sku ?? Str::slug($product->name),
+            'sku'         => $productDto->sku ?? Str::slug($product->name),
         ];
 
         $variantDto = VariantsDto::from([
-            'product' => $product,
+            'product'     => $product,
             'products_id' => $product->getId(),
             ...$variant,
         ]);
@@ -142,7 +142,7 @@ class VariantService
             $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
         }
 
-        if (! empty($productDto->warehouses) && isset($productDto->warehouses[0]['quantity']) && isset($productDto->warehouses[0]['price'])) {
+        if (!empty($productDto->warehouses) && isset($productDto->warehouses[0]['quantity']) && isset($productDto->warehouses[0]['price'])) {
             $variant['warehouse']['quantity'] = $productDto->warehouses[0]['quantity'];
             $variant['warehouse']['price'] = $productDto->warehouses[0]['price'];
         }
@@ -230,7 +230,7 @@ class VariantService
 
             $missingVariants = [
                 ...$missingVariants,
-                ...array_values(array_diff($chunk, $foundVariants))
+                ...array_values(array_diff($chunk, $foundVariants)),
             ];
         }
 
@@ -245,9 +245,9 @@ class VariantService
         foreach ($productSkus as $variantData) {
             $variant = Variants::query()
             ->where([
-                'sku' => $variantData['sku'],
+                'sku'          => $variantData['sku'],
                 'companies_id' => $company->id,
-                'apps_id' => $app->id
+                'apps_id'      => $app->id,
             ])
             ->first();
 
@@ -262,8 +262,8 @@ class VariantService
         }
 
         return [
-            "missing_skus" => $missingSkus,
-            "changed_barcodes" => $changedBarcodes
+            'missing_skus'     => $missingSkus,
+            'changed_barcodes' => $changedBarcodes,
         ];
     }
 }

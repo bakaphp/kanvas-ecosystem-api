@@ -11,13 +11,13 @@ use Kanvas\Models\BaseModel;
 /**
  * CustomFieldsModules Model.
  *
- * @property int $id
- * @property int $apps_id
+ * @property int    $id
+ * @property int    $apps_id
  * @property string $name
  * @property string $model_name
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_delete
+ * @property int    $is_delete
  */
 class CustomFieldsModules extends BaseModel
 {
@@ -32,7 +32,7 @@ class CustomFieldsModules extends BaseModel
         'model_name',
         'companies_id',
         'name',
-        'apps_id'
+        'apps_id',
     ];
 
     /**

@@ -45,7 +45,7 @@ class FilesystemManagementMutation
     }
 
     /**
-     * deAttach a file from filesystem
+     * deAttach a file from filesystem.
      */
     public function deAttachFile(mixed $rootValue, array $request): bool
     {
@@ -53,7 +53,7 @@ class FilesystemManagementMutation
         $user = auth()->user();
 
         $fileEntity = FilesystemEntities::where('uuid', $request['uuid'])
-            ->when(! $user->isAdmin(), function ($query) use ($user) {
+            ->when(!$user->isAdmin(), function ($query) use ($user) {
                 $query->fromCompany($user->getCurrentCompany());
             })
             ->notDeleted()
@@ -84,7 +84,7 @@ class FilesystemManagementMutation
         $i = 0;
 
         $fileEntities = FilesystemEntities::whereIn('uuid', $request['uuids'])
-            ->when(! $user->isAdmin(), function ($query) use ($user) {
+            ->when(!$user->isAdmin(), function ($query) use ($user) {
                 $query->fromCompany($user->getCurrentCompany());
             })
             ->notDeleted()
@@ -162,9 +162,9 @@ class FilesystemManagementMutation
         $this->validateFileSize($file);
 
         // Save file locally
-        $uniqueName = 'csv/' . $file->getClientOriginalName() . uniqid();
+        $uniqueName = 'csv/'.$file->getClientOriginalName().uniqid();
         $path = $file->store($uniqueName, 'local');
-        $storagePath = storage_path('app/' . $path);
+        $storagePath = storage_path('app/'.$path);
 
         // Process CSV
         $csv = Reader::createFromPath($storagePath, 'r');
@@ -178,8 +178,8 @@ class FilesystemManagementMutation
 
         return [
             'filesystem_id' => $fileSystem->id,
-            'row' => $row,
-            'header' => $header,
+            'row'           => $row,
+            'header'        => $header,
         ];
     }
 

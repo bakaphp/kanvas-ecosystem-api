@@ -29,9 +29,9 @@ class Client
 
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUri,
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->appToken,
+            'headers'  => [
+                'Content-Type'  => 'application/json',
+                'Authorization' => 'Bearer '.$this->appToken,
             ],
         ]);
     }

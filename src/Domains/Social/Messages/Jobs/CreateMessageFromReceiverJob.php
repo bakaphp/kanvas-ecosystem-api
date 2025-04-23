@@ -24,10 +24,10 @@ class CreateMessageFromReceiverJob extends ProcessWebhookJob
     {
         $payload = $this->webhookRequest->payload;
 
-        if (! isset($payload['message'])) {
+        if (!isset($payload['message'])) {
             throw new Exception('Cant create message without message');
         }
-        if (! isset($payload['message_verb'])) {
+        if (!isset($payload['message_verb'])) {
             throw new Exception('Cant create message without verb');
         }
 
@@ -36,8 +36,8 @@ class CreateMessageFromReceiverJob extends ProcessWebhookJob
         } catch (ModelNotFoundException $e) {
             $messageTypeDto = MessageTypeInput::from([
                 'apps_id' => $this->receiver->app->getId(),
-                'name' => $payload['message_verb'],
-                'verb' => $payload['message_verb'],
+                'name'    => $payload['message_verb'],
+                'verb'    => $payload['message_verb'],
             ]);
             $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
         }
@@ -75,8 +75,8 @@ class CreateMessageFromReceiverJob extends ProcessWebhookJob
         }
 
         return [
-            'message' => 'Message created successfully from receiver with id ' . $message->getId(),
-            'message_id' => $message->getId(),
+            'message'      => 'Message created successfully from receiver with id '.$message->getId(),
+            'message_id'   => $message->getId(),
             'message_verb' => $messageType->verb,
             'distribution' => $payload['distribution'] ?? null,
         ];

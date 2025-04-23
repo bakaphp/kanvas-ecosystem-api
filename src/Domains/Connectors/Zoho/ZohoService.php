@@ -41,13 +41,13 @@ class ZohoService
     public function searchAgent(string $field, string $value): object
     {
         if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
-            $response = $this->zohoCrm->agents->searchRaw('(' . $field . ':equals:' . $value . ')');
+            $response = $this->zohoCrm->agents->searchRaw('('.$field.':equals:'.$value.')');
         } else {
-            $response = $this->zohoCrm->vendors->searchRaw('(' . $field . ':equals:' . $value . ')');
+            $response = $this->zohoCrm->vendors->searchRaw('('.$field.':equals:'.$value.')');
         }
 
-        if (! $response->count()) {
-            throw new Exception('No Agent Found for ' . $value);
+        if (!$response->count()) {
+            throw new Exception('No Agent Found for '.$value);
         }
 
         return $response->first();
@@ -58,13 +58,13 @@ class ZohoService
         $zohoAgentModule = $this->company->get(CustomFieldEnum::ZOHO_AGENT_MODULE->value) ?? self::DEFAULT_AGENT_MODULE;
 
         $data = [
-            'Email' => $user->email,
+            'Email'         => $user->email,
             'Member_Number' => $agentInfo->getMemberNumber(),
-            'Sponsor' => ! empty($agentInfo->owner_id) ? (string) $agentInfo->owner_id : '1001',
-            'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value),
-            'Account_Type' => 'Standard',
-            'Name' => $agentInfo->name,
-            'Office_Phone' => $user->phone_number ?? '',
+            'Sponsor'       => !empty($agentInfo->owner_id) ? (string) $agentInfo->owner_id : '1001',
+            'Owner'         => !empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value),
+            'Account_Type'  => 'Standard',
+            'Name'          => $agentInfo->name,
+            'Office_Phone'  => $user->phone_number ?? '',
         ];
 
         if ($zohoAgentModule == self::DEFAULT_AGENT_MODULE) {

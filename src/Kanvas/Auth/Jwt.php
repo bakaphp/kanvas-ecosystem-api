@@ -53,7 +53,7 @@ class Jwt
                 ->identifiedBy($sessionId)
                 ->issuedAt($now)
                 ->canOnlyBeUsedAfter($now)
-                ->expiresAt($now->modify('+' . $expiration . ' hour'))
+                ->expiresAt($now->modify('+'.$expiration.' hour'))
                 ->withClaim('sessionId', $sessionId)
                 ->withClaim('email', $email)
                 ->withClaim('deviceId', $deviceId)

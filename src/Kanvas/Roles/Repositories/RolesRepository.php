@@ -11,12 +11,12 @@ use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Roles\Models\Roles;
 
 /**
- * Legacy Roles Repository
+ * Legacy Roles Repository.
  */
 class RolesRepository
 {
     /**
-     * Get the role from the current app
+     * Get the role from the current app.
      */
     public static function getByName(string $name, Apps $app, Companies $company): Roles
     {
@@ -26,9 +26,9 @@ class RolesRepository
                 ->orderBy('apps_id', 'DESC')
                 ->first();
 
-        if (! $role instanceof Roles) {
+        if (!$role instanceof Roles) {
             throw new InternalServerErrorException(
-                'Roles ' . $name . ' not found on this app ' . $app->getKey() . ' AND Company ' . $company->id
+                'Roles '.$name.' not found on this app '.$app->getKey().' AND Company '.$company->id
             );
         }
 

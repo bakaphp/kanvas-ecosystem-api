@@ -22,7 +22,7 @@ class ZohoLeadOwnerActivity extends KanvasActivity
     ): array {
         $this->overwriteAppService($app);
 
-        if (! $receiver->rotation()->exists()) {
+        if (!$receiver->rotation()->exists()) {
             return ['Rotation not found'];
         }
         $agent = $receiver->rotation()->first()->getAgent();
@@ -30,7 +30,7 @@ class ZohoLeadOwnerActivity extends KanvasActivity
         $company = $receiver->company()->firstOrFail();
         $agentOwner = Agent::fromCompany($company)->where('users_id', $agent->getId())->first();
 
-        if (! $agentOwner) {
+        if (!$agentOwner) {
             return ['Agent not found'];
         }
 
@@ -39,7 +39,7 @@ class ZohoLeadOwnerActivity extends KanvasActivity
         $zohoCrm = Client::getInstance($app, $company);
 
         $zohoData = [
-            'Owner' => $ownerZohoId,
+            'Owner'     => $ownerZohoId,
             'Sales Rep' => $agentOwner->name,
         ];
 
@@ -50,7 +50,7 @@ class ZohoLeadOwnerActivity extends KanvasActivity
 
         return [
             'message' => 'Owner updated successfully',
-            'lead' => $zohoLead->toArray(),
+            'lead'    => $zohoLead->toArray(),
         ];
     }
 }

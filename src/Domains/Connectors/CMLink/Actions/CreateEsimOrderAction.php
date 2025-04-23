@@ -53,7 +53,7 @@ class CreateEsimOrderAction
     {
         $this->validateOrder();
 
-        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && !empty($this->order->metadata['parent_order_id']);
         if ($isRefuelOrder) {
             $this->processRefuelOrder();
         } else {
@@ -70,7 +70,7 @@ class CreateEsimOrderAction
     {
         $orderHasMetaData = $this->order->get(CustomFieldEnum::ORDER_ESIM_METADATA->value);
 
-        if (! empty($orderHasMetaData)) {
+        if (!empty($orderHasMetaData)) {
             throw new ValidationException('Order already has eSim metadata');
         }
     }
@@ -172,13 +172,13 @@ class CreateEsimOrderAction
 
         $qrCode = $writer->writeString($downloadUrl);
 
-        return 'data:image/png;base64,' . base64_encode($qrCode);
+        return 'data:image/png;base64,'.base64_encode($qrCode);
     }
 
     protected function createESimObject(string $qrCodeBase64): ESim
     {
         $totalData = $this->orderVariant->getAttributeBySlug('data')?->value ?? 0;
-        $installTimeChange = isset($this->esimData['data']['installTime']) && ! empty($this->esimData['data']['installTime']) ? strtotime($this->esimData['data']['installTime']) : time();
+        $installTimeChange = isset($this->esimData['data']['installTime']) && !empty($this->esimData['data']['installTime']) ? strtotime($this->esimData['data']['installTime']) : time();
 
         // Convert timestamp directly to EST
         $dateEst = Carbon::createFromTimestamp($installTimeChange)->setTimezone('America/New_York');
@@ -205,7 +205,7 @@ class CreateEsimOrderAction
                 'data',
                 FileSizeConverter::toBytes($totalData),
                 FileSizeConverter::toBytes($totalData),
-                $formattedEst . ' EST' ?? $this->order->created_at->format('Y-m-d H:i:s'),
+                $formattedEst.' EST' ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $this->esimData['data']['activationCode'],
                 $this->esimData['data']['state'],
                 $this->orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,

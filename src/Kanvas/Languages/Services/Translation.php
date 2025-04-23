@@ -18,7 +18,7 @@ class Translation
         $language = Languages::getByCode($code);
 
         foreach ($dto as $key => $value) {
-            if (! in_array($key, $model->getTranslatableAttributes())) {
+            if (!in_array($key, $model->getTranslatableAttributes())) {
                 unset($dto->$key);
             }
         }

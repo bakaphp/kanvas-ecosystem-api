@@ -21,7 +21,7 @@ trait HasShopifyConfiguration
 {
     public function setupShopifyConfiguration(Products $product, Warehouses $warehouses): void
     {
-        if (! getenv('TEST_SHOPIFY_API_KEY') || ! getenv('TEST_SHOPIFY_API_SECRET') || ! getenv('TEST_SHOPIFY_SHOP_URL')) {
+        if (!getenv('TEST_SHOPIFY_API_KEY') || !getenv('TEST_SHOPIFY_API_SECRET') || !getenv('TEST_SHOPIFY_SHOP_URL')) {
             throw new Exception('Missing Shopify configuration');
         }
 
@@ -38,9 +38,9 @@ trait HasShopifyConfiguration
     public function setupShopifyIntegration(Products $product, Regions $region)
     {
         $credentials = [
-            'client_id' => getenv('TEST_SHOPIFY_API_KEY'),
+            'client_id'     => getenv('TEST_SHOPIFY_API_KEY'),
             'client_secret' => getenv('TEST_SHOPIFY_API_SECRET'),
-            'shop_url' => getenv('TEST_SHOPIFY_SHOP_URL'),
+            'shop_url'      => getenv('TEST_SHOPIFY_SHOP_URL'),
         ];
 
         $integration = Integrations::first();

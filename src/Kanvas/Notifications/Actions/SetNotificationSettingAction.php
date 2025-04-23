@@ -15,7 +15,7 @@ class SetNotificationSettingAction
     /**
      * __construct.
      *
-     * @param  array $data
+     * @param array $data
      *
      * @return void
      */
@@ -33,15 +33,15 @@ class SetNotificationSettingAction
     {
         $notificationSettings = NotificationSettingsRepository::getNotificationSettingsByType($this->user, $this->app, $this->notificationType);
 
-        if (! $notificationSettings) {
+        if (!$notificationSettings) {
             $notificationSettings = new UsersNotificationsSettings();
             $notificationSettings->users_id = $this->user->id;
             $notificationSettings->apps_id = $this->app->id;
             $notificationSettings->notifications_types_id = $this->notificationType->id;
-            $notificationSettings->is_enabled = (int)false;
+            $notificationSettings->is_enabled = (int) false;
             $notificationSettings->channels = $channels;
         } else {
-            $notificationSettings->is_enabled = (int) ! $notificationSettings->is_enabled;
+            $notificationSettings->is_enabled = (int) !$notificationSettings->is_enabled;
         }
         $notificationSettings->saveOrFail();
 

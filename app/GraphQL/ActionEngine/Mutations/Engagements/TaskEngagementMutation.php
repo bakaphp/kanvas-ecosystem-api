@@ -36,7 +36,7 @@ class TaskEngagementMutation
             throw new ValidationException('You are not allowed to change the status of this task , app mismatch');
         }
 
-        if (! TaskStatusEnum::validate($status)) {
+        if (!TaskStatusEnum::validate($status)) {
             throw new ValidationException('Invalid Task Status');
         }
 
@@ -46,7 +46,7 @@ class TaskEngagementMutation
             ->where('lead_id', $lead->getId())
             ->first();
 
-        if (! $taskEngagementItem) {
+        if (!$taskEngagementItem) {
             $taskEngagementItem = new TaskEngagementItem();
             $taskEngagementItem->task_list_item_id = $taskListItem->getId();
             $taskEngagementItem->lead_id = $lead->getId();
@@ -78,9 +78,9 @@ class TaskEngagementMutation
             WorkflowEnum::UPDATED->value,
             true,
             [
-                'app' => $app,
+                'app'     => $app,
                 'company' => $company,
-                'lead' => $lead,
+                'lead'    => $lead,
             ]
         );
 

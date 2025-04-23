@@ -24,15 +24,15 @@ class ReceiversBuilder
 
         // Check top level
         if (isset($where['column']) && $where['column'] === 'receiver_webhook_calls.id' &&
-            isset($where['operator']) && $where['operator'] === '=' && ! empty($where['value'])) {
+            isset($where['operator']) && $where['operator'] === '=' && !empty($where['value'])) {
             $isQueryingById = true;
         }
 
         // Check AND array
-        if (! $isQueryingById && isset($where['AND']) && is_array($where['AND'])) {
+        if (!$isQueryingById && isset($where['AND']) && is_array($where['AND'])) {
             foreach ($where['AND'] as $condition) {
                 if (isset($condition['column']) && $condition['column'] === 'receiver_webhook_calls.id' &&
-                    isset($condition['operator']) && $condition['operator'] === '=' && ! empty($condition['value'])) {
+                    isset($condition['operator']) && $condition['operator'] === '=' && !empty($condition['value'])) {
                     $isQueryingById = true;
 
                     break;

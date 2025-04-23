@@ -20,7 +20,7 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
-        $messageData = ! is_array($entity->message) ? json_decode($entity->message, true) : $entity->message;
+        $messageData = !is_array($entity->message) ? json_decode($entity->message, true) : $entity->message;
 
         $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
 
@@ -36,30 +36,30 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($entity) use ($messageData) {
-                if (! isset($messageData['ai_model'])) {
+                if (!isset($messageData['ai_model'])) {
                     return [
-                        'result' => false,
+                        'result'  => false,
                         'message' => 'Message does not have an AI model',
                     ];
                 }
                 UserConfig::updateOrCreate(
                     [
                         'users_id' => $entity->user->getId(),
-                        'name' => 'llm_last_choice',
+                        'name'     => 'llm_last_choice',
                     ],
                     [
-                        'value' => $messageData['ai_model'],
+                        'value'     => $messageData['ai_model'],
                         'is_public' => 1,
                     ],
                 );
 
                 return [
-                    'message' => 'LLM choice saved',
-                    'result' => true,
-                    'user_id' => $entity->user->getId(),
-                    'model' => $messageData['ai_model'],
+                    'message'      => 'LLM choice saved',
+                    'result'       => true,
+                    'user_id'      => $entity->user->getId(),
+                    'model'        => $messageData['ai_model'],
                     'message_data' => $entity->message,
-                    'message_id' => $entity->getId(),
+                    'message_id'   => $entity->getId(),
                 ];
             },
             company: $company,

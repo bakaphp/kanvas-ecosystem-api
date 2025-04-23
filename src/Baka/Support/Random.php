@@ -25,22 +25,22 @@ class Random
         // Get only first two parts (typically first and last name)
         $usernameParts = array_slice($usernameParts, 0, 2);
 
-        $part1 = ! empty($usernameParts[0])
+        $part1 = !empty($usernameParts[0])
             ? substr($usernameParts[0], 0, self::MAX_FIRSTNAME_LENGTH)
             : '';
 
-        $part2 = ! empty($usernameParts[1])
+        $part2 = !empty($usernameParts[1])
             ? str_shuffle(substr($usernameParts[1], 0, self::MAX_LASTNAME_LENGTH))
             : '';
 
         $part3 = ($randNo > 0) ? rand(1, $randNo) : '';
 
-        return $part1 . $part2 . $part3;
+        return $part1.$part2.$part3;
     }
 
     public static function generateDisplayNameFromEmail(string $email, AppInterface $app, int $randNo = 200): string
     {
-        if (empty($email) || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException('Invalid email format provided');
         }
 
@@ -93,24 +93,25 @@ class Random
 
         // Try a few times with random numbers
         while ($counter < self::MAX_UNIQUENESS_ATTEMPTS) {
-            if (! UsersAssociatedApps::query()->fromApp($app)->where('displayname', $username)->exists()) {
+            if (!UsersAssociatedApps::query()->fromApp($app)->where('displayname', $username)->exists()) {
                 return $username; // Already unique
             }
 
             // Add random suffix
             $randomNumber = ($randNo > 0) ? rand(1, $randNo) : '';
-            $username = $originalName . $randomNumber;
+            $username = $originalName.$randomNumber;
             $counter++;
         }
 
         // Ultimate fallback - timestamp will guarantee uniqueness
-        return $originalName . time();
+        return $originalName.time();
     }
 
     /**
      * Create a URL-friendly slug from a display name.
      *
      * @param string $displayName The display name to convert to a slug
+     *
      * @return string Slug-formatted string
      */
     public static function cleanUpDisplayNameForSlug(string $displayName): string

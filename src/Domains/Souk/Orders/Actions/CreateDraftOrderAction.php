@@ -66,7 +66,7 @@ class CreateDraftOrderAction
 
                 try {
                     $order->user->notify(new NewOrderNotification($order, [
-                        'app' => $this->orderData->app,
+                        'app'     => $this->orderData->app,
                         'company' => $this->orderData->branch->company,
                     ]));
                 } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {

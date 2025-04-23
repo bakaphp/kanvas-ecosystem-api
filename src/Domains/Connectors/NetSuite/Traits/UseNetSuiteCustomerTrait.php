@@ -22,9 +22,9 @@ trait UseNetSuiteCustomerTrait
 
         $addResponse = $this->service->add($addRequest);
 
-        if (! $addResponse->writeResponse->status->isSuccess) {
+        if (!$addResponse->writeResponse->status->isSuccess) {
             throw new Exception(
-                'Error creating customer: ' .
+                'Error creating customer: '.
                 ($addResponse->writeResponse->status->statusDetail[0]->message ?? 'Unknown error')
             );
         }

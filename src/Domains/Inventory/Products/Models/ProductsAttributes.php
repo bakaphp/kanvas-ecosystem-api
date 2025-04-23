@@ -13,17 +13,16 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Override;
-use Spatie\Translatable\HasTranslations;
 
 /**
  * Class Products.
  *
- * @property int $products_id
- * @property int $attributes_id
- * @property ?string $value = null
- * @property string $created_at
- * @property string $updated_at
- * @property bool $is_deleted
+ * @property int     $products_id
+ * @property int     $attributes_id
+ * @property ?string $value         = null
+ * @property string  $created_at
+ * @property string  $updated_at
+ * @property bool    $is_deleted
  */
 class ProductsAttributes extends BaseModel
 {

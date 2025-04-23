@@ -16,18 +16,18 @@ use Kanvas\Templates\Models\Templates;
 /**
  * NotificationTypes Model.
  *
- * @property int $apps_id
- * @property int $system_modules_id
- * @property int $notification_channel_id
+ * @property int    $apps_id
+ * @property int    $system_modules_id
+ * @property int    $notification_channel_id
  * @property string $name
  * @property string $key
  * @property string $description
  * @property string|null title
  * @property string $template
  * @property string $icon_url
- * @property int $with_realtime
- * @property int $parent_id
- * @property float $is_published
+ * @property int    $with_realtime
+ * @property int    $parent_id
+ * @property float  $is_published
  */
 class NotificationTypes extends BaseModel
 {
@@ -84,7 +84,7 @@ class NotificationTypes extends BaseModel
         $pushNotificationTemplate = $this->channels()->where('notification_channel_id', NotificationChannelEnum::PUSH->value)->first();
 
         // if the notification type does not have a push template, we return the default one
-        if (! $pushNotificationTemplate) {
+        if (!$pushNotificationTemplate) {
             return 'new-push-default';
         }
 
@@ -104,7 +104,7 @@ class NotificationTypes extends BaseModel
     {
         $templateName = $this->template()->exists() ? $this->template()->first()->name : $this->template;
 
-        return ! empty($templateName);
+        return !empty($templateName);
     }
 
     public function getTemplateName(): string

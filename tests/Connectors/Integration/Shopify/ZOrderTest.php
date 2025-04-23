@@ -90,10 +90,10 @@ final class ZOrderTest extends TestCase
                 billingAddress: null,
                 items: [
                     [
-                        'id' => $variant->id,
+                        'id'       => $variant->id,
                         'quantity' => 1,
-                        'price' => 10.00,
-                        'name' => $product->name,
+                        'price'    => 10.00,
+                        'name'     => $product->name,
                     ],
                 ],
                 total: 0,

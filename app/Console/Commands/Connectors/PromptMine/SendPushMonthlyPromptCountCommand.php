@@ -57,6 +57,5 @@ class SendPushMonthlyPromptCountCommand extends Command
                 }
             });
 
-        return;
     }
 }

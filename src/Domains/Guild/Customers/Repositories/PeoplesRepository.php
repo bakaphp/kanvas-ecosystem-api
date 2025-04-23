@@ -82,7 +82,7 @@ class PeoplesRepository
     {
         $people = self::getByEmail($email, $company);
 
-        if (! $people) {
+        if (!$people) {
             $people = new People();
             $people->companies_id = $company->getId();
             $people->name = $name ?? explode('@', $email)[0];
@@ -93,8 +93,8 @@ class PeoplesRepository
             $people->contacts()->save(
                 new Contact([
                     'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                    'value' => $email,
-                    'weight' => 100,
+                    'value'             => $email,
+                    'weight'            => 100,
                 ])
             );
         }

@@ -29,11 +29,11 @@ class NetSuiteServices
     public static function setup(NetSuiteDto $data): bool
     {
         $configData = [
-            'account' => $data->account,
-            'consumerKey' => $data->consumerKey,
+            'account'        => $data->account,
+            'consumerKey'    => $data->consumerKey,
             'consumerSecret' => $data->consumerSecret,
-            'token' => $data->token,
-            'tokenSecret' => $data->tokenSecret,
+            'token'          => $data->token,
+            'tokenSecret'    => $data->tokenSecret,
         ];
 
         $requiredKeys = ['account', 'consumerKey', 'consumerSecret', 'token', 'tokenSecret'];
@@ -45,8 +45,8 @@ class NetSuiteServices
             }
         }
 
-        if (! empty($missingKeys)) {
-            throw new ValidationException('NetSuite configuration is missing the following keys: ' . implode(', ', $missingKeys));
+        if (!empty($missingKeys)) {
+            throw new ValidationException('NetSuite configuration is missing the following keys: '.implode(', ', $missingKeys));
         }
 
         return $data->app->set(ConfigurationEnum::NET_SUITE_ACCOUNT_CONFIG->value, $configData);

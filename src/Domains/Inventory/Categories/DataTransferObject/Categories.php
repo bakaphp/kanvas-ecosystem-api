@@ -36,7 +36,7 @@ class Categories extends Data
     /**
      * fromArray.
      *
-     * @param  array $request
+     * @param array $request
      *
      * @return self
      */

@@ -15,6 +15,7 @@ class FilesystemEntitiesRepository
 {
     /**
      * Get a filesystem entity.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false): FilesystemEntities
@@ -40,6 +41,7 @@ class FilesystemEntitiesRepository
 
     /**
      * Get files for the given entity.
+     *
      * @psalm-suppress MixedReturnStatement
      *
      * @return Collection<int, FilesystemEntities>
@@ -115,6 +117,7 @@ class FilesystemEntitiesRepository
 
     /**
      * Given the entity delete all related files.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function deleteAllFilesFromEntity(Model $entity): int

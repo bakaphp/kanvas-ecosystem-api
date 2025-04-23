@@ -6,7 +6,6 @@ namespace Tests\Inventory\Integration;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
-use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
@@ -35,11 +34,11 @@ final class ImporterTest extends TestCase
         $attributes = [
             'attributes' => [
                 [
-                    'name' => fake()->word(),
+                    'name'  => fake()->word(),
                     'value' => fake()->word(),
                 ],
                 [
-                    'name' => fake()->word(),
+                    'name'  => fake()->word(),
                     'value' => fake()->word(),
                 ],
             ],
@@ -48,9 +47,9 @@ final class ImporterTest extends TestCase
         $region = RegionRepository::getByName('default', $company);
 
         $warehouse = [
-            'name' => fake()->word(),
-            'regions_id' => $region->getId(),
-            'is_default' => true,
+            'name'         => fake()->word(),
+            'regions_id'   => $region->getId(),
+            'is_default'   => true,
             'is_published' => true,
         ];
 
@@ -71,20 +70,20 @@ final class ImporterTest extends TestCase
         ))->execute();
 
         $productData = ProductImporter::from([
-            'name' => fake()->word(),
+            'name'        => fake()->word(),
             'description' => fake()->sentence(),
-            'slug' => fake()->slug(),
-            'sku' => fake()->time(),
-            'price' => fake()->randomNumber(2),
-            'quantity' => fake()->randomNumber(2),
+            'slug'        => fake()->slug(),
+            'sku'         => fake()->time(),
+            'price'       => fake()->randomNumber(2),
+            'quantity'    => fake()->randomNumber(2),
             'isPublished' => true,
-            'files' => [
+            'files'       => [
                 [
-                    'url' => fake()->imageUrl,
+                    'url'  => fake()->imageUrl,
                     'name' => fake()->word(),
                 ],
                 [
-                    'url' => fake()->imageUrl,
+                    'url'  => fake()->imageUrl,
                     'name' => fake()->word(),
                 ],
             ],
@@ -93,26 +92,26 @@ final class ImporterTest extends TestCase
                     'name' => fake()->word(),
                     //'warehouse_id' => $warehouseData->getId(),
                     'warehouse' => [
-                        'id' => $warehouseData->getId(),
-                        'price' => fake()->randomNumber(2),
+                        'id'       => $warehouseData->getId(),
+                        'price'    => fake()->randomNumber(2),
                         'quantity' => fake()->randomNumber(2),
-                        'sku' => fake()->time(),
-                        'is_new' => fake()->boolean(),
-                        'status' => $statusData,
+                        'sku'      => fake()->time(),
+                        'is_new'   => fake()->boolean(),
+                        'status'   => $statusData,
                     ],
-                    'description' => fake()->sentence(),
-                    'sku' => fake()->time(),
-                    'price' => fake()->randomNumber(2),
+                    'description'  => fake()->sentence(),
+                    'sku'          => fake()->time(),
+                    'price'        => fake()->randomNumber(2),
                     'is_published' => true,
-                    'slug' => fake()->slug(),
+                    'slug'         => fake()->slug(),
                     ...$attributes,
                     'files' => [
                         [
-                            'url' => fake()->imageUrl,
+                            'url'  => fake()->imageUrl,
                             'name' => fake()->word(),
                         ],
                         [
-                            'url' => fake()->imageUrl,
+                            'url'  => fake()->imageUrl,
                             'name' => fake()->word(),
                         ],
                     ],
@@ -121,24 +120,24 @@ final class ImporterTest extends TestCase
                     'name' => fake()->word(),
                     //'warehouse_id' => $warehouseData->getId(),
                     'warehouse' => [
-                        'id' => $warehouseData->getId(),
-                        'price' => fake()->randomNumber(2),
+                        'id'       => $warehouseData->getId(),
+                        'price'    => fake()->randomNumber(2),
                         'quantity' => fake()->randomNumber(2),
-                        'sku' => fake()->time(),
-                        'is_new' => fake()->boolean(),
+                        'sku'      => fake()->time(),
+                        'is_new'   => fake()->boolean(),
                     ],
-                    'description' => fake()->sentence(),
-                    'sku' => fake()->time(),
-                    'price' => fake()->randomNumber(2),
+                    'description'  => fake()->sentence(),
+                    'sku'          => fake()->time(),
+                    'price'        => fake()->randomNumber(2),
                     'is_published' => true,
-                    'slug' => fake()->slug(),
+                    'slug'         => fake()->slug(),
                     ...$attributes,
                 ],
             ],
             'categories' => [
                 [
-                    'name' => fake()->word(),
-                    'code' => (string) fake()->randomNumber(3),
+                    'name'     => fake()->word(),
+                    'code'     => (string) fake()->randomNumber(3),
                     'position' => fake()->randomNumber(1),
                 ],
             ],
@@ -166,21 +165,21 @@ final class ImporterTest extends TestCase
         );
         $setupCompany->run();
         $app = app(Apps::class);
-        $customAttribute = 'test_' . fake()->word();
+        $customAttribute = 'test_'.fake()->word();
         $app->set(AttributeConfigEnum::DEFAULT_VARIANT_ATTRIBUTE->value, [
             [
-                'name' => $customAttribute,
+                'name'  => $customAttribute,
                 'value' => fake()->word(),
-            ]
+            ],
         ]);
         $attributes = [
             'attributes' => [
                 [
-                    'name' => fake()->word(),
+                    'name'  => fake()->word(),
                     'value' => fake()->word(),
                 ],
                 [
-                    'name' => fake()->word(),
+                    'name'  => fake()->word(),
                     'value' => fake()->word(),
                 ],
             ],
@@ -189,9 +188,9 @@ final class ImporterTest extends TestCase
         $region = RegionRepository::getByName('default', $company);
 
         $warehouse = [
-            'name' => fake()->word(),
-            'regions_id' => $region->getId(),
-            'is_default' => true,
+            'name'         => fake()->word(),
+            'regions_id'   => $region->getId(),
+            'is_default'   => true,
             'is_published' => true,
         ];
 
@@ -212,20 +211,20 @@ final class ImporterTest extends TestCase
         ))->execute();
 
         $productData = ProductImporter::from([
-            'name' => fake()->word(),
+            'name'        => fake()->word(),
             'description' => fake()->sentence(),
-            'slug' => fake()->slug(),
-            'sku' => fake()->time(),
-            'price' => fake()->randomNumber(2),
-            'quantity' => fake()->randomNumber(2),
+            'slug'        => fake()->slug(),
+            'sku'         => fake()->time(),
+            'price'       => fake()->randomNumber(2),
+            'quantity'    => fake()->randomNumber(2),
             'isPublished' => true,
-            'files' => [
+            'files'       => [
                 [
-                    'url' => fake()->imageUrl,
+                    'url'  => fake()->imageUrl,
                     'name' => fake()->word(),
                 ],
                 [
-                    'url' => fake()->imageUrl,
+                    'url'  => fake()->imageUrl,
                     'name' => fake()->word(),
                 ],
             ],
@@ -234,26 +233,26 @@ final class ImporterTest extends TestCase
                     'name' => fake()->word(),
                     //'warehouse_id' => $warehouseData->getId(),
                     'warehouse' => [
-                        'id' => $warehouseData->getId(),
-                        'price' => fake()->randomNumber(2),
+                        'id'       => $warehouseData->getId(),
+                        'price'    => fake()->randomNumber(2),
                         'quantity' => fake()->randomNumber(2),
-                        'sku' => fake()->time(),
-                        'is_new' => fake()->boolean(),
-                        'status' => $statusData,
+                        'sku'      => fake()->time(),
+                        'is_new'   => fake()->boolean(),
+                        'status'   => $statusData,
                     ],
-                    'description' => fake()->sentence(),
-                    'sku' => fake()->time(),
-                    'price' => fake()->randomNumber(2),
+                    'description'  => fake()->sentence(),
+                    'sku'          => fake()->time(),
+                    'price'        => fake()->randomNumber(2),
                     'is_published' => true,
-                    'slug' => fake()->slug(),
+                    'slug'         => fake()->slug(),
                     ...$attributes,
                     'files' => [
                         [
-                            'url' => fake()->imageUrl,
+                            'url'  => fake()->imageUrl,
                             'name' => fake()->word(),
                         ],
                         [
-                            'url' => fake()->imageUrl,
+                            'url'  => fake()->imageUrl,
                             'name' => fake()->word(),
                         ],
                     ],
@@ -262,24 +261,24 @@ final class ImporterTest extends TestCase
                     'name' => fake()->word(),
                     //'warehouse_id' => $warehouseData->getId(),
                     'warehouse' => [
-                        'id' => $warehouseData->getId(),
-                        'price' => fake()->randomNumber(2),
+                        'id'       => $warehouseData->getId(),
+                        'price'    => fake()->randomNumber(2),
                         'quantity' => fake()->randomNumber(2),
-                        'sku' => fake()->time(),
-                        'is_new' => fake()->boolean(),
+                        'sku'      => fake()->time(),
+                        'is_new'   => fake()->boolean(),
                     ],
-                    'description' => fake()->sentence(),
-                    'sku' => fake()->time(),
-                    'price' => fake()->randomNumber(2),
+                    'description'  => fake()->sentence(),
+                    'sku'          => fake()->time(),
+                    'price'        => fake()->randomNumber(2),
                     'is_published' => true,
-                    'slug' => fake()->slug(),
+                    'slug'         => fake()->slug(),
                     ...$attributes,
                 ],
             ],
             'categories' => [
                 [
-                    'name' => fake()->word(),
-                    'code' => (string) fake()->randomNumber(3),
+                    'name'     => fake()->word(),
+                    'code'     => (string) fake()->randomNumber(3),
                     'position' => fake()->randomNumber(1),
                 ],
             ],

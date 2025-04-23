@@ -40,21 +40,21 @@ final class SubscriptionsTest extends TestCase
         $prices = [
             [
                 'apps_plans_id' => 1,
-                'stripe_id' => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
-                'amount' => 59.00,
-                'currency' => 'USD',
-                'interval' => 'yearly',
-                'is_default' => 1,
-                'created_at' => now(),
+                'stripe_id'     => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
+                'amount'        => 59.00,
+                'currency'      => 'USD',
+                'interval'      => 'yearly',
+                'is_default'    => 1,
+                'created_at'    => now(),
             ],
             [
                 'apps_plans_id' => 2,
-                'stripe_id' => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
-                'amount' => 5.00,
-                'currency' => 'USD',
-                'interval' => 'yearly',
-                'is_default' => 0,
-                'created_at' => now(),
+                'stripe_id'     => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
+                'amount'        => 5.00,
+                'currency'      => 'USD',
+                'interval'      => 'yearly',
+                'is_default'    => 0,
+                'created_at'    => now(),
             ],
         ];
 
@@ -74,10 +74,10 @@ final class SubscriptionsTest extends TestCase
         $paymentMethod = $cashier->paymentMethods->create([
             'type' => 'card',
             'card' => [
-                'number' => '4242424242424242',
+                'number'    => '4242424242424242',
                 'exp_month' => 8,
-                'exp_year' => date('Y') + 5,
-                'cvc' => '314',
+                'exp_year'  => date('Y') + 5,
+                'cvc'       => '314',
             ],
         ]);
 
@@ -92,9 +92,9 @@ final class SubscriptionsTest extends TestCase
         $response = $this->graphQL('
             mutation {
                 createSubscription(input: {
-                    apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                    apps_plans_prices_id: '.$this->price->getId().' , #Basic
                     name: "TestCreate Subscription",       
-                    payment_method_id: "' . $paymentMethod . '"                      
+                    payment_method_id: "'.$paymentMethod.'"                      
                 }) {
                     id
                     stripe_id
@@ -116,7 +116,7 @@ final class SubscriptionsTest extends TestCase
         $response->assertJson([
             'data' => [
                 'createSubscription' => [
-                   'stripe_status' => 'trialing',
+                    'stripe_status' => 'trialing',
                 ],
             ],
         ]);
@@ -128,24 +128,24 @@ final class SubscriptionsTest extends TestCase
         $user = auth()->user();
 
         $plan = [
-            'apps_id' => 1,
-            'name' => 'Test without trial',
-            'stripe_id' => 'prod_R0llYZVFCMX0Dz',
+            'apps_id'          => 1,
+            'name'             => 'Test without trial',
+            'stripe_id'        => 'prod_R0llYZVFCMX0Dz',
             'free_trial_dates' => 0,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'created_at'       => now(),
+            'updated_at'       => now(),
         ];
 
         $planId = DB::table('apps_plans')->insertGetId($plan);
 
         $price = [
             'apps_plans_id' => $planId,
-            'stripe_id' => 'price_1Q8kDZBwyV21ueMMq6ZDUKqI',
-            'amount' => 38.00,
-            'currency' => 'USD',
-            'interval' => 'yearly',
-            'is_default' => 0,
-            'created_at' => now(),
+            'stripe_id'     => 'price_1Q8kDZBwyV21ueMMq6ZDUKqI',
+            'amount'        => 38.00,
+            'currency'      => 'USD',
+            'interval'      => 'yearly',
+            'is_default'    => 0,
+            'created_at'    => now(),
         ];
 
         DB::table('apps_plans_prices')->updateOrInsert(
@@ -157,9 +157,9 @@ final class SubscriptionsTest extends TestCase
         $response = $this->graphQL('
             mutation {
                 createSubscription(input: {
-                    apps_plans_prices_id: ' . $priceId . ' , #without trial
+                    apps_plans_prices_id: '.$priceId.' , #without trial
                     name: "TestCreate Subscription",       
-                    payment_method_id: "' . $paymentMethod . '"                      
+                    payment_method_id: "'.$paymentMethod.'"                      
                 }) {
                     id
                     stripe_id
@@ -181,7 +181,7 @@ final class SubscriptionsTest extends TestCase
         $response->assertJson([
             'data' => [
                 'createSubscription' => [
-                   'stripe_status' => 'active',
+                    'stripe_status' => 'active',
                 ],
             ],
         ]);
@@ -195,9 +195,9 @@ final class SubscriptionsTest extends TestCase
         $response = $this->graphQL('
         mutation {
             createSubscription(input: {
-                apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                apps_plans_prices_id: '.$this->price->getId().' , #Basic
                 name: "TestCreate Subscription",       
-                payment_method_id: "' . $paymentMethod . '"      
+                payment_method_id: "'.$paymentMethod.'"      
             }) {
                 id
                 stripe_id
@@ -205,8 +205,8 @@ final class SubscriptionsTest extends TestCase
             }
         }
     ', [], [], [
-        'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
-    ]);
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
 
         $newPriceId = DB::table('apps_plans_prices')
             ->where('apps_plans_id', '!=', $this->price->apps_plans_id)
@@ -214,7 +214,7 @@ final class SubscriptionsTest extends TestCase
         $response = $this->graphQL('
             mutation {
                 updateSubscription(input: {
-                apps_plans_prices_id: ' . $newPriceId . ' ,
+                apps_plans_prices_id: '.$newPriceId.' ,
                 }) {
                     id
                     stripe_id
@@ -241,9 +241,9 @@ final class SubscriptionsTest extends TestCase
         $response = $this->graphQL('
         mutation {
             createSubscription(input: {
-                apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                apps_plans_prices_id: '.$this->price->getId().' , #Basic
                 name: "TestCreate Subscription",       
-                payment_method_id: "' . $paymentMethod . '"     
+                payment_method_id: "'.$paymentMethod.'"     
             }) {
                 id
                 stripe_id
@@ -251,8 +251,8 @@ final class SubscriptionsTest extends TestCase
             }
         }
     ', [], [], [
-        'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
-    ]);
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
 
         $response = $this->graphQL('
             query {
@@ -289,9 +289,9 @@ final class SubscriptionsTest extends TestCase
         $response = $this->graphQL('
         mutation {
             createSubscription(input: {
-                apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                apps_plans_prices_id: '.$this->price->getId().' , #Basic
                 name: "TestCreate Subscription",       
-                payment_method_id: "' . $paymentMethod . '",
+                payment_method_id: "'.$paymentMethod.'",
             }) {
                 id
                 stripe_id
@@ -299,8 +299,8 @@ final class SubscriptionsTest extends TestCase
             }
         }
     ', [], [], [
-        'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
-    ]);
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
 
         $id = $response->json('data.createSubscription.id');
 
@@ -309,7 +309,7 @@ final class SubscriptionsTest extends TestCase
 
         $response = $this->graphQL('
             mutation {
-                cancelSubscription(id: ' . $subscription->id . ')
+                cancelSubscription(id: '.$subscription->id.')
             }
         ', [], [], [
             'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,

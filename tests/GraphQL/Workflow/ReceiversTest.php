@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Workflow;
 
 use Illuminate\Support\Facades\Queue;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Workflow\Models\ReceiverWebhook;
-use Tests\TestCase;
 use Illuminate\Support\Facades\Request;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Tests\TestCase;
 
 class ReceiversTest extends TestCase
 {
@@ -65,7 +65,7 @@ class ReceiversTest extends TestCase
         $title = 'New Order';
         $payload = [
             'title' => $title,
-            'body' => json_encode(['order_id' => 1]),
+            'body'  => json_encode(['order_id' => 1]),
         ];
 
         // Create a new Request instance with the payload
@@ -78,7 +78,7 @@ class ReceiversTest extends TestCase
         Queue::fake();
 
         // Create a concrete class for the abstract ProcessWebhookJob class
-        $job = new class ($webhookRequest) extends ProcessWebhookJob {
+        $job = new class($webhookRequest) extends ProcessWebhookJob {
             public function execute(): array
             {
                 return ['result' => $this->webhookRequest->payload];

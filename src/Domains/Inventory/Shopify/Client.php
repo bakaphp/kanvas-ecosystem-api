@@ -11,7 +11,7 @@ class Client
     /**
      * getClient.
      *
-     * @param  string $storeUrl
+     * @param string $storeUrl
      *
      * @return GuzzleClient
      */
@@ -19,9 +19,9 @@ class Client
     {
         return new GuzzleClient([
             'base_uri' => "$storeUrl/admin/api/2023-01/graphql.json",
-            'headers' => [
+            'headers'  => [
                 'X-Shopify-Access-Token' => config('shopify.access_token'),
-            ]
+            ],
         ]);
     }
 }

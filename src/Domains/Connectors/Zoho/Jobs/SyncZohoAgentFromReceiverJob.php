@@ -13,7 +13,7 @@ class SyncZohoAgentFromReceiverJob extends ProcessWebhookJob
     {
         $email = $this->webhookRequest->payload['email'] ?? null;
 
-        if (! $email) {
+        if (!$email) {
             return [
                 'message' => 'Email not found',
             ];
@@ -27,8 +27,8 @@ class SyncZohoAgentFromReceiverJob extends ProcessWebhookJob
         $agent = $syncZohoAgent->execute();
 
         return [
-            'message' => 'Agent created successfully via receiver ' . $this->receiver->uuid,
-            'agent' => $agent->getId(),
+            'message' => 'Agent created successfully via receiver '.$this->receiver->uuid,
+            'agent'   => $agent->getId(),
         ];
     }
 }

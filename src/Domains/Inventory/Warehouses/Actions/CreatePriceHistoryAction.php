@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Actions;
 
-use Kanvas\Inventory\Variants\Models\VariantsWarehousesPriceHistory;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Kanvas\Inventory\Variants\Models\VariantsWarehousesPriceHistory;
 
 class CreatePriceHistoryAction
 {
@@ -16,7 +16,7 @@ class CreatePriceHistoryAction
      */
     public function __construct(
         protected VariantsWarehouses $variantsWarehouses,
-        protected Float $price
+        protected float $price
     ) {
     }
 
@@ -30,7 +30,7 @@ class CreatePriceHistoryAction
         return VariantsWarehousesPriceHistory::firstOrCreate(
             [
                 'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
-                'price' => $this->price
+                'price'                         => $this->price,
             ],
             [
                 'from_date' => date('Y-m-d H:i:s'),

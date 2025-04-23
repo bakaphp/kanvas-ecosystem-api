@@ -55,14 +55,14 @@ class NetSuiteSyncAllProductsCommand extends Command
                 $code = (string) $barcode;
                 $syncNetSuiteProduct->execute($code);
             } catch (Exception $e) {
-                $this->error('Error syncing product ' . $code . ': ' . $e->getMessage());
+                $this->error('Error syncing product '.$code.': '.$e->getMessage());
                 $missingProducts[] = $code;
             }
             $this->output->progressAdvance();
         }
         $this->output->progressFinish();
         if (count($missingProducts) > 0) {
-            $this->error('Missing products: ' . implode(', ', $missingProducts));
+            $this->error('Missing products: '.implode(', ', $missingProducts));
         }
     }
 
@@ -81,11 +81,11 @@ class NetSuiteSyncAllProductsCommand extends Command
             }
 
             $barcode = $record['Copic Item No/ UPC'];
-            $sku = $record["Macpherson  Item #"];
+            $sku = $record['Macpherson  Item #'];
             $productList[$barcode] = [
-                "sku" => $sku,
-                "name" => $record["Description"],
-                "barcode" => $barcode
+                'sku'     => $sku,
+                'name'    => $record['Description'],
+                'barcode' => $barcode,
             ];
         }
 

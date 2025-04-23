@@ -14,7 +14,7 @@ class UserContactsService
 
         foreach ($contactsData as $contact) {
             foreach (array_column($contact['emails'], 'email') as $email) {
-                if (! isset($seenEmails[$email])) {
+                if (!isset($seenEmails[$email])) {
                     $seenEmails[$email] = true;
                     yield $email;
                 }

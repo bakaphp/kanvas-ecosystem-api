@@ -19,16 +19,16 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 /**
  * Class Variants Channels.
  *
- * @property int $products_variants_id
- * @property int $warehouses_id
- * @property int $channels_id
- * @property float $price
- * @property float $discount_price
- * @property bool $is_published
- * @property ?string $config = null
- * @property string $created_at
- * @property string $updated_at
- * @property bool $is_deleted
+ * @property int     $products_variants_id
+ * @property int     $warehouses_id
+ * @property int     $channels_id
+ * @property float   $price
+ * @property float   $discount_price
+ * @property bool    $is_published
+ * @property ?string $config               = null
+ * @property string  $created_at
+ * @property string  $updated_at
+ * @property bool    $is_deleted
  *
  * @todo Add relationships and cascade softdelete
  */
@@ -48,9 +48,9 @@ class VariantsChannels extends BaseModel
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
+            'price'          => 'decimal:2',
             'discount_price' => 'decimal:2',
-            'config' => Json::class,
+            'config'         => Json::class,
         ];
     }
 
@@ -93,8 +93,8 @@ class VariantsChannels extends BaseModel
     {
         return $this->hasMany(
             VariantChannelPriceHistory::class,
-            ['product_variants_warehouse_id','channels_id'],
-            ['product_variants_warehouse_id','channels_id']
+            ['product_variants_warehouse_id', 'channels_id'],
+            ['product_variants_warehouse_id', 'channels_id']
         );
     }
 }

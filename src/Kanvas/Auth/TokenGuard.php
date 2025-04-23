@@ -28,14 +28,14 @@ class TokenGuard extends AuthTokenGuard
         // If we've already retrieved the user for the current request we can just
         // return it back immediately. We do not want to fetch the user data on
         // every call to this method because that would be tremendously slow.
-        if (! is_null($this->user)) {
+        if (!is_null($this->user)) {
             return $this->user;
         }
         $user = null;
 
         $requestToken = $this->getTokenForRequest();
 
-        if (! empty($requestToken)) {
+        if (!empty($requestToken)) {
             try {
                 $token = $this->getRequestJwtToken();
                 $user = $this->sessionUser($token, $this->request);
@@ -51,10 +51,10 @@ class TokenGuard extends AuthTokenGuard
     {
         $requestToken = $this->getTokenForRequest();
 
-        if (! empty($requestToken)) {
+        if (!empty($requestToken)) {
             $token = $this->getToken($requestToken);
             if ($token instanceof Token) {
-                if (! $this->validateJwtToken($token)) {
+                if (!$this->validateJwtToken($token)) {
                     throw new AuthorizationException('Invalid Token');
                 }
 
@@ -76,18 +76,18 @@ class TokenGuard extends AuthTokenGuard
         $userData = new Users();
         $app = app(Apps::class);
 
-        if (! empty($token->claims()->get('sessionId'))) {
+        if (!empty($token->claims()->get('sessionId'))) {
             $userSession = $session->getById($token->claims()->get('sessionId'), $app);
             $tokenDeviceId = $token->claims()->get('deviceId');
 
-            if (! $user = $userSession->user()->first()) {
+            if (!$user = $userSession->user()->first()) {
                 throw new AuthorizationException('Session User not found');
             }
 
             $sessionUser = $session->check(
                 $user,
                 $token->claims()->get('sessionId'),
-                (string)  $request->ip(),
+                (string) $request->ip(),
                 app(Apps::class),
                 1
             );

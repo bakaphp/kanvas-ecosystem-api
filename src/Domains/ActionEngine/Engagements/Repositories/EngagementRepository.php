@@ -46,7 +46,7 @@ class EngagementRepository
             $lead->app
         );
 
-        if (! $companyAction->pipeline()->exists()) {
+        if (!$companyAction->pipeline()->exists()) {
             throw new ModelNotFoundException("Pipeline not found for action '{$actionSlug}'");
         }
 

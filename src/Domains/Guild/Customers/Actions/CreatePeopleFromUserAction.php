@@ -39,11 +39,11 @@ class CreatePeopleFromUserAction
                 firstname: $this->user->firstname,
                 contacts: Contact::collect([
                     [
-                        'value' => $this->user->email,
+                        'value'             => $this->user->email,
                         'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
-                    ], DataCollection::class),
+                ], DataCollection::class),
                 address: Address::collect([], DataCollection::class),
                 lastname: $this->user->lastname,
             )

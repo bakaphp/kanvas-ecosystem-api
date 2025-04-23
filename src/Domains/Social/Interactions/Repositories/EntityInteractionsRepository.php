@@ -25,25 +25,25 @@ class EntityInteractionsRepository
         /**
          * @var \Illuminate\Database\Eloquent\Collection <EntityInteractions>
          */
-        $visitorInteractions = EntityInteractions::select(Interactions::getFullTableName() . '.name')
+        $visitorInteractions = EntityInteractions::select(Interactions::getFullTableName().'.name')
             ->join(
                 Interactions::getFullTableName(),
-                Interactions::getFullTableName() . '.id',
+                Interactions::getFullTableName().'.id',
                 '=',
-                EntityInteractions::getFullTableName() . '.interactions_id'
+                EntityInteractions::getFullTableName().'.interactions_id'
             )
             ->where(
-                EntityInteractions::getFullTableName() . '.interacted_entity_id',
+                EntityInteractions::getFullTableName().'.interacted_entity_id',
                 $entityInput->interacted_entity_id
             )
             ->where(
-                EntityInteractions::getFullTableName() . '.interacted_entity_namespace',
+                EntityInteractions::getFullTableName().'.interacted_entity_namespace',
                 $entityInput->interacted_entity_namespace
             )
-            ->where(EntityInteractions::getFullTableName() . '.entity_id', $entityInput->entity_id)
-            ->where(EntityInteractions::getFullTableName() . '.entity_namespace', $entityInput->entity_namespace)
-            ->where(EntityInteractions::getFullTableName() . '.is_deleted', StateEnums::NO->getValue())
-            ->groupBy(Interactions::getFullTableName() . '.name')
+            ->where(EntityInteractions::getFullTableName().'.entity_id', $entityInput->entity_id)
+            ->where(EntityInteractions::getFullTableName().'.entity_namespace', $entityInput->entity_namespace)
+            ->where(EntityInteractions::getFullTableName().'.is_deleted', StateEnums::NO->getValue())
+            ->groupBy(Interactions::getFullTableName().'.name')
             ->get();
 
         foreach ($visitorInteractions as $interaction) {

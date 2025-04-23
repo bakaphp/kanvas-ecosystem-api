@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class () extends Migration {
+return new class() extends Migration {
     /**
      * Run the migrations.
      */
@@ -12,12 +12,12 @@ return new class () extends Migration {
     {
         Schema::table('subscriptions', function (Blueprint $table) {
             // Check if 'apps_plans_id' column doesn't exist, then add it as a big integer
-            if (! Schema::hasColumn('subscriptions', 'apps_plans_id')) {
+            if (!Schema::hasColumn('subscriptions', 'apps_plans_id')) {
                 $table->unsignedBigInteger('apps_plans_id')->nullable();
             }
 
             // Check if 'payment_method_id' column doesn't exist, then add it
-            if (! Schema::hasColumn('subscriptions', 'payment_method_id')) {
+            if (!Schema::hasColumn('subscriptions', 'payment_method_id')) {
                 $table->string('payment_method_id')->nullable()->after('apps_plans_id');
             }
         });

@@ -18,11 +18,11 @@ class UpdateFilesystemMapperAction
     public function execute(): ModelsFilesystemMapper
     {
         $this->filesystemMapper->update([
-            'name' => $this->filesystemMapping->name,
-            'header' => $this->filesystemMapping->header,
-            'mapping' => $this->filesystemMapping->mapping,
+            'name'          => $this->filesystemMapping->name,
+            'header'        => $this->filesystemMapping->header,
+            'mapping'       => $this->filesystemMapping->mapping,
             'configuration' => $this->filesystemMapping->configuration,
-            'is_default' => $this->filesystemMapping->is_default,
+            'is_default'    => $this->filesystemMapping->is_default,
         ]);
         $this->filesystemMapper->refresh();
 

@@ -33,7 +33,7 @@ final class AttributesTest extends TestCase
             sku: $sku,
             warehouses: [[
                 'quantity' => 10,
-                'price' => 0.29,
+                'price'    => 0.29,
             ],
             ]
         );
@@ -66,7 +66,7 @@ final class AttributesTest extends TestCase
             sku: $sku,
             warehouses: [[
                 'quantity' => 10,
-                'price' => 0.29,
+                'price'    => 0.29,
             ],
             ]
         );

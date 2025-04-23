@@ -44,7 +44,7 @@ class DeleteVariantFromShopifyActivity extends KanvasActivity
                 );
                 $shopifyVariantId = $variant->getShopifyId($warehouse->regions);
 
-                if (! $shopifyVariantId) {
+                if (!$shopifyVariantId) {
                     return [];
                 }
 

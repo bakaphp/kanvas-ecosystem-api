@@ -30,7 +30,7 @@ class UsersListQuery
         $user = auth()->user();
 
         $displayname = $request['displayname'];
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             $displayname = $user->displayname;
         }
 

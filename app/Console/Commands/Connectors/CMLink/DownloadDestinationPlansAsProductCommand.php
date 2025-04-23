@@ -50,8 +50,7 @@ class DownloadDestinationPlansAsProductCommand extends Command
 
         $imports = $downloadPlanProducts->execute($language);
 
-        $this->info('Downloaded ' . count($imports) . ' products');
+        $this->info('Downloaded '.count($imports).' products');
 
-        return;
     }
 }

@@ -19,12 +19,12 @@ trait KanvasCompanyScopesTrait
     {
         $company = $company instanceof Companies ? $company : auth()->user()->getCurrentCompany();
 
-        $table = $this instanceof Model ? $this->getTable() . '.' : '';
+        $table = $this instanceof Model ? $this->getTable().'.' : '';
 
-        if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
-            return $query->where($table . 'companies_id', '>', 0);
+        if (app()->bound(AppKey::class) && !app()->bound(CompaniesBranches::class)) {
+            return $query->where($table.'companies_id', '>', 0);
         }
 
-        return $query->where($table . 'companies_id', $company->getId());
+        return $query->where($table.'companies_id', $company->getId());
     }
 }

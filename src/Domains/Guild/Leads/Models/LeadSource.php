@@ -11,17 +11,17 @@ use Kanvas\Guild\Models\BaseModel;
 /**
  * Class LeadSource.
  *
- * @property int $id
+ * @property int    $id
  * @property string $uuid
- * @property int $apps_id
- * @property int $companies_id
+ * @property int    $apps_id
+ * @property int    $companies_id
  * @property string $name
  * @property string $description
- * @property int $is_active
- * @property int $leads_types_id
+ * @property int    $is_active
+ * @property int    $leads_types_id
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_deleted
+ * @property int    $is_deleted
  */
 class LeadSource extends BaseModel
 {

@@ -41,14 +41,14 @@ class DeleteCompanyCommand extends Command
             $this->error('Company not found');
             $this->newLine();
 
-            return ;
+            return;
         }
 
         $delete = $this->confirm('ARE YOU SURE, this will softdelete all company records?', true);
 
-        if (! $delete) {
+        if (!$delete) {
             $this->newLine();
-            $this->info('Company ' . $company->name . ' has not been deleted');
+            $this->info('Company '.$company->name.' has not been deleted');
             $this->newLine();
 
             return;
@@ -60,9 +60,8 @@ class DeleteCompanyCommand extends Command
         $deleteCompany->execute($company->getId());
 
         $this->newLine();
-        $this->info('Company ' . $company->name . ' deleted');
+        $this->info('Company '.$company->name.' deleted');
         $this->newLine();
 
-        return;
     }
 }

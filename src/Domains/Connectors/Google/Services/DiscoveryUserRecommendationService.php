@@ -47,7 +47,7 @@ class DiscoveryUserRecommendationService extends DiscoveryEngineService
              * Recommendation model is not ready. You can set 'validateOnly' to true in RecommendRequest for
              * integration purposes, which will return arbitrary documents from your
              * DataStore (please DO NOT use this for production traffic).
-             *  If this is production traffic and you think your model should be in ready state, please contact Google Support
+             *  If this is production traffic and you think your model should be in ready state, please contact Google Support.
              */
             ->setValidateOnly($validateOnly);
 

@@ -19,7 +19,7 @@ class UpdatePeopleGhostSubscriptionJob extends ProcessWebhookJob
         $app = $this->webhookRequest->receiverWebhook->app;
         $company = $this->webhookRequest->receiverWebhook->company;
         $people = PeoplesRepository::getByEmail($member['email'], $company);
-        if (! $people) {
+        if (!$people) {
             throw new Exception('People not found');
         }
         $dto = new PeopleSubscriptionDTO(
@@ -36,7 +36,7 @@ class UpdatePeopleGhostSubscriptionJob extends ProcessWebhookJob
 
         return [
             'success' => true,
-            'data' => $peopleSub,
+            'data'    => $peopleSub,
         ];
     }
 }

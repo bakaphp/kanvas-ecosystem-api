@@ -28,13 +28,13 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
     public function execute(Model $user, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
-        if (! isset($params['company'])) {
+        if (!isset($params['company'])) {
             throw new Exception('Company is required');
         }
 
         $company = $params['company'];
         $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
-        if (! $usesAgentsModule) {
+        if (!$usesAgentsModule) {
             return ['No Agent Module'];
         }
 
@@ -55,8 +55,8 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
 
         if (empty($record->Member_Number) && $newAgent == null) {
             return [
-                'error' => 'Error Member Number not found',
-                'record' => $record,
+                'error'    => 'Error Member Number not found',
+                'record'   => $record,
                 'newAgent' => $newAgent,
             ];
         }
@@ -72,9 +72,9 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
         }
 
         $agentUpdateData = [
-            'name' => $name,
+            'name'                   => $name,
             'users_linked_source_id' => $zohoId,
-            'member_id' => $memberNumber,
+            'member_id'              => $memberNumber,
         ];
 
         $companyDefaultOwnerMemberId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_MEMBER_NUMBER->value) ?? 1001;
@@ -89,19 +89,19 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
         }
 
         Agent::updateOrCreate([
-            'users_id' => $user->getId(),
+            'users_id'     => $user->getId(),
             'companies_id' => $company->getId(),
         ], $agentUpdateData);
-        $user->set('member_number_' . $company->getId(), $memberNumber);
+        $user->set('member_number_'.$company->getId(), $memberNumber);
 
         if ($company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value)) {
             $user->set('landing_page', $company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value), true);
         }
 
         return [
-            'member_id' => $memberNumber,
-            'zohoId' => $zohoId,
-            'users_id' => $user->getId(),
+            'member_id'    => $memberNumber,
+            'zohoId'       => $zohoId,
+            'users_id'     => $user->getId(),
             'companies_id' => $company->getId(),
             //'newAgentRecord' => $newAgentRecord ?? [],
         ];
@@ -187,7 +187,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
         $agent->users_id = $user->getId();
         $agent->apps_id = $app->getId();
         $agent->companies_id = $company->getId();
-        $agent->name = $user->firstname . ' ' . $user->lastname;
+        $agent->name = $user->firstname.' '.$user->lastname;
         $agent->member_id = Agent::getNextAgentNumber($company);
         $agent->owner_id = $ownerMemberNumber ?? $companyDefaultOwnerMemberId;
         $agent->owner_linked_source_id = $ownerId ?? $companyDefaultOwnerSourceId;
@@ -200,9 +200,9 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
         $agent->saveOrFail();
 
         return [
-            'agent' => $agent,
-            'member_id' => $agent->member_id,
-            'zohoAgent' => $zohoAgent,
+            'agent'      => $agent,
+            'member_id'  => $agent->member_id,
+            'zohoAgent'  => $zohoAgent,
             'agentOwner' => $ownerInfo,
         ];
     }

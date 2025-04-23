@@ -14,7 +14,7 @@ class CompaniesGroupsRepository
      * Associate a company to this company Group.
      *
      * @param Companies $company
-     * @param int $isDefault
+     * @param int       $isDefault
      *
      * @return CompaniesAssociations
      */

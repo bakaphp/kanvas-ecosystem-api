@@ -19,10 +19,11 @@ class AiraloService
 
     /**
      * Get eSIM status information.
+     *
      * @todo Change it later to direct connection
      */
     public function getEsimStatus(string $iccid, string $bundle): array
     {
-        return $this->client->get('/api/v1/airalo/check/status/' . $iccid);
+        return $this->client->get('/api/v1/airalo/check/status/'.$iccid);
     }
 }

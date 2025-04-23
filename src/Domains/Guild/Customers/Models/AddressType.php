@@ -11,10 +11,10 @@ use Kanvas\Guild\Models\BaseModel;
 /**
  * Class AddressType.
  *
- * @property int $id
- * @property int $apps_id
- * @property int $companies_id
- * @property int $users_id
+ * @property int    $id
+ * @property int    $apps_id
+ * @property int    $companies_id
+ * @property int    $users_id
  * @property string $name
  */
 class AddressType extends BaseModel
@@ -27,10 +27,10 @@ class AddressType extends BaseModel
         $app = $app ?? app(Apps::class);
 
         return self::firstOrCreate([
-            'name' => $name,
+            'name'         => $name,
             'companies_id' => 0,
-            'apps_id' => $app->getId(),
-            'users_id' => 1,
+            'apps_id'      => $app->getId(),
+            'users_id'     => 1,
         ]);
     }
 }

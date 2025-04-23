@@ -45,9 +45,8 @@ class GuildSetupCommand extends Command
         ))->run();
 
         $this->newLine();
-        $this->info('Guild setup for Company ' . $company->name . ' completed successful');
+        $this->info('Guild setup for Company '.$company->name.' completed successful');
         $this->newLine();
 
-        return;
     }
 }

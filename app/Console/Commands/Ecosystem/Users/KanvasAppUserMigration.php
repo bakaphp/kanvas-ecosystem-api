@@ -52,10 +52,9 @@ class KanvasAppUserMigration extends Command
                 );
                 $userRegisterInApp->execute($userData->password);
             } catch(Throwable $e) {
-                $this->error('Error creating user : ' . $user->user_id . ' ' . $e->getMessage());
+                $this->error('Error creating user : '.$user->user_id.' '.$e->getMessage());
             }
         }
 
-        return;
     }
 }

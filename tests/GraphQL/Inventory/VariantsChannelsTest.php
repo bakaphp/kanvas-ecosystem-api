@@ -16,10 +16,10 @@ class VariantsChannelsTest extends TestCase
     public function testVariantToChannel(): void
     {
         $dataRegion = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
+            'name'        => 'Test Region',
+            'slug'        => 'test-region',
+            'short_slug'  => 'test-region',
+            'is_default'  => 1,
             'currency_id' => 1,
         ];
         $response = $this->graphQL('
@@ -35,14 +35,14 @@ class VariantsChannelsTest extends TestCase
                 }
             }', ['data' => $dataRegion])
             ->assertJson([
-                'data' => ['createRegion' => $dataRegion]
+                'data' => ['createRegion' => $dataRegion],
             ]);
         $idRegion = $response->json()['data']['createRegion']['id'];
         $data = [
-            'regions_id' => $idRegion,
-            'name' => 'Test Warehouse',
-            'location' => 'Test Location',
-            'is_default' => true,
+            'regions_id'   => $idRegion,
+            'name'         => 'Test Warehouse',
+            'location'     => 'Test Location',
+            'is_default'   => true,
             'is_published' => true,
         ];
 
@@ -58,14 +58,14 @@ class VariantsChannelsTest extends TestCase
                     is_published
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
+            'data' => ['createWarehouse' => $data],
         ]);
         $warehouseData = [
             'id' => $response->json()['data']['createWarehouse']['id'],
         ];
         $data = [
-            'name' => fake()->name,
-            'sku' => fake()->time,
+            'name'        => fake()->name,
+            'sku'         => fake()->time,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -84,11 +84,11 @@ class VariantsChannelsTest extends TestCase
         ]);
         $productId = $response->json()['data']['createProduct']['id'];
         $data = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku'         => fake()->time,
             'products_id' => $productId,
-            'warehouses' => [$warehouseData]
+            'warehouses'  => [$warehouseData],
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -104,9 +104,9 @@ class VariantsChannelsTest extends TestCase
         $variantId = $response->json()['data']['createVariant']['id'];
 
         $dataChannel = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'is_default' => true,
+            'is_default'  => true,
         ];
 
         $response = $this->graphQL('
@@ -121,7 +121,7 @@ class VariantsChannelsTest extends TestCase
         }', ['data' => $dataChannel]);
 
         $response->assertJson([
-            'data' => ['createChannel' => $dataChannel]
+            'data' => ['createChannel' => $dataChannel],
         ]);
 
         $channelId = $response->json()['data']['createChannel']['id'];
@@ -134,19 +134,19 @@ class VariantsChannelsTest extends TestCase
         }
         ',
             [
-                'variants_id' => $variantId,
-                'channels_id' => $channelId,
+                'variants_id'   => $variantId,
+                'channels_id'   => $channelId,
                 'warehouses_id' => $warehouseData['id'],
-                'input' => [
-                    'price' => 100,
+                'input'         => [
+                    'price'            => 100,
                     'discounted_price' => 10,
-                    'is_published' => 1,
-                    'is_published' => false
-                ]
+                    'is_published'     => 1,
+                    'is_published'     => false,
+                ],
             ]
         );
         $response->assertJson([
-            'data' => ['addVariantToChannel' => ['id' => $variantId]]
+            'data' => ['addVariantToChannel' => ['id' => $variantId]],
         ]);
 
         $response = $this->graphQL(
@@ -157,23 +157,23 @@ class VariantsChannelsTest extends TestCase
                 }
             }',
             [
-                'variants_id' => $variantId,
-                'channels_id' => $channelId,
+                'variants_id'   => $variantId,
+                'channels_id'   => $channelId,
                 'warehouses_id' => $warehouseData['id'],
             ]
         );
         $response->assertJson([
-            'data' => ['removeVariantChannel' => ['id' => $variantId]]
+            'data' => ['removeVariantChannel' => ['id' => $variantId]],
         ]);
     }
 
     public function testUpdateVariantToChannel(): void
     {
         $dataRegion = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
+            'name'        => 'Test Region',
+            'slug'        => 'test-region',
+            'short_slug'  => 'test-region',
+            'is_default'  => 1,
             'currency_id' => 1,
         ];
         $response = $this->graphQL('
@@ -189,14 +189,14 @@ class VariantsChannelsTest extends TestCase
                 }
             }', ['data' => $dataRegion])
             ->assertJson([
-                'data' => ['createRegion' => $dataRegion]
+                'data' => ['createRegion' => $dataRegion],
             ]);
         $idRegion = $response->json()['data']['createRegion']['id'];
         $data = [
-            'regions_id' => $idRegion,
-            'name' => 'Test Warehouse',
-            'location' => 'Test Location',
-            'is_default' => true,
+            'regions_id'   => $idRegion,
+            'name'         => 'Test Warehouse',
+            'location'     => 'Test Location',
+            'is_default'   => true,
             'is_published' => true,
         ];
 
@@ -212,14 +212,14 @@ class VariantsChannelsTest extends TestCase
                     is_published
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
+            'data' => ['createWarehouse' => $data],
         ]);
         $warehouseData = [
             'id' => $response->json()['data']['createWarehouse']['id'],
         ];
         $data = [
-            'name' => fake()->name,
-            'sku' => fake()->time,
+            'name'        => fake()->name,
+            'sku'         => fake()->time,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -238,11 +238,11 @@ class VariantsChannelsTest extends TestCase
         ]);
         $productId = $response->json()['data']['createProduct']['id'];
         $data = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku'         => fake()->time,
             'products_id' => $productId,
-            'warehouses' => [$warehouseData]
+            'warehouses'  => [$warehouseData],
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -258,9 +258,9 @@ class VariantsChannelsTest extends TestCase
         $variantId = $response->json()['data']['createVariant']['id'];
 
         $dataChannel = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'is_default' => true,
+            'is_default'  => true,
         ];
 
         $response = $this->graphQL('
@@ -275,7 +275,7 @@ class VariantsChannelsTest extends TestCase
         }', ['data' => $dataChannel]);
 
         $response->assertJson([
-            'data' => ['createChannel' => $dataChannel]
+            'data' => ['createChannel' => $dataChannel],
         ]);
 
         $channelId = $response->json()['data']['createChannel']['id'];
@@ -288,19 +288,19 @@ class VariantsChannelsTest extends TestCase
         }
         ',
             [
-                'variants_id' => $variantId,
-                'channels_id' => $channelId,
+                'variants_id'   => $variantId,
+                'channels_id'   => $channelId,
                 'warehouses_id' => $warehouseData['id'],
-                'input' => [
-                    'price' => 100,
+                'input'         => [
+                    'price'            => 100,
                     'discounted_price' => 10,
-                    'is_published' => 1,
-                    'is_published' => false
-                ]
+                    'is_published'     => 1,
+                    'is_published'     => false,
+                ],
             ]
         );
         $response->assertJson([
-            'data' => ['addVariantToChannel' => ['id' => $variantId]]
+            'data' => ['addVariantToChannel' => ['id' => $variantId]],
         ]);
 
         $response = $this->graphQL(
@@ -312,19 +312,19 @@ class VariantsChannelsTest extends TestCase
         }
         ',
             [
-                'variants_id' => $variantId,
-                'channels_id' => $channelId,
+                'variants_id'   => $variantId,
+                'channels_id'   => $channelId,
                 'warehouses_id' => $warehouseData['id'],
-                'input' => [
-                    'price' => 344,
+                'input'         => [
+                    'price'            => 344,
                     'discounted_price' => 120,
-                    'is_published' => 1,
-                    'is_published' => false
-                ]
+                    'is_published'     => 1,
+                    'is_published'     => false,
+                ],
             ]
         );
         $response->assertJson([
-            'data' => ['updateVariantInChannel' => ['id' => $variantId]]
+            'data' => ['updateVariantInChannel' => ['id' => $variantId]],
         ]);
 
         $response = $this->graphQL(
@@ -335,13 +335,13 @@ class VariantsChannelsTest extends TestCase
                 }
             }',
             [
-                'variants_id' => $variantId,
-                'channels_id' => $channelId,
+                'variants_id'   => $variantId,
+                'channels_id'   => $channelId,
                 'warehouses_id' => $warehouseData['id'],
             ]
         );
         $response->assertJson([
-            'data' => ['removeVariantChannel' => ['id' => $variantId]]
+            'data' => ['removeVariantChannel' => ['id' => $variantId]],
         ]);
     }
 }

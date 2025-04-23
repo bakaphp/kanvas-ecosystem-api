@@ -51,7 +51,7 @@ class CreateIntegrationSetupCommand extends Command
         $config = [];
 
         if ($hasConfig) {
-            $this->info("Add the fields of the configuration. Leave the name blank to end.");
+            $this->info('Add the fields of the configuration. Leave the name blank to end.');
 
             while (true) {
                 // Paso 3.1: Ask for field name
@@ -68,8 +68,8 @@ class CreateIntegrationSetupCommand extends Command
 
                 // Add configuration fields
                 $config[$fieldName] = [
-                    'type' => $fieldType,
-                    'required' => $isRequired
+                    'type'     => $fieldType,
+                    'required' => $isRequired,
                 ];
 
                 $this->info("Field '$fieldName' added.");
@@ -77,20 +77,20 @@ class CreateIntegrationSetupCommand extends Command
         }
 
         $integrationData = [
-            'name' => $name,
-            'config' => $config,
-            'handler' => $handler
+            'name'    => $name,
+            'config'  => $config,
+            'handler' => $handler,
         ];
 
         $integration = Integrations::firstOrCreate([
-            'name' => $name,
+            'name'    => $name,
             'apps_id' => $appId,
         ], [
-            'config' => $config,
+            'config'  => $config,
             'handler' => $handler,
         ]);
 
-        info('Integration created successfully - ' . $integration->getId() . ' - ' . $integration->name);
+        info('Integration created successfully - '.$integration->getId().' - '.$integration->name);
         $this->line(json_encode($integrationData, JSON_PRETTY_PRINT));
     }
 }

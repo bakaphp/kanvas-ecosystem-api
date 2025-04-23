@@ -20,7 +20,7 @@ class Client
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        if (! $app->get(ConfigurationEnum::BEAR_TOKEN_AUTH->value)) {
+        if (!$app->get(ConfigurationEnum::BEAR_TOKEN_AUTH->value)) {
             throw new ValidationException('Respond.io bearer token is not set on app settings.');
         }
 
@@ -31,18 +31,18 @@ class Client
     {
         $response = Http::withToken($this->bearerToken)
                         ->withOptions($params)
-                        ->post($this->baseUrl . $path, $data);
+                        ->post($this->baseUrl.$path, $data);
 
         return $response->json() ?? [];
     }
 
     public function sendMessage(string $phone, string $message, array $params = []): array
     {
-        if (! Str::startsWith($phone, ['1', '+'])) {
-            $phone = '+1' . $phone;
+        if (!Str::startsWith($phone, ['1', '+'])) {
+            $phone = '+1'.$phone;
         }
-        if (! Str::startsWith($phone, ['+'])) {
-            $phone = '+' . $phone;
+        if (!Str::startsWith($phone, ['+'])) {
+            $phone = '+'.$phone;
         }
 
         $path = "/contact/phone:$phone/message";

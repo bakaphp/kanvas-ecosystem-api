@@ -41,7 +41,7 @@ class GenerateUserMessageFeedCommand extends Command
         $pageSize = (int) ($this->argument('page_size') ?? 350);
         $cleanUserFeed = $this->argument('clean_user_feed') ?? false;
 
-        $this->info('Generating user message feed for app: ' . $app->getId());
+        $this->info('Generating user message feed for app: '.$app->getId());
         $userRecommendation = new DiscoveryUserRecommendationService($app, $company);
 
         // Get total count for progress bar
@@ -53,7 +53,6 @@ class GenerateUserMessageFeedCommand extends Command
         UserAppRepository::getAllAppUsers($app)->chunk(100, function ($users) use (
             $app,
             $company,
-            $userRecommendation,
             $pageSize,
             $cleanUserFeed,
             &$processedUsers,
@@ -75,6 +74,6 @@ class GenerateUserMessageFeedCommand extends Command
 
         $progress->finish();
         $this->newLine();
-        $this->info('Successfully generated feed for ' . $processedUsers . ' users');
+        $this->info('Successfully generated feed for '.$processedUsers.' users');
     }
 }

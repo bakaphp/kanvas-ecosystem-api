@@ -54,7 +54,7 @@ class SyncZohoLeadAction
         $member = $zohoLead->Member;
         $agent = Agent::query()->where('member_id', $member)->fromApp($this->app)->fromCompany($this->company)->first();
 
-        if ($rejectLeadsWithoutAgents && ! $agent) {
+        if ($rejectLeadsWithoutAgents && !$agent) {
             return null;
         }
 
@@ -64,18 +64,18 @@ class SyncZohoLeadAction
             $this->company
         );
 
-        if (! $localLead) {
+        if (!$localLead) {
             $table = (new Lead())->getTable();
-            $localLead = Lead::query()->join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
+            $localLead = Lead::query()->join(DB::connection('ecosystem')->getDatabaseName().'.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table.'.id')
                 ->where('apps_custom_fields.companies_id', $this->company->getId())
                 ->where('apps_custom_fields.model_name', 'Gewaer\\Models\\Leads') //legacy
                 ->where('apps_custom_fields.name', CustomFieldEnum::ZOHO_LEAD_ID->value)
                 ->where('apps_custom_fields.value', $this->zohoLeadId)
-                ->select($table . '.*')
+                ->select($table.'.*')
                 ->first();
         }
 
-        $status = ! empty($zohoLead->Lead_Status) ? strtolower($zohoLead->Lead_Status) : '';
+        $status = !empty($zohoLead->Lead_Status) ? strtolower($zohoLead->Lead_Status) : '';
 
         $leadStatus = LeadStatus::firstOrCreate(
             [
@@ -102,25 +102,25 @@ class SyncZohoLeadAction
         $ownerUser = UsersAssociatedApps::query()->fromApp($this->app)->where('email', $zohoLead->Owner['email'])->first()?->user;
         $user = $agent?->user ?? $this->company->user;
 
-        if (! $localLead) {
+        if (!$localLead) {
             //create lead
             $pipelineStage = Pipeline::query()->fromApp($this->app)->fromCompany($this->company)->where('is_default', 1)->first()->stages()->first();
 
             $contact = [];
 
-            if (! empty($zohoLead->Email)) {
+            if (!empty($zohoLead->Email)) {
                 $contact[] = [
-                    'value' => $zohoLead->Email,
+                    'value'             => $zohoLead->Email,
                     'contacts_types_id' => 1,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ];
             }
 
-            if (! empty($zohoLead->Phone)) {
+            if (!empty($zohoLead->Phone)) {
                 $contact[] = [
-                    'value' => $zohoLead->Phone,
+                    'value'             => $zohoLead->Phone,
                     'contacts_types_id' => 2,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ];
             }
 
@@ -129,7 +129,7 @@ class SyncZohoLeadAction
              */
             $firstName = $zohoLead->First_Name
                         ?? $zohoLead->Full_Name
-                        ?? (! empty($zohoLead->Email) ? Str::before($zohoLead->Email, '@') : '');
+                        ?? (!empty($zohoLead->Email) ? Str::before($zohoLead->Email, '@') : '');
             $lead = new DataTransferObjectLead(
                 app: $this->app,
                 branch: $this->company->defaultBranch,
@@ -169,7 +169,7 @@ class SyncZohoLeadAction
                     $localLead->users_id = $user->getId();
                 } */
 
-        if (! empty($zohoLead->Company)) {
+        if (!empty($zohoLead->Company)) {
             $organization = (new CreateOrganizationAction(
                 new Organization(
                     name: $zohoLead->Company,

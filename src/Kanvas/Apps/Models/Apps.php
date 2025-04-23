@@ -31,20 +31,20 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 /**
  * Apps Model.
  *
- * @property int $id
+ * @property int    $id
  * @property string $key
  * @property string $url
  * @property string $description
  * @property string $domain
- * @property int $is_actived
- * @property int $ecosystem_auth
- * @property int $default_apps_plan_id
- * @property int $payments_active
- * @property int $is_public
- * @property int $domain_based
+ * @property int    $is_actived
+ * @property int    $ecosystem_auth
+ * @property int    $default_apps_plan_id
+ * @property int    $payments_active
+ * @property int    $is_public
+ * @property int    $domain_based
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_deleted
+ * @property int    $is_deleted
  */
 class Apps extends BaseModel implements AppInterface
 {
@@ -118,7 +118,7 @@ class Apps extends BaseModel implements AppInterface
 
     public function getTotalUsersAttribute(): int
     {
-        if (! $totalUser = $this->get('total_users')) {
+        if (!$totalUser = $this->get('total_users')) {
             $this->set('total_users', $this->users()->count());
 
             return (int) $this->get('total_users');
@@ -129,7 +129,7 @@ class Apps extends BaseModel implements AppInterface
 
     public function getTotalCompaniesAttribute(): int
     {
-        if (! $totalCompanies = $this->get('total_companies')) {
+        if (!$totalCompanies = $this->get('total_companies')) {
             $this->set('total_companies', $this->companies()->count());
 
             return (int) $this->get('total_companies');
@@ -168,7 +168,7 @@ class Apps extends BaseModel implements AppInterface
      */
     public function usesSubscriptions(): bool
     {
-        return (bool)$this->payments_active;
+        return (bool) $this->payments_active;
     }
 
     /**
@@ -185,7 +185,7 @@ class Apps extends BaseModel implements AppInterface
     public function associateCompany(Companies $company): UserCompanyApps
     {
         return UserCompanyApps::firstOrCreate([
-            'apps_id' => $this->getKey(),
+            'apps_id'      => $this->getKey(),
             'companies_id' => $company->getKey(),
         ]);
     }
@@ -195,7 +195,7 @@ class Apps extends BaseModel implements AppInterface
      */
     public function isActive(): bool
     {
-        return (bool)$this->is_actived;
+        return (bool) $this->is_actived;
     }
 
     /**
@@ -204,7 +204,7 @@ class Apps extends BaseModel implements AppInterface
      */
     public function usesEcosystemLogin(): bool
     {
-        return (bool)$this->ecosystem_auth;
+        return (bool) $this->ecosystem_auth;
     }
 
     /**
@@ -216,7 +216,8 @@ class Apps extends BaseModel implements AppInterface
     }
 
     /**
-     * Create user profile for the app
+     * Create user profile for the app.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function associateUser(
@@ -228,17 +229,17 @@ class Apps extends BaseModel implements AppInterface
         ?string $configuration = null
     ): UsersAssociatedApps {
         return UsersAssociatedApps::firstOrCreate([
-            'users_id' => $user->getKey(),
+            'users_id'     => $user->getKey(),
             'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(), //for now user profile uses company app id 0
-            'apps_id' => $this->getKey(),
+            'apps_id'      => $this->getKey(),
         ], [
-            'users_id' => $user->getKey(),
-            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
-            'apps_id' => $this->getKey(),
-            'identify_id' => $companyUserIdentifier ?? $user->id,
-            'user_active' => $isActive,
-            'user_role' => $userRoleId ?? $user->roles_id,
-            'password' => $password ?? $user->password,
+            'users_id'      => $user->getKey(),
+            'companies_id'  => AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            'apps_id'       => $this->getKey(),
+            'identify_id'   => $companyUserIdentifier ?? $user->id,
+            'user_active'   => $isActive,
+            'user_role'     => $userRoleId ?? $user->roles_id,
+            'password'      => $password ?? $user->password,
             'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration,
         ]);
     }

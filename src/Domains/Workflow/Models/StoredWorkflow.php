@@ -48,7 +48,7 @@ class StoredWorkflow extends BaseStoredWorkflow
 
             return array_filter(
                 $unserialized,
-                fn ($value) => ! $this->isIgnoredType($value)
+                fn ($value) => !$this->isIgnoredType($value)
             );
         } catch (Exception) {
         }

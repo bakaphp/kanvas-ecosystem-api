@@ -53,42 +53,42 @@ class DraftOrder extends Data
         $customer = $request['input']['customer'];
         $customer['contacts'] = [
             [
-                'value' => $request['input']['email'],
+                'value'             => $request['input']['email'],
                 'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                'weight' => 0,
+                'weight'            => 0,
             ],
         ];
 
-        if (! empty($request['input']['phone'])) {
+        if (!empty($request['input']['phone'])) {
             $customer['contacts'][] = [
-                'value' => $request['input']['phone'],
+                'value'             => $request['input']['phone'],
                 'contacts_types_id' => ContactTypeEnum::PHONE->value,
-                'weight' => 0,
+                'weight'            => 0,
             ];
         }
 
         $people = People::from([
-            'app' => $app,
-            'branch' => $branch,
-            'user' => $user,
-            'firstname' => $customer['firstname'],
-            'middlename' => $customer['middlename'] ?? null,
-            'lastname' => $customer['lastname'] ?? null,
-            'contacts' => Contact::collect($customer['contacts'] ?? [], DataCollection::class),
-            'address' => Address::collect([], DataCollection::class),
-            'id' => $data['id'] ?? 0,
-            'dob' => $data['dob'] ?? null,
+            'app'                 => $app,
+            'branch'              => $branch,
+            'user'                => $user,
+            'firstname'           => $customer['firstname'],
+            'middlename'          => $customer['middlename'] ?? null,
+            'lastname'            => $customer['lastname'] ?? null,
+            'contacts'            => Contact::collect($customer['contacts'] ?? [], DataCollection::class),
+            'address'             => Address::collect([], DataCollection::class),
+            'id'                  => $data['id'] ?? 0,
+            'dob'                 => $data['dob'] ?? null,
             'facebook_contact_id' => $data['facebook_contact_id'] ?? null,
-            'google_contact_id' => $data['google_contact_id'] ?? null,
-            'apple_contact_id' => $data['apple_contact_id'] ?? null,
+            'google_contact_id'   => $data['google_contact_id'] ?? null,
+            'apple_contact_id'    => $data['apple_contact_id'] ?? null,
             'linkedin_contact_id' => $data['linkedin_contact_id'] ?? null,
-            'tags' => $data['tags'] ?? [],
-            'custom_fields' => $data['custom_fields'] ?? [],
+            'tags'                => $data['tags'] ?? [],
+            'custom_fields'       => $data['custom_fields'] ?? [],
         ]);
 
         $people = (new CreatePeopleAction($people))->execute();
 
-        $shippingAddress = ! empty($request['input']['shipping_address']['address1']) ?
+        $shippingAddress = !empty($request['input']['shipping_address']['address1']) ?
             $customer->addAddress(new Address(
                 address: $request['input']['shipping_address']['address1'] ?? '',
                 address_2: $request['input']['shipping_address']['address2'] ?? '',
@@ -99,7 +99,7 @@ class DraftOrder extends Data
             ))
             : null;
 
-        $billingAddress = ! empty($request['input']['billing_address']['address1']) ?
+        $billingAddress = !empty($request['input']['billing_address']['address1']) ?
             $customer->addAddress(new Address(
                 address: $request['input']['billing_address']['address1'],
                 address_2: $request['input']['billing_address']['address2'],

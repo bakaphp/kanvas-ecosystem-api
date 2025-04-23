@@ -29,7 +29,7 @@ class StripeCustomerService
         $name = $people->name;
 
         // Optional: check if you already saved stripe_customer_id in your DB
-        if (! empty($people->get(CustomFieldEnum::STRIPE_ID->value))) {
+        if (!empty($people->get(CustomFieldEnum::STRIPE_ID->value))) {
             return $this->stripe->customers->retrieve(
                 $people->get(CustomFieldEnum::STRIPE_ID->value),
                 []
@@ -47,7 +47,7 @@ class StripeCustomerService
             // 👤 Create new customer
             $customer = $this->stripe->customers->create([
                 'email' => $email,
-                'name' => $name,
+                'name'  => $name,
             ]);
 
             $people->set(CustomFieldEnum::STRIPE_ID->value, $customer->id);

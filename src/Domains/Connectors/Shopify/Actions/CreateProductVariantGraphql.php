@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
 
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Products\Models\Products;
 use Illuminate\Support\Facades\Log;
-use Shopify\Clients\Graphql;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use PHPShopify\ShopifySDK;
+use Shopify\Clients\Graphql;
 
 // to do: rename to standard push variant product graphql
 
@@ -37,10 +37,10 @@ class CreateProductVariantGraphql
                 $price = $variant->getPrice($this->warehouse);
                 $productVariantId = $this->products->getShopifyId($this->warehouse->regions);
                 $variantShopifyId = $variant->getShopifyId($this->warehouse->regions);
-                if (! $variantShopifyId) {
-                    $graphql = <<<QUERY
-                    mutation productVariantsBulkCreate(\$variants: [ProductVariantsBulkInput!]!, \$productId: ID!) {
-                        productVariantsBulkCreate(productId: \$productId, variants: \$variants) {
+                if (!$variantShopifyId) {
+                    $graphql = <<<'QUERY'
+                    mutation productVariantsBulkCreate($variants: [ProductVariantsBulkInput!]!, $productId: ID!) {
+                        productVariantsBulkCreate(productId: $productId, variants: $variants) {
                             productVariants {
                               id
                               title
@@ -54,9 +54,9 @@ class CreateProductVariantGraphql
                     }
                     QUERY;
                 } else {
-                    $graphql = <<<QUERY
-                    mutation productVariantsBulkUpdate(\$productId: ID!, \$variants: [ProductVariantsBulkInput!]!) {
-                        productVariantsBulkUpdate(productId: \$productId, variants: \$variants) {
+                    $graphql = <<<'QUERY'
+                    mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+                        productVariantsBulkUpdate(productId: $productId, variants: $variants) {
                             productVariants {
                               id
                               title
@@ -71,35 +71,35 @@ class CreateProductVariantGraphql
                     QUERY;
                 }
                 $variables = [
-                    "variants" => [
-                        'price' => $price,
+                    'variants' => [
+                        'price'        => $price,
                         'optionValues' => [
                             [
-                                'name' => $variant->name,
+                                'name'       => $variant->name,
                                 'optionName' => 'Title',
-                            ]
+                            ],
                         ],
                         'inventoryItem' => [
-                            'tracked' => true,
-                            'sku' => $variant->sku,
+                            'tracked'     => true,
+                            'sku'         => $variant->sku,
                             'measurement' => [
                                 'weight' => [
-                                    'unit' => 'GRAMS',
-                                    'value' => $variant->get(ConfigurationEnum::WEIGHT_UNIT->value)
-                                ]
-                            ]
+                                    'unit'  => 'GRAMS',
+                                    'value' => $variant->get(ConfigurationEnum::WEIGHT_UNIT->value),
+                                ],
+                            ],
                         ],
                         'inventoryQuantities' => [
                             [
-                                'locationId' => $this->getShopifyLocationId($client),
+                                'locationId'        => $this->getShopifyLocationId($client),
                                 'availableQuantity' => $variant->getQuantity($this->warehouse),
-                            ]
-                        ]
+                            ],
+                        ],
                     ],
                     'productId' => "gid://shopify/Product/{$productVariantId}",
                 ];
                 if ($variantShopifyId) {
-                    $variables['variants']['id'] = "gid://shopify/ProductVariant/" . $variantShopifyId;
+                    $variables['variants']['id'] = 'gid://shopify/ProductVariant/'.$variantShopifyId;
                     unset($variables['variants']['optionValues']);
                     unset($variables['variants']['inventoryQuantities']);
                 }
@@ -111,14 +111,16 @@ class CreateProductVariantGraphql
             }
         } catch (\Throwable $e) {
             Log::error('CreateProductVariantGraphql failed', ['error' => $e->getMessage()]);
+
             return ['error' => $e->getMessage()];
         }
+
         return $variantsResponses;
     }
 
     protected function getShopifyLocationId(ShopifySDK $client): string
     {
-        $query = <<<QUERY
+        $query = <<<'QUERY'
         {
             locations(first: 1) {
                 edges {
@@ -131,6 +133,7 @@ class CreateProductVariantGraphql
         }
         QUERY;
         $response = $client->GraphQL->post($query);
+
         return $response['data']['locations']['edges'][0]['node']['id'];
     }
 }

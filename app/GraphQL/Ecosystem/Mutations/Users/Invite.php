@@ -18,8 +18,8 @@ class Invite
     /**
      * insertInvite.
      *
-     * @param  mixed $rootValue
-     * @param  array $request
+     * @param mixed $rootValue
+     * @param array $request
      *
      * @return UsersInvite
      */
@@ -39,14 +39,15 @@ class Invite
             ),
             auth()->user()
         );
+
         return $invite->execute();
     }
 
     /**
      * deleteInvite.
      *
-     * @param  mixed $rootValue
-     * @param  array $request
+     * @param mixed $rootValue
+     * @param array $request
      *
      * @return bool
      */
@@ -58,14 +59,15 @@ class Invite
         );
 
         $invite->softDelete();
+
         return true;
     }
 
     /**
      * processInvite.
      *
-     * @param  mixed $rootValue
-     * @param  array $request
+     * @param mixed $rootValue
+     * @param array $request
      *
      * @return UsersInvite
      */
@@ -78,8 +80,8 @@ class Invite
     /**
      * Process User invite.
      *
-     * @param  mixed $rootValue
-     * @param  array $request
+     * @param mixed $rootValue
+     * @param array $request
      *
      * @return Users
      */
@@ -88,6 +90,7 @@ class Invite
         $action = new ProcessInviteAction(
             CompleteInviteInput::from($request['input'])
         );
+
         return $action->execute();
     }
 }

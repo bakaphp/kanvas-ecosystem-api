@@ -24,7 +24,7 @@ class UpdateOrganizationAction
     public function execute(): Organization
     {
         $this->organization->update([
-            'name' => $this->organizationData->name,
+            'name'    => $this->organizationData->name,
             'address' => $this->organizationData->address,
         ]);
 

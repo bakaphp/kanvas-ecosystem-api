@@ -21,7 +21,7 @@ class UsersObserver
     /**
      * Handle the Apps "saving" event.
      *
-     * @param  Apps $app
+     * @param Apps $app
      */
     public function creating(Users $user): void
     {
@@ -71,10 +71,10 @@ class UsersObserver
             $appUser = $userRegisterInApp->execute($user->password);
         }
         $appUser->update([
-            'firstname' => $user->firstname,
-            'lastname' => $user->lastname,
+            'firstname'   => $user->firstname,
+            'lastname'    => $user->lastname,
             'displayname' => $user->displayname,
-            'email' => $user->email,
+            'email'       => $user->email,
         ]);
 
         $user->fireWorkflow(

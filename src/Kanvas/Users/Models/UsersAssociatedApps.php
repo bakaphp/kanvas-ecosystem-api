@@ -18,31 +18,31 @@ use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 /**
  * UsersAssociatedApps Model.
  *
- * @property int $users_id
- * @property int $apps_id
- * @property int $companies_id
+ * @property int     $users_id
+ * @property int     $apps_id
+ * @property int     $companies_id
  * @property ?string $identify_id
  * @property ?string $password
  * @property ?string $firstname
  * @property ?string $lastname
  * @property ?string $email
- * @property int $user_active
- * @property string $is_active
- * @property string $user_role
- * @property string $displayname
- * @property string $lastvisit
- * @property int $user_login_tries
- * @property int $user_last_login_try
- * @property string $user_activation_key
- * @property string $user_activation_forgot
- * @property int $banned
- * @property int $status
- * @property int $user_recover_code
- * @property string $two_step_phone_number
- * @property string $email_verified_at
- * @property string $phone_verified_at
- * @property  string $timezone
- * @property int $is_deleted
+ * @property int     $user_active
+ * @property string  $is_active
+ * @property string  $user_role
+ * @property string  $displayname
+ * @property string  $lastvisit
+ * @property int     $user_login_tries
+ * @property int     $user_last_login_try
+ * @property string  $user_activation_key
+ * @property string  $user_activation_forgot
+ * @property int     $banned
+ * @property int     $status
+ * @property int     $user_recover_code
+ * @property string  $two_step_phone_number
+ * @property string  $email_verified_at
+ * @property string  $phone_verified_at
+ * @property string  $timezone
+ * @property int     $is_deleted
  */
 #[ObservedBy([UsersAssociatedAppsObserver::class])]
 class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
@@ -85,9 +85,9 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     protected $casts = [
         'configuration' => 'array',
-        'is_active' => 'boolean',
-        'is_deleted' => 'boolean',
-        'welcome' => 'boolean',
+        'is_active'     => 'boolean',
+        'is_deleted'    => 'boolean',
+        'welcome'       => 'boolean',
     ];
 
     public function role(): BelongsTo
@@ -128,7 +128,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     public function isActive(): bool
     {
-        return ! $this->is_deleted && $this->is_active;
+        return !$this->is_deleted && $this->is_active;
     }
 
     public function isBanned(): bool
@@ -143,11 +143,12 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     /**
      * since we store this entity for user role of the given company
-     * we need to create a composite key
+     * we need to create a composite key.
+     *
      * @override
      */
     public function getKey()
     {
-        return $this->users_id . $this->apps_id . $this->companies_id;
+        return $this->users_id.$this->apps_id.$this->companies_id;
     }
 }

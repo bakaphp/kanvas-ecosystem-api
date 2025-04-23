@@ -9,8 +9,8 @@ use Kanvas\Guild\Models\BaseModel;
 /**
  * Class LeadOwner.
  *
- * @property int $id
- * @property int $companies_id
+ * @property int    $id
+ * @property int    $companies_id
  * @property string $firstname
  * @property string $lastname
  * @property string $email
@@ -18,7 +18,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $address
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_deleted
+ * @property int    $is_deleted
  *
  * @deprecated version 2
  */

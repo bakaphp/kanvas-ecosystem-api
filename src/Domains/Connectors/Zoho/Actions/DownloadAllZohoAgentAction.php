@@ -34,7 +34,7 @@ class DownloadAllZohoAgentAction
             foreach ($agents as $agent) {
                 $email = $agent->Email; // Assuming the agent record has an 'Email' field
 
-                if (! $email) {
+                if (!$email) {
                     continue; // Skip agents without an email
                 }
 
@@ -48,12 +48,12 @@ class DownloadAllZohoAgentAction
 
                     $localAgent = $syncZohoAgent->execute();
                 } catch (Exception $e) {
-                    Log::error('Error syncing Zoho agent: ' . $e->getMessage());
+                    Log::error('Error syncing Zoho agent: '.$e->getMessage());
 
                     continue;
                 }
 
-                if (! $localAgent) {
+                if (!$localAgent) {
                     continue;
                 }
 

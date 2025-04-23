@@ -13,11 +13,11 @@ use Kanvas\Users\Models\Users;
 /**
  * Cities Class.
  *
- * @property int $countries_id
- * @property int $states_id
+ * @property int    $countries_id
+ * @property int    $states_id
  * @property string $name
- * @property float $latitude
- * @property float $longitude
+ * @property float  $latitude
+ * @property float  $longitude
  */
 class Cities extends BaseModel
 {

@@ -19,13 +19,13 @@ class PullUserInformationActivity extends KanvasActivity
     {
         $company = $params['company'];
 
-        if (! isset($company) || ! $company instanceof Companies) {
+        if (!isset($company) || !$company instanceof Companies) {
             return [
                 'error' => 'Company not found',
             ];
         }
 
-        if (! $company->get(ConfigurationEnum::COMPANY->value)) {
+        if (!$company->get(ConfigurationEnum::COMPANY->value)) {
             return [
                 'error' => 'Company not found in VinSolution',
             ];
@@ -48,18 +48,18 @@ class PullUserInformationActivity extends KanvasActivity
             }
         }
 
-        if (! $match) {
+        if (!$match) {
             return [
-                'error' => 'User not found in VinSolution',
-                'looking' => $user->email,
+                'error'    => 'User not found in VinSolution',
+                'looking'  => $user->email,
                 'vinUsers' => $vinUser,
             ];
         }
 
         return [
-            'success' => $match,
-            'message' => 'User information pulled successfully',
-            'user' => $user,
+            'success'  => $match,
+            'message'  => 'User information pulled successfully',
+            'user'     => $user,
             'vinUsers' => $vinUser,
         ];
     }

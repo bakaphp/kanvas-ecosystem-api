@@ -32,11 +32,11 @@ class CreateAdminInviteAction
         $invite = new AdminInvite();
         $invite->fill([
             'invite_hash' => Str::random(50),
-            'users_id' => $this->user->getId(),
-            'apps_id' => $this->inviteDto->app->getId(),
-            'email' => $this->inviteDto->email,
-            'firstname' => $this->inviteDto->firstname,
-            'lastname' => $this->inviteDto->lastname,
+            'users_id'    => $this->user->getId(),
+            'apps_id'     => $this->inviteDto->app->getId(),
+            'email'       => $this->inviteDto->email,
+            'firstname'   => $this->inviteDto->firstname,
+            'lastname'    => $this->inviteDto->lastname,
             'description' => $this->inviteDto->description,
         ]);
 
@@ -53,9 +53,9 @@ class CreateAdminInviteAction
 
         $inviteEmail = new InviteTemplate($invite, [
             'fromUser' => $this->user,
-            'subject' => $emailTitle,
-            'app' => $this->inviteDto->app,
-            'template' => ! $this->userAlreadyExist ? EmailTemplateEnum::ADMIN_USER_INVITE->value : EmailTemplateEnum::ADMIN_USER_INVITE_EXISTING_USER->value,
+            'subject'  => $emailTitle,
+            'app'      => $this->inviteDto->app,
+            'template' => !$this->userAlreadyExist ? EmailTemplateEnum::ADMIN_USER_INVITE->value : EmailTemplateEnum::ADMIN_USER_INVITE_EXISTING_USER->value,
         ]);
 
         Notification::route('mail', $this->inviteDto->email)

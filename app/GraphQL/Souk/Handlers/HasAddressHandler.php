@@ -11,7 +11,7 @@ use Nuwave\Lighthouse\WhereConditions\WhereConditionsHandler;
 final class HasAddressHandler extends WhereConditionsHandler
 {
     /**
-     * @param  array<string, mixed>  $whereConditions
+     * @param array<string, mixed> $whereConditions
      */
     public function __invoke(
         object $builder,

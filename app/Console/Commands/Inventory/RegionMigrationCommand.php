@@ -38,19 +38,19 @@ class RegionMigrationCommand extends Command
 
         foreach ($regions as $region) {
             $newRegion = KanvasRegions::firstOrCreate([
-                'id' => $region->getId(),
-                'name' => $region->name,
+                'id'           => $region->getId(),
+                'name'         => $region->name,
                 'companies_id' => $region->companies_id,
-                'apps_id' => $region->apps_id,
+                'apps_id'      => $region->apps_id,
             ], [
-                'users_id' => $region->users_id,
+                'users_id'    => $region->users_id,
                 'currency_id' => $region->currency_id,
-                'short_slug' => $region->short_slug,
-                'settings' => $region->settings,
-                'is_default' => $region->is_default,
+                'short_slug'  => $region->short_slug,
+                'settings'    => $region->settings,
+                'is_default'  => $region->is_default,
             ]);
             $this->newLine();
-            $this->info('Inventory Region ' . $region->getId() . ' to Kanvas Region ' . $newRegion->getId());
+            $this->info('Inventory Region '.$region->getId().' to Kanvas Region '.$newRegion->getId());
             $this->newLine();
         }
 
@@ -58,6 +58,5 @@ class RegionMigrationCommand extends Command
         // $this->info('Inventory setup for Company ' . $company->name . ' completed successful');
         $this->newLine();
 
-        return;
     }
 }

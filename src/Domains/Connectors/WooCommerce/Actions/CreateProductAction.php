@@ -29,13 +29,14 @@ class CreateProductAction
         $variants = [];
         foreach ($this->product->variations as $variant) {
             $wooCommerce = new WooCommerce($this->app);
-            $variants[] = $wooCommerce->client->get('products/' . $this->product->id . '/variations/' . $variant);
+            $variants[] = $wooCommerce->client->get('products/'.$this->product->id.'/variations/'.$variant);
         }
         $variants = empty($variants) ? [$this->product] : $variants;
         $this->product->variations = $variants;
         $productDto = WooCommerceImportProduct::fromWooCommerce(
             $this->product
         );
+
         return (new ProductImporterAction(
             $productDto,
             $this->company,

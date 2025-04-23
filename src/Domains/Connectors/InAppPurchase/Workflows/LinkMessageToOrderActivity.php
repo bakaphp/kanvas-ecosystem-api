@@ -31,18 +31,18 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
     {
         $this->overwriteAppService($app);
         $warning = null;
-        if (! $order->get('message_id')) {
+        if (!$order->get('message_id')) {
             return [
                 'message' => 'No message id found in order',
-                'order' => $order->id,
+                'order'   => $order->id,
             ];
         }
 
         $message = Message::fromApp($app)->where('id', $order->get('message_id'))->first();
-        if (! $message) {
+        if (!$message) {
             return [
                 'message' => 'No message found',
-                'order' => $order->id,
+                'order'   => $order->id,
             ];
         }
         $orderSystemModule = SystemModulesRepository::getByModelName(Order::class);
@@ -64,7 +64,7 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
                 entity_namespace: Users::class,
                 name: 'Purchase Message',
                 description: 'Purchase Message Channel',
-                slug: 'PMC-' . $user->uuid
+                slug: 'PMC-'.$user->uuid
             ),
         );
 
@@ -78,17 +78,17 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
             $messageInteractionService->purchase($user);
         } catch (UniqueConstraintViolationException $e) {
             $warning = [
-                'msg' => 'This order has been linked to a message and a channel',
+                'msg'       => 'This order has been linked to a message and a channel',
                 'exception' => $e->getMessage(),
             ];
         }
 
         return [
-            'order' => $order->id,
-            'message' => $message->id,
-            'channel' => $purchaseChannel->id,
+            'order'        => $order->id,
+            'message'      => $message->id,
+            'channel'      => $purchaseChannel->id,
             'channel_name' => $purchaseChannel->name,
-            'warning' => $warning,
+            'warning'      => $warning,
         ];
     }
 }

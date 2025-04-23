@@ -35,35 +35,35 @@ class SyncShopifyCustomerAction
         );
 
         $contact = [];
-        if (! empty($this->customerData['email'])) {
+        if (!empty($this->customerData['email'])) {
             $contact = [
                 [
-                    'value' => $this->customerData['email'],
+                    'value'             => $this->customerData['email'],
                     'contacts_types_id' => 1,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ],
             ];
         }
 
-        if (! empty($this->customerData['phone'])) {
+        if (!empty($this->customerData['phone'])) {
             $contact[] = [
-                'value' => $this->customerData['phone'],
+                'value'             => $this->customerData['phone'],
                 'contacts_types_id' => 2,
-                'weight' => 0,
+                'weight'            => 0,
             ];
         }
 
         $address = [];
-        if (! empty($this->customerData['default_address']) && ! empty($this->customerData['default_address']['address1'])) {
+        if (!empty($this->customerData['default_address']) && !empty($this->customerData['default_address']['address1'])) {
             $address = [
                 [
-                    'address' => $this->customerData['default_address']['address1'],
-                    'address_2' => $this->customerData['default_address']['address2'],
-                    'city' => $this->customerData['default_address']['city'],
-                    'county' => $this->customerData['default_address']['province'],
-                    'state' => $this->customerData['default_address']['province'],
-                    'country' => $this->customerData['default_address']['country'],
-                    'zip' => $this->customerData['default_address']['zip'],
+                    'address'    => $this->customerData['default_address']['address1'],
+                    'address_2'  => $this->customerData['default_address']['address2'],
+                    'city'       => $this->customerData['default_address']['city'],
+                    'county'     => $this->customerData['default_address']['province'],
+                    'state'      => $this->customerData['default_address']['province'],
+                    'country'    => $this->customerData['default_address']['country'],
+                    'zip'        => $this->customerData['default_address']['zip'],
                     'is_default' => true,
                 ],
             ];
@@ -82,7 +82,7 @@ class SyncShopifyCustomerAction
             ]
         );
 
-        if (! $customer) {
+        if (!$customer) {
             $createPeople = new CreatePeopleAction($peopleData);
             $customer = $createPeople->execute();
         } else {

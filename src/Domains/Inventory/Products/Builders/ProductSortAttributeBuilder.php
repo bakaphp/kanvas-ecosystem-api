@@ -67,11 +67,11 @@ class ProductSortAttributeBuilder
                     ->where('a.name', '=', $name);
             })
             ->whereColumn('subProductAttributeName.id', 'products.id')
-            ->selectRaw($self->castValue[$format] . ' as attribute_value')
+            ->selectRaw($self->castValue[$format].' as attribute_value')
             ->limit(1);
 
         $query->addSelect([
-            'attribute_name' => $attributeName,
+            'attribute_name'  => $attributeName,
             'attribute_value' => $attributeValue,
         ]);
         $query->orderBy('attribute_name', 'ASC');
@@ -108,18 +108,18 @@ class ProductSortAttributeBuilder
                     ->where('a.name', '=', $name);
             })
             ->whereColumn('subProductAttributeName.id', 'products.id')
-            ->selectRaw($self->castValue[$format] . ' as attribute_value')
+            ->selectRaw($self->castValue[$format].' as attribute_value')
             ->limit(1);
 
         $query->addSelect([
-            'attribute_name' => $attributeName,
+            'attribute_name'  => $attributeName,
             'attribute_value' => $attributeValue,
         ]);
         $query->orderBy('attribute_name', 'ASC');
         $query->orderBy('attribute_value', $sort);
 
         $query->addSelect([
-            'attribute_name' => $attributeName,
+            'attribute_name'  => $attributeName,
             'attribute_value' => $attributeValue,
         ]);
         $query->orderBy('attribute_name', 'ASC');

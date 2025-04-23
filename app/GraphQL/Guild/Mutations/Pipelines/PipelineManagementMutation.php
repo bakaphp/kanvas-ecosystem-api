@@ -15,7 +15,7 @@ use Throwable;
 class PipelineManagementMutation
 {
     /**
-     * Create new pipeline
+     * Create new pipeline.
      */
     public function create(mixed $root, array $req): ModelsPipeline
     {

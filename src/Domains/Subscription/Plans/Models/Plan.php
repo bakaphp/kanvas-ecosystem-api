@@ -11,15 +11,15 @@ use Kanvas\Subscription\Prices\Models\Price;
 /**
  * Class Plan.
  *
- * @property int $id
- * @property int $apps_id
+ * @property int    $id
+ * @property int    $apps_id
  * @property string $name
  * @property string $description
  * @property string $stripe_id
- * @property int $free_trial_dates
- * @property bool $is_active
- * @property bool $is_default
- * @property bool $is_deleted
+ * @property int    $free_trial_dates
+ * @property bool   $is_active
+ * @property bool   $is_default
+ * @property bool   $is_deleted
  * @property string $created_at
  * @property string $updated_at
  */

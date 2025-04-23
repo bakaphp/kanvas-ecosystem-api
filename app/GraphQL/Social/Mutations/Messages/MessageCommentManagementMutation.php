@@ -18,16 +18,16 @@ class MessageCommentManagementMutation
 {
     public function addComment(mixed $root, array $request): MessageComment
     {
-        $message = Message::getById((int)$request['input']['message_id'], app(Apps::class));
+        $message = Message::getById((int) $request['input']['message_id'], app(Apps::class));
 
         $parentId = key_exists('parent_id', $request['input']) ? MessageComment::getById($request['input']['parent_id'])->id : 0;
 
         $dto = CommentsDto::from([
-            'app' => app(Apps::class),
-            'company' => auth()->user()->getCurrentCompany(),
-            'user' => auth()->user(),
-            'message' => $message,
-            'comment' => $request['input']['comment'],
+            'app'       => app(Apps::class),
+            'company'   => auth()->user()->getCurrentCompany(),
+            'user'      => auth()->user(),
+            'message'   => $message,
+            'comment'   => $request['input']['comment'],
             'parent_id' => $parentId,
         ]);
 
@@ -41,7 +41,7 @@ class MessageCommentManagementMutation
         $comment = MessageComment::getById($request['id'], app(Apps::class));
         $user = auth()->user();
 
-        if (! $comment->canEdit($user)) {
+        if (!$comment->canEdit($user)) {
             throw new AuthenticationException('You are not allowed to update this comment');
         }
 
@@ -56,7 +56,7 @@ class MessageCommentManagementMutation
         $parentId = key_exists('parent_id', $request['input']) ? MessageComment::getById($request['input']['parent_id'])->id : $comment->parent_id;
 
         $comment->update([
-            'message' => $request['input']['comment'],
+            'message'   => $request['input']['comment'],
             'parent_id' => $parentId,
         ]);
 
@@ -66,7 +66,7 @@ class MessageCommentManagementMutation
     public function delete(mixed $root, array $request): bool
     {
         $comment = MessageComment::getById($request['id'], app(Apps::class));
-        if (! $comment->canDelete(auth()->user())) {
+        if (!$comment->canDelete(auth()->user())) {
             throw new AuthenticationException('You are not allowed to delete this message');
         }
 

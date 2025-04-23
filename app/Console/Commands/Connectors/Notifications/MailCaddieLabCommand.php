@@ -22,11 +22,11 @@ class MailCaddieLabCommand extends Command
         $peoplesIn7Days = PeoplesRepository::getByDaysCreated(7, $app);
         $peoplesIn28Days = PeoplesRepository::getByDaysCreated(28, $app);
 
-        $this->info('We will be sending email to ' . count($peoplesIn7Days) . ' people that have been created in the last 7 days');
-        $this->info('We will be sending email to ' . count($peoplesIn28Days) . ' people that have been created in the last 28 days');
+        $this->info('We will be sending email to '.count($peoplesIn7Days).' people that have been created in the last 7 days');
+        $this->info('We will be sending email to '.count($peoplesIn28Days).' people that have been created in the last 28 days');
 
-        if (! $ignoreConfirm || $ignoreConfirm === 'false') {
-            if (! $this->confirm('Are you sure you want to send this email?')) {
+        if (!$ignoreConfirm || $ignoreConfirm === 'false') {
+            if (!$this->confirm('Are you sure you want to send this email?')) {
                 $this->info('Email sending has been canceled.');
 
                 return;

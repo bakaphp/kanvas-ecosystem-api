@@ -165,7 +165,7 @@ class KanvasWorkflowSynActionCommand extends Command
 
         foreach ($actions as $action) {
             $record = Action::firstOrCreate([
-                'name' => class_basename($action),
+                'name'       => class_basename($action),
                 'model_name' => $action,
             ]);
 
@@ -176,7 +176,7 @@ class KanvasWorkflowSynActionCommand extends Command
         }
 
         // Output the names of the newly created actions
-        if (! empty($createdActions)) {
+        if (!empty($createdActions)) {
             $this->info('The following actions were created:');
             foreach ($createdActions as $actionName) {
                 $this->line("- {$actionName}");

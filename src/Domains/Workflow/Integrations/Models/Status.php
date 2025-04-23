@@ -24,10 +24,12 @@ class Status extends BaseModel
     ];
 
     /**
-     * Get the defaults status by its name
+     * Get the defaults status by its name.
+     *
      * @todo Add this status to seeds to manage its ids
      *
      * @param string $name
+     *
      * @return self
      */
     public static function getDefaultStatusByName(string $name): self

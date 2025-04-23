@@ -45,18 +45,17 @@ class IndexUsersCommand extends Command
         $usersIndex->createUsersDatabase();
 
         foreach ($cursor as $userAssociatedApp) {
-            if (! $userAssociatedApp->user instanceof Users) {
+            if (!$userAssociatedApp->user instanceof Users) {
                 continue;
             }
 
             $result = $usersIndex->indexUsers($userAssociatedApp->user, $company);
 
-            $this->info('Message ID: ' . $userAssociatedApp->user->getId() . ' indexed with result: ' . $result);
+            $this->info('Message ID: '.$userAssociatedApp->user->getId().' indexed with result: '.$result);
             $this->output->progressAdvance();
         }
 
         $this->output->progressFinish();
 
-        return;
     }
 }

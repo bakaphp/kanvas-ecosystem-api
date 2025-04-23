@@ -49,6 +49,5 @@ class DownloadDestinationPlansAsProductCommand extends Command
 
         $downloadPlanProducts->execute(json_decode($this->argument('destination_plans'), true));
 
-        return;
     }
 }

@@ -39,14 +39,14 @@ class PushLeadAction
         // Check if lead exists in VinSolutions
         $vinLeadId = $this->lead->get($leadId);
 
-        if (! $vinLeadId) {
+        if (!$vinLeadId) {
             $leadData = [
-                'leadSource' => $this->lead->source && ! empty($this->lead->source->description)
+                'leadSource' => $this->lead->source && !empty($this->lead->source->description)
                     ? trim($this->lead->source->description)
                     : '55694', // default source ID
                 'leadType' => strtoupper($this->lead?->type?->name ?? 'INTERNET'),
-                'contact' => $contact->id,
-                'isHot' => false,
+                'contact'  => $contact->id,
+                'isHot'    => false,
             ];
 
             $vinLead = Lead::create(
@@ -89,16 +89,16 @@ class PushLeadAction
      */
     public function updateShowRoom(): bool
     {
-        if (! $this->vinLead) {
+        if (!$this->vinLead) {
             return false;
         }
 
-        if (! $this->lead->get('is_chrono_running') && ! $this->lead->get('currentUser')) {
+        if (!$this->lead->get('is_chrono_running') && !$this->lead->get('currentUser')) {
             return false;
         }
 
         $user = $this->lead->get('currentUser');
-        if (! $user) {
+        if (!$user) {
             return false;
         }
 
@@ -106,7 +106,7 @@ class PushLeadAction
         $this->vinLead->addNotes(
             $this->vinCredential->dealer,
             $this->vinCredential->user,
-            $user->firstname . ' ' . $user->lastname . ' started a Showroom visit.'
+            $user->firstname.' '.$user->lastname.' started a Showroom visit.'
         );
 
         $this->lead->del('currentUser');
@@ -119,12 +119,12 @@ class PushLeadAction
      */
     public function addReferralNotes(): bool
     {
-        if (! $this->vinLead) {
+        if (!$this->vinLead) {
             return false;
         }
         $referral = $this->lead->get('referral');
 
-        if (! $referral) {
+        if (!$referral) {
             return false;
         }
 
@@ -149,13 +149,13 @@ class PushLeadAction
             ->latest()
             ->first();
 
-        if (! $coBuyerType) {
+        if (!$coBuyerType) {
             return null;
         }
 
         $coBuyerPeople = $coBuyerType->people;
 
-        if (! $coBuyerPeople || $coBuyerPeople->id === $this->lead->people->id) {
+        if (!$coBuyerPeople || $coBuyerPeople->id === $this->lead->people->id) {
             return null;
         }
 

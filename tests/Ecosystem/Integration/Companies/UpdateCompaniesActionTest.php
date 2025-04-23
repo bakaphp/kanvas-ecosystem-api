@@ -26,18 +26,18 @@ final class UpdateCompaniesActionTest extends TestCase
 
         $faker = \Faker\Factory::create();
         $data = [
-            'user' => $company->user,
-            'currency_id' => $company->currency_id,
-            'name' => $faker->company,
+            'user'          => $company->user,
+            'currency_id'   => $company->currency_id,
+            'name'          => $faker->company,
             'profile_image' => $company->profile_image,
-            'website' => $company->website,
-            'address' => $company->address,
-            'zipcode' => (int) $company->zipcode,
-            'email' => $company->email,
-            'language' => AppEnums::DEFAULT_LANGUAGE->getValue(),
-            'timezone' => $company->timezone,
-            'phone' => $company->phone,
-            'country_code' => $company->country_code,
+            'website'       => $company->website,
+            'address'       => $company->address,
+            'zipcode'       => (int) $company->zipcode,
+            'email'         => $company->email,
+            'language'      => AppEnums::DEFAULT_LANGUAGE->getValue(),
+            'timezone'      => $company->timezone,
+            'phone'         => $company->phone,
+            'country_code'  => $company->country_code,
         ];
 
         $dtoData = Company::from($data);

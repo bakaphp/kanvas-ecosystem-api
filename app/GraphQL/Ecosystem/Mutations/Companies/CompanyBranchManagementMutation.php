@@ -27,9 +27,9 @@ class CompanyBranchManagementMutation
     use HasMutationUploadFiles;
 
     /**
-     * createCompaniesBranch
+     * createCompaniesBranch.
      *
-     * @param  array $req
+     * @param array $req
      */
     public function createCompaniesBranch(mixed $root, array $request): CompaniesBranches
     {
@@ -41,9 +41,9 @@ class CompanyBranchManagementMutation
     }
 
     /**
-     * updateCompanyBranch
+     * updateCompanyBranch.
      *
-     * @param  array $req
+     * @param array $req
      */
     public function updateCompanyBranch(mixed $root, array $request): CompaniesBranches
     {
@@ -97,7 +97,7 @@ class CompanyBranchManagementMutation
     }
 
     /**
-     * deleteCompanyBranch
+     * deleteCompanyBranch.
      */
     public function deleteCompanyBranch(mixed $root, array $request): bool
     {
@@ -137,7 +137,8 @@ class CompanyBranchManagementMutation
     /**
      * remove user from branch.
      *
-     * @param  mixed $rootValue
+     * @param mixed $rootValue
+     *
      * @todo We need to REMOVE the branch key from cache.
      */
     public function removeUserFromBranch($rootValue, array $request): bool

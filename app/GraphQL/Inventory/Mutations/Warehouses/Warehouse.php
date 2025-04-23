@@ -6,7 +6,6 @@ namespace App\GraphQL\Inventory\Mutations\Warehouses;
 
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
-use Kanvas\Inventory\Variants\Actions\DeleteWarehouseAction;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -23,7 +22,7 @@ class Warehouse
 
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             unset($request['companies_id']);
         }
 

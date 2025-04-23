@@ -21,13 +21,13 @@ class SwitchZohoLeadOwnerReceiverJob extends ProcessWebhookJob
             $this->receiver->app
         );
 
-        if (! $zohoLeadId) {
+        if (!$zohoLeadId) {
             return [
                 'message' => 'Zoho Lead ID not found',
             ];
         }
 
-        if (! $leadReceiver->rotation) {
+        if (!$leadReceiver->rotation) {
             return [
                 'message' => 'Lead receiver does not have a rotation',
             ];
@@ -46,7 +46,7 @@ class SwitchZohoLeadOwnerReceiverJob extends ProcessWebhookJob
         $lead->leads_owner_id = $leadOwner->getId();
         $lead->saveOrFail();
 
-        if (! $lead->owner->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value)) {
+        if (!$lead->owner->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value)) {
             return [
                 'message' => 'Lead owner does not have a Zoho User Owner ID',
             ];
@@ -60,9 +60,9 @@ class SwitchZohoLeadOwnerReceiverJob extends ProcessWebhookJob
         $zohoLead = $zohoCrm->leads->update($zohoLeadId, $zohoData);
 
         return [
-            'message' => 'Lead update successfully via receiver ' . $leadReceiver->uuid,
-            'receiver' => $leadReceiver->getId(),
-            'lead' => $lead->getId(),
+            'message'   => 'Lead update successfully via receiver '.$leadReceiver->uuid,
+            'receiver'  => $leadReceiver->getId(),
+            'lead'      => $lead->getId(),
             'zoho_data' => $zohoLead,
         ];
     }

@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
 
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Products\Models\Products;
 use Illuminate\Support\Facades\Log;
-use Shopify\Clients\Graphql;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Client;
-use Kanvas\Connectors\Shopify\Actions\PublishProductGraphqlAction;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Shopify\Clients\Graphql;
 
 // to do: rename to standard push product graphql
 class UpdateProductGraphql
@@ -27,12 +26,12 @@ class UpdateProductGraphql
 
     public function execute(): array
     {
-        Log::debug("ShopifySaveAction started");
+        Log::debug('ShopifySaveAction started');
 
         try {
-            $graphQL = <<<QUERY
-            mutation UpdateProductWithNewMedia(\$product: ProductUpdateInput, \$media: [CreateMediaInput!]) {
-                productUpdate(product: \$product, media: \$media) {
+            $graphQL = <<<'QUERY'
+            mutation UpdateProductWithNewMedia($product: ProductUpdateInput, $media: [CreateMediaInput!]) {
+                productUpdate(product: $product, media: $media) {
                     product {
                         id,
                            featuredMedia {
@@ -60,24 +59,24 @@ class UpdateProductGraphql
             $media = [];
             foreach ($filesystems as $filesystem) {
                 $media[] = [
-                    'originalSource' => $filesystem->url,
-                    'alt' => $filesystem->name,
+                    'originalSource'   => $filesystem->url,
+                    'alt'              => $filesystem->name,
                     'mediaContentType' => 'IMAGE',
                 ];
             }
             $id = $this->products->getShopifyId($this->warehouse->regions);
             $variables = [
-                "product" => [
-                    "title" => $this->products->name,
-                    "descriptionHtml" => $this->products->description,
-                    "id" => "gid://shopify/Product/{$id}",
-                    'handle' => $this->products->slug,
+                'product' => [
+                    'title'           => $this->products->name,
+                    'descriptionHtml' => $this->products->description,
+                    'id'              => "gid://shopify/Product/{$id}",
+                    'handle'          => $this->products->slug,
                 ],
             ];
-            if (! empty($this->metafields)) {
+            if (!empty($this->metafields)) {
                 $variables['product']['metafields'] = $this->metafields;
             }
-            if (! empty($media)) {
+            if (!empty($media)) {
                 $variables['media'] = $media;
             }
             $client = Client::getInstance($this->app, $this->branch->company, $this->warehouse->regions);
@@ -94,8 +93,10 @@ class UpdateProductGraphql
             ))->execute();
         } catch (\Throwable $e) {
             Log::error('ShopifySaveAction failed', ['error' => $e->getMessage()]);
+
             return ['error' => $e->getMessage()];
         }
+
         return $response['data']['productCreate']['product'] ?? ['error' => 'Unknown error'];
     }
 }

@@ -10,7 +10,7 @@ class CompaniesGroupsObserver
     /**
      * Handle the "saving" event.
      *
-     * @param  CompaniesGroups $companyGroup
+     * @param CompaniesGroups $companyGroup
      *
      * @return void
      */

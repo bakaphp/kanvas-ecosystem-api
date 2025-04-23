@@ -19,7 +19,7 @@ class CashierStripeWebhookJob extends ProcessWebhookJob
     {
         //$regionId = $this->receiver->configuration['region_id'];
         $payload = $this->webhookRequest->payload;
-        $method = 'handle' . Str::studly(str_replace('.', '_', $payload['type']));
+        $method = 'handle'.Str::studly(str_replace('.', '_', $payload['type']));
 
         if (method_exists($this, $method)) {
             $this->setMaxNetworkRetries();
@@ -34,7 +34,7 @@ class CashierStripeWebhookJob extends ProcessWebhookJob
         }
 
         return [
-            'message' => 'Stripe Webhook Sync',
+            'message'  => 'Stripe Webhook Sync',
             'response' => $response,
         ];
     }

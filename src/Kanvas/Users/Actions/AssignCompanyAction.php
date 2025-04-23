@@ -37,16 +37,16 @@ class AssignCompanyAction
     }
 
     /**
-     * execute
+     * execute.
      */
     public function execute(): void
     {
         $app = $this->app;
-        if (! $this->user->get(Companies::cacheKey())) {
+        if (!$this->user->get(Companies::cacheKey())) {
             $this->user->set(Companies::cacheKey(), $this->company->id);
         }
 
-        if (! $this->user->get($this->company->branchCacheKey())) {
+        if (!$this->user->get($this->company->branchCacheKey())) {
             $this->user->set($this->company->branchCacheKey(), $this->branch->id);
         }
 
@@ -72,8 +72,8 @@ class AssignCompanyAction
          * @todo after migration to niche, remove
          */
         if ($app->get(AppSettingsEnums::USE_LEGACY_ROLES->getValue(), false)) {
-            if (! $roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
-                $roleLegacy = $app->name . '.' . $this->user->role()->notDeleted()->first()->name;
+            if (!$roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
+                $roleLegacy = $app->name.'.'.$this->user->role()->notDeleted()->first()->name;
             }
 
             $assignRoleLegacy = new ActionsAssignRoleAction($this->user, $this->company, $app);

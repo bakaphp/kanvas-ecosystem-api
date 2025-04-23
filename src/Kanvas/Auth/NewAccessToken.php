@@ -29,22 +29,22 @@ class NewAccessToken
     public function toArray()
     {
         return [
-            'sessionId' => $this->sessionToken->id,
-            'token' => $this->sessionToken->token,
-            'refresh_token' => $this->sessionToken->refresh_token,
-            'token_expires' => $this->sessionToken->expires_at->format('Y-m-d H:i:s'),
+            'sessionId'             => $this->sessionToken->id,
+            'token'                 => $this->sessionToken->token,
+            'refresh_token'         => $this->sessionToken->refresh_token,
+            'token_expires'         => $this->sessionToken->expires_at->format('Y-m-d H:i:s'),
             'refresh_token_expires' => $this->sessionToken->refresh_token_expires_at->format('Y-m-d H:i:s'),
-            'time' => $this->sessionToken->time,
-            'timezone' => $this->sessionToken->user->timezone,
-            'id' => $this->sessionToken->users_id,
-            'uuid' => $this->sessionToken->user->uuid,
+            'time'                  => $this->sessionToken->time,
+            'timezone'              => $this->sessionToken->user->timezone,
+            'id'                    => $this->sessionToken->users_id,
+            'uuid'                  => $this->sessionToken->user->uuid,
         ];
     }
 
     /**
      * Convert the object to its JSON representation.
      *
-     * @param  int $options
+     * @param int $options
      *
      * @return string
      */

@@ -32,9 +32,9 @@ class LeadSourceManagementMutation
             app: app(Apps::class)
         );
         $leadSource->update([
-            'name' => $input['name'],
-            'description' => $input['description'],
-            'is_active' => $input['is_active'],
+            'name'           => $input['name'],
+            'description'    => $input['description'],
+            'is_active'      => $input['is_active'],
             'leads_types_id' => $input['leads_types_id'],
         ]);
 

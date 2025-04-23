@@ -51,6 +51,5 @@ class NetSuiteDownloadCustomerCommand extends Command
 
         $this->info("Customer {$newCompany->name} downloaded successfully \n");
 
-        return;
     }
 }

@@ -21,13 +21,13 @@ class KanvasAppsProvider extends ServiceProvider
     public function boot(): void
     {
         try {
-            if (App::runningInConsole() && ! FacadesSchema::hasTable('migrations')) {
+            if (App::runningInConsole() && !FacadesSchema::hasTable('migrations')) {
                 // Skip the logic if running "php artisan package:discover --ansi" for the first time
                 return;
             }
         } catch (Throwable $th) {
             //we've reach here on the first time the container is build , since no db connection exist
-            return ;
+            return;
         }
 
         $appIdentifier = config('kanvas.app.id');
@@ -38,7 +38,7 @@ class KanvasAppsProvider extends ServiceProvider
             (new MountedAppProvider($app))->register();
         } catch (ModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No App configure with this key: ' . $appIdentifier,
+                'No App configure with this key: '.$appIdentifier,
                 $e->getMessage()
             );
         }

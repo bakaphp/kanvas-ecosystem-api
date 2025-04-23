@@ -38,8 +38,8 @@ class KanvasLighthouseRedisCacheCommand extends Command
         $app = Apps::getById($appId);
         $this->overwriteAppService($app);
 
-        if (! class_exists($class)) {
-            $this->error('Class does not exist ' . $class);
+        if (!class_exists($class)) {
+            $this->error('Class does not exist '.$class);
 
             return;
         }
@@ -47,8 +47,8 @@ class KanvasLighthouseRedisCacheCommand extends Command
         $entities = new $class();
 
         //check if class has a trait
-        if (! method_exists($entities, 'clearLightHouseCache')) {
-            $this->error('Class does not have the trait HasLightHouseCache ' . $class);
+        if (!method_exists($entities, 'clearLightHouseCache')) {
+            $this->error('Class does not have the trait HasLightHouseCache '.$class);
 
             return;
         }

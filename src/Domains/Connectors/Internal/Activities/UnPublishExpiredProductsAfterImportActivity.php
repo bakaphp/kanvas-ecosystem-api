@@ -21,9 +21,9 @@ class UnPublishExpiredProductsAfterImportActivity extends KanvasActivity impleme
     {
         $this->overwriteAppService($app);
 
-        if (! isset($params['process_product_ids'])) {
+        if (!isset($params['process_product_ids'])) {
             return [
-                'status' => 'missing process_product_ids',
+                'status'       => 'missing process_product_ids',
                 'company_name' => $company->name,
             ];
         }
@@ -44,8 +44,8 @@ class UnPublishExpiredProductsAfterImportActivity extends KanvasActivity impleme
         }
 
         return [
-            'products' => $shouldBeUnPublished->pluck('id')->all(),
-            'status' => 'unpublished',
+            'products'     => $shouldBeUnPublished->pluck('id')->all(),
+            'status'       => 'unpublished',
             'company_name' => $company->name,
         ];
     }

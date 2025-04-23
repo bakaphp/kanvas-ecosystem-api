@@ -29,26 +29,25 @@ class InteractionMessageAction
             $text = 'reported this message';
         }
 
-
         $userMessage = (new CreateUserMessageAction(
             $this->message,
             $this->user,
             [
                 'entity_namespace' => $this->message::class,
-                'username' => $this->user->displayname,
-                'type' => $this->activityType->value,
-                'text' => $text,
+                'username'         => $this->user->displayname,
+                'type'             => $this->activityType->value,
+                'text'             => $text,
             ]
         ))->execute();
 
         if ($this->activityType === ActivityTypeEnum::LIKE) {
-            $userMessage->is_liked = ! $userMessage->is_liked;
+            $userMessage->is_liked = !$userMessage->is_liked;
         } elseif ($this->activityType === ActivityTypeEnum::SAVE) {
-            $userMessage->is_saved = ! $userMessage->is_saved;
+            $userMessage->is_saved = !$userMessage->is_saved;
         } elseif ($this->activityType === ActivityTypeEnum::SHARE) {
-            $userMessage->is_shared = ! $userMessage->is_shared;
+            $userMessage->is_shared = !$userMessage->is_shared;
         } elseif ($this->activityType === ActivityTypeEnum::REPORT) {
-            $userMessage->is_reported = ! $userMessage->is_reported;
+            $userMessage->is_reported = !$userMessage->is_reported;
         }
 
         $userMessage->saveOrFail();

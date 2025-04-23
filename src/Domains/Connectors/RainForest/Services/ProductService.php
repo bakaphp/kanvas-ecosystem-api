@@ -20,34 +20,34 @@ class ProductService
 
     public function mapProduct(array $product): array
     {
-        $price = (float)$product['price']['value'];
+        $price = (float) $product['price']['value'];
         $discountPrice = $price - ($price * 0.1);
 
         return [
-            'name' => $product['title'],
-            'description' => $product['title'],
-            'price' => $discountPrice,
+            'name'          => $product['title'],
+            'description'   => $product['title'],
+            'price'         => $discountPrice,
             'discountPrice' => $discountPrice,
-            'slug' => Str::slug($product['title']),
-            'sku' => $product['asin'],
-            'source_id' => $product['asin'],
-            'files' => $this->mapFilesystem($product),
-            'attributes' => $this->mapAttributes($product),
-            'quantity' => 0,
-            'isPublished' => true,
-            'categories' => $this->mapCategories($product),
-            'warehouses' => [
+            'slug'          => Str::slug($product['title']),
+            'sku'           => $product['asin'],
+            'source_id'     => $product['asin'],
+            'files'         => $this->mapFilesystem($product),
+            'attributes'    => $this->mapAttributes($product),
+            'quantity'      => 0,
+            'isPublished'   => true,
+            'categories'    => $this->mapCategories($product),
+            'warehouses'    => [
                 [
-                    'id' => $this->warehouse->id,
-                    'price' => (float) $discountPrice,
+                    'id'        => $this->warehouse->id,
+                    'price'     => (float) $discountPrice,
                     'warehouse' => $this->warehouse->name,
-                    'quantity' => 0,
-                    'sku' => $product['asin'],
-                    'is_new' => true,
-                    'channel' => $this->channels->name,
+                    'quantity'  => 0,
+                    'sku'       => $product['asin'],
+                    'is_new'    => true,
+                    'channel'   => $this->channels->name,
                 ],
             ],
-            'variants' => $this->mapVariants($product),
+            'variants'      => $this->mapVariants($product),
             'custom_fields' => [
                 [
                     'name' => RainForestConfigurationEnum::AMAZON_ID->value,
@@ -65,14 +65,14 @@ class ProductService
     {
         $files = [
             [
-                'url' => $product['main_image']['link'],
+                'url'  => $product['main_image']['link'],
                 'name' => 'main_image',
             ],
         ];
 
         foreach ($product['images'] as $image) {
             $files[] = [
-                'url' => $image['link'],
+                'url'  => $image['link'],
                 'name' => $image['variant'],
             ];
         }
@@ -83,12 +83,12 @@ class ProductService
     public function mapAttributes(array $product): array
     {
         $attributes = [];
-        if (! key_exists('attributes', $product)) {
+        if (!key_exists('attributes', $product)) {
             return $attributes;
         }
         foreach ($product['attributes'] as $attribute) {
             $attributes[] = [
-                'name' => $attribute['name'],
+                'name'  => $attribute['name'],
                 'value' => $attribute['value'],
             ];
         }
@@ -102,11 +102,11 @@ class ProductService
         $position = 1;
         foreach ($product['categories'] as $category) {
             $categories[] = [
-                'name' => $category['name'],
-                'source_id' => isset($category['category_id']) ? $category['category_id'] : null,
+                'name'        => $category['name'],
+                'source_id'   => isset($category['category_id']) ? $category['category_id'] : null,
                 'isPublished' => true,
-                'position' => $position,
-                'code' => isset($category['category_id']) ? $category['category_id'] : null,
+                'position'    => $position,
+                'code'        => isset($category['category_id']) ? $category['category_id'] : null,
             ];
             $position++;
         }
@@ -119,27 +119,27 @@ class ProductService
         // To do: Some products have variants, some don't.
         // Need to handle both cases.
         $variants = [];
-        if (! $product['variants']) {
-            $price = (float)$product['price']['value'];
+        if (!$product['variants']) {
+            $price = (float) $product['price']['value'];
             $discountPrice = $price - ($price * 0.1);
 
             $variants[] = [
-                'name' => $product['title'],
-                'description' => $product['title'],
-                'sku' => $product['asin'],
-                'price' => $discountPrice,
+                'name'          => $product['title'],
+                'description'   => $product['title'],
+                'sku'           => $product['asin'],
+                'price'         => $discountPrice,
                 'discountPrice' => $discountPrice,
-                'is_published' => true,
-                'source_id' => (string) $product['asin'],
-                'slug' => (string) $product['asin'],
-                'files' => $this->mapFilesystem($product),
-                'warehouses' => [
+                'is_published'  => true,
+                'source_id'     => (string) $product['asin'],
+                'slug'          => (string) $product['asin'],
+                'files'         => $this->mapFilesystem($product),
+                'warehouses'    => [
                     [
-                        'id' => $this->warehouse->id,
-                        'price' => (float) $discountPrice,
+                        'id'       => $this->warehouse->id,
+                        'price'    => (float) $discountPrice,
                         'quantity' => 0,
-                        'sku' => $product['asin'],
-                        'is_new' => true,
+                        'sku'      => $product['asin'],
+                        'is_new'   => true,
                     ],
                 ],
                 'attributes' => [

@@ -53,6 +53,7 @@ class Handler extends ExceptionHandler
                 'message' => 'A server error has occurred. We are looking into it',
             ], 503);
         }
+
         return parent::render($request, $exception);
     }
 

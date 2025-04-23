@@ -11,13 +11,13 @@ class MetadataType
 {
     public function linkedStores(Variants $variant, array $request): array
     {
-        $region = ! app()->bound(Regions::class) ? $variant->company->defaultRegion : app(Regions::class);
+        $region = !app()->bound(Regions::class) ? $variant->company->defaultRegion : app(Regions::class);
 
         return [
             'shopify' => [
-                'id' => $variant->getShopifyId($region),
+                'id'           => $variant->getShopifyId($region),
                 'inventory_id' => $variant->getInventoryId($region),
-                'url' => $variant->getShopifyUrl($region),
+                'url'          => $variant->getShopifyUrl($region),
                 //'product_id' => $variant->product->getShopifyId($region),
             ],
         ];

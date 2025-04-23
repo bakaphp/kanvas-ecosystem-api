@@ -44,7 +44,7 @@ class AppleInAppPurchaseMutation
 
         $order = $createOrderFromInAppPurchase->execute();
 
-        if (! empty($appleInAppPurchase->custom_fields)) {
+        if (!empty($appleInAppPurchase->custom_fields)) {
             $order->setCustomFields($appleInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }

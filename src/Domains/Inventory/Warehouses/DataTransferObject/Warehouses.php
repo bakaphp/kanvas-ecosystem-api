@@ -32,11 +32,11 @@ class Warehouses extends Data
     /**
      * fromArray.
      *
-     * @param  array $data
+     * @param array $data
      */
     public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {
-        if (! isset($request['regions_id'])) {
+        if (!isset($request['regions_id'])) {
             throw new ValidationException('Region is required');
         }
 

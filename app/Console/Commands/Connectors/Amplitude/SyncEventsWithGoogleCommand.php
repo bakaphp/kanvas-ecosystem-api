@@ -61,12 +61,12 @@ class SyncEventsWithGoogleCommand extends Command
         $googleClientConfig = $app->get(ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value);
         $googleRecommendationConfig = $app->get(ConfigurationEnum::GOOGLE_RECOMMENDATION_CONFIG->value);
 
-        if (! $googleClientConfig) {
-            throw new ValidationException('Google client config not found for app ' . $app->name);
+        if (!$googleClientConfig) {
+            throw new ValidationException('Google client config not found for app '.$app->name);
         }
 
-        if (! $googleRecommendationConfig) {
-            throw new ValidationException('Google recommendation config not found for app ' . $app->name);
+        if (!$googleRecommendationConfig) {
+            throw new ValidationException('Google recommendation config not found for app '.$app->name);
         }
 
         foreach ($dateRange as $date) {
@@ -85,32 +85,32 @@ class SyncEventsWithGoogleCommand extends Command
                 $messageId = $result['event_properties']['prompt_id'] ?? 0;
 
                 $eventType = match (trim($eventType)) {
-                    'View Explore' => InteractionEnum::VIEW_HOME_PAGE->getValue(),
-                    'Page Viewed' => InteractionEnum::VIEW_ITEM->getValue(),
-                    'View Library' => InteractionEnum::VIEW_ITEM->getValue(),
-                    'Select Prompt' => InteractionEnum::VIEW_ITEM->getValue(),
-                    '[Amplitude] Page Viewed' => InteractionEnum::VIEW_ITEM->getValue(),
-                    'Clicking Output Icon' => InteractionEnum::VIEW_ITEM->getValue(),
+                    'View Explore'               => InteractionEnum::VIEW_HOME_PAGE->getValue(),
+                    'Page Viewed'                => InteractionEnum::VIEW_ITEM->getValue(),
+                    'View Library'               => InteractionEnum::VIEW_ITEM->getValue(),
+                    'Select Prompt'              => InteractionEnum::VIEW_ITEM->getValue(),
+                    '[Amplitude] Page Viewed'    => InteractionEnum::VIEW_ITEM->getValue(),
+                    'Clicking Output Icon'       => InteractionEnum::VIEW_ITEM->getValue(),
                     'Clicking AI Nugget Preview' => InteractionEnum::VIEW_ITEM->getValue(),
-                    default => null,
+                    default                      => null,
                 };
 
-                if (! $eventType) {
+                if (!$eventType) {
                     continue;
                 }
 
-                if (! $messageId) {
+                if (!$messageId) {
                     continue;
                 }
 
                 $user = UsersAssociatedApps::query()->fromApp($app)->where('displayname', $displayname)->first();
 
-                if (! $user) {
+                if (!$user) {
                     // Use default user if no user found
                     $user = UsersAssociatedApps::query()->fromApp($app)->where('users_id', $app->get('default_user_recommendation_catchall_id'))->first();
                 }
 
-                if (! $user) {
+                if (!$user) {
                     continue;
                 }
 
@@ -141,7 +141,7 @@ class SyncEventsWithGoogleCommand extends Command
 
                 // Send event to Google
                 $googleClient->writeUserEvent($writeUserEventRequest);
-                $this->info('Event: ' . $eventType . ' for user ' . $user->user->getId() . ' at ' . $eventTime->toDateTime()->format('Y-m-d H:i:s'));
+                $this->info('Event: '.$eventType.' for user '.$user->user->getId().' at '.$eventTime->toDateTime()->format('Y-m-d H:i:s'));
             }
         }
 

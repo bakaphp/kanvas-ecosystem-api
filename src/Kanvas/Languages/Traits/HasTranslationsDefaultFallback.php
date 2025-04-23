@@ -84,7 +84,7 @@ trait HasTranslationsDefaultFallback
 
     public function setAttribute($key, $value)
     {
-        if (! $this->isTranslatableAttribute($key)) {
+        if (!$this->isTranslatableAttribute($key)) {
             return parent::setAttribute($key, $value);
         }
 
@@ -95,7 +95,7 @@ trait HasTranslationsDefaultFallback
          */
         $attributeClass = in_array(get_called_class(), [ProductsAttributes::class, VariantsAttributes::class, AttributesValues::class]);
 
-        if (is_array($value) && (! array_is_list($value) || count($value) === 0) && ! $attributeClass) {
+        if (is_array($value) && (!array_is_list($value) || count($value) === 0) && !$attributeClass) {
             return $this->setTranslations($key, $value);
         }
 

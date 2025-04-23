@@ -43,7 +43,7 @@ class GenerateRecombeeUserMessageAction
                 $messageId = $messageData['id'];
 
                 // Check if the message still exists
-                if (! Message::fromApp($this->app)
+                if (!Message::fromApp($this->app)
                         ->where('id', $messageId)
                         ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
                             return $query->where('message_types_id', $messageTypeId);
@@ -58,8 +58,8 @@ class GenerateRecombeeUserMessageAction
 
                 $existingUserMessage = UserMessage::withTrashed()->where([
                     'messages_id' => $messageId,
-                    'users_id' => $this->user->getId(),
-                    'apps_id' => $this->app->getId(),
+                    'users_id'    => $this->user->getId(),
+                    'apps_id'     => $this->app->getId(),
                 ])
                 ->lockForUpdate()
                 ->first();
@@ -72,16 +72,16 @@ class GenerateRecombeeUserMessageAction
                 } else {
                     UserMessage::create([
                         'messages_id' => $messageId,
-                        'users_id' => $this->user->getId(),
-                        'apps_id' => $this->app->getId(),
-                        'is_deleted' => 0,
-                        'created_at' => Carbon::now()->subSeconds($totalSeconds - ($index * $secondsInterval)),
+                        'users_id'    => $this->user->getId(),
+                        'apps_id'     => $this->app->getId(),
+                        'is_deleted'  => 0,
+                        'created_at'  => Carbon::now()->subSeconds($totalSeconds - ($index * $secondsInterval)),
                     ]);
                 }
             }
 
             // Then clean up old messages, excluding the ones we just processed
-            if ($this->cleanUserFeed && ! empty($processedIds)) {
+            if ($this->cleanUserFeed && !empty($processedIds)) {
                 UserMessage::fromApp($this->app)
                     ->where('users_id', $this->user->getId())
                     ->whereNotIn('messages_id', $processedIds) // Don't delete messages we just processed

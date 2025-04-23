@@ -44,27 +44,28 @@ use Override;
 use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
- *  Class Message
- *  @property int $id
- *  @property int $parent_id
- *  @property string $parent_unique_id
- *  @property string $uuid
- *  @property int $apps_id
- *  @property int $companies_id
- *  @property int $users_id
- *  @property int $message_types_id
- *  @property string $message
- *  @property int $reactions_count
- *  @property int $comments_count
- *  @property int $total_liked
- *  @property int $total_disliked
- *  @property int $total_view
- *  @property int $is_public
- *  @property int $is_premium
- *  @property int $total_children
- *  @property int $total_saved
- *  @property int $total_shared
- *  @property string|null ip_address
+ *  Class Message.
+ *
+ * @property int    $id
+ * @property int    $parent_id
+ * @property string $parent_unique_id
+ * @property string $uuid
+ * @property int    $apps_id
+ * @property int    $companies_id
+ * @property int    $users_id
+ * @property int    $message_types_id
+ * @property string $message
+ * @property int    $reactions_count
+ * @property int    $comments_count
+ * @property int    $total_liked
+ * @property int    $total_disliked
+ * @property int    $total_view
+ * @property int    $is_public
+ * @property int    $is_premium
+ * @property int    $total_children
+ * @property int    $total_saved
+ * @property int    $total_shared
+ * @property string|null ip_address
  */
 // Company, User and App Relationship is defined in KanvasModelTrait,
 #[ObservedBy([MessageObserver::class])]
@@ -93,10 +94,10 @@ class Message extends BaseModel
     ];
 
     protected $casts = [
-        'message' => Json::class,
+        'message'          => Json::class,
         'message_types_id' => 'integer',
-        'is_public' => 'integer',
-        'is_deleted' => 'boolean',
+        'is_public'        => 'integer',
+        'is_deleted'       => 'boolean',
     ];
 
     #[Override]
@@ -139,12 +140,13 @@ class Message extends BaseModel
     {
         /**
          * why? wtf ?
-         * because we have a app running that using incorrect json format so we need to handle it
+         * because we have a app running that using incorrect json format so we need to handle it.
+         *
          * @todo remove this once we are sure all apps are using the correct json format
          */
         $value = $this->getRawOriginal('message');
 
-        if (! is_string($value)) {
+        if (!is_string($value)) {
             return [];
         }
 
@@ -163,7 +165,7 @@ class Message extends BaseModel
 
     public function entity(): ?Model
     {
-        if (! $this->appModuleMessage) {
+        if (!$this->appModuleMessage) {
             return null;
         }
 
@@ -195,19 +197,19 @@ class Message extends BaseModel
             ->first();
 
         return [
-            'is_liked' => (int) ($userMessage?->is_liked),
-            'is_disliked' => (int) ($userMessage?->is_disliked),
-            'is_saved' => (int) ($userMessage?->is_saved),
-            'is_shared' => (int) ($userMessage?->is_shared),
-            'is_reported' => (int) ($userMessage?->is_reported),
-            'is_purchased' => (int) ($userMessage?->is_purchased),
+            'is_liked'     => (int) $userMessage?->is_liked,
+            'is_disliked'  => (int) $userMessage?->is_disliked,
+            'is_saved'     => (int) $userMessage?->is_saved,
+            'is_shared'    => (int) $userMessage?->is_shared,
+            'is_reported'  => (int) $userMessage?->is_reported,
+            'is_purchased' => (int) $userMessage?->is_purchased,
         ];
     }
 
     public function searchableAs(): string
     {
         //$message = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
-        $message = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
+        $message = !$this->searchableDeleteRecord() ? $this : $this->find($this->id);
         $app = $message->app ?? null;
 
         /**
@@ -215,19 +217,19 @@ class Message extends BaseModel
          * in normal search , id is not set, so we need to use global app
          * [null,{"is_deleted":"1970-01-01T00:00:00.000000Z","app":null}] where null is the id record
          */
-        if (! isset($this->id)) {
+        if (!isset($this->id)) {
             $app = app(Apps::class);
         }
 
         $customIndex = $app ? $app->get('app_custom_message_index') : null;
 
-        return config('scout.prefix') . ($customIndex ?? 'message_index');
+        return config('scout.prefix').($customIndex ?? 'message_index');
     }
 
     #[Override]
     public function shouldBeSearchable(): bool
     {
-        if ($this->isDeleted() || ! $this->isPublic()) {
+        if ($this->isDeleted() || !$this->isPublic()) {
             return false;
         }
 
@@ -237,7 +239,7 @@ class Message extends BaseModel
 
         $filterByMessageType = $this->app->get('index_message_by_type');
 
-        return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
+        return !$filterByMessageType || $this->messageType->verb === $filterByMessageType;
     }
 
     public function isPublic(): bool
@@ -287,10 +289,10 @@ class Message extends BaseModel
     public function isLocked(): bool
     {
         //For now lets make sure all that all messages not linked with orders are unlocked.
-        if ((! $this->appModuleMessage->exist()) || (! $this->appModuleMessage->hasEntityOfClass(Order::class))) {
+        if ((!$this->appModuleMessage->exist()) || (!$this->appModuleMessage->hasEntityOfClass(Order::class))) {
             $this->setUnlock();
 
-            return (bool)$this->is_locked;
+            return (bool) $this->is_locked;
         }
 
         $orderEntity = $this->appModuleMessage->entity;
@@ -302,12 +304,12 @@ class Message extends BaseModel
             throw new Exception('Message content is locked');
         }
 
-        return (bool)$this->is_locked;
+        return (bool) $this->is_locked;
     }
 
     public function getUniqueId(): string
     {
-        return (string) $this->verb . '-' . (string) $this->visitor_id;
+        return (string) $this->verb.'-'.(string) $this->visitor_id;
     }
 
     public static function getUserMessageCountInTimeFrame(
@@ -331,7 +333,7 @@ class Message extends BaseModel
     public function typesenseCollectionSchema(): array
     {
         return [
-            'name' => $this->searchableAs(),
+            'name'   => $this->searchableAs(),
             'fields' => [
                 [
                     'name' => 'objectID',
@@ -346,14 +348,14 @@ class Message extends BaseModel
                     'type' => 'string',
                 ],
                 [
-                    'name' => 'parent_id',
-                    'type' => 'int64',
+                    'name'     => 'parent_id',
+                    'type'     => 'int64',
                     'optional' => true,
-                    'facet' => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'parent_unique_id',
-                    'type' => 'string',
+                    'name'     => 'parent_unique_id',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
@@ -361,18 +363,18 @@ class Message extends BaseModel
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'companies_id',
-                    'type' => 'int64',
+                    'name'  => 'companies_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'users_id',
-                    'type' => 'int64',
+                    'name'  => 'users_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'message_types_id',
-                    'type' => 'int64',
+                    'name'  => 'message_types_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
@@ -380,114 +382,114 @@ class Message extends BaseModel
                     'type' => 'object',
                 ],
                 [
-                    'name' => 'message_text',
-                    'type' => 'string',
+                    'name'     => 'message_text',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'reactions_count',
-                    'type' => 'int64',
-                    'sort' => true,
+                    'name'     => 'reactions_count',
+                    'type'     => 'int64',
+                    'sort'     => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'comments_count',
-                    'type' => 'int64',
-                    'sort' => true,
+                    'name'     => 'comments_count',
+                    'type'     => 'int64',
+                    'sort'     => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'total_liked',
-                    'type' => 'int64',
-                    'sort' => true,
+                    'name'     => 'total_liked',
+                    'type'     => 'int64',
+                    'sort'     => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'total_disliked',
-                    'type' => 'int64',
-                    'sort' => true,
+                    'name'     => 'total_disliked',
+                    'type'     => 'int64',
+                    'sort'     => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'total_view',
-                    'type' => 'int64',
-                    'sort' => true,
+                    'name'     => 'total_view',
+                    'type'     => 'int64',
+                    'sort'     => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'total_children',
-                    'type' => 'int64',
-                    'sort' => true,
+                    'name'     => 'total_children',
+                    'type'     => 'int64',
+                    'sort'     => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'total_saved',
-                    'type' => 'int64',
-                    'sort' => true,
+                    'name'     => 'total_saved',
+                    'type'     => 'int64',
+                    'sort'     => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'total_shared',
-                    'type' => 'int64',
-                    'sort' => true,
+                    'name'     => 'total_shared',
+                    'type'     => 'int64',
+                    'sort'     => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'is_public',
-                    'type' => 'bool',
+                    'name'  => 'is_public',
+                    'type'  => 'bool',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'is_premium',
-                    'type' => 'bool',
-                    'facet' => true,
+                    'name'     => 'is_premium',
+                    'type'     => 'bool',
+                    'facet'    => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'is_locked',
-                    'type' => 'bool',
-                    'facet' => true,
+                    'name'     => 'is_locked',
+                    'type'     => 'bool',
+                    'facet'    => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'ip_address',
-                    'type' => 'string',
+                    'name'     => 'ip_address',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'user',
-                    'type' => 'object',
+                    'name'     => 'user',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'message_type',
-                    'type' => 'object',
+                    'name'     => 'message_type',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'topics',
-                    'type' => 'object[]',
+                    'name'     => 'topics',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'channels',
-                    'type' => 'object[]',
+                    'name'     => 'channels',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'files',
-                    'type' => 'object[]',
+                    'name'     => 'files',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'tags',
-                    'type' => 'string[]',
-                    'facet' => true,
+                    'name'     => 'tags',
+                    'type'     => 'string[]',
+                    'facet'    => true,
                     'optional' => true,
                 ],
                 [
-                    'name' => 'entity',
-                    'type' => 'object',
+                    'name'     => 'entity',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
@@ -496,14 +498,14 @@ class Message extends BaseModel
                     'sort' => true,
                 ],
                 [
-                    'name' => 'updated_at',
-                    'type' => 'int64',
-                    'sort' => true,
+                    'name'     => 'updated_at',
+                    'type'     => 'int64',
+                    'sort'     => true,
                     'optional' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,
+            'enable_nested_fields'  => true,
         ];
     }
 }

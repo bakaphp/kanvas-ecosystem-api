@@ -32,19 +32,19 @@ class Client
 
         $config = [
             // required -------------------------------------
-            'endpoint' => $this->endPoint,
-            'host' => $this->apiUrl,
-            'account' => $config['account'],
-            'consumerKey' => $config['consumerKey'],
+            'endpoint'       => $this->endPoint,
+            'host'           => $this->apiUrl,
+            'account'        => $config['account'],
+            'consumerKey'    => $config['consumerKey'],
             'consumerSecret' => $config['consumerSecret'],
-            'token' => $config['token'],
-            'tokenSecret' => $config['tokenSecret'],
+            'token'          => $config['token'],
+            'tokenSecret'    => $config['tokenSecret'],
             // optional -------------------------------------
             'signatureAlgorithm' => 'sha256', // Defaults to 'sha256'
-            'logging' => config('app.debug', false), // Only enable logging if in debug mode
-            'log_path' => storage_path('logs/netsuite.log'),
-            'log_format' => 'netsuite-php-%date-%operation',
-            'log_dateformat' => 'Ymd.His.u',
+            'logging'            => config('app.debug', false), // Only enable logging if in debug mode
+            'log_path'           => storage_path('logs/netsuite.log'),
+            'log_format'         => 'netsuite-php-%date-%operation',
+            'log_dateformat'     => 'Ymd.His.u',
         ];
 
         return new NetSuiteService($config);

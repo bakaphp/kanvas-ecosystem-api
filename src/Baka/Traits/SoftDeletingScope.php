@@ -11,8 +11,9 @@ class SoftDeletingScope extends EloquentSoftDeletingScope
     /**
      * Change the apply scope from Eloquent query builder.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $builder
-     * @param  \Illuminate\Database\Eloquent\Model  $model
+     * @param \Illuminate\Database\Eloquent\Builder $builder
+     * @param \Illuminate\Database\Eloquent\Model   $model
+     *
      * @return void
      */
     public function apply(Builder $builder, Model $model)
@@ -23,7 +24,8 @@ class SoftDeletingScope extends EloquentSoftDeletingScope
     /**
      * Extend the query builder with the needed functions.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $builder
+     * @param \Illuminate\Database\Eloquent\Builder $builder
+     *
      * @return void
      */
     public function extend(Builder $builder)
@@ -34,6 +36,7 @@ class SoftDeletingScope extends EloquentSoftDeletingScope
 
         $builder->onDelete(function (Builder $builder) {
             $column = $this->getDeletedAtColumn($builder);
+
             return $builder->update([
                 $column => 1,
             ]);

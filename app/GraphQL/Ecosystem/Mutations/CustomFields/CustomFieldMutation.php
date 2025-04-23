@@ -11,7 +11,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 class CustomFieldMutation
 {
     /**
-     * Set custom field
+     * Set custom field.
      */
     public function create(mixed $rootValue, array $request): bool
     {
@@ -66,7 +66,7 @@ class CustomFieldMutation
     }
 
     /**
-     * Delete custom field
+     * Delete custom field.
      */
     public function delete(mixed $rootValue, array $request): bool
     {

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
-use Bouncer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,13 +12,11 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 abstract class ProcessWebhookJob implements ShouldQueue
 {
@@ -49,7 +46,7 @@ abstract class ProcessWebhookJob implements ShouldQueue
             $results = $this->execute();
 
             $this->webhookRequest->update([
-                'status' => 'success',
+                'status'  => 'success',
                 'results' => $results,
             ]);
 
@@ -59,11 +56,11 @@ abstract class ProcessWebhookJob implements ShouldQueue
             Log::error($e->getMessage());
             captureException($e);
             $this->webhookRequest->update([
-                'status' => 'failed',
+                'status'    => 'failed',
                 'exception' => [
-                    'code' => $e->getCode(),
+                    'code'    => $e->getCode(),
                     'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
+                    'trace'   => $e->getTraceAsString(),
                 ],
             ]);
         }

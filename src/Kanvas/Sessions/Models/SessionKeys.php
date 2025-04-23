@@ -11,10 +11,10 @@ use Kanvas\Users\Models\Users;
 /**
  * Apps Model.
  *
- * @property int $sessions_id
- * @property int $users_id
+ * @property int    $sessions_id
+ * @property int    $users_id
  * @property string $last_ip
- * @property int $last_login
+ * @property int    $last_login
  */
 class SessionKeys extends BaseModel
 {

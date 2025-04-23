@@ -19,22 +19,22 @@ class ESimService
 
     public function checkStatus(string $iccid): array
     {
-        return $this->client->get('/v2.4/esims/' . $iccid);
+        return $this->client->get('/v2.4/esims/'.$iccid);
     }
 
     public function getLocation(string $iccid): array
     {
-        return $this->client->get('/v2.4/esims/' . $iccid . '/location');
+        return $this->client->get('/v2.4/esims/'.$iccid.'/location');
     }
 
     public function getHistory(string $iccid): array
     {
-        return $this->client->get('/v2.4/esims/' . $iccid . '/history');
+        return $this->client->get('/v2.4/esims/'.$iccid.'/history');
     }
 
     public function getAppliedBundleStatus(string $iccid, string $bundle): array
     {
-        $response = $this->client->get('/v2.4/esims/' . $iccid . '/bundles/' . $bundle);
+        $response = $this->client->get('/v2.4/esims/'.$iccid.'/bundles/'.$bundle);
 
         return $response['assignments'][0] ?? [];
     }

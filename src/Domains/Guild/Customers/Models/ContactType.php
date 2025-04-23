@@ -11,9 +11,9 @@ use Kanvas\Guild\Models\BaseModel;
 /**
  * Class ContactTypes.
  *
- * @property int $id
- * @property int $companies_id
- * @property int $users_id
+ * @property int    $id
+ * @property int    $companies_id
+ * @property int    $users_id
  * @property string $name
  * @property string $icon
  */
@@ -27,9 +27,9 @@ class ContactType extends BaseModel
     public static function getByName(string $name, ?AppInterface $app = null): self
     {
         return self::firstOrCreate([
-            'name' => $name,
+            'name'         => $name,
             'companies_id' => 0,
-            'users_id' => 1
+            'users_id'     => 1,
         ]);
     }
 }

@@ -50,16 +50,16 @@ class CreateOrderFromAppleReceiptAction
     public function execute(): ModelsOrder
     {
         $receipt = [
-            'productId' => $this->appleInAppPurchase->product_id,
-            'transactionId' => $this->appleInAppPurchase->transaction_id,
+            'productId'          => $this->appleInAppPurchase->product_id,
+            'transactionId'      => $this->appleInAppPurchase->transaction_id,
             'transactionReceipt' => $this->appleInAppPurchase->receipt,
-            'transactionDate' => $this->appleInAppPurchase->transaction_date,
+            'transactionDate'    => $this->appleInAppPurchase->transaction_date,
         ];
 
         $verifiedReceipt = $this->verifyReceipt($receipt);
         $receiptStatus = $verifiedReceipt->getStatus();
 
-        if (! $receiptStatus->isValid()) {
+        if (!$receiptStatus->isValid()) {
             throw new ValidationException('Invalid Receipt');
         }
 
@@ -72,7 +72,7 @@ class CreateOrderFromAppleReceiptAction
 
         $order = (new CreateOrderAction($orderData))->execute();
 
-        if (! empty($this->appleInAppPurchase->custom_fields)) {
+        if (!empty($this->appleInAppPurchase->custom_fields)) {
             $order->setCustomFields($this->appleInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }

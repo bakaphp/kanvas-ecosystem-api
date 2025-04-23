@@ -39,17 +39,17 @@ class CreditScoreService
             $bureauTypes = explode(':', $bureau);
             $data = [
                 'ACCOUNT' => $appOrCompany->get(ConfigurationEnum::ACCOUNT->value),
-                'PASSWD' => $appOrCompany->get(ConfigurationEnum::PASSWORD->value),
+                'PASSWD'  => $appOrCompany->get(ConfigurationEnum::PASSWORD->value),
                 'PRODUCT' => 'CREDIT',
-                'BUREAU' => $bureau, // Can be XPN, TU, or EFX
-                'PASS' => '2',
+                'BUREAU'  => $bureau, // Can be XPN, TU, or EFX
+                'PASS'    => '2',
                 'PROCESS' => 'PCCREDIT',
-                'NAME' => $creditApplication->name,
+                'NAME'    => $creditApplication->name,
                 'ADDRESS' => $creditApplication->address,
-                'CITY' => $creditApplication->city,
-                'STATE' => $creditApplication->state,
-                'ZIP' => $creditApplication->zip,
-                'SSN' => $creditApplication->ssn,
+                'CITY'    => $creditApplication->city,
+                'STATE'   => $creditApplication->state,
+                'ZIP'     => $creditApplication->zip,
+                'SSN'     => $creditApplication->ssn,
             ];
 
             if (Str::contains($bureau, ':')) {
@@ -67,11 +67,11 @@ class CreditScoreService
 
             foreach ($bureauTypes as $bureauType) {
                 // Check if risk_models exist in the response
-                if (isset($responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report'])) {
-                    $scores[$bureauType] = $responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report'];
+                if (isset($responseArray['bureau_xml_data'][ucwords($bureauType).'_Report'])) {
+                    $scores[$bureauType] = $responseArray['bureau_xml_data'][ucwords($bureauType).'_Report'];
 
                     // Check if ScoreRange is not empty to determine pass status
-                    if (! empty($scores[$bureauType]['ScoreRange'])) {
+                    if (!empty($scores[$bureauType]['ScoreRange'])) {
                         $pullCreditPass = true;
                     }
                 }
@@ -83,24 +83,24 @@ class CreditScoreService
 
             try {
                 $fileSystem = new FilesystemServices($this->app);
-                $fileName = 'credit-pull-' . Str::replace(':', '-', $bureau) . '.pdf';
-                $pdf = ! empty($pdfBase64) ? $fileSystem->createFileSystemFromBase64($pdfBase64, $fileName, $userRequestingReport) : null;
+                $fileName = 'credit-pull-'.Str::replace(':', '-', $bureau).'.pdf';
+                $pdf = !empty($pdfBase64) ? $fileSystem->createFileSystemFromBase64($pdfBase64, $fileName, $userRequestingReport) : null;
             } catch (Exception $e) {
                 $pdf = null;
             }
 
             return [
-                'scores' => $scores,
-                'pull_credit_pass' => $pullCreditPass, // New field added
-                'iframe_url' => $iframeUrl,
-                'iframe_url_signed' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
+                'scores'                    => $scores,
+                'pull_credit_pass'          => $pullCreditPass, // New field added
+                'iframe_url'                => $iframeUrl,
+                'iframe_url_signed'         => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
                 'iframe_url_digital_jacket' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
-                'pdf' => $pdf,
+                'pdf'                       => $pdf,
             ];
         } catch (RequestException $e) {
-            throw new ValidationException('Failed to retrieve credit score: ' . $e->getMessage());
+            throw new ValidationException('Failed to retrieve credit score: '.$e->getMessage());
         } catch (Exception $e) {
-            throw new ValidationException('An error occurred: ' . $e->getMessage());
+            throw new ValidationException('An error occurred: '.$e->getMessage());
         }
     }
 
@@ -113,7 +113,7 @@ class CreditScoreService
             // Sign the URL
             return $this->client->signUrl($unsignedUrl, $signedBy); // 30-minute expiration
         } catch (Exception $e) {
-            throw new ValidationException('Failed to generate signed URL: ' . $e->getMessage());
+            throw new ValidationException('Failed to generate signed URL: '.$e->getMessage());
         }
     }
 

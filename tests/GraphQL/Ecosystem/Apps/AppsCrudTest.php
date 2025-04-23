@@ -18,15 +18,15 @@ class AppsCrudTest extends TestCase
         $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $input = [
-            'name' => fake()->name,
-            'url' => fake()->url,
-            'description' => trim(substr(fake()->text, 0, 44)),
-            'domain' => fake()->safeEmailDomain,
-            'is_actived' => true,
-            'ecosystem_auth' => false,
+            'name'            => fake()->name,
+            'url'             => fake()->url,
+            'description'     => trim(substr(fake()->text, 0, 44)),
+            'domain'          => fake()->safeEmailDomain,
+            'is_actived'      => true,
+            'ecosystem_auth'  => false,
             'payments_active' => false,
-            'is_public' => true,
-            'domain_based' => false,
+            'is_public'       => true,
+            'domain_based'    => false,
         ];
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
@@ -102,15 +102,15 @@ class AppsCrudTest extends TestCase
         $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $input = [
-            'name' => fake()->name,
-            'url' => fake()->url,
-            'description' => trim(substr(fake()->text, 0, 44)),
-            'domain' => fake()->safeEmailDomain,
-            'is_actived' => true,
-            'ecosystem_auth' => false,
+            'name'            => fake()->name,
+            'url'             => fake()->url,
+            'description'     => trim(substr(fake()->text, 0, 44)),
+            'domain'          => fake()->safeEmailDomain,
+            'is_actived'      => true,
+            'ecosystem_auth'  => false,
             'payments_active' => false,
-            'is_public' => true,
-            'domain_based' => false,
+            'is_public'       => true,
+            'domain_based'    => false,
         ];
 
         $response = $this->graphQL(/** @lang GraphQL */ '
@@ -118,7 +118,7 @@ class AppsCrudTest extends TestCase
                 $input: AppInput!
             ){
                 updateApp(
-                    id: "' . $apps->key . '",
+                    id: "'.$apps->key.'",
                     input: $input
                 ) {
                     name

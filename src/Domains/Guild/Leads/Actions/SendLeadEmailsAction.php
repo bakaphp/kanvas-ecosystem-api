@@ -21,8 +21,8 @@ class SendLeadEmailsAction
 
     public function execute(array $payload, array $users, LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL): void
     {
-        $userTemplate = 'user-' . $this->emailTemplate;
-        $leadTemplate = 'lead-' . $this->emailTemplate;
+        $userTemplate = 'user-'.$this->emailTemplate;
+        $leadTemplate = 'lead-'.$this->emailTemplate;
         $data = [
             ...$payload,
             'lead' => $this->lead,
@@ -31,7 +31,7 @@ class SendLeadEmailsAction
         $leadEmail = $this->lead->people()->first()->emails()->first()?->value;
         $shouldSend = $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL || $notificationMode === LeadNotificationModeEnum::NOTIFY_ROTATION_USERS;
         $shouldSendLead = $leadEmail && ($notificationMode === LeadNotificationModeEnum::NOTIFY_LEAD || $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL);
-        
+
         if ($shouldSend) {
             foreach ($users as $user) {
                 try {
@@ -54,15 +54,15 @@ class SendLeadEmailsAction
         $warehouse = $variant->warehouses->first();
 
         return (object) [
-            'name' => $product->name,
-            'price' => $variant->getPrice($warehouse),
+            'name'     => $product->name,
+            'price'    => $variant->getPrice($warehouse),
             'quantity' => $variant->quantity,
         ];
     }
 
     /**
-    * Send email to user or lead using a custom template
-    */
+     * Send email to user or lead using a custom template.
+     */
     protected function sendEmail(Model $entity, string $emailTemplateName, string $email, array $mailData): void
     {
         $notification = new Blank(

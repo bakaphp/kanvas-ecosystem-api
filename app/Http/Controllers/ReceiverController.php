@@ -25,10 +25,10 @@ class ReceiverController extends BaseController
     {
         $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
 
-        if (! $receiver) {
+        if (!$receiver) {
             Sentry::withScope(function ($scope) use ($uuid, $request) {
                 $scope->setContext('Request Data', [
-                    'uuid' => $uuid,
+                    'uuid'    => $uuid,
                     'payload' => $request->all(),
                 ]);
                 Sentry::captureMessage("Receiver not found for UUID: {$uuid}");
@@ -55,7 +55,7 @@ class ReceiverController extends BaseController
 
         $response = $job->handle();
 
-        if (! is_array($response)) {
+        if (!is_array($response)) {
             return response()->json(['message' => 'Something went wrong , we\'ve notify support'], 500);
         }
 

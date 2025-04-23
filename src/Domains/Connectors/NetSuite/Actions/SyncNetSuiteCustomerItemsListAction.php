@@ -44,7 +44,7 @@ class SyncNetSuiteCustomerItemsListAction
     {
         $customerId = $this->buyerCompany->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
 
-        if (! $customerId) {
+        if (!$customerId) {
             throw new Exception('Company not linked to NetSuite');
         }
 
@@ -58,7 +58,7 @@ class SyncNetSuiteCustomerItemsListAction
                 company: $this->mainAppCompany,
                 user: $this->mainAppCompany->user,
                 name: $this->buyerCompany->name,
-                description: $this->buyerCompany->name . ' channel',
+                description: $this->buyerCompany->name.' channel',
                 slug: (string) $this->buyerCompany->uuid
             ),
             $this->mainAppCompany->user
@@ -76,7 +76,7 @@ class SyncNetSuiteCustomerItemsListAction
                 ->where('barcode', $bardCodeId->item->name)
                 ->first();
 
-            if (! $variant) {
+            if (!$variant) {
                 $missed[] = $bardCodeId->item->name;
 
                 continue;
@@ -90,46 +90,44 @@ class SyncNetSuiteCustomerItemsListAction
             /**
              * @todo , this logic to update the quantity and price should be moved to a dedicated action / workflow
              */
-
             try {
                 $warehouseOptions = $this->getWarehouseOptions($netsuiteProductInfo, $variantWarehouse, $defaultWarehouse);
 
-                $mapPrice =  (float) $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
-                $colorCode =  $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value);
+                $mapPrice = (float) $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
+                $colorCode = $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value);
 
                 $config = [
                     'map_price' => $mapPrice,
-                    ...(isset($warehouseOptions["minimum_quantity"]) && $setMinimumQuantity ? ["minimum_quantity" => $warehouseOptions["minimum_quantity"]] : []),
+                    ...(isset($warehouseOptions['minimum_quantity']) && $setMinimumQuantity ? ['minimum_quantity' => $warehouseOptions['minimum_quantity']] : []),
                 ];
 
-                if (isset($warehouseOptions["quantity"]) && $warehouseOptions["quantity"] !== null) {
-                    $variantWarehouse->quantity = $warehouseOptions["quantity"];
-                    $variantWarehouse->price = $warehouseOptions["price"] ?? 0;
+                if (isset($warehouseOptions['quantity']) && $warehouseOptions['quantity'] !== null) {
+                    $variantWarehouse->quantity = $warehouseOptions['quantity'];
+                    $variantWarehouse->price = $warehouseOptions['price'] ?? 0;
                 }
 
-                $variantWarehouse->config =  $config ?? null;
+                $variantWarehouse->config = $config ?? null;
                 $variantWarehouse->saveOrFail();
 
                 $variant->addAttributes($this->mainAppCompany->user, [
                     [
-                        'name' => 'color_code',
+                        'name'  => 'color_code',
                         'value' => $colorCode,
-                    ]
+                    ],
                 ]);
             } catch (Exception $e) {
                 //$config['minimum_quantity'] = 0;
                 $missed[] = $bardCodeId->item->name;
             }
 
-
             $addVariantToChannel = new AddVariantToChannelAction(
                 $variantWarehouse,
                 $channel,
                 VariantChannel::from([
-                    'price' => $bardCodeId->price,
+                    'price'            => $bardCodeId->price,
                     'discounted_price' => $bardCodeId->price,
-                    'is_published' => $bardCodeId->price > 0,
-                    'config' => $config ?? null,
+                    'is_published'     => $bardCodeId->price > 0,
+                    'config'           => $config ?? null,
                 ])
             );
             $addVariantToChannel->execute();
@@ -137,12 +135,12 @@ class SyncNetSuiteCustomerItemsListAction
         }
 
         return [
-            'channel' => $channel->getId(),
-            'company' => $this->buyerCompany->getId(),
-            'items' => $listOrProductVariantsBarCodeIds,
-            'total_items' => count($listOrProductVariantsBarCodeIds),
-            'total_processed' => $totalProcessed,
-            'total_missed' => count($missed),
+            'channel'            => $channel->getId(),
+            'company'            => $this->buyerCompany->getId(),
+            'items'              => $listOrProductVariantsBarCodeIds,
+            'total_items'        => count($listOrProductVariantsBarCodeIds),
+            'total_processed'    => $totalProcessed,
+            'total_missed'       => count($missed),
             'products_not_found' => $missed,
         ];
     }
@@ -150,6 +148,7 @@ class SyncNetSuiteCustomerItemsListAction
     private function getWarehouseOptions($netsuiteProductInfo, $variantWarehouse = null, $defaultWarehouse = null)
     {
         $config = [];
+
         try {
             $config['quantity'] = $this->productService->getInventoryQuantityByLocation(
                 $netsuiteProductInfo,

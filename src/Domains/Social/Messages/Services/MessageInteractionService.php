@@ -37,10 +37,10 @@ class MessageInteractionService
         $shareUrl = $this->message->app->get(AppEnum::SHAREABLE_LINK->value) ?? $this->message->app->url;
 
         if ($this->message->app->get(AppEnum::SHAREABLE_LINK_WITH_USERNAME->value)) {
-            $shareUrl .= '/' . $this->message->user->displayname;
+            $shareUrl .= '/'.$this->message->user->displayname;
         }
 
-        return $shareUrl . '/' . (! empty($this->message->slug) ? $this->message->slug : $this->message->getId());
+        return $shareUrl.'/'.(!empty($this->message->slug) ? $this->message->slug : $this->message->getId());
     }
 
     public function view(UserInterface $who): UsersInteractions
@@ -136,7 +136,7 @@ class MessageInteractionService
             new UserInteraction(
                 $who,
                 $interaction,
-                (string)$this->message->getId(),
+                (string) $this->message->getId(),
                 Message::class,
                 $note
             )
@@ -148,7 +148,7 @@ class MessageInteractionService
             event: WorkflowEnum::AFTER_MESSAGE_INTERACTION->value,
             async: true,
             params: [
-                'interaction' => $interactionType,
+                'interaction'      => $interactionType,
                 'user_interaction' => $userInteraction,
             ]
         );

@@ -29,20 +29,20 @@ class ProductScrapperEvent implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'kanvas_product_id' => $this->product->getId(),
+            'kanvas_product_id'  => $this->product->getId(),
             'shopify_product_id' => $this->shopifyProductId,
-            'sku' => $this->product->variants()->first()->sku,
-            'title' => $this->product->name,
-            'image' => $this->product->getFiles()[0]->url,
-            'price' => $this->price,
-            'images' => $this->product->getFiles(),
-            'discounted_price' => 0
+            'sku'                => $this->product->variants()->first()->sku,
+            'title'              => $this->product->name,
+            'image'              => $this->product->getFiles()[0]->url,
+            'price'              => $this->price,
+            'images'             => $this->product->getFiles(),
+            'discounted_price'   => 0,
         ];
     }
 
     public function broadcastOn(): Channel
     {
-        return new Channel('app-' . $this->app->getId() . '-scrapper-' . $this->uuid);
+        return new Channel('app-'.$this->app->getId().'-scrapper-'.$this->uuid);
     }
 
     public function broadcastQueue(): string

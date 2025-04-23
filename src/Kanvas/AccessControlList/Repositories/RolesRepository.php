@@ -8,12 +8,12 @@ use Baka\Contracts\AppInterface;
 use Bouncer;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Silber\Bouncer\Database\Ability;
-use Illuminate\Support\Facades\Log;
 
 class RolesRepository
 {
@@ -48,6 +48,7 @@ class RolesRepository
 
     /**
      * getAllRoles.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function getAllRoles(?AppInterface $app = null): Collection
@@ -82,7 +83,8 @@ class RolesRepository
             ->orderBy('modules.id')
             ->select('abilities.*', 'abilities_modules.system_modules_id', 'permissions.entity_id as roleId', 'modules.id', 'modules.name')
             ->get();
-        $roles =  self::mapPermissionsToStructure($abilities);
+        $roles = self::mapPermissionsToStructure($abilities);
+
         return $roles;
     }
 
@@ -91,26 +93,26 @@ class RolesRepository
         $modules = [];
         foreach ($permissions as $permission) {
             $ability = [
-                'title' => $permission->title,
-                'roleId' => (bool) $permission->roleId
+                'title'  => $permission->title,
+                'roleId' => (bool) $permission->roleId,
             ];
-            if (! isset($modules[$permission['name']])) {
+            if (!isset($modules[$permission['name']])) {
                 $modules[$permission['name']] = [
-                    'id' => $permission->id,
-                    'name' => $permission->name,
-                    'systemModules' => []
+                    'id'            => $permission->id,
+                    'name'          => $permission->name,
+                    'systemModules' => [],
                 ];
             }
             $systemModule = $permission->entity_type;
             if (empty($modules[$permission['name']]['systemModules'])) {
                 $modules[$permission['name']]['systemModules'][] = [
-                    'id' => $permission->system_modules_id,
-                    'name' => $systemModule,
-                    'abilities' => [$ability]
+                    'id'        => $permission->system_modules_id,
+                    'name'      => $systemModule,
+                    'abilities' => [$ability],
                 ];
                 continue;
             }
-            Log::debug("Ability", $ability);
+            Log::debug('Ability', $ability);
             $found = false;
             foreach ($modules[$permission['name']]['systemModules'] as $key => $systemModules) {
                 if ($systemModules['name'] == $systemModule) {
@@ -120,14 +122,15 @@ class RolesRepository
                     break;
                 }
             }
-            if (! $found) {
+            if (!$found) {
                 $modules[$permission['name']]['systemModules'][] = [
-                    'id' => $permission->system_modules_id,
-                    'name' => $systemModule,
-                    'abilities' => [$ability]
+                    'id'        => $permission->system_modules_id,
+                    'name'      => $systemModule,
+                    'abilities' => [$ability],
                 ];
             }
         }
+
         return $modules;
     }
 }

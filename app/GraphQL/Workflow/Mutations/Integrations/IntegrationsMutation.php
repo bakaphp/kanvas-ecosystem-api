@@ -29,7 +29,7 @@ class IntegrationsMutation
         $region = RegionRepository::getById((int) $request['input']['region']['id'], $company);
         $user = auth()->user();
 
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             CompaniesRepository::userAssociatedToCompany(
                 $company,
                 $user
@@ -45,7 +45,7 @@ class IntegrationsMutation
             app: app(Apps::class)
         );
 
-        if (! class_exists($handler = $integration->handler)) {
+        if (!class_exists($handler = $integration->handler)) {
             throw new InternalServerErrorException('Handler Class not found.');
         }
         $handler = $integration->handler;

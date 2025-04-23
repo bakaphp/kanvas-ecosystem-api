@@ -63,12 +63,14 @@ class UpdateCompaniesAction
     {
         $userAssociate = UsersRepository::belongsToThisApp($user, $app);
         AuthenticationService::logoutFromAllDevices($userAssociate->user, $app);
+
         return $userAssociate->deActive();
     }
 
     public function activateUser(Users $user, Apps $app): bool
     {
         $userAssociate = UsersRepository::belongsToThisApp($user, $app);
+
         return $userAssociate->active();
     }
 }

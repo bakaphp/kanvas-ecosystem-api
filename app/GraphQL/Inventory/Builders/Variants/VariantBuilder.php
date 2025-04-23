@@ -20,7 +20,7 @@ class VariantBuilder
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             //Variants::setSearchIndex($company->getId());
         }
 

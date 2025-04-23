@@ -29,7 +29,7 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
 {
     #[Override]
     /**
-     * $entity <TaskEngagementItem>
+     * $entity <TaskEngagementItem>.
      */
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
@@ -41,7 +41,7 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
 
         if ($peopleId === null && $fileUpload === null) {
             return [
-                'result' => false,
+                'result'  => false,
                 'message' => 'No file or people id provided',
             ];
         }
@@ -62,12 +62,12 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
             $people = People::getById($peopleId, $app);
         } catch (ModelNotFoundException $e) {
             return [
-                'result' => false,
-                'message' => 'People not found with id ' . $peopleId,
+                'result'  => false,
+                'message' => 'People not found with id '.$peopleId,
             ];
         }
 
-        if (! $peopleFromLead) {
+        if (!$peopleFromLead) {
             $latestFile = FilesystemEntities::query()
                 ->where('entity_id', $people->getId())
                 ->whereIn('system_modules_id', $systemModuleIds)
@@ -90,11 +90,11 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
 
         if ($latestFile === null) {
             return [
-                'result' => false,
-                'people' => $people->toArray(),
-                'lead' => $lead->toArray(),
+                'result'            => false,
+                'people'            => $people->toArray(),
+                'lead'              => $lead->toArray(),
                 'system_modules_id' => $systemModuleIds,
-                'message' => 'No file found for checklist item' . $entity->getId(),
+                'message'           => 'No file found for checklist item'.$entity->getId(),
             ];
         }
 
@@ -112,14 +112,14 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
         );
 
         $messageInput = [
-            'message' => $engagementMessage->toArray(),
+            'message'         => $engagementMessage->toArray(),
             'reactions_count' => 0,
-            'comments_count' => 0,
-            'total_liked' => 0,
-            'total_disliked' => 0,
-            'total_saved' => 0,
-            'total_shared' => 0,
-            'ip_address' => '127.0.0.1',
+            'comments_count'  => 0,
+            'total_liked'     => 0,
+            'total_disliked'  => 0,
+            'total_saved'     => 0,
+            'total_shared'    => 0,
+            'ip_address'      => '127.0.0.1',
         ];
 
         $createMessage = new CreateMessageAction(
@@ -142,26 +142,26 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
         ->firstOrFail();
 
         $engagement = Engagement::firstOrCreate([
-            'companies_id' => $entity->companies_id,
-            'apps_id' => $app->getId(),
-            'users_id' => $entity->users_id,
-            'leads_id' => $lead->getId(),
-            'people_id' => $people->getId(),
+            'companies_id'         => $entity->companies_id,
+            'apps_id'              => $app->getId(),
+            'users_id'             => $entity->users_id,
+            'leads_id'             => $lead->getId(),
+            'people_id'            => $people->getId(),
             'companies_actions_id' => $entity->item->companyAction->getId(),
-            'message_id' => $message->getId(),
-            'slug' => ConfigurationEnum::GET_DOCS->value,
-            'entity_uuid' => $lead->uuid,
-            'pipelines_stages_id' => $submittedStage->getId(),
+            'message_id'           => $message->getId(),
+            'slug'                 => ConfigurationEnum::GET_DOCS->value,
+            'entity_uuid'          => $lead->uuid,
+            'pipelines_stages_id'  => $submittedStage->getId(),
         ]);
         $entity->engagement_end_id = $engagement->getId();
         $entity->saveOrFail();
 
         return [
-            'message' => 'File attached to checklist item',
-            'result' => true,
+            'message'    => 'File attached to checklist item',
+            'result'     => true,
             'engagement' => $engagement->toArray(),
-            'file' => $latestFile->toArray(),
-            'entity' => $entity->toArray(),
+            'file'       => $latestFile->toArray(),
+            'entity'     => $entity->toArray(),
         ];
     }
 }

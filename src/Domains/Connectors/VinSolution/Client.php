@@ -45,14 +45,14 @@ class Client
         $this->apiKey = $app->get(ConfigurationEnum::API_KEY->value);
         $this->apiKeyDigitalShowRoom = $app->get(ConfigurationEnum::API_KEY_DIGITAL_SHOWROOM->value);
 
-        if (! $this->clientId || ! $this->clientSecret || ! $this->apiKey) {
+        if (!$this->clientId || !$this->clientSecret || !$this->apiKey) {
             throw new ValidationException('VinSolutions API keys not set');
         }
 
-        $this->redisKey .= '-v3-' . $app->getId();
+        $this->redisKey .= '-v3-'.$app->getId();
         $this->client = new GuzzleClient(
             [
-                'base_uri' => $this->baseUrl,
+                'base_uri'     => $this->baseUrl,
                 'curl.options' => [
                     CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
                 ],
@@ -75,16 +75,16 @@ class Client
     {
         if (($token = Redis::get($this->redisKey)) === null) {
             $response = $this->client->post(
-                $this->authBaseUrl . '/connect/token',
+                $this->authBaseUrl.'/connect/token',
                 [
                     'headers' => [
                         'Content-Type' => 'application/x-www-form-urlencoded',
                     ],
                     'form_params' => [
-                        'grant_type' => $this->grantType,
-                        'client_id' => $this->clientId,
+                        'grant_type'    => $this->grantType,
+                        'client_id'     => $this->clientId,
                         'client_secret' => $this->clientSecret,
-                        'scope' => $this->scope,
+                        'scope'         => $this->scope,
                     ],
                 ]
             );
@@ -108,8 +108,8 @@ class Client
      */
     protected function setHeaders(array $headers): array
     {
-        $headers['headers']['api_key'] = ! $this->useDigitalShowRoomKey ? $this->apiKey : $this->apiKeyDigitalShowRoom;
-        $headers['headers']['Authorization'] = 'Bearer ' . $this->auth()['access_token'];
+        $headers['headers']['api_key'] = !$this->useDigitalShowRoomKey ? $this->apiKey : $this->apiKeyDigitalShowRoom;
+        $headers['headers']['Authorization'] = 'Bearer '.$this->auth()['access_token'];
 
         return $headers;
     }
@@ -136,7 +136,7 @@ class Client
     public function post(string $path, string $json, array $params = []): array
     {
         $params = $this->setHeaders($params);
-        if (! isset($params['headers']['Content-Type'])) {
+        if (!isset($params['headers']['Content-Type'])) {
             $params['headers']['Content-Type'] = 'application/json';
         }
 
@@ -159,7 +159,7 @@ class Client
     public function put(string $path, string $json, array $params = []): array
     {
         $params = $this->setHeaders($params);
-        if (! isset($params['headers']['Content-Type'])) {
+        if (!isset($params['headers']['Content-Type'])) {
             $params['headers']['Content-Type'] = 'application/json';
         }
 
@@ -170,7 +170,7 @@ class Client
             $params
         );
 
-        return ! empty($response->getBody()->getContents()) ? json_decode(
+        return !empty($response->getBody()->getContents()) ? json_decode(
             $response->getBody()->getContents(),
             true
         ) : [];

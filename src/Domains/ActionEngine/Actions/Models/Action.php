@@ -14,13 +14,13 @@ use Nevadskiy\Tree\AsTree;
 /**
  * Class Action.
  *
- * @property int $id
+ * @property int    $id
  * @property string $uuid
- * @property int $apps_id
- * @property int $companies_id
- * @property int $users_id
- * @property int $pipelines_id
- * @property int $parent_id
+ * @property int    $apps_id
+ * @property int    $companies_id
+ * @property int    $users_id
+ * @property int    $pipelines_id
+ * @property int    $parent_id
  * @property string path
  * @property string $name
  * @property string $slug

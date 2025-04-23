@@ -30,7 +30,7 @@ class UploadFileAction
         $createFileSystem = new CreateFilesystemAction($file, $this->user, $this->app);
 
         return $createFileSystem->execute(
-            Storage::disk('s3')->url($uploadPath . $s3ImageName),
+            Storage::disk('s3')->url($uploadPath.$s3ImageName),
             $uploadPath
         );
     }

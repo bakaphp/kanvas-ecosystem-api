@@ -66,10 +66,10 @@ class CreateOrderFromCartAction
             ));
         }
 
-        $hasItemsInCart = ! $this->cart->isEmpty(); //&& $this->cart->getTotal() > 0;
+        $hasItemsInCart = !$this->cart->isEmpty(); //&& $this->cart->getTotal() > 0;
         if ($hasItemsInCart) {
             $total = $this->cart->getTotal();
-            $totalTax = ($this->cart->getTotal()) - ($this->cart->getSubTotal());
+            $totalTax = $this->cart->getTotal() - $this->cart->getSubTotal();
             $totalDiscount = 0.0;
             $lineItems = $this->cart->getContent()->toArray();
         } else {
@@ -133,7 +133,7 @@ class CreateOrderFromCartAction
             $variant = Variants::getById($lineItem['id']);
 
             //this shouldn't happen but just in case
-            if (! $variant) {
+            if (!$variant) {
                 continue;
             }
 

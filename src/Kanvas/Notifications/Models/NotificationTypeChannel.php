@@ -12,9 +12,9 @@ use Kanvas\Templates\Models\Templates;
 /**
  * NotificationTypeChannel Model.
  *
- * @property int $id
- * @property int $notification_type_id
- * @property int $notification_channel_id
+ * @property int    $id
+ * @property int    $notification_type_id
+ * @property int    $notification_channel_id
  * @property string $template_id
  */
 class NotificationTypeChannel extends BaseModel

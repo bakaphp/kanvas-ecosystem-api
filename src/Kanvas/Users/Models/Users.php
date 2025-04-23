@@ -143,9 +143,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     protected $guarded = [];
 
     protected $casts = [
-        'default_company' => 'integer',
+        'default_company'        => 'integer',
         'default_company_branch' => 'integer',
-        'welcome' => 'boolean',
+        'welcome'                => 'boolean',
     ];
 
     protected $hidden = [
@@ -227,7 +227,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * overwrite hash table trait primary key
+     * overwrite hash table trait primary key.
      */
     protected function getSettingsPrimaryKey(): string
     {
@@ -247,6 +247,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Apps relationship.
      * use distinct() to avoid duplicate apps.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     #[Override]
@@ -271,6 +272,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Companies relationship.
      * use distinct() to avoid duplicate companies.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     #[Override]
@@ -327,12 +329,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
+            throw new ExceptionsModelNotFoundException($e->getMessage()." $id");
         }
     }
 
     /**
      * Get the current user information for the running app.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     #[Override]
@@ -345,23 +348,25 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 ->firstOrFail();
         } catch (EloquentModelNotFoundException $e) {
             /**
-             * until v3 (legacy) is deprecated we have to check or create the user profile the first time
+             * until v3 (legacy) is deprecated we have to check or create the user profile the first time.
+             *
              * @todo remove in v2
              */
             try {
                 UsersRepository::belongsToThisApp($this, $app);
             } catch (ModelNotFoundException $e) {
-                throw new ModelNotFoundException('User not found in app - ' . $this->getId());
+                throw new ModelNotFoundException('User not found in app - '.$this->getId());
             }
             $userRegisterInApp = new RegisterUsersAppAction($this);
             $userRegisterInApp->execute($this->password);
 
-            throw new ModelNotFoundException('User not found - ' . $this->getId());
+            throw new ModelNotFoundException('User not found - '.$this->getId());
         }
     }
 
     /**
      * Get the current user information for the running app.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function getCompanyProfile(AppInterface $app, CompanyInterface $company): UsersAssociatedApps
@@ -378,6 +383,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * CompaniesBranches relationship.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     #[Override]
@@ -403,6 +409,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * notifications.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     #[Override]
@@ -425,7 +432,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $databaseSocial = config('database.social.database', 'social');
 
-        return $this->belongsToMany(Channel::class, $databaseSocial . '.channel_users', 'users_id', 'channel_id');
+        return $this->belongsToMany(Channel::class, $databaseSocial.'.channel_users', 'users_id', 'channel_id');
     }
 
     /**
@@ -446,12 +453,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user = self::notDeleted()
             ->where(
                 [
-                    'email' => $email,
+                    'email'      => $email,
                     'is_deleted' => 0,
                 ]
             )->first();
 
-        if (! $user) {
+        if (!$user) {
             throw new ModelNotFoundException('No User Found');
         }
 
@@ -473,7 +480,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     #[Override]
     public function isBanned(): bool
     {
-        return ! $this->isActive() && $this->banned === 'Y';
+        return !$this->isActive() && $this->banned === 'Y';
     }
 
     /**
@@ -517,11 +524,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * What the current company the users is logged in with
      * in this current session?
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function currentCompanyId(): int
     {
-        if (! app()->bound(CompaniesBranches::class)) {
+        if (!app()->bound(CompaniesBranches::class)) {
             $currentCompanyId = $this->get(Companies::cacheKey());
         } else {
             //verify I have access to it
@@ -533,11 +541,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * What the current branch the users is logged in with.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function currentBranchId(): int
     {
-        if (! app()->bound(CompaniesBranches::class)) {
+        if (!app()->bound(CompaniesBranches::class)) {
             $currentBranchId = (int) $this->get($this->getCurrentCompany()->branchCacheKey());
         } else {
             $currentBranchId = app(CompaniesBranches::class)->getId();
@@ -557,7 +566,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
                 'No default company app configured for this user on 
-                the current app ' . app(Apps::class)->name . ', 
+                the current app '.app(Apps::class)->name.', 
                 please contact support'
             );
         }
@@ -574,7 +583,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
                 'No default company app configured 
-                for this user on the current app ' . app(Apps::class)->name . ', 
+                for this user on the current app '.app(Apps::class)->name.', 
                 please contact support'
             );
         }
@@ -604,7 +613,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile($app);
 
-        if (! Hash::check($currentPassword, (string) $user->password)) {
+        if (!Hash::check($currentPassword, (string) $user->password)) {
             throw new AuthenticationException('Current password is incorrect');
         }
 
@@ -628,7 +637,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             WorkflowEnum::AFTER_FORGOT_PASSWORD->value,
             true,
             [
-                'app' => $app,
+                'app'     => $app,
                 'profile' => $user,
             ]
         );
@@ -642,7 +651,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
         $validator = Validator::make(
             ['displayname' => $displayName],
-            ['displayname' => 'required|unique:users_associated_apps,displayname,NULL,users_id,apps_id,' . $app->getId()]
+            ['displayname' => 'required|unique:users_associated_apps,displayname,NULL,users_id,apps_id,'.$app->getId()]
         );
 
         if ($validator->fails()) {
@@ -665,7 +674,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         //@todo in the future we should remove this validation and use only the one in the app
         $validator = Validator::make(
             ['email' => $email],
-            ['email' => 'required|email|unique:users,email,' . $this->id]
+            ['email' => 'required|email|unique:users,email,'.$this->id]
         );
 
         if ($validator->fails()) {
@@ -701,6 +710,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Is the owner of the current app.
+     *
      *  @psalm-suppress MixedReturnStatement
      */
     #[Override]
@@ -749,7 +759,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile(app(Apps::class));
 
-        return ! empty($user->email) ? $user->email : $this->email;
+        return !empty($user->email) ? $user->email : $this->email;
     }
 
     public function getAppIsActive(): bool
@@ -769,16 +779,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function runVerifyTwoFactorAuth(?AppInterface $app = null): bool
     {
         $user = $this->getAppProfile($app ?? app(Apps::class));
-        $twoFactorKey = $this->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $this->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
+        $twoFactorKey = $this->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value.'-'.$this->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
 
-        if (! $this->get($twoFactorKey) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
+        if (!$this->get($twoFactorKey) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
             return false;
         }
 
         /**
          * @todo user config per app
          */
-        return ! ((bool) $this->get($twoFactorKey)
+        return !((bool) $this->get($twoFactorKey)
                 && $user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
     }
 
@@ -797,14 +807,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $currentUser = auth()->user();
 
         return [
-            'total_message' => Message::fromApp(app(Apps::class))->where('users_id', $this->getId())->count(),
-            'total_like' => 0,
+            'total_message'   => Message::fromApp(app(Apps::class))->where('users_id', $this->getId())->count(),
+            'total_like'      => 0,
             'total_followers' => $socialCount['users_followers_count'] ?? 0,
             'total_following' => $socialCount['users_following_count'] ?? 0,
-            'total_blocked' => 0,
-            'is_following' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isFollowing($this, $app) : false,
-            'is_blocked' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isBlocked($this, $app) : false,
-            'total_list' => 0,
+            'total_blocked'   => 0,
+            'is_following'    => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isFollowing($this, $app) : false,
+            'is_blocked'      => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isBlocked($this, $app) : false,
+            'total_list'      => 0,
         ];
     }
 
@@ -838,31 +848,31 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function shouldBeSearchable(): bool
     {
-        return ! $this->isDeleted() && $this->isActive() && $this->banned == 0;
+        return !$this->isDeleted() && $this->isActive() && $this->banned == 0;
     }
 
     public function toSearchableArray(): array
     {
         return [
-            'id' => $this->getId(),
-            'firstname' => $this->firstname,
-            'lastname' => $this->lastname,
+            'id'          => $this->getId(),
+            'firstname'   => $this->firstname,
+            'lastname'    => $this->lastname,
             'displayname' => $this->displayname,
-            'email' => $this->email,
-            'apps' => $this->apps->pluck('id')->toArray(),
-            'companies' => $this->companies->pluck('id')->toArray(),
+            'email'       => $this->email,
+            'apps'        => $this->apps->pluck('id')->toArray(),
+            'companies'   => $this->companies->pluck('id')->toArray(),
         ];
     }
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . '_users';
+        return config('scout.prefix').'_users';
     }
 
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
-        if (! auth()->user()->isAdmin()) {
+        if (!auth()->user()->isAdmin()) {
             $query->whereIn('companies', [auth()->user()->currentCompanyId()]);
         }
 
@@ -885,22 +895,22 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function typesenseCollectionSchema(): array
     {
         return [
-            'name' => $this->searchableAs(),
+            'name'   => $this->searchableAs(),
             'fields' => [
                 [
                     'name' => 'id',
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'firstname',
-                    'type' => 'string',
-                    'sort' => true,
+                    'name'  => 'firstname',
+                    'type'  => 'string',
+                    'sort'  => true,
                     'facet' => true,
                 ],
                 [
-                    'name' => 'lastname',
-                    'type' => 'string',
-                    'sort' => true,
+                    'name'  => 'lastname',
+                    'type'  => 'string',
+                    'sort'  => true,
                     'facet' => true,
                 ],
                 [
@@ -913,109 +923,109 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                     'type' => 'string',
                 ],
                 [
-                    'name' => 'apps',
-                    'type' => 'int64[]',
+                    'name'  => 'apps',
+                    'type'  => 'int64[]',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'companies',
-                    'type' => 'int64[]',
+                    'name'  => 'companies',
+                    'type'  => 'int64[]',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'uuid',
-                    'type' => 'string',
+                    'name'     => 'uuid',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'roles_id',
-                    'type' => 'int64',
+                    'name'     => 'roles_id',
+                    'type'     => 'int64',
                     'optional' => true,
+                    'facet'    => true,
+                ],
+                [
+                    'name'     => 'default_company',
+                    'type'     => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name'     => 'default_company_branch',
+                    'type'     => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name'     => 'city_id',
+                    'type'     => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name'     => 'state_id',
+                    'type'     => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name'     => 'country_id',
+                    'type'     => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name'  => 'user_active',
+                    'type'  => 'bool',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'default_company',
-                    'type' => 'int64',
+                    'name'     => 'banned',
+                    'type'     => 'string',
+                    'optional' => true,
+                    'facet'    => true,
+                ],
+                [
+                    'name'     => 'timezone',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'default_company_branch',
-                    'type' => 'int64',
+                    'name'     => 'language',
+                    'type'     => 'string',
+                    'optional' => true,
+                    'facet'    => true,
+                ],
+                [
+                    'name'     => 'phone_number',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'city_id',
-                    'type' => 'int64',
+                    'name'     => 'cell_phone_number',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'state_id',
-                    'type' => 'int64',
+                    'name'     => 'location',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'country_id',
-                    'type' => 'int64',
+                    'name'     => 'karma',
+                    'type'     => 'int64',
                     'optional' => true,
+                    'sort'     => true,
                 ],
                 [
-                    'name' => 'user_active',
-                    'type' => 'bool',
-                    'facet' => true,
-                ],
-                [
-                    'name' => 'banned',
-                    'type' => 'string',
+                    'name'     => 'votes',
+                    'type'     => 'int64',
                     'optional' => true,
-                    'facet' => true,
+                    'sort'     => true,
                 ],
                 [
-                    'name' => 'timezone',
-                    'type' => 'string',
+                    'name'     => 'votes_points',
+                    'type'     => 'int64',
                     'optional' => true,
+                    'sort'     => true,
                 ],
                 [
-                    'name' => 'language',
-                    'type' => 'string',
-                    'optional' => true,
-                    'facet' => true,
-                ],
-                [
-                    'name' => 'phone_number',
-                    'type' => 'string',
-                    'optional' => true,
-                ],
-                [
-                    'name' => 'cell_phone_number',
-                    'type' => 'string',
-                    'optional' => true,
-                ],
-                [
-                    'name' => 'location',
-                    'type' => 'string',
-                    'optional' => true,
-                ],
-                [
-                    'name' => 'karma',
-                    'type' => 'int64',
-                    'optional' => true,
-                    'sort' => true,
-                ],
-                [
-                    'name' => 'votes',
-                    'type' => 'int64',
-                    'optional' => true,
-                    'sort' => true,
-                ],
-                [
-                    'name' => 'votes_points',
-                    'type' => 'int64',
-                    'optional' => true,
-                    'sort' => true,
-                ],
-                [
-                    'name' => 'is_deleted',
-                    'type' => 'bool',
+                    'name'     => 'is_deleted',
+                    'type'     => 'bool',
                     'optional' => true,
                 ],
                 [
@@ -1023,13 +1033,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'updated_at',
-                    'type' => 'int64',
+                    'name'     => 'updated_at',
+                    'type'     => 'int64',
                     'optional' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,
+            'enable_nested_fields'  => true,
         ];
     }
 }

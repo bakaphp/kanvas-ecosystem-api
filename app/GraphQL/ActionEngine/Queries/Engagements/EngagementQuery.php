@@ -21,7 +21,7 @@ class EngagementQuery
         $app = app(Apps::class);
         $company = $user->getCurrentCompany();
         $entityType = match (strtolower($data['entity_type'])) {
-            'lead' => 'leads_id',
+            'lead'   => 'leads_id',
             'people' => 'people_id',
         };
 
@@ -29,7 +29,7 @@ class EngagementQuery
 
         if (Str::isUuid($entityId)) {
             $entity = match (strtolower($data['entity_type'])) {
-                'lead' => Lead::query()->fromApp($app)->fromCompany($company)->where('uuid', $entityId)->firstOrFail(),
+                'lead'   => Lead::query()->fromApp($app)->fromCompany($company)->where('uuid', $entityId)->firstOrFail(),
                 'people' => People::query()->fromApp($app)->fromCompany($company)->where('uuid', $entityId)->firstOrFail()
             };
 
@@ -46,8 +46,8 @@ class EngagementQuery
         $pipeline = Pipeline::getBySlug($data['slug'], $app, $company);
         $stage = $pipeline->stages()->where('slug', $data['status'])->first();
 
-        if (! $stage) {
-            throw new ModelNotFoundException('Pipeline ' . $pipeline->name . ' does not have a stage with slug ' . $data['status']);
+        if (!$stage) {
+            throw new ModelNotFoundException('Pipeline '.$pipeline->name.' does not have a stage with slug '.$data['status']);
         }
 
         //$pipelineStage
@@ -59,8 +59,8 @@ class EngagementQuery
                         ->where('pipelines_stages_id', $stage->id)
                         ->first();
 
-        if (! $engagement) {
-            throw new ModelNotFoundException('Engagement ' . $data['slug'] . ' for lead ' . $entityId . ' not found');
+        if (!$engagement) {
+            throw new ModelNotFoundException('Engagement '.$data['slug'].' for lead '.$entityId.' not found');
         }
 
         return $engagement;

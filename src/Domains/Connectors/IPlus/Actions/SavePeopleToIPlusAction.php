@@ -18,8 +18,8 @@ class SavePeopleToIPlusAction
     public function __construct(
         protected People $people
     ) {
-        if (! $this->people->company->get(ConfigurationEnum::COMPANY_ID->value)) {
-            throw new ValidationException('IPlus company ID is not set for ' . $this->people->company->name);
+        if (!$this->people->company->get(ConfigurationEnum::COMPANY_ID->value)) {
+            throw new ValidationException('IPlus company ID is not set for '.$this->people->company->name);
         }
 
         $this->client = new Client($this->people->app, $this->people->company);
@@ -34,15 +34,15 @@ class SavePeopleToIPlusAction
         $company = $this->people->company;
         $branchLocationId = $company->branch->get(ConfigurationEnum::COMPANY_BRANCH_ID->value);
         $clientData = [
-            'companiaID' => $company->get(ConfigurationEnum::COMPANY_ID->value),
-            'contrasena' => Str::random(10),
-            'referencia' => $this->people->app->get(ConfigurationEnum::CUSTOMER_DEFAULT_REFERENCE->value) ?? 'Kanvas',
-            'clienteNombre' => $this->people->firstname,
+            'companiaID'      => $company->get(ConfigurationEnum::COMPANY_ID->value),
+            'contrasena'      => Str::random(10),
+            'referencia'      => $this->people->app->get(ConfigurationEnum::CUSTOMER_DEFAULT_REFERENCE->value) ?? 'Kanvas',
+            'clienteNombre'   => $this->people->firstname,
             'clienteApellido' => $this->people->lastname,
-            'identificacion' => null,
-            'direccion' => $this->people->address()?->count() ? $this->people->address()->first()->address : null,
-            'telCelular' => $this->people->getPhones()->count() ? $this->people->getPhones()->first()->value : null,
-            'email' => $this->people->getEmails()->count() ? $this->people->getEmails()->first()->value : null,
+            'identificacion'  => null,
+            'direccion'       => $this->people->address()?->count() ? $this->people->address()->first()->address : null,
+            'telCelular'      => $this->people->getPhones()->count() ? $this->people->getPhones()->first()->value : null,
+            'email'           => $this->people->getEmails()->count() ? $this->people->getEmails()->first()->value : null,
         ];
 
         if ($branchLocationId) {

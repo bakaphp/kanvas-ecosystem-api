@@ -45,8 +45,7 @@ class GoogleSyncAllUserInteractionCommand extends Command
         $syncUserInteractionToEvent = new SyncUserInteractionToEventAction($app, $company, $user);
         $results = $syncUserInteractionToEvent->execute();
 
-        $this->info(json_encode($results, JSON_PRETTY_PRINT) . ' User Interactions sent to google recommendation as Events');
+        $this->info(json_encode($results, JSON_PRETTY_PRINT).' User Interactions sent to google recommendation as Events');
 
-        return;
     }
 }

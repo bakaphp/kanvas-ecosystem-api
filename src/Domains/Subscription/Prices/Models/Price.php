@@ -11,15 +11,15 @@ use Kanvas\Subscription\Plans\Models\Plan;
 /**
  * Class Price.
  *
- * @property int $id
- * @property int $apps_plans_id
+ * @property int    $id
+ * @property int    $apps_plans_id
  * @property string $stripe_id
- * @property float $amount
+ * @property float  $amount
  * @property string $currency
  * @property string $interval
  * @property string $created_at
  * @property string $updated_at
- * @property bool $is_deleted
+ * @property bool   $is_deleted
  */
 class Price extends BaseModel
 {

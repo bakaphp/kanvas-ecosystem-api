@@ -16,8 +16,8 @@ class ContactFactory extends Factory
     {
         return [
             'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-            'value' => fake()->email,
-            'weight' => 1,
+            'value'             => fake()->email,
+            'weight'            => 1,
         ];
     }
 }

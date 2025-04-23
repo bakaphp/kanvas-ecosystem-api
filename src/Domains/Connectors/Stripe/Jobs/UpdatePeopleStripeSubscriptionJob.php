@@ -19,7 +19,7 @@ class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
 
     public function execute(): array
     {
-        if (! in_array($this->webhookRequest->payload['type'], ['customer.subscription.updated', 'customer.subscription.created', 'customer.subscription.deleted'])) {
+        if (!in_array($this->webhookRequest->payload['type'], ['customer.subscription.updated', 'customer.subscription.created', 'customer.subscription.deleted'])) {
             Log::error('Webhook type not found', ['type' => $this->webhookRequest->payload['type']]);
 
             return [];
@@ -37,16 +37,16 @@ class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
             ['expand' => ['subscriptions']]
         );
 
-        if (! $customer->email) {
+        if (!$customer->email) {
             //Log::error('Customer email not found');
 
-            return ['error' => 'Customer email not found ' . $customer->id];
+            return ['error' => 'Customer email not found '.$customer->id];
         }
         $people = PeoplesRepository::getByEmail($customer->email, $company);
-        if (! $people) {
+        if (!$people) {
             //Log::error('People not found');
 
-            return ['error' => 'People not found' . $customer->email];
+            return ['error' => 'People not found'.$customer->email];
 
             return [];
         }
@@ -68,7 +68,7 @@ class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
 
         return [
             'message' => 'People Subscription updated',
-            'data' => $peopleSub,
+            'data'    => $peopleSub,
         ];
     }
 }

@@ -21,19 +21,19 @@ class WooCommerceProductService
     public function getProductDataBySku(string $sku): array
     {
         $productData = [
-            'id' => 0,
-            'name' => 'Product ' . $sku,
+            'id'   => 0,
+            'name' => 'Product '.$sku,
         ];
 
         $products = $this->client->get('products', [
-            'sku' => $sku,
+            'sku'      => $sku,
             'per_page' => 1, // Limit to 1 result for efficiency
         ]);
 
         // If we found a matching product, return its ID and name
-        if (! empty($products) && is_array($products)) {
+        if (!empty($products) && is_array($products)) {
             $productData['id'] = (int) $products[0]->id;
-            $productData['name'] = $products[0]->name ?? ('Product ' . $sku);
+            $productData['name'] = $products[0]->name ?? ('Product '.$sku);
         }
 
         return $productData;

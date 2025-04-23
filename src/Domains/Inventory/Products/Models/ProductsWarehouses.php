@@ -13,11 +13,11 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 /**
  * Class Products Categories.
  *
- * @property int $products_id
- * @property int $warehouses_id
+ * @property int    $products_id
+ * @property int    $warehouses_id
  * @property string $created_at
  * @property string $updated_at
- * @property bool $is_deleted
+ * @property bool   $is_deleted
  */
 class ProductsWarehouses extends BaseModel
 {
@@ -26,7 +26,7 @@ class ProductsWarehouses extends BaseModel
     protected $table = 'products_warehouses';
     protected $guarded = [
         'products_id',
-        'warehouses_id'
+        'warehouses_id',
     ];
 
     protected $primaryKey = ['products_id', 'warehouses_id'];

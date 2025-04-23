@@ -24,18 +24,18 @@ class CreateInCurrentAppAction
      */
     public function execute(string $class): SystemModules
     {
-        if (! class_exists($class)) {
+        if (!class_exists($class)) {
             throw new InternalServerErrorException('Class not found in this app');
         }
 
         return SystemModules::firstOrCreate([
             'model_name' => $class,
-            'apps_id' => $this->app->getKey(),
+            'apps_id'    => $this->app->getKey(),
         ], [
             'model_name' => $class,
-            'name' => $class,
-            'apps_id' => $this->app->getKey(),
-            'slug' => Str::simpleSlug($class),
+            'name'       => $class,
+            'apps_id'    => $this->app->getKey(),
+            'slug'       => Str::simpleSlug($class),
         ]);
     }
 }

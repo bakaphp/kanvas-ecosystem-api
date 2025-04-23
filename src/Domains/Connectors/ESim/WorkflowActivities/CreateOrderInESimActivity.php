@@ -36,10 +36,10 @@ class CreateOrderInESimActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
         $orderHasMetaData = $order->get(CustomFieldEnum::ORDER_ESIM_METADATA->value);
-        if (! empty($orderHasMetaData)) {
+        if (!empty($orderHasMetaData)) {
             return [
-                'status' => 'success',
-                'message' => 'Order already has eSim metadata',
+                'status'   => 'success',
+                'message'  => 'Order already has eSim metadata',
                 'response' => $orderHasMetaData,
             ];
         }
@@ -51,20 +51,20 @@ class CreateOrderInESimActivity extends KanvasActivity
         $variantProvider = $variant->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value);
 
         // Fall back to product provider if variant provider is empty
-        $provider = ! empty($variantProvider)
+        $provider = !empty($variantProvider)
             ? $variantProvider
             : $variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
 
-        if (! $provider) {
+        if (!$provider) {
             return [
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => 'Provider not found',
             ];
         }
 
         $providerValue = strtolower($provider->value);
         $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
-        $isRefuelOrder = isset($order->metadata['parent_order_id']) && ! empty($order->metadata['parent_order_id']);
+        $isRefuelOrder = isset($order->metadata['parent_order_id']) && !empty($order->metadata['parent_order_id']);
         $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
 
         try {
@@ -78,11 +78,11 @@ class CreateOrderInESimActivity extends KanvasActivity
 
                 $response = [
                     'success' => true,
-                    'data' => [
+                    'data'    => [
                         ...array_diff_key($esim->toArray(), ['esim_status' => '']),
                         'plan_origin' => $esim->plan,
                     ],
-                    'esim_status' => $esim->esimStatus->toArray(),
+                    'esim_status'          => $esim->esimStatus->toArray(),
                     'woocommerce_response' => $woocommerceResponse,
                 ];
             } else {
@@ -93,13 +93,13 @@ class CreateOrderInESimActivity extends KanvasActivity
             report($e);
 
             return [
-                'status' => 'error',
-                'message' => 'Error creating order in eSim',
+                'status'   => 'error',
+                'message'  => 'Error creating order in eSim',
                 'response' => $e->getMessage(),
             ];
         }
 
-        $order->metadata = array_merge(($order->metadata ?? []), $response);
+        $order->metadata = array_merge($order->metadata ?? [], $response);
         $order->completed();
         //$order->saveOrFail();
         $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $response);
@@ -107,7 +107,7 @@ class CreateOrderInESimActivity extends KanvasActivity
         $response['order_id'] = $order->id;
         $response['order'] = $order->toArray();
 
-        if (! isset($response['label'])) {
+        if (!isset($response['label'])) {
             $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
         }
 
@@ -131,16 +131,16 @@ class CreateOrderInESimActivity extends KanvasActivity
             } elseif ($providerValue === strtolower(ProviderEnum::EASY_ACTIVATION->value)) {
                 $response['esim_status'] = [
                     'expiration_date' => $response['data']['end_date'] ?? null,
-                    'esim_status' => $response['data']['status'] ?? null,
-                    'phone_number' => $response['data']['phone_number'] ?? null,
+                    'esim_status'     => $response['data']['status'] ?? null,
+                    'phone_number'    => $response['data']['phone_number'] ?? null,
                 ];
                 $response['data']['plan_origin'] = $response['data']['plan'];
                 $response['data']['plan'] = $sku; //overwrite the plan with the sku
             } elseif ($providerValue === strtolower(ProviderEnum::AIRALO->value)) {
                 $response['esim_status'] = [
                     'expiration_date' => null,
-                    'esim_status' => $response['data']['status'] ?? null,
-                    'phone_number' => null,
+                    'esim_status'     => $response['data']['status'] ?? null,
+                    'phone_number'    => null,
                 ];
                 $response['data']['plan_origin'] = $response['data']['plan'] ?? null;
                 $response['data']['plan'] = $sku; // Overwrite the plan with the sku
@@ -151,7 +151,7 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         //create the esim for the user
-        if (! $isRefuelOrder) {
+        if (!$isRefuelOrder) {
             $messageType = (new CreateMessageTypeAction(
                 new MessageTypeInput(
                     $app->getId(),
@@ -174,7 +174,7 @@ class CreateOrderInESimActivity extends KanvasActivity
 
             $message = $createMessage->execute();
             $this->updateMessageMetaDataOrderNumber($message, $woocommerceResponse ?? []);
-            $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
+            $order->metadata = array_merge($order->metadata ?? [], ['message_id' => $message->getId()]);
             $order->updateOrFail();
             $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
         } else {
@@ -182,16 +182,16 @@ class CreateOrderInESimActivity extends KanvasActivity
             $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
             $message->setPublic();
 
-            $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
+            $order->metadata = array_merge($order->metadata ?? [], ['message_id' => $message->getId()]);
             $order->updateOrFail();
             $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
         }
 
         return [
-            'status' => 'success',
-            'message' => 'Order updated with eSim metadata',
+            'status'     => 'success',
+            'message'    => 'Order updated with eSim metadata',
             'message_id' => $message->getId(),
-            'response' => $response,
+            'response'   => $response,
         ];
     }
 
@@ -231,21 +231,21 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $paymentIntent->toArray(),
             );
 
-            if (! empty($woocommerceResponse['order']['number'])) {
+            if (!empty($woocommerceResponse['order']['number'])) {
                 //$order->order_number = $woocommerceResponse['order']['number'];
             }
             $order->addPrivateMetadata('stripe_payment_intent', $paymentIntent->toArray());
 
             return [
-                'order' => $woocommerceResponse,
+                'order'  => $woocommerceResponse,
                 'update' => $updateResponse ?? null,
             ];
         } catch (Throwable $e) {
             report($e);
 
             return [
-                'status' => 'error',
-                'message' => 'Error sending order to commerce',
+                'status'   => 'error',
+                'message'  => 'Error sending order to commerce',
                 'response' => $e->getMessage(),
             ];
         }

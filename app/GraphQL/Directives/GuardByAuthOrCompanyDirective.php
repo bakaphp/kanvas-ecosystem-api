@@ -37,7 +37,7 @@ GRAPHQL;
             ) use ($previousResolver) {
                 $request = $context->request();
 
-                if (! app()->bound(CompaniesBranches::class) && ! $request->headers->has('Authorization')) {
+                if (!app()->bound(CompaniesBranches::class) && !$request->headers->has('Authorization')) {
                     $this->unauthenticated(['No Company Branched Specified']);
                 } elseif ($request->headers->has('Authorization')) {
                     //position 0 of app service provider guards is API

@@ -14,7 +14,7 @@ class AppSettingsInput extends Data
     /**
      * App settings input.
      *
-     * @param string $name
+     * @param string      $name
      * @param string|null $value
      */
     public function __construct(

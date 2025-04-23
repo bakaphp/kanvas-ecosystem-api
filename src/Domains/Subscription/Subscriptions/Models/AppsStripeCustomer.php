@@ -16,12 +16,12 @@ use Laravel\Cashier\Cashier;
 /**
  * Class AppsStripeCustomer.
  *
- * @property int $id
- * @property int $apps_id
- * @property int $companies_id
+ * @property int    $id
+ * @property int    $apps_id
+ * @property int    $companies_id
  * @property string $stripe_id
  * @property string $trial_ends_at
- * @property bool $is_deleted
+ * @property bool   $is_deleted
  * @property string $created_at
  * @property string $updated_at
  */
@@ -45,9 +45,9 @@ class AppsStripeCustomer extends BaseModel
     public function createOrGetStripeCustomer(array $options = [])
     {
         $options = array_merge([
-            'email' => $this->company->email ?? $this->company->user->email,
-            'name' => $this->company->name,
-            'phone' => $this->company->phone ?? null,
+            'email'    => $this->company->email ?? $this->company->user->email,
+            'name'     => $this->company->name,
+            'phone'    => $this->company->phone ?? null,
             'metadata' => [
                 'kanvas_uuid' => $this->company->uuid,
             ],
@@ -67,7 +67,7 @@ class AppsStripeCustomer extends BaseModel
      */
     public static function stripe(array $options = [])
     {
-        $app = ! isset($options['app_id']) ? app(Apps::class) : Apps::getById($options['app_id']);
+        $app = !isset($options['app_id']) ? app(Apps::class) : Apps::getById($options['app_id']);
         $options['api_key'] = $app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value);
 
         throw_if(empty($options['api_key']), new ConfigurationException('Stripe is not configured for this app'));

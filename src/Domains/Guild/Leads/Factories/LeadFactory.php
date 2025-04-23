@@ -23,16 +23,16 @@ class LeadFactory extends Factory
         $peopleId = $this->states['people_id'] ?? People::factory()->withAppId($appId)->withCompanyId($companyId)->withContacts()->create()->getId();
 
         return [
-            'firstname' => fake()->firstName,
-            'lastname' => fake()->lastName,
-            'title' => fake()->name,
+            'firstname'             => fake()->firstName,
+            'lastname'              => fake()->lastName,
+            'title'                 => fake()->name,
             'companies_branches_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
-            'users_id' => 1,
-            'leads_receivers_id' => 0,
-            'leads_owner_id' => 1,
-            'apps_id' => $appId,
-            'companies_id' => $companyId,
-            'people_id' => $peopleId,
+            'users_id'              => 1,
+            'leads_receivers_id'    => 0,
+            'leads_owner_id'        => 1,
+            'apps_id'               => $appId,
+            'companies_id'          => $companyId,
+            'people_id'             => $peopleId,
         ];
     }
 

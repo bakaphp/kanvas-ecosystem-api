@@ -24,12 +24,12 @@ class WooCommerceCustomerService
     public function getCustomerIdByEmail(string $email): int
     {
         $customers = $this->client->get('customers', [
-            'email' => $email,
+            'email'    => $email,
             'per_page' => 1, // Limit to 1 result for efficiency
         ]);
 
         // If we found a matching customer, return their ID
-        if (! empty($customers) && is_array($customers)) {
+        if (!empty($customers) && is_array($customers)) {
             return (int) $customers[0]->id;
         }
 
@@ -43,11 +43,11 @@ class WooCommerceCustomerService
         }
 
         $customerData = [
-            'email' => $email,
+            'email'      => $email,
             'first_name' => $people->firstname,
-            'last_name' => $people->lastname,
-            'username' => $email, // Using email as username
-            'password' => Str::random(12), // Generate a random password
+            'last_name'  => $people->lastname,
+            'username'   => $email, // Using email as username
+            'password'   => Str::random(12), // Generate a random password
         ];
 
         /*  // Optionally add address information if available

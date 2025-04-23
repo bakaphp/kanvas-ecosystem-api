@@ -24,6 +24,7 @@ class ConfigManagement
     public function deleteAppSetting(mixed $root, array $request): bool
     {
         $app = app(Apps::class);
+
         return $app->del($request['key']);
     }
 

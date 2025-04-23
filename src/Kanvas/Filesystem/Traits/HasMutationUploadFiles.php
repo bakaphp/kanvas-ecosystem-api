@@ -42,8 +42,8 @@ trait HasMutationUploadFiles
 
         foreach ($files as $file) {
             // Validate file extension
-            if (! in_array($file->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
-                throw new Exception('Invalid file format ' . $file->extension());
+            if (!in_array($file->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
+                throw new Exception('Invalid file format '.$file->extension());
             }
 
             // Upload file

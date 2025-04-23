@@ -44,9 +44,8 @@ class SocialSetupCommand extends Command
         ))->run();
 
         $this->newLine();
-        $this->info('Social setup for Company ' . $company->name . ' and App ' . $app->name . ' completed successfully');
+        $this->info('Social setup for Company '.$company->name.' and App '.$app->name.' completed successfully');
         $this->newLine();
 
-        return;
     }
 }

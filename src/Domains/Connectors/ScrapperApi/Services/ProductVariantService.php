@@ -16,12 +16,12 @@ class ProductVariantService extends ProductService
         $limit = (int) $this->warehouse->app->get('limit-product-scrapper');
 
         foreach ($codes as $key => $code) {
-            if (! $code) {
+            if (!$code) {
                 continue;
             }
 
             $variant = (new ScrapperRepository($this->channels->app))->getByAsin($code);
-            if (! key_exists('pricing', $variant)) {
+            if (!key_exists('pricing', $variant)) {
                 continue;
             }
             $variant['price'] = str_replace('$', '', $variant['pricing']);

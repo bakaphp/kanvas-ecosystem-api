@@ -14,7 +14,7 @@ class OrderReceiverJob extends ProcessWebhookJob
     {
         $payload = json_encode($this->webhookRequest->payload);
         $payload = json_decode($payload);
-        if (! $payload->status === 'completed') {
+        if (!$payload->status === 'completed') {
             return [
                 'message' => 'Order not completed',
             ];
@@ -32,7 +32,7 @@ class OrderReceiverJob extends ProcessWebhookJob
 
         return [
             'message' => 'Order created successfully',
-            'order' => $createOrder->execute()->getId(),
+            'order'   => $createOrder->execute()->getId(),
         ];
     }
 }

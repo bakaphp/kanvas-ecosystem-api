@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -22,7 +23,6 @@ use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 use Kanvas\Souk\Services\B2BConfigurationService;
-use Kanvas\Exceptions\ValidationException;
 
 class OrderManagementMutation
 {
@@ -42,7 +42,7 @@ class OrderManagementMutation
 
         if ($cart->isEmpty()) {
             return [
-                'error_code' => 'Cart is empty',
+                'error_code'    => 'Cart is empty',
                 'error_message' => 'Cart is empty',
             ];
         }
@@ -75,9 +75,9 @@ class OrderManagementMutation
 
         if ($cart->isEmpty() && empty($request['input']['items'])) {
             return [
-                'order' => null,
+                'order'   => null,
                 'message' => [
-                    'error_code' => 'Cart is empty',
+                    'error_code'    => 'Cart is empty',
                     'error_message' => 'Cart is empty',
                 ],
             ];
@@ -97,7 +97,7 @@ class OrderManagementMutation
         );
 
         return [
-            'order' => $createOrder->execute(),
+            'order'   => $createOrder->execute(),
             'message' => 'Order created successfully',
         ];
     }
@@ -112,7 +112,7 @@ class OrderManagementMutation
 
         $order = Order::where([
             'apps_id' => $app->getId(),
-            'id' => $orderId
+            'id'      => $orderId,
         ])->first();
 
         if ($order->fulfillment_status === 'fulfilled') {
@@ -126,7 +126,7 @@ class OrderManagementMutation
         );
 
         return [
-            'order' => $updateOrder->execute(),
+            'order'   => $updateOrder->execute(),
             'message' => 'Order updated successfully',
         ];
     }
@@ -149,7 +149,7 @@ class OrderManagementMutation
 
         if (empty($response)) {
             return [
-                'error_code' => 'No response returned',
+                'error_code'    => 'No response returned',
                 'error_message' => 'No response returned',
             ];
         }
@@ -180,9 +180,9 @@ class OrderManagementMutation
                             $interaction,
                             (string) $item->id,
                             Variants::class,
-                            ! $isSubscription
+                            !$isSubscription
                                 ? 'User bought a variant of a product'
-                                : 'User subscribed to a product ' . $subscriptionId
+                                : 'User subscribed to a product '.$subscriptionId
                         )
                     ))->execute();
                 }
@@ -190,26 +190,26 @@ class OrderManagementMutation
 
                 if (empty($tresponse)) {
                     return [
-                        'description' => 'Subscription created successfully',
-                        'message_code' => 'I00001',
-                        'response_code' => 'I00001',
+                        'description'    => 'Subscription created successfully',
+                        'message_code'   => 'I00001',
+                        'response_code'  => 'I00001',
                         'transaction_id' => 'I00001',
-                        'auth_code' => 'I00001',
+                        'auth_code'      => 'I00001',
                     ];
                 }
 
                 return [
                     'transaction_id' => $tresponse->getTransId(),
-                    'response_code' => $tresponse->getResponseCode(),
-                    'message_code' => $tresponse->getMessages()[0]->getCode(),
-                    'auth_code' => $tresponse->getAuthCode(),
-                    'description' => $tresponse->getMessages()[0]->getDescription(),
+                    'response_code'  => $tresponse->getResponseCode(),
+                    'message_code'   => $tresponse->getMessages()[0]->getCode(),
+                    'auth_code'      => $tresponse->getAuthCode(),
+                    'description'    => $tresponse->getMessages()[0]->getDescription(),
                 ];
             } else {
                 $cart->clear();
 
                 return [
-                    'error_code' => $tresponse->getErrors()[0]->getErrorCode(),
+                    'error_code'    => $tresponse->getErrors()[0]->getErrorCode(),
                     'error_message' => $tresponse->getErrors()[0]->getErrorText(),
                 ];
             }
@@ -217,7 +217,7 @@ class OrderManagementMutation
             $cart->clear();
 
             return [
-                'error_code' => $response->getMessages()->getMessage()[0]->getCode(),
+                'error_code'    => $response->getMessages()->getMessage()[0]->getCode(),
                 'error_message' => $response->getMessages()->getMessage()[0]->getText(),
             ];
         }

@@ -23,9 +23,9 @@ class UpdateOrderStripePaymentActivity extends KanvasActivity
 
         if (empty($orderPaymentIntent)) {
             return [
-                'status' => 'error',
-                'message' => 'No payment intent found in the order metadata',
-                'order' => $order->getId(),
+                'status'   => 'error',
+                'message'  => 'No payment intent found in the order metadata',
+                'order'    => $order->getId(),
                 'response' => null,
             ];
         }
@@ -38,9 +38,9 @@ class UpdateOrderStripePaymentActivity extends KanvasActivity
         );
 
         return [
-            'status' => 'success',
-            'message' => 'Order updated successfully',
-            'order' => $order->getId(),
+            'status'   => 'success',
+            'message'  => 'Order updated successfully',
+            'order'    => $order->getId(),
             'response' => $response,
         ];
     }

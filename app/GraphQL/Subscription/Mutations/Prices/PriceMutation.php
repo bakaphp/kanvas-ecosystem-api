@@ -42,7 +42,7 @@ class PriceMutation
     {
         $this->validateStripe();
         $data = $req['input'];
-        $stripePlan = PlanRepository::getByIdWithApp((int)$data['apps_plans_id'], $this->app);
+        $stripePlan = PlanRepository::getByIdWithApp((int) $data['apps_plans_id'], $this->app);
         $data['stripe_id'] = $stripePlan->stripe_id;
 
         $dto = PriceDto::viaRequest($data, $this->user, $this->app);
@@ -58,7 +58,7 @@ class PriceMutation
     {
         $this->validateStripe();
         $data = $req['input'];
-        $price = PriceRepository::getByIdWithApp((int)$req['id'], $this->app);
+        $price = PriceRepository::getByIdWithApp((int) $req['id'], $this->app);
         $data['stripe_id'] = $price->stripe_id;
 
         $dto = PriceDto::viaRequest($data, $this->user, $this->app);

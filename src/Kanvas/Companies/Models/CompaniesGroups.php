@@ -13,12 +13,12 @@ use Kanvas\Users\Models\Users;
 /**
  * CompaniesGroups Model.
  *
- * @property int $apps_id
- * @property int $users_id
- * @property int $stripe_id
+ * @property int    $apps_id
+ * @property int    $users_id
+ * @property int    $stripe_id
  * @property string $uuid
  * @property string $name
- * @property int $is_default
+ * @property int    $is_default
  * @property string $country_code
  */
 class CompaniesGroups extends BaseModel

@@ -37,7 +37,7 @@ class KanvasEmailTemplateSync extends Command
         $user = Users::getById($this->argument('user_id'));
         $overwrite = filter_var($this->option('overwrite'), FILTER_VALIDATE_BOOLEAN); // Convert to boolean
 
-        if (! $app) {
+        if (!$app) {
             $this->error("App with ID $appId not found.");
 
             return 1;
@@ -48,7 +48,7 @@ class KanvasEmailTemplateSync extends Command
 
         $defaultTemplate = Templates::query()->notDeleted()->fromApp($app)->where('parent_template_id', 0)->first();
 
-        if (! $defaultTemplate) {
+        if (!$defaultTemplate) {
             $this->error('Default template not found.');
             $this->syncTemplates($app, $user, $overwrite);
 

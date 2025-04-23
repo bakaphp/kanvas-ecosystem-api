@@ -22,7 +22,7 @@ class LeadObserver
         $lead->phone = Str::sanitizePhoneNumber($lead->phone);
 
         // auto create new email
-        if (empty($lead->people_id) && ! empty($lead->email)) {
+        if (empty($lead->people_id) && !empty($lead->email)) {
             $lead->people_id = PeoplesRepository::findByEmailOrCreate(
                 $lead->email,
                 $lead->user,
@@ -32,12 +32,12 @@ class LeadObserver
         }
 
         // set the default status if not specified
-        if (! $lead->leads_status_id) {
+        if (!$lead->leads_status_id) {
             $lead->leads_status_id = LeadStatus::getDefault($lead->app)->getId();
         }
 
         // if no pipeline assign one
-        if (! $lead->pipeline_id) {
+        if (!$lead->pipeline_id) {
             $pipeline = Pipeline::where('companies_id', $lead->companies_id)
                 ->where('is_deleted', 0)
                 ->first();
@@ -48,13 +48,13 @@ class LeadObserver
             }
         }
 
-        if (! $lead->leads_receivers_id) {
+        if (!$lead->leads_receivers_id) {
             $receiver = LeadReceiver::where('companies_id', $lead->companies_id)
                 ->where('is_default', 1)
                 ->where('is_deleted', 0)
                 ->first();
 
-            if (! $receiver) {
+            if (!$receiver) {
                 $receiver = LeadReceiver::where('companies_id', $lead->companies_id)
                     ->where('is_deleted', 0)
                     ->first();
@@ -74,7 +74,7 @@ class LeadObserver
                         $lead->app,
                         $lead->company,
                         $lead->user,
-                        (string)$lead->id,
+                        (string) $lead->id,
                         Lead::class,
                         'Default Channel',
                         $lead->description ?? '',

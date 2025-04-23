@@ -10,11 +10,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Models\Integrations;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
-
-use function Laravel\Prompts\info;
-
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
+
+use function Laravel\Prompts\info;
 
 class CreateIntegrationCommand extends Command
 {
@@ -61,13 +60,13 @@ class CreateIntegrationCommand extends Command
         $handler = $this->option('handler') ?? null;
 
         $integration = Integrations::firstOrCreate([
-            'name' => $name,
+            'name'    => $name,
             'apps_id' => $appId,
         ], [
-            'config' => $config,
+            'config'  => $config,
             'handler' => $handler,
         ]);
 
-        info('Integration created successfully - ' . $integration->getId() . ' - ' . $integration->name);
+        info('Integration created successfully - '.$integration->getId().' - '.$integration->name);
     }
 }

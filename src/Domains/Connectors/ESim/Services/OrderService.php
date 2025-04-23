@@ -28,21 +28,21 @@ class OrderService
         $variantProvider = $item->variant->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value);
 
         // Fall back to product provider if variant provider is empty
-        $provider = ! empty($variantProvider)
+        $provider = !empty($variantProvider)
             ? $variantProvider
             : $item->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
 
         return match (strtolower($provider->value)) {
-            strtolower(ProviderEnum::E_SIM_GO->value) => $this->eSimGoOrder($item),
+            strtolower(ProviderEnum::E_SIM_GO->value)        => $this->eSimGoOrder($item),
             strtolower(ProviderEnum::EASY_ACTIVATION->value) => $this->easyActivationOrder($item),
-            strtolower(ProviderEnum::AIRALO->value) => $this->airaloOrder($item),
-            default => [],
+            strtolower(ProviderEnum::AIRALO->value)          => $this->airaloOrder($item),
+            default                                          => [],
         };
     }
 
     protected function eSimGoOrder(OrderItem $item): array
     {
-        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && !empty($this->order->metadata['parent_order_id']);
 
         if ($isRefuelOrder) {
             return $this->processEsimGoRefuelOrder($item);
@@ -56,16 +56,16 @@ class OrderService
         $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
         $iccid = $this->order->metadata['data']['iccid'] ?? null;
 
-        if (! $iccid) {
+        if (!$iccid) {
             return [
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => 'ICCID is required',
             ];
         }
 
         return $this->client->post('/api/v1/esimgo/recharge', [
             'iccid' => $iccid,
-            'name' => $esimBundle->value,
+            'name'  => $esimBundle->value,
         ]);
     }
 
@@ -78,17 +78,17 @@ class OrderService
         return $this->client->post('/api/v2/esimgo/create/order', [
             'bundles' => [
                 [
-                    'type' => 'bundle',
+                    'type'     => 'bundle',
                     'quantity' => $item->quantity,
-                    'item' => $esimBundle->value,
+                    'item'     => $esimBundle->value,
                 ],
             ],
-            'total' => $this->order->total_net_amount,
-            'total_days' => $totalDays->value,
+            'total'       => $this->order->total_net_amount,
+            'total_days'  => $totalDays->value,
             'wc_order_id' => 0,
-            'device_id' => $channelId,
+            'device_id'   => $channelId,
             'from_mobile' => 1,
-            'client' => $this->getClientDetails(),
+            'client'      => $this->getClientDetails(),
         ]);
     }
 
@@ -108,23 +108,23 @@ class OrderService
         return $this->client->post('/api/v2/easyactivations/create/order', [
             'products' => [
                 [
-                    'sku' => $item->variant->get('parent_sku'),
+                    'sku'          => $item->variant->get('parent_sku'),
                     'service_days' => $totalDays,
-                    'product_qty' => $item->quantity,
-                    'start_date' => $startDate,
-                    'imei_number' => $imeiNumber,
+                    'product_qty'  => $item->quantity,
+                    'start_date'   => $startDate,
+                    'imei_number'  => $imeiNumber,
                 ],
             ],
-            'device_id' => $channelId,
-            'agent_name' => $this->order->user->firstname . ' ' . $this->order->user->lastname,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-            'total' => $this->order->total_net_amount,
-            'total_days' => $totalDays,
-            'language' => 'en',
+            'device_id'   => $channelId,
+            'agent_name'  => $this->order->user->firstname.' '.$this->order->user->lastname,
+            'start_date'  => $startDate,
+            'end_date'    => $endDate,
+            'total'       => $this->order->total_net_amount,
+            'total_days'  => $totalDays,
+            'language'    => 'en',
             'from_mobile' => 1,
-            'user' => $this->getUserDetails(),
-            'client' => $this->getClientDetails(),
+            'user'        => $this->getUserDetails(),
+            'client'      => $this->getClientDetails(),
         ]);
     }
 
@@ -139,35 +139,35 @@ class OrderService
         $imeiNumber = $metaData['deviceImei'] ?? null;
 
         // Get the agent name
-        $agentName = $this->order->user->firstname . ' ' . $this->order->user->lastname;
+        $agentName = $this->order->user->firstname.' '.$this->order->user->lastname;
 
         // Create client details with IMEI number
         $clientDetails = $this->getClientDetails();
         $clientDetails['imei_number'] = $imeiNumber;
 
         return $this->client->post('/api/v2/airalo/create/order', [
-            'quantity' => $item->quantity,
-            'plan' => $esimPlan->value,
-            'type' => 'sim',
-            'description' => $item->quantity . ' ' . $esimPlan->value,
-            'agent_name' => $agentName,
-            'device_id' => $channelId,
-            'total' => (string) $this->order->total_net_amount,
-            'total_days' => (string) $totalDays,
-            'client' => $clientDetails,
+            'quantity'    => $item->quantity,
+            'plan'        => $esimPlan->value,
+            'type'        => 'sim',
+            'description' => $item->quantity.' '.$esimPlan->value,
+            'agent_name'  => $agentName,
+            'device_id'   => $channelId,
+            'total'       => (string) $this->order->total_net_amount,
+            'total_days'  => (string) $totalDays,
+            'client'      => $clientDetails,
             'from_mobile' => 1,
-            'language' => 'en',
+            'language'    => 'en',
         ]);
     }
 
     protected function getClientDetails(): array
     {
         return [
-            'first_name' => $this->order->people?->firstname,
-            'last_name' => $this->order->people?->lastname,
-            'phone' => $this->order->user_phone,
-            'email' => $this->order->user_email,
-            'payment' => null,
+            'first_name'  => $this->order->people?->firstname,
+            'last_name'   => $this->order->people?->lastname,
+            'phone'       => $this->order->user_phone,
+            'email'       => $this->order->user_email,
+            'payment'     => null,
             'imei_number' => null,
         ];
     }
@@ -180,10 +180,10 @@ class OrderService
                         $firstName;
 
         return [
-            'first_name' => $firstName,
-            'last_name' => $lastName,
+            'first_name'     => $firstName,
+            'last_name'      => $lastName,
             'contact_number' => $this->order->user->cell_phone_number ?? $this->order->user->phone_numbers ?? $this->order->user_phone,
-            'email' => $this->order->user->email,
+            'email'          => $this->order->user->email,
         ];
     }
 }

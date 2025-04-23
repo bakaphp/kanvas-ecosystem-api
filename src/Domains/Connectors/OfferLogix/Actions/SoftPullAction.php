@@ -32,7 +32,7 @@ class SoftPullAction
         $offerLogixClient = new Client($this->lead->app, $this->lead->company);
         $sourceCodeCompany = $this->lead->company->get(ConfigurationEnum::COMPANY_SOURCE_ID->value);
 
-        if (! $sourceCodeCompany) {
+        if (!$sourceCodeCompany) {
             throw new ValidationException('OfferLogix Company source code not found');
         }
 
@@ -68,16 +68,16 @@ class SoftPullAction
         }
 
         $requestData = [
-            'Source' => $sourceId,
-            'sxml' => $sxml,
-            'responseType' => 'json',
+            'Source'            => $sourceId,
+            'sxml'              => $sxml,
+            'responseType'      => 'json',
             'ConsumerFirstName' => $this->people->firstname,
-            'ConsumerLastName' => $this->people->lastname,
+            'ConsumerLastName'  => $this->people->lastname,
             //'ConsumerStreetName' => $address->address ?? null,
-            'ConsumerDOB' => $people->dob ?? null,
-            'ConsumerCity' => $softPull->city, //$address->city ?? null,
+            'ConsumerDOB'   => $people->dob ?? null,
+            'ConsumerCity'  => $softPull->city, //$address->city ?? null,
             'ConsumerState' => $state ? $state->code : self::DEFAULT_STATE, // $address->state ?a? null,
-            'ConsumerSSN' => $softPull->last_4_digits_of_ssn,
+            'ConsumerSSN'   => $softPull->last_4_digits_of_ssn,
             //'ConsumerZip' => $address->zip ?? null,
             'ConsumerCellPhone' => $phone,
         ];
@@ -87,9 +87,9 @@ class SoftPullAction
             $requestData
         );
 
-        $this->people->set(CustomFieldEnum::SOFT_PULLED->value . '_REQUEST', $requestData);
+        $this->people->set(CustomFieldEnum::SOFT_PULLED->value.'_REQUEST', $requestData);
 
-        if (! isset($response['ContactCreditURL']) || empty($response['ContactCreditURL'])) {
+        if (!isset($response['ContactCreditURL']) || empty($response['ContactCreditURL'])) {
             return null;
         }
 

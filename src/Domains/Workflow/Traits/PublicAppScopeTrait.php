@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\Apps\Models\Apps;
 
 trait PublicAppScopeTrait
 {

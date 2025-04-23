@@ -34,31 +34,31 @@ use Override;
 /**
  * Class Leads.
  *
- * @property int $id
- * @property string $uuid
- * @property int $users_id
- * @property int $companies_id
- * @property int|null $apps_id
- * @property int $companies_branches_id
- * @property int $leads_receivers_id
- * @property int $leads_owner_id
- * @property int $leads_status_id
- * @property int $leads_sources_id
- * @property int|null $pipeline_id
- * @property int|null $pipeline_stage_id
- * @property int $people_id
- * @property int $organization_id
- * @property int $leads_types_id
- * @property int $status
+ * @property int         $id
+ * @property string      $uuid
+ * @property int         $users_id
+ * @property int         $companies_id
+ * @property int|null    $apps_id
+ * @property int         $companies_branches_id
+ * @property int         $leads_receivers_id
+ * @property int         $leads_owner_id
+ * @property int         $leads_status_id
+ * @property int         $leads_sources_id
+ * @property int|null    $pipeline_id
+ * @property int|null    $pipeline_stage_id
+ * @property int         $people_id
+ * @property int         $organization_id
+ * @property int         $leads_types_id
+ * @property int         $status
  * @property string|null $reason_lost
- * @property string $title
- * @property string $firstname
- * @property string $lastname
- * @property string $email
- * @property string $phone
+ * @property string      $title
+ * @property string      $firstname
+ * @property string      $lastname
+ * @property string      $email
+ * @property string      $phone
  * @property string|null $description
- * @property string $is_duplicate
- * @property string $third_party_sync_status @deprecated version 0.3
+ * @property string      $is_duplicate
+ * @property string      $third_party_sync_status @deprecated version 0.3
  */
 class Lead extends BaseModel
 {
@@ -116,7 +116,7 @@ class Lead extends BaseModel
             $company = $user->getCurrentCompany();
             $agent = Agent::fromCompany($company)->where('users_id', $user->getId())->first();
 
-            if (! $agent) {
+            if (!$agent) {
                 return $query->where('users_id', $user->getId());
             }
 
@@ -137,7 +137,7 @@ class Lead extends BaseModel
             $company = $user->getCurrentCompany();
             $agent = Agent::fromCompany($company)->where('users_id', $user->getId())->first();
 
-            if (! $agent) {
+            if (!$agent) {
                 return $query->where('users_id', $user->getId());
             }
 
@@ -263,7 +263,7 @@ class Lead extends BaseModel
     public function typesenseCollectionSchema(): array
     {
         return [
-            'name' => $this->searchableAs(),
+            'name'   => $this->searchableAs(),
             'fields' => [
                 [
                     'name' => 'objectID',
@@ -282,70 +282,70 @@ class Lead extends BaseModel
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'companies_id',
-                    'type' => 'int64',
+                    'name'  => 'companies_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'apps_id',
-                    'type' => 'int64',
+                    'name'     => 'apps_id',
+                    'type'     => 'int64',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'companies_branches_id',
-                    'type' => 'int64',
+                    'name'  => 'companies_branches_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'leads_receivers_id',
-                    'type' => 'int64',
+                    'name'  => 'leads_receivers_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'leads_owner_id',
-                    'type' => 'int64',
+                    'name'  => 'leads_owner_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'leads_status_id',
-                    'type' => 'int64',
+                    'name'  => 'leads_status_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'leads_sources_id',
-                    'type' => 'int64',
+                    'name'  => 'leads_sources_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'pipeline_id',
-                    'type' => 'int64',
+                    'name'     => 'pipeline_id',
+                    'type'     => 'int64',
                     'optional' => true,
-                    'facet' => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'pipeline_stage_id',
-                    'type' => 'int64',
+                    'name'     => 'pipeline_stage_id',
+                    'type'     => 'int64',
                     'optional' => true,
+                    'facet'    => true,
+                ],
+                [
+                    'name'  => 'people_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'people_id',
-                    'type' => 'int64',
+                    'name'  => 'organization_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'organization_id',
-                    'type' => 'int64',
+                    'name'  => 'leads_types_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'leads_types_id',
-                    'type' => 'int64',
-                    'facet' => true,
-                ],
-                [
-                    'name' => 'status',
-                    'type' => 'int64',
+                    'name'  => 'status',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
@@ -372,65 +372,65 @@ class Lead extends BaseModel
                     'type' => 'string',
                 ],
                 [
-                    'name' => 'description',
-                    'type' => 'string',
+                    'name'     => 'description',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'reason_lost',
-                    'type' => 'string',
+                    'name'     => 'reason_lost',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'is_duplicate',
-                    'type' => 'bool',
+                    'name'  => 'is_duplicate',
+                    'type'  => 'bool',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'owner',
-                    'type' => 'object',
+                    'name'     => 'owner',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'people',
-                    'type' => 'object',
+                    'name'     => 'people',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'organization',
-                    'type' => 'object',
+                    'name'     => 'organization',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'source',
-                    'type' => 'object',
+                    'name'     => 'source',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'status_object',
-                    'type' => 'object',
+                    'name'     => 'status_object',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'type',
-                    'type' => 'object',
+                    'name'     => 'type',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'pipeline',
-                    'type' => 'object',
+                    'name'     => 'pipeline',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'stage',
-                    'type' => 'object',
+                    'name'     => 'stage',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'tags',
-                    'type' => 'string[]',
+                    'name'     => 'tags',
+                    'type'     => 'string[]',
                     'optional' => true,
-                    'facet' => true,
+                    'facet'    => true,
                 ],
                 [
                     'name' => 'created_at',
@@ -442,7 +442,7 @@ class Lead extends BaseModel
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,
+            'enable_nested_fields'  => true,
         ];
     }
 
@@ -454,6 +454,6 @@ class Lead extends BaseModel
         $app = $this->app ?? app(Apps::class);
         $customIndex = $app->get('app_custom_lead_index') ?? null;
 
-        return config('scout.prefix') . ($customIndex ?? 'leads');
+        return config('scout.prefix').($customIndex ?? 'leads');
     }
 }

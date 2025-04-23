@@ -14,22 +14,22 @@ class CompanyTest extends TestCase
     public function companyInputData(): array
     {
         return [
-            'name' => fake()->company(),
-            'website' => fake()->lastName(),
-            'address' => fake()->address(),
-            'phone' => fake()->phoneNumber(),
-            'email' => fake()->email(),
-            'zipcode' => 90120,
-            'language' => 'en',
-            'timezone' => 'UTC',
+            'name'         => fake()->company(),
+            'website'      => fake()->lastName(),
+            'address'      => fake()->address(),
+            'phone'        => fake()->phoneNumber(),
+            'email'        => fake()->email(),
+            'zipcode'      => 90120,
+            'language'     => 'en',
+            'timezone'     => 'UTC',
             'countries_id' => 1,
-            'states_id' => 1,
-            'cities_id' => 1,
-            'address_2' => fake()->address(),
-            'city' => fake()->city(),
-            'state' => fake()->state(),
-            'country' => fake()->country(),
-            'zip' => fake()->postcode(),
+            'states_id'    => 1,
+            'cities_id'    => 1,
+            'address_2'    => fake()->address(),
+            'city'         => fake()->city(),
+            'state'        => fake()->state(),
+            'country'      => fake()->country(),
+            'zip'          => fake()->postcode(),
         ];
     }
 
@@ -94,7 +94,7 @@ class CompanyTest extends TestCase
                 }
             }',
             [
-                'id' => $company->getId(),
+                'id'    => $company->getId(),
                 'input' => $companyData,
             ]
         )
@@ -130,7 +130,7 @@ class CompanyTest extends TestCase
                 }
             }',
             [
-                'id' => $company->getId(),
+                'id'    => $company->getId(),
                 'input' => $companyData,
             ]
         )
@@ -206,7 +206,7 @@ class CompanyTest extends TestCase
         $response = $this->graphQL( /** @lang GraphQL */
             '
             {
-                adminCompanySettings(entity_uuid: "' . $company->uuid . '") {  
+                adminCompanySettings(entity_uuid: "'.$company->uuid.'") {  
                     key,
                     value,
                     public
@@ -236,7 +236,7 @@ class CompanyTest extends TestCase
         $response = $this->graphQL( /** @lang GraphQL */
             '
             {
-                adminCompanySetting(entity_uuid: "' . $company->uuid . '", key: "' . $key . '") 
+                adminCompanySetting(entity_uuid: "'.$company->uuid.'", key: "'.$key.'") 
             }
             ',
             [],
@@ -306,7 +306,7 @@ class CompanyTest extends TestCase
                 }
             ',
             'variables' => [
-                'id' => $company->getId(),
+                'id'   => $company->getId(),
                 'file' => null,
             ],
         ];

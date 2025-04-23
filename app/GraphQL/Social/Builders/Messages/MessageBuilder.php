@@ -48,11 +48,11 @@ class MessageBuilder
 
         $query = Message::query();
 
-        if (! empty($args['customFilters'])) {
+        if (!empty($args['customFilters'])) {
             $query = $this->applyCustomFilters($query, $args, $user);
         }
 
-        if (! empty($args['requiredTags'])) {
+        if (!empty($args['requiredTags'])) {
             $tagSlugs = $args['requiredTags'];
 
             foreach ($tagSlugs as $slug) {
@@ -68,7 +68,7 @@ class MessageBuilder
         }
 
         //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             //$messages = Message::fromCompany($user->getCurrentCompany());
             return $query->fromCompany($user->getCurrentCompany());
         }
@@ -80,14 +80,15 @@ class MessageBuilder
      * Apply options to the query.
      *  customFilters: [
      *      "SHOW_OWN_PARENT_MESSAGES_ONLY"
-     *  ]
+     *  ].
+     *
      * @throws InvalidArgumentException
      */
     protected function applyCustomFilters(Builder $query, array $args, UserInterface $user): Builder
     {
         foreach ($args['customFilters'] as $option) {
             $query = match ($option) {
-                'SHOW_OWN_PARENT_MESSAGES_ONLY' => $query->where(function ($q) use ($user) {
+                'SHOW_OWN_PARENT_MESSAGES_ONLY' => $query->where(function ($q) {
                     $q->whereNull('parent_id')
                         ->orWhereRaw('NOT EXISTS (
                         SELECT 1 FROM messages AS parent 
@@ -130,7 +131,7 @@ class MessageBuilder
          */
         $scenario = ConfigurationEnum::FOR_YOU_SCENARIO;
         if ($app->get('trending-if-no-interaction')) {
-            $hasDoneAnyInteraction = ! empty($user->get(UserConfigEnum::USER_INTERACTIONS->value));
+            $hasDoneAnyInteraction = !empty($user->get(UserConfigEnum::USER_INTERACTIONS->value));
             $scenario = $hasDoneAnyInteraction ? ConfigurationEnum::FOR_YOU_SCENARIO : ConfigurationEnum::TRENDING_SCENARIO;
         }
 
@@ -185,7 +186,7 @@ class MessageBuilder
                     $query->where('channels.slug', $args['channel_slug']);
                 }
             })
-            ->when(! auth()->user()->isAdmin(), function ($query) {
+            ->when(!auth()->user()->isAdmin(), function ($query) {
                 $query->where('companies_id', auth()->user()->currentCompanyId());
             });
     }
@@ -219,14 +220,14 @@ class MessageBuilder
 
         $app = app(Apps::class);
         $suggestionIndex = AppEnum::MESSAGE_SEARCH_SUGGESTION_INDEX->value;
-        if (! $app->get($suggestionIndex)) {
+        if (!$app->get($suggestionIndex)) {
             return ['error' => 'No index for message suggestion configure in your app'];
         }
 
         $index = $client->initIndex($app->get($suggestionIndex));
 
         $results = $index->search($args['search'], [
-            'hitsPerPage' => 15,
+            'hitsPerPage'          => 15,
             'attributesToRetrieve' => ['name', 'description'],
         ]);
 
@@ -258,7 +259,7 @@ class MessageBuilder
     {
         $messagePath = Message::where('id', $request['message_id'])->value('path')->getValue();
 
-        if (! $messagePath) {
+        if (!$messagePath) {
             throw new Exception('Message does not a have history');
         }
 

@@ -56,7 +56,7 @@ class Contact
         $params = http_build_query($params);
 
         $response = $client->get(
-            '/gateway/v1/contact?dealerId=' . $dealer->id . '&userId=' . $user->id . '&searchText=' . $search . '&' . $params,
+            '/gateway/v1/contact?dealerId='.$dealer->id.'&userId='.$user->id.'&searchText='.$search.'&'.$params,
         );
 
         return $response;
@@ -71,7 +71,7 @@ class Contact
         $data['DealerId'] = $dealer->id;
         $data['UserId'] = $user->id;
 
-        $response = $client->get('/gateway/v1/contact/' . $contactId . '?dealerId=' . $dealer->id . '&userId=' . $user->id);
+        $response = $client->get('/gateway/v1/contact/'.$contactId.'?dealerId='.$dealer->id.'&userId='.$user->id);
 
         return new Contact($response[0]);
     }
@@ -98,7 +98,7 @@ class Contact
             unset($data['ContactInformation']['Addresses']);
         }
 
-        if (! isset($data['ContactInformation']['DealerId'])) {
+        if (!isset($data['ContactInformation']['DealerId'])) {
             $data['ContactInformation']['DealerId'] = $data['DealerId'];
         }
 
@@ -122,7 +122,7 @@ class Contact
         $cleanedInformation = $this->information;
 
         //clean information of emails
-        if (! empty($this->emails)) {
+        if (!empty($this->emails)) {
             $cleanedEmails = [];
             foreach ($this->emails as $key => $value) {
                 if (isset($this->information['Emails'][$key]['EmailAddress']) &&
@@ -131,7 +131,7 @@ class Contact
                 }
             }
 
-            if (! empty($cleanedEmails)) {
+            if (!empty($cleanedEmails)) {
                 $cleanedInformation['Emails'] = $cleanedEmails;
             } else {
                 // Remove the emails key completely instead of unsetting
@@ -140,7 +140,7 @@ class Contact
         }
 
         //clean information of phone
-        if (! empty($this->phones)) {
+        if (!empty($this->phones)) {
             $cleanedPhones = [];
             foreach ($this->phones as $key => $value) {
                 if (isset($this->information['Phones'][$key]['Number']) &&
@@ -149,7 +149,7 @@ class Contact
                 }
             }
 
-            if (! empty($cleanedPhones)) {
+            if (!empty($cleanedPhones)) {
                 $cleanedInformation['Phones'] = $cleanedPhones;
             } else {
                 // Remove the phones key completely instead of unsetting
@@ -159,32 +159,32 @@ class Contact
 
         $data['ContactInformation'] = $cleanedInformation;
 
-        if (! empty($this->leadInformation)) {
+        if (!empty($this->leadInformation)) {
             $data['LeadInformation'] = $this->leadInformation;
         }
 
-        if (! empty($this->licenseData)) {
+        if (!empty($this->licenseData)) {
             $data['LicenseData'] = $this->licenseData;
         }
 
-        if (! empty($this->personalInformation)) {
+        if (!empty($this->personalInformation)) {
             $data['PersonalInformation'] = $this->personalInformation;
         }
 
-        if (! empty($this->addresses)) {
+        if (!empty($this->addresses)) {
             $cleanedAddresses = [];
             foreach ($this->addresses as $key => $address) {
-                if (! ($address['State'] !== null && empty(trim($address['State'])))) {
+                if (!($address['State'] !== null && empty(trim($address['State'])))) {
                     $cleanedAddresses[$key] = $address;
                 }
             }
 
-            if (! empty($cleanedAddresses)) {
+            if (!empty($cleanedAddresses)) {
                 $data['ContactInformation']['Addresses'] = $cleanedAddresses;
             }
         }
 
-        if (! empty($this->phones) && isset($data['ContactInformation']['Phones'])) {
+        if (!empty($this->phones) && isset($data['ContactInformation']['Phones'])) {
             if (isset($data['ContactInformation']['Phones'][0])) {
                 $data['ContactInformation']['Phones'][0]['Number'] = Str::limit(
                     preg_replace('/[^0-9]/', '', $data['ContactInformation']['Phones'][0]['Number']),
@@ -194,7 +194,7 @@ class Contact
             }
         }
 
-        $response = $client->put('/gateway/v1/contact/' . $this->id, json_encode($data));
+        $response = $client->put('/gateway/v1/contact/'.$this->id, json_encode($data));
 
         $data['ContactId'] = $this->id;
 

@@ -26,10 +26,10 @@ class SoftPullActivity extends KanvasActivity
         $message = EngagementMessage::from($entity->message);
         $lead = $entity->entity();
 
-        if (! $lead instanceof Lead) {
+        if (!$lead instanceof Lead) {
             return [
                 'message' => 'Lead not found',
-                'entity' => $entity,
+                'entity'  => $entity,
             ];
         }
 
@@ -51,7 +51,7 @@ class SoftPullActivity extends KanvasActivity
         if (empty($softPull->last_4_digits_of_ssn)) {
             return [
                 'message' => 'Last 4 digits of SSN is required',
-                'entity' => $entity,
+                'entity'  => $entity,
             ];
         }
 
@@ -62,7 +62,7 @@ class SoftPullActivity extends KanvasActivity
         $people->middlename = $softPull->middle_name;
         $people->saveOrFail();
 
-        if (! empty($softPull->mobile)) {
+        if (!empty($softPull->mobile)) {
             $people->addPhone($softPull->mobile);
         }
 
@@ -73,14 +73,14 @@ class SoftPullActivity extends KanvasActivity
         if (filter_var($results, FILTER_VALIDATE_URL)) {
             $filesystem = new Filesystem();
             $filesystem->fill([
-                'name' => 'soft_pull',
+                'name'         => 'soft_pull',
                 'companies_id' => $entity->companies_id,
-                'apps_id' => $entity->apps_id,
-                'users_id' => $entity->users_id,
-                'path' => pathinfo($results, PATHINFO_DIRNAME),
-                'url' => $results,
-                'file_type' => 'pdf',
-                'size' => '0',
+                'apps_id'      => $entity->apps_id,
+                'users_id'     => $entity->users_id,
+                'path'         => pathinfo($results, PATHINFO_DIRNAME),
+                'url'          => $results,
+                'file_type'    => 'pdf',
+                'size'         => '0',
             ]);
             $filesystem->saveOrFail();
 
@@ -95,7 +95,7 @@ class SoftPullActivity extends KanvasActivity
 
         return [
             'message' => 'Soft Pull executed from message',
-            'entity' => $entity,
+            'entity'  => $entity,
             'results' => $results,
         ];
     }

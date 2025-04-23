@@ -29,7 +29,7 @@ class IndexCsvCommand extends Command
     public function handle()
     {
         $url = $this->argument('url');
-        $fileName = Str::uuid() . '.csv';
+        $fileName = Str::uuid().'.csv';
 
         $response = Http::get($url);
 
@@ -58,11 +58,11 @@ class IndexCsvCommand extends Command
 
             try {
                 $repository = new ScrapperRepository($app);
-                $this->info('Asin: ' . $asin);
+                $this->info('Asin: '.$asin);
                 $product = $repository->getByAsin($asin);
                 $product['asin'] = $asin;
 
-                if (! key_exists('pricing', $product)) {
+                if (!key_exists('pricing', $product)) {
                     continue;
                 }
 
@@ -96,7 +96,7 @@ class IndexCsvCommand extends Command
                 $scrapperProducts[] = $asin;
                 $app->set('scrapperProducts', json_encode($scrapperProducts));
             } catch (\Throwable $e) {
-                $this->error('Error: ' . $e->getMessage());
+                $this->error('Error: '.$e->getMessage());
                 $scrapperProducts = $app->get('failedScrapperProducts');
                 $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
                 $scrapperProducts[] = $asin;

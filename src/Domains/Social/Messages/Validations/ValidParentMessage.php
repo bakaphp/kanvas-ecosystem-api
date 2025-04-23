@@ -26,7 +26,7 @@ class ValidParentMessage implements ValidationRule
         $parentMessage = ModelsMessage::where('id', $value)
             ->where('apps_id', $this->appId);
 
-        if (! $parentMessage->exists()) {
+        if (!$parentMessage->exists()) {
             $fail('The parent message is invalid');
         }
     }

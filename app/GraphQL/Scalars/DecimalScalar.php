@@ -23,6 +23,7 @@ class DecimalScalar extends ScalarType
      * Serialize the value for output.
      *
      * @param mixed $value
+     *
      * @throws InvariantViolation
      */
     public function serialize($value): string
@@ -40,6 +41,7 @@ class DecimalScalar extends ScalarType
      * Parse the value from client input.
      *
      * @param mixed $value
+     *
      * @throws Error
      */
     public function parseValue($value): string
@@ -64,8 +66,8 @@ class DecimalScalar extends ScalarType
             return '0.00';
         }
 
-        if (! ($valueNode instanceof FloatValueNode || $valueNode instanceof IntValueNode)) {
-            throw new Error(self::INVALID_TYPE_ERROR . $valueNode->kind, [$valueNode]);
+        if (!($valueNode instanceof FloatValueNode || $valueNode instanceof IntValueNode)) {
+            throw new Error(self::INVALID_TYPE_ERROR.$valueNode->kind, [$valueNode]);
         }
 
         return $this->formatDecimal($valueNode->value);
@@ -85,16 +87,17 @@ class DecimalScalar extends ScalarType
      * Ensure the value is numeric.
      *
      * @param mixed $value
+     *
      * @throws Error|InvariantViolation
      */
     private function ensureIsNumeric($value, string $errorMessage): void
     {
-        if (! is_numeric($value)) {
+        if (!is_numeric($value)) {
             $exceptionClass = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'] === 'serialize'
                 ? InvariantViolation::class
                 : Error::class;
 
-            throw new $exceptionClass($errorMessage . $value);
+            throw new $exceptionClass($errorMessage.$value);
         }
     }
 }

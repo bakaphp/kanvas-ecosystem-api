@@ -16,7 +16,7 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 class FilesystemQuery
 {
     /**
-     * Get all file from a entity tied to the graph
+     * Get all file from a entity tied to the graph.
      */
     public function getFileByGraphType(
         mixed $root,
@@ -47,7 +47,7 @@ class FilesystemQuery
             ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
             ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
 
-        $files->when(isset($root->companies_id) && ! $app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue()), function ($query) use ($root) {
+        $files->when(isset($root->companies_id) && !$app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue()), function ($query) use ($root) {
             $query->where('filesystem_entities.companies_id', $root->companies_id);
         });
 
@@ -55,7 +55,7 @@ class FilesystemQuery
     }
 
     /**
-     * Get all file from a specific system module entity
+     * Get all file from a specific system module entity.
      */
     public function getFilesFromSystemModuleEntity(
         mixed $root,
@@ -93,7 +93,7 @@ class FilesystemQuery
             ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
 
         //@todo allow to share media between company only of it the apps specifies it
-        $files->when(isset($root->companies_id) && ! $app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue()), function ($query) use ($entity) {
+        $files->when(isset($root->companies_id) && !$app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue()), function ($query) use ($entity) {
             $query->where('filesystem_entities.companies_id', $entity->companies_id);
         });
 

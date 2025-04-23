@@ -27,16 +27,16 @@ use Override;
 /**
  * Class People.
  *
- * @property int $id
- * @property string $uuid
- * @property int $apps_id
- * @property int $users_id
- * @property int $companies_id
- * @property string $name
- * @property string $firstname
- * @property string|null $middlename = null
- * @property string $lastname
- * @property string|null $dob = null
+ * @property int         $id
+ * @property string      $uuid
+ * @property int         $apps_id
+ * @property int         $users_id
+ * @property int         $companies_id
+ * @property string      $name
+ * @property string      $firstname
+ * @property string|null $middlename           = null
+ * @property string      $lastname
+ * @property string|null $dob                  = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
  * @property string|null $linkedin_contact_id
@@ -188,7 +188,7 @@ class People extends BaseModel
      */
     public function getName(): string
     {
-        $name = trim($this->firstname . ' ' . $this->middlename . ' ' . $this->lastname);
+        $name = trim($this->firstname.' '.$this->middlename.' '.$this->lastname);
 
         return preg_replace('/\s+/', ' ', $name);
     }
@@ -205,15 +205,15 @@ class People extends BaseModel
 
         return Address::updateOrCreate(
             [
-                'peoples_id' => $this->id,
-                'address' => $address->address,
-                'city' => $address->city,
-                'state' => $address->state,
+                'peoples_id'   => $this->id,
+                'address'      => $address->address,
+                'city'         => $address->city,
+                'state'        => $address->state,
                 'countries_id' => $address->country ? Countries::getByName($address->country)->getId() : null,
-                'zip' => $address->zip,
+                'zip'          => $address->zip,
             ],
             [
-                'address_2' => $address->address_2,
+                'address_2'       => $address->address_2,
                 'address_type_id' => $typeId, // @todo move to search
             ]
         );
@@ -223,8 +223,8 @@ class People extends BaseModel
     {
         return Contact::updateOrCreate(
             [
-                'peoples_id' => $this->id,
-                'value' => $email,
+                'peoples_id'        => $this->id,
+                'value'             => $email,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId(),
             ]
         );
@@ -234,8 +234,8 @@ class People extends BaseModel
     {
         return Contact::updateOrCreate(
             [
-                'peoples_id' => $this->id,
-                'value' => $phone,
+                'peoples_id'        => $this->id,
+                'value'             => $phone,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
             ]
         );
@@ -250,50 +250,50 @@ class People extends BaseModel
     public function searchableAs(): string
     {
         //$people = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
-        $people = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
+        $people = !$this->searchableDeleteRecord() ? $this : $this->find($this->id);
         $app = $people->app ?? app(Apps::class);
         $customIndex = $app->get('app_custom_people_index') ?? null;
 
-        return config('scout.prefix') . ($customIndex ?? 'peoples');
+        return config('scout.prefix').($customIndex ?? 'peoples');
     }
 
     public function toSearchableArray(): array
     {
         $people = [
-            'objectID' => $this->uuid,
-            'id' => $this->id,
-            'name' => $this->name,
-            'firstname' => $this->firstname,
-            'middlename' => $this->middlename,
-            'lastname' => $this->lastname,
+            'objectID'     => $this->uuid,
+            'id'           => $this->id,
+            'name'         => $this->name,
+            'firstname'    => $this->firstname,
+            'middlename'   => $this->middlename,
+            'lastname'     => $this->lastname,
             'companies_id' => $this->companies_id,
-            'dob' => $this->dob,
-            'apps_id' => $this->apps_id,
-            'users_id' => $this->users_id,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
-            'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
+            'dob'          => $this->dob,
+            'apps_id'      => $this->apps_id,
+            'users_id'     => $this->users_id,
+            'created_at'   => $this->created_at,
+            'updated_at'   => $this->updated_at,
+            'files'        => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
-                    'uuid' => $files->uuid,
-                    'name' => $files->name,
-                    'url' => $files->url,
-                    'size' => $files->size,
+                    'uuid'       => $files->uuid,
+                    'name'       => $files->name,
+                    'url'        => $files->url,
+                    'size'       => $files->size,
                     'field_name' => $files->field_name,
                     'attributes' => $files->attributes,
                 ];
             }),
             'organizations' => $this->organizations()->get()->map(function ($organization) {
                 return [
-                    'id' => $organization->id,
+                    'id'   => $organization->id,
                     'name' => $organization->name,
                     'tier' => 1,
                 ];
             }),
             'employment_history' => $this->employmentHistory()->get()->map(function ($employmentHistory) {
                 return [
-                    'position' => $employmentHistory->position,
-                    'start_date' => $employmentHistory->start_date,
-                    'end_date' => $employmentHistory->end_date,
+                    'position'     => $employmentHistory->position,
+                    'start_date'   => $employmentHistory->start_date,
+                    'end_date'     => $employmentHistory->end_date,
                     'organization' => $employmentHistory->organization,
                 ];
             }),
@@ -307,18 +307,18 @@ class People extends BaseModel
             }),
             'contacts' => $this->contacts()->get()->map(function ($contact) {
                 return [
-                    'type' => $contact->type->name,
+                    'type'  => $contact->type->name,
                     'value' => $contact->value,
                 ];
             }),
             'address' => $this->address()->get()->map(function ($address) {
                 return [
-                    'address' => $address->address,
+                    'address'   => $address->address,
                     'address_2' => $address->address_2,
-                    'city' => $address->city,
-                    'state' => $address->state,
-                    'country' => $address?->country?->name,
-                    'zip' => $address->zip,
+                    'city'      => $address->city,
+                    'state'     => $address->state,
+                    'country'   => $address?->country?->name,
+                    'zip'       => $address->zip,
                 ];
             }),
         ];
@@ -332,7 +332,7 @@ class People extends BaseModel
     public function typesenseCollectionSchema(): array
     {
         return [
-            'name' => $this->searchableAs(),
+            'name'   => $this->searchableAs(),
             'fields' => [
                 [
                     'name' => 'objectID',
@@ -343,9 +343,9 @@ class People extends BaseModel
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'name',
-                    'type' => 'string',
-                    'sort' => true,
+                    'name'  => 'name',
+                    'type'  => 'string',
+                    'sort'  => true,
                     'facet' => true,
                 ],
                 [
@@ -354,8 +354,8 @@ class People extends BaseModel
                     'sort' => true,
                 ],
                 [
-                    'name' => 'middlename',
-                    'type' => 'string',
+                    'name'     => 'middlename',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
@@ -364,13 +364,13 @@ class People extends BaseModel
                     'sort' => true,
                 ],
                 [
-                    'name' => 'companies_id',
-                    'type' => 'int64',
+                    'name'  => 'companies_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'dob',
-                    'type' => 'string',
+                    'name'     => 'dob',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
@@ -390,44 +390,44 @@ class People extends BaseModel
                     'type' => 'string',
                 ],
                 [
-                    'name' => 'files',
-                    'type' => 'object[]',
+                    'name'     => 'files',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'organizations',
-                    'type' => 'object[]',
+                    'name'     => 'organizations',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'employment_history',
-                    'type' => 'object[]',
+                    'name'     => 'employment_history',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'tags',
-                    'type' => 'string[]',
+                    'name'     => 'tags',
+                    'type'     => 'string[]',
                     'optional' => true,
-                    'facet' => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'custom_fields',
-                    'type' => 'object[]',
-                    'optional' => true,
-                ],
-                [
-                    'name' => 'contacts',
-                    'type' => 'object[]',
+                    'name'     => 'custom_fields',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'address',
-                    'type' => 'object[]',
+                    'name'     => 'contacts',
+                    'type'     => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name'     => 'address',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+            'enable_nested_fields'  => true,  // Enable nested fields support for complex objects
         ];
     }
 }

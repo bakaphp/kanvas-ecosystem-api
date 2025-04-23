@@ -29,7 +29,7 @@ class GenerateUserFollowingFeedCommand extends Command
         $pageSize = (int) ($this->argument('page_size') ?? 350);
         $cleanUserFeed = (bool) ($this->argument('clean_user_feed') ?? true);
 
-        $this->info('Generating user message feed for app: ' . $app->getId());
+        $this->info('Generating user message feed for app: '.$app->getId());
 
         // Get total count for progress bar
         $totalUsers = UserAppRepository::getAllAppUsers($app)->count();
@@ -61,7 +61,7 @@ class GenerateUserFollowingFeedCommand extends Command
                         ->lockForUpdate()
                         ->forceDelete();
 
-                    $this->info('Cleaned ' . $totalCleanUp . ' messages for user: ' . $user->getId());
+                    $this->info('Cleaned '.$totalCleanUp.' messages for user: '.$user->getId());
                 }
 
                 $query = UserMessage::getFollowingFeed($user, $app);
@@ -75,16 +75,16 @@ class GenerateUserFollowingFeedCommand extends Command
                 foreach ($messages as $message) {
                     try {
                         UserMessage::create([
-                            'apps_id' => $app->getId(),
-                            'messages_id' => $message->getId(),
-                            'users_id' => $user->getId(),
-                            'is_liked' => 0,
-                            'is_disliked' => 0,
-                            'is_saved' => 0,
-                            'is_shared' => 0,
+                            'apps_id'      => $app->getId(),
+                            'messages_id'  => $message->getId(),
+                            'users_id'     => $user->getId(),
+                            'is_liked'     => 0,
+                            'is_disliked'  => 0,
+                            'is_saved'     => 0,
+                            'is_shared'    => 0,
                             'is_purchased' => 0,
-                            'is_reported' => 0,
-                            'created_at' => $message->created_at,
+                            'is_reported'  => 0,
+                            'created_at'   => $message->created_at,
                         ]);
                     } catch (UniqueConstraintViolationException $e) {
                     }
@@ -97,6 +97,6 @@ class GenerateUserFollowingFeedCommand extends Command
 
         $progress->finish();
         $this->newLine();
-        $this->info('Successfully generated feed for ' . $processedUsers . ' users');
+        $this->info('Successfully generated feed for '.$processedUsers.' users');
     }
 }

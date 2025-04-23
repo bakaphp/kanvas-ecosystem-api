@@ -21,7 +21,7 @@ class LeadManagementMutation
     use HasMutationUploadFiles;
 
     /**
-     * Create new lead
+     * Create new lead.
      */
     public function create(mixed $root, array $req): ModelsLead
     {
@@ -48,7 +48,7 @@ class LeadManagementMutation
 
     public function getLeadById(int $id, UserInterface $user, CompaniesBranches $branch, AppInterface $app): ModelsLead
     {
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             return ModelsLead::getByIdFromBranch($id, $branch, $app);
         }
 
@@ -112,7 +112,7 @@ class LeadManagementMutation
 
         $lead = ModelsLead::query()->where('id', (int) $req['id']);
 
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             $lead->where('companies_branches_id', $user->getCurrentBranch()->getId());
         } else {
             $lead->where('apps_id', $app->getId());

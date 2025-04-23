@@ -36,7 +36,7 @@ class Lead extends Data
         public readonly int $receiver_id = 0,
         public readonly ?string $description = null,
         public readonly ?string $reason_lost = null,
-        public readonly Organization|null $organization = null,
+        public readonly ?Organization $organization = null,
         public readonly array $custom_fields = [],
         public readonly array $files = [],
         public readonly bool $runWorkflow = true
@@ -57,10 +57,10 @@ class Lead extends Data
 
         $firstname = $request['people']['firstname'] ?? '';
         $lastname = $request['people']['lastname'] ?? '';
-        $title = $request['title'] ?? $firstname . ' ' . $lastname;
+        $title = $request['title'] ?? $firstname.' '.$lastname;
 
         $request['people']['contacts'] = array_filter($request['people']['contacts'], function ($contact) {
-            return isset($contact['value']) && ! empty($contact['value']);
+            return isset($contact['value']) && !empty($contact['value']);
         });
 
         // Re-index the array if needed
@@ -70,8 +70,8 @@ class Lead extends Data
         ? Organization::from(array_merge(
             [
                 'company' => $branch->company,
-                'user' => $user,
-                'app' => $app,
+                'user'    => $user,
+                'app'     => $app,
             ],
             is_array($request['organization'])
                 ? $request['organization']
@@ -85,20 +85,20 @@ class Lead extends Data
             (string) $title,
             (int) ($request['pipeline_stage_id'] ?? 0),
             People::from([
-                'app' => $app,
-                'branch' => $branch,
-                'user' => $user,
-                'firstname' => $firstname,
-                'lastname' => $lastname,
-                'contacts' => Contact::collect($request['people']['contacts'], DataCollection::class),
-                'address' => Address::collect($request['people']['address'] ?? [], DataCollection::class),
-                'id' => $request['people']['id'] ?? 0,
-                'dob' => $request['people']['dob'] ?? null,
+                'app'                 => $app,
+                'branch'              => $branch,
+                'user'                => $user,
+                'firstname'           => $firstname,
+                'lastname'            => $lastname,
+                'contacts'            => Contact::collect($request['people']['contacts'], DataCollection::class),
+                'address'             => Address::collect($request['people']['address'] ?? [], DataCollection::class),
+                'id'                  => $request['people']['id'] ?? 0,
+                'dob'                 => $request['people']['dob'] ?? null,
                 'facebook_contact_id' => $request['people']['facebook_contact_id'] ?? null,
-                'google_contact_id' => $request['people']['google_contact_id'] ?? null,
-                'apple_contact_id' => $request['people']['apple_contact_id'] ?? null,
+                'google_contact_id'   => $request['people']['google_contact_id'] ?? null,
+                'apple_contact_id'    => $request['people']['apple_contact_id'] ?? null,
                 'linkedin_contact_id' => $request['people']['linkedin_contact_id'] ?? null,
-                'custom_fields' => $request['people']['custom_fields'] ?? [],
+                'custom_fields'       => $request['people']['custom_fields'] ?? [],
             ]),
             (int) ($request['leads_owner_id'] ?? 0),
             (int) ($request['type_id'] ?? 0),

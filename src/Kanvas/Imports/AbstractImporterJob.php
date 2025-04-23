@@ -29,10 +29,10 @@ abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
     use KanvasJobsTrait;
 
     /**
-    * The number of seconds after which the job's unique lock will be released.
-    *
-    * @var int
-    */
+     * The number of seconds after which the job's unique lock will be released.
+     *
+     * @var int
+     */
     public $uniqueFor = 0;
 
     public function __construct(
@@ -45,13 +45,13 @@ abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
         public ?FilesystemImports $filesystemImport = null,
         public bool $runWorkflow = true
     ) {
-        $minuteDelay = (int)($app->get('delay_minute_job') ?? 0);
+        $minuteDelay = (int) ($app->get('delay_minute_job') ?? 0);
         $queue = $this->onQueue('imports');
         if ($minuteDelay) {
             $queue->delay(now()->addMinutes($minuteDelay));
         }
 
-        $minuteUniqueFor = (int)($app->get('unique_for_minute_job') ?? 1);
+        $minuteUniqueFor = (int) ($app->get('unique_for_minute_job') ?? 1);
         if (App::environment('production')) {
             $this->uniqueFor = $minuteUniqueFor * 60;
         }
@@ -65,12 +65,12 @@ abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
         // Create a unique hash of the importer array
         $importerHash = md5(json_encode($this->importer));
 
-        return $this->app->getId() . $this->branch->getId() . $this->region->getId() . $importerHash;
+        return $this->app->getId().$this->branch->getId().$this->region->getId().$importerHash;
     }
 
     public function middleware(): array
     {
-        if (! $this->uniqueFor) {
+        if (!$this->uniqueFor) {
             return [];
         }
 
@@ -104,12 +104,12 @@ abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
         if ($this->filesystemImport) {
             $this->filesystemImport->update([
                 'results' => [
-                    'total_items' => $totalItems,
+                    'total_items'                => $totalItems,
                     'total_process_successfully' => $totalProcessSuccessfully,
-                    'total_process_failed' => $totalProcessFailed,
+                    'total_process_failed'       => $totalProcessFailed,
                 ],
-                'exception' => $errors,
-                'status' => 'completed',
+                'exception'   => $errors,
+                'status'      => 'completed',
                 'finished_at' => now(),
             ]);
         }
@@ -123,5 +123,5 @@ abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
         int $updated,
         array $errors,
         Companies $company
-    ): void ;
+    ): void;
 }

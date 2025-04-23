@@ -35,7 +35,7 @@ class KanvasEcosystemUpdates extends Command
         $this->info(sprintf('Kanvas Ecosystem Version: %s', AppEnums::VERSION->getValue()));
         match (AppEnums::VERSION->getValue()) {
             '1.0-BETA-14' => $this->versionBeta14(),
-            default => $this->versionBeta14(),
+            default       => $this->versionBeta14(),
         };
     }
 

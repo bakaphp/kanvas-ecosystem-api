@@ -45,6 +45,5 @@ class RegenerateLeadsLinkCommand extends Command
 
         $this->output->progressFinish();
 
-        return;
     }
 }

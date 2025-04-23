@@ -50,7 +50,7 @@ class KanvasInventoryDefaultUpdate extends Command
 
         foreach ($associatedApps as $company) {
             $companyData = $company->company;
-            if (! $companyData) {
+            if (!$companyData) {
                 continue;
             }
             $defaultWarehouses = Warehouses::getDefault($companyData);
@@ -60,77 +60,77 @@ class KanvasInventoryDefaultUpdate extends Command
 
             $this->info("Checking company {$companyData->getId()} \n");
 
-            if (! $defaultRegion) {
+            if (!$defaultRegion) {
                 $this->info("Working company {$companyData->getId()} default region \n");
 
                 try {
                     $defaultRegion = Regions::firstOrCreate([
-                        'apps_id' => $app->getId(),
+                        'apps_id'      => $app->getId(),
                         'companies_id' => $companyData->getId(),
-                        'slug' => Str::slug('Default'),
+                        'slug'         => Str::slug('Default'),
                     ], [
-                        'name' => 'Default',
-                        'is_default' => true,
+                        'name'        => 'Default',
+                        'is_default'  => true,
                         'currency_id' => Currencies::where('code', 'USD')->firstOrFail()->getId(),
-                        'users_id' => $companyData->users_id,
-                        'short_slug' => Str::slug('Default'),
+                        'users_id'    => $companyData->users_id,
+                        'short_slug'  => Str::slug('Default'),
                     ]);
                 } catch (Throwable $e) {
-                    $this->error('Error creating default region for : ' . $companyData->getId() . ' ' . $e->getMessage());
+                    $this->error('Error creating default region for : '.$companyData->getId().' '.$e->getMessage());
                 }
             }
 
-            if (! $defaultWarehouses) {
+            if (!$defaultWarehouses) {
                 $this->info("Working company {$companyData->getId()} default warehouse \n");
 
                 try {
                     $defaultWarehouses = Warehouses::firstOrCreate([
-                        'name' => 'Default',
+                        'name'         => 'Default',
                         'companies_id' => $companyData->getId(),
-                        'apps_id' => $app->getId(),
-                        'regions_id' => $defaultRegion->getId(),
+                        'apps_id'      => $app->getId(),
+                        'regions_id'   => $defaultRegion->getId(),
                     ], [
-                        'is_default' => true,
-                        'users_id' => $companyData->users_id,
+                        'is_default'   => true,
+                        'users_id'     => $companyData->users_id,
                         'is_published' => true,
                     ]);
                 } catch (Throwable $e) {
-                    $this->error('Error creating default warehouse for : ' . $companyData->getId() . ' ' . $e->getMessage());
+                    $this->error('Error creating default warehouse for : '.$companyData->getId().' '.$e->getMessage());
                 }
             }
 
-            if (! $defaultStatus) {
+            if (!$defaultStatus) {
                 $this->info("Working company {$companyData->getId()} default status \n");
 
                 try {
                     $defaultStatus = Status::firstOrCreate([
-                        'apps_id' => $app->getId(),
+                        'apps_id'      => $app->getId(),
                         'companies_id' => $companyData->getId(),
-                        'slug' => Str::slug('Default'),
+                        'slug'         => Str::slug('Default'),
                     ], [
-                        'name' => 'Default',
+                        'name'       => 'Default',
                         'is_default' => true,
                     ]);
                 } catch (Throwable $e) {
-                    $this->error('Error creating default status for : ' . $companyData->getId() . ' ' . $e->getMessage());
+                    $this->error('Error creating default status for : '.$companyData->getId().' '.$e->getMessage());
                 }
             }
 
-            if (! $defaultChannel) {
+            if (!$defaultChannel) {
                 $this->info("Working company {$companyData->getId()} default channel \n");
 
                 try {
                     $defaultChannel = Channels::firstOrCreate([
                         'companies_id' => $companyData->getId(),
-                        'apps_id' => $app->getId(),
-                        'slug' => Str::slug('Default'),
+                        'apps_id'      => $app->getId(),
+                        'slug'         => Str::slug('Default'),
                     ], [
-                        'name' => 'Default',
-                        'users_id' => $companyData->users_id,
+                        'name'       => 'Default',
+                        'users_id'   => $companyData->users_id,
                         'is_default' => true,
                     ]);
                 } catch (Throwable $e) {
-                    $this->error('Error creating default channel for : ' . $companyData->getId() . ' ' . $e->getMessage());
+                    $this->error('Error creating default channel for : '.$companyData->getId().' '.$e->getMessage());
                 }
             }
 
@@ -163,7 +163,7 @@ class KanvasInventoryDefaultUpdate extends Command
                     }
                 });
 
-                if (! empty($variantsWarehousesToFixData->first())) {
+                if (!empty($variantsWarehousesToFixData->first())) {
                     foreach ($variantsWarehousesToFixData as $warehouseToFix) {
                         $warehouseToFix->warehouses_id = $defaultWarehouses->getId();
                         $warehouseToFix->saveQuietly();
@@ -172,6 +172,5 @@ class KanvasInventoryDefaultUpdate extends Command
             }
         }
 
-        return;
     }
 }

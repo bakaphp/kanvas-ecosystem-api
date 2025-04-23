@@ -25,6 +25,7 @@ use Kanvas\Users\Actions\CreateInviteAction;
 use Kanvas\Users\Actions\ProcessAdminInviteAction;
 use Kanvas\Users\Actions\ProcessInviteAction;
 use Kanvas\Users\Actions\RequestDeleteAccountAction as RequestDeleteAction;
+use Kanvas\Users\Actions\SaveUserAppPreferencesAction;
 use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
@@ -36,7 +37,6 @@ use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserContactsService;
-use Kanvas\Users\Actions\SaveUserAppPreferencesAction;
 
 class UserManagementMutation
 {
@@ -81,7 +81,7 @@ class UserManagementMutation
     /**
      * insertInvite.
      *
-     * @param  mixed $rootValue
+     * @param mixed $rootValue
      */
     public function insertUserInvite($rootValue, array $request): UsersInvite
     {
@@ -112,7 +112,7 @@ class UserManagementMutation
     /**
      * insertAdminInvite.
      *
-     * @param  mixed $rootValue
+     * @param mixed $rootValue
      */
     public function insertAdminInvite($rootValue, array $request): AdminInvite
     {
@@ -157,7 +157,7 @@ class UserManagementMutation
     /**
      * deleteInvite.
      *
-     * @param  mixed $rootValue
+     * @param mixed $rootValue
      */
     public function deleteInvite($rootValue, array $request): bool
     {
@@ -174,7 +174,7 @@ class UserManagementMutation
     /**
      * deleteInvite.
      *
-     * @param  mixed $rootValue
+     * @param mixed $rootValue
      */
     public function deleteAdminInvite($rootValue, array $request): bool
     {
@@ -191,7 +191,7 @@ class UserManagementMutation
     /**
      * processInvite.
      *
-     * @param  mixed $rootValue
+     * @param mixed $rootValue
      */
     public function getInvite($rootValue, array $request): UsersInvite
     {
@@ -202,7 +202,7 @@ class UserManagementMutation
     /**
      * Process User invite.
      *
-     * @param  mixed $rootValue
+     * @param mixed $rootValue
      */
     public function process($rootValue, array $request): array
     {
@@ -253,11 +253,11 @@ class UserManagementMutation
     public function updatePhotoProfile(mixed $rootValue, array $request): Users
     {
         $loggedUser = auth()->user();
-        if ($request['user_id'] != $loggedUser->getId() && ! $loggedUser->isAdmin()) {
+        if ($request['user_id'] != $loggedUser->getId() && !$loggedUser->isAdmin()) {
             throw new Exception('You are not allowed to update this photo user');
         }
         $app = app(Apps::class);
-        $user = UsersRepository::getUserOfAppById((int)$request['user_id'], $app);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
 
         $filesystem = new FilesystemServices(app(Apps::class));
         $file = $request['file'];
@@ -278,7 +278,7 @@ class UserManagementMutation
         $app = app(Apps::class);
         $loggedUser = auth()->user();
 
-        if ($request['id'] != $loggedUser->getId() && ! $loggedUser->isAdmin()) {
+        if ($request['id'] != $loggedUser->getId() && !$loggedUser->isAdmin()) {
             throw new Exception('You are not allowed to update this photo user');
         }
 
@@ -315,7 +315,6 @@ class UserManagementMutation
             ->with('user')
             ->lazy();
 
-
         $contactsEmails = array_flip($contactsEmails);
         $matchingContacts = [];
 
@@ -328,8 +327,8 @@ class UserManagementMutation
 
         // Return alse the contacts that are not in the app
         return [
-            "matching_contacts" => $matchingContacts,
-            "nonmatching_contacts" => array_diff_key($contactsEmails, array_flip($matchingContacts))
+            'matching_contacts'    => $matchingContacts,
+            'nonmatching_contacts' => array_diff_key($contactsEmails, array_flip($matchingContacts)),
         ];
     }
 

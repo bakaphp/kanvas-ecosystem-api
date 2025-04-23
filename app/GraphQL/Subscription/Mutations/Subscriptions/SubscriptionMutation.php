@@ -49,7 +49,7 @@ class SubscriptionMutation
 
         $companyStripeAccount = $company->getStripeAccount($this->app);
 
-        if (! $companyStripeAccount->subscriptions()->exists()) {
+        if (!$companyStripeAccount->subscriptions()->exists()) {
             try {
                 $subscription = $companyStripeAccount->newSubscription('default', $subscriptionInput->price->stripe_id);
                 if ($subscriptionInput->price->plan->free_trial_dates) {
@@ -78,7 +78,7 @@ class SubscriptionMutation
         $company = $this->user->getCurrentCompany();
         $companyStripeAccount = $company->getStripeAccount($this->app);
 
-        if (! $companyStripeAccount->subscriptions()->exists()) {
+        if (!$companyStripeAccount->subscriptions()->exists()) {
             throw new ValidationException('No active subscription found for your company');
         }
         $newPrice = PriceRepository::getByIdWithApp((int) $data['apps_plans_prices_id'], $this->app);
@@ -107,14 +107,14 @@ class SubscriptionMutation
         $company = $this->user->getCurrentCompany();
         $companyStripeAccount = $company->getStripeAccount($this->app);
 
-        if (! $companyStripeAccount->subscriptions()->exists()) {
+        if (!$companyStripeAccount->subscriptions()->exists()) {
             throw new ValidationException('No active subscription found for your company');
         }
 
         $upgradeSubscription = $companyStripeAccount
             ->subscriptions()->where('id', $id)->first();
 
-        if (! $upgradeSubscription) {
+        if (!$upgradeSubscription) {
             throw new ValidationException('Trying to cancel a subscription that does not exist');
         }
 
@@ -131,14 +131,14 @@ class SubscriptionMutation
         $company = $this->user->getCurrentCompany();
         $companyStripeAccount = $company->getStripeAccount($this->app);
 
-        if (! $companyStripeAccount->subscriptions()->exists()) {
+        if (!$companyStripeAccount->subscriptions()->exists()) {
             throw new ValidationException('No subscriptions found for your company');
         }
 
         $subscription = $companyStripeAccount
             ->subscriptions()->where('id', $id)->first();
 
-        if (! $subscription) {
+        if (!$subscription) {
             throw new ValidationException('Subscription not found');
         }
 
@@ -156,7 +156,7 @@ class SubscriptionMutation
 
                 return $newSubscription->create($subscription->latestPayment()->payment_method);
             } catch (Throwable $e) {
-                throw new ValidationException('Failed to create new subscription: ' . $e->getMessage());
+                throw new ValidationException('Failed to create new subscription: '.$e->getMessage());
             }
         }
 
@@ -164,7 +164,7 @@ class SubscriptionMutation
         try {
             return $subscription->resume();
         } catch (Throwable $e) {
-            throw new ValidationException('Failed to reactivate subscription: ' . $e->getMessage());
+            throw new ValidationException('Failed to reactivate subscription: '.$e->getMessage());
         }
     }
 }

@@ -105,9 +105,9 @@ class DiscoveryEngineDocumentService extends DiscoveryEngineService
         $document->setId($message->getId()); // Set document ID
 
         $content = new Content();
-        $data = ! is_array($message->message) ? [$message->message] : $message->message;
-        $data['title'] = ! empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
-        $data['uri'] = ! empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
+        $data = !is_array($message->message) ? [$message->message] : $message->message;
+        $data['title'] = !empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
+        $data['uri'] = !empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
         $data['categories'] = $message->tags()->count() ? $message->tags()->pluck('name')->toArray() : ['message'];
         $data['available_time'] = $message->created_at->toRfc3339String();
 

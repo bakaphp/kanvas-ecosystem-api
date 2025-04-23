@@ -24,8 +24,8 @@ class RuleWorkflowActionFactory extends Factory
         }
 
         return [
-           'actions_id' => $action->id,
-           'system_modules_id' => SystemModulesRepository::getByModelName(Lead::class),
+            'actions_id'        => $action->id,
+            'system_modules_id' => SystemModulesRepository::getByModelName(Lead::class),
         ];
     }
 }

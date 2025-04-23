@@ -21,7 +21,7 @@ use Kanvas\Users\Repositories\UsersRepository;
 class NotificationsManagementMutation
 {
     /**
-     * sendNotificationBaseOnTemplate
+     * sendNotificationBaseOnTemplate.
      */
     public function sendNotificationBaseOnTemplate(mixed $root, array $request): bool
     {
@@ -35,7 +35,7 @@ class NotificationsManagementMutation
             $usersToNotify = UsersRepository::findUsersByArray($request['users'], $app, $company);
         }
 
-        if (! $usersToNotify->count()) {
+        if (!$usersToNotify->count()) {
             throw new ModelNotFoundException('No users found to notify');
         }
 
@@ -81,7 +81,7 @@ class NotificationsManagementMutation
     }
 
     /**
-     * sendNotificationByMessage
+     * sendNotificationByMessage.
      */
     public function sendNotificationByMessage(mixed $root, array $request): array
     {
@@ -92,9 +92,9 @@ class NotificationsManagementMutation
         $notificationType = NotificationTypes::getById($notificationMessagePayload->notificationTypeId, $app);
         $notificationTypeMessageLogic = NotificationTypesMessageLogicRepository::getByNotificationType($app, $notificationType);
 
-        if (! $notificationType) {
+        if (!$notificationType) {
             return [
-                'sent' => false,
+                'sent'    => false,
                 'message' => 'Notification type not found',
             ];
         }
@@ -110,9 +110,9 @@ class NotificationsManagementMutation
             ))->execute();
         }
 
-        if (! $canSendNotification) {
+        if (!$canSendNotification) {
             return [
-                'sent' => false,
+                'sent'    => false,
                 'message' => 'Notification logic not met',
             ];
         }
@@ -126,14 +126,14 @@ class NotificationsManagementMutation
             );
 
             return [
-                'sent' => true,
-                'message' => 'Notification sent to users ' . implode(',', $notificationMessagePayload->usersId),
+                'sent'    => true,
+                'message' => 'Notification sent to users '.implode(',', $notificationMessagePayload->usersId),
             ];
         }
 
-        if (! $notificationMessagePayload->distributeToFollowers()) {
+        if (!$notificationMessagePayload->distributeToFollowers()) {
             return [
-                'sent' => false,
+                'sent'    => false,
                 'message' => 'Notification distribution type not found in request payload',
             ];
         }
@@ -146,7 +146,7 @@ class NotificationsManagementMutation
         );
 
         return [
-            'sent' => true,
+            'sent'    => true,
             'message' => 'Notification sent to all followers',
         ];
     }

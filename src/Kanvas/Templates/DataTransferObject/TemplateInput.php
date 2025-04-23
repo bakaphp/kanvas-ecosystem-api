@@ -17,11 +17,11 @@ class TemplateInput extends Data
     /**
      * Constructs function.
      *
-     * @param Apps $app
-     * @param string $name
-     * @param string $template
+     * @param Apps           $app
+     * @param string         $name
+     * @param string         $template
      * @param Companies|null $company
-     * @param Users|null $user
+     * @param Users|null     $user
      */
     public function __construct(
         public Apps $app,

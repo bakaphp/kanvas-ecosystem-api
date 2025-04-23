@@ -31,6 +31,6 @@ class VinSolutionHandler extends BaseIntegration
 
         $response = $client->auth();
 
-        return ! empty($response['access_token']);
+        return !empty($response['access_token']);
     }
 }

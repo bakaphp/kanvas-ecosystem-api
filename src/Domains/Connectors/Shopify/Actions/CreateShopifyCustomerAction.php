@@ -57,7 +57,7 @@ class CreateShopifyCustomerAction
         // Check if the customer already exists in Shopify
         $existingCustomers = $this->shopifySdk->Customer->get(['email' => $customerEmail]);
 
-        if (! empty($existingCustomers)) {
+        if (!empty($existingCustomers)) {
             $this->saveCustomerReference($existingCustomers['id']);
 
             return $existingCustomers[0]['id'];
@@ -77,10 +77,10 @@ class CreateShopifyCustomerAction
     {
         return [
             'first_name' => $this->people->firstname,
-            'last_name' => $this->people->lastname,
-            'email' => $this->people->getEmails()->first()?->value,
-            'phone' => $this->people->getPhones()->first()?->value,
-            'addresses' => $this->prepareAddresses(),
+            'last_name'  => $this->people->lastname,
+            'email'      => $this->people->getEmails()->first()?->value,
+            'phone'      => $this->people->getPhones()->first()?->value,
+            'addresses'  => $this->prepareAddresses(),
         ];
     }
 
@@ -88,17 +88,17 @@ class CreateShopifyCustomerAction
     {
         $address = $this->people->address()->first();
 
-        if (! $address) {
+        if (!$address) {
             return [];
         }
 
         return [[
             'address1' => $address->address,
             'address2' => $address->address_2,
-            'city' => $address->city,
+            'city'     => $address->city,
             'province' => $address->state,
-            'country' => $address->country?->name ?? '',
-            'zip' => $address->zip,
+            'country'  => $address->country?->name ?? '',
+            'zip'      => $address->zip,
             //'phone' => $this->people->phone,
         ]];
     }

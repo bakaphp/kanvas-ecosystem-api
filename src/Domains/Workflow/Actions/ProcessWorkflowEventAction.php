@@ -31,7 +31,7 @@ class ProcessWorkflowEventAction
         }
 
         $company = $params['company'] ?? null;
-        if ($company && ! $company instanceof CompanyInterface) {
+        if ($company && !$company instanceof CompanyInterface) {
             $company = null;
         }
 
@@ -55,7 +55,7 @@ class ProcessWorkflowEventAction
 
             $workflow->start($this->app, $rule, $this->entity, $params);
 
-            if (! $rule->runAsync()) {
+            if (!$rule->runAsync()) {
                 $lastSyncWorkflow = $workflow;
             }
         });

@@ -61,7 +61,7 @@ class PushOrderToWooCommerceAction
         $now = gmdate('Y-m-d H:i:s');
         $meta = [
             'meta_data' => [
-                ['key' => '_transaction_id', 'value' => 'kanvas_' . time()],
+                ['key' => '_transaction_id', 'value' => 'kanvas_'.time()],
                 ['key' => '_paid_date', 'value' => $now],
             ],
         ];
@@ -72,7 +72,7 @@ class PushOrderToWooCommerceAction
     }
 
     /**
-     * Format the order data for WooCommerce
+     * Format the order data for WooCommerce.
      */
     protected function formatOrderData(): array
     {
@@ -89,30 +89,30 @@ class PushOrderToWooCommerceAction
         $customerWooId = $customer->get(CustomFieldEnum::WOOCOMMERCE_ID->value) ?? $customerId;
 
         $orderData = [
-            'status' => 'completed', // Start with pending to ensure proper hook sequence
-            'currency' => $this->order->currency,
-            'customer_id' => $customerWooId,
-            'line_items' => $lineItems,
-            'payment_method' => $this->order->payment->payment_method ?? 'kanvas',
+            'status'               => 'completed', // Start with pending to ensure proper hook sequence
+            'currency'             => $this->order->currency,
+            'customer_id'          => $customerWooId,
+            'line_items'           => $lineItems,
+            'payment_method'       => $this->order->payment->payment_method ?? 'kanvas',
             'payment_method_title' => $this->order->payment->payment_method_title ?? 'Kanvas Integration',
-            'meta_data' => [
+            'meta_data'            => [
                 [
-                    'key' => 'kanvas_order_id',
+                    'key'   => 'kanvas_order_id',
                     'value' => $this->order->id,
                 ],
                 [
-                    'key' => 'order_source',
+                    'key'   => 'order_source',
                     'value' => 'kanvas',
                 ],
                 [
-                    'key' => 'purchase_type',
+                    'key'   => 'purchase_type',
                     'value' => 'new',
                 ],
             ],
         ];
 
         // Add any custom metadata provided to the class
-        if (! empty($this->customMetadata)) {
+        if (!empty($this->customMetadata)) {
             $formattedMetadata = [];
 
             foreach ($this->customMetadata as $key => $value) {
@@ -122,7 +122,7 @@ class PushOrderToWooCommerceAction
                 }
 
                 $formattedMetadata[] = [
-                    'key' => $key,
+                    'key'   => $key,
                     'value' => $value,
                 ];
             }
@@ -165,20 +165,20 @@ class PushOrderToWooCommerceAction
 
         return [
             'first_name' => $customer->firstname,
-            'last_name' => $customer->lastname,
-            'address_1' => $address->address,
-            'address_2' => $address->address_2 ?? '',
-            'city' => $address->city,
-            'state' => $address->state,
-            'postcode' => $address->zip,
-            'country' => $country->code ?? '',
-            'email' => $this->order->user_email,
-            'phone' => $this->order->user_phone ?? '',
+            'last_name'  => $customer->lastname,
+            'address_1'  => $address->address,
+            'address_2'  => $address->address_2 ?? '',
+            'city'       => $address->city,
+            'state'      => $address->state,
+            'postcode'   => $address->zip,
+            'country'    => $country->code ?? '',
+            'email'      => $this->order->user_email,
+            'phone'      => $this->order->user_phone ?? '',
         ];
     }
 
     /**
-     * Get order line items and apply any custom line item metadata
+     * Get order line items and apply any custom line item metadata.
      */
     protected function getLineItems(): array
     {
@@ -190,15 +190,15 @@ class PushOrderToWooCommerceAction
             $productData = $wooProduct->getProductDataBySku($item->product_sku);
 
             if ($productData['id'] === 0) {
-                throw new Exception('Product not found for SKU: ' . $item->product_sku . ' please sync products first');
+                throw new Exception('Product not found for SKU: '.$item->product_sku.' please sync products first');
             }
 
             $itemData = [
                 'product_id' => $productData['id'],
-                'name' => $productData['name'],
-                'quantity' => $item->quantity,
-                'price' => $item->unit_price_net_amount,
-                'total' => (string)((float) $item->quantity * (float) $item->unit_price_net_amount),
+                'name'       => $productData['name'],
+                'quantity'   => $item->quantity,
+                'price'      => $item->unit_price_net_amount,
+                'total'      => (string) ((float) $item->quantity * (float) $item->unit_price_net_amount),
                 //'sku' => $item->product_sku ?? '',
                 'meta_data' => $this->lineItemsMetaData,
             ];
@@ -210,18 +210,18 @@ class PushOrderToWooCommerceAction
     }
 
     /**
-     * Map Kanvas order status to WooCommerce order status
+     * Map Kanvas order status to WooCommerce order status.
      */
     protected function mapOrderStatus(string $status): string
     {
         $statusMap = [
-            'pending' => 'pending',
+            'pending'    => 'pending',
             'processing' => 'processing',
-            'completed' => 'completed',
-            'cancelled' => 'cancelled',
-            'refunded' => 'refunded',
-            'failed' => 'failed',
-            'on-hold' => 'on-hold',
+            'completed'  => 'completed',
+            'cancelled'  => 'cancelled',
+            'refunded'   => 'refunded',
+            'failed'     => 'failed',
+            'on-hold'    => 'on-hold',
             // Add other status mappings as needed
         ];
 

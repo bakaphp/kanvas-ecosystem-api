@@ -28,19 +28,19 @@ class PullWooCommerceOrdersCommand extends Command
         $this->overwriteAppService($app);
 
         $wooCommerceUrl = $app->get(ConfigurationEnum::WORDPRESS_URL->value);
-        if (! $wooCommerceUrl) {
+        if (!$wooCommerceUrl) {
             $ask = $this->ask('What is the WooCommerce Base URL?');
             $app->set(ConfigurationEnum::WORDPRESS_URL->value, $ask);
         }
 
         $wooCommerceUser = $app->get(ConfigurationEnum::WOOCOMMERCE_KEY->value);
-        if (! $wooCommerceUser) {
+        if (!$wooCommerceUser) {
             $ask = $this->ask('What is the WooCommerce Key?');
             $app->set(ConfigurationEnum::WOOCOMMERCE_KEY->value, $ask);
         }
 
         $wooCommercePassword = $app->get(ConfigurationEnum::WOOCOMMERCE_SECRET_KEY->value);
-        if (! $wooCommercePassword) {
+        if (!$wooCommercePassword) {
             $ask = $this->secret('What is the WooCommerce secret key?');
             $app->set(ConfigurationEnum::WOOCOMMERCE_SECRET_KEY->value, $ask);
         }
@@ -52,9 +52,9 @@ class PullWooCommerceOrdersCommand extends Command
         $wooCommerce = new WooCommerce($app);
         $page = 1;
         $orders = $wooCommerce->client->get('orders', [
-            'status' => 'completed',
+            'status'   => 'completed',
             'per_page' => 100,
-            'page' => $page,
+            'page'     => $page,
         ]);
         $totalPage = $wooCommerce->client->http->getResponse()->getHeaders()['X-WP-TotalPages'][0] ?? 1;
         while ($page <= $totalPage) {
@@ -68,17 +68,17 @@ class PullWooCommerceOrdersCommand extends Command
                         $order
                     ))->execute();
                 } catch (Exception $e) {
-                    echo $e->getMessage() . PHP_EOL;
-                    echo $e->getTraceAsString() . PHP_EOL;
+                    echo $e->getMessage().PHP_EOL;
+                    echo $e->getTraceAsString().PHP_EOL;
 
                     break;
                 }
             }
             $page++;
             $orders = $wooCommerce->client->get('orders', [
-                'status' => 'completed',
+                'status'   => 'completed',
                 'per_page' => 100,
-                'page' => $page,
+                'page'     => $page,
             ]);
         }
     }

@@ -52,7 +52,7 @@ class CreateLeadAction
             $newLead->leads_owner_id = $this->leadData->leads_owner_id;
             $organization = null;
 
-            if (! $this->leadData->leads_owner_id) {
+            if (!$this->leadData->leads_owner_id) {
                 try {
                     $newLead->leads_owner_id = LeadsRepository::getDefaultReceiver($this->leadData->branch)->agents_id;
                 } catch (ModelNotFoundException $e) {
@@ -66,7 +66,7 @@ class CreateLeadAction
             $newLead->leads_receivers_id = $this->leadData->receiver_id;
             $newLead->leads_types_id = $this->leadData->type_id;
             $newLead->leads_sources_id = $this->leadData->source_id;
-            $newLead->title = $this->leadData->title ?? $this->leadData->people->firstname . ' ' . $this->leadData->people->lastname;
+            $newLead->title = $this->leadData->title ?? $this->leadData->people->firstname.' '.$this->leadData->people->lastname;
             $newLead->firstname = $this->leadData->people->firstname;
             $newLead->lastname = $this->leadData->people->lastname;
             $newLead->description = $this->leadData->description;
@@ -79,7 +79,7 @@ class CreateLeadAction
             $newLead->email = $people->getEmails()->isNotEmpty() ? $people->getEmails()->first()?->value : null;
             $newLead->phone = $people->getPhones()->isNotEmpty() ? $people->getPhones()->first()?->value : null;
 
-            if (! $this->leadData->runWorkflow) {
+            if (!$this->leadData->runWorkflow) {
                 $newLead->disableWorkflows();
             }
 

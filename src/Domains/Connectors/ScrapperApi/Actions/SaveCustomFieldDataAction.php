@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Regions\Models\Regions;
-use Kanvas\Connectors\Shopify\Actions\ImagesGraphql;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Exception;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\Shopify\Actions\ImagesGraphql;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 
 class SaveCustomFieldDataAction
 {
@@ -25,8 +25,8 @@ class SaveCustomFieldDataAction
 
     public function execute(): void
     {
-        if (! $this->images) {
-            if (! $this->branch) {
+        if (!$this->images) {
+            if (!$this->branch) {
                 throw new Exception('Branch is required');
             }
             $images = (new ImagesGraphql(
@@ -37,13 +37,13 @@ class SaveCustomFieldDataAction
             ))->execute();
         }
         $shopifyData = [
-            'shopify_id' => $this->products->getShopifyId($this->region),
-            'image' => $this->products->getFiles()[0]->url,
-            'price' => $this->products->variants()->first()->getPrice($this->warehouse),
+            'shopify_id'       => $this->products->getShopifyId($this->region),
+            'image'            => $this->products->getFiles()[0]->url,
+            'price'            => $this->products->variants()->first()->getPrice($this->warehouse),
             'discounted_price' => 0,
-            'title' => $this->products->name,
-            'images' => $this->images ?? $images,
-            'en_title' => $this->originalName,
+            'title'            => $this->products->name,
+            'images'           => $this->images ?? $images,
+            'en_title'         => $this->originalName,
         ];
         $this->products->set('shopify_data', $shopifyData);
     }

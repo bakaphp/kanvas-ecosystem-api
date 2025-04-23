@@ -32,21 +32,21 @@ class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
         $orderId = $this->webhookRequest->payload['orderId'] ?? null;
         $note = $this->webhookRequest->payload['note'] ?? null;
 
-        if (! $orderId || ! $note) {
+        if (!$orderId || !$note) {
             return [
                 'message' => 'Invalid payload missing orderId or note',
             ];
         }
 
         $notesAttributes = is_array($note) ? $note : [];
-        $note = ! is_array($note) ? $note : '';
+        $note = !is_array($note) ? $note : '';
         $orderId = $this->extractShopifyId($orderId);
 
         $order = $shopifyOrderService->addNoteToOrder($orderId, $note, $notesAttributes);
 
         return [
-            'message' => 'Note added to order ' . $orderId,
-            'order' => $order,
+            'message' => 'Note added to order '.$orderId,
+            'order'   => $order,
         ];
     }
 

@@ -11,11 +11,11 @@ use Kanvas\Models\BaseModel;
  * User Linked Sources Model.
  *
  * @property int|null $apps_id
- * @property string $title
- * @property string $url
- * @property string $source_users_id
- * @property string $source_users_id_text
- * @property int $language_id
+ * @property string   $title
+ * @property string   $url
+ * @property string   $source_users_id
+ * @property string   $source_users_id_text
+ * @property int      $language_id
  */
 class UserLinkedSources extends BaseModel
 {

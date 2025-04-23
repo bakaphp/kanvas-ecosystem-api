@@ -20,7 +20,7 @@ class GoogleDriver implements DriverInterface
     {
         $this->client = new Google_Client();
 
-        if (! isset($this->config['client_id']) || ! isset($this->config['client_secret']) || ! isset($this->config['redirect_uri'])) {
+        if (!isset($this->config['client_id']) || !isset($this->config['client_secret']) || !isset($this->config['redirect_uri'])) {
             throw new ValidationException('Missing google client_id, client_secret or redirect_uri');
         }
 
@@ -33,7 +33,7 @@ class GoogleDriver implements DriverInterface
     public function getUserFromToken(string $token): User
     {
         $payload = $this->client->verifyIdToken($token);
-        if (! $payload) {
+        if (!$payload) {
             throw new AuthenticationException('Invalid token for google login user');
         }
         $this->client->setAccessToken(
@@ -41,11 +41,11 @@ class GoogleDriver implements DriverInterface
         );
 
         return User::from([
-            'id' => $payload['sub'],
-            'email' => $payload['email'],
+            'id'       => $payload['sub'],
+            'email'    => $payload['email'],
             'nickname' => Random::generateDisplayName($payload['name']),
-            'name' => $payload['name'],
-            'token' => $token,
+            'name'     => $payload['name'],
+            'token'    => $token,
         ]);
     }
 }

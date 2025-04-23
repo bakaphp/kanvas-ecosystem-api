@@ -185,10 +185,10 @@ class SyncEsimWithProviderCommand extends Command
 
         return [
             ...$response,
-            'bundleState' => IccidStatusEnum::getStatus($iccidStatus['profileStatus']),
-            'installed_date' => $installDate?->format('Y-m-d H:i:s'),
+            'bundleState'     => IccidStatusEnum::getStatus($iccidStatus['profileStatus']),
+            'installed_date'  => $installDate?->format('Y-m-d H:i:s'),
             'expiration_date' => null,
-            'phone_number' => null,
+            'phone_number'    => null,
         ];
     }
 
@@ -196,8 +196,8 @@ class SyncEsimWithProviderCommand extends Command
     {
         return [
             ...$response,
-            'bundleState' => strtolower($response['esim_status']),
-            'installed_date' => null,
+            'bundleState'     => strtolower($response['esim_status']),
+            'installed_date'  => null,
             'expiration_date' => isset($response['expire_date'])
                 ? (new DateTime($response['expire_date']))->format('Y-m-d\TH:i:s.u\Z')
                 : null,
@@ -216,10 +216,10 @@ class SyncEsimWithProviderCommand extends Command
         $planStatus = null;
 
         // First determine if there's a valid active plan
-        if ($iccid && ! empty($userPlans['userDataBundles'])) {
+        if ($iccid && !empty($userPlans['userDataBundles'])) {
             foreach ($userPlans['userDataBundles'] as $plan) {
                 if ($plan['status'] == 3) {
-                    if (! empty($plan['expireTime'])) {
+                    if (!empty($plan['expireTime'])) {
                         // Convert the expireTime to EST timezone before comparison
                         $expireTimeInEST = Carbon::parse($plan['expireTime'])->setTimezone($estTimezone);
                         if ($nowInEST->greaterThan($expireTimeInEST)) {
@@ -257,12 +257,12 @@ class SyncEsimWithProviderCommand extends Command
         $validStates = ['released', 'installed', 'active', 'enabled', 'enable'];
         $isValidState = in_array($status, $validStates);
 
-        $installedDate = $response['installTime'] ?? (! empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
+        $installedDate = $response['installTime'] ?? (!empty($message->message['order']['created_at']) ? $message->message['order']['created_at'] : now()->format('Y-m-d H:i:s'));
         $isActive = IccidStatusEnum::getStatus($status) == 'active';
 
         $activationDate = null;
         if ($iccid && $isActive && $activePlan) {
-            if (! empty($activePlan['activeTime'])) {
+            if (!empty($activePlan['activeTime'])) {
                 $activationDate = $activePlan['activeTime'];
             }
         }
@@ -276,7 +276,7 @@ class SyncEsimWithProviderCommand extends Command
         if ($iccid && $isValidState) {
             // Convert remainFlow to bytes - assuming it's in MB
             if (isset($activePlan['remainFlow'])) {
-                $remainingData = (float)$activePlan['remainFlow'] * 1024 * 1024; // Convert MB to bytes
+                $remainingData = (float) $activePlan['remainFlow'] * 1024 * 1024; // Convert MB to bytes
             }
         } elseif ($isValidState == false && $remainingData <= 0) {
             $remainingData = $totalBytesData;
@@ -340,7 +340,7 @@ class SyncEsimWithProviderCommand extends Command
 
         $bundleStatus = isset($activePlan) ? IccidStatusEnum::getStatusById($activePlan['status']) : IccidStatusEnum::getStatus(strtolower($response['state']));
 
-        if (! $expired && $bundleStatus == 'active') {
+        if (!$expired && $bundleStatus == 'active') {
             $response['state'] = 'Enable';
         }
 
@@ -365,18 +365,19 @@ class SyncEsimWithProviderCommand extends Command
         $esimStatusArray = $esimStatus->toArray();
         // Check and send notifications if needed
         $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
+
         return $esimStatusArray;
     }
 
     /**
-     * Check if notifications should be sent for a specific ESim and send them if needed
+     * Check if notifications should be sent for a specific ESim and send them if needed.
      *
      * @param bool $shouldForceActive
      */
     private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isValidState): void
     {
         // If the ESim is not in an valid state, don't send notifications
-        if (! $isValidState) {
+        if (!$isValidState) {
             return;
         }
 
@@ -392,7 +393,7 @@ class SyncEsimWithProviderCommand extends Command
 
         if ($esimStatus['unlimited']) {
             $dataNotification = [
-                'title' => 'Has alcanzado tu límite diario de datos a alta velocidad.',
+                'title'   => 'Has alcanzado tu límite diario de datos a alta velocidad.',
                 'message' => 'Ahora navegarás a una velocidad reducida de 384kbps.',
             ];
             $this->checkUnlimitedPlanUsage($esimStatus, $notifyUser, $message, $dataNotification);
@@ -403,7 +404,7 @@ class SyncEsimWithProviderCommand extends Command
     }
 
     /**
-     * Check data usage thresholds and send notifications at 70% and 90% usage
+     * Check data usage thresholds and send notifications at 70% and 90% usage.
      */
     private function checkDataUsageThresholds(array $esimStatus, Users $notifyUser, Message $message): void
     {
@@ -442,7 +443,7 @@ class SyncEsimWithProviderCommand extends Command
     }
 
     /**
-     * Check if unlimited plan is about to expire and send notification
+     * Check if unlimited plan is about to expire and send notification.
      *
      * @param Users $user
      */
@@ -466,7 +467,7 @@ class SyncEsimWithProviderCommand extends Command
     }
 
     /**
-     * Check if unlimited plan is about to expire and send notification
+     * Check if unlimited plan is about to expire and send notification.
      *
      * @param Users $user
      */
@@ -496,7 +497,7 @@ class SyncEsimWithProviderCommand extends Command
     }
 
     /**
-     * Send push notification to user
+     * Send push notification to user.
      */
     private function sendPushNotification(
         Users $notifyUser,
@@ -509,10 +510,10 @@ class SyncEsimWithProviderCommand extends Command
         $app = $message->app;
 
         $data = [
-            'title' => $title,
+            'title'   => $title,
             'message' => $notificationMessage,
-            'app' => $app,
-            'data' => $additionalData,
+            'app'     => $app,
+            'data'    => $additionalData,
         ];
 
         $vias = [NotificationChannelEnum::getNotificationChannelBySlug('PUSH')];
@@ -557,7 +558,7 @@ class SyncEsimWithProviderCommand extends Command
 
         $shouldForcePublic = $isUnlimited && in_array($bundleState, ['disabled', 'disable']) && $expirationDate && now()->lessThan($expirationDate);
 
-        if (in_array($bundleState, $inactiveStatuses, true) && ! $shouldForcePublic) {
+        if (in_array($bundleState, $inactiveStatuses, true) && !$shouldForcePublic) {
             $message->setPrivate();
             $this->info("Message ID: {$message->id} has been set to private.");
         } else {

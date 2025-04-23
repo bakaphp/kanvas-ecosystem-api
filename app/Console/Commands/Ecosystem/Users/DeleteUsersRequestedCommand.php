@@ -40,10 +40,10 @@ class DeleteUsersRequestedCommand extends Command
         if ($appsId) {
             $app = Apps::findFirstOrFail($appsId);
             $this->overwriteAppService($app);
-            $this->info('Deleting user from app: ' . $app->name);
+            $this->info('Deleting user from app: '.$app->name);
         }
 
-        if (! isset($app)) {
+        if (!isset($app)) {
             $this->info('Delete users request process is disabled');
 
             return;
@@ -58,7 +58,7 @@ class DeleteUsersRequestedCommand extends Command
                 ->get();
 
         foreach ($users as $user) {
-            echo 'Deleting user: ' . $user->email . PHP_EOL;
+            echo 'Deleting user: '.$user->email.PHP_EOL;
             $user->associateUsers()->deActive();
         }
     }

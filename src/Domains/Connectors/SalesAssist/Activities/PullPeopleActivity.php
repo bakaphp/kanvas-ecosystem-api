@@ -15,7 +15,7 @@ class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInter
 {
     #[Override]
     /**
-     * $entity <People>
+     * $entity <People>.
      */
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
@@ -24,8 +24,8 @@ class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInter
         $people = $entity;
         if ($people === null) {
             return [
-                'result' => false,
-                'message' => 'People not found with id ' . $peopleId,
+                'result'  => false,
+                'message' => 'People not found with id '.$peopleId,
             ];
         }
 

@@ -21,7 +21,7 @@ class Client
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        if (! $app->get('amplitude_api_key') || ! $app->get('amplitude_api_secret')) {
+        if (!$app->get('amplitude_api_key') || !$app->get('amplitude_api_secret')) {
             throw new ValidationException('Amplitude API key or secret is not set in app settings.');
         }
 
@@ -49,11 +49,11 @@ class Client
         $path = '/export';
         $params = [
             'start' => $startFormatted,
-            'end' => $endFormatted,
+            'end'   => $endFormatted,
         ];
 
         $response = Http::withBasicAuth($this->apiKey, $this->apiSecret)
-                        ->get($this->baseUrl . $path, $params);
+                        ->get($this->baseUrl.$path, $params);
 
         if ($response->failed()) {
             throw new ValidationException('Failed to fetch data from Amplitude API.');
@@ -86,7 +86,7 @@ class Client
 
                     // Process each line as a JSON object
                     foreach ($lines as $line) {
-                        if (! empty($line)) {
+                        if (!empty($line)) {
                             $data = json_decode($line, true);
                             if ($data !== null) {
                                 $extractedData[] = $data;  // Collect the JSON data

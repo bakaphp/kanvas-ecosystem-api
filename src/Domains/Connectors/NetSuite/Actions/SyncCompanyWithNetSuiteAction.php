@@ -44,7 +44,7 @@ class SyncCompanyWithNetSuiteAction
 
     protected function hasExistingNetSuiteId(): bool
     {
-        return ! empty($this->company->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value));
+        return !empty($this->company->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value));
     }
 
     protected function updateExistingCustomer(): Companies
@@ -59,9 +59,9 @@ class SyncCompanyWithNetSuiteAction
 
         $updateResponse = $this->service->update($updateRequest);
 
-        if (! $updateResponse->writeResponse->status->isSuccess) {
+        if (!$updateResponse->writeResponse->status->isSuccess) {
             throw new Exception(
-                'Error updating customer: ' .
+                'Error updating customer: '.
                 ($updateResponse->writeResponse->status->statusDetail[0]->message ?? 'Unknown error')
             );
         }

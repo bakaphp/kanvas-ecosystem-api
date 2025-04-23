@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Dashboard\Actions;
 
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Dashboard\Repositories\DashboardRepositories;
 use Kanvas\Dashboard\Enums\DashboardEnum;
+use Kanvas\Dashboard\Repositories\DashboardRepositories;
 
 class SetDefaultDashboardFieldAction
 {
@@ -22,7 +22,7 @@ class SetDefaultDashboardFieldAction
         $defaultEnumValue = DashboardEnum::DEFAULT_ENUM->value;
         $fields = $this->company->get($defaultEnumValue) ?? [];
 
-        if (! is_null($this->field)) {
+        if (!is_null($this->field)) {
             $fields[$this->field] = $this->value;
             $this->company->set($defaultEnumValue, $fields);
         }

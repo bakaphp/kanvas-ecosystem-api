@@ -15,8 +15,8 @@ return [
     */
 
     'mailgun' => [
-        'domain' => env('MAILGUN_DOMAIN'),
-        'secret' => env('MAILGUN_SECRET'),
+        'domain'   => env('MAILGUN_DOMAIN'),
+        'secret'   => env('MAILGUN_SECRET'),
         'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'),
     ],
 
@@ -25,52 +25,52 @@ return [
     ],
 
     'ses' => [
-        'key' => env('AWS_ACCESS_KEY_ID'),
+        'key'    => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
     'github' => [
-        'client_id' => '',
+        'client_id'     => '',
         'client_secret' => '',
-        'redirect' => '',
+        'redirect'      => '',
     ],
 
     'google' => [
-        'client_id' => '',
+        'client_id'     => '',
         'client_secret' => '',
-        'redirect' => '',
+        'redirect'      => '',
     ],
 
     'facebook' => [
-        'client_id' => '',
+        'client_id'     => '',
         'client_secret' => '',
-        'redirect' => ''
+        'redirect'      => '',
     ],
 
     'twitter-oauth-2' => [
-        'client_id' => '',
+        'client_id'     => '',
         'client_secret' => '',
-        'redirect' => '',
+        'redirect'      => '',
     ],
 
     'stripe' => [
-    'key' => env('STRIPE_KEY'),
-    'secret' => env('STRIPE_SECRET'),
-    'webhook' => [
-        'secret' => env('STRIPE_WEBHOOK_SECRET'),
-        'tolerance' => env('STRIPE_WEBHOOK_TOLERANCE', 300),
+        'key'     => env('STRIPE_KEY'),
+        'secret'  => env('STRIPE_SECRET'),
+        'webhook' => [
+            'secret'    => env('STRIPE_WEBHOOK_SECRET'),
+            'tolerance' => env('STRIPE_WEBHOOK_TOLERANCE', 300),
         ],
     ],
 
     'sightengine' => [
-        'api_user' => env('SIGHTENGINE_API_USER'),
-        'api_secret' => env('SIGHTENGINE_API_SECRET'),
+        'api_user'         => env('SIGHTENGINE_API_USER'),
+        'api_secret'       => env('SIGHTENGINE_API_SECRET'),
         'image_moderation' => [
-            'api_url' => env('SIGHTENGINE_IMAGE_MODERATION_API_URL')
+            'api_url' => env('SIGHTENGINE_IMAGE_MODERATION_API_URL'),
         ],
         'text_moderation' => [
-            'api_url' => env('SIGHTENGINE_TEXT_MODERATION_API_URL')
-        ]
-    ]
+            'api_url' => env('SIGHTENGINE_TEXT_MODERATION_API_URL'),
+        ],
+    ],
 ];

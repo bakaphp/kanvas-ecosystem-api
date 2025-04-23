@@ -7,18 +7,19 @@ namespace Kanvas\Social\MessagesTypes\DataTransferObject;
 use Spatie\LaravelData\Data;
 
 /**
- *  class MessageTypeInput
- *  @property int $apps_id
- *  @property int $languages_id
- *  @property string $name
- *  @property string $verb
- *  @property string $template
- *  @property string $templates_plura
+ *  class MessageTypeInput.
+ *
+ * @property int    $apps_id
+ * @property int    $languages_id
+ * @property string $name
+ * @property string $verb
+ * @property string $template
+ * @property string $templates_plura
  */
 class MessageTypeInput extends Data
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */

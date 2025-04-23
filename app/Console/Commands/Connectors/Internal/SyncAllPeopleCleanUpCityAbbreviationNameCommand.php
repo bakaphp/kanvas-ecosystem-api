@@ -58,7 +58,7 @@ class SyncAllPeopleCleanUpCityAbbreviationNameCommand extends Command
             ->notDeleted(0)
             ->orderBy('peoples.id', 'DESC')
             ->limit($total)
-            ->chunk($perPage, function ($peoples) use ($app) {
+            ->chunk($perPage, function ($peoples) {
                 foreach ($peoples as $people) {
                     //get its address and clean up the city name
                     $address = $people->address;

@@ -30,7 +30,7 @@ class Integrations extends BaseModel
     ];
 
     protected $casts = [
-        'config' => Json::class,
+        'config'     => Json::class,
         'is_deleted' => 'boolean',
     ];
 
@@ -61,13 +61,13 @@ class Integrations extends BaseModel
         $active = Status::getDefaultStatusByName(StatusEnum::ACTIVE->value);
         $integrations = $user->getCurrentCompany()->integrations();
 
-        if (! $integrations->exists()) {
+        if (!$integrations->exists()) {
             return Status::getDefaultStatusByName(StatusEnum::OFFLINE->value);
         }
 
         if ($status = $integrations->whereNot('status_id', $active->getId())->first()) {
             return $status->status;
-        };
+        }
 
         return $active;
     }

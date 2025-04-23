@@ -4,16 +4,12 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\PromptMine;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Str;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Tags\Models\Tag;
-use Kanvas\Users\Models\Users;
-use Illuminate\Support\Facades\DB;
 use Google\Service\Sheets;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use PDO;
 
 class ImportImagePromptsFromSheetsCommand extends Command
 {
@@ -39,8 +35,8 @@ class ImportImagePromptsFromSheetsCommand extends Command
     public function handle()
     {
         // The Google Client setup looks correct, but we should check if the GOOGLE_AUTH_FILE exists
-        if (! file_exists(getenv('GOOGLE_AUTH_FILE'))) {
-            throw new \Exception('Google Auth file not found: ' . getenv('GOOGLE_AUTH_FILE'));
+        if (!file_exists(getenv('GOOGLE_AUTH_FILE'))) {
+            throw new \Exception('Google Auth file not found: '.getenv('GOOGLE_AUTH_FILE'));
         }
 
         $client = new \Google\Client();
@@ -67,7 +63,7 @@ class ImportImagePromptsFromSheetsCommand extends Command
 
             $promptsCollection = [];
 
-            if (! empty($values)) {
+            if (!empty($values)) {
                 array_shift($values);
                 $headers = [
                     'title',
@@ -86,15 +82,14 @@ class ImportImagePromptsFromSheetsCommand extends Command
                     $promptsCollection[] = $promptArray;
                 }
             } else {
-                echo "No data found.";
+                echo 'No data found.';
             }
 
-            if (! empty($promptsCollection)) {
+            if (!empty($promptsCollection)) {
                 $this->insertImagePrompts($promptsCollection, $appId, $messageType, $companyId);
             }
         }
     }
-
 
     public function insertImagePrompts(array $promptsCollection, int $appId, int $messageType, int $companyId)
     {
@@ -111,12 +106,11 @@ class ImportImagePromptsFromSheetsCommand extends Command
                 ->first();
 
             if ($result) {
-                echo($title . ' message already exists with id: ' . $result->id . PHP_EOL);
-                Log::info($title . ' message already exists with id: ' . $result->id);
+                echo $title.' message already exists with id: '.$result->id.PHP_EOL;
+                Log::info($title.' message already exists with id: '.$result->id);
 
                 continue;
             }
-
 
             // Fetch the user from the database using username and user_id, we need to make sure the user exists
             $userFromAssocApp = UsersAssociatedApps::where('displayname', 'kaioken8432')
@@ -127,18 +121,18 @@ class ImportImagePromptsFromSheetsCommand extends Command
 
             //insert into db message
             $lastId = DB::connection('social')->table('messages')->insertGetId([
-                'apps_id' => $appId,
-                'uuid' => DB::raw('uuid()'),
-                'companies_id' => $companyId,
-                'users_id' => $userId,
+                'apps_id'          => $appId,
+                'uuid'             => DB::raw('uuid()'),
+                'companies_id'     => $companyId,
+                'users_id'         => $userId,
                 'message_types_id' => $messageType,
-                'message' => json_encode([
-                    'title' => $title,
+                'message'          => json_encode([
+                    'title'    => $title,
                     'category' => $category,
-                    'prompt' => $promptText,
-                    'preview' => $promptText,
+                    'prompt'   => $promptText,
+                    'preview'  => $promptText,
                 ]),
-                'slug' => $this->slugify($title),
+                'slug'       => $this->slugify($title),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -151,8 +145,8 @@ class ImportImagePromptsFromSheetsCommand extends Command
             $categoryId = $this->fetchOrCreateCategory($category, $appId, $companyId, $userId);
             $this->assignTagToEntity($categoryId, $lastId, $userId);
 
-            echo($title . ' message inserted with id: ' . $lastId . PHP_EOL);
-            Log::info($title . ' message inserted with id: ' . $lastId);
+            echo $title.' message inserted with id: '.$lastId.PHP_EOL;
+            Log::info($title.' message inserted with id: '.$lastId);
         }
     }
 
@@ -160,6 +154,7 @@ class ImportImagePromptsFromSheetsCommand extends Command
      * Generate a slug from a string.
      *
      * @param string $text The string to generate a slug from.
+     *
      * @return string The generated slug.
      */
     public function slugify(string $text): string
@@ -186,25 +181,25 @@ class ImportImagePromptsFromSheetsCommand extends Command
         }
 
         return DB::connection('social')->table('tags')->insertGetId([
-            'name' => $category,
-            'apps_id' => $appId,
+            'name'         => $category,
+            'apps_id'      => $appId,
             'companies_id' => $companyId,
-            'users_id' => $userId,
-            'slug' => $this->slugify($category),
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
+            'users_id'     => $userId,
+            'slug'         => $this->slugify($category),
+            'created_at'   => date('Y-m-d H:i:s'),
+            'updated_at'   => date('Y-m-d H:i:s'),
         ]);
     }
 
     private function assignTagToEntity(int $categoryId, int $entityId, int $userId): void
     {
         DB::connection('social')->table('tags_entities')->insert([
-            'entity_id' => $entityId,
-            'tags_id' => $categoryId,
-            'users_id' => $userId,
+            'entity_id'     => $entityId,
+            'tags_id'       => $categoryId,
+            'users_id'      => $userId,
             'taggable_type' => "Kanvas\Social\Messages\Models\Message",
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
+            'created_at'    => date('Y-m-d H:i:s'),
+            'updated_at'    => date('Y-m-d H:i:s'),
         ]);
     }
 }

@@ -39,15 +39,15 @@ class Address
         $type = $this->address->type && $this->address->type->name == AddressEnum::PREVIOUS_HOME->value ? 'Previous' : 'Primary';
 
         return [
-            'AddressId' => $this->index,
-            'AddressType' => $type ,
-            'StreetAddress' => $this->getValue($this->address->address),
+            'AddressId'      => $this->index,
+            'AddressType'    => $type,
+            'StreetAddress'  => $this->getValue($this->address->address),
             'StreetAddress2' => null,
-            'City' => $this->getCity(),
-            'PostalCode' => $this->getValue($this->address->zip),
-            'County' => $this->getValue($this->address->county),
-            'State' => $this->getState(),
-            'Duration' => null,
+            'City'           => $this->getCity(),
+            'PostalCode'     => $this->getValue($this->address->zip),
+            'County'         => $this->getValue($this->address->county),
+            'State'          => $this->getState(),
+            'Duration'       => null,
         ];
     }
 
@@ -56,7 +56,7 @@ class Address
      */
     public function getValue(?string $value): ?string
     {
-        return ! empty(trim((string) $value)) ? $value : null;
+        return !empty(trim((string) $value)) ? $value : null;
     }
 
     /**
@@ -65,7 +65,7 @@ class Address
     public function getCity(): ?string
     {
         if ($this->address->city === null) {
-            return ! empty(trim((string) $this->address->city)) ? $this->address->city : null;
+            return !empty(trim((string) $this->address->city)) ? $this->address->city : null;
         }
 
         return $this->address->city()->first()?->name;
@@ -79,13 +79,13 @@ class Address
         $defaultState = $this->address->people && $this->address->people->companies ? $this->address->people->company->get(ConfigurationEnum::DEFAULT_STATE_KEY->value) : CustomFieldEnum::DEFAULT_STATE->value;
 
         if ($this->address->state === null) {
-            if (! empty($this->address->state) && strlen($this->address->state) > 3) {
+            if (!empty($this->address->state) && strlen($this->address->state) > 3) {
                 $state = States::where('name', $this->address->state)->first();
 
                 if ($state) {
                     return $state->code;
                 }
-            } elseif (! empty($this->address->state) && strlen($this->address->state) < 3) {
+            } elseif (!empty($this->address->state) && strlen($this->address->state) < 3) {
                 return strtoupper($this->address->state);
             }
 

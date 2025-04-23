@@ -16,9 +16,9 @@ class CompanySettingQuery
         $company = auth()->user()->getCurrentCompany();
 
         return [
-            'name' => $company->name,
+            'name'        => $company->name,
             'description' => $company->description,
-            'settings' => $company->getAllSettings(onlyPublicSettings: true),
+            'settings'    => $company->getAllSettings(onlyPublicSettings: true),
         ];
     }
 }

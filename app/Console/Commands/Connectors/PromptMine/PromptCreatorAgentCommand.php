@@ -42,8 +42,8 @@ class PromptCreatorAgentCommand extends Command
 
         $users = $app->get('prompt-creator-agents');
 
-        if (! is_array($users) || empty($users)) {
-            $this->error('No creator agents found for app ' . $app->name);
+        if (!is_array($users) || empty($users)) {
+            $this->error('No creator agents found for app '.$app->name);
 
             return;
         }
@@ -60,7 +60,7 @@ class PromptCreatorAgentCommand extends Command
 
         // If no agent is assigned to this hour, exit
         if ($currentAgent === null) {
-            $this->info('No creator agent assigned to hour ' . $currentHour . '. Exiting.');
+            $this->info('No creator agent assigned to hour '.$currentHour.'. Exiting.');
 
             return;
         }
@@ -78,12 +78,12 @@ class PromptCreatorAgentCommand extends Command
         // Set the Redis key with an expiry of 24 hours (to clean up old keys)
         Redis::setex($redisKey, 86400, 'executed');
 
-        $this->info('Starting creator agent for hour ' . $currentHour . ': ' . $currentAgent['email']);
+        $this->info('Starting creator agent for hour '.$currentHour.': '.$currentAgent['email']);
 
         $agentPersonality = $currentAgent['bio'];
         $token = $this->login($currentAgent['email'], $currentAgent['password']);
 
-        $this->info('Creator agent logged in: ' . $currentAgent['email']);
+        $this->info('Creator agent logged in: '.$currentAgent['email']);
 
         // Generate a prompt using Gemini
         $prompt = $this->generateViralPrompt($agentPersonality);
@@ -95,19 +95,19 @@ class PromptCreatorAgentCommand extends Command
         $model = $this->getRandomModel();
 
         $message = [
-            'title' => $prompt['title'],
-            'prompt' => $prompt['prompt'],
+            'title'        => $prompt['title'],
+            'prompt'       => $prompt['prompt'],
             'is_assistant' => false,
-            'ai_model' => $model,
-            'ai_nugged' => [
+            'ai_model'     => $model,
+            'ai_nugged'    => [
                 'description' => $nugget['description'] ?? '',
-                'title' => $prompt['title'],
-                'ai_model' => $model,
-                'nugget' => $nugget['nugget'],
-                'id' => 2053,
-                'type' => 'text-format',
-                'created_at' => time() * 1000, // Current timestamp in milliseconds
-                'updated_at' => time() * 1000,  // Current timestamp in milliseconds
+                'title'       => $prompt['title'],
+                'ai_model'    => $model,
+                'nugget'      => $nugget['nugget'],
+                'id'          => 2053,
+                'type'        => 'text-format',
+                'created_at'  => time() * 1000, // Current timestamp in milliseconds
+                'updated_at'  => time() * 1000,  // Current timestamp in milliseconds
             ],
             'type' => 'text-format',
         ];
@@ -118,7 +118,7 @@ class PromptCreatorAgentCommand extends Command
 
             return;
         }
-        $subject = 'Test creator agent output - ' . $currentAgent['email'];
+        $subject = 'Test creator agent output - '.$currentAgent['email'];
         Mail::raw(json_encode($message, JSON_PRETTY_PRINT), function ($message) use ($recipients, $subject) {
             foreach ($recipients as $recipient) {
                 $message->to($recipient);
@@ -144,13 +144,14 @@ class PromptCreatorAgentCommand extends Command
              $this->error('Failed to generate a viral prompt');
          } */
 
-        $this->info('Creator agent ' . $currentAgent['email'] . ' completed work for hour ' . $currentHour);
+        $this->info('Creator agent '.$currentAgent['email'].' completed work for hour '.$currentHour);
     }
 
     /**
-     * Generate a viral prompt using AI
+     * Generate a viral prompt using AI.
      *
      * @param string $agentPersonality The agent's personality/bio
+     *
      * @return array|null The generated prompt data or null if failed
      */
     protected function generateViralPrompt(string $agentPersonality): ?array
@@ -215,15 +216,15 @@ PROMPT;
 
             $responseText = str_replace(['```', 'json'], '', $response->text);
 
-            if (! Str::isJson($responseText)) {
-                $this->error('Invalid response from Prism: ' . $responseText);
+            if (!Str::isJson($responseText)) {
+                $this->error('Invalid response from Prism: '.$responseText);
 
                 return null;
             }
 
             $promptData = json_decode($responseText, true);
 
-            if (! isset($promptData['title']) || ! isset($promptData['prompt'])) {
+            if (!isset($promptData['title']) || !isset($promptData['prompt'])) {
                 $this->error('Missing required fields in prompt data');
 
                 return null;
@@ -231,7 +232,7 @@ PROMPT;
 
             return $promptData;
         } catch (\Exception $e) {
-            $this->error('Exception generating viral prompt: ' . $e->getMessage());
+            $this->error('Exception generating viral prompt: '.$e->getMessage());
 
             return null;
         }
@@ -293,15 +294,15 @@ ADVANCEPROMPT;
 
             $responseText = str_replace(['```', 'json'], '', $response->text);
 
-            if (! Str::isJson($responseText)) {
-                $this->error('Invalid response from Prism: ' . $responseText);
+            if (!Str::isJson($responseText)) {
+                $this->error('Invalid response from Prism: '.$responseText);
 
                 return null;
             }
 
             $promptData = json_decode($responseText, true);
 
-            if (! isset($promptData['title']) || ! isset($promptData['nugget'])) {
+            if (!isset($promptData['title']) || !isset($promptData['nugget'])) {
                 $this->error('Missing required fields in prompt data');
 
                 return null;
@@ -309,16 +310,17 @@ ADVANCEPROMPT;
 
             return $promptData;
         } catch (\Exception $e) {
-            $this->error('Exception generating viral prompt: ' . $e->getMessage());
+            $this->error('Exception generating viral prompt: '.$e->getMessage());
 
             return null;
         }
     }
 
     /**
-     * Get a random AI model from the available models
+     * Get a random AI model from the available models.
      *
      * @param bool $freeOnly Whether to only return free models (price = 0 and is_locked = false)
+     *
      * @return array The randomly selected model information with provider key
      */
     public function getRandomModel($freeOnly = true)
@@ -331,16 +333,16 @@ ADVANCEPROMPT;
             foreach ($category['value'] as $provider) {
                 foreach ($provider['value'] as $model) {
                     // If freeOnly is true, only include free models
-                    if (! $freeOnly || ($model['payment']['price'] == 0 && ! $model['payment']['is_locked'])) {
+                    if (!$freeOnly || ($model['payment']['price'] == 0 && !$model['payment']['is_locked'])) {
                         // Store model with provider information
                         $allModelValues[] = [
-                            'key' => $provider['key'],
-                            'value' => $model['model'],
-                            'name' => $model['name'],
-                            'payment' => $model['payment'],
-                            'icon' => $model['icon'],
+                            'key'       => $provider['key'],
+                            'value'     => $model['model'],
+                            'name'      => $model['name'],
+                            'payment'   => $model['payment'],
+                            'icon'      => $model['icon'],
                             'isDefault' => $model['isDefault'],
-                            'isNew' => $model['isNew'],
+                            'isNew'     => $model['isNew'],
                         ];
                     }
                 }
@@ -363,19 +365,20 @@ ADVANCEPROMPT;
     // echo "Selected model: " . $randomModel['name'] . " (" . $randomModel['provider'] . ")";
 
     /**
-     * Post a message with the generated prompt
+     * Post a message with the generated prompt.
      *
-     * @param string $token Authentication token
-     * @param string $title The title of the prompt
+     * @param string $token   Authentication token
+     * @param string $title   The title of the prompt
      * @param string $content The content of the prompt
-     * @param array $agent The agent data
+     * @param array  $agent   The agent data
+     *
      * @return int|null The message ID if successful, null otherwise
      */
     protected function postMessage(string $token, array $messageContent, string $verb, bool $isPublic = true): ?int
     {
-        $mutation = <<<GQL
-        mutation createMessage(\$input: MessageInput!) {
-          createMessage(input: \$input) {
+        $mutation = <<<'GQL'
+        mutation createMessage($input: MessageInput!) {
+          createMessage(input: $input) {
             id
           }
         }
@@ -383,8 +386,8 @@ ADVANCEPROMPT;
 
         $messageData = [
             'message_verb' => $verb,
-            'message' => $messageContent,
-            'is_public' => (int) $isPublic,
+            'message'      => $messageContent,
+            'is_public'    => (int) $isPublic,
         ];
 
         try {
@@ -395,7 +398,7 @@ ADVANCEPROMPT;
                         'Authorization' => $token,
                     ]),
                     'json' => [
-                        'query' => $mutation,
+                        'query'     => $mutation,
                         'variables' => [
                             'input' => $messageData, // Changed from 'message' to 'input'
                         ],
@@ -406,14 +409,14 @@ ADVANCEPROMPT;
             $result = json_decode($response->getBody()->getContents(), true);
 
             if (isset($result['errors'])) {
-                $this->error('GraphQL Error: ' . json_encode($result['errors']));
+                $this->error('GraphQL Error: '.json_encode($result['errors']));
 
                 return null;
             }
 
             return (int) $result['data']['createMessage']['id'] ?? null;
         } catch (\Exception $e) {
-            $this->error('Exception posting message: ' . $e->getMessage());
+            $this->error('Exception posting message: '.$e->getMessage());
 
             return null;
         }
@@ -432,16 +435,16 @@ ADVANCEPROMPT;
         $branchUid = '';
 
         return array_merge([
-            'X-Kanvas-App' => $appUuid,
+            'X-Kanvas-App'      => $appUuid,
             'X-Kanvas-Location' => $branchUid,
         ], $additional);
     }
 
     protected function login(string $email, string $password): string
     {
-        $login = <<<GQL
-mutation login(\$data: LoginInput!) {
-  login(data: \$data) {
+        $login = <<<'GQL'
+mutation login($data: LoginInput!) {
+  login(data: $data) {
     id
     token
     refresh_token
@@ -457,11 +460,11 @@ GQL;
             $this->url,
             [
                 'headers' => $this->getHeaders(),
-                'json' => [
-                    'query' => $login,
+                'json'    => [
+                    'query'     => $login,
                     'variables' => [
                         'data' => [
-                            'email' => $email,
+                            'email'    => $email,
                             'password' => $password,
                         ],
                     ],
@@ -471,6 +474,6 @@ GQL;
 
         $loginResponse = json_decode($getToken->getBody()->getContents(), true);
 
-        return 'Bearer ' . $loginResponse['data']['login']['token'];
+        return 'Bearer '.$loginResponse['data']['login']['token'];
     }
 }

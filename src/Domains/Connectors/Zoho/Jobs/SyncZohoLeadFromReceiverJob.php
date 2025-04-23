@@ -19,7 +19,7 @@ class SyncZohoLeadFromReceiverJob extends ProcessWebhookJob
             $this->receiver->app
         );
 
-        if (! $zohoLeadId) {
+        if (!$zohoLeadId) {
             return [
                 'message' => 'Zoho Lead ID not found',
             ];
@@ -35,9 +35,9 @@ class SyncZohoLeadFromReceiverJob extends ProcessWebhookJob
         $lead = $syncLead->execute();
 
         return [
-            'message' => 'Lead created successfully via receiver ' . $leadReceiver->uuid,
+            'message'  => 'Lead created successfully via receiver '.$leadReceiver->uuid,
             'receiver' => $leadReceiver->getId(),
-            'lead' => $lead->getId(),
+            'lead'     => $lead->getId(),
         ];
     }
 }

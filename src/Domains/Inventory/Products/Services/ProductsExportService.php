@@ -31,7 +31,7 @@ class ProductsExportService
             'Price',
             'Tax',
             'Discount',
-            'Currency'
+            'Currency',
         ];
     }
 
@@ -45,7 +45,7 @@ class ProductsExportService
             (float) $variant->price,
             (float) ($variant->tax ?? 0),
             (float) ($variant->discount ?? 0),
-            'USD'
+            'USD',
         ];
     }
 

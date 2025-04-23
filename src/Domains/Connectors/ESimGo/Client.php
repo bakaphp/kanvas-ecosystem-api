@@ -26,16 +26,16 @@ class Client
 
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUri,
-            'headers' => [
+            'headers'  => [
                 'Content-Type' => 'application/json',
-                'X-API-Key' => $this->appToken,
+                'X-API-Key'    => $this->appToken,
             ],
         ]);
     }
 
     protected function request($method, $uri, $body): array
     {
-        $response = $this->client->request($method, $uri, ! empty($body) ? ['json' => $body] : []);
+        $response = $this->client->request($method, $uri, !empty($body) ? ['json' => $body] : []);
 
         return json_decode($response->getBody()->getContents(), true);
     }

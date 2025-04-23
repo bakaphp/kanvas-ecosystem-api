@@ -21,7 +21,7 @@ class NewOrderNotification extends Notification
         $this->setTemplateName(EmailTemplateEnum::NEW_ORDER->value);
         $this->setData($data);
 
-        if (! $this->app->get(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value)) {
+        if (!$this->app->get(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value)) {
             $this->channels = [];
         }
     }

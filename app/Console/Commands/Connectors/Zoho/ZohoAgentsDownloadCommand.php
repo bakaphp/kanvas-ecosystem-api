@@ -58,8 +58,7 @@ class ZohoAgentsDownloadCommand extends Command
         // Finish the progress bar
         $this->output->progressFinish();
 
-        $this->info(PHP_EOL . $downloadAllAgents->getTotalAgentsProcessed() . ' agents downloaded from Zoho module ' . $module);
+        $this->info(PHP_EOL.$downloadAllAgents->getTotalAgentsProcessed().' agents downloaded from Zoho module '.$module);
 
-        return;
     }
 }

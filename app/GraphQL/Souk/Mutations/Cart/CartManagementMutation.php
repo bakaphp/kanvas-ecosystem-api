@@ -20,7 +20,7 @@ class CartManagementMutation
         $user = auth()->user();
         $company = $user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company;
 
-        if (! $company) {
+        if (!$company) {
             throw new ModelNotFoundException('No company found');
         }
 
@@ -36,7 +36,7 @@ class CartManagementMutation
     {
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
 
-        if (! $cart->has($request['variant_id'])) {
+        if (!$cart->has($request['variant_id'])) {
             return [];
         }
 
@@ -72,18 +72,18 @@ class CartManagementMutation
         /**
          * @todo for the love of god move this to a specific module
          */
-        if (! empty($discountCodes) && $app->get('temp-use-discount-codes')) {
+        if (!empty($discountCodes) && $app->get('temp-use-discount-codes')) {
             if (strtolower($discountCodes[0]) !== 'app15') {
                 throw new ModelNotFoundException('Discount code not found');
             }
 
             $tenPercentOff = new CartCondition([
-              'name' => 'APP15',
-              'type' => 'discount',
-              'target' => 'subtotal',
-              'value' => '-15%',
-              'minimum' => 1,
-              'order' => 1,
+                'name'    => 'APP15',
+                'type'    => 'discount',
+                'target'  => 'subtotal',
+                'value'   => '-15%',
+                'minimum' => 1,
+                'order'   => 1,
             ]);
 
             $cart->condition($tenPercentOff);

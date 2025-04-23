@@ -59,8 +59,7 @@ class ZohoLeadsDownloadCommand extends Command
         // Finish the progress bar
         $this->output->progressFinish();
 
-        $this->info(PHP_EOL . $downloadAllLeads->getTotalLeadsProcessed() . ' leads downloaded from Zoho to ' . $leadReceiver->name);
+        $this->info(PHP_EOL.$downloadAllLeads->getTotalLeadsProcessed().' leads downloaded from Zoho to '.$leadReceiver->name);
 
-        return;
     }
 }

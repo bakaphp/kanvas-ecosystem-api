@@ -21,7 +21,7 @@ class NewLeadNotification extends Notification
         $this->setTemplateName(EmailTemplateEnum::NEW_LEAD->value);
         $this->setData($data);
 
-        if (! $this->app->get(ConfigurationEnum::SEND_NEW_LEAD_NOTIFICATION->value)) {
+        if (!$this->app->get(ConfigurationEnum::SEND_NEW_LEAD_NOTIFICATION->value)) {
             $this->channels = [];
         }
     }

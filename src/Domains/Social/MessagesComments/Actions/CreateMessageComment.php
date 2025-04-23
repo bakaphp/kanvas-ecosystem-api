@@ -28,12 +28,12 @@ class CreateMessageComment
         }
 
         $data = [
-            'apps_id' => $this->commentsDto->app->getId(),
+            'apps_id'      => $this->commentsDto->app->getId(),
             'companies_id' => $this->commentsDto->company->getId(),
-            'users_id' => $this->commentsDto->user->getId(),
-            'message' => $this->commentsDto->comment,
-            'parent_id' => $this->commentsDto->parent_id,
-            'message_id' => $this->commentsDto->message->getId(),
+            'users_id'     => $this->commentsDto->user->getId(),
+            'message'      => $this->commentsDto->comment,
+            'parent_id'    => $this->commentsDto->parent_id,
+            'message_id'   => $this->commentsDto->message->getId(),
         ];
 
         if ($this->commentsDto->parent_id == null || $this->commentsDto->parent_id == 0) {

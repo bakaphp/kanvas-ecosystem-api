@@ -19,7 +19,7 @@ class WarehouseObserver
             $defaultWarehouse->saveQuietly();
         }
 
-        if (! $warehouse->is_default && ! $defaultWarehouse) {
+        if (!$warehouse->is_default && !$defaultWarehouse) {
             throw new ValidationException('Can\'t Save, you have to have at least one default Warehouse');
         }
     }
@@ -36,7 +36,7 @@ class WarehouseObserver
             $defaultWarehouse->is_default = false;
             $defaultWarehouse->saveQuietly();
         } elseif ($defaultWarehouse &&
-            ! $warehouse->is_default &&
+            !$warehouse->is_default &&
             $warehouse->getId() == $defaultWarehouse->getId()
         ) {
             throw new ValidationException('Can\'t Save, you have to have at least one default Warehouse');

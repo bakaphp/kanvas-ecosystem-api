@@ -30,7 +30,7 @@ class ShopifyImageService
     public function processEntityImage(Products|Variants $entity): int
     {
         $totalUploaded = 0;
-        if (! $entity->files->count()) {
+        if (!$entity->files->count()) {
             return $totalUploaded;
         }
 
@@ -71,7 +71,7 @@ class ShopifyImageService
                 return [];
             }
 
-            throw new Exception('Failed to add image to Shopify product: ' . $e->getMessage());
+            throw new Exception('Failed to add image to Shopify product: '.$e->getMessage());
         }
     }
 
@@ -87,7 +87,7 @@ class ShopifyImageService
             // Check if the image already exists
             $existingImages = $shopifyProduct->Image->get();
             $fileName = pathinfo($imageUrl, PATHINFO_BASENAME);
-            $alt = $variant->product->name . ' - ' . $variant->name;
+            $alt = $variant->product->name.' - '.$variant->name;
             $existingImageId = null;
 
             foreach ($existingImages as $image) {
@@ -101,12 +101,12 @@ class ShopifyImageService
             // If image doesn't exist, upload it first
             if ($existingImageId === null) {
                 $imageResponse = $shopifyProduct->Image->post([
-                    'src' => $imageUrl,
-                    'alt' => $alt,
+                    'src'      => $imageUrl,
+                    'alt'      => $alt,
                     'position' => $position,
                 ]);
 
-                if (! isset($imageResponse['id'])) {
+                if (!isset($imageResponse['id'])) {
                     return false;
                 }
 
@@ -127,7 +127,7 @@ class ShopifyImageService
                 return false;
             }
 
-            throw new Exception('Failed to add image to Shopify variant: ' . $e->getMessage());
+            throw new Exception('Failed to add image to Shopify variant: '.$e->getMessage());
         }
     }
 }

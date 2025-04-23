@@ -20,13 +20,13 @@ class Client
         $username = $this->app->get(ConfigurationEnum::EASY_ACTIVATION_USERNAME->value);
         $password = $this->app->get(ConfigurationEnum::EASY_ACTIVATION_PASSWORD->value);
 
-        if (! $username || ! $password) {
+        if (!$username || !$password) {
             throw new ValidationException('Easy Activation credentials not set');
         }
 
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUri,
-            'headers' => [
+            'headers'  => [
                 'Content-Type' => 'application/json',
             ],
             'auth' => [

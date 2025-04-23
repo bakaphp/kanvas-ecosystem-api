@@ -19,7 +19,7 @@ class UserCustomFieldActivity extends KanvasActivity implements WorkflowActivity
 
         $customField = $params['customField'] ?? null;
 
-        if (! $customField) {
+        if (!$customField) {
             return ['No custom field configured to set for user'];
         }
 
@@ -31,7 +31,7 @@ class UserCustomFieldActivity extends KanvasActivity implements WorkflowActivity
         }
 
         return [
-            'user_id' => $user->getId(),
+            'user_id'      => $user->getId(),
             'custom_field' => $customField,
         ];
     }

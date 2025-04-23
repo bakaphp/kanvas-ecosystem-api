@@ -70,8 +70,8 @@ class AgentsImportCommand extends Command
 
         //validate header columns dont exist in header array
         foreach ($fixedHeader as $column) {
-            if (! in_array($column, $header)) {
-                $this->error('Column ' . $column . ' not found in csv file , please check the file follows the correct format');
+            if (!in_array($column, $header)) {
+                $this->error('Column '.$column.' not found in csv file , please check the file follows the correct format');
 
                 return;
             }
@@ -88,21 +88,21 @@ class AgentsImportCommand extends Command
             try {
                 $user = Users::getByEmail(trim($record['Email']));
 
-                if (empty($user->phone_number) && ! empty($record['Phone'])) {
+                if (empty($user->phone_number) && !empty($record['Phone'])) {
                     $user->phone_number = Str::sanitizePhoneNumber(str_replace('-', '', $record['Phone']));
                     $user->save();
-                    $this->info('User ' . $user->email . ' updated successfully');
+                    $this->info('User '.$user->email.' updated successfully');
                 }
             } catch (ModelNotFoundException|EloquentModelNotFoundException $e) {
                 //create user
                 $createUser = new CreateUserAction(
                     RegisterInput::fromArray(
                         [
-                            'firstname' => $record['Agent First'],
-                            'lastname' => $record['Agent Last'],
-                            'displayname' => null,
-                            'email' => $record['Email'],
-                            'password' => Str::password(10),
+                            'firstname'    => $record['Agent First'],
+                            'lastname'     => $record['Agent Last'],
+                            'displayname'  => null,
+                            'email'        => $record['Email'],
+                            'password'     => Str::password(10),
                             'phone_number' => $record['Phone'],
                         ],
                         $company->defaultBranch()->first()
@@ -111,26 +111,26 @@ class AgentsImportCommand extends Command
 
                 $createUser->disableWorkflow();
                 $user = $createUser->execute();
-                $this->info('User ' . $user->email . ' created successfully');
+                $this->info('User '.$user->email.' created successfully');
             }
 
             $agent = Agent::updateOrCreate(
                 [
-                    'users_id' => $user->getId(),
+                    'users_id'     => $user->getId(),
                     'companies_id' => $company->getId(),
-                    'apps_id' => $app->getId(),
+                    'apps_id'      => $app->getId(),
                 ],
                 [
-                    'name' => $record['Agent Name'],
-                    'member_id' => $record['Member Number'],
-                    'owner_id' => $record['Sponsor'],
+                    'name'                   => $record['Agent Name'],
+                    'member_id'              => $record['Member Number'],
+                    'owner_id'               => $record['Sponsor'],
                     'users_linked_source_id' => $record['Record Id'],
                     'owner_linked_source_id' => $record['Owner Id'],
-                    'status_id' => 1,
+                    'status_id'              => 1,
                 ]
             );
 
-            $this->info('Agent ' . $agent->name . ' synced successfully');
+            $this->info('Agent '.$agent->name.' synced successfully');
         }
     }
 }

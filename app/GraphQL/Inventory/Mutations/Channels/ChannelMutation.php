@@ -14,8 +14,8 @@ class ChannelMutation
     /**
      * create.
      *
-     * @param  mixed $rootValue
-     * @param  array $args
+     * @param mixed $rootValue
+     * @param array $args
      *
      * @return ChannelsModel
      */
@@ -31,8 +31,8 @@ class ChannelMutation
     /**
      * update.
      *
-     * @param  mixed $rootValue
-     * @param  array $request
+     * @param mixed $rootValue
+     * @param array $request
      *
      * @return ChannelsModel
      */
@@ -49,8 +49,8 @@ class ChannelMutation
     /**
      * delete.
      *
-     * @param  mixed $rootValue
-     * @param  array $request
+     * @param mixed $rootValue
+     * @param array $request
      *
      * @return bool
      */
@@ -67,6 +67,7 @@ class ChannelMutation
      *
      * @param mixed $rootValue
      * @param array $request
+     *
      * @return bool
      */
     public function unPublishAllVariantsFromChannel(mixed $rootValue, array $request): bool

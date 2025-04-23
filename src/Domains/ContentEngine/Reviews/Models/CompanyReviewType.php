@@ -11,10 +11,10 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\ContentEngine\Models\BaseModel;
 
 /**
- * @property int $id
- * @property int $companies_id
- * @property int $companies_branches_id
- * @property int $review_types_id
+ * @property int     $id
+ * @property int     $companies_id
+ * @property int     $companies_branches_id
+ * @property int     $review_types_id
  * @property ?string $link
  * @property ?string $config
  */

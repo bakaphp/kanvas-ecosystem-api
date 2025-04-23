@@ -18,7 +18,7 @@ class ImportMutation
     /**
      * importer.
      *
-     * @param  mixed $req
+     * @param mixed $req
      */
     public function product(mixed $root, array $req): string
     {
@@ -29,7 +29,7 @@ class ImportMutation
             auth()->user()
         );
 
-        $region = ! isset($req['regionId']) ? Regions::getDefault($company) : RegionRepository::getById($req['regionId'], $company);
+        $region = !isset($req['regionId']) ? Regions::getDefault($company) : RegionRepository::getById($req['regionId'], $company);
 
         //verify it has the correct format
         ProductImporter::from($req['input'][0]);

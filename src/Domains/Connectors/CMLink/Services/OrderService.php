@@ -23,9 +23,9 @@ class OrderService
      * Create an order.
      *
      * @param string $thirdOrderId Unique order ID from the client.
-     * @param string $iccid ICCID of the target SIM card.
-     * @param int $quantity Number of bundles to purchase.
-     * @param int $isRefuel Indicates whether this is an add-on package (0 = yes, 1 = no).
+     * @param string $iccid        ICCID of the target SIM card.
+     * @param int    $quantity     Number of bundles to purchase.
+     * @param int    $isRefuel     Indicates whether this is an add-on package (0 = yes, 1 = no).
      * @param string $dataBundleId ID of the data package to purchase.
      */
     public function createOrder(
@@ -38,12 +38,12 @@ class OrderService
     ): array {
         return $this->client->post('/aep/APP_createOrder_SBO/v1', [
             'thirdOrderId' => $thirdOrderId,
-            'ICCID' => $iccid,
-            'quantity' => $quantity,
-            'is_Refuel' => (string) $isRefuel,
-            'includeCard' => 0, // Assuming 0 means no physical card
+            'ICCID'        => $iccid,
+            'quantity'     => $quantity,
+            'is_Refuel'    => (string) $isRefuel,
+            'includeCard'  => 0, // Assuming 0 means no physical card
             'dataBundleId' => $dataBundleId,
-            'sendLang' => 2,
+            'sendLang'     => 2,
             //'setActiveTime' => date('Ymd', strtotime($activeDate)),
             'accessToken' => $this->client->getAccessToken(),
         ]);
@@ -54,9 +54,9 @@ class OrderService
      * extend the plan with a new plan.
      *
      * @param string $thirdOrderId Unique order ID from the client.
-     * @param string $iccid ICCID of the target SIM card.
-     * @param int $quantity Number of bundles to purchase.
-     * @param string $refuelingId Add-on package ID, it is required if is_Refuel is 0
+     * @param string $iccid        ICCID of the target SIM card.
+     * @param int    $quantity     Number of bundles to purchase.
+     * @param string $refuelingId  Add-on package ID, it is required if is_Refuel is 0
      * @param string $dataBundleId ID of the data package to purchase.
      */
     public function refuelOrder(
@@ -69,13 +69,13 @@ class OrderService
     ): array {
         return $this->client->post('/aep/APP_createOrder_SBO/v1', [
             'thirdOrderId' => $thirdOrderId,
-            'ICCID' => $iccid,
-            'quantity' => $quantity,
-            'is_Refuel' => '0',
-            'refuelingId' => $refuelingId,
+            'ICCID'        => $iccid,
+            'quantity'     => $quantity,
+            'is_Refuel'    => '0',
+            'refuelingId'  => $refuelingId,
             'dataBundleId' => $dataBundleId,
-            'includeCard' => 0, // Assuming 0 means no physical card
-            'sendLang' => 2,
+            'includeCard'  => 0, // Assuming 0 means no physical card
+            'sendLang'     => 2,
             //'setActiveTime' => date('Ymd', strtotime($activeDate)),
             'accessToken' => $this->client->getAccessToken(),
         ]);
@@ -85,11 +85,11 @@ class OrderService
     {
         $response = $this->client->post('/aep/APP_getSubscriberAllQuota_SBO/v1', [
             'thirdOrderId' => $thirdOrderId,
-            'accessToken' => $this->client->getAccessToken(),
+            'accessToken'  => $this->client->getAccessToken(),
         ]);
 
         // Check if 'quotaList' exists and is an array
-        if (! isset($response['quotaList']) || ! is_array($response['quotaList'])) {
+        if (!isset($response['quotaList']) || !is_array($response['quotaList'])) {
             return ['total' => 0];
         }
 
@@ -97,7 +97,7 @@ class OrderService
         // Loop through quotaList items
         foreach ($response['quotaList'] as $quotaItem) {
             // Check if subscriberQuota exists and is not empty
-            if (! empty($quotaItem['subscriberQuota']) && isset($quotaItem['subscriberQuota']['qtabalance'])) {
+            if (!empty($quotaItem['subscriberQuota']) && isset($quotaItem['subscriberQuota']['qtabalance'])) {
                 $totalConsumptionMB = $quotaItem['subscriberQuota']['qtabalance'];
 
                 break;
@@ -113,7 +113,7 @@ class OrderService
         $totalConsumptionFormatted = (int) ($totalConsumptionMB * 1000000);
 
         return [
-            'total' => $totalConsumptionFormatted,
+            'total'             => $totalConsumptionFormatted,
             'original_response' => $response, // Keep original response for debugging
         ];
     }
@@ -122,9 +122,9 @@ class OrderService
      * Create an order and ensure activation.
      *
      * @param string $thirdOrderId Unique order ID from the client.
-     * @param string $iccid ICCID of the target SIM card.
-     * @param int $quantity Number of bundles to purchase.
-     * @param int $isRefuel Indicates whether this is an add-on package (0 = yes, 1 = no).
+     * @param string $iccid        ICCID of the target SIM card.
+     * @param int    $quantity     Number of bundles to purchase.
+     * @param int    $isRefuel     Indicates whether this is an add-on package (0 = yes, 1 = no).
      * @param string $dataBundleId ID of the data package to purchase.
      */
     public function createOrderWithActivation(

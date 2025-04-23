@@ -55,6 +55,5 @@ class SendPushPromptOfTheWeekCommand extends Command
                 }
             });
 
-        return;
     }
 }

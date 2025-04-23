@@ -16,9 +16,9 @@ class RuleActionFactory extends Factory
     public function definition()
     {
         return [
-           'rules_id' => Rule::factory()->create()->getId(),
-           'rules_workflow_actions_id' => RuleWorkflowAction::factory()->create()->getId(),
-           'weight' => 0,
+            'rules_id'                  => Rule::factory()->create()->getId(),
+            'rules_workflow_actions_id' => RuleWorkflowAction::factory()->create()->getId(),
+            'weight'                    => 0,
         ];
     }
 

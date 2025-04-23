@@ -10,8 +10,8 @@ use Illuminate\Database\Eloquent\Builder;
 trait IsPublicScopesTrait
 {
     /**
-    * Is public scope.
-    */
+     * Is public scope.
+     */
     public function scopeIsPublic(Builder $query): Builder
     {
         return $query->where('is_public', '=', StateEnums::YES->getValue());

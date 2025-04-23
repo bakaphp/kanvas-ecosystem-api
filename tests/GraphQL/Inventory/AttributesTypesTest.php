@@ -109,7 +109,6 @@ class AttributesTypesTest extends TestCase
 
     //     $this->assertArrayHasKey('name', $response);
 
-
     //     $id = $response['id'];
     //     $this->graphQL('
     //         mutation($id: ID!) {

@@ -31,7 +31,7 @@ class DownloadPlanToProductAction
     {
         $destination = new DestinationService($this->region->app, $this->region->company);
 
-        if (! isset($destinationPlans[0]['code'])) {
+        if (!isset($destinationPlans[0]['code'])) {
             throw new ValidationException('Invalid plan list missing code');
         }
 

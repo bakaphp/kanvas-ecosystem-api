@@ -41,7 +41,7 @@ class SearchEngineResolver
     {
         // As for this stage, the code doesn't know in which app need to set the index.
         try {
-            $modelObject = ! $model->searchableDeleteRecord() ? $model : $model->withTrashed()->find($model->id);
+            $modelObject = !$model->searchableDeleteRecord() ? $model : $model->withTrashed()->find($model->id);
             $model = $modelObject ?? $model;
         } catch (BadMethodCallException $e) {
             $model = $model;
@@ -50,16 +50,16 @@ class SearchEngineResolver
 
         $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
         // If there's a model, try to get model-specific engine setting
-        $modelSpecificEngine = $model !== null ? $app->get($model->getTable() . '_search_engine') : null;
+        $modelSpecificEngine = $model !== null ? $app->get($model->getTable().'_search_engine') : null;
         // Use model-specific engine if available, otherwise use default
         $engine = $modelSpecificEngine ?? $defaultEngine;
-        $searchSettings = $app->get($engine . '_search_settings') ?? [];
+        $searchSettings = $app->get($engine.'_search_settings') ?? [];
 
         return match ($engine) {
-            'algolia' => $this->createAlgoliaEngine($searchSettings),
-            'typesense' => $this->createTypesenseEngine($searchSettings),
+            'algolia'     => $this->createAlgoliaEngine($searchSettings),
+            'typesense'   => $this->createTypesenseEngine($searchSettings),
             'meilisearch' => $this->createMeiliSearchEngine($searchSettings),
-            default => new NullEngine(),
+            default       => new NullEngine(),
         };
     }
 
@@ -78,9 +78,9 @@ class SearchEngineResolver
         $defaultNode = config('scout.typesense.nodes')[0] ?? [];
         $nodes = $searchSettings['typesense_nodes'] ?? [
             [
-                'host' => $defaultNode['host'] ?? 'localhost',
-                'port' => $defaultNode['port'] ?? 8108,
-                'path' => $defaultNode['path'] ?? '/',
+                'host'     => $defaultNode['host'] ?? 'localhost',
+                'port'     => $defaultNode['port'] ?? 8108,
+                'path'     => $defaultNode['path'] ?? '/',
                 'protocol' => $defaultNode['protocol'] ?? 'http',
             ],
         ];
@@ -89,8 +89,8 @@ class SearchEngineResolver
             ?? config('scout.typesense.connection_timeout_seconds', 2);
 
         $config = [
-            'api_key' => $apiKey,
-            'nodes' => $nodes,
+            'api_key'                    => $apiKey,
+            'nodes'                      => $nodes,
             'connection_timeout_seconds' => $connectionTimeout,
         ];
         $maxItemsPerPage = $searchSettings['typesense_max_items_per_page'] ?? 1000;

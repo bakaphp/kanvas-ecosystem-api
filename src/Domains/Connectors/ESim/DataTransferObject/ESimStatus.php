@@ -10,7 +10,7 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapInputName(SnakeCaseMapper::class)]
-##[MapOutputName(SnakeCaseMapper::class)]
+//#[MapOutputName(SnakeCaseMapper::class)]
 class ESimStatus extends Data
 {
     public function __construct(

@@ -41,7 +41,7 @@ class SystemModulesRepository
         return SystemModules::firstOrCreate(
             [
                 'model_name' => $modelName,
-                'apps_id' => $app->getKey(),
+                'apps_id'    => $app->getKey(),
             ],
             [
                 'slug' => Str::simpleSlug($modelName),
@@ -67,15 +67,15 @@ class SystemModulesRepository
     }
 
     /**
-     * Get the entity from the input
+     * Get the entity from the input.
      */
     public static function getEntityFromInput(SystemModuleInputInterface $entityInput, Users $user, bool $useCompanyReference = true): Model
     {
         $systemModule = self::getByUuidOrModelName($entityInput->systemModuleUuid);
 
         /**
-        * @var BaseModel
-        */
+         * @var BaseModel
+         */
         $entityModel = (new ($systemModule->model_name));
         $hasUuid = $entityModel->hasColumn('uuid');
 
@@ -85,7 +85,7 @@ class SystemModulesRepository
         $hasAppId = $entityModel->hasColumn('apps_id');
         $hasCompanyId = $entityModel->hasColumn('companies_id');
 
-        if (! $hasAppId && ! $hasCompanyId && (! $isUser && ! $isCompany)) {
+        if (!$hasAppId && !$hasCompanyId && (!$isUser && !$isCompany)) {
             throw new InternalServerErrorException('This system module doesn\'t allow external custom fields');
         }
         $field = $hasUuid && Str::isUuid($entityInput->entityId) ? 'uuid' : 'id';
@@ -112,7 +112,7 @@ class SystemModulesRepository
                 );
             }
         } else {
-            if ($user->isAppOwner() || ! $useCompanyReference) {
+            if ($user->isAppOwner() || !$useCompanyReference) {
                 $entity = $entityModel::where($field, $entityInput->entityId)
                         ->fromApp()
                         ->notDeleted()

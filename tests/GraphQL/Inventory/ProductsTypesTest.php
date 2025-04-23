@@ -17,7 +17,7 @@ class ProductsTypesTest extends TestCase
     public function testCreate(): void
     {
         $data = [
-            'name' => fake()->name,
+            'name'   => fake()->name,
             'weight' => 1,
         ];
         $this->graphQL('
@@ -28,7 +28,7 @@ class ProductsTypesTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createProductType' => $data]
+            'data' => ['createProductType' => $data],
         ]);
     }
 
@@ -40,7 +40,7 @@ class ProductsTypesTest extends TestCase
     public function testSearch(): void
     {
         $data = [
-            'name' => fake()->name,
+            'name'   => fake()->name,
             'weight' => 1,
         ];
         $this->graphQL('
@@ -51,7 +51,7 @@ class ProductsTypesTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createProductType' => $data]
+            'data' => ['createProductType' => $data],
         ]);
         $response = $this->graphQL('
             query {
@@ -76,7 +76,7 @@ class ProductsTypesTest extends TestCase
         $id = $response['data']['createProductType']['id'];
 
         $data = [
-            'name' => fake()->name,
+            'name'   => fake()->name,
             'weight' => 2,
         ];
         $this->graphQL('
@@ -87,7 +87,7 @@ class ProductsTypesTest extends TestCase
                     weight
                 }
             }', ['data' => $data, 'id' => $id])->assertJson([
-            'data' => ['updateProductType' => $data]
+            'data' => ['updateProductType' => $data],
         ]);
     }
 
@@ -98,7 +98,7 @@ class ProductsTypesTest extends TestCase
         $id = $response['data']['createProductType']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name . ' en'
+            'name' => fake()->name.' en',
         ];
 
         $response = $this->graphQL('
@@ -116,10 +116,10 @@ class ProductsTypesTest extends TestCase
                     }
                 }
             }', [
-                'dataUpdate' => $dataUpdate,
-                'id' => $id,
-                'code' => $language->code
-            ]);
+            'dataUpdate' => $dataUpdate,
+            'id'         => $id,
+            'code'       => $language->code,
+        ]);
 
         $this->assertEquals(
             $dataUpdate['name'],
@@ -140,14 +140,14 @@ class ProductsTypesTest extends TestCase
             mutation($id: ID!) {
                 deleteProductType(id: $id)
             }', ['id' => $id])->assertJson([
-            'data' => ['deleteProductType' => true]
+            'data' => ['deleteProductType' => true],
         ]);
     }
 
     private function createProductType()
     {
         $data = [
-            'name' => fake()->name,
+            'name'   => fake()->name,
             'weight' => 1,
         ];
 

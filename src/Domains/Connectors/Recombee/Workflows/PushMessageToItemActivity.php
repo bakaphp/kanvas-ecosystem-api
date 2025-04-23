@@ -29,9 +29,9 @@ class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivi
         if ($messageType !== null) {
             if ($message->message_types_id !== (int) $messageType) {
                 return [
-                    'result' => false,
-                    'message' => 'Message type does not match the expected ' . $messageType . ' but found ' . $message->message_types_id,
-                    'id' => $message->id,
+                    'result'  => false,
+                    'message' => 'Message type does not match the expected '.$messageType.' but found '.$message->message_types_id,
+                    'id'      => $message->id,
                 ];
             }
         }
@@ -43,16 +43,16 @@ class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivi
             $result = $messageIndex->indexPromptMessage($message);
         } catch (Throwable $e) {
             return [
-                'result' => false,
+                'result'  => false,
                 'message' => $e->getMessage(),
-                'id' => $message->id,
+                'id'      => $message->id,
             ];
         }
 
         return [
-            'result' => $result,
+            'result'  => $result,
             'message' => $message->id,
-            'slug' => $message->slug ?? $message->uuid,
+            'slug'    => $message->slug ?? $message->uuid,
         ];
     }
 }

@@ -13,7 +13,6 @@ class ImportOrderItemsCsvTest extends TestCase
 {
     use InventoryCases;
     /** @lang GraphQL */
-
     private const IMPORT_ORDER_CSV_MUTATION = '
                 mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
                     importOrderCsv(input: {file: $file, channel_id: $channel_id})
@@ -29,9 +28,9 @@ class ImportOrderItemsCsvTest extends TestCase
         $app = app(Apps::class);
 
         $operations = [
-            'query' => self::IMPORT_ORDER_CSV_MUTATION,
+            'query'     => self::IMPORT_ORDER_CSV_MUTATION,
             'variables' => [
-                'file' => null,
+                'file'       => null,
                 'channel_id' => 1,
             ],
         ];
@@ -49,7 +48,7 @@ class ImportOrderItemsCsvTest extends TestCase
             'data' => [
                 'importOrderCsv' => [
                     'message' => 'No valid order items found',
-                    'status' => 'error',
+                    'status'  => 'error',
                 ],
             ],
         ]);
@@ -105,9 +104,9 @@ class ImportOrderItemsCsvTest extends TestCase
         );
 
         $operations = [
-            'query' => self::IMPORT_ORDER_CSV_MUTATION,
+            'query'     => self::IMPORT_ORDER_CSV_MUTATION,
             'variables' => [
-                'file' => null,
+                'file'       => null,
                 'channel_id' => $channelResponse['id'],
             ],
         ];
@@ -118,14 +117,14 @@ class ImportOrderItemsCsvTest extends TestCase
 
         $csv = $this->getValidProductsCsvContent([
             [
-                'id' => $variantResponse['id'],
+                'id'   => $variantResponse['id'],
                 'name' => $variantResponse['name'],
-                'ean' => $variantResponse['ean'],
+                'ean'  => $variantResponse['ean'],
             ],
             [
-                'id' => $variantResponse2['id'],
+                'id'   => $variantResponse2['id'],
                 'name' => $variantResponse2['name'],
-                'ean' => $variantResponse2['ean'],
+                'ean'  => $variantResponse2['ean'],
             ],
         ], 5);
 
@@ -138,7 +137,7 @@ class ImportOrderItemsCsvTest extends TestCase
             'data' => [
                 'importOrderCsv' => [
                     'message' => 'Items processed successfully',
-                    'status' => 'success',
+                    'status'  => 'success',
                 ],
             ],
         ]);
@@ -229,9 +228,9 @@ class ImportOrderItemsCsvTest extends TestCase
                 }
             ',
             'variables' => [
-                'file' => null,
+                'file'       => null,
                 'channel_id' => $channelResponse['id'],
-                'app_id' => $app->getId(),
+                'app_id'     => $app->getId(),
             ],
         ];
 
@@ -241,14 +240,14 @@ class ImportOrderItemsCsvTest extends TestCase
 
         $csv = $this->getValidProductsCsvContent([
             [
-                'id' => $variantResponse['id'],
+                'id'   => $variantResponse['id'],
                 'name' => $variantResponse['name'],
-                'ean' => $variantResponse['ean'],
+                'ean'  => $variantResponse['ean'],
             ],
             [
-                'id' => $variantResponse2['id'],
+                'id'   => $variantResponse2['id'],
                 'name' => $variantResponse2['name'],
-                'ean' => $variantResponse2['ean'],
+                'ean'  => $variantResponse2['ean'],
             ],
         ], 5);
 
@@ -261,7 +260,7 @@ class ImportOrderItemsCsvTest extends TestCase
             'data' => [
                 'importOrderCsv' => [
                     'message' => "Not enough stock for product {$variantResponse['name']}, Not enough stock for product {$variantResponse2['name']}",
-                    'status' => 'error',
+                    'status'  => 'error',
                 ],
             ],
         ]);
@@ -271,9 +270,9 @@ class ImportOrderItemsCsvTest extends TestCase
     {
         return '"Instructions: Please fill out the Quantity fields. Ensure all entries are accurate before uploading. Save the file as a CSV format."
 "Variant ID",Name,"Copic Item No/ UPC",Order Qty,"Min Quantity",Price,Tax,Discount,Currency
-1,"Dodge Durango 2020 WDEH75",WDEH75,' . $qty . ',8,40421,0,0,USD
+1,"Dodge Durango 2020 WDEH75",WDEH75,'.$qty.',8,40421,0,0,USD
 23192,"Dodge Durango 2020 WDEH76",WDEH76,0,0,0,0,0,USD
-2,"Ram 2500 2021 DJ7H92",DJ7H92,' . $qty . ',8,43674,0,0,USD
+2,"Ram 2500 2021 DJ7H92",DJ7H92,'.$qty.',8,43674,0,0,USD
 3,"Volkswagen Tiguan 2021 BW23VJ",BW23VJ,0,8,31125,0,0,USD
 4,"Jeep Wrangler 2021 JLJS74",JLJS74,0,0,42699,0,0,USD
 5,"Cadillac XT5 2022 6NH26",6NH26,0,0,47800,0,0,USD
@@ -283,11 +282,10 @@ class ImportOrderItemsCsvTest extends TestCase
 
     private function getValidProductsCsvContent(array $products, $qty = 0): string
     {
-        return '"Instructions: Please fill out the Quantity fields. Ensure all entries are accurate before uploading. Save the file as a CSV format."' . "\n" .
-            '"Variant ID",Name,"Copic Item No/ UPC",Order Qty,"Min Quantity",Price,Tax,Discount,Currency' . "\n" .
+        return '"Instructions: Please fill out the Quantity fields. Ensure all entries are accurate before uploading. Save the file as a CSV format."'."\n".
+            '"Variant ID",Name,"Copic Item No/ UPC",Order Qty,"Min Quantity",Price,Tax,Discount,Currency'."\n".
             collect($products)->map(
-                fn ($product) =>
-                "{$product['id']},\"{$product['name']}\",\"{$product['ean']}\",{$qty},0,0,0,0,0,USD"
+                fn ($product) => "{$product['id']},\"{$product['name']}\",\"{$product['ean']}\",{$qty},0,0,0,0,0,USD"
             )->join("\n");
     }
 }

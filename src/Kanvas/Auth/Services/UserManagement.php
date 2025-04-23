@@ -25,7 +25,7 @@ class UserManagement
     }
 
     /**
-     * Update current user data with $data
+     * Update current user data with $data.
      */
     public function update(array $data): Users
     {
@@ -65,10 +65,10 @@ class UserManagement
 
     protected function updateRole(array $roleIds): void
     {
-        if (! empty($roleIds) && $this->userEditing) {
+        if (!empty($roleIds) && $this->userEditing) {
             $updateRole = $this->userEditing->isAdmin() || $this->userEditing->can(AbilityEnum::MANAGE_ROLES->value);
 
-            if (! $updateRole) {
+            if (!$updateRole) {
                 return;
             }
             foreach ($roleIds as $roleId) {

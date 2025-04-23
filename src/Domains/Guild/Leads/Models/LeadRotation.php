@@ -13,15 +13,15 @@ use RuntimeException;
 /**
  * Class LeadRotation.
  *
- * @property int $id
+ * @property int      $id
  * @property int|null $apps_id
- * @property int $companies_id
- * @property string $name
- * @property string $leads_rotations_email
- * @property int $hits
- * @property string $created_at
- * @property string $updated_at
- * @property int $is_deleted
+ * @property int      $companies_id
+ * @property string   $name
+ * @property string   $leads_rotations_email
+ * @property int      $hits
+ * @property string   $created_at
+ * @property string   $updated_at
+ * @property int      $is_deleted
  */
 class LeadRotation extends BaseModel
 {
@@ -43,7 +43,7 @@ class LeadRotation extends BaseModel
     {
         $agents = $this->getLeadsRotationsAgents();
         if ($agents->isEmpty()) {
-            throw new RuntimeException("This rotation doesn't have any users assigned to it " . $this->id);
+            throw new RuntimeException("This rotation doesn't have any users assigned to it ".$this->id);
         }
 
         $this->increment('hits');

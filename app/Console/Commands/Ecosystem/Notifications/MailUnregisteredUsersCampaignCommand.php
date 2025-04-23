@@ -40,7 +40,7 @@ class MailUnregisteredUsersCampaignCommand extends Command
         $app = Apps::getById((int) $this->argument('apps_id'));
         $this->overwriteAppService($app);
 
-        if (! $app->get('unregistered-users-campaign-mail')) {
+        if (!$app->get('unregistered-users-campaign-mail')) {
             $this->info('Unregistered Users Campaign Mail is not enabled for this app');
 
             return;
@@ -49,7 +49,7 @@ class MailUnregisteredUsersCampaignCommand extends Command
         /**
          * @todo make this dynamic
          */
-        $campaignWeek = (int)ceil(now()->day / 7);
+        $campaignWeek = (int) ceil(now()->day / 7);
 
         switch ($campaignWeek) {
             case 1:
@@ -94,7 +94,7 @@ class MailUnregisteredUsersCampaignCommand extends Command
                     ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                     ->first();
 
-                    if (! $user) {
+                    if (!$user) {
                         $notification = new Blank(
                             $emailTemplateName,
                             ['userFirstname' => $user->firstname],
@@ -107,7 +107,7 @@ class MailUnregisteredUsersCampaignCommand extends Command
                         }
                         $notification->setSubject($emailSubject);
                         Notification::route('mail', $user->email)->notify($notification);
-                        $this->info('Email Successfully sent to: ' . $user->getId() . ' on app: ' . $app->getId());
+                        $this->info('Email Successfully sent to: '.$user->getId().' on app: '.$app->getId());
                         $this->newLine();
                     }
                 }

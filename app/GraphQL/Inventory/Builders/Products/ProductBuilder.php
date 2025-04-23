@@ -23,16 +23,16 @@ class ProductBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $user = auth()->user();
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             //Products::setSearchIndex($company->getId());
         }
         $query = Products::query();
 
-        if (! empty($args['variantAttributeValue'])) {
+        if (!empty($args['variantAttributeValue'])) {
             $query->filterByVariantAttributeValue($args['variantAttributeValue']);
         }
 
-        if (! empty($args['variantAttributeOrderBy'])) {
+        if (!empty($args['variantAttributeOrderBy'])) {
             $order = $args['variantAttributeOrderBy'];
             $query->orderByVariantAttribute(
                 $order['name'],
@@ -41,7 +41,7 @@ class ProductBuilder
             );
         }
 
-        if (! empty($args['attributeOrderBy']) && empty($args['variantAttributeOrderBy'])) {
+        if (!empty($args['attributeOrderBy']) && empty($args['variantAttributeOrderBy'])) {
             $order = $args['attributeOrderBy'];
             $query->orderByAttribute(
                 $order['name'],
@@ -50,9 +50,10 @@ class ProductBuilder
             );
         }
 
-        if (! empty($args['nearByLocation'])) {
+        if (!empty($args['nearByLocation'])) {
             $query->filterByNearLocation($args['nearByLocation']);
         }
+
         return $query;
     }
 
@@ -67,7 +68,7 @@ class ProductBuilder
             $url = $exportProducts->execute();
 
             return [
-                'url' => $url,
+                'url'     => $url,
                 'message' => 'Products exported successfully',
             ];
         } catch (Exception $e) {
@@ -76,7 +77,7 @@ class ProductBuilder
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            throw new Exception('Error exporting products: ' . $e->getMessage());
+            throw new Exception('Error exporting products: '.$e->getMessage());
         }
     }
 }

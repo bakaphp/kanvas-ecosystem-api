@@ -21,15 +21,15 @@ use Lcobucci\JWT\Token\Plain;
 /**
  * Sessions Model.
  *
- * @property int $users_id
- * @property int $apps_id
+ * @property int    $users_id
+ * @property int    $apps_id
  * @property string $token
- * @property int $start
- * @property int $time
+ * @property int    $start
+ * @property int    $time
  * @property string $ip
  * @property string $page
- * @property int $logged_in
- * @property int $is_admin
+ * @property int    $logged_in
+ * @property int    $is_admin
  */
 class Sessions extends PersonalAccessToken
 {
@@ -42,9 +42,9 @@ class Sessions extends PersonalAccessToken
      * @var array
      */
     protected $casts = [
-        'abilities' => 'json',
+        'abilities'    => 'json',
         'last_used_at' => 'datetime',
-        'expires_at' => 'datetime',
+        'expires_at'   => 'datetime',
     ];
 
     /**
@@ -160,10 +160,10 @@ class Sessions extends PersonalAccessToken
         //
         preg_match('/(..)(..)(..)(..)/', $userIp, $userIp_parts);
 
-        $ipOne = $userIp_parts[1] . $userIp_parts[2] . $userIp_parts[3] . $userIp_parts[4];
-        $ipTwo = $userIp_parts[1] . $userIp_parts[2] . $userIp_parts[3] . 'ff';
-        $ipThree = $userIp_parts[1] . $userIp_parts[2] . 'ffff';
-        $ipFour = $userIp_parts[1] . 'ffffff';
+        $ipOne = $userIp_parts[1].$userIp_parts[2].$userIp_parts[3].$userIp_parts[4];
+        $ipTwo = $userIp_parts[1].$userIp_parts[2].$userIp_parts[3].'ff';
+        $ipThree = $userIp_parts[1].$userIp_parts[2].'ffff';
+        $ipFour = $userIp_parts[1].'ffffff';
 
         $userId = $user->getId();
         $email = $user->getEmail();
@@ -192,19 +192,19 @@ class Sessions extends PersonalAccessToken
          * right now 27.7.15 90% of the sessions are for that type of users
          */
         $session = self::create([
-            'users_id' => $user->id,
-            'apps_id' => $app->getId(),
-            'id' => $sessionId,
-            'start' => $currentTime,
-            'time' => $currentTime,
-            'page' => $pageId,
-            'logged_in' => 1,
-            'token' => $token->toString(),
-            'refresh_token' => $refreshToken->toString(),
-            'expires_at' => $token->claims()->get('exp'),
+            'users_id'                 => $user->id,
+            'apps_id'                  => $app->getId(),
+            'id'                       => $sessionId,
+            'start'                    => $currentTime,
+            'time'                     => $currentTime,
+            'page'                     => $pageId,
+            'logged_in'                => 1,
+            'token'                    => $token->toString(),
+            'refresh_token'            => $refreshToken->toString(),
+            'expires_at'               => $token->claims()->get('exp'),
             'refresh_token_expires_at' => $refreshToken->claims()->get('exp'),
-            'abilities' => $ability,
-            'ip' => $userIp,
+            'abilities'                => $ability,
+            'ip'                       => $userIp,
         ]);
 
         $lastVisit = ($user->session_time > 0) ? $user->session_time : $currentTime;
@@ -254,7 +254,7 @@ class Sessions extends PersonalAccessToken
             })
             ->first();
 
-        if (! $userData) {
+        if (!$userData) {
             throw new AuthenticationException('Invalid Session');
         }
 
@@ -269,7 +269,7 @@ class Sessions extends PersonalAccessToken
             $session->time = $currentTime;
             $session->page = $pageId;
 
-            if (! $session->save()) {
+            if (!$session->save()) {
                 throw new AuthenticationException('Unable to update session');
             }
 
@@ -299,7 +299,7 @@ class Sessions extends PersonalAccessToken
     /**
      * Find the token instance matching the given token.
      *
-     * @param  string  $token
+     * @param string $token
      *
      * @return static|null
      */
@@ -311,7 +311,7 @@ class Sessions extends PersonalAccessToken
     /**
      * Determine if the token has a given ability.
      *
-     * @param  string  $ability
+     * @param string $ability
      *
      * @return bool
      */
@@ -324,13 +324,13 @@ class Sessions extends PersonalAccessToken
     /**
      * Determine if the token is missing a given ability.
      *
-     * @param  string  $ability
+     * @param string $ability
      *
      * @return bool
      */
     public function cant($ability)
     {
-        return ! $this->can($ability);
+        return !$this->can($ability);
     }
 
     /**

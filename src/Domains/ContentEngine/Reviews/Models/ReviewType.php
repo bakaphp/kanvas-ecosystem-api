@@ -7,9 +7,9 @@ namespace Kanvas\ContentEngine\Reviews\Models;
 use Kanvas\ContentEngine\Models\BaseModel;
 
 /**
- * @property int $id
- * @property int $apps_id
- * @property int $users_id
+ * @property int    $id
+ * @property int    $apps_id
+ * @property int    $users_id
  * @property string $name
  */
 class ReviewType extends BaseModel

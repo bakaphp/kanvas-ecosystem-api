@@ -18,7 +18,7 @@ class RefreshTokenMiddleware
 
         $token = $this->decodeToken($request->bearerToken());
 
-        if (! $this->validateJwtToken($token)) {
+        if (!$this->validateJwtToken($token)) {
             return $this->buildErrorResponse(401, 'Invalid Token');
         }
 
@@ -34,7 +34,7 @@ class RefreshTokenMiddleware
         return response()->json([
             'errors' => [
                 [
-                    'message' => $message,
+                    'message'    => $message,
                     'extensions' => [
                         'reason' => null, // You can populate this if needed
                     ],

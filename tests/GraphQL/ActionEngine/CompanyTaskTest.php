@@ -16,33 +16,33 @@ class CompanyTaskTest extends TestCase
 
         if (empty($input)) {
             $input = [
-                'branch_id' => $branch->getId(),
-                'title' => $title,
+                'branch_id'         => $branch->getId(),
+                'title'             => $title,
                 'pipeline_stage_id' => 0,
-                'people' => [
+                'people'            => [
                     'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'contacts' => [
+                    'lastname'  => fake()->lastName(),
+                    'contacts'  => [
                         [
-                            'value' => fake()->email(),
+                            'value'             => fake()->email(),
                             'contacts_types_id' => 1,
-                            'weight' => 0,
+                            'weight'            => 0,
                         ],
                     ],
                     'address' => [
                         [
                             'address' => fake()->address(),
-                            'city' => fake()->city(),
-                            'state' => fake()->state(),
+                            'city'    => fake()->city(),
+                            'state'   => fake()->state(),
                             'country' => fake()->country(),
-                            'zip' => fake()->postcode(),
+                            'zip'     => fake()->postcode(),
                         ],
                     ],
                 ],
                 'custom_fields' => [],
-                'files' => [
+                'files'         => [
                     [
-                        'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                        'url'  => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
                         'name' => 'dummy.pdf',
                     ],
                 ],
@@ -87,7 +87,7 @@ class CompanyTaskTest extends TestCase
             }
         }
     ', [
-    ])->assertOk();
+        ])->assertOk();
     }
 
     public function testGetLeadTaskEngagement()
@@ -125,7 +125,7 @@ class CompanyTaskTest extends TestCase
             }
         }
     ', [
-        'lead_id' => $leadId, // Passing the lead ID to the GraphQL query
-    ])->assertOk();
+            'lead_id' => $leadId, // Passing the lead ID to the GraphQL query
+        ])->assertOk();
     }
 }

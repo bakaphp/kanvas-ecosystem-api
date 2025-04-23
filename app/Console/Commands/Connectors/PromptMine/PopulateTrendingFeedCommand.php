@@ -61,6 +61,5 @@ class PopulateTrendingFeedCommand extends Command
          $tag->is_feature = 1;
          $tag->saveOrFail(); */
 
-        return;
     }
 }

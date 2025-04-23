@@ -20,19 +20,19 @@ class PullWooCommerceUsersCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
 
         $wooCommerceUrl = $app->get(ConfigurationEnum::WORDPRESS_URL->value);
-        if (! $wooCommerceUrl) {
+        if (!$wooCommerceUrl) {
             $ask = $this->ask('What is the WooCommerce Base URL?');
             $app->set(ConfigurationEnum::WORDPRESS_URL->value, $ask);
         }
 
         $wooCommerceUser = $app->get(ConfigurationEnum::WORDPRESS_USER->value);
-        if (! $wooCommerceUser) {
+        if (!$wooCommerceUser) {
             $ask = $this->ask('What is the WooCommerce User?');
             $app->set(ConfigurationEnum::WORDPRESS_USER->value, $ask);
         }
 
         $wooCommercePassword = $app->get(ConfigurationEnum::WORDPRESS_PASSWORD->value);
-        if (! $wooCommercePassword) {
+        if (!$wooCommercePassword) {
             $ask = $this->secret('What is the WooCommerce Password?');
             $app->set(ConfigurationEnum::WORDPRESS_PASSWORD->value, $ask);
         }

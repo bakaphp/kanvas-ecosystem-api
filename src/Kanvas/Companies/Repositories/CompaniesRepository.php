@@ -25,6 +25,7 @@ class CompaniesRepository
 {
     /**
      * Get company by Id.
+     *
      * @psalm-suppress MixedReturnStatement
      *
      * @throws ModelNotFoundException
@@ -38,6 +39,7 @@ class CompaniesRepository
 
     /**
      * Get by uuid and app.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function getByUuid(string $uuid, ?Apps $app = null, ?Users $user = null): Companies
@@ -65,6 +67,7 @@ class CompaniesRepository
 
     /**
      * User belongs / has permission in this company.
+     *
      * @psalm-suppress MixedReturnStatement
      *
      * @throws ExceptionsModelNotFoundException
@@ -81,13 +84,15 @@ class CompaniesRepository
                                 ->where('is_deleted', StateEnums::NO->getValue())
                                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->id . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company '.$company->id.' , talk to the Admin');
         }
     }
 
     /**
      * User belongs / has permission in this company.
+     *
      * @psalm-suppress MixedReturnStatement
+     *
      * @throws ExceptionsModelNotFoundException
      */
     public static function userAssociatedToCompanyAndBranch(Companies $company, CompaniesBranches $branch, Users $user): UsersAssociatedCompanies
@@ -103,7 +108,7 @@ class CompaniesRepository
                                 ->where('is_deleted', AppEnums::GLOBAL_COMPANY_ID->getValue())
                                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company '.$company->uuid.' , talk to the Admin');
         }
     }
 
@@ -117,7 +122,7 @@ class CompaniesRepository
         $ecosystemConnection = config('database.connections.ecosystem');
         // $columns = Schema::Connection('ecosystem')->getColumnListing('users');
 
-        return UsersAssociatedCompanies::join($ecosystemConnection['database'] . '.users', 'users.id', '=', 'users_associated_company.users_id')
+        return UsersAssociatedCompanies::join($ecosystemConnection['database'].'.users', 'users.id', '=', 'users_associated_company.users_id')
                                 ->where('companies_id', $company->getKey())
                                 ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
                                 ->where('users.is_deleted', StateEnums::NO->getValue())
@@ -127,7 +132,9 @@ class CompaniesRepository
 
     /**
      * User associated to this company on the current app.
+     *
      * @psalm-suppress MixedReturnStatement
+     *
      * @throws ExceptionsModelNotFoundException
      */
     public static function userAssociatedToCompanyInThisApp(Apps $app, Companies $company, Users $user): UsersAssociatedApps
@@ -139,7 +146,7 @@ class CompaniesRepository
                         ->where('is_deleted', StateEnums::NO->getValue())
                         ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company '.$company->uuid.' , talk to the Admin');
         }
     }
 
@@ -161,7 +168,7 @@ class CompaniesRepository
             ->where('is_deleted', StateEnums::NO->getValue())
             ->exists();
 
-        if (! $exist) {
+        if (!$exist) {
             throw new ExceptionsModelNotFoundException('Company doesn\'t have access to this app');
         }
 

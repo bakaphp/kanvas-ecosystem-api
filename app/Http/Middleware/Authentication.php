@@ -21,13 +21,13 @@ class Authentication
      */
     public function handle(Request $request, Closure $next)
     {
-        if (! empty($request->bearerToken())) {
+        if (!empty($request->bearerToken())) {
             $token = $this->decodeToken($request->bearerToken());
         } else {
             throw new Exception('Missing Token');
         }
 
-        if (! $this->validateJwtToken($token)) {
+        if (!$this->validateJwtToken($token)) {
             throw new Exception('Invalid Token');
         }
 
@@ -49,8 +49,8 @@ class Authentication
     /**
      * Get the real from the JWT Token.
      *
-     * @param Micro $api
-     * @param Config $config
+     * @param Micro            $api
+     * @param Config           $config
      * @param RequestInterface $request
      *
      * @throws UnauthorizedException
@@ -66,8 +66,8 @@ class Authentication
         $session = new Sessions();
         $userData = new Users();
 
-        if (! empty($token->claims()->get('sessionId'))) {
-            if (! $user = $userData->getByEmail($token->claims()->get('email'))) {
+        if (!empty($token->claims()->get('sessionId'))) {
+            if (!$user = $userData->getByEmail($token->claims()->get('email'))) {
                 throw new Exception('User not found');
             }
 

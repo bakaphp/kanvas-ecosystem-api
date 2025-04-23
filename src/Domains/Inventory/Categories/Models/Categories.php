@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Categories\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Inventory\Products\Models\ProductsCategories;
-use Baka\Traits\DatabaseSearchableTrait;
-use Kanvas\Inventory\Traits\ScopesTrait;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Models\ProductsCategories;
+use Kanvas\Inventory\Traits\ScopesTrait;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Nevadskiy\Tree\AsTree;
 
@@ -34,7 +34,6 @@ class Categories extends BaseModel
     public $translatable = ['name'];
 
     /**
-     *
      * @return BelongsTo
      */
     public function apps(): BelongsTo
@@ -65,20 +64,21 @@ class Categories extends BaseModel
     /**
      * Get the total amount of products of a product type.
      *
-     * @return Int
+     * @return int
      */
     public function getTotalProducts(): int
     {
-        if (! $totalProducts = $this->get('total_products')) {
+        if (!$totalProducts = $this->get('total_products')) {
             return (int) $this->setTotalProducts();
         }
+
         return (int) $totalProducts;
     }
 
     /**
      * Set the total amount of products of a product categories.
      *
-     * @return Int
+     * @return int
      */
     public function setTotalProducts(): int
     {

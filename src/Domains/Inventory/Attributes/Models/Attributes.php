@@ -30,10 +30,10 @@ use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
  * @property int $companies_id
  * @property string uuid
  * @property string $name
- * @property int $is_filterable
- * @property int $is_searchable
- * @property int $is_visible
- * @property int $weight
+ * @property int    $is_filterable
+ * @property int    $is_searchable
+ * @property int    $is_visible
+ * @property int    $weight
  */
 #[ObservedBy(AttributeObserver::class)]
 class Attributes extends BaseModel
@@ -48,7 +48,7 @@ class Attributes extends BaseModel
     public $translatable = ['name'];
 
     public $guarded = [];
-    protected $cascadeDeletes = ['variantAttributes','defaultValues'];
+    protected $cascadeDeletes = ['variantAttributes', 'defaultValues'];
 
     public function apps(): BelongsTo
     {
@@ -76,13 +76,13 @@ class Attributes extends BaseModel
     }
 
     /**
-     * attributes values from pivot
+     * attributes values from pivot.
      */
     public function value(): Attribute
     {
         return Attribute::make(
             get: function () {
-                if (! $this->pivot || ! isset($this->pivot->value)) {
+                if (!$this->pivot || !isset($this->pivot->value)) {
                     return null;
                 }
 
@@ -94,7 +94,7 @@ class Attributes extends BaseModel
     }
 
     /**
-     * Attributes can have a default list of values , so we can generate dropdown list
+     * Attributes can have a default list of values , so we can generate dropdown list.
      */
     public function defaultValues(): HasMany
     {

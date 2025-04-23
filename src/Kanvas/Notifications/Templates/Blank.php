@@ -10,7 +10,7 @@ use Kanvas\Notifications\Notification;
 class Blank extends Notification
 {
     /**
-     * __construct
+     * __construct.
      */
     public function __construct(
         string $templateName,
@@ -24,7 +24,7 @@ class Blank extends Notification
         $this->setTemplateName($templateName);
         $this->setData($data);
 
-        if (! empty($via)) {
+        if (!empty($via)) {
             $this->channels = $via;
         }
     }

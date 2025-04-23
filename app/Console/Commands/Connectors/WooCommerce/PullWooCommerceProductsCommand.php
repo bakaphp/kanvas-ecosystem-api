@@ -23,19 +23,19 @@ class PullWooCommerceProductsCommand extends Command
         $app = Apps::getById((int) $this->argument(key: 'app_id'));
 
         $wooCommerceUrl = $app->get(ConfigurationEnum::WORDPRESS_URL->value);
-        if (! $wooCommerceUrl) {
+        if (!$wooCommerceUrl) {
             $ask = $this->ask('What is the WooCommerce Base URL?');
             $app->set(ConfigurationEnum::WORDPRESS_URL->value, $ask);
         }
 
         $wooCommerceUser = $app->get(ConfigurationEnum::WOOCOMMERCE_KEY->value);
-        if (! $wooCommerceUser) {
+        if (!$wooCommerceUser) {
             $ask = $this->ask('What is the WooCommerce Key?');
             $app->set(ConfigurationEnum::WOOCOMMERCE_KEY->value, $ask);
         }
 
         $wooCommercePassword = $app->get(ConfigurationEnum::WOOCOMMERCE_SECRET_KEY->value);
-        if (! $wooCommercePassword) {
+        if (!$wooCommercePassword) {
             $ask = $this->secret('What is the WooCommerce secret key?');
             $app->set(ConfigurationEnum::WOOCOMMERCE_SECRET_KEY->value, $ask);
         }
@@ -47,8 +47,8 @@ class PullWooCommerceProductsCommand extends Command
         $woocommerce = new WooCommerce($app);
         $products = $woocommerce->client->get('products', [
             'per_page' => 100,
-            'page' => $page,
-            'status' => 'publish',
+            'page'     => $page,
+            'status'   => 'publish',
         ]);
         $totalPage = $woocommerce->client->http->getResponse()->getHeaders()['X-WP-TotalPages'][0] ?? 1;
         while ($page <= $totalPage) {
@@ -64,7 +64,7 @@ class PullWooCommerceProductsCommand extends Command
             $page++;
             $products = $woocommerce->client->get('products', [
                 'per_page' => 100,
-                'page' => $page,
+                'page'     => $page,
             ]);
         }
     }

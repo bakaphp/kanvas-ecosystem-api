@@ -42,24 +42,24 @@ class CreateProductAction
             $productType = $this->productDto?->productsType?->getId();
 
             $search = [
-                'slug' => $this->productDto->slug ?? Str::slug($this->productDto->name),
-                'apps_id' => $this->productDto->app->getId(),
+                'slug'         => $this->productDto->slug ?? Str::slug($this->productDto->name),
+                'apps_id'      => $this->productDto->app->getId(),
                 'companies_id' => $this->productDto->company->getId(),
             ];
 
             $updateData = [
                 'products_types_id' => $productType,
-                'name' => $this->productDto->name,
-                'description' => $this->productDto->description,
+                'name'              => $this->productDto->name,
+                'description'       => $this->productDto->description,
                 'short_description' => $this->productDto->short_description,
-                'html_description' => $this->productDto->html_description,
-                'warranty_terms' => $this->productDto->warranty_terms,
-                'upc' => $this->productDto->upc,
-                'status_id' => $this->productDto->status_id,
-                'users_id' => $this->user->getId(),
-                'is_published' => $this->productDto->is_published,
-                'published_at' => Carbon::now(),
-                'weight' => $this->productDto->weight ?? 0,
+                'html_description'  => $this->productDto->html_description,
+                'warranty_terms'    => $this->productDto->warranty_terms,
+                'upc'               => $this->productDto->upc,
+                'status_id'         => $this->productDto->status_id,
+                'users_id'          => $this->user->getId(),
+                'is_published'      => $this->productDto->is_published,
+                'published_at'      => Carbon::now(),
+                'weight'            => $this->productDto->weight ?? 0,
             ];
 
             if ($productType == null) {
@@ -70,7 +70,7 @@ class CreateProductAction
                 $updateData
             );
 
-            if (! empty($this->productDto->files)) {
+            if (!empty($this->productDto->files)) {
                 $products->addMultipleFilesFromUrl($this->productDto->files);
             }
 

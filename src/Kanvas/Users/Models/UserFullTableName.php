@@ -10,7 +10,7 @@ class UserFullTableName extends Users
 {
     public function __construct(array $attributes = [])
     {
-        $this->setTable(DB::connection('ecosystem')->getDatabaseName() . '.' . $this->table);
+        $this->setTable(DB::connection('ecosystem')->getDatabaseName().'.'.$this->table);
         parent::__construct($attributes);
     }
 }

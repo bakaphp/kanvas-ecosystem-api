@@ -16,7 +16,7 @@ class ChannelTest extends TestCase
     public function testCreateChannel(): void
     {
         $data = [
-            'name' => fake()->name,
+            'name'       => fake()->name,
             'is_default' => true,
         ];
         $this->graphQL('
@@ -28,7 +28,7 @@ class ChannelTest extends TestCase
                     is_default
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createChannel' => $data]
+            'data' => ['createChannel' => $data],
         ]);
     }
 
@@ -61,7 +61,7 @@ class ChannelTest extends TestCase
     public function testUpdateChannel(): void
     {
         $data = [
-            'name' => fake()->name,
+            'name'       => fake()->name,
             'is_default' => true,
         ];
         $newChannel = $this->graphQL('
@@ -73,7 +73,7 @@ class ChannelTest extends TestCase
                     is_default
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createChannel' => $data]
+            'data' => ['createChannel' => $data],
         ]);
         $channelId = $newChannel['data']['createChannel']['id'];
 
@@ -87,7 +87,7 @@ class ChannelTest extends TestCase
                 }
             }
         }', ['id' => $channelId])->assertJson([
-            'data' => ['channels' => ['data' => [$data]]]
+            'data' => ['channels' => ['data' => [$data]]],
         ]);
 
         $data = [
@@ -100,7 +100,7 @@ class ChannelTest extends TestCase
                     name
                 }
             }', ['channelId' => $channelId, 'data' => $data])->assertJson([
-            'data' => ['updateChannel' => $data]
+            'data' => ['updateChannel' => $data],
         ]);
     }
 
@@ -112,7 +112,7 @@ class ChannelTest extends TestCase
     public function testDeleteChannel(): void
     {
         $data = [
-            'name' => fake()->name,
+            'name'       => fake()->name,
             'is_default' => false,
         ];
         $newChannel = $this->graphQL('
@@ -124,7 +124,7 @@ class ChannelTest extends TestCase
                     is_default
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createChannel' => $data]
+            'data' => ['createChannel' => $data],
         ]);
 
         $channelId = $newChannel['data']['createChannel']['id'];
@@ -139,14 +139,14 @@ class ChannelTest extends TestCase
                 }
             }
         }', ['id' => $channelId])->assertJson([
-            'data' => ['channels' => ['data' => [$data]]]
+            'data' => ['channels' => ['data' => [$data]]],
         ]);
 
         $this->graphQL('
             mutation($id: ID!) {
                 deleteChannel(id: $id)
             }', ['id' => $channelId])->assertJson([
-            'data' => ['deleteChannel' => true]
+            'data' => ['deleteChannel' => true],
         ]);
     }
 
@@ -158,7 +158,7 @@ class ChannelTest extends TestCase
     public function testUnpublishProductsFromChannel(): void
     {
         $data = [
-            'name' => fake()->name,
+            'name'       => fake()->name,
             'is_default' => true,
         ];
         $newChannel = $this->graphQL('
@@ -170,7 +170,7 @@ class ChannelTest extends TestCase
                     is_default
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createChannel' => $data]
+            'data' => ['createChannel' => $data],
         ]);
         $channelId = $newChannel['data']['createChannel']['id'];
         $this->graphQL('
@@ -183,14 +183,14 @@ class ChannelTest extends TestCase
                 }
             }
         }', ['id' => $channelId])->assertJson([
-            'data' => ['channels' => ['data' => [$data]]]
+            'data' => ['channels' => ['data' => [$data]]],
         ]);
 
         $this->graphQL('
             mutation($id: ID!) {
                 unPublishAllVariantsFromChannel(id: $id)
             }', ['id' => $channelId])->assertJson([
-            'data' => ['unPublishAllVariantsFromChannel' => false] //doesn't have any product
+            'data' => ['unPublishAllVariantsFromChannel' => false], //doesn't have any product
         ]);
     }
 }

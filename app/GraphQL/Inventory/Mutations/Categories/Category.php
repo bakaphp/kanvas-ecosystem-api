@@ -16,8 +16,8 @@ class Category
     /**
      * create.
      *
-     * @param  mixed $root
-     * @param  array $request
+     * @param mixed $root
+     * @param array $request
      *
      * @return Categories
      */
@@ -27,7 +27,7 @@ class Category
 
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             unset($request['companies_id']);
         }
 
@@ -40,8 +40,8 @@ class Category
     /**
      * update.
      *
-     * @param  mixed $root
-     * @param  array $request
+     * @param mixed $root
+     * @param array $request
      *
      * @return Categories
      */
@@ -49,20 +49,22 @@ class Category
     {
         $category = CategoriesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         $category->update($request['input']);
+
         return $category;
     }
 
     /**
      * delete.
      *
-     * @param  mixed $root
-     * @param  array $request
+     * @param mixed $root
+     * @param array $request
      *
      * @return bool
      */
     public function delete(mixed $root, array $request): bool
     {
         $category = CategoriesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
+
         return $category->delete();
     }
 

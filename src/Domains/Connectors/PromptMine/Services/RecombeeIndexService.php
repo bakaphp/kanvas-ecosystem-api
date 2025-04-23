@@ -45,27 +45,27 @@ class RecombeeIndexService
     public function createPromptMessageDatabase(): void
     {
         $properties = [
-            'title' => 'string',
-            'description' => 'string',
-            'message_type' => 'string',
-            'users_id' => 'int',
-            'total_like' => 'int',
-            'total_dislike' => 'int',
-            'total_share' => 'int',
-            'total_save' => 'int',
+            'title'          => 'string',
+            'description'    => 'string',
+            'message_type'   => 'string',
+            'users_id'       => 'int',
+            'total_like'     => 'int',
+            'total_dislike'  => 'int',
+            'total_share'    => 'int',
+            'total_save'     => 'int',
             'total_purchase' => 'int',
-            'created_at' => 'timestamp',
-            'updated_at' => 'timestamp',
-            'is_premium' => 'boolean',
-            'ai_model' => 'string',
-            'image' => 'string',
-            'categories' => 'set',
+            'created_at'     => 'timestamp',
+            'updated_at'     => 'timestamp',
+            'is_premium'     => 'boolean',
+            'ai_model'       => 'string',
+            'image'          => 'string',
+            'categories'     => 'set',
         ];
         $existingProperties = $this->client->send(new ListItemProperties());
         $existingPropertyNames = array_column($existingProperties, 'name');
 
         foreach ($properties as $property => $type) {
-            if (! in_array($property, $existingPropertyNames)) {
+            if (!in_array($property, $existingPropertyNames)) {
                 // Property does not exist, add it
                 $this->client->send(new AddItemProperty($property, $type));
             }
@@ -75,17 +75,17 @@ class RecombeeIndexService
     public function createUsersDatabase(): void
     {
         $properties = [
-            'firstname' => 'string',
-            'lastname' => 'string',
-            'email' => 'string',
-            'displayname' => 'string',
+            'firstname'        => 'string',
+            'lastname'         => 'string',
+            'email'            => 'string',
+            'displayname'      => 'string',
             'liked_categories' => 'set',
         ];
         $existingProperties = $this->client->send(new ListUserProperties());
         $existingPropertyNames = array_column($existingProperties, 'name');
 
         foreach ($properties as $property => $type) {
-            if (! in_array($property, $existingPropertyNames)) {
+            if (!in_array($property, $existingPropertyNames)) {
                 // Property does not exist, add it
                 $this->client->send(new AddUserProperty($property, $type));
             }
@@ -95,16 +95,16 @@ class RecombeeIndexService
     public function createUsersFollowsItemsDatabase(): void
     {
         $properties = [
-            'users_id' => 'int',
-            'entity_id' => 'int',
+            'users_id'                         => 'int',
+            'entity_id'                        => 'int',
             'entity_messages_posts_categories' => 'set',
-            'entity_liked_categories' => 'set',
+            'entity_liked_categories'          => 'set',
         ];
         $existingProperties = $this->client->send(new ListItemProperties());
         $existingPropertyNames = array_column($existingProperties, 'name');
 
         foreach ($properties as $property => $type) {
-            if (! in_array($property, $existingPropertyNames)) {
+            if (!in_array($property, $existingPropertyNames)) {
                 // Property does not exist, add it
                 $this->client->send(new AddItemProperty($property, $type));
             }
@@ -122,21 +122,21 @@ class RecombeeIndexService
         $request = new SetItemValues(
             $message->getId(),
             [
-                'title' => $messageData['title'],
-                'description' => $messageData['prompt'],
-                'users_id' => $message->users_id,
-                'message_type' => $message->messageType->name,
-                'total_like' => $message->total_liked,
-                'total_dislike' => $message->total_disliked,
-                'total_share' => $message->total_shared,
-                'total_save' => $message->total_saved,
+                'title'          => $messageData['title'],
+                'description'    => $messageData['prompt'],
+                'users_id'       => $message->users_id,
+                'message_type'   => $message->messageType->name,
+                'total_like'     => $message->total_liked,
+                'total_dislike'  => $message->total_disliked,
+                'total_share'    => $message->total_shared,
+                'total_save'     => $message->total_saved,
                 'total_purchase' => $message->total_purchased,
-                'created_at' => (int) strtotime($message->created_at->toDateTimeString()),
-                'updated_at' => (int) strtotime($message->updated_at->toDateTimeString()),
-                'is_premium' => $message->is_premium,
-                'ai_model' => $messageData['ai_model']['name'] ?? null,
-                'image' => $messageData['ai_image']['image'] ?? null,
-                'categories' => $message->tags->pluck('name')->toArray(),
+                'created_at'     => (int) strtotime($message->created_at->toDateTimeString()),
+                'updated_at'     => (int) strtotime($message->updated_at->toDateTimeString()),
+                'is_premium'     => $message->is_premium,
+                'ai_model'       => $messageData['ai_model']['name'] ?? null,
+                'image'          => $messageData['ai_image']['image'] ?? null,
+                'categories'     => $message->tags->pluck('name')->toArray(),
             ],
             ['cascadeCreate' => true]
         );
@@ -157,10 +157,10 @@ class RecombeeIndexService
         $request = new SetUserValues(
             (string) $user->getId(),
             [
-                'firstname' => $user->firstname,
-                'lastname' => $user->lastname,
-                'email' => $user->email,
-                'displayname' => $user->displayname,
+                'firstname'        => $user->firstname,
+                'lastname'         => $user->lastname,
+                'email'            => $user->email,
+                'displayname'      => $user->displayname,
                 'liked_categories' => json_encode(array_values(array_unique($userLikedCategories))),
             ],
             ['cascadeCreate' => true]
@@ -172,9 +172,9 @@ class RecombeeIndexService
     public function indexTags(Tag $tag): mixed
     {
         $request = new SetItemValues(
-            'tag_' . $tag->slug,
+            'tag_'.$tag->slug,
             [
-                'type' => 'tag',
+                'type'       => 'tag',
                 'item_value' => $tag->slug,
             ],
             ['cascadeCreate' => true]
@@ -203,10 +203,10 @@ class RecombeeIndexService
         $request = new SetItemValues(
             $usersFollow->getId(),
             [
-                'users_id' => $usersFollow->users_id,
-                'entity_id' => $usersFollow->entity_id,
+                'users_id'                         => $usersFollow->users_id,
+                'entity_id'                        => $usersFollow->entity_id,
                 'entity_messages_posts_categories' => json_encode($userMessagesCategories),
-                'entity_liked_categories' => json_encode(array_values(array_unique($userLikedCategories))),
+                'entity_liked_categories'          => json_encode(array_values(array_unique($userLikedCategories))),
             ],
             ['cascadeCreate' => true]
         );

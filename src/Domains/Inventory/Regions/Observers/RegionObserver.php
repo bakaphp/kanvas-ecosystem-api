@@ -19,7 +19,7 @@ class RegionObserver
             $defaultRegion->saveQuietly();
         }
 
-        if (! $region->is_default && ! $defaultRegion) {
+        if (!$region->is_default && !$defaultRegion) {
             throw new ValidationException('Can\'t Save, you have to have at least one default Region');
         }
     }
@@ -36,7 +36,7 @@ class RegionObserver
             $defaultRegion->is_default = false;
             $defaultRegion->saveQuietly();
         } elseif ($defaultRegion &&
-            ! $region->is_default &&
+            !$region->is_default &&
             $region->getId() == $defaultRegion->getId()
         ) {
             throw new ValidationException('Can\'t Save, you have to have at least one default Region');

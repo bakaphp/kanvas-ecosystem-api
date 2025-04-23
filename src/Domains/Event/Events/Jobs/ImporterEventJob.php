@@ -18,10 +18,9 @@ use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ImporterEventJob extends ProductImporterJob
 {
@@ -63,16 +62,16 @@ class ImporterEventJob extends ProductImporterJob
                 }
 
                 $request['slug'] = key_exists('slug', $request) ? $request['slug'] : Str::slug($request['name']);
-                if (! key_exists('type_id', $request)) {
+                if (!key_exists('type_id', $request)) {
                     $type = EventType::firstOrCreate([
                         'companies_id' => $this->branch->company->getId(),
-                        'apps_id' => $this->app->getId(),
-                        'users_id' => $this->user->getId(),
-                        'name' => $request['event_type'],
+                        'apps_id'      => $this->app->getId(),
+                        'users_id'     => $this->user->getId(),
+                        'name'         => $request['event_type'],
                     ]);
                     $request['type_id'] = $type->getId();
                 }
-                if (! key_exists('category_id', $request)) {
+                if (!key_exists('category_id', $request)) {
                     $category = EventCategory::where('companies_id', $this->branch->company->getId())
                            ->where('apps_id', $this->app->getId())
                            ->first();
@@ -90,7 +89,7 @@ class ImporterEventJob extends ProductImporterJob
             } catch (Throwable $e) {
                 $errors[] = [
                     'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
+                    'trace'   => $e->getTraceAsString(),
                     'request' => $request,
                 ];
 
@@ -129,19 +128,19 @@ class ImporterEventJob extends ProductImporterJob
         Companies $company
     ): void {
         $subscriptionData = [
-                   'jobUuid' => $this->jobUuid,
-                   'status' => 'completed',
-                   'results' => [
-                       'total_items' => $totalItems,
-                       'total_process_successfully' => $totalProcessSuccessfully,
-                       'total_process_failed' => $totalProcessFailed,
-                       'created' => $created,
-                       'updated' => $updated,
-                   ],
-                   'exception' => $errors,
-                  // 'user' => $this->user,
-                  // 'company' => $company,
-               ];
+            'jobUuid' => $this->jobUuid,
+            'status'  => 'completed',
+            'results' => [
+                'total_items'                => $totalItems,
+                'total_process_successfully' => $totalProcessSuccessfully,
+                'total_process_failed'       => $totalProcessFailed,
+                'created'                    => $created,
+                'updated'                    => $updated,
+            ],
+            'exception' => $errors,
+            // 'user' => $this->user,
+            // 'company' => $company,
+        ];
         ImportResultEvents::dispatch(
             $this->app,
             $this->branch->company,

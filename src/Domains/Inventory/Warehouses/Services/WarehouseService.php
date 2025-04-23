@@ -54,7 +54,7 @@ class WarehouseService
             ))->execute();
         }
 
-        if (! empty($toDelete)) {
+        if (!empty($toDelete)) {
             $toDelete = $variant->variantWarehouses
                 ->whereIn('warehouses_id', $toDelete)
                 ->map(function ($variantWarehouse) use ($user) {
@@ -87,9 +87,10 @@ class WarehouseService
         $warehousesInfo['status_id'] = $status ? $status->getId() : null;
         $variantWarehouses = VariantsWarehouses::viaRequest($variant, $warehouse, $warehousesInfo ?? []);
 
-        if ($variant->sku && (! isset($warehousesInfo['sku']) || ! $warehousesInfo['sku'])) {
+        if ($variant->sku && (!isset($warehousesInfo['sku']) || !$warehousesInfo['sku'])) {
             $warehousesInfo['sku'] = $variant->sku;
         }
+
         return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
     }
 

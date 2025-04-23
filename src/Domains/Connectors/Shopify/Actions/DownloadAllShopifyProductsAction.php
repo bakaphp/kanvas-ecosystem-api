@@ -36,11 +36,11 @@ class DownloadAllShopifyProductsAction
             $this->region ?? $this->warehouses->region
         );
 
-        if (isset($params['sku']) && ! empty($params['sku'])) {
+        if (isset($params['sku']) && !empty($params['sku'])) {
             $productsToImport = $this->getProductsBySku($shopify, trim($params['sku']));
-        } elseif (isset($params['product_id']) && ! empty($params['product_id'])) {
+        } elseif (isset($params['product_id']) && !empty($params['product_id'])) {
             $productsToImport = $this->getProductById($shopify, trim($params['product_id']));
-        } elseif (isset($params['handle']) && ! empty($params['handle'])) {
+        } elseif (isset($params['handle']) && !empty($params['handle'])) {
             $productsToImport = $this->getProductByHandle($shopify, trim($params['handle']));
         } else {
             $productsToImport = $this->getAllProducts($shopify, $params);
@@ -69,7 +69,7 @@ class DownloadAllShopifyProductsAction
         // Using the Shopify API to query a product by its handle
         $shopifyProducts = $shopify->Product()->get([
             'handle' => $handle,
-            'limit' => 1,
+            'limit'  => 1,
         ]);
 
         // If a product is found with the given handle
@@ -106,14 +106,14 @@ class DownloadAllShopifyProductsAction
         $firstPage = null;
 
         do {
-            $shopifyParams = ! $firstPage && $shopifyP->getNextPageParams()
+            $shopifyParams = !$firstPage && $shopifyP->getNextPageParams()
                 ? $shopifyP->getNextPageParams()
                 : ['limit' => 250];
 
             $shopifyProducts = $shopifyP->get($shopifyParams);
 
             foreach ($shopifyProducts as $product) {
-                if (! isset($product['variants']) || ! is_array($product['variants'])) {
+                if (!isset($product['variants']) || !is_array($product['variants'])) {
                     continue;
                 }
 
@@ -139,7 +139,7 @@ class DownloadAllShopifyProductsAction
         $firstPage = null;
 
         do {
-            $shopifyParams = ! $firstPage && $shopifyP->getNextPageParams()
+            $shopifyParams = !$firstPage && $shopifyP->getNextPageParams()
                 ? $shopifyP->getNextPageParams()
                 : $params;
 

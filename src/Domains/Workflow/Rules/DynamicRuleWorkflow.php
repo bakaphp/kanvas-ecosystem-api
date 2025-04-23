@@ -40,10 +40,11 @@ class DynamicRuleWorkflow extends Workflow
             );
         } catch (Throwable $e) {
             captureException($e);
+
             return $activities;
         }
 
-        if (! $result) {
+        if (!$result) {
             return $activities;
         }
 

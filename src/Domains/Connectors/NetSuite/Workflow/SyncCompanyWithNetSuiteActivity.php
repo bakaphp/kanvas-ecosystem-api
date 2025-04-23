@@ -29,9 +29,9 @@ class SyncCompanyWithNetSuiteActivity extends KanvasActivity
         }
 
         return [
-            'company' => $company->getId(),
+            'company'      => $company->getId(),
             'net_suite_id' => $company->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value),
-            'name' => $company->name,
+            'name'         => $company->name,
         ];
     }
 }

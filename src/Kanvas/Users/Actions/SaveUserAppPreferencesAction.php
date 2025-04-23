@@ -21,7 +21,7 @@ class SaveUserAppPreferencesAction
         // activeUserAppSettings is an array of keys that are allowed to be set, this makes sure that no upwanted settings are stored. This array of keys comes from the app setting in_app_user_settings_keys
         $activeUserAppSettings = $this->app->get('in_app_user_settings_keys');
         foreach ($activeUserAppSettings as $setting) {
-            if (! array_key_exists($setting, $this->preferences)) {
+            if (!array_key_exists($setting, $this->preferences)) {
                 continue;
             }
             $this->user->set($setting, $this->preferences[$setting]);

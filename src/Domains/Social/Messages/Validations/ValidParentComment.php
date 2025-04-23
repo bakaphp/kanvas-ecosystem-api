@@ -26,7 +26,7 @@ class ValidParentComment implements ValidationRule
         $parentMessage = MessageComment::where('id', $value)
             ->where('apps_id', $this->appId);
 
-        if (! $parentMessage->exists()) {
+        if (!$parentMessage->exists()) {
             $fail('The parent comment is invalid');
         }
     }

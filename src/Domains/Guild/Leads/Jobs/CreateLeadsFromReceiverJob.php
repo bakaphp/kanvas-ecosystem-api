@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Jobs;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use JsonException;
 use Kanvas\Companies\Models\Companies;
@@ -34,7 +33,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         $userFlag = $this->receiver->configuration['flag'] ?? 'user';
 
         $ipAddresses = $this->webhookRequest->headers['x-real-ip'] ?? [];
-        $realIp = is_array($ipAddresses) && ! empty($ipAddresses) ? reset($ipAddresses) : '127.0.0.1';
+        $realIp = is_array($ipAddresses) && !empty($ipAddresses) ? reset($ipAddresses) : '127.0.0.1';
 
         $leadAttempt = new CreateLeadAttemptAction(
             $this->webhookRequest->payload,
@@ -42,7 +41,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             $this->receiver->company,
             $this->receiver->app,
             $realIp,
-            'RECEIVER ID: ' . $leadReceiver->getId()
+            'RECEIVER ID: '.$leadReceiver->getId()
         );
         $attempt = $leadAttempt->execute();
 
@@ -55,7 +54,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         $user = $this->getUserByMemberNumber($payload, $this->receiver->company);
         $payload['branch_id'] = $leadReceiver->companies_branches_id;
 
-        if (! empty($leadReceiver->template) && is_array($leadReceiver->template)) {
+        if (!empty($leadReceiver->template) && is_array($leadReceiver->template)) {
             $parseTemplate = new ConvertJsonTemplateToLeadStructureAction(
                 $leadReceiver->template,
                 $payload
@@ -103,23 +102,23 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             : [$emailReceiverUser];
 
             $payload['fieldMaps'] = $this->mapCustomFields($payload['custom_fields']);
-                $this->sendLeadEmails($emailTemplate, $users, $lead, $payload, $notificationMode);
-            }
+            $this->sendLeadEmails($emailTemplate, $users, $lead, $payload, $notificationMode);
+        }
 
         $lead->fireWorkflow(
             WorkflowEnum::AFTER_RUNNING_RECEIVER->value,
             true,
             [
                 'receiver' => $leadReceiver,
-                'attempt' => $attempt,
+                'attempt'  => $attempt,
             ]
         );
 
         return [
-            'message' => 'Lead created successfully via receiver ' . $leadReceiver->uuid,
+            'message'  => 'Lead created successfully via receiver '.$leadReceiver->uuid,
             'receiver' => $leadReceiver->getId(),
-            'lead_id' => $lead->getId(),
-            'lead' => $lead->toArray(),
+            'lead_id'  => $lead->getId(),
+            'lead'     => $lead->toArray(),
         ];
     }
 
@@ -136,7 +135,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             }
         }
 
-        if (! $memberNumber) {
+        if (!$memberNumber) {
             return null;
         }
 
@@ -153,20 +152,20 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
     }
 
     /**
-    * Converts a double-escaped JSON string with a nested JSON structure into a PHP array.
-    * This is particularly useful when dealing with nested JSON that has been double-encoded,
-    * such as when a JSON string is used as a key in another JSON object.
-    *
-    * Example input:
-    * {
-    *   "{\"First_Name\":\"OttoIoqORO\",\"Last_Name\":\"TesterIoqORO\",\"Phone\":\"4079393463\",
-    *   \"Email\":\"ottoIoqORO01242025202316@lendingtree_com\",\"Company\":\"LendingTree_AWE_Testing_Corp\",
-    *   \"Street\":\"Not_Provided\",\"City\":\"Bat_Cave\",\"State\":\"NC\",\"Zip_Code\":\"28710\",
-    *   \"Type_of_Incorporation\":\"CORPORATION\",\"Business_Founded\":\"7/1/2015\",\"Credit_Score\":\"Good\",
-    *   \"SubID\":\"867347\",\"Other\":{\"QForm_Name\":\"6294JBZYPB\"},\"Amount_Requested\":10000,
-    *   \"Annual_Revenue\":250000}": null
-    * }
-    */
+     * Converts a double-escaped JSON string with a nested JSON structure into a PHP array.
+     * This is particularly useful when dealing with nested JSON that has been double-encoded,
+     * such as when a JSON string is used as a key in another JSON object.
+     *
+     * Example input:
+     * {
+     *   "{\"First_Name\":\"OttoIoqORO\",\"Last_Name\":\"TesterIoqORO\",\"Phone\":\"4079393463\",
+     *   \"Email\":\"ottoIoqORO01242025202316@lendingtree_com\",\"Company\":\"LendingTree_AWE_Testing_Corp\",
+     *   \"Street\":\"Not_Provided\",\"City\":\"Bat_Cave\",\"State\":\"NC\",\"Zip_Code\":\"28710\",
+     *   \"Type_of_Incorporation\":\"CORPORATION\",\"Business_Founded\":\"7/1/2015\",\"Credit_Score\":\"Good\",
+     *   \"SubID\":\"867347\",\"Other\":{\"QForm_Name\":\"6294JBZYPB\"},\"Amount_Requested\":10000,
+     *   \"Annual_Revenue\":250000}": null
+     * }
+     */
     public function parseDoubleEncodedJsonToArray(array $doubleEscapedJson): array
     {
         // Extract the first key which contains our actual JSON data
@@ -176,7 +175,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         $finalJson = json_decode($jsonString, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new JsonException('Failed to decode inner JSON: ' . json_last_error_msg());
+            throw new JsonException('Failed to decode inner JSON: '.json_last_error_msg());
         }
 
         return $finalJson;
@@ -194,6 +193,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         foreach ($customFields as $customField) {
             $fieldMaps[$customField['name']] = $customField['data'];
         }
+
         return $fieldMaps;
     }
 }

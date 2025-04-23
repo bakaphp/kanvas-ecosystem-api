@@ -28,47 +28,47 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 
 /**
- * Class Order
+ * Class Order.
  *
  * @property int $id
  * @property int $apps_id
  * @property int companies_id
- * @property int $region_id
- * @property string $uuid
- * @property string|null $tracking_client_id
- * @property string|null $user_email
- * @property string|null $user_phone
- * @property string|null $token
- * @property int|null $billing_address_id
- * @property int|null $shipping_address_id
- * @property int|null $users_id
- * @property int|null $people_id
- * @property int $order_number
- * @property float|null $total_gross_amount
- * @property float|null $total_net_amount
- * @property float|null $shipping_price_gross_amount
- * @property float|null $shipping_price_net_amount
- * @property float|null $discount_amount
- * @property string|null $discount_name
- * @property int|null $voucher_id
- * @property string|null $language_code
- * @property string $status
- * @property string|null $fulfillment_status
- * @property string|null $shipping_method_name
- * @property string|null $fulfillment_status
- * @property int|null $shipping_method_id
- * @property bool $display_gross_prices
- * @property string|null $translated_discount_name
- * @property string|null $customer_note
- * @property float|null $weight
- * @property string|null $checkout_token
- * @property string|null $currency
- * @property string|null $metadata
- * @property string|null $private_metadata
- * @property string|null $estimate_shipping_date
- * @property string|null $shipped_date
- * @property string|null $payment_gateway_names
- * @property bool $is_deleted
+ * @property int                             $region_id
+ * @property string                          $uuid
+ * @property string|null                     $tracking_client_id
+ * @property string|null                     $user_email
+ * @property string|null                     $user_phone
+ * @property string|null                     $token
+ * @property int|null                        $billing_address_id
+ * @property int|null                        $shipping_address_id
+ * @property int|null                        $users_id
+ * @property int|null                        $people_id
+ * @property int                             $order_number
+ * @property float|null                      $total_gross_amount
+ * @property float|null                      $total_net_amount
+ * @property float|null                      $shipping_price_gross_amount
+ * @property float|null                      $shipping_price_net_amount
+ * @property float|null                      $discount_amount
+ * @property string|null                     $discount_name
+ * @property int|null                        $voucher_id
+ * @property string|null                     $language_code
+ * @property string                          $status
+ * @property string|null                     $fulfillment_status
+ * @property string|null                     $shipping_method_name
+ * @property string|null                     $fulfillment_status
+ * @property int|null                        $shipping_method_id
+ * @property bool                            $display_gross_prices
+ * @property string|null                     $translated_discount_name
+ * @property string|null                     $customer_note
+ * @property float|null                      $weight
+ * @property string|null                     $checkout_token
+ * @property string|null                     $currency
+ * @property string|null                     $metadata
+ * @property string|null                     $private_metadata
+ * @property string|null                     $estimate_shipping_date
+ * @property string|null                     $shipped_date
+ * @property string|null                     $payment_gateway_names
+ * @property bool                            $is_deleted
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
@@ -85,15 +85,15 @@ class Order extends BaseModel
     protected $guarded = [];
 
     protected $casts = [
-        'total_gross_amount' => 'float',
-        'total_net_amount' => 'float',
+        'total_gross_amount'          => 'float',
+        'total_net_amount'            => 'float',
         'shipping_price_gross_amount' => 'float',
-        'shipping_price_net_amount' => 'float',
-        'discount_amount' => 'float',
-        'weight' => 'float',
-        'payment_gateway_names' => Json::class,
-        'metadata' => Json::class,
-        'private_metadata' => Json::class,
+        'shipping_price_net_amount'   => 'float',
+        'discount_amount'             => 'float',
+        'weight'                      => 'float',
+        'payment_gateway_names'       => Json::class,
+        'metadata'                    => Json::class,
+        'private_metadata'            => Json::class,
     ];
 
     public function region(): BelongsTo
@@ -130,7 +130,7 @@ class Order extends BaseModel
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             return $query->where('users_id', $user->getId());
         }
 
@@ -325,7 +325,7 @@ class Order extends BaseModel
     {
         $key = $this->app->get('use_integration_order_number');
 
-        if (! empty($key) && $value = $this->get($key)) {
+        if (!empty($key) && $value = $this->get($key)) {
             return (int) $value;
         }
 
@@ -340,7 +340,7 @@ class Order extends BaseModel
     public function typesenseCollectionSchema(): array
     {
         return [
-            'name' => $this->searchableAs(),
+            'name'   => $this->searchableAs(),
             'fields' => [
                 [
                     'name' => 'objectID',
@@ -359,13 +359,13 @@ class Order extends BaseModel
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'companies_id',
-                    'type' => 'int64',
+                    'name'  => 'companies_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'region_id',
-                    'type' => 'int64',
+                    'name'  => 'region_id',
+                    'type'  => 'int64',
                     'facet' => true,
                 ],
                 [
@@ -374,157 +374,157 @@ class Order extends BaseModel
                     'sort' => true,
                 ],
                 [
-                    'name' => 'tracking_client_id',
-                    'type' => 'string',
+                    'name'     => 'tracking_client_id',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'user_email',
-                    'type' => 'string',
+                    'name'     => 'user_email',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'user_phone',
-                    'type' => 'string',
+                    'name'     => 'user_phone',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'users_id',
-                    'type' => 'int64',
+                    'name'     => 'users_id',
+                    'type'     => 'int64',
                     'optional' => true,
+                    'facet'    => true,
+                ],
+                [
+                    'name'     => 'people_id',
+                    'type'     => 'int64',
+                    'optional' => true,
+                    'facet'    => true,
+                ],
+                [
+                    'name'     => 'total_gross_amount',
+                    'type'     => 'float',
+                    'optional' => true,
+                    'sort'     => true,
+                ],
+                [
+                    'name'     => 'total_net_amount',
+                    'type'     => 'float',
+                    'optional' => true,
+                    'sort'     => true,
+                ],
+                [
+                    'name'     => 'shipping_price_gross_amount',
+                    'type'     => 'float',
+                    'optional' => true,
+                ],
+                [
+                    'name'     => 'shipping_price_net_amount',
+                    'type'     => 'float',
+                    'optional' => true,
+                ],
+                [
+                    'name'     => 'discount_amount',
+                    'type'     => 'float',
+                    'optional' => true,
+                ],
+                [
+                    'name'     => 'discount_name',
+                    'type'     => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name'     => 'language_code',
+                    'type'     => 'string',
+                    'optional' => true,
+                    'facet'    => true,
+                ],
+                [
+                    'name'  => 'status',
+                    'type'  => 'string',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'people_id',
-                    'type' => 'int64',
+                    'name'     => 'fulfillment_status',
+                    'type'     => 'string',
                     'optional' => true,
-                    'facet' => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'total_gross_amount',
-                    'type' => 'float',
-                    'optional' => true,
-                    'sort' => true,
-                ],
-                [
-                    'name' => 'total_net_amount',
-                    'type' => 'float',
-                    'optional' => true,
-                    'sort' => true,
-                ],
-                [
-                    'name' => 'shipping_price_gross_amount',
-                    'type' => 'float',
+                    'name'     => 'shipping_method_name',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'shipping_price_net_amount',
-                    'type' => 'float',
+                    'name'     => 'shipping_method_id',
+                    'type'     => 'int64',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'discount_amount',
-                    'type' => 'float',
+                    'name'     => 'currency',
+                    'type'     => 'string',
+                    'optional' => true,
+                    'facet'    => true,
+                ],
+                [
+                    'name'     => 'customer_note',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'discount_name',
-                    'type' => 'string',
+                    'name'     => 'weight',
+                    'type'     => 'float',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'language_code',
-                    'type' => 'string',
-                    'optional' => true,
-                    'facet' => true,
-                ],
-                [
-                    'name' => 'status',
-                    'type' => 'string',
-                    'facet' => true,
-                ],
-                [
-                    'name' => 'fulfillment_status',
-                    'type' => 'string',
-                    'optional' => true,
-                    'facet' => true,
-                ],
-                [
-                    'name' => 'shipping_method_name',
-                    'type' => 'string',
+                    'name'     => 'estimate_shipping_date',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'shipping_method_id',
-                    'type' => 'int64',
+                    'name'     => 'shipped_date',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'currency',
-                    'type' => 'string',
+                    'name'     => 'payment_gateway_names',
+                    'type'     => 'string[]',
                     'optional' => true,
-                    'facet' => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'customer_note',
-                    'type' => 'string',
-                    'optional' => true,
-                ],
-                [
-                    'name' => 'weight',
-                    'type' => 'float',
+                    'name'     => 'items',
+                    'type'     => 'object[]',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'estimate_shipping_date',
-                    'type' => 'string',
+                    'name'     => 'people',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'shipped_date',
-                    'type' => 'string',
+                    'name'     => 'region',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'payment_gateway_names',
-                    'type' => 'string[]',
-                    'optional' => true,
-                    'facet' => true,
-                ],
-                [
-                    'name' => 'items',
-                    'type' => 'object[]',
+                    'name'     => 'billing_address',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'people',
-                    'type' => 'object',
+                    'name'     => 'shipping_address',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'region',
-                    'type' => 'object',
+                    'name'     => 'tags',
+                    'type'     => 'string[]',
                     'optional' => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'billing_address',
-                    'type' => 'object',
-                    'optional' => true,
-                ],
-                [
-                    'name' => 'shipping_address',
-                    'type' => 'object',
-                    'optional' => true,
-                ],
-                [
-                    'name' => 'tags',
-                    'type' => 'string[]',
-                    'optional' => true,
-                    'facet' => true,
-                ],
-                [
-                    'name' => 'metadata',
-                    'type' => 'object',
+                    'name'     => 'metadata',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
@@ -533,13 +533,13 @@ class Order extends BaseModel
                     'sort' => true,
                 ],
                 [
-                    'name' => 'updated_at',
-                    'type' => 'int64',
+                    'name'     => 'updated_at',
+                    'type'     => 'int64',
                     'optional' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,
+            'enable_nested_fields'  => true,
         ];
     }
 
@@ -551,6 +551,6 @@ class Order extends BaseModel
         $app = $this->app ?? app(Apps::class);
         $customIndex = $app->get('app_custom_order_index') ?? null;
 
-        return config('scout.prefix') . ($customIndex ?? 'orders');
+        return config('scout.prefix').($customIndex ?? 'orders');
     }
 }

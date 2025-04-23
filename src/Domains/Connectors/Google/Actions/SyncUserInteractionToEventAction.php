@@ -35,15 +35,15 @@ class SyncUserInteractionToEventAction
             $query->where('interactions_id', $userInteraction->id);
         }
 
-        if (! empty($userInteractionIds)) {
+        if (!empty($userInteractionIds)) {
             $query->whereIn('id', $userInteractionIds);
         }
 
         $userEventService = new DiscoveryEngineUserEventService($this->app, $this->company);
         $totalProcessed = [
-            'total' => 0,
+            'total'   => 0,
             'success' => 0,
-            'error' => 0,
+            'error'   => 0,
         ];
 
         $query->chunk($interactionPerBatch, function ($interactions) use ($userEventService, &$totalProcessed) {

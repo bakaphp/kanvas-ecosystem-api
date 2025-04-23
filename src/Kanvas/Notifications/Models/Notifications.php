@@ -21,17 +21,17 @@ use Throwable;
 /**
  * Notifications Model.
  *
- * @property int $users_id
- * @property int $from_users_id
- * @property int $companies_id
- * @property int $apps_id
- * @property int $system_modules_id
- * @property int $notification_types_id
- * @property int $entity_id
- * @property string $content
- * @property ?string $entity_content = null
+ * @property int     $users_id
+ * @property int     $from_users_id
+ * @property int     $companies_id
+ * @property int     $apps_id
+ * @property int     $system_modules_id
+ * @property int     $notification_types_id
+ * @property int     $entity_id
+ * @property string  $content
+ * @property ?string $entity_content        = null
  * @property string content_group
- * @property int $read
+ * @property int    $read
  * @property string $created_at
  * @property string $updated_at
  * @property string $is_deleted
@@ -133,7 +133,7 @@ class Notifications extends BaseModel
      */
     public function markAsRead(): void
     {
-        if (! $this->read) {
+        if (!$this->read) {
             $this->forceFill(['read' => 1])->save();
         }
     }

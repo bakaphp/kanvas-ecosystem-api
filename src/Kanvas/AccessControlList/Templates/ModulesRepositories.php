@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Templates;
 
-use Kanvas\Enums\ModuleEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Users\Models\Users;
+use Kanvas\Enums\ModuleEnum;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Guild\Rotations\Models\Rotation;
+use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Leads\Models\LeadReceiver;
-use Kanvas\Guild\Rotations\Models\Rotation;
+use Kanvas\Users\Models\Users;
 
 class ModulesRepositories
 {
@@ -95,7 +95,7 @@ class ModulesRepositories
                     'edit rotation',
                     'delete rotation',
                 ],
-            ]
+            ],
         ];
     }
 
@@ -105,6 +105,7 @@ class ModulesRepositories
         foreach (self::getAbilitiesByModule() as $module => $systemModule) {
             $abilities = array_merge($abilities, $systemModule);
         }
+
         return $abilities;
     }
 }

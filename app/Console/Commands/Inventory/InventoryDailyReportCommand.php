@@ -39,7 +39,7 @@ class InventoryDailyReportCommand extends Command
         $this->overwriteAppService($app);
 
         // If no company_id is provided, get all companies for the app
-        if (! $this->argument('company_id')) {
+        if (!$this->argument('company_id')) {
             // Fetch all companies for the given app
             $companies = UserCompanyApps::where('apps_id', $app->getId())->get();
 
@@ -55,7 +55,7 @@ class InventoryDailyReportCommand extends Command
 
     protected function processCompany(AppInterface $app, CompanyInterface $company): void
     {
-        $this->info('Sending Inventory Daily Report - ' . $company->name . ' - ' . date('Y-m-d'));
+        $this->info('Sending Inventory Daily Report - '.$company->name.' - '.date('Y-m-d'));
         $this->unPublishProductsByExpirationDate($app, $company);
         //$this->publishProductsByExpirationDate($app, $company);
 
@@ -74,7 +74,7 @@ class InventoryDailyReportCommand extends Command
 
         foreach ($productsToUnPublished as $product) {
             $product->unPublish();
-            $this->info('Product ' . $product->id . ' has been unpublished');
+            $this->info('Product '.$product->id.' has been unpublished');
             //@todo send report to the company
         }
     }
@@ -85,7 +85,7 @@ class InventoryDailyReportCommand extends Command
 
         foreach ($productsToPublished as $product) {
             $product->publish();
-            $this->info('Product ' . $product->id . ' has been published');
+            $this->info('Product '.$product->id.' has been published');
             //@todo send report to the company
         }
     }

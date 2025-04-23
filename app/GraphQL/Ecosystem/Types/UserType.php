@@ -17,7 +17,7 @@ class UserType
         $user->address = [
             'address_1' => $user->address_1,
             'address_2' => $user->address_2,
-            'zip_code' => $user->zip_code,
+            'zip_code'  => $user->zip_code,
         ];
 
         return $user;
@@ -31,8 +31,8 @@ class UserType
         $app = app(Apps::class);
 
         return [
-            'phone_number' => $user->phone_number,
-            'cell_phone_number' => $user->cell_phone_number,
+            'phone_number'          => $user->phone_number,
+            'cell_phone_number'     => $user->cell_phone_number,
             'two_step_phone_number' => $user->getAppProfile($app)->two_step_phone_number,
         ];
     }

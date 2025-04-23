@@ -23,12 +23,12 @@ class DiscoveryEngineService
         $googleClientConfig = $this->app->get(ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value);
         $googleRecommendationConfig = $this->app->get(ConfigurationEnum::GOOGLE_RECOMMENDATION_CONFIG->value);
 
-        if (! $googleClientConfig) {
-            throw new ValidationException('Google client config not found for app ' . $this->app->name);
+        if (!$googleClientConfig) {
+            throw new ValidationException('Google client config not found for app '.$this->app->name);
         }
 
-        if (! $googleRecommendationConfig) {
-            throw new ValidationException('Google recommendation config not found for app ' . $this->app->name);
+        if (!$googleRecommendationConfig) {
+            throw new ValidationException('Google recommendation config not found for app '.$this->app->name);
         }
 
         $this->googleClientConfig = $googleClientConfig;

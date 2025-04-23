@@ -47,18 +47,18 @@ class NetSuiteProductService
             return $response->readResponse->record;
         }
 
-        throw new Exception('Error retrieving product: ' . $response->readResponse->status->statusDetail[0]->message);
+        throw new Exception('Error retrieving product: '.$response->readResponse->status->statusDetail[0]->message);
     }
 
     public function getInventoryQuantityByLocation(InventoryItem $product, int|string $locationId): int
     {
-        if (! isset($product->locationsList->locations)) {
+        if (!isset($product->locationsList->locations)) {
             throw new Exception('Inventory locations not found for the specified product.');
         }
 
         foreach ($product->locationsList->locations as $assignment) {
             if ($assignment->location == $locationId) {
-                return (int)$assignment->quantityOnHand;
+                return (int) $assignment->quantityOnHand;
             }
         }
 
@@ -68,7 +68,7 @@ class NetSuiteProductService
     public function getProductPrice(InventoryItem $product, string $priceLevel = 'MSRP Price'): float
     {
         // Check if the product has pricing details
-        if (! isset($product->pricingMatrix->pricing)) {
+        if (!isset($product->pricingMatrix->pricing)) {
             throw new Exception('No pricing details found for this product.');
         }
 
@@ -84,7 +84,7 @@ class NetSuiteProductService
 
     public function getCustomField(InventoryItem $product, string $customFieldScriptId): string
     {
-        if (! isset($product->customFieldList)) {
+        if (!isset($product->customFieldList)) {
             return '';
         }
 
@@ -161,8 +161,8 @@ class NetSuiteProductService
 
         $response = $this->service->search($searchRequest);
 
-        if (! $response->searchResult->status->isSuccess) {
-            throw new Exception('Error searching products: ' . $response->searchResult->status->statusDetail[0]->message);
+        if (!$response->searchResult->status->isSuccess) {
+            throw new Exception('Error searching products: '.$response->searchResult->status->statusDetail[0]->message);
         }
 
         $products = [];
@@ -182,10 +182,11 @@ class NetSuiteProductService
         foreach ($barcodeList as $index => $barcode) {
             $product = $this->searchProductByItemNumber($barcode);
             $product = $this->getProductById($product[0]->internalId);
-            $productSkus[$barcode] = $this->getCustomField($product, "custitem5");
-            echo 'Product ' . $index . ' of ' . count($barcodeList) . ' processed';
+            $productSkus[$barcode] = $this->getCustomField($product, 'custitem5');
+            echo 'Product '.$index.' of '.count($barcodeList).' processed';
             echo PHP_EOL;
         }
+
         return $productSkus;
     }
 }

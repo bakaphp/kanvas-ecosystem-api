@@ -12,9 +12,10 @@ use Kanvas\Users\Repositories\UsersRepository;
 class AppTemplateMutation
 {
     /**
-     * createAppTemplate
-     * @param  null  $_
-     * @param  array{}  $args
+     * createAppTemplate.
+     *
+     * @param null    $_
+     * @param array{} $args
      */
     public function createAppTemplate($_, array $request)
     {

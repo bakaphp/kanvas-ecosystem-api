@@ -33,36 +33,36 @@ class MessageIndexTest extends TestCase
         $company = $user->getCurrentCompany();
 
         $messageData = [
-            'title' => 'Psychedelic Panorama',
-            'prompt' => 'A psychedelic panorama landscape featuring rolling, foggy hills. The scene is rendered in shades of neon, with soft gradients of light and shadow adding depth and texture. The fog creates a sense of mystery and tranquility, with faint outlines of trees and distant hills barely visible. The composition is serene, evocative and atmospheric, capturing the quiet beauty of a misty, untouched landscape.',
+            'title'        => 'Psychedelic Panorama',
+            'prompt'       => 'A psychedelic panorama landscape featuring rolling, foggy hills. The scene is rendered in shades of neon, with soft gradients of light and shadow adding depth and texture. The fog creates a sense of mystery and tranquility, with faint outlines of trees and distant hills barely visible. The composition is serene, evocative and atmospheric, capturing the quiet beauty of a misty, untouched landscape.',
             'is_assistant' => false,
-            'ai_model' => [
-                'key' => 'dalle3',
-                'value' => 'dall-e-3',
-                'name' => 'OpenAI - Dalle 3',
+            'ai_model'     => [
+                'key'     => 'dalle3',
+                'value'   => 'dall-e-3',
+                'name'    => 'OpenAI - Dalle 3',
                 'payment' => [
-                    'price' => 0,
-                    'is_locked' => false,
+                    'price'             => 0,
+                    'is_locked'         => false,
                     'free_regeneration' => false,
                 ],
                 'icon' => 'https://cdn.promptmine.ai/OpenAILogo.png',
             ],
             'ai_image' => [
-                'title' => null,
+                'title'    => null,
                 'ai_model' => [
-                    'key' => 'dalle3',
-                    'value' => 'dall-e-3',
-                    'name' => 'OpenAI - Dalle 3',
+                    'key'     => 'dalle3',
+                    'value'   => 'dall-e-3',
+                    'name'    => 'OpenAI - Dalle 3',
                     'payment' => [
-                        'price' => 0,
-                        'is_locked' => false,
+                        'price'             => 0,
+                        'is_locked'         => false,
                         'free_regeneration' => false,
                     ],
                     'icon' => 'https://cdn.promptmine.ai/OpenAILogo.png',
                 ],
-                'image' => 'https://s3.amazonaws.com/mc-canvas/y1t7q8GDLOHw2sbJYEpVc9mp2ZBAYP9g5mXmFr7Y.png',
-                'id' => 2842,
-                'type' => 'image-format',
+                'image'      => 'https://s3.amazonaws.com/mc-canvas/y1t7q8GDLOHw2sbJYEpVc9mp2ZBAYP9g5mXmFr7Y.png',
+                'id'         => 2842,
+                'type'       => 'image-format',
                 'created_at' => 1739996370460,
                 'updated_at' => 1739996370460,
             ],
@@ -72,14 +72,14 @@ class MessageIndexTest extends TestCase
         $messageType = MessageType::factory()->create();
 
         $this->message = Message::create([
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'message' => $messageData,
+            'apps_id'          => $app->getId(),
+            'companies_id'     => $company->getId(),
+            'message'          => $messageData,
             'message_types_id' => $messageType->getId(),
-            'total_liked' => 0,
-            'users_id' => $user->getId(),
-            'created_at' => now()->toDateTimeString(),
-            'updated_at' => now()->toDateTimeString(),
+            'total_liked'      => 0,
+            'users_id'         => $user->getId(),
+            'created_at'       => now()->toDateTimeString(),
+            'updated_at'       => now()->toDateTimeString(),
         ]);
     }
 

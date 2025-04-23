@@ -49,7 +49,7 @@ class AppUserManagementMutation
 
         UsersRepository::belongsToThisApp($user, $app);
 
-        if (! isset($request['data']['password'])) {
+        if (!isset($request['data']['password'])) {
             $request['data']['password'] = Str::random(15);
         }
 
@@ -60,11 +60,11 @@ class AppUserManagementMutation
         $createCompany = $request['data']['create_company'] ?? false;
         $companyId = $request['data']['company_id'] ?? null;
 
-        if ($companyId !== null && ! $createCompany) {
+        if ($companyId !== null && !$createCompany) {
             $assignBranch = CompaniesBranches::query()->where('companies_id', $companyId)->firstOrFail();
             CompaniesRepository::hasAccessToThisApp($assignBranch->company, $app);
         } else {
-            $assignCurrentUserBranch = $adminUserRegistrationAssignCurrentCompany ?? ! $createCompany;
+            $assignCurrentUserBranch = $adminUserRegistrationAssignCurrentCompany ?? !$createCompany;
             $assignBranch = $assignCurrentUserBranch ? $branch : null;
         }
 
@@ -81,7 +81,7 @@ class AppUserManagementMutation
 
     public function appDeleteUser(mixed $root, array $req): bool
     {
-        $user = Users::find((int)$req['user_id']);
+        $user = Users::find((int) $req['user_id']);
         $userAssociate = UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         return $userAssociate->softDelete();
@@ -89,16 +89,17 @@ class AppUserManagementMutation
 
     public function appDeActivateUser(mixed $root, array $req): bool
     {
-        $user = Users::find((int)$req['user_id']);
+        $user = Users::find((int) $req['user_id']);
         $app = app(Apps::class);
         $userAssociate = UsersRepository::belongsToThisApp($user, $app);
         AuthenticationService::logoutFromAllDevices($userAssociate->user, $app);
+
         return $userAssociate->deActive();
     }
 
     public function appActivateUser(mixed $root, array $req): bool
     {
-        $user = Users::find((int)$req['user_id']);
+        $user = Users::find((int) $req['user_id']);
         $userAssociate = UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         return $userAssociate->active();
@@ -106,7 +107,7 @@ class AppUserManagementMutation
 
     public function restoreDeletedUser(mixed $root, array $request): bool
     {
-        $user = Users::find((int)$request['user_id']);
+        $user = Users::find((int) $request['user_id']);
         $userAssociatedApp = UsersAssociatedApps::where('users_id', $user->getKey())
                             ->where('apps_id', app(Apps::class)->getKey())
                             ->firstOrFail();

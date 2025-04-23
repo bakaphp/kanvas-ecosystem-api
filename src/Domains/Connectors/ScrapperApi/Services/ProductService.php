@@ -26,7 +26,7 @@ class ProductService
     {
         $weight = $this->calcWeight($product);
         if (key_exists('original_price', $product)) {
-            $price = (float)$product['original_price']['price'];
+            $price = (float) $product['original_price']['price'];
             $product['price'] = $price;
         }
         $amazonPrice = $product['price'];
@@ -39,40 +39,40 @@ class ProductService
             $product['product_category']
         ))->execute();
         $product = [
-            'name' => TranslateToSpanishAction::execute($name) ?? $name,
-            'description' => TranslateToSpanishAction::execute($this->getDescription($product)) ?? $this->getDescription($product),
-            'price' => $amazonPrice,
+            'name'          => TranslateToSpanishAction::execute($name) ?? $name,
+            'description'   => TranslateToSpanishAction::execute($this->getDescription($product)) ?? $this->getDescription($product),
+            'price'         => $amazonPrice,
             'discountPrice' => $amazonPrice,
-            'slug' => Str::slug($product['asin']),
-            'sku' => $product['asin'],
-            'source' => 'amazon',
-            'source_id' => $product['asin'],
-            'files' => $this->mapFilesystem(product: ['image' => $product['image'],'images' => $product['images']]),
-            'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
-            'isPublished' => true,
-            'categories' => [
+            'slug'          => Str::slug($product['asin']),
+            'sku'           => $product['asin'],
+            'source'        => 'amazon',
+            'source_id'     => $product['asin'],
+            'files'         => $this->mapFilesystem(product: ['image' => $product['image'], 'images' => $product['images']]),
+            'quantity'      => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
+            'isPublished'   => true,
+            'categories'    => [
                 [
                     'slug' => $category->slug,
                 ],
             ],
             'warehouses' => [
                 [
-                    'id' => $this->warehouse->id,
-                    'price' => (float) $amazonPrice,
+                    'id'        => $this->warehouse->id,
+                    'price'     => (float) $amazonPrice,
                     'warehouse' => $this->warehouse->name,
-                    'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
-                    'sku' => $product['asin'],
-                    'is_new' => true,
-                    'channel' => $this->channels->name,
+                    'quantity'  => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
+                    'sku'       => $product['asin'],
+                    'is_new'    => true,
+                    'channel'   => $this->channels->name,
                 ],
             ],
             'attributes' => [
                 [
-                    'name' => ScrapperConfigEnum::AMAZON_PRICE->value,
+                    'name'  => ScrapperConfigEnum::AMAZON_PRICE->value,
                     'value' => $amazonPrice,
                 ],
                 [
-                    'name' => ConfigurationEnum::WEIGHT_UNIT->value,
+                    'name'  => ConfigurationEnum::WEIGHT_UNIT->value,
                     'value' => $this->calcWeight($product),
                 ],
             ],
@@ -99,14 +99,14 @@ class ProductService
     {
         $files = [
             [
-                'url' => $product['image'],
+                'url'  => $product['image'],
                 'name' => 'main_image',
             ],
         ];
 
         foreach ($product['images'] as $image) {
             $files[] = [
-                'url' => $image,
+                'url'  => $image,
                 'name' => basename($image),
             ];
         }
@@ -117,12 +117,12 @@ class ProductService
     public function mapAttributes(array $product): array
     {
         $attributes = [];
-        if (! key_exists('attributes', $product)) {
+        if (!key_exists('attributes', $product)) {
             return $attributes;
         }
         foreach ($product['attributes'] as $attribute) {
             $attributes[] = [
-                'name' => $attribute['name'],
+                'name'  => $attribute['name'],
                 'value' => $attribute['value'],
             ];
         }
@@ -146,7 +146,7 @@ class ProductService
             }
         }
 
-        if (! $weight && isset($product['product_information']['item_weight'])) {
+        if (!$weight && isset($product['product_information']['item_weight'])) {
             $itemWeight = $product['product_information']['item_weight'];
 
             if (str_contains($itemWeight, 'ounces') || str_contains($itemWeight, 'Ounces')) {
@@ -156,7 +156,7 @@ class ProductService
             }
         }
 
-        if (! $weight || $weight <= 0) {
+        if (!$weight || $weight <= 0) {
             $weight = 453.592;
         }
 
@@ -166,7 +166,7 @@ class ProductService
     public function calcDiscountPrice(array $product): array
     {
         $discount = 0;
-        $amazonPrice = (float)$product['price'];
+        $amazonPrice = (float) $product['price'];
         $weight = $this->calcWeight($product) / 453.592;
         $deliveryCostMile = 2.50;
         $courierCost = $weight * 1.3;
@@ -175,12 +175,12 @@ class ProductService
         $airport = 0.07 * $weight;
         $insurance = 0;
         if ($amazonPrice > 100) {
-            $insurance = 0.011 * (float)$amazonPrice;
+            $insurance = 0.011 * (float) $amazonPrice;
         }
         $flete = $courierCost;
         $serviceFee = 1 * $weight;
         $otherFee = $gas + $dga + $airport + $insurance;
-        $markUp = ((float)$amazonPrice * 1.15) - $amazonPrice;
+        $markUp = ((float) $amazonPrice * 1.15) - $amazonPrice;
 
         $payPerUser = $flete + $serviceFee + $otherFee + $markUp;
         $total = $amazonPrice + $payPerUser;

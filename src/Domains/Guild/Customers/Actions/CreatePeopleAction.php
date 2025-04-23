@@ -40,21 +40,21 @@ class CreatePeopleAction
         $company = $this->peopleData->branch->company()->firstOrFail();
         $allowDuplicateContacts = $company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false;
 
-        if (! $allowDuplicateContacts) {
+        if (!$allowDuplicateContacts) {
             $this->checkIfPeopleExist($company);
         }
 
         $attributes = [
-            'apps_id' => $this->peopleData->app->getId(),
-            'users_id' => $this->peopleData->user->getId(),
-            'firstname' => $this->peopleData->firstname,
-            'middlename' => $this->peopleData->middlename,
-            'lastname' => $this->peopleData->lastname,
-            'name' => $this->peopleData->firstname . ' ' . $this->peopleData->lastname, // @todo remove this
-            'dob' => $this->peopleData->dob,
-            'google_contact_id' => $this->peopleData->google_contact_id,
+            'apps_id'             => $this->peopleData->app->getId(),
+            'users_id'            => $this->peopleData->user->getId(),
+            'firstname'           => $this->peopleData->firstname,
+            'middlename'          => $this->peopleData->middlename,
+            'lastname'            => $this->peopleData->lastname,
+            'name'                => $this->peopleData->firstname.' '.$this->peopleData->lastname, // @todo remove this
+            'dob'                 => $this->peopleData->dob,
+            'google_contact_id'   => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
-            'apple_contact_id' => $this->peopleData->apple_contact_id,
+            'apple_contact_id'    => $this->peopleData->apple_contact_id,
         ];
 
         if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
@@ -86,16 +86,16 @@ class CreatePeopleAction
                     continue;
                 }
 
-                if (! in_array($contact->value, $existingContacts)) {
+                if (!in_array($contact->value, $existingContacts)) {
                     $contactsToAdd[] = new Contact([
                         'contacts_types_id' => $contact->contacts_types_id,
-                        'value' => $contact->value,
-                        'weight' => $contact->weight,
+                        'value'             => $contact->value,
+                        'weight'            => $contact->weight,
                     ]);
                 }
             }
 
-            if (! empty($contactsToAdd)) {
+            if (!empty($contactsToAdd)) {
                 $people->contacts()->saveMany($contactsToAdd);
             }
         }
@@ -112,20 +112,20 @@ class CreatePeopleAction
 
             foreach ($this->peopleData->address as $address) {
                 $newAddress = [
-                    'address' => $address->address,
-                    'address_2' => $address->address_2,
-                    'city' => $address->city,
-                    'county' => $address->county,
-                    'state' => $address->state,
-                    'zip' => $address->zip,
-                    'city_id' => $address->city_id ?? 0,
-                    'state_id' => $address->state_id ?? 0,
-                    'countries_id' => $address->country_id ?? 0,
+                    'address'         => $address->address,
+                    'address_2'       => $address->address_2,
+                    'city'            => $address->city,
+                    'county'          => $address->county,
+                    'state'           => $address->state,
+                    'zip'             => $address->zip,
+                    'city_id'         => $address->city_id ?? 0,
+                    'state_id'        => $address->state_id ?? 0,
+                    'countries_id'    => $address->country_id ?? 0,
                     'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->peopleData->app)->getId(),
-                    'duration' => $address->duration ?? 0.0,
+                    'duration'        => $address->duration ?? 0.0,
                 ];
 
-                if (! in_array($newAddress, $existingAddresses)) {
+                if (!in_array($newAddress, $existingAddresses)) {
                     $addressesToAdd[] = $addressesToAdd[] = new Address(array_merge($newAddress, [
                         'is_default' => $hasDefaultAddress ? 0 : ($address->is_default ? 1 : 0),
                     ]));
@@ -137,22 +137,22 @@ class CreatePeopleAction
                 $people->employmentHistory()->updateOrCreate(
                     [
                         'organizations_id' => $employmentHistory['organizations_id'],
-                        'apps_id' => $this->peopleData->app->getId(),
-                        'position' => $employmentHistory['position'],
+                        'apps_id'          => $this->peopleData->app->getId(),
+                        'position'         => $employmentHistory['position'],
                     ],
                     [
-                        'position' => $employmentHistory['position'],
-                        'income' => $employmentHistory['income'],
-                        'start_date' => $employmentHistory['start_date'],
-                        'end_date' => $employmentHistory['end_date'],
-                        'status' => $employmentHistory['status'],
+                        'position'    => $employmentHistory['position'],
+                        'income'      => $employmentHistory['income'],
+                        'start_date'  => $employmentHistory['start_date'],
+                        'end_date'    => $employmentHistory['end_date'],
+                        'status'      => $employmentHistory['status'],
                         'income_type' => $employmentHistory['income_type'] ?? null,
                     ]
                 );
             }
         }
 
-        if (! empty($this->peopleData->organization)) {
+        if (!empty($this->peopleData->organization)) {
             $organization = (new CreateOrganizationAction(
                 new Organization(
                     company: $this->peopleData->branch->company,
@@ -164,7 +164,7 @@ class CreatePeopleAction
             OrganizationPeople::addPeopleToOrganization($organization, $people);
         }
 
-        if (! empty($addressesToAdd)) {
+        if (!empty($addressesToAdd)) {
             $people->address()->saveMany($addressesToAdd);
         }
 
@@ -188,7 +188,7 @@ class CreatePeopleAction
         if ($this->peopleData->contacts->count()) {
             foreach ($this->peopleData->contacts as $contact) {
                 //only check for phone or email
-                if (! in_array($contact->contacts_types_id, [ContactTypeEnum::EMAIL->value, ContactTypeEnum::PHONE->value])) {
+                if (!in_array($contact->contacts_types_id, [ContactTypeEnum::EMAIL->value, ContactTypeEnum::PHONE->value])) {
                     continue;
                 }
                 $searchValue = $contact->value;
@@ -197,7 +197,7 @@ class CreatePeopleAction
                 if ($people) {
                     $this->peopleData->id = $people->getId();
 
-                    return ;
+                    return;
                 }
             }
         }

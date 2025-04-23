@@ -41,7 +41,7 @@ class ContactService
                     ]
                 );
 
-                if (! empty($contacts)) {
+                if (!empty($contacts)) {
                     if (isset($contacts[0])) {
                         $people->set(CustomFieldEnum::CONTACT->value, $contacts[0]['ContactId']);
                         $contact = Contact::getById(
@@ -53,7 +53,7 @@ class ContactService
                 }
             }
 
-            if (! isset($contact) && ($phone || $cellphone)) {
+            if (!isset($contact) && ($phone || $cellphone)) {
                 $contacts = Contact::getAll(
                     $this->vinCredential->dealer,
                     $this->vinCredential->user,
@@ -63,7 +63,7 @@ class ContactService
                     ]
                 );
 
-                if (! empty($contacts)) {
+                if (!empty($contacts)) {
                     if (isset($contacts[0])) {
                         $people->set(CustomFieldEnum::CONTACT->value, $contacts[0]['ContactId']);
                         $contact = Contact::getById(
@@ -76,7 +76,7 @@ class ContactService
             }
 
             // If we still don't have a contact, throw the original exception to maintain behavior
-            if (! isset($contact)) {
+            if (!isset($contact)) {
                 throw $e;
             }
         }

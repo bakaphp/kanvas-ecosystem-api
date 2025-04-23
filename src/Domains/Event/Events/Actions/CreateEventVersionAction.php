@@ -24,18 +24,18 @@ class CreateEventVersionAction
         // $this->validateSlug($slug);
 
         $eventVersion = ModelsEventVersion::updateOrCreate([
-            'apps_id' => $this->eventVersion->event->app->getId(),
-            'companies_id' => $this->eventVersion->event->company->getId(),
-            'users_id' => $this->eventVersion->user->getId(),
-            'event_id' => $this->eventVersion->event->getId(),
-            'currency_id' => $this->eventVersion->currency->getId(),
-            'name' => $this->eventVersion->name,
-            'version' => $this->eventVersion->version,
-            'description' => $this->eventVersion->description,
+            'apps_id'          => $this->eventVersion->event->app->getId(),
+            'companies_id'     => $this->eventVersion->event->company->getId(),
+            'users_id'         => $this->eventVersion->user->getId(),
+            'event_id'         => $this->eventVersion->event->getId(),
+            'currency_id'      => $this->eventVersion->currency->getId(),
+            'name'             => $this->eventVersion->name,
+            'version'          => $this->eventVersion->version,
+            'description'      => $this->eventVersion->description,
             'price_per_ticket' => $this->eventVersion->pricePerTicket,
-            'agenda' => $this->eventVersion->agenda ?? null,
-            'metadata' => $this->eventVersion->metadata ?? null,
-            'slug' => $slug,
+            'agenda'           => $this->eventVersion->agenda ?? null,
+            'metadata'         => $this->eventVersion->metadata ?? null,
+            'slug'             => $slug,
         ]);
 
         $eventVersion->addDates($this->eventVersion->dates);
@@ -60,7 +60,7 @@ class CreateEventVersionAction
                             ->exists();
 
                         if ($exists) {
-                            $fail('The ' . $attribute . ' has already been taken.');
+                            $fail('The '.$attribute.' has already been taken.');
                         }
                     },
                 ],

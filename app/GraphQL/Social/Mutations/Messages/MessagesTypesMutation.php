@@ -14,9 +14,9 @@ use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 class MessagesTypesMutation
 {
     /**
-     * create
+     * create.
      *
-     * @param  mixed $request
+     * @param mixed $request
      */
     public function create(mixed $root, array $request): MessageType
     {
@@ -31,9 +31,9 @@ class MessagesTypesMutation
     }
 
     /**
-     * update
+     * update.
      *
-     * @param  mixed $request
+     * @param mixed $request
      */
     public function update(mixed $root, array $request): MessageType
     {

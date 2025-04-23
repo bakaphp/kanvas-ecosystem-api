@@ -21,7 +21,7 @@ class NewOrderStoreOwnerNotification extends Notification
         $this->setTemplateName(EmailTemplateEnum::NEW_ORDER_STORE_OWNER->value);
         $this->setData($data);
 
-        if (! $this->app->get(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value)) {
+        if (!$this->app->get(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value)) {
             $this->channels = [];
         }
     }

@@ -64,20 +64,19 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
             );
 
             //also from the features
-            if (! empty($featureTags)) {
+            if (!empty($featureTags)) {
                 $messageTags = $generateMessageTagAction->execute(
                     textLookupKey: 'ai_nugged.nugget',
                     tags: $featureTags,
                     totalTags: 3
                 );
             }
-            $this->info('Message ID: ' . $message->getId() . ' Tags: ' . json_encode($messageTags->tags->pluck('name'), JSON_PRETTY_PRINT));
+            $this->info('Message ID: '.$message->getId().' Tags: '.json_encode($messageTags->tags->pluck('name'), JSON_PRETTY_PRINT));
             //$this->newLine();
             $this->output->progressAdvance();
         }
 
         $this->output->progressFinish();
 
-        return;
     }
 }

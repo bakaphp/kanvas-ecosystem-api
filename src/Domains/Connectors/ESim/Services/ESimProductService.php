@@ -27,12 +27,12 @@ class ESimProductService
 
     public function mapProductToImport(array $destination): array
     {
-        $sku = Str::slug($destination['provider'] . ' ' . $destination['id']);
+        $sku = Str::slug($destination['provider'].' '.$destination['id']);
 
         $files = [
             [
                 'name' => 'flag.svg',
-                'url' => $destination['image_url'],
+                'url'  => $destination['image_url'],
             ],
         ];
 
@@ -41,28 +41,28 @@ class ESimProductService
 
         $attributes = [
             [
-                'name' => 'product-provider',
+                'name'  => 'product-provider',
                 'value' => $destination['provider'],
             ],
         ];
 
-        if (! empty($destination['countries'])) {
+        if (!empty($destination['countries'])) {
             $attributes[] = [
-                'name' => 'countries',
+                'name'  => 'countries',
                 'value' => $this->mapCountriesAttribute($destination['countries']),
             ];
         }
         // Map the variants
-        $hasNoVariantsButPriceRange = count($destination['plans']) === 1 && ! empty($destination['plans'][0]['price_range']);
+        $hasNoVariantsButPriceRange = count($destination['plans']) === 1 && !empty($destination['plans'][0]['price_range']);
         if ($hasNoVariantsButPriceRange) {
             //if not needed remove
             $attributes = array_merge($attributes, [
                 [
-                    'name' => 'max_unlimited_days',
+                    'name'  => 'max_unlimited_days',
                     'value' => count($destination['plans'][0]['price_range']),
                 ],
                 [
-                    'name' => 'show_calendar',
+                    'name'  => 'show_calendar',
                     'value' => 1,
                 ],
             ]);
@@ -74,28 +74,28 @@ class ESimProductService
         ) ?? [];
         $recommendationAttribute = $this->mapProductRecommendationAttribute($variants);
 
-        if (! empty($recommendationAttribute)) {
+        if (!empty($recommendationAttribute)) {
             $attributes[] = [
-                'name' => 'recommended_plans',
+                'name'  => 'recommended_plans',
                 'value' => $recommendationAttribute,
             ];
         }
 
         return [
-            'name' => $destination['name'],
-            'description' => $destination['name'] ?? '',
-            'slug' => $sku,
-            'sku' => $sku,
-            'regionId' => $this->region->id,
-            'price' => 0,
+            'name'          => $destination['name'],
+            'description'   => $destination['name'] ?? '',
+            'slug'          => $sku,
+            'sku'           => $sku,
+            'regionId'      => $this->region->id,
+            'price'         => 0,
             'discountPrice' => 0,
-            'quantity' => 1,
-            'isPublished' => (int) $destination['status'],
-            'status' => (int) $destination['status'],
-            'files' => $files ?? [],
-            'source' => CustomFieldEnum::PRODUCT_ESIM_ID->value,
-            'sourceId' => $destination['id'],
-            'customFields' => [
+            'quantity'      => 1,
+            'isPublished'   => (int) $destination['status'],
+            'status'        => (int) $destination['status'],
+            'files'         => $files ?? [],
+            'source'        => CustomFieldEnum::PRODUCT_ESIM_ID->value,
+            'sourceId'      => $destination['id'],
+            'customFields'  => [
                 [
                     'name' => CustomFieldEnum::PRODUCT_ESIM_ID->value,
                     'data' => $destination['id'],
@@ -103,25 +103,25 @@ class ESimProductService
             ],
             'categories' => [
                 [
-                    'name' => $category,
-                    'code' => crc32($category),
+                    'name'         => $category,
+                    'code'         => crc32($category),
                     'is_published' => true,
-                    'position' => 1,
+                    'position'     => 1,
                 ],
             ],
             'productType' => [
-                 'name' => $productType,
-                 'weight' => 0,
+                'name'   => $productType,
+                'weight' => 0,
             ],
             'attributes' => $attributes,
-            'variants' => $variants,
+            'variants'   => $variants,
             'warehouses' => [
-                 [
-                      'warehouse' => $this->warehouses->name,
-                      'channel' => $this->channel->name,
-                 ],
+                [
+                    'warehouse' => $this->warehouses->name,
+                    'channel'   => $this->channel->name,
+                ],
             ],
-         ];
+        ];
     }
 
     protected function mapProductRecommendationAttribute(array $variants): array
@@ -143,7 +143,7 @@ class ESimProductService
 
         // Split sorted variants into two groups (low and high packages)
         $sortedSkus = array_column($variants, 'sku');
-        $groupSize = max(1, (int)ceil(count($sortedSkus) / 2)); // Explicitly cast ceil result to int
+        $groupSize = max(1, (int) ceil(count($sortedSkus) / 2)); // Explicitly cast ceil result to int
         $groups = array_chunk($sortedSkus, $groupSize);
 
         $lowPackages = $groups[0] ?? [];
@@ -156,7 +156,7 @@ class ESimProductService
                 break;
             }
             $sections[] = [
-                'name' => 'section_' . $sectionCounter,
+                'name'       => 'section_'.$sectionCounter,
                 'variantSku' => $group,
             ];
             $sectionCounter++;
@@ -171,7 +171,7 @@ class ESimProductService
 
         foreach ($highPackageGroups as $group) {
             $sections[] = [
-                'name' => 'section_' . $sectionCounter,
+                'name'       => 'section_'.$sectionCounter,
                 'variantSku' => $group,
             ];
             $sectionCounter++;
@@ -213,31 +213,31 @@ class ESimProductService
 
             $attributes = [
                 [
-                    'name' => 'esim_bundle_type',
+                    'name'  => 'esim_bundle_type',
                     'value' => $variant['sku'],
-                ],[
-                    'name' => 'esim_days',
+                ], [
+                    'name'  => 'esim_days',
                     'value' => $variant['duration'],
                 ], [
-                    'name' => 'Variant Type',
+                    'name'  => 'Variant Type',
                     'value' => $variant['is_unlimited'] == 1 || Str::contains(Str::lower($variantName), 'unlimited') ? 'unlimited' : 'basic',
-                ],[
-                    'name' => 'Variant Duration',
+                ], [
+                    'name'  => 'Variant Duration',
                     'value' => $variant['duration'],
-                ],[
-                    'name' => 'Variant Network',
+                ], [
+                    'name'  => 'Variant Network',
                     'value' => $coverages[0]['networks'][0]['name'] ?? $destination['provider'] ?? null,
-                ],[
-                    'name' => 'Variant Speed',
+                ], [
+                    'name'  => 'Variant Speed',
                     'value' => $coverages[0]['networks'][0]['types'][0] ?? 'LTE', //change to custom setting per app
-                ],[
-                    'name' => 'coverages',
+                ], [
+                    'name'  => 'coverages',
                     'value' => $coverages,
-                ],[
-                    'name' => 'Rechargeability',
+                ], [
+                    'name'  => 'Rechargeability',
                     'value' => (int) in_array(strtolower($destination['provider']) ?? null, $rechargeable),
-                ],[
-                    'name' => 'Has Phone Number',
+                ], [
+                    'name'  => 'Has Phone Number',
                     'value' => 0,
                 ],
             ];
@@ -249,60 +249,60 @@ class ESimProductService
              *  day : 1
              *  public_price : 10
              *  service_day: 7
-             * ]
+             * ].
              *
              * @todo improve
              */
-            if (! empty($variant['price_range'])) {
+            if (!empty($variant['price_range'])) {
                 $excludeAttributes = ['esim_days', 'duration'];
 
                 foreach ($variant['price_range'] as $variantByPriceRange) {
                     // Remove any existing 'esim_days' from the attributes array
                     $attributes = array_filter($attributes, function ($attribute) use ($excludeAttributes) {
-                        return ! in_array($attribute['name'], $excludeAttributes);
+                        return !in_array($attribute['name'], $excludeAttributes);
                     });
 
                     // Add the updated 'esim_days' entry
                     $attributes[] = [
-                        'name' => 'esim_days',
+                        'name'  => 'esim_days',
                         'value' => $variantByPriceRange['days'],
                     ];
                     $attributes[] = [
-                        'name' => 'Variant Duration',
+                        'name'  => 'Variant Duration',
                         'value' => $variantByPriceRange['days'],
                     ];
 
                     $price = number_format($variantByPriceRange['public_price'], 2, '.', '');
-                    $sku = Str::simpleSlug($variant['sku'] . '-' . $variantByPriceRange['days']);
-                    $sourceId = $variant['id'] . '-' . $variantByPriceRange['days'];
+                    $sku = Str::simpleSlug($variant['sku'].'-'.$variantByPriceRange['days']);
+                    $sourceId = $variant['id'].'-'.$variantByPriceRange['days'];
 
                     $productVariants[] = [
-                        'name' => $variantName . ' ' . $variantByPriceRange['days'],
-                        'description' => $variantName . ' ' . $variantByPriceRange['days'],
-                        'sku' => $sku,
-                        'price' => $price,
+                        'name'          => $variantName.' '.$variantByPriceRange['days'],
+                        'description'   => $variantName.' '.$variantByPriceRange['days'],
+                        'sku'           => $sku,
+                        'price'         => $price,
                         'discountPrice' => $price,
-                        'is_published' => true,
-                        'slug' => Str::slug(str_replace('_', '-', $sku)),
-                        'files' => [],
-                        'source' => CustomFieldEnum::VARIANT_ESIM_ID->value,
-                        'sourceId' => $sourceId,
-                        'barcode' => null,
+                        'is_published'  => true,
+                        'slug'          => Str::slug(str_replace('_', '-', $sku)),
+                        'files'         => [],
+                        'source'        => CustomFieldEnum::VARIANT_ESIM_ID->value,
+                        'sourceId'      => $sourceId,
+                        'barcode'       => null,
                         'custom_fields' => [
                             [
                                 'name' => CustomFieldEnum::VARIANT_ESIM_ID->value,
                                 'data' => $sourceId,
-                            ],[
+                            ], [
                                 'name' => 'parent_sku',
                                 'data' => $variant['sku'],
                             ],
                         ],
                         'warehouse' => [
-                            'id' => $this->warehouses->id,
-                            'price' => $price,
+                            'id'       => $this->warehouses->id,
+                            'price'    => $price,
                             'quantity' => 100000,
-                            'sku' => $sku,
-                            'is_new' => true,
+                            'sku'      => $sku,
+                            'is_new'   => true,
                         ],
                         'attributes' => $attributes,
                     ];
@@ -310,17 +310,17 @@ class ESimProductService
             } else {
                 $price = number_format($variant['public_price'], 2, '.', '');
                 $productVariants[] = [
-                    'name' => $variantName,
-                    'description' => $variant['description'],
-                    'sku' => $variant['sku'],
-                    'price' => $price,
+                    'name'          => $variantName,
+                    'description'   => $variant['description'],
+                    'sku'           => $variant['sku'],
+                    'price'         => $price,
                     'discountPrice' => $price,
-                    'is_published' => true,
-                    'slug' => Str::slug(str_replace('_', '-', $variant['sku'])),
-                    'files' => [],
-                    'source' => CustomFieldEnum::VARIANT_ESIM_ID->value,
-                    'sourceId' => $variant['id'],
-                    'barcode' => null,
+                    'is_published'  => true,
+                    'slug'          => Str::slug(str_replace('_', '-', $variant['sku'])),
+                    'files'         => [],
+                    'source'        => CustomFieldEnum::VARIANT_ESIM_ID->value,
+                    'sourceId'      => $variant['id'],
+                    'barcode'       => null,
                     'custom_fields' => [
                         [
                             'name' => CustomFieldEnum::VARIANT_ESIM_ID->value,
@@ -328,11 +328,11 @@ class ESimProductService
                         ],
                     ],
                     'warehouse' => [
-                        'id' => $this->warehouses->id,
-                        'price' => $price,
+                        'id'       => $this->warehouses->id,
+                        'price'    => $price,
                         'quantity' => 100000,
-                        'sku' => $variant['sku'],
-                        'is_new' => true,
+                        'sku'      => $variant['sku'],
+                        'is_new'   => true,
                     ],
                     'attributes' => $attributes,
                 ];

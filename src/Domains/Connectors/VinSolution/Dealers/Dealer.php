@@ -57,7 +57,7 @@ class Dealer
     public static function getUsers(Dealer $dealer, AppInterface $app): array
     {
         $client = new Client($dealer->id, 0, $app);
-        $response = $client->get('/gateway/v1/tenant/user?dealerId=' . $dealer->id);
+        $response = $client->get('/gateway/v1/tenant/user?dealerId='.$dealer->id);
 
         $users = [];
         if (count($response)) {
@@ -75,7 +75,7 @@ class Dealer
     public static function getUser(Dealer $dealer, int $userId, AppInterface $app): User
     {
         $client = new Client($dealer->id, 0, $app);
-        $response = $client->get('/gateway/v1/tenant/user/id/' . $userId . '?dealerId=' . $dealer->id);
+        $response = $client->get('/gateway/v1/tenant/user/id/'.$userId.'?dealerId='.$dealer->id);
 
         return new User($response);
     }

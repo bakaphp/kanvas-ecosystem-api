@@ -23,13 +23,13 @@ class DiscoveryEngineUserEventService extends DiscoveryEngineService
             $this->googleRecommendationConfig['dataSource'],
         );
 
-        if (! $userInteraction->entityData()) {
+        if (!$userInteraction->entityData()) {
             return null;
         }
 
         $eventType = UserEventEnum::getEventFromInteraction($userInteraction->interaction);
 
-        if (! $eventType) {
+        if (!$eventType) {
             return null;
         }
 

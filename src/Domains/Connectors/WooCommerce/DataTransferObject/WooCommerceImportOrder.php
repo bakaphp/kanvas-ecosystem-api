@@ -36,9 +36,9 @@ class WooCommerceImportOrder extends OrderDto
                       ->where('apps_id', $app->getId())
                       ->first();
 
-            if (! $variant) {
+            if (!$variant) {
                 $wooCommerce = new WooCommerce($app);
-                $product = $wooCommerce->client->get('products/' . $item->product_id);
+                $product = $wooCommerce->client->get('products/'.$item->product_id);
                 $product = (new CreateProductAction(
                     $app,
                     $company,
@@ -53,16 +53,16 @@ class WooCommerceImportOrder extends OrderDto
             }, 0);
 
             $items[] = [
-                'app' => $app,
-                'variant' => $variant,
-                'name' => $item->name,
-                'sku' => $item->sku,
+                'app'      => $app,
+                'variant'  => $variant,
+                'name'     => $item->name,
+                'sku'      => $item->sku,
                 'quantity' => $item->quantity,
-                'price' => $item->price,
+                'price'    => $item->price,
                 'discount' => 0,
-                'tax' => $taxTotal,
+                'tax'      => $taxTotal,
                 'currency' => $currency,
-                'id' => $variant->id,
+                'id'       => $variant->id,
             ];
         }
 
@@ -71,11 +71,11 @@ class WooCommerceImportOrder extends OrderDto
         }, 0);
         $status = match ($order->status) {
             'processing' => 'draft',
-            'completed' => 'completed',
-            'cancelled' => 'cancelled',
-            'refunded' => 'refunded',
-            'failed' => 'failed',
-            default => throw new InvalidArgumentException('Invalid status'),
+            'completed'  => 'completed',
+            'cancelled'  => 'cancelled',
+            'refunded'   => 'refunded',
+            'failed'     => 'failed',
+            default      => throw new InvalidArgumentException('Invalid status'),
         };
 
         return new self(
@@ -85,11 +85,11 @@ class WooCommerceImportOrder extends OrderDto
             people: $people,
             user: $user,
             token: $order->order_key,
-            orderNumber: (string)$order->number,
+            orderNumber: (string) $order->number,
             shippingAddress: $shippingAddress,
             billingAddress: $billingAddress,
-            total: (float)$order->total,
-            totalDiscount: (float)$order->discount_total,
+            total: (float) $order->total,
+            totalDiscount: (float) $order->discount_total,
             totalShipping: $shippingLine,
             taxes: $taxTotal,
             status: $status,

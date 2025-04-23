@@ -51,7 +51,7 @@ class Lead
         $params = http_build_query($params);
 
         $response = $client->get(
-            '/gateway/v1/lead?dealerId=' . $dealer->id . '&userId=' . $user->id . '&' . $params,
+            '/gateway/v1/lead?dealerId='.$dealer->id.'&userId='.$user->id.'&'.$params,
         );
 
         return $response;
@@ -68,7 +68,7 @@ class Lead
         $params = http_build_query($params);
 
         $response = $client->get(
-            '/leads?dealerId=' . $dealer->id . '&userId=' . $user->id . '&' . $params,
+            '/leads?dealerId='.$dealer->id.'&userId='.$user->id.'&'.$params,
             [
                 'headers' => [
                     'Content-Type' => 'application/vnd.coxauto.v3+json',
@@ -92,7 +92,7 @@ class Lead
         $data['UserId'] = $user->id;
 
         $response = $client->get(
-            '/gateway/v1/lead/' . $leadsId . '?dealerId=' . $dealer->id . '&userId=' . $user->id,
+            '/gateway/v1/lead/'.$leadsId.'?dealerId='.$dealer->id.'&userId='.$user->id,
         );
 
         return new self($response['Leads'][0]);
@@ -107,11 +107,11 @@ class Lead
         $data['DealerId'] = $dealer->id;
         $data['UserId'] = $user->id;
 
-        $data['leadSource'] = 'https://api.vinsolutions.com/leadsources/id/' . $data['leadSource'] . '?dealerId=' . $dealer->id;
-        $data['contact'] = 'https://api.vinsolutions.com/leadsources/id/' . $data['contact'] . '?dealerId=' . $dealer->id;
+        $data['leadSource'] = 'https://api.vinsolutions.com/leadsources/id/'.$data['leadSource'].'?dealerId='.$dealer->id;
+        $data['contact'] = 'https://api.vinsolutions.com/leadsources/id/'.$data['contact'].'?dealerId='.$dealer->id;
 
         $response = $client->post(
-            '/leads?dealerId=' . $dealer->id . '&userId=' . $user->id,
+            '/leads?dealerId='.$dealer->id.'&userId='.$user->id,
             json_encode($data),
             [
                 'headers' => [
@@ -134,11 +134,11 @@ class Lead
         $data['isHot'] = $this->isHot ? true : false;
 
         if ($this->coBuyerContact !== 0) {
-            $data['coBuyerContact'] = 'https://api.vinsolutions.com/contacts/id/' . $this->coBuyerContact . '?dealerid=' . $dealer->id;
+            $data['coBuyerContact'] = 'https://api.vinsolutions.com/contacts/id/'.$this->coBuyerContact.'?dealerid='.$dealer->id;
         }
 
         $client->put(
-            '/leads/id/' . $this->id,
+            '/leads/id/'.$this->id,
             json_encode($data),
             [
                 'headers' => [
@@ -162,7 +162,7 @@ class Lead
         $data['Note'] = $notes;
 
         $client->put(
-            '/gateway/v1/lead/' . $this->id,
+            '/gateway/v1/lead/'.$this->id,
             json_encode($data),
         );
 
@@ -200,7 +200,7 @@ class Lead
         $data['UserId'] = $user->id;
 
         $response = $client->get(
-            '/leads/id/' . $leadsId,
+            '/leads/id/'.$leadsId,
             [
                 'headers' => [
                     'Accept' => 'application/vnd.coxauto.v3+json',
@@ -223,7 +223,7 @@ class Lead
         $client = new Client($dealer->id, $user->id);
 
         $request = [];
-        $request['lead'] = 'https://api.vinsolutions.com/leadsources/id/' . $this->id . '?dealerId=' . $dealer->id;
+        $request['lead'] = 'https://api.vinsolutions.com/leadsources/id/'.$this->id.'?dealerId='.$dealer->id;
         $request['vehicles'][] = $data;
 
         $response = $client->post(
@@ -247,7 +247,7 @@ class Lead
         $client = new Client($dealer->id, $user->id);
 
         $response = $client->get(
-            '/vehicles/trade?leadId=' . $this->id,
+            '/vehicles/trade?leadId='.$this->id,
             [
                 'headers' => [
                     'Accept' => 'application/vnd.coxauto.v1+json',

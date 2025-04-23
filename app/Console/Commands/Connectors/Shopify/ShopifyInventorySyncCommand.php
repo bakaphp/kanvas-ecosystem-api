@@ -77,6 +77,5 @@ class ShopifyInventorySyncCommand extends Command
             }
         }
 
-        return;
     }
 }

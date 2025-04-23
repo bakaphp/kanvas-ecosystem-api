@@ -36,10 +36,10 @@ class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $zohoLead = $syncLeadWithZoho->execute();
 
         return [
-            'zohoLeadId' => $lead->getId(),
+            'zohoLeadId'  => $lead->getId(),
             'zohoRequest' => $zohoLead,
-            'leadId' => $lead->getId(),
-            'status' => $lead->status()->first()->name,
+            'leadId'      => $lead->getId(),
+            'status'      => $lead->status()->first()->name,
         ];
     }
 }

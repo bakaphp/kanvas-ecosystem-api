@@ -17,12 +17,12 @@ class TemplatesVariablesDto extends Data
     /**
      * Constructs function.
      *
-     * @param string $name
-     * @param string $value
-     * @param int $template_id
+     * @param string         $name
+     * @param string         $value
+     * @param int            $template_id
      * @param Companies|null $company
-     * @param Users|null $user
-     * @param Apps $app
+     * @param Users|null     $user
+     * @param Apps           $app
      */
     public function __construct(
         public string $name,

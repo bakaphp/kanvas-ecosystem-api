@@ -22,7 +22,7 @@ class PushCoBuyerActivity extends KanvasActivity
         $lead = $participant->lead;
         $people = $participant->people;
 
-        if (! $company->get(ConfigurationEnum::COMPANY->value)) {
+        if (!$company->get(ConfigurationEnum::COMPANY->value)) {
             return [
                 'error' => 'Company not found in VinSolution',
             ];
@@ -43,9 +43,9 @@ class PushCoBuyerActivity extends KanvasActivity
                 return [
                     'message' => 'Co-buyer added successfully',
                     'vinLead' => $vinLead->id,
-                    'people' => $people->toArray(),
-                    'entity' => $entity->toArray(),
-                    'lead' => $lead->toArray(),
+                    'people'  => $people->toArray(),
+                    'entity'  => $entity->toArray(),
+                    'lead'    => $lead->toArray(),
                 ];
             },
             company: $company,

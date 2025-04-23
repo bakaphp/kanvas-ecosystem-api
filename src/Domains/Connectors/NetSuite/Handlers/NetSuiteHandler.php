@@ -25,6 +25,6 @@ class NetSuiteHandler extends BaseIntegration
         NetSuiteServices::setup($netSuiteDto);
         $client = new NetSuiteServices($this->app, $this->company);
 
-        return ! empty($client->findExistingCustomer($this->company->email));
+        return !empty($client->findExistingCustomer($this->company->email));
     }
 }

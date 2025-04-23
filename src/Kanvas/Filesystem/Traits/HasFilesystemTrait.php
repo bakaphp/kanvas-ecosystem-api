@@ -59,14 +59,14 @@ trait HasFilesystemTrait
             ->where('url', $url)
             ->firstOrNew();
 
-        if (! $fileSystem->exists) {
+        if (!$fileSystem->exists) {
             $fileInfo = pathinfo($url);
 
             $extension = $fileInfo['extension'] ?? 'unknown';
             $fileSystem->companies_id = $companyId;
             $fileSystem->apps_id = $app ? $app->getId() : app(Apps::class)->getId();
             $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
-            $fileSystem->path = $fileInfo['dirname'] . '/' . $fileInfo['basename'];
+            $fileSystem->path = $fileInfo['dirname'].'/'.$fileInfo['basename'];
             $fileSystem->url = $url;
             $fileSystem->name = $fileInfo['basename'];
             $fileSystem->file_type = $this->cleanExtension($extension);
@@ -84,14 +84,14 @@ trait HasFilesystemTrait
         $filesystem = new FilesystemServices($this->app ?? app(Apps::class));
 
         foreach ($files as $file) {
-            if (! isset($file['url']) || ! isset($file['name'])) {
+            if (!isset($file['url']) || !isset($file['name'])) {
                 throw new ValidationException('Missing url || name index');
             }
 
             if (isset($file['file']) && $file['file'] instanceof UploadedFile) {
                 // Validate file extension
-                if (! in_array($file['file']->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
-                    throw new Exception('Invalid file format ' . $file->extension());
+                if (!in_array($file['file']->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
+                    throw new Exception('Invalid file format '.$file->extension());
                 }
 
                 // Attach file to the entity
@@ -115,7 +115,7 @@ trait HasFilesystemTrait
 
         // Find files to delete
         $filesToDelete = $existingFiles->filter(function ($file) use ($newFiles) {
-            return ! $newFiles->contains('url', $file['url']);
+            return !$newFiles->contains('url', $file['url']);
         });
 
         // Soft delete the files (or handle deletion as per your logic)
@@ -141,7 +141,7 @@ trait HasFilesystemTrait
     public function addMultipleFiles(array $files): bool
     {
         foreach ($files as $file) {
-            if (! isset($file['file']) || ! isset($file['fieldName'])) {
+            if (!isset($file['file']) || !isset($file['fieldName'])) {
                 throw new ValidationException('Missing file || fieldName index');
             }
 
@@ -230,7 +230,7 @@ trait HasFilesystemTrait
             ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
             ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
 
-        $files->when(isset($this->companies_id) && ! $app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue()), function ($query) {
+        $files->when(isset($this->companies_id) && !$app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue()), function ($query) {
             $query->where('filesystem_entities.companies_id', $this->companies_id);
         });
 

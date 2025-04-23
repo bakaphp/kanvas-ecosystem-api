@@ -25,6 +25,6 @@ class ShopifyMutation
 
         ShopifyService::shopifySetup($shopifyDto);
 
-        return ! empty(Client::getInstance($app, $company, $shopifyDto->region)->Shop->get());
+        return !empty(Client::getInstance($app, $company, $shopifyDto->region)->Shop->get());
     }
 }

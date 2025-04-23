@@ -11,11 +11,10 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
-
-use function Laravel\Prompts\info;
-
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
+
+use function Laravel\Prompts\info;
 
 class CreateStatusCommand extends Command
 {
@@ -52,33 +51,33 @@ class CreateStatusCommand extends Command
         }
 
         Status::firstOrCreate([
-            'name' => StatusEnum::ACTIVE->value,
+            'name'    => StatusEnum::ACTIVE->value,
             'apps_id' => $appId,
         ], [
-            'slug' => Str::slug(StatusEnum::ACTIVE->value)
+            'slug' => Str::slug(StatusEnum::ACTIVE->value),
         ]);
 
         Status::firstOrCreate([
-            'name' => StatusEnum::CONNECTED->value,
+            'name'    => StatusEnum::CONNECTED->value,
             'apps_id' => $appId,
         ], [
-            'slug' => Str::slug(StatusEnum::CONNECTED->value)
+            'slug' => Str::slug(StatusEnum::CONNECTED->value),
         ]);
 
         Status::firstOrCreate([
-            'name' => StatusEnum::FAILED->value,
+            'name'    => StatusEnum::FAILED->value,
             'apps_id' => $appId,
         ], [
-            'slug' => Str::slug(StatusEnum::FAILED->value)
+            'slug' => Str::slug(StatusEnum::FAILED->value),
         ]);
 
         Status::firstOrCreate([
-            'name' => StatusEnum::OFFLINE->value,
+            'name'    => StatusEnum::OFFLINE->value,
             'apps_id' => $appId,
         ], [
-            'slug' => Str::slug(StatusEnum::OFFLINE->value)
+            'slug' => Str::slug(StatusEnum::OFFLINE->value),
         ]);
 
-        info('Integration status created successfully for app - ' . $appId);
+        info('Integration status created successfully for app - '.$appId);
     }
 }

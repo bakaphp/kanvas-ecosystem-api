@@ -44,22 +44,22 @@ class CreateInviteAction
             $this->inviteDto->app
         );
 
-        if (($role->isAdmin() || $role->isOwner()) && ! $this->user->isAdmin()) {
+        if (($role->isAdmin() || $role->isOwner()) && !$this->user->isAdmin()) {
             throw new ValidationException('You can\'t invite an admin or owner');
         }
 
         $invite = new UsersInvite();
         $invite->fill([
-            'invite_hash' => Str::random(50),
-            'users_id' => $this->user->getId(),
-            'companies_id' => $company->getKey(),
+            'invite_hash'           => Str::random(50),
+            'users_id'              => $this->user->getId(),
+            'companies_id'          => $company->getKey(),
             'companies_branches_id' => $companyBranch->getKey(),
-            'role_id' => $this->inviteDto->role_id,
-            'apps_id' => $this->inviteDto->app->getId(),
-            'email' => $this->inviteDto->email,
-            'firstname' => $this->inviteDto->firstname,
-            'lastname' => $this->inviteDto->lastname,
-            'description' => $this->inviteDto->description,
+            'role_id'               => $this->inviteDto->role_id,
+            'apps_id'               => $this->inviteDto->app->getId(),
+            'email'                 => $this->inviteDto->email,
+            'firstname'             => $this->inviteDto->firstname,
+            'lastname'              => $this->inviteDto->lastname,
+            'description'           => $this->inviteDto->description,
         ]);
 
         $invite->saveOrFail();
@@ -80,13 +80,13 @@ class CreateInviteAction
          ]);
  */
         //@todo allow it to be customized
-        $emailTitle = $this->inviteDto->app->get(AppSettingsEnums::INVITE_EMAIL_SUBJECT->getValue()) ?? 'You\'ve been invited to join ' . $company->name;
+        $emailTitle = $this->inviteDto->app->get(AppSettingsEnums::INVITE_EMAIL_SUBJECT->getValue()) ?? 'You\'ve been invited to join '.$company->name;
 
         $inviteEmail = new InviteTemplate($invite, [
             'fromUser' => $this->user,
-            'subject' => $emailTitle,
+            'subject'  => $emailTitle,
             'template' => $this->inviteDto->email_template,
-            'company' => $company,
+            'company'  => $company,
         ]);
 
         Notification::route('mail', $this->inviteDto->email)

@@ -18,13 +18,13 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 /**
  * Class TaskEngagementItem.
  *
- * @property int $task_list_item_id
- * @property int $lead_id
- * @property int $companies_id
- * @property int $apps_id
+ * @property int    $task_list_item_id
+ * @property int    $lead_id
+ * @property int    $companies_id
+ * @property int    $apps_id
  * @property string $status
- * @property int $engagement_start_id
- * @property int $engagement_end_id
+ * @property int    $engagement_start_id
+ * @property int    $engagement_end_id
  * @property string $config
  */
 #[ObservedBy([TaskEngagementItemObserver::class])]
@@ -71,7 +71,7 @@ class TaskEngagementItem extends BaseModel
         // Retrieve the items to disable from the config
         $itemsToDisable = Arr::get($this->item->config, 'other_items_to_disable', []);
 
-        if (is_array($itemsToDisable) && ! empty($itemsToDisable)) {
+        if (is_array($itemsToDisable) && !empty($itemsToDisable)) {
             $affectedRows = $this->disableItems($itemsToDisable);
 
             return $affectedRows > 0;
@@ -82,7 +82,7 @@ class TaskEngagementItem extends BaseModel
 
     /**
      * A given task item can enable other task items based on the checklist configuration.
-     * Enable means turn off disabled config attribute
+     * Enable means turn off disabled config attribute.
      */
     public function enableRelatedTasks(): bool
     {
@@ -93,7 +93,7 @@ class TaskEngagementItem extends BaseModel
         // Retrieve the items to enable from the config
         $itemsToEnable = Arr::get($this->item->task->config, 'task_item_to_enable', []);
 
-        if (is_array($itemsToEnable) && ! empty($itemsToEnable)) {
+        if (is_array($itemsToEnable) && !empty($itemsToEnable)) {
             $affectedRows = $this->enableRelatedTaskItem($itemsToEnable);
 
             return $affectedRows > 0;
@@ -114,7 +114,7 @@ class TaskEngagementItem extends BaseModel
         // Retrieve the items to enable from the config
         $otherTaskItemsToComplete = Arr::get($this->item->config, 'complete_other_task_items', []);
 
-        if (is_array($otherTaskItemsToComplete) && ! empty($otherTaskItemsToComplete)) {
+        if (is_array($otherTaskItemsToComplete) && !empty($otherTaskItemsToComplete)) {
             $affectedRows = $this->completeRelatedTaskItem($otherTaskItemsToComplete);
 
             return $affectedRows > 0;
@@ -125,7 +125,7 @@ class TaskEngagementItem extends BaseModel
 
     /**
      * Given a list of files, complete the task list items that are related to the files.
-     * [{"privacy-disclosure.pdf":"privacy-disclosure.pdf"}]
+     * [{"privacy-disclosure.pdf":"privacy-disclosure.pdf"}].
      */
     public function completeByRelatedDocumentItems(array $files): bool
     {
@@ -144,9 +144,9 @@ class TaskEngagementItem extends BaseModel
             // Use firstOrNew to either find the item or create a new instance
             $taskEngagementItem = TaskEngagementItem::firstOrNew([
                 'task_list_item_id' => $itemId,
-                'lead_id' => $this->lead_id,
-                'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
+                'lead_id'           => $this->lead_id,
+                'companies_id'      => $this->company->getId(),
+                'apps_id'           => $this->app->getId(),
             ], [
                 'users_id' => $this->user->getId(),
             ]);
@@ -198,12 +198,12 @@ class TaskEngagementItem extends BaseModel
                 // Enable the main task item if all related items are completed
                 $taskEngagementItem = TaskEngagementItem::firstOrCreate([
                     'task_list_item_id' => $checkListItem,
-                    'lead_id' => $this->lead_id,
-                    'companies_id' => $this->company->getId(),
-                    'apps_id' => $this->app->getId(),
+                    'lead_id'           => $this->lead_id,
+                    'companies_id'      => $this->company->getId(),
+                    'apps_id'           => $this->app->getId(),
                 ], [
                     'users_id' => $this->user->getId(),
-                    'status' => 'in_progress',
+                    'status'   => 'in_progress',
                 ]);
 
                 // Update status and config only if not already completed
@@ -241,12 +241,12 @@ class TaskEngagementItem extends BaseModel
             // Fetch or create the task engagement item
             $taskEngagementItem = TaskEngagementItem::firstOrCreate([
                 'task_list_item_id' => $checkListItem,
-                'lead_id' => $this->lead_id,
-                'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
+                'lead_id'           => $this->lead_id,
+                'companies_id'      => $this->company->getId(),
+                'apps_id'           => $this->app->getId(),
             ], [
-                'users_id' => $this->user->getId(),
-                'status' => 'completed',
+                'users_id'          => $this->user->getId(),
+                'status'            => 'completed',
                 'engagement_end_id' => $this->engagement_end_id,
             ]);
 

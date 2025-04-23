@@ -26,6 +26,7 @@ class CreateCreditScoreFromMessageActivity extends CreateCreditScoreFromLeadActi
 {
     /**
      * @param Model<Message> $message
+     *
      * @throws MissingAttributeException
      * @throws ValueError
      * @throws TypeError
@@ -49,7 +50,7 @@ class CreateCreditScoreFromMessageActivity extends CreateCreditScoreFromLeadActi
         $lead = $engagement->lead;
         $messageData = $this->extractMessageData($engagement->message);
 
-        if (! $messageData) {
+        if (!$messageData) {
             return $this->errorResponse('Message data not found', $lead);
         }
 
@@ -66,14 +67,14 @@ class CreateCreditScoreFromMessageActivity extends CreateCreditScoreFromLeadActi
         $this->createEngagements($lead, $app, $parentMessage, $childMessage, $message);
 
         return [
-            'scores' => $creditApplicant['scores'],
-            'iframe_url' => $creditApplicant['iframe_url'],
+            'scores'            => $creditApplicant['scores'],
+            'iframe_url'        => $creditApplicant['iframe_url'],
             'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
             //'iframe_url_digital_jacket' => $creditApplicant['iframe_url_digital_jacket'],
-            'pdf' => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
+            'pdf'        => !empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
             'message_id' => $parentMessage->getId(),
-            'message' => 'Credit score created successfully',
-            'lead_id' => $lead->getId(),
+            'message'    => 'Credit score created successfully',
+            'lead_id'    => $lead->getId(),
         ];
     }
 }

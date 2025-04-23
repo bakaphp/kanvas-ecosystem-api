@@ -22,7 +22,7 @@ class ReceiverWebhookMutationManagement
         )
         ->find($args['id']);
 
-        if (! $receiverWebhookCall) {
+        if (!$receiverWebhookCall) {
             throw new Exception('Webhook call not found');
         }
 

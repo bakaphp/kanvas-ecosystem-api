@@ -40,7 +40,7 @@ class ImportAction
         $products = $productRepository->getByTerm($search);
         $products = array_slice($products, 0, length: 10);
         foreach ($products as $product) {
-            if (! key_exists('price', $product)) {
+            if (!key_exists('price', $product)) {
                 continue;
             }
             $productDetail = $productRepository->getByAsin($product['asin']);

@@ -23,6 +23,6 @@ enum ConfigEnum: string
 
     public static function getWordEnum(AppInterface $app): string
     {
-        return ConfigEnum::WORDLIST->value . "{$app->getId()}";
+        return ConfigEnum::WORDLIST->value."{$app->getId()}";
     }
 }

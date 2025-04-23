@@ -19,7 +19,7 @@ class ChannelObserver
             $defaultChannel->saveQuietly();
         }
 
-        if (! $channel->is_default && ! $defaultChannel) {
+        if (!$channel->is_default && !$defaultChannel) {
             throw new ValidationException('Can\'t Save, you have to have at least one default Channel');
         }
     }
@@ -36,7 +36,7 @@ class ChannelObserver
             $defaultChannel->is_default = false;
             $defaultChannel->saveQuietly();
         } elseif ($defaultChannel &&
-            ! $channel->is_default &&
+            !$channel->is_default &&
             $channel->getId() == $defaultChannel->getId()
         ) {
             throw new ValidationException('Can\'t Save, you have to have at least one default Channel');

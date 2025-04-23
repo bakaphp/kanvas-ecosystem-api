@@ -39,7 +39,7 @@ GRAPHQL;
             ) use ($previousResolver) {
                 $request = $context->request();
 
-                if (! app()->bound(CompaniesBranches::class)) {
+                if (!app()->bound(CompaniesBranches::class)) {
                     $this->unauthenticated(['No Company Branched Specified']);
                 }
 

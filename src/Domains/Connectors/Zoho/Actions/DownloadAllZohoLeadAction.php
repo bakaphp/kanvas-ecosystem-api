@@ -37,7 +37,7 @@ class DownloadAllZohoLeadAction
 
                 $localLead = $syncZohoLead->execute($lead);
 
-                if (! $localLead) {
+                if (!$localLead) {
                     continue;
                 }
 

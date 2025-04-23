@@ -24,8 +24,8 @@ class KanvasAppKeyMiddleware
     {
         $appIdentifier = $request->header(AppEnums::KANVAS_APP_HEADER->getValue(), config('kanvas.app.id'));
 
-        if (! $this->registerApp($appIdentifier)) {
-            return response()->json(['message' => 'No App configured with this key: ' . $appIdentifier], 500);
+        if (!$this->registerApp($appIdentifier)) {
+            return response()->json(['message' => 'No App configured with this key: '.$appIdentifier], 500);
         }
 
         $this->handleCompanyBranch($request);
@@ -51,14 +51,14 @@ class KanvasAppKeyMiddleware
     {
         $companyBranchHeader = AppEnums::KANVAS_APP_BRANCH_HEADER->getValue();
 
-        if (! empty($companyBranchKey = $request->header($companyBranchHeader))) {
+        if (!empty($companyBranchKey = $request->header($companyBranchHeader))) {
             try {
                 $companyBranch = CompaniesBranches::getByUuid($companyBranchKey);
                 app()->scoped(CompaniesBranches::class, fn () => $companyBranch);
             } catch (Throwable $e) {
-                response()->json(['message' => 'No Company Branch configured with this key: ' . $companyBranchKey], 500)->send();
+                response()->json(['message' => 'No Company Branch configured with this key: '.$companyBranchKey], 500)->send();
 
-                return ;
+                return;
             }
         }
     }
@@ -75,14 +75,14 @@ class KanvasAppKeyMiddleware
                 // For non-logged-in users, get identifier from header and validate UUID format
                 $kanvasIdentifier = $request->header($kanvasIdentifierHeader);
 
-                if ($kanvasIdentifier === null || empty($kanvasIdentifier) || ! Str::isUuid($kanvasIdentifier)) {
+                if ($kanvasIdentifier === null || empty($kanvasIdentifier) || !Str::isUuid($kanvasIdentifier)) {
                     return;
                 }
             }
 
             app()->scoped(AppEnums::KANVAS_IDENTIFIER->getValue(), fn () => $kanvasIdentifier);
         } catch (Throwable $e) {
-            response()->json(['message' => 'No App configured with this key: ' . ($kanvasIdentifier ?? 'unknown')], 500)->send();
+            response()->json(['message' => 'No App configured with this key: '.($kanvasIdentifier ?? 'unknown')], 500)->send();
 
             return;
         }
@@ -92,7 +92,7 @@ class KanvasAppKeyMiddleware
     {
         $appKeyHeader = AppEnums::KANVAS_APP_KEY_HEADER->getValue();
 
-        if (! empty($appKey = $request->header($appKeyHeader))) {
+        if (!empty($appKey = $request->header($appKeyHeader))) {
             try {
                 $kanvasAppKey = AppKey::where('client_secret_id', $appKey)->firstOrFail();
                 $kanvasApp = $kanvasAppKey->app()->firstOrFail();
@@ -100,16 +100,16 @@ class KanvasAppKeyMiddleware
                 if ($kanvasAppKey->hasExpired()) {
                     response()->json(['message' => 'App Key has expired'], 500)->send();
 
-                    return ;
+                    return;
                 }
 
                 $this->scopeAppKeyAndApp($kanvasAppKey, $kanvasApp);
                 $this->setUserIfNoBearerToken($request, $kanvasAppKey);
                 $this->updateLastUsedDate($kanvasAppKey);
             } catch (Throwable $e) {
-                response()->json(['message' => 'No App Key configured with this key: ' . $appKey], 500)->send();
+                response()->json(['message' => 'No App Key configured with this key: '.$appKey], 500)->send();
 
-                return ;
+                return;
             }
         }
     }

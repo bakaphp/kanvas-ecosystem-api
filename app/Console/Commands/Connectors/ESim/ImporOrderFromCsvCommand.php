@@ -47,14 +47,14 @@ class ImporOrderFromCsvCommand extends Command
         $this->app = Apps::getById($this->argument('app_id'));
         $this->company = Companies::getById($this->argument('company_id'));
         $this->region = Regions::getById($this->argument('region_id'));
-        $this->user = UsersRepository::getUserOfAppById((int)$this->argument('user_id'), $this->app);
+        $this->user = UsersRepository::getUserOfAppById((int) $this->argument('user_id'), $this->app);
         $this->url = $this->argument('url');
         $this->process();
     }
 
     public function process(): void
     {
-        $fileName = Str::uuid() . '.csv';
+        $fileName = Str::uuid().'.csv';
 
         $response = Http::get($this->url);
 
@@ -75,7 +75,7 @@ class ImporOrderFromCsvCommand extends Command
         foreach ($collection as $order) {
             $kanvasOrder = Order::getByCustomField(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value, $order['order_reference'], $company);
             if ($kanvasOrder) {
-                $this->info('Order already exists: ' . $kanvasOrder->order_number);
+                $this->info('Order already exists: '.$kanvasOrder->order_number);
 
                 continue;
             }
@@ -83,10 +83,10 @@ class ImporOrderFromCsvCommand extends Command
             $items = $items->filter(function ($item) {
                 return Variants::where('sku', $item['sku'])->exists();
             });
-            if (! $items->count() > 0) {
+            if (!$items->count() > 0) {
                 $this->info("Ignoring SKU not found: {$order['sku']}\n");
             }
-            $items = $items->map(function ($item) use ($order, $app, $collection, $company) {
+            $items = $items->map(function ($item) use ($order, $app, $company) {
                 if ($item['order_reference'] == $order['order_reference']) {
                     $variant = Variants::getBySku($item['sku'], $company, $app);
                     if ($variant) {
@@ -108,12 +108,12 @@ class ImporOrderFromCsvCommand extends Command
                 }
             });
             $people = PeoplesRepository::getByEmail($order['email'], $this->company, $this->app);
-            if (! $people) {
+            if (!$people) {
                 $contact = [
                     [
-                        'value' => $order['email'],
+                        'value'             => $order['email'],
                         'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ];
                 $name = explode(' ', $order['name']);
@@ -139,21 +139,21 @@ class ImporOrderFromCsvCommand extends Command
                 continue;
             }
             $dto = OrderDTO::from([
-                'app' => $this->app,
-                'region' => $this->region,
-                'company' => $this->company,
-                'people' => $people,
-                'user' => $user,
-                'token' => $order['key'],
-                'orderNumber' => '',
-                'total' => (float) $total,
-                'taxes' => 0.0,
+                'app'           => $this->app,
+                'region'        => $this->region,
+                'company'       => $this->company,
+                'people'        => $people,
+                'user'          => $user,
+                'token'         => $order['key'],
+                'orderNumber'   => '',
+                'total'         => (float) $total,
+                'taxes'         => 0.0,
                 'totalDiscount' => 0.0,
                 'totalShipping' => 0.0,
-                'status' => OrderStatusEnum::COMPLETED->value,
+                'status'        => OrderStatusEnum::COMPLETED->value,
                 'checkoutToken' => '',
-                'currency' => Currencies::getByCode('USD'),
-                'items' => $items,
+                'currency'      => Currencies::getByCode('USD'),
+                'items'         => $items,
             ]);
             $action = new CreateOrderAction($dto);
             $action->disableWorkflow();

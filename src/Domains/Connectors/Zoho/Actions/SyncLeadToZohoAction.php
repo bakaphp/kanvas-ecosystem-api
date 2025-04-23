@@ -41,8 +41,8 @@ class SyncLeadToZohoAction
 
             $zohoCrm = Client::getInstance($this->app, $company);
 
-            if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
-                if ($usesAgentsModule && ! $leadRotation) {
+            if (!$zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
+                if ($usesAgentsModule && !$leadRotation) {
                     $this->assignAgent($this->app, $zohoLead, $lead, $company, $zohoData);
                 } elseif ($leadRotation) {
                     /* $rotationOwner = $leadRotation->getAgent();
@@ -76,9 +76,9 @@ class SyncLeadToZohoAction
                     Sentry::withScope(function ($scope) use ($zohoData, $lead, $e) {
                         $scope->setContext('Lead Zoho Data', [
                             'zohoData' => $zohoData,
-                            'leadId' => $lead->getId(),
-                            'details' => $e->details(),
-                            'message' => (string) $e->response()->getBody(),
+                            'leadId'   => $lead->getId(),
+                            'details'  => $e->details(),
+                            'message'  => (string) $e->response()->getBody(),
                         ]);
 
                         captureException($e);
@@ -86,7 +86,7 @@ class SyncLeadToZohoAction
                 }
             } else {
                 $zohoLeadInfo = $zohoCrm->leads->get((string) $zohoLeadId)->getData();
-                if (! empty($zohoLeadInfo)) {
+                if (!empty($zohoLeadInfo)) {
                     $zohoLead = $zohoCrm->leads->update(
                         (string) $zohoLeadId,
                         $zohoData
@@ -112,10 +112,10 @@ class SyncLeadToZohoAction
         $memberNumber = (string) $zohoLead->getMemberNumber();
 
         if (empty($memberNumber) && $lead->user()->exists()) {
-            $memberNumber = (string) $lead->user()->firstOrFail()->get('member_number_' . $company->getId());
+            $memberNumber = (string) $lead->user()->firstOrFail()->get('member_number_'.$company->getId());
         }
 
-        if (! empty($memberNumber)) {
+        if (!empty($memberNumber)) {
             $zohoMemberField = $company->get(CustomFieldEnum::ZOHO_MEMBER_FIELD->value) ?? 'Member_ID';
             $zohoData[$zohoMemberField] = $memberNumber;
         }
@@ -135,7 +135,7 @@ class SyncLeadToZohoAction
         }
 
         $defaultLeadSource = $company->get(CustomFieldEnum::ZOHO_DEFAULT_LEAD_SOURCE->value);
-        if (! empty($defaultLeadSource)) {
+        if (!empty($defaultLeadSource)) {
             $zohoData['Lead_Source'] = $defaultLeadSource; //$lead->receiver ? $lead->receiver->name : $defaultLeadSource;
         }
 
@@ -170,12 +170,12 @@ class SyncLeadToZohoAction
                 $zohoData['Lead_Source'] = $agentInfo->name;
             }
 
-            if ($agentInfo->user && ! empty($agentInfo->user->get('sponsor'))) {
+            if ($agentInfo->user && !empty($agentInfo->user->get('sponsor'))) {
                 $zohoData['Sponsor'] = (string) $agentInfo->user->get('sponsor');
             }
         }
 
-        if ($company->get(CustomFieldEnum::ZOHO_USE_AGENT_NAME->value) && ! empty($agentInfo->name)) {
+        if ($company->get(CustomFieldEnum::ZOHO_USE_AGENT_NAME->value) && !empty($agentInfo->name)) {
             $zohoData['Agent_Name'] = $agentInfo->name;
         }
 
@@ -188,7 +188,7 @@ class SyncLeadToZohoAction
     protected function uploadAttachments(ZohoLeadModule $zohoLead, Lead $lead): void
     {
         $lead->load('files');
-        if (! $lead->files()->count()) {
+        if (!$lead->files()->count()) {
             return;
         }
 

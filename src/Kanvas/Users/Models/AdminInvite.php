@@ -11,10 +11,10 @@ use Kanvas\Models\BaseModel;
 /**
  * Model UsersInvite.
  *
- * @property string $invite_hash;
- * @property int $users_id;
- * @property int $apps_id
- * @property string $email
+ * @property string  $invite_hash;
+ * @property int     $users_id;
+ * @property int     $apps_id
+ * @property string  $email
  * @property ?string $firstname
  * @property ?string $lastname
  * @property ?string $description

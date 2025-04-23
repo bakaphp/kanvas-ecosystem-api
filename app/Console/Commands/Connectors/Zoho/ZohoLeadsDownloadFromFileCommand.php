@@ -76,7 +76,7 @@ class ZohoLeadsDownloadFromFileCommand extends Command
 
             $localLead = $syncZohoLead->execute();
             $progressBar->advance();
-            if (! $localLead) {
+            if (!$localLead) {
                 continue;
             }
             $i++;
@@ -85,8 +85,7 @@ class ZohoLeadsDownloadFromFileCommand extends Command
         // Finish the progress bar
         $this->output->progressFinish();
 
-        $this->info(PHP_EOL . "Synced {$i} leads from file.");
+        $this->info(PHP_EOL."Synced {$i} leads from file.");
 
-        return;
     }
 }

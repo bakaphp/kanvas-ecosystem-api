@@ -70,7 +70,7 @@ class Order extends Data
     {
         $orderItems = [];
 
-        if (! isset($lineItems[0]['name']) || ! isset($lineItems[0]['id']) || ! isset($lineItems[0]['quantity'])) {
+        if (!isset($lineItems[0]['name']) || !isset($lineItems[0]['id']) || !isset($lineItems[0]['quantity'])) {
             throw new InvalidArgumentException('Not the correct item structure to generate a line item');
         }
 
@@ -78,7 +78,7 @@ class Order extends Data
             $variant = Variants::getById($lineItem['id'], $this->app);
 
             //this shouldn't happen but just in case
-            if (! $variant) {
+            if (!$variant) {
                 continue;
             }
 

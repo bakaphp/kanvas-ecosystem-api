@@ -38,7 +38,7 @@ class UserEngagementReminderCommand extends Command
         $app = Apps::getById($this->argument('app_id'));
         $this->overwriteAppService($app);
 
-        $this->info('Sending User Engagement Reminder for app ' . $app->name . ' - ' . date('Y-m-d'));
+        $this->info('Sending User Engagement Reminder for app '.$app->name.' - '.date('Y-m-d'));
         //get the list of user form UsersAssociatedApps chuck by 100 records
         DB::table('users_associated_apps')
             ->where('apps_id', $app->id) // Assuming 'app_id' is the foreign key
@@ -56,10 +56,10 @@ class UserEngagementReminderCommand extends Command
     public function sendEmail(UsersAssociatedApps $user, Apps $app): void
     {
         //send email to user
-        $this->info('Sending email to user ' . $user->email);
+        $this->info('Sending email to user '.$user->email);
 
         $lastVisitInDays = Carbon::parse($user->lastvisit)->diffInDays(Carbon::now());
-        $this->info('Last visit in days ' . $lastVisitInDays);
+        $this->info('Last visit in days '.$lastVisitInDays);
 
         $engagementEmailTemplateConfiguration = $app->get('engagement_email_template') ?? [];
 
@@ -70,15 +70,15 @@ class UserEngagementReminderCommand extends Command
         }
 
         if (empty($engagementEmailTemplateConfiguration[$lastVisitInDays])) {
-            $this->info('No email template configuration found for ' . $lastVisitInDays . ' days');
+            $this->info('No email template configuration found for '.$lastVisitInDays.' days');
 
             return;
         }
 
         $emailTemplate = $engagementEmailTemplateConfiguration[$lastVisitInDays];
 
-        if (! isset($emailTemplate['template'])) {
-            $this->info('No email template found for ' . $lastVisitInDays . ' days');
+        if (!isset($emailTemplate['template'])) {
+            $this->info('No email template found for '.$lastVisitInDays.' days');
 
             return;
         }
@@ -86,8 +86,8 @@ class UserEngagementReminderCommand extends Command
         $notification = new Blank(
             $emailTemplate['template'],
             [
-                'app' => $app,
-                'user' => $user->user,
+                'app'    => $app,
+                'user'   => $user->user,
                 'config' => $emailTemplate,
             ],
             ['mail'],
@@ -96,6 +96,6 @@ class UserEngagementReminderCommand extends Command
 
         Notification::route('mail', $user->email)->notify($notification);
         //@todo save it in user activity log on social?
-        $this->info('Email sent to ' . $user->email);
+        $this->info('Email sent to '.$user->email);
     }
 }

@@ -21,8 +21,8 @@ class LeadsRepository
     }
 
     /**
-    * @psalm-suppress MixedReturnStatement
-    */
+     * @psalm-suppress MixedReturnStatement
+     */
     public static function getDefaultReceiver(CompaniesBranches $branch): LeadReceiver
     {
         return LeadReceiver::where('companies_branches_id', $branch->getId())

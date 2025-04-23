@@ -20,7 +20,7 @@ class ChannelService
         // Fetch existing config values before deleting records
         $existingConfigs = [];
         foreach ($variant->variantChannels as $existingVariantChannel) {
-            $key = $existingVariantChannel->warehouses_id . '-' . $existingVariantChannel->channels_id;
+            $key = $existingVariantChannel->warehouses_id.'-'.$existingVariantChannel->channels_id;
             $existingConfigs[$key] = $existingVariantChannel->config;
         }
 
@@ -32,8 +32,8 @@ class ChannelService
             $channel = ChannelRepository::getById((int) $variantChannel['channels_id'], $variant->product->company()->get()->first());
 
             // Check if the 'config' key exists in the input array
-            $key = $warehouse->getId() . '-' . $channel->getId();
-            if (! array_key_exists('config', $variantChannel) && isset($existingConfigs[$key])) {
+            $key = $warehouse->getId().'-'.$channel->getId();
+            if (!array_key_exists('config', $variantChannel) && isset($existingConfigs[$key])) {
                 // Retain the existing config value if 'config' is not provided in the input array
                 $variantChannel['config'] = $existingConfigs[$key];
             }

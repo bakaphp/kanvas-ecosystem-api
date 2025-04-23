@@ -32,14 +32,14 @@ class PriceImporterAction
             DB::connection('mysql')->beginTransaction();
 
             $priceDto = PriceDto::from([
-                'app' => $this->app,
-                'user' => $this->user,
-                'amount' => $this->importedPrice->amount,
-                'currency' => $this->importedPrice->currency,
-                'interval' => $this->importedPrice->interval,
+                'app'           => $this->app,
+                'user'          => $this->user,
+                'amount'        => $this->importedPrice->amount,
+                'currency'      => $this->importedPrice->currency,
+                'interval'      => $this->importedPrice->interval,
                 'apps_plans_id' => $this->importedPrice->apps_plans_id,
-                'stripe_id' => $this->importedPrice->stripe_id,
-                'is_active' => $this->importedPrice->is_active,
+                'stripe_id'     => $this->importedPrice->stripe_id,
+                'is_active'     => $this->importedPrice->is_active,
             ]);
 
             try {

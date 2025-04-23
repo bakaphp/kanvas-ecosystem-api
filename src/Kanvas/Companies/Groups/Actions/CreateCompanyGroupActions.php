@@ -28,13 +28,13 @@ class CreateCompanyGroupActions
     public function execute(string $name, int $isDefault): CompaniesGroups
     {
         $companyGroup = CompaniesGroups::firstOrCreate([
-            'apps_id' => $this->app->getKey(),
-            'users_id' => $this->company->users_id,
-            'is_deleted' => 0
+            'apps_id'    => $this->app->getKey(),
+            'users_id'   => $this->company->users_id,
+            'is_deleted' => 0,
         ], [
-            'name' => $name,
-            'users_id' => $this->company->users_id,
-            'apps_id' => $this->app->getKey(),
+            'name'       => $name,
+            'users_id'   => $this->company->users_id,
+            'apps_id'    => $this->app->getKey(),
             'is_default' => $isDefault,
 
         ]);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
-use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
@@ -35,17 +34,17 @@ class CompanyManagementMutation
     use HasMutationUploadFiles;
 
     /**
-     * createCompany
+     * createCompany.
      */
     public function createCompany(mixed $root, array $request): Companies
     {
-        if (! auth()->user()->isAdmin()) {
+        if (!auth()->user()->isAdmin()) {
             throw new AuthorizationException('Only admin can create companies, please contact your admin');
         }
 
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
-            UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
+            UsersRepository::belongsToThisApp($user, app(Apps::class));
         } else {
             $user = auth()->user();
         }
@@ -73,7 +72,7 @@ class CompanyManagementMutation
 
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
-            UsersRepository::belongsToThisApp($user, app(Apps::class), $company) ;
+            UsersRepository::belongsToThisApp($user, app(Apps::class), $company);
         } else {
             $user = auth()->user();
         }
@@ -105,7 +104,7 @@ class CompanyManagementMutation
 
         $company->hasCompanyPermission(auth()->user());
 
-        if (! auth()->user()->isAdmin()) {
+        if (!auth()->user()->isAdmin()) {
             $company = Companies::getById($request['id']);
             CompaniesRepository::userAssociatedToCompany(
                 $company,
@@ -127,7 +126,7 @@ class CompanyManagementMutation
     }
 
     /**
-     * deleteCompany
+     * deleteCompany.
      */
     public function deleteCompany(mixed $root, array $request): bool
     {
@@ -138,7 +137,7 @@ class CompanyManagementMutation
             throw new Exception('You can not delete a company that has users associated');
         }
 
-        if (! auth()->user()->isAdmin()) {
+        if (!auth()->user()->isAdmin()) {
             throw new AuthorizationException('Only admin can delete companies, please contact your admin');
         }
 
@@ -247,7 +246,7 @@ class CompanyManagementMutation
                     ->where('companies_branches_id', '!=', 0)
                     ->exists();
 
-                if (! $hasOtherBranches) {
+                if (!$hasOtherBranches) {
                     // Delete the "0" branch association
                     UsersAssociatedCompanies::where($baseConditions)
                         ->where('companies_branches_id', '=', 0)

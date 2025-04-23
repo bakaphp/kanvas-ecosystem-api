@@ -52,9 +52,9 @@ use Override;
 /**
  * Companies Model.
  *
- * @property int $users_id
- * @property int $system_modules_id
- * @property int $currency_id
+ * @property int    $users_id
+ * @property int    $system_modules_id
+ * @property int    $currency_id
  * @property string $uuid
  * @property string $name
  * @property string $profile_image
@@ -65,9 +65,9 @@ use Override;
  * @property string $language
  * @property string $timezone
  * @property string $phone
- * @property int $has_activities
+ * @property int    $has_activities
  * @property string $country_code
- * @property bool $is_active
+ * @property bool   $is_active
  */
 #[ObservedBy([CompaniesObserver::class])]
 class Companies extends BaseModel implements CompanyInterface
@@ -114,6 +114,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Default Branch.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     #[Override]
@@ -189,7 +190,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . '_companies';
+        return config('scout.prefix').'_companies';
     }
 
     public function regions(): HasMany
@@ -209,7 +210,7 @@ class Companies extends BaseModel implements CompanyInterface
      */
     public static function cacheKey(): string
     {
-        return Defaults::DEFAULT_COMPANY_APP->getValue() . app(Apps::class)->id;
+        return Defaults::DEFAULT_COMPANY_APP->getValue().app(Apps::class)->id;
     }
 
     public static function searchableIndex(): string
@@ -220,7 +221,7 @@ class Companies extends BaseModel implements CompanyInterface
     #[Override]
     public function shouldBeSearchable(): bool
     {
-        return ! $this->isDeleted();
+        return !$this->isDeleted();
     }
 
     /**
@@ -230,7 +231,7 @@ class Companies extends BaseModel implements CompanyInterface
      */
     public function branchCacheKey(): string
     {
-        return Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
+        return Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue().app(Apps::class)->id.'_'.$this->getKey();
     }
 
     public function getTotalUsersAttribute(): int
@@ -252,12 +253,13 @@ class Companies extends BaseModel implements CompanyInterface
             ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
+            throw new ExceptionsModelNotFoundException($e->getMessage()." $id");
         }
     }
 
     /**
      * Associate user to this company.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function associateUser(
@@ -268,18 +270,19 @@ class Companies extends BaseModel implements CompanyInterface
         ?string $companyUserIdentifier = null
     ): UsersAssociatedCompanies {
         return UsersAssociatedCompanies::firstOrCreate([
-            'users_id' => $user->getKey(),
-            'companies_id' => $this->getKey(),
+            'users_id'              => $user->getKey(),
+            'companies_id'          => $this->getKey(),
             'companies_branches_id' => $branch->id,
         ], [
             'identify_id' => $companyUserIdentifier ?? $user->id,
             'user_active' => (int) $isActive,
-            'user_role' => $userRoleId ?? $user->roles_id,
+            'user_role'   => $userRoleId ?? $user->roles_id,
         ]);
     }
 
     /**
      * Associate user to the app.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function associateUserApp(
@@ -291,25 +294,26 @@ class Companies extends BaseModel implements CompanyInterface
         ?string $companyUserIdentifier = null
     ): UsersAssociatedApps {
         return UsersAssociatedApps::firstOrCreate([
-            'users_id' => $user->getKey(),
+            'users_id'     => $user->getKey(),
             'companies_id' => $this->getKey(),
-            'apps_id' => $app->getKey(),
+            'apps_id'      => $app->getKey(),
         ], [
             'identify_id' => $companyUserIdentifier ?? $user->id,
             'user_active' => $isActive,
-            'user_role' => $userRoleId ?? $user->roles_id,
-            'password' => $password,
+            'user_role'   => $userRoleId ?? $user->roles_id,
+            'password'    => $password,
         ]);
     }
 
     /**
      * Associate company to the app.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function associateApp(Apps $app): UserCompanyApps
     {
         return UserCompanyApps::firstOrCreate([
-            'apps_id' => $app->getId(),
+            'apps_id'      => $app->getId(),
             'companies_id' => $this->getId(),
         ]);
     }
@@ -341,7 +345,7 @@ class Companies extends BaseModel implements CompanyInterface
                 'users_associated_apps.companies_id',
                 '=',
                 'companies.id'
-            )->when(! $user->isAdmin(), function ($query) use ($user) {
+            )->when(!$user->isAdmin(), function ($query) use ($user) {
                 $query->where('users_associated_apps.users_id', '=', $user->getKey());
             })
             ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
@@ -365,7 +369,7 @@ class Companies extends BaseModel implements CompanyInterface
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
-        if (! auth()->user()->isAdmin()) {
+        if (!auth()->user()->isAdmin()) {
             $query->whereIn('users', [auth()->user()->getId()]);
         }
 
@@ -394,15 +398,15 @@ class Companies extends BaseModel implements CompanyInterface
     {
         return AppsStripeCustomer::firstOrCreate([
             'companies_id' => $this->getId(),
-            'apps_id' => $app->getId(),
+            'apps_id'      => $app->getId(),
         ]);
     }
 
     public function hasCompanyPermission(UserInterface $user): void
     {
-        if (! UsersRepository::belongsToCompany($user, $this) && ! $user->isAdmin()) {
+        if (!UsersRepository::belongsToCompany($user, $this) && !$user->isAdmin()) {
             throw new AuthorizationException(
-                'You are not allowed to perform this action for company ' . $this->name
+                'You are not allowed to perform this action for company '.$this->name
             );
         }
     }
@@ -413,7 +417,7 @@ class Companies extends BaseModel implements CompanyInterface
     public function typesenseCollectionSchema(): array
     {
         return [
-            'name' => $this->searchableAs(),
+            'name'   => $this->searchableAs(),
             'fields' => [
                 [
                     'name' => 'id',
@@ -424,13 +428,13 @@ class Companies extends BaseModel implements CompanyInterface
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'system_modules_id',
-                    'type' => 'int64',
+                    'name'     => 'system_modules_id',
+                    'type'     => 'int64',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'currency_id',
-                    'type' => 'int64',
+                    'name'     => 'currency_id',
+                    'type'     => 'int64',
                     'optional' => true,
                 ],
                 [
@@ -438,60 +442,60 @@ class Companies extends BaseModel implements CompanyInterface
                     'type' => 'string',
                 ],
                 [
-                    'name' => 'name',
-                    'type' => 'string',
-                    'sort' => true,
+                    'name'  => 'name',
+                    'type'  => 'string',
+                    'sort'  => true,
                     'facet' => true,
                 ],
                 [
-                    'name' => 'profile_image',
-                    'type' => 'string',
+                    'name'     => 'profile_image',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'website',
-                    'type' => 'string',
+                    'name'     => 'website',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'address',
-                    'type' => 'string',
+                    'name'     => 'address',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'zipcode',
-                    'type' => 'string',
+                    'name'     => 'zipcode',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'email',
-                    'type' => 'string',
+                    'name'     => 'email',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'language',
-                    'type' => 'string',
+                    'name'     => 'language',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'timezone',
-                    'type' => 'string',
+                    'name'     => 'timezone',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'phone',
-                    'type' => 'string',
+                    'name'     => 'phone',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'country_code',
-                    'type' => 'string',
+                    'name'     => 'country_code',
+                    'type'     => 'string',
                     'optional' => true,
-                    'facet' => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'is_active',
-                    'type' => 'bool',
+                    'name'  => 'is_active',
+                    'type'  => 'bool',
                     'facet' => true,
                 ],
                 [
@@ -499,44 +503,44 @@ class Companies extends BaseModel implements CompanyInterface
                     'type' => 'bool',
                 ],
                 [
-                    'name' => 'has_activities',
-                    'type' => 'int64',
+                    'name'     => 'has_activities',
+                    'type'     => 'int64',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'apps',
-                    'type' => 'int64[]',
+                    'name'  => 'apps',
+                    'type'  => 'int64[]',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'users',
-                    'type' => 'int64[]',
+                    'name'  => 'users',
+                    'type'  => 'int64[]',
                     'facet' => true,
                 ],
                 [
-                    'name' => 'total_users',
-                    'type' => 'int64',
+                    'name'     => 'total_users',
+                    'type'     => 'int64',
                     'optional' => true,
-                    'sort' => true,
+                    'sort'     => true,
                 ],
                 [
-                    'name' => 'total_branches',
-                    'type' => 'int64',
+                    'name'     => 'total_branches',
+                    'type'     => 'int64',
                     'optional' => true,
-                    'sort' => true,
+                    'sort'     => true,
                 ],
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'updated_at',
-                    'type' => 'int64',
+                    'name'     => 'updated_at',
+                    'type'     => 'int64',
                     'optional' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,
+            'enable_nested_fields'  => true,
         ];
     }
 }

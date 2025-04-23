@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\VinSolution\Support;
 class Phone
 {
     /**
-     * Remove US Country Code from a given phone number
+     * Remove US Country Code from a given phone number.
      */
     public static function removeUSCountryCode(?string $phone = null): string
     {

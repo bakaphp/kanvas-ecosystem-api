@@ -10,18 +10,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
 
 /**
- * Class PipelineStage
+ * Class PipelineStage.
  *
- * @property int $id
+ * @property int    $id
  * @property string $uuid
- * @property int $pipelines_id
- * @property int $companies_id
- * @property int $users_id
+ * @property int    $pipelines_id
+ * @property int    $companies_id
+ * @property int    $users_id
  * @property string $name
  * @property string $slug
- * @property int $has_rotting_days
- * @property int $rotting_days
- * @property int $weight
+ * @property int    $has_rotting_days
+ * @property int    $rotting_days
+ * @property int    $weight
  */
 class PipelineStage extends BaseModel
 {

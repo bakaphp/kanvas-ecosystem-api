@@ -44,7 +44,7 @@ class GooglePlayInAppPurchaseMutation
 
         $order = $createOrderFromInAppPurchase->execute();
 
-        if (! empty($appleInAppPurchase->custom_fields)) {
+        if (!empty($appleInAppPurchase->custom_fields)) {
             $order->setCustomFields($googleInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }

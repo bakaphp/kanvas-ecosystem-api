@@ -21,7 +21,7 @@ class NewLeadCompanyOwnerNotification extends Notification
         $this->setTemplateName(EmailTemplateEnum::NEW_LEAD_COMPANY_ADMIN->value);
         $this->setData($data);
 
-        if (! $this->app->get(ConfigurationEnum::SEND_NEW_LEAD_TO_OWNER_NOTIFICATION->value)) {
+        if (!$this->app->get(ConfigurationEnum::SEND_NEW_LEAD_TO_OWNER_NOTIFICATION->value)) {
             $this->channels = [];
         }
     }

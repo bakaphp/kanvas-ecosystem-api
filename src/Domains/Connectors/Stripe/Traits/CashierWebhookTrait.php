@@ -16,13 +16,13 @@ use Stripe\Subscription as StripeSubscription;
 /**
  * this is a copy and paste from laravel cashier webhook controller
  * Laravel\Cashier\Http\Controllers;
- * we need to look for a better way to keep this update without copy and paste
+ * we need to look for a better way to keep this update without copy and paste.
  */
 trait CashierWebhookTrait
 {
     /**
-    * Handle customer subscription created.
-    */
+     * Handle customer subscription created.
+     */
     protected function handleCustomerSubscriptionCreated(array $payload)
     {
         $user = $this->getUserByStripeId($payload['data']['object']['customer']);
@@ -30,7 +30,7 @@ trait CashierWebhookTrait
         if ($user) {
             $data = $payload['data']['object'];
 
-            if (! $user->subscriptions->contains('stripe_id', $data['id'])) {
+            if (!$user->subscriptions->contains('stripe_id', $data['id'])) {
                 if (isset($data['trial_end'])) {
                     $trialEndsAt = Carbon::createFromTimestamp($data['trial_end']);
                 } else {
@@ -41,27 +41,27 @@ trait CashierWebhookTrait
                 $isSinglePrice = count($data['items']['data']) === 1;
 
                 $subscription = $user->subscriptions()->create([
-                    'type' => $data['metadata']['type'] ?? $data['metadata']['name'] ?? $this->newSubscriptionType($payload),
-                    'stripe_id' => $data['id'],
+                    'type'          => $data['metadata']['type'] ?? $data['metadata']['name'] ?? $this->newSubscriptionType($payload),
+                    'stripe_id'     => $data['id'],
                     'stripe_status' => $data['status'],
-                    'stripe_price' => $isSinglePrice ? $firstItem['price']['id'] : null,
-                    'quantity' => $isSinglePrice && isset($firstItem['quantity']) ? $firstItem['quantity'] : null,
+                    'stripe_price'  => $isSinglePrice ? $firstItem['price']['id'] : null,
+                    'quantity'      => $isSinglePrice && isset($firstItem['quantity']) ? $firstItem['quantity'] : null,
                     'trial_ends_at' => $trialEndsAt,
-                    'ends_at' => null,
+                    'ends_at'       => null,
                 ]);
 
                 foreach ($data['items']['data'] as $item) {
                     $subscription->items()->create([
-                        'stripe_id' => $item['id'],
+                        'stripe_id'      => $item['id'],
                         'stripe_product' => $item['price']['product'],
-                        'stripe_price' => $item['price']['id'],
-                        'quantity' => $item['quantity'] ?? null,
+                        'stripe_price'   => $item['price']['id'],
+                        'quantity'       => $item['quantity'] ?? null,
                     ]);
                 }
             }
 
             // Terminate the billable's generic trial if it exists...
-            if (! is_null($user->trial_ends_at)) {
+            if (!is_null($user->trial_ends_at)) {
                 $user->trial_ends_at = null;
                 $user->save();
             }
@@ -115,7 +115,7 @@ trait CashierWebhookTrait
             if (isset($data['trial_end'])) {
                 $trialEnd = Carbon::createFromTimestamp($data['trial_end']);
 
-                if (! $subscription->trial_ends_at || $subscription->trial_ends_at->ne($trialEnd)) {
+                if (!$subscription->trial_ends_at || $subscription->trial_ends_at->ne($trialEnd)) {
                     $subscription->trial_ends_at = $trialEnd;
                 }
             }
@@ -149,8 +149,8 @@ trait CashierWebhookTrait
                         'stripe_id' => $item['id'],
                     ], [
                         'stripe_product' => $item['price']['product'],
-                        'stripe_price' => $item['price']['id'],
-                        'quantity' => $item['quantity'] ?? null,
+                        'stripe_price'   => $item['price']['id'],
+                        'quantity'       => $item['quantity'] ?? null,
                     ]);
                 }
 
@@ -201,10 +201,10 @@ trait CashierWebhookTrait
             });
 
             $user->forceFill([
-                'stripe_id' => null,
+                'stripe_id'     => null,
                 'trial_ends_at' => null,
-                'pm_type' => null,
-                'pm_last_four' => null,
+                'pm_type'       => null,
+                'pm_last_four'  => null,
             ])->save();
         }
 
@@ -256,13 +256,14 @@ trait CashierWebhookTrait
     /**
      * Get the customer instance by Stripe ID.
      *
-     * @param  string|null  $stripeId
+     * @param string|null $stripeId
+     *
      * @return \Laravel\Cashier\Billable|null
      */
     protected function getUserByStripeId($stripeId)
     {
         /**
-         * this is the only place we actually use the custom customer model
+         * this is the only place we actually use the custom customer model.
          */
         Cashier::useCustomerModel(AppsStripeCustomer::class);
 
@@ -282,7 +283,8 @@ trait CashierWebhookTrait
     /**
      * Set the number of automatic retries due to an object lock timeout from Stripe.
      *
-     * @param  int  $retries
+     * @param int $retries
+     *
      * @return void
      */
     protected function setMaxNetworkRetries($retries = 3)

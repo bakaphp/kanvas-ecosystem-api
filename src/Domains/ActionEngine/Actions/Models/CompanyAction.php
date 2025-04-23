@@ -19,24 +19,24 @@ use Override;
 /**
  * Class CompanyAction.
  *
- * @property int $id
+ * @property int    $id
  * @property string $uuid
- * @property int $actions_id
- * @property int $apps_id
- * @property int $companies_id
- * @property int $companies_branches_id
- * @property int $users_id
- * @property int $pipelines_id
- * @property int $parent_id
+ * @property int    $actions_id
+ * @property int    $apps_id
+ * @property int    $companies_id
+ * @property int    $companies_branches_id
+ * @property int    $users_id
+ * @property int    $pipelines_id
+ * @property int    $parent_id
  * @property string $path
  * @property string $name
  * @property string $icon
  * @property string $description
  * @property string $form_config
  * @property string $config
- * @property int $is_active
- * @property int $is_published
- * @property int $weight
+ * @property int    $is_active
+ * @property int    $is_published
+ * @property int    $weight
  */
 class CompanyAction extends BaseModel
 {
@@ -51,7 +51,7 @@ class CompanyAction extends BaseModel
     {
         return [
             'form_config' => Json::class,
-            'config' => Json::class,
+            'config'      => Json::class,
         ];
     }
 
@@ -87,7 +87,7 @@ class CompanyAction extends BaseModel
         $companyAction = $query->orderByDesc('id')->first();
 
         // If no result, fall back to the alternative condition
-        if (! $companyAction) {
+        if (!$companyAction) {
             $query = self::query()
                 ->where('actions_id', $action->getId())
                 ->whereIn('companies_id', [$company->getId(), AppEnums::GLOBAL_COMPANY_ID->getValue()])

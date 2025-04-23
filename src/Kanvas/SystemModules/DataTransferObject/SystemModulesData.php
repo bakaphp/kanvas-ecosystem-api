@@ -17,17 +17,17 @@ class SystemModulesData extends Data
      * @property string $name
      * @property string $slug
      * @property string $model_name
-     * @property int $apps_id
-     * @property int $parents_id
-     * @property int $menu_order
-     * @property int $show
-     * @property int $use_elastic
+     * @property int    $apps_id
+     * @property int    $parents_id
+     * @property int    $menu_order
+     * @property int    $show
+     * @property int    $use_elastic
      * @property string $browse_fields
      * @property string $bulk_actions
      * @property string $mobile_component_type
      * @property string $mobile_navigation_type
-     * @property int $mobile_tab_index
-     * @property int $protected
+     * @property int    $mobile_tab_index
+     * @property int    $protected
      */
     public function __construct(
         public string $name,
@@ -60,17 +60,17 @@ class SystemModulesData extends Data
             name: $data['name'],
             slug: $data['slug'],
             model_name: $data['model_name'],
-            apps_id: (int)$data['apps_id'],
-            parents_id: (int)$data['parents_id'],
-            menu_order: (int)$data['menu_order'],
-            show: (int)$data['show'],
-            use_elastic: (int)$data['use_elastic'],
+            apps_id: (int) $data['apps_id'],
+            parents_id: (int) $data['parents_id'],
+            menu_order: (int) $data['menu_order'],
+            show: (int) $data['show'],
+            use_elastic: (int) $data['use_elastic'],
             browse_fields: $data['browse_fields'],
             bulk_actions: $data['bulk_actions'],
             mobile_component_type: $data['mobile_component_type'],
             mobile_navigation_type: $data['mobile_navigation_type'],
-            mobile_tab_index: (int)$data['mobile_tab_index'],
-            protected: (int)$data['protected'],
+            mobile_tab_index: (int) $data['mobile_tab_index'],
+            protected: (int) $data['protected'],
         );
     }
 }

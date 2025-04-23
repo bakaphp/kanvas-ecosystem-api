@@ -21,8 +21,8 @@ class AttributeMutation
     /**
      * create.
      *
-     * @param  mixed $root
-     * @param  array $req
+     * @param mixed $root
+     * @param array $req
      *
      * @return AttributeModel
      */
@@ -43,8 +43,8 @@ class AttributeMutation
     /**
      * update.
      *
-     * @param  mixed $root
-     * @param  array $req
+     * @param mixed $root
+     * @param array $req
      *
      * @return AttributeModel
      */
@@ -59,20 +59,22 @@ class AttributeMutation
             $attribute->defaultValues()->delete();
             (new AddAttributeValue($attribute, $req['input']['values']))->execute();
         }
+
         return $attribute;
     }
 
     /**
      * delete.
      *
-     * @param  mixed $root
-     * @param  array $req
+     * @param mixed $root
+     * @param array $req
      *
      * @return bool
      */
     public function delete(mixed $root, array $req): bool
     {
         $attribute = AttributesRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+
         return $attribute->delete();
     }
 

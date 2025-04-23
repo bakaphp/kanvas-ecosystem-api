@@ -17,9 +17,10 @@ class DashboardQuery
     {
         $company = auth()->user()->getCurrentCompany();
         $fields = $company->get(DashboardEnum::DEFAULT_ENUM->value);
+
         return [
-            "name" => "dashboard",
-            "fields" => $fields
+            'name'   => 'dashboard',
+            'fields' => $fields,
         ];
     }
 }

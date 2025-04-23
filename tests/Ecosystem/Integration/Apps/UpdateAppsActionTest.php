@@ -20,15 +20,15 @@ final class UpdateAppsActionTest extends TestCase
     public function testCreateAppsAction(): void
     {
         $data = [
-            'url' => 'example.com',
-            'is_actived' => '1',
-            'ecosystem_auth' => '1',
+            'url'             => 'example.com',
+            'is_actived'      => '1',
+            'ecosystem_auth'  => '1',
             'payments_active' => '1',
-            'is_public' => '1',
-            'domain_based' => '1',
-            'name' => 'CRM app 2',
-            'description' => 'Kanvas Application',
-            'domain' => 'example.com',
+            'is_public'       => '1',
+            'domain_based'    => '1',
+            'name'            => 'CRM app 2',
+            'description'     => 'Kanvas Application',
+            'domain'          => 'example.com',
         ];
         //Create new AppInput
         $dtoData = AppInput::from($data);
@@ -38,15 +38,15 @@ final class UpdateAppsActionTest extends TestCase
         $app = $createApp->execute();
 
         $data = [
-            'url' => 'example.com',
-            'is_actived' => '1',
-            'ecosystem_auth' => '1',
+            'url'             => 'example.com',
+            'is_actived'      => '1',
+            'ecosystem_auth'  => '1',
             'payments_active' => '1',
-            'is_public' => '1',
-            'domain_based' => '1',
-            'name' => 'CRM app 2',
-            'description' => 'Kanvas Application',
-            'domain' => 'example.com',
+            'is_public'       => '1',
+            'domain_based'    => '1',
+            'name'            => 'CRM app 2',
+            'description'     => 'Kanvas Application',
+            'domain'          => 'example.com',
         ];
 
         //Create new AppInput

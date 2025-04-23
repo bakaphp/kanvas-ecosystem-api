@@ -14,11 +14,11 @@ enum LeadNotificationModeEnum: string
     public static function get(string $value): LeadNotificationModeEnum
     {
         return match ($value) {
-            'NOTIFY_ALL' => self::NOTIFY_ALL,
+            'NOTIFY_ALL'            => self::NOTIFY_ALL,
             'NOTIFY_ROTATION_USERS' => self::NOTIFY_ROTATION_USERS,
-            'NOTIFY_OWNER' => self::NOTIFY_OWNER,
-            'NOTIFY_LEAD' => self::NOTIFY_LEAD,
-            default => self::NOTIFY_ALL,
+            'NOTIFY_OWNER'          => self::NOTIFY_OWNER,
+            'NOTIFY_LEAD'           => self::NOTIFY_LEAD,
+            default                 => self::NOTIFY_ALL,
         };
     }
 }

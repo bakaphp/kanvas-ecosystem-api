@@ -33,8 +33,8 @@ class NotificationSettingTest extends TestCase
     }
 
     /**
-    * testMuteAll.
-    */
+     * testMuteAll.
+     */
     public function testMuteAll(): void
     {
         $response = $this->graphQL(/** @lang GraphQL */ '
@@ -60,7 +60,7 @@ class NotificationSettingTest extends TestCase
             mutation{
                 setNotificationSettings(
                      
-                        notifications_types_id: ' . $notificationType->id . ',
+                        notifications_types_id: '.$notificationType->id.',
                         is_enabled: 1,
                         channels: [MAIL]
                     

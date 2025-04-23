@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Contracts\Events\Dispatcher;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
-use Laravel\Scout\Console\ImportCommand;
-use  Kanvas\Apps\Support\MountedAppProvider;
+use Kanvas\Apps\Support\MountedAppProvider;
+use  Laravel\Scout\Console\ImportCommand;
 
 class KanvasImportCommand extends ImportCommand
 {
@@ -20,7 +19,7 @@ class KanvasImportCommand extends ImportCommand
     public function handle(Dispatcher $events)
     {
         $appUuid = $this->option('app');
-        if (! $appUuid) {
+        if (!$appUuid) {
         }
         $app = AppsRepository::findFirstByKey($appUuid);
         (new MountedAppProvider($app))->register();

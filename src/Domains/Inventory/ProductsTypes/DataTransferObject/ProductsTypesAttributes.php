@@ -25,7 +25,7 @@ class ProductsTypesAttributes extends Data
     /**
      * fromArray.
      *
-     * @param  array $data
+     * @param array $data
      *
      * @return ProductsTypesAttributes
      */

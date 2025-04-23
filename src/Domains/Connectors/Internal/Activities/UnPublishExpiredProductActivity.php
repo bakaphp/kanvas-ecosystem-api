@@ -25,8 +25,8 @@ class UnPublishExpiredProductActivity extends KanvasActivity implements Workflow
 
         return [
             'product' => $product->getId(),
-            'status' => 'unpublished',
-            'name' => $product->name,
+            'status'  => 'unpublished',
+            'name'    => $product->name,
         ];
     }
 }

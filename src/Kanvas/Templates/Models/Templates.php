@@ -6,11 +6,9 @@ namespace Kanvas\Templates\Models;
 
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Users\Models\Users;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
 use Kanvas\Notifications\Models\NotificationTypes;
@@ -19,16 +17,16 @@ use Kanvas\TemplatesVariables\Models\TemplatesVariables;
 /**
  * Apps Model.
  *
- * @property int $id
- * @property int $users_id
- * @property int $companies_id
- * @property int $apps_id
+ * @property int    $id
+ * @property int    $users_id
+ * @property int    $companies_id
+ * @property int    $apps_id
  * @property string $name
- * @property int $parent_template_id
+ * @property int    $parent_template_id
  * @property string $template
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_deleted
+ * @property int    $is_deleted
  */
 class Templates extends BaseModel
 {
@@ -56,7 +54,7 @@ class Templates extends BaseModel
     }
 
     /**
-     * Template I'm based from
+     * Template I'm based from.
      *
      * @return BelongsTo <Templates>
      */
@@ -66,7 +64,7 @@ class Templates extends BaseModel
     }
 
     /**
-     * Check if the template has a parent template
+     * Check if the template has a parent template.
      */
     public function hasParentTemplate(): bool
     {
@@ -74,7 +72,7 @@ class Templates extends BaseModel
     }
 
     /**
-     * NotificationTypes Relationship
+     * NotificationTypes Relationship.
      */
     public function notificationType(): HasOne
     {
@@ -82,7 +80,7 @@ class Templates extends BaseModel
     }
 
     /**
-     * NotificationTypes Relationship
+     * NotificationTypes Relationship.
      */
     public function templateVariables(): HasMany
     {

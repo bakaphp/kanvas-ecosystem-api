@@ -18,8 +18,8 @@ class SyncPeopleWithIPlusActivities extends KanvasActivity
         $response = $createPeopleAction->execute();
 
         return [
-            'status' => 'success',
-            'message' => 'People synced with IPlus',
+            'status'   => 'success',
+            'message'  => 'People synced with IPlus',
             'response' => $response,
         ];
     }

@@ -40,7 +40,7 @@ class SyncShopifyOrderAction
         $customer = $this->syncCustomer();
         $this->syncProducts();
 
-        $shippingAddress = ! empty($this->orderData['shipping_address']['address1']) ?
+        $shippingAddress = !empty($this->orderData['shipping_address']['address1']) ?
             $customer->addAddress(new Address(
                 address: $this->orderData['shipping_address']['address1'] ?? '',
                 address_2: $this->orderData['shipping_address']['address2'] ?? '',
@@ -51,7 +51,7 @@ class SyncShopifyOrderAction
                 address_type_id: AddressType::getByName(AddressTypeEnum::SHIPPING->value, $this->app)->getId()
             ))
             : null;
-        $billingAddress = ! empty($this->orderData['billing_address']['address1']) ?
+        $billingAddress = !empty($this->orderData['billing_address']['address1']) ?
             $customer->addAddress(new Address(
                 address: $this->orderData['billing_address']['address1'],
                 address_2: $this->orderData['billing_address']['address2'],
@@ -78,10 +78,10 @@ class SyncShopifyOrderAction
             shippingAddress: $shippingAddress,
             billingAddress: $billingAddress,
             total: (float) $this->orderData['current_total_price'],
-            taxes: (float)  $this->orderData['current_total_tax'],
-            totalDiscount: (float)  $this->orderData['total_discounts'],
-            totalShipping: (float)   $this->orderData['total_shipping_price_set']['shop_money']['amount'],
-            status: ! empty($this->orderData['cancelled_at']) ? OrderStatusEnum::CANCELED->value : OrderStatusEnum::COMPLETED->value,
+            taxes: (float) $this->orderData['current_total_tax'],
+            totalDiscount: (float) $this->orderData['total_discounts'],
+            totalShipping: (float) $this->orderData['total_shipping_price_set']['shop_money']['amount'],
+            status: !empty($this->orderData['cancelled_at']) ? OrderStatusEnum::CANCELED->value : OrderStatusEnum::COMPLETED->value,
             orderNumber: (string) $this->orderData['order_number'],
             shippingMethod: $this->orderData['shipping_lines'][0]['title'] ?? null,
             currency: Currencies::getByCode($this->orderData['currency']),
@@ -102,9 +102,9 @@ class SyncShopifyOrderAction
 
         if ($orderExist) {
             match (true) {
-                $order->fulfill() => $orderExist->fulfill(),
+                $order->fulfill()     => $orderExist->fulfill(),
                 $order->isCancelled() => $orderExist->cancel(),
-                default => null,
+                default               => null,
             };
 
             return $orderExist;
@@ -180,7 +180,7 @@ class SyncShopifyOrderAction
             );
 
             //this shouldn't happen but just in case
-            if (! $variant) {
+            if (!$variant) {
                 continue;
             }
 

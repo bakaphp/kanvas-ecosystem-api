@@ -14,9 +14,6 @@ use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
-
-use function Sentry\captureException;
-
 use Throwable;
 
 trait ActivityIntegrationTrait
@@ -86,12 +83,12 @@ trait ActivityIntegrationTrait
             $activeStatus
         );
 
-        if (! $integrationCompany) {
+        if (!$integrationCompany) {
             return [
-                'error' => 'No integration configured for this company',
+                'error'       => 'No integration configured for this company',
                 'integration' => $integration->value,
-                'company' => $company?->getId() ?? 'no company',
-                'entity_id' => $entity->getId(),
+                'company'     => $company?->getId() ?? 'no company',
+                'entity_id'   => $entity->getId(),
             ];
         }
 
@@ -121,10 +118,10 @@ trait ActivityIntegrationTrait
 
         if ($exception) {
             return [
-                'error' => $exception->getMessage(),
-                'company' => $company?->getId() ?? 'no company',
+                'error'       => $exception->getMessage(),
+                'company'     => $company?->getId() ?? 'no company',
                 'integration' => $integration->value,
-                'entity_id' => $entity->getId(),
+                'entity_id'   => $entity->getId(),
             ];
         }
 

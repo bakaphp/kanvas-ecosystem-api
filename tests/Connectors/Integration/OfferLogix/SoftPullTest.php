@@ -114,14 +114,14 @@ final class SoftPullTest extends TestCase
         $createMessage = new CreateMessageAction(
             MessageInput::fromArray(
                 [
-                    'message' => $engagementMessage->toArray(),
+                    'message'         => $engagementMessage->toArray(),
                     'reactions_count' => 0,
-                    'comments_count' => 0,
-                    'total_liked' => 0,
-                    'total_disliked' => 0,
-                    'total_saved' => 0,
-                    'total_shared' => 0,
-                    'ip_address' => '127.0.0.1',
+                    'comments_count'  => 0,
+                    'total_liked'     => 0,
+                    'total_disliked'  => 0,
+                    'total_saved'     => 0,
+                    'total_shared'    => 0,
+                    'ip_address'      => '127.0.0.1',
                 ],
                 $user,
                 MessageType::fromApp($app)->where('verb', EnumsConfigurationEnum::ACTION_VERB->value)->firstOrFail(),

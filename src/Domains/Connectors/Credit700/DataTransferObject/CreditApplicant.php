@@ -34,8 +34,9 @@ class CreditApplicant extends Data
     public static function fromMultiple(People $people, string $ssn): self
     {
         $address = $people->address()->first();
+
         return new self(
-            $people->firstname . ' ' . $people->lastname,
+            $people->firstname.' '.$people->lastname,
             $address?->address ?? '',
             $address?->city ?? '',
             $address?->state ?? '',

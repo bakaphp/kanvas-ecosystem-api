@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Regions;
 
-use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
-use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
-use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
-use Kanvas\Inventory\Regions\Repositories\RegionRepository as RegionRepository;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
+use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
+use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
+use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Support\Validations\UniqueSlugRule;
 
 class Region
@@ -24,7 +24,7 @@ class Region
     {
         $request = $request['input'];
         $user = auth()->user();
-        if (! $user->isAppOwner()) {
+        if (!$user->isAppOwner()) {
             unset($request['companies_id']);
         }
 

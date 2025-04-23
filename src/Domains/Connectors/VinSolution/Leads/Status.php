@@ -14,7 +14,7 @@ class Status
      * Get all lead source.
      *
      * @param Dealer $dealer
-     * @param User $user
+     * @param User   $user
      */
     public static function getAll(): array
     {

@@ -11,10 +11,10 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
 use Kanvas\Connectors\PromptMine\Notifications\MonthlyMessageCreationNotification;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
-use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
 
 class SendMonthlyMessageCountJob implements ShouldQueue
 {
@@ -44,8 +44,8 @@ class SendMonthlyMessageCountJob implements ShouldQueue
             $this->user,
             [
                 'push_template' => NotificationTemplateEnum::PUSH_MONTHLY_PROMPT_COUNT->value,
-                'title' => "You created $this->monthtlyCount prompts this month!",
-                'message' => "Amazing work! Keep the streak going. Unlock even more creative ideas.",
+                'title'         => "You created $this->monthtlyCount prompts this month!",
+                'message'       => 'Amazing work! Keep the streak going. Unlock even more creative ideas.',
             ],
             $this->config['via']
         );

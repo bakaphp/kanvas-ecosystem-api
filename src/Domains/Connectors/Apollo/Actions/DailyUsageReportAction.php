@@ -27,7 +27,7 @@ class DailyUsageReportAction
         $usersWhoWantReport = $this->company->get(ConfigurationEnum::APOLLO_COMPANY_REPORTS_USERS->value) ?? [];
         $todayInEST = $date ?? Carbon::now('America/New_York')->format('Y-m-d');
 
-        if (empty($report) || ! isset($report[$todayInEST]) || empty($usersWhoWantReport)) {
+        if (empty($report) || !isset($report[$todayInEST]) || empty($usersWhoWantReport)) {
             return [];
         }
 
@@ -46,9 +46,9 @@ class DailyUsageReportAction
                     new Blank(
                         'apollo-daily-report',
                         [
-                            'report' => $report,
-                            'today' => $date,
-                            'subject' => 'Apollo Daily Enrichment Report - ' . $date,
+                            'report'  => $report,
+                            'today'   => $date,
+                            'subject' => 'Apollo Daily Enrichment Report - '.$date,
                         ],
                         ['mail'],
                         $user

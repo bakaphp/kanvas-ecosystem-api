@@ -32,10 +32,10 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
         $toUsersArray = $params['toUsers'] ?? [];
         $distributionType = isset($params['toUsers']) && count($params['toUsers']) > 0 ? 'users' : 'followers';
 
-        if (! in_array(NotificationChannelEnum::PUSH->value, $notificationType->getChannelsInNotificationFormat())) {
+        if (!in_array(NotificationChannelEnum::PUSH->value, $notificationType->getChannelsInNotificationFormat())) {
             return [
-                'result' => false,
-                'message' => 'NotificationType does not have push notification enabled',
+                'result'           => false,
+                'message'          => 'NotificationType does not have push notification enabled',
                 'notificationType' => $notificationType->name,
             ];
         }
@@ -56,10 +56,10 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
             );
 
             return [
-                'result' => true,
+                'result'  => true,
                 'message' => 'Push Notification sent successfully',
-                'data' => $params,
-                'entity' => [
+                'data'    => $params,
+                'entity'  => [
                     get_class($entity),
                     $entity->getId(),
                 ],
@@ -74,10 +74,10 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
         );
 
         return [
-            'result' => true,
+            'result'  => true,
             'message' => 'Push Notification sent successfully',
-            'data' => $params,
-            'entity' => [
+            'data'    => $params,
+            'entity'  => [
                 get_class($entity),
                 $entity->getId(),
             ],

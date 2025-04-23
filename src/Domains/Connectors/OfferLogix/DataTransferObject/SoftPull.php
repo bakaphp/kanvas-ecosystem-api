@@ -35,7 +35,7 @@ class SoftPull extends Data
             $data['city'],
             $data['state'],
             $data['middle_name'] ?? $people->middlename,
-            ! empty($data['dob']) ? DateTime::createFromFormat('m/d/Y', $data['dob'])->format('Y-m-d') : $people->dob,
+            !empty($data['dob']) ? DateTime::createFromFormat('m/d/Y', $data['dob'])->format('Y-m-d') : $people->dob,
             $data['mobile'] ?? null,
             $data['email'] ?? null,
         );
@@ -55,6 +55,6 @@ class SoftPull extends Data
 
     public function getName(): string
     {
-        return $this->first_name . ' ' . $this->last_name;
+        return $this->first_name.' '.$this->last_name;
     }
 }

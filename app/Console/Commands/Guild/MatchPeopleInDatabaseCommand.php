@@ -56,7 +56,7 @@ class MatchPeopleInDatabaseCommand extends Command
             $lastName = isset($names[1]) ? $names[1] : '';
 
             // Construct the regular expression to allow slight variations
-            $regexPattern = $firstName . '[^ ]*.*' . $lastName . '[^ ]*';
+            $regexPattern = $firstName.'[^ ]*.*'.$lastName.'[^ ]*';
 
             $result = DB::connection('crm')->select('
                 SELECT p.id, p.name AS full_name
@@ -71,9 +71,9 @@ class MatchPeopleInDatabaseCommand extends Command
             ]);
 
             if ($result) {
-                $this->info('Match Found Processing ' . $name);
+                $this->info('Match Found Processing '.$name);
             } else {
-                $this->info('No match Processing ' . $name);
+                $this->info('No match Processing '.$name);
             }
         }
     }

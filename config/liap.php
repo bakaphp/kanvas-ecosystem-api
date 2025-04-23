@@ -16,9 +16,9 @@ return [
      */
 
     'routing' => [
-        'signed' => false,
+        'signed'     => false,
         'middleware' => [],
-        'prefix' => '',
+        'prefix'     => '',
     ],
 
     /*

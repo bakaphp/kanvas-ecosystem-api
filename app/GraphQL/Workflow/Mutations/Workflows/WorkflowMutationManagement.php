@@ -29,12 +29,12 @@ class WorkflowMutationManagement
         $app = app(Apps::class);
 
         //if we get a slug
-        if (! Str::contains($entityClass, '\\')) {
+        if (!Str::contains($entityClass, '\\')) {
             $entityClass = SystemModules::getSystemModuleNameSpaceBySlug($entityClass);
         }
 
-        if (! class_exists($entityClass)) {
-            throw new Exception('Entity ' . $entityClass . ' not found');
+        if (!class_exists($entityClass)) {
+            throw new Exception('Entity '.$entityClass.' not found');
         }
 
         try {
@@ -46,7 +46,7 @@ class WorkflowMutationManagement
                 ? $entityClass::getByUuid($entityId, $app)
                 : $entityClass::getById($entityId, $app);
         } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
-            throw new ExceptionsModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found");
+            throw new ExceptionsModelNotFoundException('Record '.class_basename($entityClass)." {$entityId} not found");
         }
 
         //validate action

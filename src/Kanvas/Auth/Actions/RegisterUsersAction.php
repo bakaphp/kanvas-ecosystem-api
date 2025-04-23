@@ -32,7 +32,7 @@ class RegisterUsersAction extends CreateUserAction
             /**
              * If the user exist we have to verify if it exist in this app
              * if it does , means the user already exist
-             * if it doesn't than we have to create the user in this app and with a new company
+             * if it doesn't than we have to create the user in this app and with a new company.
              */
             $user = Users::getByEmail($this->data->email);
 
@@ -73,9 +73,9 @@ class RegisterUsersAction extends CreateUserAction
                 WorkflowEnum::REGISTERED->value,
                 true,
                 [
-                    'company' => $company,
+                    'company'  => $company,
                     'password' => $this->data->raw_password,
-                    'app' => $this->app,
+                    'app'      => $this->app,
                 ]
             );
         }

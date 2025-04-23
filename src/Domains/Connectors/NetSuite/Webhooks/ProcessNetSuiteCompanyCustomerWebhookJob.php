@@ -17,10 +17,10 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
     public function execute(): array
     {
         //$regionId = $this->receiver->configuration['region_id'];
-        $isCompany = ! empty($this->webhookRequest->payload['fields']['companyname']);
+        $isCompany = !empty($this->webhookRequest->payload['fields']['companyname']);
         $netSuiteCompanyId = $this->webhookRequest->payload['id'];
 
-        if (! $isCompany) {
+        if (!$isCompany) {
             return [
                 'message' => 'Not a NetSuite Company',
             ];
@@ -48,7 +48,7 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
                ->searchable();
 
             return [
-                'message' => 'NetSuite Company Synced',
+                'message'           => 'NetSuite Company Synced',
                 'netSuiteCompanyId' => $netSuiteCompanyId,
             ];
         }

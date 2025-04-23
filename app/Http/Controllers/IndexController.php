@@ -10,7 +10,7 @@ use Illuminate\Routing\Controller as BaseController;
 class IndexController extends BaseController
 {
     /**
-     * Welcome to Kanvas
+     * Welcome to Kanvas.
      *
      * @return JsonResponse
      */

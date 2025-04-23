@@ -36,7 +36,7 @@ final class Client
         $company = self::resolveCompany($app, $company);
         $key = self::getConnectionKey($app, $company, $region);
 
-        if (! isset(self::$instances[$key])) {
+        if (!isset(self::$instances[$key])) {
             self::$instances[$key] = self::createInstance($app, $company, $region);
             self::cleanupOldInstances();
         }
@@ -62,6 +62,7 @@ final class Client
      * Get Shopify API credentials for the given company, app and region.
      *
      * @throws ValidationException If credentials are not properly set
+     *
      * @return array{0: string, 1: string, 2: string} Array containing [API Key, API Secret, Shop URL]
      */
     public static function getKeys(
@@ -72,7 +73,7 @@ final class Client
         $credentialKey = ShopifyConfigurationService::generateCredentialKey($company, $app, $region);
         $credential = $company->get($credentialKey);
 
-        if (empty($credential) || ! is_array($credential)) {
+        if (empty($credential) || !is_array($credential)) {
             throw new ValidationException(
                 sprintf(
                     'Shopify keys are not set for company %s (ID: %d) on region %s',
@@ -118,16 +119,16 @@ final class Client
 
         if ((bool) $app->get('shopify-use-access-token') === true) {
             return (new ShopifySDK())->config([
-                'ShopUrl' => $shopUrl,
-                'ApiKey' => $clientKey,
+                'ShopUrl'     => $shopUrl,
+                'ApiKey'      => $clientKey,
                 'AccessToken' => $clientSecret,
             ]);
         }
 
         return (new ShopifySDK())->config([
-            'ShopUrl' => $shopUrl,
-            'ApiKey' => $clientKey,
-            'Password' => $clientSecret,
+            'ShopUrl'     => $shopUrl,
+            'ApiKey'      => $clientKey,
+            'Password'    => $clientSecret,
             'AccessToken' => $clientSecret,
         ]);
     }

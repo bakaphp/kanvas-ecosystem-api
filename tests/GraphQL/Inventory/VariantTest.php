@@ -10,6 +10,7 @@ use Tests\TestCase;
 class VariantTest extends TestCase
 {
     use InventoryCases;
+
     /**
      * testUpdateVariant.
      *
@@ -42,10 +43,10 @@ class VariantTest extends TestCase
 
         $variantResponse = $variantResponse->json()['data']['createVariant'];
         $data = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'sku' => $variantResponse['sku'],
-            'weight' => 1,
+            'sku'         => $variantResponse['sku'],
+            'weight'      => 1,
         ];
         $this->graphQL('
         mutation($id: ID! $data: VariantsUpdateInput!) {
@@ -58,7 +59,7 @@ class VariantTest extends TestCase
                 weight
             }
         }', ['id' => $variantResponse['id'], 'data' => $data])->assertJson([
-            'data' => ['updateVariant' => $data]
+            'data' => ['updateVariant' => $data],
         ]);
     }
 
@@ -94,10 +95,10 @@ class VariantTest extends TestCase
         $variantResponse = $variantResponse->json()['data']['createVariant'];
 
         $warehouseDataUpdate = [
-            'regions_id' => $regionResponse['id'],
-            'name' => fake()->name,
-            'location' => 'Test Location',
-            'is_default' => true,
+            'regions_id'   => $regionResponse['id'],
+            'name'         => fake()->name,
+            'location'     => 'Test Location',
+            'is_default'   => true,
             'is_published' => true,
         ];
         $newWarehouseResponse = $this->createWarehouses($regionResponse['id'], $warehouseDataUpdate);
@@ -108,8 +109,8 @@ class VariantTest extends TestCase
             'id' => $newWarehouseResponse['id'],
         ];
         $data = [
-            'id' => $newWarehouseResponse['id'],
-            'price' => rand(1, 1000),
+            'id'       => $newWarehouseResponse['id'],
+            'price'    => rand(1, 1000),
             'quantity' => rand(1, 5),
             'position' => rand(1, 4),
         ];
@@ -129,7 +130,7 @@ class VariantTest extends TestCase
             }
         }', [
             'data' => $data,
-            'id' => $variantResponse['id'],
+            'id'   => $variantResponse['id'],
         ]);
 
         $this->assertEquals(
@@ -170,8 +171,8 @@ class VariantTest extends TestCase
         $variantResponse = $variantResponse->json()['data']['createVariant'];
 
         $data = [
-            'id' => $warehouseData['id'],
-            'price' => rand(1, 1000),
+            'id'       => $warehouseData['id'],
+            'price'    => rand(1, 1000),
             'quantity' => rand(1, 5),
             'position' => rand(1, 4),
         ];
@@ -192,7 +193,7 @@ class VariantTest extends TestCase
             }
         }', [
             'data' => $data,
-            'id' => $variantResponse['id']
+            'id'   => $variantResponse['id'],
         ]);
 
         $this->assertEquals(

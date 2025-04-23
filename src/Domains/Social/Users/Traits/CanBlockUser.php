@@ -16,7 +16,7 @@ trait CanBlockUser
         return DB::transaction(function () use ($blocked, $app) {
             $blockedUser = $this->findBlockedUser($this, $blocked, $app);
 
-            if (! $blockedUser) {
+            if (!$blockedUser) {
                 $blockedUser = new BlockUser();
                 $blockedUser->users_id = $this->getId();
                 $blockedUser->blocked_users_id = $blocked->getId();

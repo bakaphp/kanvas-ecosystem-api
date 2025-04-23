@@ -10,11 +10,11 @@ use Kanvas\Models\BaseModel;
 /**
  * UsersAssociatedCompanies Model.
  *
- * @property int $users_id
- * @property int $companies_id
- * @property int $companies_branches_id
+ * @property int    $users_id
+ * @property int    $companies_id
+ * @property int    $companies_branches_id
  * @property string $identify_id
- * @property int $user_active
+ * @property int    $user_active
  * @property string $user_role
  * @property string $password
  */
@@ -41,12 +41,14 @@ class UsersAssociatedCompanies extends BaseModel
     public function deActive(): bool
     {
         $this->user_active = 0;
+
         return $this->saveOrFail();
     }
 
     public function active(): bool
     {
         $this->user_active = 1;
+
         return $this->saveOrFail();
     }
 }

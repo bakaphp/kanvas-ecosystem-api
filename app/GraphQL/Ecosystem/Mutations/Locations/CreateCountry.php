@@ -10,8 +10,8 @@ use Kanvas\Locations\Models\Countries;
 final class CreateCountry
 {
     /**
-     * @param  null  $_
-     * @param  array{}  $args
+     * @param null    $_
+     * @param array{} $args
      */
     public function __invoke($_, array $request): Countries
     {
@@ -28,6 +28,7 @@ final class CreateCountry
                 }
             }
         }
+
         return $country;
     }
 }

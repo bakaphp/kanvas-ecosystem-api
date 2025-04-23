@@ -43,7 +43,7 @@ class NetSuiteCustomerService
         if ($response->readResponse->status->isSuccess) {
             return $response->readResponse->record;
         } else {
-            throw new Exception('Error retrieving customer: ' . $response->readResponse->status->statusDetail[0]->message);
+            throw new Exception('Error retrieving customer: '.$response->readResponse->status->statusDetail[0]->message);
         }
     }
 
@@ -66,8 +66,8 @@ class NetSuiteCustomerService
         // Execute the search
         $response = $this->service->search($searchRequest);
 
-        if (! $response->searchResult->status->isSuccess) {
-            throw new Exception('Error retrieving invoice: ' . $response->searchResult->status->statusDetail[0]->message);
+        if (!$response->searchResult->status->isSuccess) {
+            throw new Exception('Error retrieving invoice: '.$response->searchResult->status->statusDetail[0]->message);
         }
 
         // Prepare data for CSV
@@ -108,13 +108,13 @@ class NetSuiteCustomerService
                 $itemSubtotal = 0; // Initialize subtotal for the invoice
                 $itemCount = 0;    // Count items in the invoice
 
-                if (! empty($transactionDetail->itemList->item)) {
+                if (!empty($transactionDetail->itemList->item)) {
                     foreach ($transactionDetail->itemList->item as $item) {
                         // Extract custom fields
                         $customDescription = 'N/A';
                         $customValue = 'N/A';
 
-                        if (! empty($item->customFieldList->customField)) {
+                        if (!empty($item->customFieldList->customField)) {
                             foreach ($item->customFieldList->customField as $customField) {
                                 if ($customField->scriptId === 'custcol_item_description') {
                                     $customDescription = $customField->value;

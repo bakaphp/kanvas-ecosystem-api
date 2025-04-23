@@ -39,7 +39,7 @@ class SyncNetSuiteCustomerWithPeopleAction
 
         $customerInfo = $this->service->getCustomerById($customerId);
 
-        if (empty($customerInfo->firstName) && ! empty($customerInfo->companyName)) {
+        if (empty($customerInfo->firstName) && !empty($customerInfo->companyName)) {
             $customerInfo->firstName = $customerInfo->companyName;
         }
 
@@ -50,24 +50,24 @@ class SyncNetSuiteCustomerWithPeopleAction
             firstname: $customerInfo->firstName,
             contacts: new DataCollection(Contact::class, array_filter([
                 $customerInfo->email ? [
-                    'value' => $customerInfo->email,
+                    'value'             => $customerInfo->email,
                     'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ] : [],
                 $customerInfo->phone ? [
-                    'value' => $customerInfo->phone,
+                    'value'             => $customerInfo->phone,
                     'contacts_types_id' => ContactTypeEnum::PHONE->value,
-                    'weight' => 0,
+                    'weight'            => 0,
                 ] : [],
             ])),
             address: new DataCollection(Address::class, $customerInfo->addressbookList->addressbook[0]?->addressbookAddress ? [
                 [
-                    'address' => $customerInfo->addressbookList->addressbook[0]->addressbookAddress->addressee ?? '',
-                    'city' => $customerInfo->addressbookList->addressbook[0]->addressbookAddress->city ?? '',
-                    'state' => $customerInfo->addressbookList->addressbook[0]->addressbookAddress->state ?? '',
+                    'address'  => $customerInfo->addressbookList->addressbook[0]->addressbookAddress->addressee ?? '',
+                    'city'     => $customerInfo->addressbookList->addressbook[0]->addressbookAddress->city ?? '',
+                    'state'    => $customerInfo->addressbookList->addressbook[0]->addressbookAddress->state ?? '',
                     'zip_code' => $customerInfo->addressbookList->addressbook[0]->addressbookAddress->zip ?? '',
-                    'country' => $customerInfo->addressbookList->addressbook[0]->addressbookAddress->country ?? '',
-                    'weight' => 0,
+                    'country'  => $customerInfo->addressbookList->addressbook[0]->addressbookAddress->country ?? '',
+                    'weight'   => 0,
                 ],
             ] : []),
             lastname: $customerInfo->lastName,
@@ -85,7 +85,7 @@ class SyncNetSuiteCustomerWithPeopleAction
 
         $people = $createPeople->execute();
 
-        if (! $linkPeople) {
+        if (!$linkPeople) {
             $people->set(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value, $customerId);
         }
 

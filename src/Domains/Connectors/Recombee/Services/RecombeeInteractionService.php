@@ -43,20 +43,20 @@ class RecombeeInteractionService
         }
 
         $interactionMap = [
-            InteractionEnum::VIEW->getValue() => AddDetailView::class,
-            InteractionEnum::VIEW_ITEM->getValue() => AddDetailView::class,
+            InteractionEnum::VIEW->getValue()           => AddDetailView::class,
+            InteractionEnum::VIEW_ITEM->getValue()      => AddDetailView::class,
             InteractionEnum::VIEW_HOME_PAGE->getValue() => AddDetailView::class,
             InteractionEnum::VIEW_ITEM_LIST->getValue() => AddDetailView::class,
-            InteractionEnum::SHARE->getValue() => AddRating::class,
-            InteractionEnum::LIKE->getValue() => AddRating::class,
-            InteractionEnum::FOLLOW->getValue() => AddRating::class,
-            InteractionEnum::DISLIKE->getValue() => AddRating::class,
-            InteractionEnum::SAVE->getValue() => AddBookmark::class,
-            InteractionEnum::PURCHASE->getValue() => AddPurchase::class,
+            InteractionEnum::SHARE->getValue()          => AddRating::class,
+            InteractionEnum::LIKE->getValue()           => AddRating::class,
+            InteractionEnum::FOLLOW->getValue()         => AddRating::class,
+            InteractionEnum::DISLIKE->getValue()        => AddRating::class,
+            InteractionEnum::SAVE->getValue()           => AddBookmark::class,
+            InteractionEnum::PURCHASE->getValue()       => AddPurchase::class,
         ];
 
-        if (! isset($interactionMap[$interactionType])) {
-            throw new InvalidArgumentException('Invalid interaction type: ' . $interactionType);
+        if (!isset($interactionMap[$interactionType])) {
+            throw new InvalidArgumentException('Invalid interaction type: '.$interactionType);
         }
 
         $userRecommendationKey = $interactionType !== InteractionEnum::FOLLOW->getValue() ? CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID : CustomFieldEnum::USER_WHO_TO_FOLLOW_RECOMM_ID;
@@ -65,7 +65,7 @@ class RecombeeInteractionService
         $interactionClass = $interactionMap[$interactionType];
 
         $parameters = [
-            'timestamp' => $userInteraction->created_at->timestamp,
+            'timestamp'     => $userInteraction->created_at->timestamp,
             'cascadeCreate' => true,
         ];
 

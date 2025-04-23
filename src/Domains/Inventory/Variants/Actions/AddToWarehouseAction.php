@@ -25,32 +25,33 @@ class AddToWarehouseAction
 
     /**
      * execute.
+     *
      * @psalm-suppress ArgumentTypeCoercion
      */
     public function execute(): VariantsWarehouses
     {
         $search = [
             'products_variants_id' => $this->variants->getId(),
-            'warehouses_id' => $this->warehouses->getId(),
+            'warehouses_id'        => $this->warehouses->getId(),
         ];
 
         $variantsWarehouses = VariantsWarehouses::updateOrCreate(
             $search,
             [
-                'quantity' => $this->variantsWarehousesDto->quantity ?? 0,
-                'price' => $this->variantsWarehousesDto->price ?? 0.00,
-                'sku' => $this->variantsWarehousesDto->sku,
-                'position' => $this->variantsWarehousesDto->position,
-                'serial_number' => $this->variantsWarehousesDto->serial_number,
-                'status_id' => $this->variantsWarehousesDto->status_id,
+                'quantity'        => $this->variantsWarehousesDto->quantity ?? 0,
+                'price'           => $this->variantsWarehousesDto->price ?? 0.00,
+                'sku'             => $this->variantsWarehousesDto->sku,
+                'position'        => $this->variantsWarehousesDto->position,
+                'serial_number'   => $this->variantsWarehousesDto->serial_number,
+                'status_id'       => $this->variantsWarehousesDto->status_id,
                 'is_oversellable' => $this->variantsWarehousesDto->is_oversellable,
-                'is_default' => $this->variantsWarehousesDto->is_default,
-                'is_best_seller' => $this->variantsWarehousesDto->is_best_seller,
-                'is_on_sale' => $this->variantsWarehousesDto->is_on_sale,
-                'is_on_promo' => $this->variantsWarehousesDto->is_on_promo,
-                'can_pre_order' => $this->variantsWarehousesDto->can_pre_order,
-                'is_coming_son' => $this->variantsWarehousesDto->is_coming_son,
-                'is_new' => $this->variantsWarehousesDto->is_new
+                'is_default'      => $this->variantsWarehousesDto->is_default,
+                'is_best_seller'  => $this->variantsWarehousesDto->is_best_seller,
+                'is_on_sale'      => $this->variantsWarehousesDto->is_on_sale,
+                'is_on_promo'     => $this->variantsWarehousesDto->is_on_promo,
+                'can_pre_order'   => $this->variantsWarehousesDto->can_pre_order,
+                'is_coming_son'   => $this->variantsWarehousesDto->is_coming_son,
+                'is_new'          => $this->variantsWarehousesDto->is_new,
             ]
         );
 

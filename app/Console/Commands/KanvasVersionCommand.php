@@ -31,9 +31,8 @@ class KanvasVersionCommand extends Command
     public function handle()
     {
         $this->newLine();
-        $this->info('Kanvas Niche is running version : ' . AppEnums::VERSION->getValue());
+        $this->info('Kanvas Niche is running version : '.AppEnums::VERSION->getValue());
         $this->newLine();
 
-        return;
     }
 }

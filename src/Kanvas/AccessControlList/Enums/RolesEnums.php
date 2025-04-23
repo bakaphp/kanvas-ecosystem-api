@@ -21,13 +21,13 @@ enum RolesEnums: string
 
     /**
      * Roles are scoped by app
-     * in the future companies may create there own roles
+     * in the future companies may create there own roles.
      */
     public static function getScope(Apps $app, ?Companies $company = null): string
     {
         $companyId = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
 
-        return 'app_' . $app->getKey() . '_company_' . $companyId;
+        return 'app_'.$app->getKey().'_company_'.$companyId;
     }
 
     public static function getRoleBySlug(string $slug): string

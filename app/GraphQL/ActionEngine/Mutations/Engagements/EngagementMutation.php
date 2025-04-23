@@ -38,8 +38,8 @@ class EngagementMutation
         $request = $request['input'];
 
         $lead = Lead::getByIdFromCompanyApp($request['lead_id'], $company, $app);
-        $people = ! empty($request['people_id']) ? People::getByIdFromCompanyApp($request['people_id'], $company, $app) : $lead->people;
-        $receiver = ! empty($request['receiver_id']) ? LeadReceiver::getByIdFromCompanyApp($request['receiver_id'], $company, $app) : ($lead->receiver ?? LeadReceiver::getDefault($company, $app));
+        $people = !empty($request['people_id']) ? People::getByIdFromCompanyApp($request['people_id'], $company, $app) : $lead->people;
+        $receiver = !empty($request['receiver_id']) ? LeadReceiver::getByIdFromCompanyApp($request['receiver_id'], $company, $app) : ($lead->receiver ?? LeadReceiver::getDefault($company, $app));
         $requestId = $request['request_id'];
         $parentAction = $this->getActionInfo($app, $request['action']);
         $action = $parentAction['parent'];
@@ -60,7 +60,7 @@ class EngagementMutation
          * @todo clean this
          */
         $newActionPageUrl = in_array($action, $app->get('new-action-slug') ?? []);
-        $actionPageUrl = ! $newActionPageUrl ? $app->get('TEMP_LANDING_PAGE') : $app->get('NEW_LANDING_PAGE');
+        $actionPageUrl = !$newActionPageUrl ? $app->get('TEMP_LANDING_PAGE') : $app->get('NEW_LANDING_PAGE');
 
         $request['visitors_id'] = $requestId;
         $request['visitor_id'] = $request['visitors_id'];
@@ -77,11 +77,11 @@ class EngagementMutation
         $request['cid'] = $lead->company->uuid;
         $request['bcid'] = $lead->branch ? $lead->branch->uuid : null;
 
-        if (! empty($parentAction['form_type'])) {
+        if (!empty($parentAction['form_type'])) {
             $request['form_type'] = $parentAction['form_type'];
         }
 
-        $extraField = ! empty($request['extraField']) ? $request['extraField'] : null;
+        $extraField = !empty($request['extraField']) ? $request['extraField'] : null;
         $companyActionId = $request['company_action_id'] ?? null;
 
         if (is_array($extraField)) {
@@ -89,15 +89,15 @@ class EngagementMutation
         }
 
         $companyActionVisitor = CompanyActionVisitor::create([
-            'visitors_id' => $request['request_id'],
-            'leads_id' => $lead->uuid,
-            'receivers_id' => $receiver->uuid,
-            'contacts_id' => $people->uuid,
-            'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
+            'visitors_id'          => $request['request_id'],
+            'leads_id'             => $lead->uuid,
+            'receivers_id'         => $receiver->uuid,
+            'contacts_id'          => $people->uuid,
+            'companies_id'         => $company->getId(),
+            'users_id'             => $user->getId(),
             'companies_actions_id' => $companyAction->getId(),
-            'actions_slug' => $request['action'],
-            'request' => $request,
+            'actions_slug'         => $request['action'],
+            'request'              => $request,
         ]);
 
         $params = array_intersect_key(
@@ -118,29 +118,29 @@ class EngagementMutation
                 'form_type',
             ])
         );
-        $urlParams = http_build_query($params) . $extraField;
-        $urlParams .= '&caction=' . $companyAction->uuid;
+        $urlParams = http_build_query($params).$extraField;
+        $urlParams .= '&caction='.$companyAction->uuid;
 
-        $url = $actionPageUrl . "/{$action}?{$urlParams}";
-        $urlPreview = $actionPageUrl . "/{$action}?{$urlParams}&preview=true";
+        $url = $actionPageUrl."/{$action}?{$urlParams}";
+        $urlPreview = $actionPageUrl."/{$action}?{$urlParams}&preview=true";
 
         $reasonEnglish = $companyAction->get('reasonEn');
         $reasonSpanish = $companyAction->get('reasonEs');
 
-        $messageEnglish = 'Hi {name}, this is ' . $user->firstname . ' from ' . $lead->branch->name . '. Click the link below to ' . $reasonEnglish;
-        $messageSpanish = 'Hola {name}, es ' . $user->firstname . ' de ' . $lead->branch->name . '. Haz click al siguiente enlace para ' . $reasonSpanish;
+        $messageEnglish = 'Hi {name}, this is '.$user->firstname.' from '.$lead->branch->name.'. Click the link below to '.$reasonEnglish;
+        $messageSpanish = 'Hola {name}, es '.$user->firstname.' de '.$lead->branch->name.'. Haz click al siguiente enlace para '.$reasonSpanish;
 
         $messageData = [
-            'link' => Url::getShortUrl($url, $app),
-            'link_preview' => Url::getShortUrl($urlPreview, $app),
-            'link_full' => $url,
+            'link'              => Url::getShortUrl($url, $app),
+            'link_preview'      => Url::getShortUrl($urlPreview, $app),
+            'link_full'         => $url,
             'link_full_preview' => $urlPreview,
-            'data' => $companyAction->form_config,
-            'params' => $request,
-            'preview_image' => null,
-            'message_content' => [
-                'ENG' => $reasonEnglish !== null && Str::endsWith($reasonEnglish, '!') ? $messageEnglish : $messageEnglish . '. ',
-                'ES' => $reasonSpanish !== null && Str::endsWith($reasonSpanish, '!') ? $messageSpanish : $messageSpanish . '. ',
+            'data'              => $companyAction->form_config,
+            'params'            => $request,
+            'preview_image'     => null,
+            'message_content'   => [
+                'ENG' => $reasonEnglish !== null && Str::endsWith($reasonEnglish, '!') ? $messageEnglish : $messageEnglish.'. ',
+                'ES'  => $reasonSpanish !== null && Str::endsWith($reasonSpanish, '!') ? $messageSpanish : $messageSpanish.'. ',
             ],
         ];
 
@@ -163,20 +163,20 @@ class EngagementMutation
             product_id: $data['product_id'] ?? null,
         );
         $messageInput = [
-            'message' => $engagementMessage->toArray(),
+            'message'         => $engagementMessage->toArray(),
             'reactions_count' => 0,
-            'comments_count' => 0,
-            'total_liked' => 0,
-            'total_disliked' => 0,
-            'total_saved' => 0,
-            'total_shared' => 0,
-            'ip_address' => request()->ip(),
+            'comments_count'  => 0,
+            'total_liked'     => 0,
+            'total_disliked'  => 0,
+            'total_saved'     => 0,
+            'total_shared'    => 0,
+            'ip_address'      => request()->ip(),
         ];
 
         $messageTypeDto = MessageTypeInput::from([
             'apps_id' => $app->getId(),
-            'name' => $action,
-            'verb' => $action,
+            'name'    => $action,
+            'verb'    => $action,
         ]);
         $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
 
@@ -206,16 +206,16 @@ class EngagementMutation
         //create engagement
         //return engagement
         $engagement = Engagement::firstOrCreate([
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => $user->getId(),
-            'leads_id' => $lead->getId(),
-            'people_id' => $people->getId(),
+            'companies_id'         => $company->getId(),
+            'apps_id'              => $app->getId(),
+            'users_id'             => $user->getId(),
+            'leads_id'             => $lead->getId(),
+            'people_id'            => $people->getId(),
             'companies_actions_id' => $companyAction->getId(),
-            'message_id' => $createMessage->getId(),
-            'slug' => $action,
-            'entity_uuid' => $requestId,
-            'pipelines_stages_id' => $stage->getId(),
+            'message_id'           => $createMessage->getId(),
+            'slug'                 => $action,
+            'entity_uuid'          => $requestId,
+            'pipelines_stages_id'  => $stage->getId(),
         ]);
 
         return $engagement;
@@ -231,13 +231,13 @@ class EngagementMutation
         $company = $user->getCurrentCompany();
         $request = $request['input'];
 
-        if (! ActionStatusEnum::validate($request['status'])) {
+        if (!ActionStatusEnum::validate($request['status'])) {
             throw new ValidationException('Invalid Engagement Status');
         }
 
         $lead = Lead::getByIdFromCompanyApp($request['lead_id'], $company, $app);
-        $people = ! empty($request['people_id']) ? People::getByIdFromCompanyApp($request['people_id'], $company, $app) : $lead->people;
-        $receiver = ! empty($request['receiver_id']) ? LeadReceiver::getByIdFromCompanyApp($request['receiver_id'], $company, $app) : ($lead->receiver ?? LeadReceiver::getDefault($company, $app));
+        $people = !empty($request['people_id']) ? People::getByIdFromCompanyApp($request['people_id'], $company, $app) : $lead->people;
+        $receiver = !empty($request['receiver_id']) ? LeadReceiver::getByIdFromCompanyApp($request['receiver_id'], $company, $app) : ($lead->receiver ?? LeadReceiver::getDefault($company, $app));
         $requestId = $request['request_id'];
         $action = $request['action'];
         $checkListId = $request['task_id'] ?? 0;
@@ -272,20 +272,20 @@ class EngagementMutation
         );
 
         $messageInput = [
-            'message' => $engagementMessage->toArray(),
+            'message'         => $engagementMessage->toArray(),
             'reactions_count' => 0,
-            'comments_count' => 0,
-            'total_liked' => 0,
-            'total_disliked' => 0,
-            'total_saved' => 0,
-            'total_shared' => 0,
-            'ip_address' => request()->ip(),
+            'comments_count'  => 0,
+            'total_liked'     => 0,
+            'total_disliked'  => 0,
+            'total_saved'     => 0,
+            'total_shared'    => 0,
+            'ip_address'      => request()->ip(),
         ];
 
         $messageTypeDto = MessageTypeInput::from([
             'apps_id' => $app->getId(),
-            'name' => $action,
-            'verb' => $action,
+            'name'    => $action,
+            'verb'    => $action,
         ]);
         $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
 
@@ -314,16 +314,16 @@ class EngagementMutation
         //create engagement
         //return engagement
         $engagement = Engagement::firstOrCreate([
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => $user->getId(),
-            'leads_id' => $lead->getId(),
-            'people_id' => $people->getId(),
+            'companies_id'         => $company->getId(),
+            'apps_id'              => $app->getId(),
+            'users_id'             => $user->getId(),
+            'leads_id'             => $lead->getId(),
+            'people_id'            => $people->getId(),
             'companies_actions_id' => $companyAction->getId(),
-            'message_id' => $createMessage->getId(),
-            'slug' => $action,
-            'entity_uuid' => $requestId,
-            'pipelines_stages_id' => $stage->getId(),
+            'message_id'           => $createMessage->getId(),
+            'slug'                 => $action,
+            'entity_uuid'          => $requestId,
+            'pipelines_stages_id'  => $stage->getId(),
         ]);
 
         return $engagement;
@@ -333,7 +333,7 @@ class EngagementMutation
     {
         $actionMappings = $app->get('sub-action-mappings');
         $result = [
-            'parent' => $childSlug, // Default to original slug if not found
+            'parent'    => $childSlug, // Default to original slug if not found
             'form_type' => null,     // Default to null if not found
         ];
 

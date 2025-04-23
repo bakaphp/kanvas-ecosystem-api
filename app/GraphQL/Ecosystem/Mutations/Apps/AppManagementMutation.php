@@ -17,7 +17,7 @@ use Kanvas\Users\Repositories\UsersRepository;
 class AppManagementMutation
 {
     /**
-     * activeApp
+     * activeApp.
      *
      * @return void
      */
@@ -37,8 +37,8 @@ class AppManagementMutation
     }
 
     /**
-     * @param  null  $_
-     * @param  array{}  $args
+     * @param null    $_
+     * @param array{} $args
      */
     public function deActive($_, array $request)
     {
@@ -56,9 +56,10 @@ class AppManagementMutation
     }
 
     /**
-     * createAppTemplate
-     * @param  null  $_
-     * @param  array{}  $args
+     * createAppTemplate.
+     *
+     * @param null    $_
+     * @param array{} $args
      */
     public function createAppTemplate($_, array $request)
     {
@@ -83,7 +84,7 @@ class AppManagementMutation
     }
 
     /**
-     * @param null $_
+     * @param null    $_
      * @param array{} $args
      */
     public function createApp($_, array $request)
@@ -96,7 +97,7 @@ class AppManagementMutation
     }
 
     /**
-     * @param null $_
+     * @param null    $_
      * @param array{} $args
      */
     public function updateApp($_, array $request)
@@ -109,7 +110,7 @@ class AppManagementMutation
     }
 
     /**
-     * @param null $_
+     * @param null    $_
      * @param array{} $args
      */
     public function deleteApp($_, array $request)

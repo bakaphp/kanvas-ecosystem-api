@@ -28,7 +28,7 @@ class ConvertJsonTemplateToLeadStructureAction
 
     public function processFunctions(Lead $lead, array $newMapping): void
     {
-        if (isset($newMapping['function']) && ! empty($newMapping['function'])) {
+        if (isset($newMapping['function']) && !empty($newMapping['function'])) {
             foreach ($newMapping['function'] as $key => $value) {
                 $lead->{$key}($value);
                 if (method_exists($lead, $key)) {
@@ -72,10 +72,10 @@ class ConvertJsonTemplateToLeadStructureAction
                 $array[$key] = $this->loopArrayAndReplaceDotNotion($array[$key]);
             }
 
-            if (! is_array($value)) {
+            if (!is_array($value)) {
                 // you can do your algorithm here
                 // example:
-                $array[$key] = ! Str::contains((string) $value, '.') ? $value : $this->findInArrayByDotNotation($value, $this->data); // cast value to string data type
+                $array[$key] = !Str::contains((string) $value, '.') ? $value : $this->findInArrayByDotNotation($value, $this->data); // cast value to string data type
             }
         }
 
@@ -89,36 +89,36 @@ class ConvertJsonTemplateToLeadStructureAction
         $processFields = [];
         $peopleStructure = [
             'firstname' => null,
-            'lastname' => null,
-            'contacts' => [],
+            'lastname'  => null,
+            'contacts'  => [],
         ];
 
         foreach ($template as $path => $info) {
             $value = $this->getValueFromPath($request, $path);
-            $value = ! empty($value) ? $value : ($info['default'] ?? null);
+            $value = !empty($value) ? $value : ($info['default'] ?? null);
 
             $name = $info['name'];
             $type = $info['type'];
             $pattern = $info['pattern'] ?? null; // Optional regex pattern
 
             match ($type) {
-                'string' => $this->mapStringType($peopleStructure, $parsedData, $name, $value),
+                'string'      => $this->mapStringType($peopleStructure, $parsedData, $name, $value),
                 'customField' => $this->mapCustomField($customFields, $name, $value, $pattern),
-                'function' => $this->mapFunctionType($parsedData, $request, $info, $name),
-                'regex' => $this->mapRegexType($parsedData, $name, $value, $pattern),
-                default => null
+                'function'    => $this->mapFunctionType($parsedData, $request, $info, $name),
+                'regex'       => $this->mapRegexType($parsedData, $name, $value, $pattern),
+                default       => null
             };
 
             $processFields[$name] = $value;
         }
 
-        if (! empty($request['company']) || ! empty($request['organization'])) {
+        if (!empty($request['company']) || !empty($request['organization'])) {
             $parsedData['organization'] = $request['company'] ?? $request['organization'];
         }
 
         // Add remaining unprocessed fields to custom fields
         foreach ($request as $key => $value) {
-            if (! array_key_exists($key, $processFields) && ! array_key_exists($key, $customFields)) {
+            if (!array_key_exists($key, $processFields) && !array_key_exists($key, $customFields)) {
                 $customFields[$key] = $value;
             }
         }
@@ -159,12 +159,12 @@ class ConvertJsonTemplateToLeadStructureAction
     private function mapStringType(array &$peopleStructure, array &$parsedData, string $name, $value): void
     {
         match ($name) {
-            'firstname' => $peopleStructure['firstname'] = $value,
-            'lastname' => $peopleStructure['lastname'] = $value,
+            'firstname'   => $peopleStructure['firstname'] = $value,
+            'lastname'    => $peopleStructure['lastname'] = $value,
             'description' => $parsedData['description'] = $value,
-            'email' => $this->addContact($peopleStructure['contacts'], ContactTypeEnum::EMAIL->value, $value),
-            'phone' => $this->addContact($peopleStructure['contacts'], ContactTypeEnum::PHONE->value, $value),
-            default => null
+            'email'       => $this->addContact($peopleStructure['contacts'], ContactTypeEnum::EMAIL->value, $value),
+            'phone'       => $this->addContact($peopleStructure['contacts'], ContactTypeEnum::PHONE->value, $value),
+            default       => null
         };
 
         $parsedData[$name] = $value;
@@ -175,7 +175,7 @@ class ConvertJsonTemplateToLeadStructureAction
         if ($value) {
             $contacts[] = [
                 'contacts_types_id' => $contactTypeId,
-                'value' => $value,
+                'value'             => $value,
             ];
         }
     }
@@ -213,20 +213,20 @@ class ConvertJsonTemplateToLeadStructureAction
     {
         $person = [];
         $person['name'] = $this->getValueFromPath($request, $json['name']);
-        if (! empty($json['organization'])) {
+        if (!empty($json['organization'])) {
             $person['organization'] = $this->getValueFromPath($request, $json['organization']);
         }
         $person['contacts'] = [];
         foreach ($json['contacts'] as $contact) {
             $person['contacts'][] = [
                 'contacts_types_id' => $contact['contacts_types_id'],
-                'value' => $this->getValueFromPath($request, $contact['value']),
+                'value'             => $this->getValueFromPath($request, $contact['value']),
             ];
         }
 
         // Address support
         $person['address'] = [];
-        if (! isset($json['address'])) {
+        if (!isset($json['address'])) {
             return $person;
         }
 

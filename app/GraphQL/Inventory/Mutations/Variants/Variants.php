@@ -74,7 +74,7 @@ class Variants
             );
         }
 
-        if (! empty($variantDto->files)) {
+        if (!empty($variantDto->files)) {
             foreach ($variantDto->files as $file) {
                 $variantModel->addFileFromUrl($file['url'], $file['name']);
             }

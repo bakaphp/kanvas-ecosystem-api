@@ -4,46 +4,23 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Templates;
 
-use Baka\Users\Contracts\UserInterface;
-use Exception;
-use Illuminate\Auth\AuthenticationException;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\Actions\UpdateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\Company;
-use Kanvas\Companies\Jobs\DeleteCompanyJob;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Enums\StateEnums;
-use Kanvas\Filesystem\Actions\AttachFilesystemAction;
-use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
-use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
-use Kanvas\Users\Actions\AssignRoleAction;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Models\UsersAssociatedApps;
-use Kanvas\Users\Models\UsersAssociatedCompanies;
-use Kanvas\Users\Repositories\UsersRepository;
-use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
-use Kanvas\TemplatesVariables\DataTransferObject\TemplatesVariablesDto;
 use Kanvas\Templates\Models\Templates;
 use Kanvas\TemplatesVariables\Actions\CreateTemplateVariableAction;
-use Kanvas\Apps\Models\Apps as AppsModel;
+use Kanvas\TemplatesVariables\DataTransferObject\TemplatesVariablesDto;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class TemplatesManagementMutation
 {
     /**
-     * createCompany
+     * createCompany.
      */
     public function createOrUpdate(mixed $root, array $request): Templates
     {
         $request = $request['input'];
-        if (! auth()->user()->isAdmin()) {
+        if (!auth()->user()->isAdmin()) {
             throw new AuthorizationException('Only admin can create or update templates, please contact your admin');
         }
 
@@ -54,14 +31,14 @@ class TemplatesManagementMutation
         //The subject, content and template should be then used for notifications
 
         $templatedto = TemplateInput::from([
-            'app' => app(Apps::class),
-            'name' => $request['name'],
+            'app'      => app(Apps::class),
+            'name'     => $request['name'],
             'template' => $request['template'],
-            'subject' => $request['subject'] ?? null,
-            'title' => $request['title'] ?? null,
+            'subject'  => $request['subject'] ?? null,
+            'title'    => $request['title'] ?? null,
             'isSystem' => $request['is_system'] ?? false,
-            'company' => $user->getCurrentCompany(),
-            'user' => $user,
+            'company'  => $user->getCurrentCompany(),
+            'user'     => $user,
         ]);
 
         $template = (new CreateTemplateAction(
@@ -69,7 +46,7 @@ class TemplatesManagementMutation
         ))->execute();
 
         foreach ($request['template_variables'] as $templateVariable) {
-            $templateVariablesDto =  new TemplatesVariablesDto(
+            $templateVariablesDto = new TemplatesVariablesDto(
                 $templateVariable['key'],
                 $templateVariable['value'],
                 $template->id,
@@ -89,14 +66,15 @@ class TemplatesManagementMutation
 
     public function deleteTemplate(mixed $root, array $request): bool
     {
-        if (! auth()->user()->isAdmin()) {
+        if (!auth()->user()->isAdmin()) {
             throw new AuthorizationException('Only admin can create or update templates, please contact your admin');
         }
-        $app = app((Apps::class));
+        $app = app(Apps::class);
         $template = Templates::fromApp($app)
             ->fromCompany(auth()->user()->getCurrentCompany())
             ->where('is_system', false)
             ->findOrFail($request['id']);
+
         return $template->delete();
     }
 }

@@ -66,7 +66,7 @@ class FilesystemMapperMutation
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        if (! $user->isAdmin()) {
+        if (!$user->isAdmin()) {
             throw new AuthenticationException('You are not allowed to perform this action');
         }
         $filesystemMapper = FilesystemImports::getByIdFromCompanyApp($req['id'], $company, $app);
@@ -90,14 +90,14 @@ class FilesystemMapperMutation
         $mapper = ModelsFilesystemMapper::getByIdFromCompanyApp($input['filesystem_mapper_id'], $company, $app);
         $regions = Regions::getByIdFromCompanyApp($input['regions_id'], $company, $app);
         $dto = FilesystemImport::from([
-            'app' => $app,
-            'users' => $user,
-            'companies' => $company,
-            'regions' => $regions,
+            'app'               => $app,
+            'users'             => $user,
+            'companies'         => $company,
+            'regions'           => $regions,
             'companiesBranches' => $user->getCurrentBranch(),
-            'filesystem' => $filesystem,
-            'filesystemMapper' => $mapper,
-            'extra' => $input['extra'] ?? null,
+            'filesystem'        => $filesystem,
+            'filesystemMapper'  => $mapper,
+            'extra'             => $input['extra'] ?? null,
         ]);
 
         if ($app->get(AppSettingsEnums::FILESYSTEM_MAPPER_HEADER_VALIDATION->getValue())) {
@@ -121,10 +121,10 @@ class FilesystemMapperMutation
         $fileHeaderFields = array_map('strtolower', array_map('trim', $fileHeader));
 
         $invalidFile = array_filter($fileHeaderFields, function ($field) use ($mappingHeader) {
-            return ! in_array($field, $mappingHeader);
+            return !in_array($field, $mappingHeader);
         });
 
-        if (! empty($invalidFile)) {
+        if (!empty($invalidFile)) {
             $errorMessage = sprintf(
                 "Validation failed for mapping '%s'. The following fields were not found: %s",
                 $fileMapper->name,

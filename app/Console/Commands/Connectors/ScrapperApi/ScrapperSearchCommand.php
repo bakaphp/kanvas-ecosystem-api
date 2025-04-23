@@ -48,6 +48,5 @@ class ScrapperSearchCommand extends Command
         );
         $action->execute();
 
-        return;
     }
 }

@@ -59,6 +59,7 @@ class ScrapperProcessorAction
                 } else {
                     $mappedProduct['variants'] = $mappedProduct;
                 }
+
                 try {
                     $product = (
                         new ProductImporterAction(
@@ -80,7 +81,7 @@ class ScrapperProcessorAction
                 if ($this->app->get('ScrapperApi-Index-Shopify')) {
                     $metafields = $this->getMetaFields(product: $product);
                     $shopifyProductId = $product->getShopifyId($warehouse->regions);
-                    if (! $shopifyProductId) {
+                    if (!$shopifyProductId) {
                         $shopifyProduct = (new CreateProductGraphql(
                             $this->app,
                             $this->companyBranch,
@@ -144,9 +145,9 @@ class ScrapperProcessorAction
         $metafieldData = [
             [
                 'namespace' => 'custom',
-                'key' => 'amazon_price',
-                'value' => json_encode(['amount' => $attribute->value, 'currency_code' => 'USD']),
-                'type' => 'money',
+                'key'       => 'amazon_price',
+                'value'     => json_encode(['amount' => $attribute->value, 'currency_code' => 'USD']),
+                'type'      => 'money',
             ],
         ];
 

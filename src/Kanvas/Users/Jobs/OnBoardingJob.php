@@ -50,7 +50,7 @@ class OnBoardingJob implements ShouldQueue
         $runOnboardingEvent = $this->app->get(AppSettingsEnums::ONBOARDING_EVENT_SETUP->getValue());
         $runOnboarding = $runOnboardingGuild || $runOnboardingInventory;
 
-        if (! $runOnboarding) {
+        if (!$runOnboarding) {
             return;
         }
 

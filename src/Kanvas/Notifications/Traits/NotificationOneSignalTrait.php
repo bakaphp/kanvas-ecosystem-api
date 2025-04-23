@@ -24,7 +24,7 @@ trait NotificationOneSignalTrait
 
         $messageContent = $this->getPushTemplate();
 
-        if (! Str::isJson($messageContent)) {
+        if (!Str::isJson($messageContent)) {
             //throw new ValidationException('Message content for push notification is not a valid JSON');
             return [];
         }
@@ -32,12 +32,12 @@ trait NotificationOneSignalTrait
         $messageContent = json_decode($messageContent, true);
 
         return [
-            'user_id' => $this->toUser->getId(),
-            'message' => $messageContent['message'],
-            'title' => $messageContent['title'] ?? '',
+            'user_id'  => $this->toUser->getId(),
+            'message'  => $messageContent['message'],
+            'title'    => $messageContent['title'] ?? '',
             'subtitle' => $messageContent['subtitle'] ?? '',
-            'apps_id' => $this->app->getId(),
-            'data' => $this->getData()
+            'apps_id'  => $this->app->getId(),
+            'data'     => $this->getData(),
         ];
     }
 }

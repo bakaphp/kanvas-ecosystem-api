@@ -27,10 +27,10 @@ class UserInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'role_id'       => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
                     'custom_fields' => [],
                 ],
             ]
@@ -55,9 +55,9 @@ class UserInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
+                    'role_id'       => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
                     'custom_fields' => [],
                 ],
             ]
@@ -82,10 +82,10 @@ class UserInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'role_id'       => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
                     'custom_fields' => [],
 
                 ],
@@ -104,10 +104,10 @@ class UserInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'password' => fake()->password(8),
-                    'invite_hash' => $invite['invite_hash'],
+                    'firstname'    => fake()->firstName(),
+                    'lastname'     => fake()->lastName(),
+                    'password'     => fake()->password(8),
+                    'invite_hash'  => $invite['invite_hash'],
                     'phone_number' => fake()->phoneNumber(),
 
                 ],
@@ -137,9 +137,9 @@ class UserInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
+                    'role_id'       => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
                     'custom_fields' => [],
 
                 ],
@@ -158,9 +158,9 @@ class UserInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'password' => fake()->password(8),
-                    'invite_hash' => $invite['invite_hash'],
+                    'firstname'    => fake()->firstName(),
+                    'password'     => fake()->password(8),
+                    'invite_hash'  => $invite['invite_hash'],
                     'phone_number' => fake()->phoneNumber(),
 
                 ],
@@ -190,10 +190,10 @@ class UserInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'role_id'       => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
                     'custom_fields' => [],
                 ],
             ]
@@ -228,10 +228,10 @@ class UserInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'role_id'       => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
                     'custom_fields' => [],
                 ],
             ]
@@ -250,7 +250,7 @@ class UserInviteTest extends TestCase
                 }',
             [
 
-                    'hash' => $invite['invite_hash'],
+                'hash' => $invite['invite_hash'],
             ]
         )
         ->assertSuccessful()
@@ -276,10 +276,10 @@ class UserInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'role_id'       => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
                     'custom_fields' => [],
                 ],
             ]
@@ -298,7 +298,7 @@ class UserInviteTest extends TestCase
                 }',
             [
 
-                    'hash' => $invite['invite_hash'],
+                'hash' => $invite['invite_hash'],
             ]
         )
         ->assertSuccessful()
@@ -324,10 +324,10 @@ class UserInviteTest extends TestCase
             }',
             [
                 'data' => [
-                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
-                    'email' => fake()->email(),
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
+                    'role_id'       => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
                     'custom_fields' => [],
                 ],
             ]

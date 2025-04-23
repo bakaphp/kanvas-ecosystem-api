@@ -38,10 +38,10 @@ class ProcessAdminInviteAction
         $invite = AdminInviteRepository::getByHash($this->adminInvite->getInviteHash());
 
         $dto = RegisterPostDataDto::fromArray([
-            'email' => $invite->email,
-            'password' => $this->adminInvite->password,
-            'firstname' => $this->adminInvite->firstname,
-            'lastname' => $this->adminInvite->lastname ?? '',
+            'email'        => $invite->email,
+            'password'     => $this->adminInvite->password,
+            'firstname'    => $this->adminInvite->firstname,
+            'lastname'     => $this->adminInvite->lastname ?? '',
             'phone_number' => $this->adminInvite->phone_number ?? null,
         ]);
 
@@ -67,7 +67,7 @@ class ProcessAdminInviteAction
             //create user admin key
             (new CreateAppKeyAction(
                 data: new AppKeyInput(
-                    $app->name . ' ' . $user->displayname . ' Key',
+                    $app->name.' '.$user->displayname.' Key',
                     $app,
                     $user
                 ),

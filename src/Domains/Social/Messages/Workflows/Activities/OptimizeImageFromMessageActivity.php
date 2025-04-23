@@ -22,11 +22,11 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $messageContent = ! is_array($message->message) ? json_decode($message->message, true) : $message->message;
+        $messageContent = !is_array($message->message) ? json_decode($message->message, true) : $message->message;
 
-        if (! isset($messageContent['image']) && ! isset($messageContent['ai_image'])) {
+        if (!isset($messageContent['image']) && !isset($messageContent['ai_image'])) {
             return [
-                'result' => false,
+                'result'  => false,
                 'message' => 'Message does not have an image url',
             ];
         }
@@ -34,18 +34,18 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
         // Safely retrieve the image URL based on message type
         if ($message->parent_id) {
             // For child messages, use 'image' key
-            if (! isset($messageContent['image'])) {
+            if (!isset($messageContent['image'])) {
                 return [
-                    'result' => false,
+                    'result'  => false,
                     'message' => 'Child message does not have an image url',
                 ];
             }
             $imageUrl = $messageContent['image'];
         } else {
             // For parent messages, use 'ai_image.image' key
-            if (! isset($messageContent['ai_image']) || ! isset($messageContent['ai_image']['image'])) {
+            if (!isset($messageContent['ai_image']) || !isset($messageContent['ai_image']['image'])) {
                 return [
-                    'result' => false,
+                    'result'  => false,
                     'message' => 'Parent message does not have a valid AI image url',
                 ];
             }
@@ -78,7 +78,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             $defaultUser = $defaultCompany->user;
         }
 
-        if (! $message->parent_id && isset($messageContent['ai_image'])) {
+        if (!$message->parent_id && isset($messageContent['ai_image'])) {
             $tempMessageArray = $messageContent;
             $tempMessageArray['ai_image'] = array_merge($messageContent['ai_image'], ['image' => $fileSystemRecord->url]);
             $message->message = $tempMessageArray;
@@ -89,12 +89,12 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
 
             foreach ($message->children as $childMessage) {
                 $childMessageArray = is_array($childMessage->message) ? $childMessage->message : json_decode($childMessage->message, true);
-                if (! is_array($childMessageArray) || ! array_key_exists('image', $childMessageArray)) {
+                if (!is_array($childMessageArray) || !array_key_exists('image', $childMessageArray)) {
                     continue;
                 }
                 $tempChildMessageArray = $childMessageArray;
                 $tempChildMessageArray['image'] = $fileSystemRecord->url;
-                if (! empty($imageTitle)) {
+                if (!empty($imageTitle)) {
                     $tempChildMessageArray['title'] = $imageTitle;
                 }
 
@@ -116,9 +116,9 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
         unlink($tempFilePath);
 
         return [
-            'result' => true,
-            'message' => 'Image optimized and uploaded',
-            'data' => $fileSystemRecord,
+            'result'     => true,
+            'message'    => 'Image optimized and uploaded',
+            'data'       => $fileSystemRecord,
             'message_id' => $message->getId(),
         ];
     }
