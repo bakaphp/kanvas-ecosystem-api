@@ -120,10 +120,10 @@ class RecombeeUserRecommendationService
         // booster being the booster rule on recombee, no need to set it here.
         // 1.0 is the default value for the booster, so we need to replace it with the booster rule
         $recombeeUserContentPreferences = $this->app->get('recombee-user-content-preferences-boosters');
-        foreach ($$recombeeUserContentPreferences as $preference => $boosterRule) {
+        foreach ($recombeeUserContentPreferences as $preference => $boosterRule) {
             if ($user->get($preference)) {
                 if (str_contains($booster, '1.0')) {
-                    $booster = str_replace('1.0', "(" . addslashes($boosterRule) . ")", $booster);
+                    $booster = str_replace('1.0', '('.addslashes($boosterRule).')', $booster);
                     continue;
                 }
                 $booster .= addslashes($boosterRule);
