@@ -13,19 +13,15 @@ class CartEventsServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        if (Schema::hasTable('app_settings')) {
+        if (Schema::hasTable('apps_settings')) {
             $app = app(Apps::class);
             $added = $app->get(ConfigurationEnum::EVENT_LARAVEL_CART_ADDED->value);
             $updated = $app->get(ConfigurationEnum::EVENT_LARAVEL_CART_UPDATED->value);
             Event::listen(ConfigurationEnum::EVENT_LARAVEL_CART_ADDED->value, function ($item) use ($app, $added) {
-                Log::debug('Item added to cart', [
-                    'item' => $item,
-                ]);
                 if ($added) {
                     (new $added($app, $item))->execute();
                 }
             });
-
             Event::listen(ConfigurationEnum::EVENT_LARAVEL_CART_UPDATED->value, function ($item) use ($app, $updated) {
                 if ($updated) {
                     (new $updated($app, $item))->execute();

@@ -42,17 +42,21 @@ class CartService
          * @todo move to DTO
          */
         $shipping = $this->cart->getCondition('Shipping');
-        return [
+        $response = [
             'id' => 'default',
             'items' => $cartItems, //$this->cart->getContent()->toArray(),
             'discounts' => $discounts,
             'total_discount' => $totalDiscount,
             'total' => $this->cart->getTotal(),
-            'shipping' => [
+        ];
+        if ($shipping) {
+            $response['shipping'] = [
                 'name' => $shipping->getName(),
                 'value' => $shipping->getValue(),
-                'attributes' => $shipping->getAttributes()
-            ]
-        ];
+                'attributes' => $shipping->getAttributes(),
+            ];
+        }
+
+        return $response;
     }
 }
