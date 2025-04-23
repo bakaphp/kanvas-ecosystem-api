@@ -41,6 +41,7 @@ class CartService
         /**
          * @todo move to DTO
          */
+
         $shipping = $this->cart->getCondition('Shipping');
         $response = [
             'id' => 'default',

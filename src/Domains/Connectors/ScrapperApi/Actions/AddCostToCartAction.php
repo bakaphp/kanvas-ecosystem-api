@@ -7,26 +7,27 @@ namespace Kanvas\Connectors\ScrapperApi\Actions;
 use Joelwmale\Cart\CartCondition;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Joelwmale\Cart\Cart;
 
 class AddCostToCartAction
 {
     public function __construct(
         protected Apps $app,
+        protected Cart $cart,
         protected array $item
     ) {
     }
 
     public function execute()
     {
-        $cart = app('cart')->session($this->item['session_key']);
         $fees = array_map(function ($item) {
             $variant = Variants::getById($item['id']);
             $calc = (new CalculateShippingCostAction($variant, (float)$this->item['item']['quantity']))->execute();
             return $calc;
-        }, $cart->getContent()->toArray());
+        }, $this->cart->getContent()->toArray());
         $fee = collect($fees);
         $total = $fee->sum('total');
-        $cart->removeCartCondition("Shipping");
+        $this->cart->removeCartCondition("Shipping");
         $condition = new CartCondition([
             'name' => 'Shipping',
             'type' => 'shipping',
@@ -38,6 +39,6 @@ class AddCostToCartAction
                 'Service Fee' => $fee->sum('serviceFee'),
             ],
         ]);
-        $cart->condition([$condition]);
+        $this->cart->condition([$condition]);
     }
 }

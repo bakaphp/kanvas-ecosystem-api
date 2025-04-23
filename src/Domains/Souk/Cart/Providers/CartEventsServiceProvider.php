@@ -3,7 +3,6 @@
 namespace Kanvas\Souk\Cart\Providers;
 
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Kanvas\Apps\Models\Apps;
@@ -13,20 +12,30 @@ class CartEventsServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        if (Schema::hasTable('apps_settings')) {
-            $app = app(Apps::class);
-            $added = $app->get(ConfigurationEnum::EVENT_LARAVEL_CART_ADDED->value);
-            $updated = $app->get(ConfigurationEnum::EVENT_LARAVEL_CART_UPDATED->value);
-            Event::listen(ConfigurationEnum::EVENT_LARAVEL_CART_ADDED->value, function ($item) use ($app, $added) {
-                if ($added) {
-                    (new $added($app, $item))->execute();
-                }
-            });
-            Event::listen(ConfigurationEnum::EVENT_LARAVEL_CART_UPDATED->value, function ($item) use ($app, $updated) {
-                if ($updated) {
-                    (new $updated($app, $item))->execute();
-                }
-            });
+        if (! Schema::hasTable('apps_settings')) {
+            return;
+        }
+
+        $app = app(Apps::class);
+        $this->registerCartEvents($app);
+    }
+
+    private function registerCartEvents(Apps $app): void
+    {
+        $events = [
+            ConfigurationEnum::EVENT_LARAVEL_CART_ADDED->value,
+            ConfigurationEnum::EVENT_LARAVEL_CART_UPDATED->value,
+        ];
+
+        foreach ($events as $event) {
+            $handler = $app->get($event);
+
+            if ($handler) {
+                Event::listen($event, function ($item) use ($app, $handler) {
+                    $cart = app('cart')->session($item['session_key']);
+                    (new $handler($app, $cart, $item))->execute();
+                });
+            }
         }
     }
 }
