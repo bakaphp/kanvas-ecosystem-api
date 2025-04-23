@@ -37,7 +37,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         $messageFiles = $entity->getFiles();
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
-        $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '');
+        $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
 
         $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
 
