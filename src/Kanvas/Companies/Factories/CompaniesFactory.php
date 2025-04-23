@@ -31,20 +31,20 @@ class CompaniesFactory extends Factory
         $user = Users::factory()->create();
 
         return [
-            'users_id' => $user->id,
-            'uuid' => Str::random(10),
-            'name' => $this->faker->name(),
-            'profile_image' => $this->faker->name(),
-            'website' => $this->faker->url(),
-            'address' => $this->faker->address(),
-            'zipcode' => $this->faker->postcode(),
-            'email' => $this->faker->email(),
-            'language' => 'EN',
-            'timezone' => $this->faker->timezone(),
-            'phone' => $this->faker->phoneNumber(),
+            'users_id'       => $user->id,
+            'uuid'           => Str::random(10),
+            'name'           => $this->faker->name(),
+            'profile_image'  => $this->faker->name(),
+            'website'        => $this->faker->url(),
+            'address'        => $this->faker->address(),
+            'zipcode'        => $this->faker->postcode(),
+            'email'          => $this->faker->email(),
+            'language'       => 'EN',
+            'timezone'       => $this->faker->timezone(),
+            'phone'          => $this->faker->phoneNumber(),
             'has_activities' => 1,
-            'country_code' => $this->faker->countryCode(),
-            'is_deleted' => 0,
+            'country_code'   => $this->faker->countryCode(),
+            'is_deleted'     => 0,
         ];
     }
 }

@@ -22,19 +22,19 @@ final class DynamicNotificationTest extends TestCase
         $user = auth()->user();
         $createParentTemplate = new CreateTemplateAction(
             TemplateInput::from([
-                'app' => app(Apps::class),
-                'name' => 'test-notification',
+                'app'      => app(Apps::class),
+                'name'     => 'test-notification',
                 'template' => '<html><body>Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values</body></html>',
-                ])
+            ])
         );
         $template = $createParentTemplate->execute();
 
         $createPushTemplate = new CreateTemplateAction(
             TemplateInput::from([
-                'app' => app(Apps::class),
-                'name' => 'test-notification-push',
+                'app'      => app(Apps::class),
+                'name'     => 'test-notification-push',
                 'template' => 'Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values',
-                ])
+            ])
         );
         $pushTemplate = $createPushTemplate->execute();
 
@@ -60,7 +60,7 @@ final class DynamicNotificationTest extends TestCase
 
         $dynamicNotification = new DynamicKanvasNotification(
             $notificationType,
-            ['dynamic' => 'dynamic ' . time()]
+            ['dynamic' => 'dynamic '.time()]
         );
 
         Notification::fake();

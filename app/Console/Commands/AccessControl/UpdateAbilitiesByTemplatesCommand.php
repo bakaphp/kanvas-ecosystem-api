@@ -13,6 +13,7 @@ class UpdateAbilitiesByTemplatesCommand extends Command
     protected $signature = 'kanvas:update-abilities-templates {app?}';
 
     protected $description = 'Command description';
+
     public function handle()
     {
         if ($key = $this->argument('app')) {

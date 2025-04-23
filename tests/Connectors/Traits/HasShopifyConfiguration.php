@@ -38,9 +38,9 @@ trait HasShopifyConfiguration
     public function setupShopifyIntegration(Products $product, Regions $region)
     {
         $credentials = [
-            'client_id' => getenv('TEST_SHOPIFY_API_KEY'),
+            'client_id'     => getenv('TEST_SHOPIFY_API_KEY'),
             'client_secret' => getenv('TEST_SHOPIFY_API_SECRET'),
-            'shop_url' => getenv('TEST_SHOPIFY_SHOP_URL'),
+            'shop_url'      => getenv('TEST_SHOPIFY_SHOP_URL'),
         ];
 
         $integration = Integrations::first();

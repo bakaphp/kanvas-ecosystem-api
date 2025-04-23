@@ -16,19 +16,19 @@ use Kanvas\Traits\DefaultTrait;
 /**
  * FilesystemMapping Model.
  *
- * @property int $id
+ * @property int    $id
  * @property string $uuid;
- * @property int $apps_id
- * @property int $users_id
- * @property int $companies_id
- * @property int $companies_branches_id
- * @property int $system_modules_id
- * @property int $name
- * @property array $file_header
- * @property array $mapping
+ * @property int    $apps_id
+ * @property int    $users_id
+ * @property int    $companies_id
+ * @property int    $companies_branches_id
+ * @property int    $system_modules_id
+ * @property int    $name
+ * @property array  $file_header
+ * @property array  $mapping
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_deleted
+ * @property int    $is_deleted
  */
 class FilesystemMapper extends BaseModel
 {
@@ -53,7 +53,7 @@ class FilesystemMapper extends BaseModel
 
     protected $casts = [
         'file_header' => Json::class,
-        'mapping' => Json::class,
+        'mapping'     => Json::class,
     ];
 
     /**

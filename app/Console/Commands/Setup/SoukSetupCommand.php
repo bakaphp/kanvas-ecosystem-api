@@ -28,8 +28,6 @@ class SoukSetupCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -44,9 +42,8 @@ class SoukSetupCommand extends Command
         ))->run();
 
         $this->newLine();
-        $this->info('Social Souk for Company ' . $company->name . ' and App ' . $app->name . ' completed successfully');
+        $this->info('Social Souk for Company '.$company->name.' and App '.$app->name.' completed successfully');
         $this->newLine();
 
-        return;
     }
 }

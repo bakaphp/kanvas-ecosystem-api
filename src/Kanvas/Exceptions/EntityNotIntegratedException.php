@@ -14,7 +14,7 @@ class EntityNotIntegratedException extends LightHouseCustomException
         parent::__construct(
             sprintf(
                 'Entity %s not integrated with %s',
-                get_class($entity) . ' ' . $entity->id,
+                get_class($entity).' '.$entity->id,
                 $service
             )
         );

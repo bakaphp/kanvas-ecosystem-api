@@ -27,10 +27,10 @@ class PipelineTest extends TestCase
         $name = fake()->name();
 
         $input = [
-            'name' => $name,
-            'weight' => 0,
+            'name'       => $name,
+            'weight'     => 0,
             'is_default' => false,
-            'stages' => [],
+            'stages'     => [],
         ];
 
         return $this->graphQL('
@@ -41,7 +41,7 @@ class PipelineTest extends TestCase
                 }
             }
         ', [
-                'input' => $input,
+            'input' => $input,
         ]);
     }
 
@@ -52,12 +52,12 @@ class PipelineTest extends TestCase
         $name = $data['name'];
 
         $pipeline->assertJson([
-             'data' => [
-                 'createPipeline' => [
-                     'name' => $name,
-                 ],
-             ],
-         ]);
+            'data' => [
+                'createPipeline' => [
+                    'name' => $name,
+                ],
+            ],
+        ]);
     }
 
     public function testUpdatePipeline()
@@ -67,10 +67,10 @@ class PipelineTest extends TestCase
         $newName = fake()->name();
 
         $input = [
-             'name' => $newName,
-             'weight' => 0,
-             'is_default' => false,
-             'stages' => [],
+            'name'       => $newName,
+            'weight'     => 0,
+            'is_default' => false,
+            'stages'     => [],
         ];
 
         $this->graphQL('
@@ -82,15 +82,15 @@ class PipelineTest extends TestCase
                 }
             }
             ', [
-                'id' => $pipeline['id'],
-                'input' => $input,
+            'id'    => $pipeline['id'],
+            'input' => $input,
         ])->assertJson([
-                'data' => [
-                    'updatePipeline' => [
-                        'name' => $newName,
-                    ],
+            'data' => [
+                'updatePipeline' => [
+                    'name' => $newName,
                 ],
-            ]);
+            ],
+        ]);
     }
 
     public function testDeletePipeline()
@@ -102,12 +102,12 @@ class PipelineTest extends TestCase
                 deletePipeline(id: $id)
             }
             ', [
-                'id' => $pipeline['id'],
+            'id' => $pipeline['id'],
         ])->assertJson([
-                'data' => [
-                    'deletePipeline' => true,
-                ],
-            ]);
+            'data' => [
+                'deletePipeline' => true,
+            ],
+        ]);
     }
 
     public function testRestorePipeline()
@@ -119,24 +119,24 @@ class PipelineTest extends TestCase
                 deletePipeline(id: $id)
             }
             ', [
-                'id' => $pipeline['id'],
+            'id' => $pipeline['id'],
         ])->assertJson([
-                'data' => [
-                    'deletePipeline' => true,
-                ],
-            ]);
+            'data' => [
+                'deletePipeline' => true,
+            ],
+        ]);
 
         $this->graphQL('
             mutation($id: ID!){
                 restorePipeline(id: $id)
             }
             ', [
-                'id' => $pipeline['id'],
+            'id' => $pipeline['id'],
         ])->assertJson([
-                'data' => [
-                    'restorePipeline' => true,
-                ],
-            ]);
+            'data' => [
+                'restorePipeline' => true,
+            ],
+        ]);
     }
 
     protected function createPipelineStage(): TestResponse
@@ -146,9 +146,9 @@ class PipelineTest extends TestCase
         $name = fake()->name();
 
         $input = [
-            'pipeline_id' => $pipeline['id'],
-            'name' => $name,
-            'weight' => 0,
+            'pipeline_id'  => $pipeline['id'],
+            'name'         => $name,
+            'weight'       => 0,
             'rotting_days' => 0,
         ];
 
@@ -163,8 +163,8 @@ class PipelineTest extends TestCase
                 }
             }
             ', [
-                'input' => $input,
-            ]);
+            'input' => $input,
+        ]);
     }
 
     public function testCreatePipelineStage()
@@ -174,13 +174,12 @@ class PipelineTest extends TestCase
         $name = $data['name'];
 
         $stage->assertJson([
-                'data' => [
-                    'createPipelineStage' => [
-                        'name' => $name,
-                    ],
+            'data' => [
+                'createPipelineStage' => [
+                    'name' => $name,
                 ],
-            ]);
-
+            ],
+        ]);
 
         $pipeline = $this->graphQL('
             query($id: Mixed!){
@@ -196,8 +195,8 @@ class PipelineTest extends TestCase
                 }
             }}
             ', [
-                'id' => $data['pipeline']['id'],
-            ])->assertSee($name);
+            'id' => $data['pipeline']['id'],
+        ])->assertSee($name);
     }
 
     public function testUpdatePipelineStage()
@@ -207,9 +206,9 @@ class PipelineTest extends TestCase
         $newName = fake()->name();
 
         $input = [
-            'pipeline_id' => $stage['pipeline']['id'],
-            'name' => $newName,
-            'weight' => 0,
+            'pipeline_id'  => $stage['pipeline']['id'],
+            'name'         => $newName,
+            'weight'       => 0,
             'rotting_days' => 0,
         ];
 
@@ -221,15 +220,15 @@ class PipelineTest extends TestCase
                 }
             }
             ', [
-                'id' => $stage['id'],
-                'input' => $input,
-            ])->assertJson([
-                'data' => [
-                    'updatePipelineStage' => [
-                        'name' => $newName,
-                    ],
+            'id'    => $stage['id'],
+            'input' => $input,
+        ])->assertJson([
+            'data' => [
+                'updatePipelineStage' => [
+                    'name' => $newName,
                 ],
-            ]);
+            ],
+        ]);
     }
 
     public function testDeletePipelineStage()
@@ -241,12 +240,12 @@ class PipelineTest extends TestCase
                 deletePipelineStage(id: $id)
             }
             ', [
-                'id' => $stage['id'],
-            ])->assertJson([
-                'data' => [
-                    'deletePipelineStage' => true,
-                ],
-            ]);
+            'id' => $stage['id'],
+        ])->assertJson([
+            'data' => [
+                'deletePipelineStage' => true,
+            ],
+        ]);
     }
 
     public function testRestorePipelineStage()
@@ -258,23 +257,23 @@ class PipelineTest extends TestCase
                 deletePipelineStage(id: $id)
             }
             ', [
-                'id' => $stage['id'],
-            ])->assertJson([
-                'data' => [
-                    'deletePipelineStage' => true,
-                ],
-            ]);
+            'id' => $stage['id'],
+        ])->assertJson([
+            'data' => [
+                'deletePipelineStage' => true,
+            ],
+        ]);
 
         $this->graphQL('
             mutation($id: ID!){
                 restorePipelineStage(id: $id)
             }
             ', [
-                'id' => $stage['id'],
-            ])->assertJson([
-                'data' => [
-                    'restorePipelineStage' => true,
-                ],
-            ]);
+            'id' => $stage['id'],
+        ])->assertJson([
+            'data' => [
+                'restorePipelineStage' => true,
+            ],
+        ]);
     }
 }

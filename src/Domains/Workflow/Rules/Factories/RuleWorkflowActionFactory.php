@@ -19,13 +19,13 @@ class RuleWorkflowActionFactory extends Factory
     {
         try {
             $action = Action::getByName('Lead Zoho');
-        } catch(Throwable $e) {
+        } catch (Throwable $e) {
             $action = Action::factory()->create();
         }
 
         return [
-           'actions_id' => $action->id,
-           'system_modules_id' => SystemModulesRepository::getByModelName(Lead::class),
+            'actions_id'        => $action->id,
+            'system_modules_id' => SystemModulesRepository::getByModelName(Lead::class),
         ];
     }
 }

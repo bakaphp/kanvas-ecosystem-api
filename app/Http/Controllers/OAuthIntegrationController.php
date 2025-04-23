@@ -24,13 +24,12 @@ use Sentry\Laravel\Facade as Sentry;
 
 /**
  * TODO like we started with receivers, this is tied in to shopify
- * but we need to make it oauth agnostic
- * @package App\Http\Controllers
+ * but we need to make it oauth agnostic.
  */
 class OAuthIntegrationController extends BaseController
 {
     /**
-     * Begin the OAuth process
+     * Begin the OAuth process.
      */
     public function auth(string $uuid, Request $request): JsonResponse|RedirectResponse|Redirector
     {
@@ -54,10 +53,10 @@ class OAuthIntegrationController extends BaseController
         $nonce = $webhookRequest->uuid;
 
         // Store state in Redis instead of session
-        $stateKey = 'shopify_oauth:' . $uuid;
+        $stateKey = 'shopify_oauth:'.$uuid;
         Redis::setex($stateKey, 1800, json_encode([
-            'nonce' => $nonce,
-            'shop' => $shopDomain,
+            'nonce'  => $nonce,
+            'shop'   => $shopDomain,
             'app_id' => $app->getId(),
         ]));
 
@@ -75,7 +74,7 @@ class OAuthIntegrationController extends BaseController
     }
 
     /**
-     * Handle the OAuth callback from Shopify
+     * Handle the OAuth callback from Shopify.
      */
     public function callback(string $uuid, Request $request): JsonResponse|RedirectResponse|Redirector
     {
@@ -100,7 +99,7 @@ class OAuthIntegrationController extends BaseController
         $region = Regions::getByIdFromCompanyApp($receiver->configuration['region_id'], $receiver->company, $app);
 
         // Retrieve state from Redis
-        $stateKey = 'shopify_oauth:' . $uuid;
+        $stateKey = 'shopify_oauth:'.$uuid;
         $stateJson = Redis::get($stateKey);
 
         if (! $stateJson) {
@@ -113,7 +112,7 @@ class OAuthIntegrationController extends BaseController
 
         if (! $nonce || $shop !== $sessionShop) {
             return response()->json([
-                'error' => 'Invalid state or shop mismatch',
+                'error'   => 'Invalid state or shop mismatch',
                 'details' => [
                     'expected_shop' => $sessionShop,
                     'received_shop' => $shop,
@@ -146,17 +145,17 @@ class OAuthIntegrationController extends BaseController
             // Store the token and info in the app
             $accessTokenResult = [
                 'access_token' => $accessToken,
-                'shop_info' => $shopInfo,
-                'shop_domain' => $shop,
+                'shop_info'    => $shopInfo,
+                'shop_domain'  => $shop,
             ];
 
             //if its company base or app base setting
-            $receiver->company->set('shopify-access-token-' . $receiver->company->id . '-' . $region->id, $accessTokenResult);
+            $receiver->company->set('shopify-access-token-'.$receiver->company->id.'-'.$region->id, $accessTokenResult);
             $shopifyStoresConfig = $app->get('shopify_stores_config') ?? [];
 
             $shopifyStoresConfig[$shop] = [
                 'access_token' => $accessToken,
-                'shop_info' => $shopInfo,
+                'shop_info'    => $shopInfo,
             ];
             $app->set('shopify_stores_config', $shopifyStoresConfig);
 
@@ -164,7 +163,7 @@ class OAuthIntegrationController extends BaseController
             $this->clearRedisState($uuid);
 
             $receiverCall->update([
-                'status' => 'success',
+                'status'  => 'success',
                 'results' => $accessTokenResult,
             ]);
 
@@ -176,13 +175,13 @@ class OAuthIntegrationController extends BaseController
             return response()->json([
                 'success' => true,
                 'message' => 'Successfully authenticated with Shopify',
-                'shop' => $shopInfo['name'],
+                'shop'    => $shopInfo['name'],
             ]);
         } catch (Exception $e) {
             Sentry::withScope(function ($scope) use ($e, $uuid, $request) {
                 $scope->setContext('Request Data', [
-                    'uuid' => $uuid,
-                    'payload' => $request->all(),
+                    'uuid'      => $uuid,
+                    'payload'   => $request->all(),
                     'exception' => $e->getMessage(),
                 ]);
                 Sentry::captureException($e);
@@ -192,23 +191,23 @@ class OAuthIntegrationController extends BaseController
             $this->clearRedisState($uuid);
 
             $receiverCall->update([
-                'status' => 'failed',
+                'status'    => 'failed',
                 'exception' => [
-                    'code' => $e->getCode(),
+                    'code'    => $e->getCode(),
                     'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
+                    'trace'   => $e->getTraceAsString(),
                 ],
             ]);
 
             return response()->json([
-                'error' => 'Authentication error',
+                'error'   => 'Authentication error',
                 'message' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Get the receiver and app for the given UUID
+     * Get the receiver and app for the given UUID.
      */
     private function getReceiverAndApp(string $uuid, Request $request): array|JsonResponse
     {
@@ -217,7 +216,7 @@ class OAuthIntegrationController extends BaseController
         if (! $receiver) {
             Sentry::withScope(function ($scope) use ($uuid, $request) {
                 $scope->setContext('Request Data', [
-                    'uuid' => $uuid,
+                    'uuid'    => $uuid,
                     'payload' => $request->all(),
                 ]);
                 Sentry::captureMessage("Receiver not found for UUID: {$uuid}");
@@ -236,20 +235,20 @@ class OAuthIntegrationController extends BaseController
     }
 
     /**
-     * Configure Shopify SDK
+     * Configure Shopify SDK.
      */
     private function configureShopifySDK(Apps $app, string $shopDomain, ?string $redirectUrl = null): array
     {
         if (! Str::startsWith($shopDomain, ['http://', 'https://'])) {
-            $shopDomain = 'https://' . $shopDomain;
+            $shopDomain = 'https://'.$shopDomain;
         }
 
         $config = [
-            'ApiKey' => $app->get('shopify-api-key'),
-            'ApiSecret' => $app->get('shopify-api-secret'),
+            'ApiKey'       => $app->get('shopify-api-key'),
+            'ApiSecret'    => $app->get('shopify-api-secret'),
             'SharedSecret' => $app->get('shopify-api-secret'),
-            'ShopUrl' => $shopDomain,
-            'ApiVersion' => $app->get('shopify-api-version') ?? '2025-01',
+            'ShopUrl'      => $shopDomain,
+            'ApiVersion'   => $app->get('shopify-api-version') ?? '2025-01',
         ];
 
         if ($redirectUrl) {
@@ -263,11 +262,11 @@ class OAuthIntegrationController extends BaseController
     }
 
     /**
-     * Clear Redis state data
+     * Clear Redis state data.
      */
     private function clearRedisState(string $uuid): void
     {
-        $stateKey = 'shopify_oauth:' . $uuid;
+        $stateKey = 'shopify_oauth:'.$uuid;
         Redis::del($stateKey);
     }
 }

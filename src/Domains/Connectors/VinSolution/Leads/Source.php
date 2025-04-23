@@ -39,7 +39,7 @@ class Source
         $data['UserId'] = $user->id;
         $params = http_build_query($params);
 
-        $response = $client->get('/leadSources?dealerId=' . $dealer->id . '&' . $params, [
+        $response = $client->get('/leadSources?dealerId='.$dealer->id.'&'.$params, [
             'headers' => [
                 'Accept' => 'application/vnd.coxauto.v1+json',
             ],
@@ -66,7 +66,7 @@ class Source
         $data['DealerId'] = $dealer->id;
         $data['UserId'] = $user->id;
 
-        $response = $client->get('/leadSources/id/' . $sourceId . '?dealerId=' . $dealer->id, [
+        $response = $client->get('/leadSources/id/'.$sourceId.'?dealerId='.$dealer->id, [
             'headers' => [
                 'Accept' => 'application/vnd.coxauto.v1+json',
             ],

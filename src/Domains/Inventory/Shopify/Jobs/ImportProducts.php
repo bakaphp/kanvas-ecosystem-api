@@ -25,7 +25,7 @@ class ImportProducts implements ShouldQueue
      */
     public function handle()
     {
-        $graphQL = <<<Query
+        $graphQL = <<<'Query'
         query{
             products(first: 10){
                 nodes {
@@ -54,7 +54,7 @@ class ImportProducts implements ShouldQueue
         Query;
         $shopifyClient = Client::getClient('https://frederick-penalo.myshopify.com');
         $response = $shopifyClient->post('', [
-            'json' => ['query' => $graphQL]
+            'json' => ['query' => $graphQL],
         ]);
         dd(json_decode($response->getBody()->getContents()));
         // $data = $shopify->GraphQL->post($graphQL);

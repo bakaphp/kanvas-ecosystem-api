@@ -25,7 +25,7 @@ class KanvasAppKeyMiddleware
         $appIdentifier = $request->header(AppEnums::KANVAS_APP_HEADER->getValue(), config('kanvas.app.id'));
 
         if (! $this->registerApp($appIdentifier)) {
-            return response()->json(['message' => 'No App configured with this key: ' . $appIdentifier], 500);
+            return response()->json(['message' => 'No App configured with this key: '.$appIdentifier], 500);
         }
 
         $this->handleCompanyBranch($request);
@@ -56,9 +56,9 @@ class KanvasAppKeyMiddleware
                 $companyBranch = CompaniesBranches::getByUuid($companyBranchKey);
                 app()->scoped(CompaniesBranches::class, fn () => $companyBranch);
             } catch (Throwable $e) {
-                response()->json(['message' => 'No Company Branch configured with this key: ' . $companyBranchKey], 500)->send();
+                response()->json(['message' => 'No Company Branch configured with this key: '.$companyBranchKey], 500)->send();
 
-                return ;
+                return;
             }
         }
     }
@@ -82,7 +82,7 @@ class KanvasAppKeyMiddleware
 
             app()->scoped(AppEnums::KANVAS_IDENTIFIER->getValue(), fn () => $kanvasIdentifier);
         } catch (Throwable $e) {
-            response()->json(['message' => 'No App configured with this key: ' . ($kanvasIdentifier ?? 'unknown')], 500)->send();
+            response()->json(['message' => 'No App configured with this key: '.($kanvasIdentifier ?? 'unknown')], 500)->send();
 
             return;
         }
@@ -100,16 +100,16 @@ class KanvasAppKeyMiddleware
                 if ($kanvasAppKey->hasExpired()) {
                     response()->json(['message' => 'App Key has expired'], 500)->send();
 
-                    return ;
+                    return;
                 }
 
                 $this->scopeAppKeyAndApp($kanvasAppKey, $kanvasApp);
                 $this->setUserIfNoBearerToken($request, $kanvasAppKey);
                 $this->updateLastUsedDate($kanvasAppKey);
             } catch (Throwable $e) {
-                response()->json(['message' => 'No App Key configured with this key: ' . $appKey], 500)->send();
+                response()->json(['message' => 'No App Key configured with this key: '.$appKey], 500)->send();
 
-                return ;
+                return;
             }
         }
     }

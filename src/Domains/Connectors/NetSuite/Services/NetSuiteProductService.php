@@ -47,7 +47,7 @@ class NetSuiteProductService
             return $response->readResponse->record;
         }
 
-        throw new Exception('Error retrieving product: ' . $response->readResponse->status->statusDetail[0]->message);
+        throw new Exception('Error retrieving product: '.$response->readResponse->status->statusDetail[0]->message);
     }
 
     public function getInventoryQuantityByLocation(InventoryItem $product, int|string $locationId): int
@@ -58,7 +58,7 @@ class NetSuiteProductService
 
         foreach ($product->locationsList->locations as $assignment) {
             if ($assignment->location == $locationId) {
-                return (int)$assignment->quantityOnHand;
+                return (int) $assignment->quantityOnHand;
             }
         }
 
@@ -162,7 +162,7 @@ class NetSuiteProductService
         $response = $this->service->search($searchRequest);
 
         if (! $response->searchResult->status->isSuccess) {
-            throw new Exception('Error searching products: ' . $response->searchResult->status->statusDetail[0]->message);
+            throw new Exception('Error searching products: '.$response->searchResult->status->statusDetail[0]->message);
         }
 
         $products = [];
@@ -182,10 +182,11 @@ class NetSuiteProductService
         foreach ($barcodeList as $index => $barcode) {
             $product = $this->searchProductByItemNumber($barcode);
             $product = $this->getProductById($product[0]->internalId);
-            $productSkus[$barcode] = $this->getCustomField($product, "custitem5");
-            echo 'Product ' . $index . ' of ' . count($barcodeList) . ' processed';
+            $productSkus[$barcode] = $this->getCustomField($product, 'custitem5');
+            echo 'Product '.$index.' of '.count($barcodeList).' processed';
             echo PHP_EOL;
         }
+
         return $productSkus;
     }
 }

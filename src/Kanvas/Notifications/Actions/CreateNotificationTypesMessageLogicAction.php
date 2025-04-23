@@ -27,9 +27,9 @@ class CreateNotificationTypesMessageLogicAction
     public function execute(): NotificationTypesMessageLogic
     {
         return NotificationTypesMessageLogic::create([
-            'apps_id' => $this->app->getId(),
+            'apps_id'               => $this->app->getId(),
             'notifications_type_id' => $this->notificationType->getId(),
-            'logic' => $this->logic,
+            'logic'                 => $this->logic,
         ]);
     }
 }

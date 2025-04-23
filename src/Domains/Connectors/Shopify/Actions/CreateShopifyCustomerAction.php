@@ -77,10 +77,10 @@ class CreateShopifyCustomerAction
     {
         return [
             'first_name' => $this->people->firstname,
-            'last_name' => $this->people->lastname,
-            'email' => $this->people->getEmails()->first()?->value,
-            'phone' => $this->people->getPhones()->first()?->value,
-            'addresses' => $this->prepareAddresses(),
+            'last_name'  => $this->people->lastname,
+            'email'      => $this->people->getEmails()->first()?->value,
+            'phone'      => $this->people->getPhones()->first()?->value,
+            'addresses'  => $this->prepareAddresses(),
         ];
     }
 
@@ -95,10 +95,10 @@ class CreateShopifyCustomerAction
         return [[
             'address1' => $address->address,
             'address2' => $address->address_2,
-            'city' => $address->city,
+            'city'     => $address->city,
             'province' => $address->state,
-            'country' => $address->country?->name ?? '',
-            'zip' => $address->zip,
+            'country'  => $address->country?->name ?? '',
+            'zip'      => $address->zip,
             //'phone' => $this->people->phone,
         ]];
     }

@@ -55,7 +55,7 @@ class InventoryDailyReportCommand extends Command
 
     protected function processCompany(AppInterface $app, CompanyInterface $company): void
     {
-        $this->info('Sending Inventory Daily Report - ' . $company->name . ' - ' . date('Y-m-d'));
+        $this->info('Sending Inventory Daily Report - '.$company->name.' - '.date('Y-m-d'));
         $this->unPublishProductsByExpirationDate($app, $company);
         //$this->publishProductsByExpirationDate($app, $company);
 
@@ -74,7 +74,7 @@ class InventoryDailyReportCommand extends Command
 
         foreach ($productsToUnPublished as $product) {
             $product->unPublish();
-            $this->info('Product ' . $product->id . ' has been unpublished');
+            $this->info('Product '.$product->id.' has been unpublished');
             //@todo send report to the company
         }
     }
@@ -85,7 +85,7 @@ class InventoryDailyReportCommand extends Command
 
         foreach ($productsToPublished as $product) {
             $product->publish();
-            $this->info('Product ' . $product->id . ' has been published');
+            $this->info('Product '.$product->id.' has been published');
             //@todo send report to the company
         }
     }

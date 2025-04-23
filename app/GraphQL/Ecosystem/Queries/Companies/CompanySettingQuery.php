@@ -8,17 +8,15 @@ class CompanySettingQuery
 {
     /**
      * Get user from the current company.
-     *
-     * @param mixed $rootValue
      */
     public function getAllSettings($rootValue, array $request): array
     {
         $company = auth()->user()->getCurrentCompany();
 
         return [
-            'name' => $company->name,
+            'name'        => $company->name,
             'description' => $company->description,
-            'settings' => $company->getAllSettings(onlyPublicSettings: true),
+            'settings'    => $company->getAllSettings(onlyPublicSettings: true),
         ];
     }
 }

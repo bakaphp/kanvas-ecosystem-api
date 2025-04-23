@@ -40,13 +40,13 @@ class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
         if (! $customer->email) {
             //Log::error('Customer email not found');
 
-            return ['error' => 'Customer email not found ' . $customer->id];
+            return ['error' => 'Customer email not found '.$customer->id];
         }
         $people = PeoplesRepository::getByEmail($customer->email, $company);
         if (! $people) {
             //Log::error('People not found');
 
-            return ['error' => 'People not found' . $customer->email];
+            return ['error' => 'People not found'.$customer->email];
 
             return [];
         }
@@ -68,7 +68,7 @@ class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
 
         return [
             'message' => 'People Subscription updated',
-            'data' => $peopleSub,
+            'data'    => $peopleSub,
         ];
     }
 }

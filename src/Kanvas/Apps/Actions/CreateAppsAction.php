@@ -40,15 +40,15 @@ class CreateAppsAction
         $app = new Apps();
         DB::transaction(function () use ($app) {
             $app->fill([
-                'name' => $this->data->name,
-                'url' => $this->data->url,
-                'description' => $this->data->description,
-                'domain' => $this->data->domain,
-                'is_actived' => $this->data->is_actived,
-                'ecosystem_auth' => $this->data->ecosystem_auth,
+                'name'            => $this->data->name,
+                'url'             => $this->data->url,
+                'description'     => $this->data->description,
+                'domain'          => $this->data->domain,
+                'is_actived'      => $this->data->is_actived,
+                'ecosystem_auth'  => $this->data->ecosystem_auth,
                 'payments_active' => $this->data->payments_active,
-                'is_public' => $this->data->is_public,
-                'domain_based' => $this->data->domain_based,
+                'is_public'       => $this->data->is_public,
+                'domain_based'    => $this->data->domain_based,
             ]);
             $app->saveOrFail();
 
@@ -82,44 +82,44 @@ class CreateAppsAction
     protected function settings(Apps $app): void
     {
         if ($app->settings()->count()) {
-            return ;
+            return;
         }
 
         $settings = [
             [
-                'name' => 'allow_user_registration',
+                'name'  => 'allow_user_registration',
                 'value' => '1',
             ], [
-                'name' => 'allow_social_auth',
+                'name'  => 'allow_social_auth',
                 'value' => '0',
             ], [
-                'name' => 'show_notifications',
+                'name'  => 'show_notifications',
                 'value' => '1',
             ], [
-                'name' => 'delete_images_on_empty_files_field',
+                'name'  => 'delete_images_on_empty_files_field',
                 'value' => '1',
             ], [
-                'name' => AppSettingsEnums::GLOBAL_APP_IMAGES->getValue(),
+                'name'  => AppSettingsEnums::GLOBAL_APP_IMAGES->getValue(),
                 'value' => 1,
             ], [
-                'name' => AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue(),
+                'name'  => AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue(),
                 'value' => RolesEnums::USER->value,
             ], [
-                'name' => 'default_feeds_comments',
+                'name'  => 'default_feeds_comments',
                 'value' => '3',
             ], [
-                'name' => 'notification_from_user_id',
+                'name'  => 'notification_from_user_id',
                 'value' => $this->user->getId(),
             ], [
-                'name' => AppSettingsEnums::ONBOARDING_INVENTORY_SETUP->getValue(),
+                'name'  => AppSettingsEnums::ONBOARDING_INVENTORY_SETUP->getValue(),
                 'value' => 1,
             ], [
-                'name' => AppSettingsEnums::ONBOARDING_GUILD_SETUP->getValue(),
+                'name'  => AppSettingsEnums::ONBOARDING_GUILD_SETUP->getValue(),
                 'value' => 1,
             ], [
-                'name' => AppSettingsEnums::ONBOARDING_EVENT_SETUP->getValue(),
+                'name'  => AppSettingsEnums::ONBOARDING_EVENT_SETUP->getValue(),
                 'value' => 1,
-            ]
+            ],
         ];
 
         foreach ($settings as $key => $value) {
@@ -160,12 +160,12 @@ class CreateAppsAction
 
         foreach ($roles as $role) {
             $roles = Roles::firstOrCreate([
-                'name' => $role,
+                'name'    => $role,
                 'apps_id' => $app->getId(),
             ], [
                 'companies_id' => 1,
-                'is_active' => 1,
-                'scope' => 0,
+                'is_active'    => 1,
+                'scope'        => 0,
             ]);
 
             $newRole = new CreateRoleAction(

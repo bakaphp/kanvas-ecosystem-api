@@ -10,8 +10,8 @@ use Kanvas\Notifications\Actions\ReadAllNotificationAction;
 final class ReadAllNotificationMutation
 {
     /**
-     * @param  null  $_
-     * @param  array{}  $args
+     * @param null    $_
+     * @param array{} $args
      */
     public function __invoke($_, array $args)
     {

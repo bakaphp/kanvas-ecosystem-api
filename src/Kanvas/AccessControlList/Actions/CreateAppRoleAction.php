@@ -22,8 +22,6 @@ class CreateAppRoleAction
 
     /**
      * execute.
-     *
-     * @return AppRoles
      */
     public function execute(): AppRoles
     {

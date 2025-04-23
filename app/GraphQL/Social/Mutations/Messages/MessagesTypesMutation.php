@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Messages;
 
 use Kanvas\Apps\Models\Apps;
-use  Kanvas\Languages\Models\Languages;
+use Kanvas\Languages\Models\Languages;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -14,9 +14,9 @@ use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 class MessagesTypesMutation
 {
     /**
-     * create
+     * create.
      *
-     * @param  mixed $request
+     * @param mixed $request
      */
     public function create(mixed $root, array $request): MessageType
     {
@@ -31,9 +31,9 @@ class MessagesTypesMutation
     }
 
     /**
-     * update
+     * update.
      *
-     * @param  mixed $request
+     * @param mixed $request
      */
     public function update(mixed $root, array $request): MessageType
     {

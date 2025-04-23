@@ -90,14 +90,14 @@ class FilesystemMapperMutation
         $mapper = ModelsFilesystemMapper::getByIdFromCompanyApp($input['filesystem_mapper_id'], $company, $app);
         $regions = Regions::getByIdFromCompanyApp($input['regions_id'], $company, $app);
         $dto = FilesystemImport::from([
-            'app' => $app,
-            'users' => $user,
-            'companies' => $company,
-            'regions' => $regions,
+            'app'               => $app,
+            'users'             => $user,
+            'companies'         => $company,
+            'regions'           => $regions,
             'companiesBranches' => $user->getCurrentBranch(),
-            'filesystem' => $filesystem,
-            'filesystemMapper' => $mapper,
-            'extra' => $input['extra'] ?? null,
+            'filesystem'        => $filesystem,
+            'filesystemMapper'  => $mapper,
+            'extra'             => $input['extra'] ?? null,
         ]);
 
         if ($app->get(AppSettingsEnums::FILESYSTEM_MAPPER_HEADER_VALIDATION->getValue())) {

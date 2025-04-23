@@ -11,12 +11,12 @@ class CompanyUserTest extends TestCase
     public function companyInputData(): array
     {
         return [
-            'name' => fake()->company(),
-            'website' => fake()->lastName(),
-            'address' => fake()->address(),
-            'phone' => fake()->phoneNumber(),
-            'email' => fake()->email(),
-            'zipcode' => 90120,
+            'name'     => fake()->company(),
+            'website'  => fake()->lastName(),
+            'address'  => fake()->address(),
+            'phone'    => fake()->phoneNumber(),
+            'email'    => fake()->email(),
+            'zipcode'  => 90120,
             'language' => 'en',
             'timezone' => 'UTC',
         ];
@@ -49,7 +49,7 @@ class CompanyUserTest extends TestCase
 
             }',
             [
-                'id' => $company['id'],
+                'id'      => $company['id'],
                 'user_id' => auth()->user()->getId(),
             ]
         )
@@ -110,7 +110,7 @@ class CompanyUserTest extends TestCase
 
             }',
             [
-                'id' => $company['id'],
+                'id'      => $company['id'],
                 'user_id' => auth()->user()->getId(),
             ]
         )
@@ -123,7 +123,7 @@ class CompanyUserTest extends TestCase
 
             }',
             [
-                'id' => $company['id'],
+                'id'      => $company['id'],
                 'user_id' => auth()->user()->getId(),
             ]
         )

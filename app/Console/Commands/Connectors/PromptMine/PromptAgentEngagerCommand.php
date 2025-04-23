@@ -6,12 +6,12 @@ namespace App\Console\Commands\Connectors\PromptMine;
 
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
-use Prism\Prism\Prism;
-use Prism\Prism\Enums\Provider;
 use GuzzleHttp\Client;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Prism;
 
 class PromptAgentEngagerCommand extends Command
 {
@@ -40,7 +40,7 @@ class PromptAgentEngagerCommand extends Command
         $users = $app->get('prompt-engager-agents');
 
         if (! is_array($users) || empty($users)) {
-            $this->error('No agents found for app ' . $app->name);
+            $this->error('No agents found for app '.$app->name);
 
             return;
         }
@@ -62,7 +62,7 @@ class PromptAgentEngagerCommand extends Command
 
         // If no agent is assigned to this hour, exit
         if ($currentAgent === null) {
-            $this->info('No agent assigned to hour ' . $currentHour . '. Exiting.');
+            $this->info('No agent assigned to hour '.$currentHour.'. Exiting.');
 
             return;
         }
@@ -72,7 +72,7 @@ class PromptAgentEngagerCommand extends Command
 
         // Check if this agent has already been executed in this hour
         if (Redis::exists($redisKey)) {
-            $this->info('Agent ' . $currentAgent['email'] . ' has already executed for hour ' . $currentHour . ' today. Exiting.');
+            $this->info('Agent '.$currentAgent['email'].' has already executed for hour '.$currentHour.' today. Exiting.');
 
             return;
         }
@@ -80,42 +80,42 @@ class PromptAgentEngagerCommand extends Command
         // Set the Redis key with an expiry of 24 hours (to clean up old keys)
         Redis::setex($redisKey, 86400, 'executed');
 
-        $this->info('Starting agent for hour ' . $currentHour . ': ' . $currentAgent['email']);
+        $this->info('Starting agent for hour '.$currentHour.': '.$currentAgent['email']);
 
         $agentDescription = $currentAgent['bio'];
         $token = $this->login($currentAgent['email'], $currentAgent['password']);
 
-        $this->info('Agent logged in: ' . $currentAgent['email']);
+        $this->info('Agent logged in: '.$currentAgent['email']);
 
         for ($page = 1; $page <= $totalPagesPerProfile; $page++) {
             $forYouFeed = $this->getForYouFeed($token, $page, 15);
 
             foreach ($forYouFeed['data'] as $message) {
-                $content = 'Tittle :' . $message['message']['title'];
+                $content = 'Tittle :'.$message['message']['title'];
                 $messageId = (int) $message['id'];
 
-                $this->info('Analyzing content: ' . $content);
+                $this->info('Analyzing content: '.$content);
 
-                $prompt = "Given the user's profile description:\n\n\"$agentDescription\"\n\n" .
-                "Analyze the following content:\n\n\"$content\"\n\n" .
-                "### Evaluation Criteria:\n" .
-                "1. Assess whether the content aligns with the user's stated interests, preferences, and values.\n" .
-                "2. Consider both explicitly mentioned interests and implicitly relevant topics.\n" .
-                "3. Mark content as **relevant** if it:\n" .
-                "   - Directly relates to the user's interests or topics.\n" .
-                "   - Provides valuable insights on subjects the user is likely to care about.\n" .
-                "   - Aligns with the user's apparent values or perspective.\n" .
-                "4. Mark content as **irrelevant** if it:\n" .
-                "   - Has no connection to the user's interests.\n" .
-                "   - Contradicts the user's stated values or preferences.\n" .
-                "   - Is too generic or unlikely to engage the user.\n" .
-                "5. Always mark content as viewed, regardless of relevance.\n" .
-                "6. If the user would likely want to explore full details, mark it as clicked.\n\n" .
-                "### JSON Response Format:\n" .
-                "Return ONLY a **true JSON object**, avoiding markdown:\n" .
-                '{"view": 1, "click": 1, "like": 1} // If the content is relevant and the user would engage further' . "\n" .
-                '{"view": 1, "click": 0, "like": 1} // If relevant but no deep engagement expected' . "\n" .
-                '{"view": 1, "click": 0, "like": 0} // If not relevant' . "\n" ;
+                $prompt = "Given the user's profile description:\n\n\"$agentDescription\"\n\n".
+                "Analyze the following content:\n\n\"$content\"\n\n".
+                "### Evaluation Criteria:\n".
+                "1. Assess whether the content aligns with the user's stated interests, preferences, and values.\n".
+                "2. Consider both explicitly mentioned interests and implicitly relevant topics.\n".
+                "3. Mark content as **relevant** if it:\n".
+                "   - Directly relates to the user's interests or topics.\n".
+                "   - Provides valuable insights on subjects the user is likely to care about.\n".
+                "   - Aligns with the user's apparent values or perspective.\n".
+                "4. Mark content as **irrelevant** if it:\n".
+                "   - Has no connection to the user's interests.\n".
+                "   - Contradicts the user's stated values or preferences.\n".
+                "   - Is too generic or unlikely to engage the user.\n".
+                "5. Always mark content as viewed, regardless of relevance.\n".
+                "6. If the user would likely want to explore full details, mark it as clicked.\n\n".
+                "### JSON Response Format:\n".
+                "Return ONLY a **true JSON object**, avoiding markdown:\n".
+                '{"view": 1, "click": 1, "like": 1} // If the content is relevant and the user would engage further'."\n".
+                '{"view": 1, "click": 0, "like": 1} // If relevant but no deep engagement expected'."\n".
+                '{"view": 1, "click": 0, "like": 0} // If not relevant'."\n";
 
                 $response = Prism::text()
                     ->using(Provider::Gemini, 'gemini-2.0-flash')
@@ -125,7 +125,7 @@ class PromptAgentEngagerCommand extends Command
                 $responseText = str_replace(['```', 'json'], '', $response->text);
 
                 if (! Str::isJson($responseText)) {
-                    $this->error('Invalid response from Prism: ' . $responseText);
+                    $this->error('Invalid response from Prism: '.$responseText);
 
                     continue;
                 }
@@ -133,12 +133,12 @@ class PromptAgentEngagerCommand extends Command
                 $engagement = json_decode($responseText, true);
 
                 if ((int) $engagement['click'] === 1) {
-                    $this->info('Engage viewing the message: ' . $messageId);
+                    $this->info('Engage viewing the message: '.$messageId);
                     $this->getMessageById($token, $messageId);
                 }
 
                 if ((int) $engagement['like'] === 1) {
-                    $this->info('Engage liking the message: ' . $messageId);
+                    $this->info('Engage liking the message: '.$messageId);
                     $this->likeMessage($token, $messageId);
                 }
 
@@ -146,14 +146,14 @@ class PromptAgentEngagerCommand extends Command
             }
         }
 
-        $this->info('Agent ' . $currentAgent['email'] . ' completed work for hour ' . $currentHour);
+        $this->info('Agent '.$currentAgent['email'].' completed work for hour '.$currentHour);
     }
 
     protected function getClient(): Client
     {
         return new Client([
             'verify' => false,
-            ]);
+        ]);
     }
 
     protected function getHeaders(array $additional = []): array
@@ -162,16 +162,16 @@ class PromptAgentEngagerCommand extends Command
         $branchUid = '';
 
         return array_merge([
-            'X-Kanvas-App' => $appUuid,
+            'X-Kanvas-App'      => $appUuid,
             'X-Kanvas-Location' => $branchUid,
         ], $additional);
     }
 
     protected function login(string $email, string $password): string
     {
-        $login = <<<GQL
-mutation login(\$data: LoginInput!) {
-  login(data: \$data) {
+        $login = <<<'GQL'
+mutation login($data: LoginInput!) {
+  login(data: $data) {
     id
     token
     refresh_token
@@ -187,11 +187,11 @@ GQL;
             $this->url,
             [
                 'headers' => $this->getHeaders(),
-                'json' => [
-                    'query' => $login,
+                'json'    => [
+                    'query'     => $login,
                     'variables' => [
                         'data' => [
-                            'email' => $email,
+                            'email'    => $email,
                             'password' => $password,
                         ],
                     ],
@@ -201,19 +201,19 @@ GQL;
 
         $loginResponse = json_decode($getToken->getBody()->getContents(), true);
 
-        return 'Bearer ' . $loginResponse['data']['login']['token'];
+        return 'Bearer '.$loginResponse['data']['login']['token'];
     }
 
     /**
- * Get the "For You" feed messages with pagination
- *
- * @param string $token Authentication token
- * @param int $page Page number for pagination
- * @param int $perPage Number of items per page
- * @param string $sortOrder Sort order (ASC or DESC)
- *
- * @return array Array of messages and pagination information
- */
+     * Get the "For You" feed messages with pagination.
+     *
+     * @param string $token     Authentication token
+     * @param int    $page      Page number for pagination
+     * @param int    $perPage   Number of items per page
+     * @param string $sortOrder Sort order (ASC or DESC)
+     *
+     * @return array Array of messages and pagination information
+     */
     protected function getForYouFeed(
         string $token,
         int $page = 1,
@@ -222,11 +222,11 @@ GQL;
     ): array {
         // For different sort orders, we'll use different queries
         if ($sortOrder === 'ASC') {
-            $query = <<<GQL
-query ForYouMessages(\$first: Int!, \$page: Int!) {
+            $query = <<<'GQL'
+query ForYouMessages($first: Int!, $page: Int!) {
     forYouMessages(
-        first: \$first,
-        page: \$page,
+        first: $first,
+        page: $page,
         orderBy: { column: CREATED_AT, order: ASC }
     ) {
         data {
@@ -249,11 +249,11 @@ query ForYouMessages(\$first: Int!, \$page: Int!) {
 GQL;
         } else {
             // Default to DESC order
-            $query = <<<GQL
-query ForYouMessages(\$first: Int!, \$page: Int!) {
+            $query = <<<'GQL'
+query ForYouMessages($first: Int!, $page: Int!) {
     forYouMessages(
-        first: \$first,
-        page: \$page
+        first: $first,
+        page: $page
        
     ) {
         data {
@@ -284,10 +284,10 @@ GQL;
                         'Authorization' => $token,
                     ]),
                     'json' => [
-                        'query' => $query,
+                        'query'     => $query,
                         'variables' => [
                             'first' => $perPage,
-                            'page' => $page,
+                            'page'  => $page,
                         ],
                     ],
                 ]
@@ -296,32 +296,32 @@ GQL;
             $result = json_decode($response->getBody()->getContents(), true);
 
             if (isset($result['errors'])) {
-                $this->error('GraphQL Error: ' . json_encode($result['errors']));
+                $this->error('GraphQL Error: '.json_encode($result['errors']));
 
                 return [];
             }
 
             return $result['data']['forYouMessages'] ?? [];
         } catch (\Exception $e) {
-            $this->error('Exception fetching ForYou messages: ' . $e->getMessage());
+            $this->error('Exception fetching ForYou messages: '.$e->getMessage());
 
             return [];
         }
     }
 
     /**
-    * Get a message by its ID
-    *
-    * @param string $token Authentication token
-    * @param int $messageId The ID of the message to retrieve
-    *
-    * @return array|null The message data or null if not found
-    */
+     * Get a message by its ID.
+     *
+     * @param string $token     Authentication token
+     * @param int    $messageId The ID of the message to retrieve
+     *
+     * @return array|null The message data or null if not found
+     */
     protected function getMessageById(string $token, int $messageId): ?array
     {
-        $query = <<<GQL
-query Message(\$messageId: Mixed!) {
-    messages(first: 1, where: { column: ID, operator: EQ, value: \$messageId}) {
+        $query = <<<'GQL'
+query Message($messageId: Mixed!) {
+    messages(first: 1, where: { column: ID, operator: EQ, value: $messageId}) {
         data {
             id
             uuid
@@ -340,7 +340,7 @@ GQL;
                         'Authorization' => $token,
                     ]),
                     'json' => [
-                        'query' => $query,
+                        'query'     => $query,
                         'variables' => [
                             'messageId' => $messageId,
                         ],
@@ -351,7 +351,7 @@ GQL;
             $result = json_decode($response->getBody()->getContents(), true);
 
             if (isset($result['errors'])) {
-                $this->error('GraphQL Error: ' . json_encode($result['errors']));
+                $this->error('GraphQL Error: '.json_encode($result['errors']));
 
                 return null;
             }
@@ -359,7 +359,7 @@ GQL;
             // Return the first message in the data array or null if empty
             return $result['data']['messages']['data'][0] ?? null;
         } catch (\Exception $e) {
-            $this->error('Exception fetching message: ' . $e->getMessage());
+            $this->error('Exception fetching message: '.$e->getMessage());
 
             return null;
         }
@@ -367,9 +367,9 @@ GQL;
 
     protected function likeMessage(string $token, $messageId): bool
     {
-        $mutation = <<<GQL
-mutation likeMessage(\$id: ID!) {
-    likeMessage(id: \$id)
+        $mutation = <<<'GQL'
+mutation likeMessage($id: ID!) {
+    likeMessage(id: $id)
 }
 GQL;
 
@@ -381,7 +381,7 @@ GQL;
                         'Authorization' => $token,
                     ]),
                     'json' => [
-                        'query' => $mutation,
+                        'query'     => $mutation,
                         'variables' => [
                             'id' => $messageId,
                         ],
@@ -392,7 +392,7 @@ GQL;
             $result = json_decode($response->getBody()->getContents(), true);
 
             if (isset($result['errors'])) {
-                $this->error('GraphQL Error: ' . json_encode($result['errors']));
+                $this->error('GraphQL Error: '.json_encode($result['errors']));
 
                 return false;
             }
@@ -400,7 +400,7 @@ GQL;
             // Check if the like action was successful
             return isset($result['data']['likeMessage']) && $result['data']['likeMessage'] === true;
         } catch (\Exception $e) {
-            $this->error('Exception liking message: ' . $e->getMessage());
+            $this->error('Exception liking message: '.$e->getMessage());
 
             return false;
         }

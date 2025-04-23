@@ -21,7 +21,7 @@ class LeadManagementMutation
     use HasMutationUploadFiles;
 
     /**
-     * Create new lead
+     * Create new lead.
      */
     public function create(mixed $root, array $req): ModelsLead
     {

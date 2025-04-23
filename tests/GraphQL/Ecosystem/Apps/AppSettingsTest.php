@@ -61,8 +61,8 @@ class AppSettingsTest extends TestCase
     {
         $app = app(Apps::class);
         $input = [
-            'key' => 'test',
-            'value' => 'test',
+            'key'         => 'test',
+            'value'       => 'test',
             'entity_uuid' => $app->uuid,
         ];
         $this->graphQL(/** @lang GraphQL */ '
@@ -181,7 +181,7 @@ class AppSettingsTest extends TestCase
         $response = $this->graphQL( /** @lang GraphQL */
             '
             {
-                adminAppSetting(key: "' . $firstSetting . '") 
+                adminAppSetting(key: "'.$firstSetting.'") 
             }
             ',
             [],

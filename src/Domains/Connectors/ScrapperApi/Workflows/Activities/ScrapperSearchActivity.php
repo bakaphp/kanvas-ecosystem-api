@@ -11,10 +11,9 @@ use Illuminate\Support\Facades\Redis;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ScrapperSearchActivity extends KanvasActivity
 {
@@ -57,7 +56,7 @@ class ScrapperSearchActivity extends KanvasActivity
     protected function checkRecentlySearched(AppInterface $app, string $word): bool
     {
         $key = ConfigEnum::getWordEnum($app);
-        $field = ConfigEnum::SEARCHED_FIELD->value . $word;
+        $field = ConfigEnum::SEARCHED_FIELD->value.$word;
         if (! Redis::hexists($key, $field)) {
             return false;
         }
@@ -71,7 +70,7 @@ class ScrapperSearchActivity extends KanvasActivity
     protected function setRecentlySearched(AppInterface $app, string $word): void
     {
         $key = ConfigEnum::getWordEnum($app);
-        $field = ConfigEnum::SEARCHED_FIELD->value . $word;
+        $field = ConfigEnum::SEARCHED_FIELD->value.$word;
 
         Redis::hset($key, $field, Carbon::now()->format('Y-m-d H:i:s'));
     }

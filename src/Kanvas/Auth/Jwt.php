@@ -19,12 +19,10 @@ class Jwt
 {
     /**
      * Get the JWT Configuration.
-     *
-     * @return Configuration
      */
     public static function getConfig(): Configuration
     {
-        return  Configuration::forSymmetricSigner(
+        return Configuration::forSymmetricSigner(
             // You may use any HMAC variations (256, 384, and 512)
             new Sha512(),
             InMemory::plainText(config('kanvas.jwt.secretKey'))
@@ -33,11 +31,6 @@ class Jwt
 
     /**
      * Create a new session based off the refresh token session id.
-     *
-     * @param string $sessionId
-     * @param string $email
-     *
-     * @return Plain
      */
     public static function createToken(string $sessionId, string $email, float $expirationAt = 0, ?string $deviceId = null): Plain
     {
@@ -53,7 +46,7 @@ class Jwt
                 ->identifiedBy($sessionId)
                 ->issuedAt($now)
                 ->canOnlyBeUsedAfter($now)
-                ->expiresAt($now->modify('+' . $expiration . ' hour'))
+                ->expiresAt($now->modify('+'.$expiration.' hour'))
                 ->withClaim('sessionId', $sessionId)
                 ->withClaim('email', $email)
                 ->withClaim('deviceId', $deviceId)
@@ -64,12 +57,8 @@ class Jwt
     /**
      * Given a JWT token validate it.
      *
-     * @param Token $token
-     *
      * @throws RequiredConstraintsViolated
      * @throws NoConstraintsGiven
-     *
-     * @return bool
      */
     public static function validateToken(Token $token): bool
     {

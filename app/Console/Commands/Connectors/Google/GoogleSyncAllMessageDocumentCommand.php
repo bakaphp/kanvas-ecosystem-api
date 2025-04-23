@@ -33,8 +33,6 @@ class GoogleSyncAllMessageDocumentCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -52,8 +50,7 @@ class GoogleSyncAllMessageDocumentCommand extends Command
             $results = $syncMessageToDocumentAction->execute();
         }
 
-        $this->info(json_encode($results, JSON_PRETTY_PRINT) . ' Messages sent to google recommendation as documents.');
+        $this->info(json_encode($results, JSON_PRETTY_PRINT).' Messages sent to google recommendation as documents.');
 
-        return;
     }
 }

@@ -12,9 +12,9 @@ use Kanvas\Users\Repositories\UsersRepository;
 class FollowBuilder
 {
     /**
-     * getFollowers
+     * getFollowers.
      *
-     * @param  mixed $request
+     * @param mixed $request
      */
     public function getFollowers(mixed $root, array $request): Builder
     {
@@ -36,6 +36,7 @@ class FollowBuilder
     {
         //return users following the entity
         $app = app(Apps::class);
+
         return UsersFollowsRepository::getFollowersBuilder($root, $app);
     }
 }

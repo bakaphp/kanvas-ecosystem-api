@@ -38,11 +38,12 @@ class MigrateAttributeTypesCommand extends Command
                 ->select('id', 'slug')
                 ->get();
 
-            $this->info('Global Attributes Types found: ' . $baseAttributes->count());
+            $this->info('Global Attributes Types found: '.$baseAttributes->count());
 
             if ($baseAttributes->isEmpty()) {
                 $this->info('No global attributes types found.');
                 DB::rollBack();
+
                 return;
             }
 
@@ -51,11 +52,12 @@ class MigrateAttributeTypesCommand extends Command
                 ->where('apps_id', '!=', 0)
                 ->get(['id', 'slug']);
 
-            $this->info('Matching attributes found: ' . $matchingAttributes->count());
+            $this->info('Matching attributes found: '.$matchingAttributes->count());
 
             if ($matchingAttributes->isEmpty()) {
                 $this->info('No matching attributes found.');
                 DB::rollBack();
+
                 return;
             }
 
@@ -67,6 +69,7 @@ class MigrateAttributeTypesCommand extends Command
             if ($affectedAttributes->isEmpty()) {
                 $this->info('Not attribute to update found.');
                 DB::rollBack();
+
                 return;
             }
 
@@ -89,7 +92,7 @@ class MigrateAttributeTypesCommand extends Command
         } catch (\Exception $e) {
             DB::rollBack();
 
-            $this->error('An error occurred: ' . $e->getMessage());
+            $this->error('An error occurred: '.$e->getMessage());
         }
     }
 }

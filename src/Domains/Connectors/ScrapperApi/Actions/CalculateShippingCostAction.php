@@ -30,31 +30,31 @@ class CalculateShippingCostAction
         $insurance = match (true) {
             $price <= 100 => $price * 0.013,
             $price <= 200 => $price * 0.0160,
-            $price > 300 => $price * 0.30,
+            $price > 300  => $price * 0.30,
         };
         $localTransfer = 0.00;
         $paymentFee = $price * 0.029;
         $serviceFee = 1.90;
         $shippingMargin = 1;
 
-        // Calculate 
+        // Calculate
         $courierCostWeight = $pounds * $courierCost;
         $costFuel = $pounds * $fuel;
         $customServiceCost = $pounds * $customService;
         $airportFeeCost = $airportFee * $pounds;
         $insuranceCost = $insurance;
 
-
         $shippingCost = $courierCostWeight * $shippingMargin;
         $otherFee = $costFuel + $customServiceCost + $airportFeeCost + $insuranceCost;
         $serviceFeeCost = $pounds * $serviceFee;
         $totalLoCompro = $shippingCost + $otherFee + $serviceFeeCost;
         $paymentFeeCost = (($price + $totalLoCompro) * $paymentFee) + 3;
+
         return [
-            "shippingCost" => $shippingCost,
-            'otherFee' => $otherFee,
-            'serviceFee' => $serviceFeeCost,
-            "total" => $totalLoCompro
-        ];        
+            'shippingCost' => $shippingCost,
+            'otherFee'     => $otherFee,
+            'serviceFee'   => $serviceFeeCost,
+            'total'        => $totalLoCompro,
+        ];
     }
 }

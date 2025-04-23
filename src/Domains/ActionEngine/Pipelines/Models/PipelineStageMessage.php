@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ActionEngine\Models\BaseModel;
 
 /**
- * Class PipelineStageMessage
+ * Class PipelineStageMessage.
  *
- * @property int $id
+ * @property int    $id
  * @property string $uuid
- * @property int $pipelines_stages_id
+ * @property int    $pipelines_stages_id
  * @property string $message
  * @property string $message_notification
  */

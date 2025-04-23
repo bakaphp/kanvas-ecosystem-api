@@ -18,14 +18,14 @@ class CreateTopicAction
     public function execute(): Topic
     {
         return Topic::create([
-            'apps_id' => $this->data->app->getId(),
+            'apps_id'      => $this->data->app->getId(),
             'companies_id' => $this->data->company->getId(),
-            'users_id' => $this->data->user->getId(),
-            'name' => $this->data->name,
-            'slug' => Str::slug($this->data->name),
-            'weight' => $this->data->weight,
-            'is_feature' => $this->data->is_feature,
-            'status' => $this->data->status,
+            'users_id'     => $this->data->user->getId(),
+            'name'         => $this->data->name,
+            'slug'         => Str::slug($this->data->name),
+            'weight'       => $this->data->weight,
+            'is_feature'   => $this->data->is_feature,
+            'status'       => $this->data->status,
         ]);
     }
 }

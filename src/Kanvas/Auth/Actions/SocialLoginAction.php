@@ -37,9 +37,9 @@ class SocialLoginAction
                 $existedUser = UsersRepository::getUserOfAppByEmail($this->socialUser->email, $this->app);
             } catch (ModelNotFoundException $e) {
                 $userData = [
-                    'firstname' => $this->socialUser->name,
-                    'email' => $this->socialUser->email,
-                    'password' => Str::random(11),
+                    'firstname'   => $this->socialUser->name,
+                    'email'       => $this->socialUser->email,
+                    'password'    => Str::random(11),
                     'displayname' => $this->socialUser->nickname,
                 ];
 
@@ -53,13 +53,13 @@ class SocialLoginAction
             //$userAppProfile = $existedUser->getAppProfile($this->app);
             //$userLinkedSource = UserLinkedSources::createSocial($this->socialUser, $existedUser, $source);
             UserLinkedSources::firstOrCreate([
-                'users_id' => $existedUser->getId(),
-                'source_id' => $source->getId(),
+                'users_id'        => $existedUser->getId(),
+                'source_id'       => $source->getId(),
                 'source_users_id' => $this->socialUser->id,
             ], [
-                'apps_id' => $this->app->getId(),
+                'apps_id'              => $this->app->getId(),
                 'source_users_id_text' => $this->socialUser->token,
-                'source_username' => $this->socialUser->nickname ?? $this->socialUser->name,
+                'source_username'      => $this->socialUser->nickname ?? $this->socialUser->name,
             ]);
 
             return $existedUser;

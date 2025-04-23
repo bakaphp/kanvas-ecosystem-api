@@ -15,7 +15,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage as ModelsPipelineStage;
 class PipelineStageManagementMutation
 {
     /**
-     * Create new pipeline
+     * Create new pipeline.
      */
     public function create(mixed $root, array $req): ModelsPipelineStage
     {

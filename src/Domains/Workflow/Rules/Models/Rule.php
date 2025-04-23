@@ -11,16 +11,16 @@ use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleFactory;
 
 /**
- * @param int $id
- * @param int $systems_modules_id
- * @param int $companies_id
- * @param int $apps_id
- * @param int $rules_types_id
+ * @param int    $id
+ * @param int    $systems_modules_id
+ * @param int    $companies_id
+ * @param int    $apps_id
+ * @param int    $rules_types_id
  * @param string $name
  * @param string $description
  * @param string $pattern
- * @param array $params
- * @param bool $is_async
+ * @param array  $params
+ * @param bool   $is_async
  */
 class Rule extends BaseModel
 {
@@ -29,7 +29,7 @@ class Rule extends BaseModel
     protected $guarded = [];
 
     protected $casts = [
-        'params' => 'array',
+        'params'   => 'array',
         'is_async' => 'boolean',
     ];
 
@@ -86,7 +86,7 @@ class Rule extends BaseModel
             // Detect if the attribute is an array key
             if (strpos($attribute, '[') !== false && strpos($attribute, ']') !== false) {
                 $attribute = preg_replace_callback('/\[(.*?)\]/', function ($matches) {
-                    return "['" . trim($matches[1], "'\"") . "']";
+                    return "['".trim($matches[1], "'\"")."']";
                 }, $attribute);
             }
 
@@ -107,7 +107,7 @@ class Rule extends BaseModel
 
         return [
             'expression' => $pattern,
-            'values' => $values, // Values are no longer used in the expression
+            'values'     => $values, // Values are no longer used in the expression
         ];
     }
 }

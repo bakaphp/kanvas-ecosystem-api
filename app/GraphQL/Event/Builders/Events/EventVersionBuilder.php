@@ -11,7 +11,6 @@ use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionParticipant;
 use Kanvas\Event\Events\Models\EventVersionParticipantDate;
 use Kanvas\Event\Participants\Models\Participant;
-use Kanvas\Guild\Customers\Models\People;
 
 class EventVersionBuilder
 {
@@ -49,10 +48,10 @@ class EventVersionBuilder
 
         $root->select([
             'peoples.*',
-            'peoples.id as id'
+            'peoples.id as id',
         ])
-        ->join($participant, 'peoples.id', '=', $participant . '.people_id')
-        ->join($eventVersionParticipant, $participant . '.id', '=', $eventVersionParticipant . '.participant_id')
+        ->join($participant, 'peoples.id', '=', $participant.'.people_id')
+        ->join($eventVersionParticipant, $participant.'.id', '=', $eventVersionParticipant.'.participant_id')
         ->distinct();
 
         if (isset($args['HAS']['conditions'])) {
@@ -62,12 +61,12 @@ class EventVersionBuilder
                 if ($column && $value) {
                     $root->when(
                         $value,
-                        fn ($query) =>
-                        $query->where($eventVersionParticipant . '.' . $column, $value)
+                        fn ($query) => $query->where($eventVersionParticipant.'.'.$column, $value)
                     );
                 }
             }
         }
+
         return $root;
     }
 }

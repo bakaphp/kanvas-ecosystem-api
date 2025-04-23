@@ -38,7 +38,7 @@ class MessageManagementMutation
 
         $rules = [
             'system_modules_id' => 'nullable',
-            'entity_id' => [
+            'entity_id'         => [
                 'nullable',
                 Rule::requiredIf(function () use ($messageData) {
                     return array_key_exists('system_modules_id', $messageData) && ! $messageData['system_modules_id'] !== null;
@@ -57,8 +57,8 @@ class MessageManagementMutation
         } catch (ModelNotFoundException $e) {
             $messageTypeDto = MessageTypeInput::from([
                 'apps_id' => $app->getId(),
-                'name' => $messageData['message_verb'],
-                'verb' => $messageData['message_verb'],
+                'name'    => $messageData['message_verb'],
+                'verb'    => $messageData['message_verb'],
             ]);
             $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
         }
@@ -68,7 +68,7 @@ class MessageManagementMutation
         if (Str::isUuid($systemModuleId)) {
             $systemModule = SystemModules::getByUuid($systemModuleId, $app);
         } else {
-            $systemModule = $systemModuleId ? SystemModules::getById((int)$systemModuleId, $app) : null;
+            $systemModule = $systemModuleId ? SystemModules::getById((int) $systemModuleId, $app) : null;
         }
 
         $messageData['ip_address'] = request()->ip();
@@ -118,7 +118,7 @@ class MessageManagementMutation
 
     public function update(mixed $root, array $request): Message
     {
-        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message = Message::getById((int) $request['id'], app(Apps::class));
         if (! $message->canEdit(auth()->user())) {
             throw new AuthenticationException('You are not allowed to edit this message');
         }
@@ -137,8 +137,8 @@ class MessageManagementMutation
             } catch (ModelNotFoundException $e) {
                 $messageTypeDto = MessageTypeInput::from([
                     'apps_id' => $message->app->getId(),
-                    'name' => $request['input']['message_verb'],
-                    'verb' => $request['input']['message_verb'],
+                    'name'    => $request['input']['message_verb'],
+                    'verb'    => $request['input']['message_verb'],
                 ]);
                 $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
             }
@@ -161,7 +161,7 @@ class MessageManagementMutation
 
     public function delete(mixed $root, array $request): bool
     {
-        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message = Message::getById((int) $request['id'], app(Apps::class));
         if (! $message->canDelete(auth()->user())) {
             throw new AuthenticationException('You are not allowed to delete this message');
         }
@@ -198,7 +198,7 @@ class MessageManagementMutation
 
     public function attachTopicToMessage(mixed $root, array $request): Message
     {
-        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message = Message::getById((int) $request['id'], app(Apps::class));
         $message->topics()->attach($request['topicId']);
 
         return $message;
@@ -206,7 +206,7 @@ class MessageManagementMutation
 
     public function detachTopicToMessage(mixed $root, array $request): Message
     {
-        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message = Message::getById((int) $request['id'], app(Apps::class));
         $message->topics()->detach($request['topicId']);
 
         return $message;
@@ -215,7 +215,7 @@ class MessageManagementMutation
     public function attachFileToMessage(mixed $root, array $request): Message
     {
         $app = app(Apps::class);
-        $message = Message::getById((int)$request['message_id'], $app);
+        $message = Message::getById((int) $request['message_id'], $app);
 
         if (($message->user->getId() !== auth()->user()->getId()) && ! auth()->user()->isAdmin()) {
             throw new Exception('The message does not belong to the authenticated user');

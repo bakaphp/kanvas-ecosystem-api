@@ -19,9 +19,9 @@ class DistributeMessageActivity extends KanvasActivity implements WorkflowActivi
         DistributeMessagesToUsersJob::dispatch($entity, $app, $params);
 
         return [
-            'message' => 'Distributed message activity executed',
+            'message'    => 'Distributed message activity executed',
             'message_id' => $entity->getId(),
-            'result' => true,
+            'result'     => true,
         ];
     }
 }

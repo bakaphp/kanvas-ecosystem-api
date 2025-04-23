@@ -53,7 +53,7 @@ class CreateUserAction
             /**
              * If the user exist we have to verify if it exist in this app
              * if it does , means the user already exist
-             * if it doesn't than we have to create the user in this app and with a new company
+             * if it doesn't than we have to create the user in this app and with a new company.
              */
             $user = Users::getByEmail($this->data->email);
 
@@ -93,9 +93,9 @@ class CreateUserAction
                 WorkflowEnum::REGISTERED->value,
                 true,
                 [
-                    'company' => $company,
+                    'company'  => $company,
                     'password' => $this->data->raw_password,
-                    'app' => $this->app,
+                    'app'      => $this->app,
                 ]
             );
         }
@@ -121,15 +121,15 @@ class CreateUserAction
         $validator = Validator::make(
             [
                 'firstname' => $this->data->firstname,
-                'lastname' => $this->data->lastname,
+                'lastname'  => $this->data->lastname,
             ],
             [
                 'firstname' => 'required|different:lastname',
-                'lastname' => 'required|different:firstname',
+                'lastname'  => 'required|different:firstname',
             ],
             [
                 'firstname.different' => 'Registration information appears to be invalid.',
-                'lastname.different' => 'Registration information appears to be invalid.',
+                'lastname.different'  => 'Registration information appears to be invalid.',
             ]
         );
 
@@ -147,7 +147,7 @@ class CreateUserAction
                 'phone_number' => $this->data->phone_number,
             ],
             [
-                'phone_number' => ['nullable', 'numeric', 'digits_between:1,' . $totalDigits],
+                'phone_number' => ['nullable', 'numeric', 'digits_between:1,'.$totalDigits],
             ],
             [
                 'phone_number.digits_between' => 'Invalid phone number.',
@@ -227,7 +227,7 @@ class CreateUserAction
     protected function assignCompany(Users $user): void
     {
         if ($this->data->branch === null) {
-            return ;
+            return;
         }
         $defaultRole = RolesEnums::USER->value;
 
@@ -258,7 +258,7 @@ class CreateUserAction
         $createCompany = new CreateCompaniesAction(
             new Company(
                 user: $user,
-                name: $user->defaultCompanyName ?? $user->displayname . 'CP',
+                name: $user->defaultCompanyName ?? $user->displayname.'CP',
                 email: $user->email
             )
         );

@@ -17,21 +17,21 @@ class MessageTypeFactory extends Factory
         $languages = Languages::factory()->create();
 
         return [
-            'name' => fake()->name,
-            'apps_id' => 1,
-            'languages_id' => $languages->id,
-            'verb' => 'create',
-            'template' => '<fake>',
+            'name'            => fake()->name,
+            'apps_id'         => 1,
+            'languages_id'    => $languages->id,
+            'verb'            => 'create',
+            'template'        => '<fake>',
             'templates_plura' => '<fake>',
-            'message_schema' => json_encode([
+            'message_schema'  => json_encode([
                 'required' => ['name', 'email'],
                 'optional' => ['phone'],
-                'types' => [
-                    'name' => 'string',
+                'types'    => [
+                    'name'  => 'string',
                     'email' => 'string',
-                    'phone' => 'string'
-                ]
-            ])
+                    'phone' => 'string',
+                ],
+            ]),
         ];
     }
 }

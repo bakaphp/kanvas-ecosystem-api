@@ -56,8 +56,8 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->app = $entity->app ?? (($options['app'] ?? null) instanceof AppInterface ? $options['app'] : app(Apps::class));
 
         $this->data = [
-            'entity' => $this->entity,
-            'app' => $this->app,
+            'entity'  => $this->entity,
+            'app'     => $this->app,
             'options' => $options,
         ];
 
@@ -76,7 +76,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
-     * Notification via channels
+     * Notification via channels.
      */
     public function channels(): array
     {
@@ -141,8 +141,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * Get the mail representation of the notification.
-     *
-     * @param  mixed  $notifiable
      */
     public function toMail($notifiable): Mailable
     {
@@ -188,7 +186,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
-     * Get the notification type
+     * Get the notification type.
      */
     public function getType(): NotificationTypes
     {
@@ -200,18 +198,18 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
          * @var NotificationTypes
          */
         return NotificationTypes::firstOrCreate([
-            'apps_id' => $this->app->getId(),
-            'key' => static::class,
-            'name' => Str::simpleSlug(static::class),
+            'apps_id'           => $this->app->getId(),
+            'key'               => static::class,
+            'name'              => Str::simpleSlug(static::class),
             'system_modules_id' => SystemModulesRepository::getByModelName(static::class, $this->app)->getId(),
-            'is_deleted' => 0,
+            'is_deleted'        => 0,
         ], [
             'template' => $this->templateName ?? null,
         ]);
     }
 
     /**
-     * Set the user who is sending the notification
+     * Set the user who is sending the notification.
      */
     public function setFromUser(UserInterface $user): void
     {
@@ -220,7 +218,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
-     * Get the user who is sending the notification
+     * Get the user who is sending the notification.
      */
     public function getFromUser(): UserInterface
     {

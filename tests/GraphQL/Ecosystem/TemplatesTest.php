@@ -4,17 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
-use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Enums\AppEnums;
-use Kanvas\Locations\Models\Countries;
-use Kanvas\Locations\Models\States;
 use Tests\TestCase;
 
 class TemplatesTest extends TestCase
 {
     /**
-     * Test Create Template
+     * Test Create Template.
      */
     public function testCreateTemplate(): void
     {
@@ -39,39 +34,39 @@ class TemplatesTest extends TestCase
         }
         ',
             [
-            'input' => [
-                'name' => $name,
-                'parent_template_id' => 0,
-                'is_system' => false,
-                'template_variables' => [
-                [
-                    'key' => $contentName,
-                    'value' => $contentValue
-                ]
+                'input' => [
+                    'name'               => $name,
+                    'parent_template_id' => 0,
+                    'is_system'          => false,
+                    'template_variables' => [
+                        [
+                            'key'   => $contentName,
+                            'value' => $contentValue,
+                        ],
+                    ],
+                    'template' => $template,
                 ],
-                'template' => $template
             ]
-        ]
         )->assertJson([
             'data' => [
                 'createTemplate' => [
 
-                    'name' => $name,
-                    'template' => $template,
-                    'is_system' => false,
+                    'name'               => $name,
+                    'template'           => $template,
+                    'is_system'          => false,
                     'template_variables' => [
                         [
-                            'name' => $contentName,
-                            'value' => $contentValue
-                        ]
-                    ]
+                            'name'  => $contentName,
+                            'value' => $contentValue,
+                        ],
+                    ],
                 ],
             ],
         ]);
     }
 
     /**
-     * Test Update Template
+     * Test Update Template.
      */
     public function testUpdateTemplate(): void
     {
@@ -95,37 +90,37 @@ class TemplatesTest extends TestCase
         }
         ',
             [
-            'input' => [
-                'name' => $name,
-                'parent_template_id' => 0,
-                'template_variables' => [
-                [
-                    'key' => $contentName,
-                    'value' => $contentValue
-                ]
+                'input' => [
+                    'name'               => $name,
+                    'parent_template_id' => 0,
+                    'template_variables' => [
+                        [
+                            'key'   => $contentName,
+                            'value' => $contentValue,
+                        ],
+                    ],
+                    'template' => $template,
                 ],
-                'template' => $template
             ]
-        ]
         )->assertJson([
             'data' => [
                 'updateTemplate' => [
 
-                    'name' => $name,
-                    'template' => $template,
+                    'name'               => $name,
+                    'template'           => $template,
                     'template_variables' => [
                         [
-                            'name' => $contentName,
-                            'value' => $contentValue
-                        ]
-                    ]
+                            'name'  => $contentName,
+                            'value' => $contentValue,
+                        ],
+                    ],
                 ],
             ],
         ]);
     }
 
     /**
-     * Test Get Template
+     * Test Get Template.
      */
     public function testGetTemplate(): void
     {
@@ -167,17 +162,17 @@ class TemplatesTest extends TestCase
         ',
             [
                 'input' => [
-                    'name' => $name,
+                    'name'               => $name,
                     'parent_template_id' => 0,
-                    'is_system' => false,
+                    'is_system'          => false,
                     'template_variables' => [
                         [
-                            'key' => $contentName,
-                            'value' => $contentValue
-                        ]
+                            'key'   => $contentName,
+                            'value' => $contentValue,
+                        ],
                     ],
-                    'template' => $template
-                ]
+                    'template' => $template,
+                ],
             ]
         );
         dump($response->json());
@@ -189,7 +184,7 @@ class TemplatesTest extends TestCase
                 )
             }',
             [
-                'id' => $id
+                'id' => $id,
             ]
         )->assertJson([
             'data' => [

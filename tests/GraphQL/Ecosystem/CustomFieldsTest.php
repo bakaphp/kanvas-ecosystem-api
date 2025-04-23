@@ -16,15 +16,15 @@ class CustomFieldsTest extends TestCase
                 setCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => fake()->word,
-                'data' => [
-                    'hellos' => fake()->numberBetween(1, 100),
+                'input' => [
+                    'name' => fake()->word,
+                    'data' => [
+                        'hellos' => fake()->numberBetween(1, 100),
+                    ],
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => auth()->user()->uuid,
                 ],
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => auth()->user()->uuid,
             ],
-        ],
         )->assertJson([
             'data' => [
                 'setCustomField' => true,
@@ -46,15 +46,15 @@ class CustomFieldsTest extends TestCase
                 setCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => $key,
-                'data' => [
-                    'hellos' => $value,
+                'input' => [
+                    'name' => $key,
+                    'data' => [
+                        'hellos' => $value,
+                    ],
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => auth()->user()->uuid,
                 ],
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => auth()->user()->uuid,
             ],
-        ],
         )->json();
 
         $this->graphQL( /** @lang GraphQL */
@@ -63,13 +63,13 @@ class CustomFieldsTest extends TestCase
                 getCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => $key,
-                'data' => null,
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => auth()->user()->uuid,
+                'input' => [
+                    'name'               => $key,
+                    'data'               => null,
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => auth()->user()->uuid,
+                ],
             ],
-        ],
         )->assertSee($value);
     }
 
@@ -84,15 +84,15 @@ class CustomFieldsTest extends TestCase
                 setCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => $key,
-                'data' => [
-                    'hellos' => $value,
+                'input' => [
+                    'name' => $key,
+                    'data' => [
+                        'hellos' => $value,
+                    ],
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => auth()->user()->uuid,
                 ],
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => auth()->user()->uuid,
             ],
-        ],
         )->json();
 
         $this->graphQL( /** @lang GraphQL */
@@ -108,10 +108,10 @@ class CustomFieldsTest extends TestCase
                 )
             }',
             [
-            'name' => $key,
-            'system_module_uuid' => get_class(auth()->user()),
-            'entity_id' => auth()->user()->uuid,
-        ],
+                'name'               => $key,
+                'system_module_uuid' => get_class(auth()->user()),
+                'entity_id'          => auth()->user()->uuid,
+            ],
         )->assertSee($value);
     }
 
@@ -129,15 +129,15 @@ class CustomFieldsTest extends TestCase
                 setCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => $key,
-                'data' => [
-                    'hellos' => $value,
+                'input' => [
+                    'name' => $key,
+                    'data' => [
+                        'hellos' => $value,
+                    ],
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => auth()->user()->uuid,
                 ],
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => auth()->user()->uuid,
             ],
-        ],
         )->json();
 
         $results = $this->graphQL( /** @lang GraphQL */
@@ -146,15 +146,15 @@ class CustomFieldsTest extends TestCase
                 setCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => fake()->word,
-                'data' => [
-                    'hellos' => $value,
+                'input' => [
+                    'name' => fake()->word,
+                    'data' => [
+                        'hellos' => $value,
+                    ],
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => auth()->user()->uuid,
                 ],
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => auth()->user()->uuid,
             ],
-        ],
         )->json();
 
         $this->graphQL( /** @lang GraphQL */
@@ -163,13 +163,13 @@ class CustomFieldsTest extends TestCase
                 getAllCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => $key,
-                'data' => null,
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => auth()->user()->uuid,
+                'input' => [
+                    'name'               => $key,
+                    'data'               => null,
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => auth()->user()->uuid,
+                ],
             ],
-        ],
         )->assertSee($value);
     }
 
@@ -184,15 +184,15 @@ class CustomFieldsTest extends TestCase
                 setCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => $key,
-                'data' => [
-                    'hellos' => $value,
+                'input' => [
+                    'name' => $key,
+                    'data' => [
+                        'hellos' => $value,
+                    ],
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => auth()->user()->uuid,
                 ],
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => auth()->user()->uuid,
             ],
-        ],
         )->json();
 
         $results = $this->graphQL( /** @lang GraphQL */
@@ -201,15 +201,15 @@ class CustomFieldsTest extends TestCase
                 setCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => fake()->word,
-                'data' => [
-                    'hellos' => $value,
+                'input' => [
+                    'name' => fake()->word,
+                    'data' => [
+                        'hellos' => $value,
+                    ],
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => auth()->user()->uuid,
                 ],
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => auth()->user()->uuid,
             ],
-        ],
         )->json();
 
         $this->graphQL( /** @lang GraphQL */
@@ -225,10 +225,10 @@ class CustomFieldsTest extends TestCase
                 )
             }',
             [
-            'name' => $key,
-            'system_module_uuid' => get_class(auth()->user()),
-            'entity_id' => auth()->user()->uuid,
-        ],
+                'name'               => $key,
+                'system_module_uuid' => get_class(auth()->user()),
+                'entity_id'          => auth()->user()->uuid,
+            ],
         )->assertSee($value);
     }
 
@@ -243,15 +243,15 @@ class CustomFieldsTest extends TestCase
                 setCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => $key,
-                'data' => [
-                    'hellos' => fake()->numberBetween(1, 100),
+                'input' => [
+                    'name' => $key,
+                    'data' => [
+                        'hellos' => fake()->numberBetween(1, 100),
+                    ],
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => $userUuid,
                 ],
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => $userUuid,
             ],
-        ],
         );
 
         $results = $this->graphQL( /** @lang GraphQL */
@@ -260,13 +260,13 @@ class CustomFieldsTest extends TestCase
                 deleteCustomField(input: $input)
             }',
             [
-            'input' => [
-                'name' => $key,
-                'data' => null,
-                'system_module_uuid' => get_class(auth()->user()),
-                'entity_id' => $userUuid,
+                'input' => [
+                    'name'               => $key,
+                    'data'               => null,
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id'          => $userUuid,
+                ],
             ],
-        ],
         )->assertJson([
             'data' => [
                 'deleteCustomField' => true,

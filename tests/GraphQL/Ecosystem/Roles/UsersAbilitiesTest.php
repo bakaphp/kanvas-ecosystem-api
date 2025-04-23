@@ -47,7 +47,7 @@ class UsersAbilitiesTest extends TestCase
                 )
             }',
             [
-                'userId' => $user->getId(),
+                'userId'     => $user->getId(),
                 'permission' => 'invite-users',
             ]
         )->assertJson([
@@ -73,7 +73,7 @@ class UsersAbilitiesTest extends TestCase
                 )
             }',
             [
-                'userId' => $user->getId(),
+                'userId'     => $user->getId(),
                 'permission' => 'invite-users',
             ]
         )->assertJson([
@@ -94,7 +94,7 @@ class UsersAbilitiesTest extends TestCase
                 )
             }',
             [
-                'userId' => $user->getId(),
+                'userId'     => $user->getId(),
                 'permission' => 'invite-users',
             ]
         )->assertJson([
@@ -120,7 +120,7 @@ class UsersAbilitiesTest extends TestCase
                 )
             }',
             [
-                'userId' => $user->getId(),
+                'userId'     => $user->getId(),
                 'permission' => 'invite-users',
             ]
         )->assertJson([
@@ -141,7 +141,7 @@ class UsersAbilitiesTest extends TestCase
                 )
             }',
             [
-                'userId' => $user->getId(),
+                'userId'     => $user->getId(),
                 'permission' => 'invite-users',
             ]
         )->assertJson([

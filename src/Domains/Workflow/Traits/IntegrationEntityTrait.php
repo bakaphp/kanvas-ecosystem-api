@@ -40,13 +40,14 @@ trait IntegrationEntityTrait
             $history = $query->latest()->first();
 
             return [
-                'id' => $integration->getId(),
-                'name' => $integration->name,
-                'status' => $status ?? $history->status,
+                'id'         => $integration->getId(),
+                'name'       => $integration->name,
+                'status'     => $status ?? $history->status,
                 'created_at' => $history->created_at ?? null,
-                'updated_at' => $history->updated_at ?? null
+                'updated_at' => $history->updated_at ?? null,
             ];
         });
+
         return $integrationsEntities;
     }
 }

@@ -15,11 +15,6 @@ class Category
 {
     /**
      * create.
-     *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return Categories
      */
     public function create(mixed $root, array $request): Categories
     {
@@ -39,30 +34,22 @@ class Category
 
     /**
      * update.
-     *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return Categories
      */
     public function update(mixed $root, array $request): Categories
     {
         $category = CategoriesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         $category->update($request['input']);
+
         return $category;
     }
 
     /**
      * delete.
-     *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return bool
      */
     public function delete(mixed $root, array $request): bool
     {
         $category = CategoriesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
+
         return $category->delete();
     }
 

@@ -82,8 +82,8 @@ class AppUsersNotificationByRoleAction
 
         return [
             'totalNotificationSent' => $totalNotificationSent,
-            'totalSkipped' => $totalSkipped,
-            'notification' => $this->params,
+            'totalSkipped'          => $totalSkipped,
+            'notification'          => $this->params,
         ];
     }
 }

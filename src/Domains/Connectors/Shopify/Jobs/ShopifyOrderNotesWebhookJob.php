@@ -45,8 +45,8 @@ class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
         $order = $shopifyOrderService->addNoteToOrder($orderId, $note, $notesAttributes);
 
         return [
-            'message' => 'Note added to order ' . $orderId,
-            'order' => $order,
+            'message' => 'Note added to order '.$orderId,
+            'order'   => $order,
         ];
     }
 

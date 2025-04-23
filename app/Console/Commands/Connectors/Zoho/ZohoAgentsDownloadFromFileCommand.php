@@ -35,8 +35,6 @@ class ZohoAgentsDownloadFromFileCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -90,7 +88,7 @@ class ZohoAgentsDownloadFromFileCommand extends Command
 
                 $syncZohoAgent->execute();
             } catch (Exception $e) {
-                Log::error('Error syncing Zoho agent: ' . $e->getMessage());
+                Log::error('Error syncing Zoho agent: '.$e->getMessage());
 
                 continue;
             }

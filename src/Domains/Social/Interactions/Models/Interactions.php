@@ -9,8 +9,8 @@ use Kanvas\Social\Models\BaseModel;
 /**
  * Class Interactions.
  *
- * @property int $id
- * @property int $apps_id
+ * @property int    $id
+ * @property int    $apps_id
  * @property string $name
  * @property string $title
  * @property string $icon

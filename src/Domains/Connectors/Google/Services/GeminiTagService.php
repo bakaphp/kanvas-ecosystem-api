@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Google\Services;
 
 use Baka\Support\Str;
-use Prism\Prism\Prism;
 use Prism\Prism\Enums\Provider;
+use Prism\Prism\Prism;
 
 class GeminiTagService
 {
@@ -15,7 +15,7 @@ class GeminiTagService
      */
     public function generateTags(string $message, array $availableTags, int $limit = 3): array
     {
-        $prompt = "Given the following message:\n\n\"$message\"\n\nSelect the **{$limit} most relevant** tags from this list: " . implode(', ', $availableTags);
+        $prompt = "Given the following message:\n\n\"$message\"\n\nSelect the **{$limit} most relevant** tags from this list: ".implode(', ', $availableTags);
 
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')

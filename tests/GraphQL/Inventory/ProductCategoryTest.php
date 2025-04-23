@@ -11,10 +11,10 @@ class ProductCategoryTest extends TestCase
     public function testAddProductCategoryTest(): void
     {
         $dataRegion = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
+            'name'        => 'Test Region',
+            'slug'        => 'test-region',
+            'short_slug'  => 'test-region',
+            'is_default'  => 1,
             'currency_id' => 1,
         ];
         $response = $this->graphQL('
@@ -30,14 +30,14 @@ class ProductCategoryTest extends TestCase
                 }
             }', ['data' => $dataRegion])
             ->assertJson([
-                'data' => ['createRegion' => $dataRegion]
+                'data' => ['createRegion' => $dataRegion],
             ]);
         $idRegion = $response->json()['data']['createRegion']['id'];
         $data = [
-            'regions_id' => $idRegion,
-            'name' => 'Test Warehouse',
-            'location' => 'Test Location',
-            'is_default' => true,
+            'regions_id'   => $idRegion,
+            'name'         => 'Test Warehouse',
+            'location'     => 'Test Location',
+            'is_default'   => true,
             'is_published' => true,
         ];
 
@@ -53,15 +53,15 @@ class ProductCategoryTest extends TestCase
                     is_published
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
+            'data' => ['createWarehouse' => $data],
         ]);
 
         $categoryData = [
-            'name' => fake()->name,
-            'code' => fake()->name,
-            'position' => 1,
+            'name'         => fake()->name,
+            'code'         => fake()->name,
+            'position'     => 1,
             'is_published' => true,
-            'weight' => 0
+            'weight'       => 0,
         ];
         $categoryResponse = $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -75,19 +75,19 @@ class ProductCategoryTest extends TestCase
                     weight
                 }
             }', ['data' => $categoryData])->assertJson([
-            'data' => ['createCategory' => $categoryData]
+            'data' => ['createCategory' => $categoryData],
         ]);
         $idCategory = $categoryResponse->json()['data']['createCategory']['id'];
 
         $data = [
-            'name' => fake()->name,
-            'sku' => fake()->time,
+            'name'        => fake()->name,
+            'sku'         => fake()->time,
             'description' => fake()->text,
-            'categories' => [
+            'categories'  => [
                 [
-                    'id' => $idCategory
-                ]
-            ]
+                    'id' => $idCategory,
+                ],
+            ],
         ];
 
         $response = $this->graphQL('

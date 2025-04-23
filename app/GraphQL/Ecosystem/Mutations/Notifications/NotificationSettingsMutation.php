@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Actions\MuteAllNotificationAction;
 use Kanvas\Notifications\Actions\SetNotificationSettingAction;
+use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Models\UsersNotificationsSettings;
 
 class NotificationSettingsMutation

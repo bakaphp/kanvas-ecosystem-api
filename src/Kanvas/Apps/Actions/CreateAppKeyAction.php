@@ -25,7 +25,7 @@ class CreateAppKeyAction
     public function execute(): AppKey
     {
         $data = [
-            'name' => $this->data->name,
+            'name'    => $this->data->name,
             'apps_id' => $this->data->app->getId(),
         ];
 

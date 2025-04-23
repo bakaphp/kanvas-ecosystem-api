@@ -11,12 +11,12 @@ class Client
     public static function getClient()
     {
         return new GuzzleClient([
-             'base_uri' => 'https://api.rainforestapi.com',
-             'timeout' => 180,
-             'headers' => [
-                 'Accept' => 'application/json',
-                 'Content-Type' => 'application/json',
-             ],
-         ]);
+            'base_uri' => 'https://api.rainforestapi.com',
+            'timeout'  => 180,
+            'headers'  => [
+                'Accept'       => 'application/json',
+                'Content-Type' => 'application/json',
+            ],
+        ]);
     }
 }

@@ -20,7 +20,8 @@ class EvaluateNotificationsLogicAction
     }
 
     /**
-     * Evaluate Notifications Logic
+     * Evaluate Notifications Logic.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function execute(): bool
@@ -37,8 +38,8 @@ class EvaluateNotificationsLogicAction
         return $expressionLanguage->evaluate(
             $conditions,
             [
-                'user' => $this->user,
-                'app' => $this->app,
+                'user'    => $this->user,
+                'app'     => $this->app,
                 'message' => (object) $this->message,
             ]
         );

@@ -29,7 +29,7 @@ class AuthorizeNetPaymentProcessor
         protected CompaniesBranches $branch
     ) {
         $this->company = $this->branch->company;
-        $this->refId = 'ref' . time();        // Set the transaction's refId
+        $this->refId = 'ref'.time();        // Set the transaction's refId
     }
 
     protected function setupMerchantAuthentication(): AnetAPI\MerchantAuthenticationType
@@ -45,7 +45,7 @@ class AuthorizeNetPaymentProcessor
     {
         $creditCard = new AnetAPI\CreditCardType();
         $creditCard->setCardNumber($creditCardData->number);
-        $creditCard->setExpirationDate($creditCardData->exp_month . '-' . $creditCardData->exp_year);
+        $creditCard->setExpirationDate($creditCardData->exp_month.'-'.$creditCardData->exp_year);
         $creditCard->setCardCode($creditCardData->cvv);
 
         return $creditCard;

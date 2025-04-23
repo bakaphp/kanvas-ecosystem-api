@@ -31,8 +31,8 @@ class DefaultMessageActivity extends KanvasActivity implements WorkflowActivityI
         } catch (ModelNotFoundException $e) {
             $messageTypeDto = MessageTypeInput::from([
                 'apps_id' => $app->getId(),
-                'name' => 'system-message',
-                'verb' => 'system-message',
+                'name'    => 'system-message',
+                'verb'    => 'system-message',
             ]);
             $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
         }
@@ -44,10 +44,10 @@ class DefaultMessageActivity extends KanvasActivity implements WorkflowActivityI
             }
             $data = MessageInput::from(
                 [
-                    'app' => $app,
+                    'app'     => $app,
                     'company' => $entity->company,
-                    'user' => $entity->user,
-                    'type' => $messageType,
+                    'user'    => $entity->user,
+                    'type'    => $messageType,
                     'message' => $messageContent,
                 ]
             );
@@ -55,7 +55,7 @@ class DefaultMessageActivity extends KanvasActivity implements WorkflowActivityI
         }
 
         return [
-            'message' => 'Default message activity executed',
+            'message'  => 'Default message activity executed',
             'messages' => $messages,
         ];
     }

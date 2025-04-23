@@ -71,7 +71,7 @@ class RecombeeUserRecommendationService
         array $additionalOptions = []
     ): array {
         $options = array_merge([
-            'scenario' => $scenario,
+            'scenario'      => $scenario,
             'cascadeCreate' => true,
             //'filter' => "not ('itemId' in  user_interactions(context_user[\"userId\"], {\"detail_views\",\"ratings\"})) ",
         ], $additionalOptions);
@@ -95,7 +95,7 @@ class RecombeeUserRecommendationService
         array $additionalOptions = []
     ): array {
         $options = array_merge([
-            'scenario' => $scenario,
+            'scenario'      => $scenario,
             'cascadeCreate' => true,
         ], $additionalOptions);
 

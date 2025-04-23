@@ -13,8 +13,8 @@ use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 /**
  * Class Attributes.
  *
- * @property int $id
- * @property int $attributes_id
+ * @property int   $id
+ * @property int   $attributes_id
  * @property mixed $value
  */
 class AttributesValues extends BaseModel

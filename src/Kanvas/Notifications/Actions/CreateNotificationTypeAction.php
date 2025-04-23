@@ -25,15 +25,15 @@ class CreateNotificationTypeAction
     public function execute(): NotificationTypes
     {
         return NotificationTypes::firstOrCreate([
-            'name' => $this->notificationType->name,
+            'name'     => $this->notificationType->name,
             'template' => $this->notificationType->template->name,
-            'apps_id' => $this->notificationType->app->getId(),
+            'apps_id'  => $this->notificationType->app->getId(),
         ], [
-            'description' => $this->notificationType->description,
-            'key' => $this->notificationType->name,
-            'weight' => $this->notificationType->weight,
+            'description'       => $this->notificationType->description,
+            'key'               => $this->notificationType->name,
+            'weight'            => $this->notificationType->weight,
             'system_modules_id' => 1, //deprecated
-            'parent_id' => 0
+            'parent_id'         => 0,
         ]);
     }
 }

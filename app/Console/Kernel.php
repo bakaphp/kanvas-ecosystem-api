@@ -31,9 +31,9 @@ class Kernel extends ConsoleKernel
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
-        #$schedule->command(ScoutMessageReindexCommand::class, [env('MESSAGE_REINDEX_SCOUT_APP_ID', '13'), env('MESSAGE_REINDEX_SCOUT_MESSAGE_TYPES_ID', '572')])->everyTenMinutes();
-        #$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron
-        #$schedule->command(ImportPromptsFromDocsCommand::class)->weeklyOn(1, '00:00');
+        //$schedule->command(ScoutMessageReindexCommand::class, [env('MESSAGE_REINDEX_SCOUT_APP_ID', '13'), env('MESSAGE_REINDEX_SCOUT_MESSAGE_TYPES_ID', '572')])->everyTenMinutes();
+        //$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron
+        //$schedule->command(ImportPromptsFromDocsCommand::class)->weeklyOn(1, '00:00');
 
         /**
          * @todo move this to a cron subSystem
@@ -53,7 +53,7 @@ class Kernel extends ConsoleKernel
     #[Override]
     protected function commands()
     {
-        $this->load(__DIR__ . '/Commands');
+        $this->load(__DIR__.'/Commands');
 
         require base_path('routes/console.php');
     }

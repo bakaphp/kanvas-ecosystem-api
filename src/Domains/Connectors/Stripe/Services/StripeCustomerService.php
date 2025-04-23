@@ -47,7 +47,7 @@ class StripeCustomerService
             // 👤 Create new customer
             $customer = $this->stripe->customers->create([
                 'email' => $email,
-                'name' => $name,
+                'name'  => $name,
             ]);
 
             $people->set(CustomFieldEnum::STRIPE_ID->value, $customer->id);

@@ -12,6 +12,7 @@ class Invite extends Data
 {
     /**
      * __construct.
+     *
      * @todo move to camel case
      **/
     public function __construct(

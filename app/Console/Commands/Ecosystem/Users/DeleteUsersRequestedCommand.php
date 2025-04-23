@@ -30,8 +30,6 @@ class DeleteUsersRequestedCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -40,7 +38,7 @@ class DeleteUsersRequestedCommand extends Command
         if ($appsId) {
             $app = Apps::findFirstOrFail($appsId);
             $this->overwriteAppService($app);
-            $this->info('Deleting user from app: ' . $app->name);
+            $this->info('Deleting user from app: '.$app->name);
         }
 
         if (! isset($app)) {
@@ -58,7 +56,7 @@ class DeleteUsersRequestedCommand extends Command
                 ->get();
 
         foreach ($users as $user) {
-            echo 'Deleting user: ' . $user->email . PHP_EOL;
+            echo 'Deleting user: '.$user->email.PHP_EOL;
             $user->associateUsers()->deActive();
         }
     }

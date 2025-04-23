@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Actions;
 
 use Illuminate\Http\Request;
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 
@@ -21,9 +20,9 @@ class ProcessWebhookAttemptAction
     {
         $webhookCall = ReceiverWebhookCall::create([
             'receiver_webhooks_id' => $this->receiver->getId(),
-            'url' => $this->request->fullUrl(),
-            'headers' => $this->request->headers->all(),
-            'payload' => $this->request->input(),
+            'url'                  => $this->request->fullUrl(),
+            'headers'              => $this->request->headers->all(),
+            'payload'              => $this->request->input(),
         ]);
 
         return $webhookCall;

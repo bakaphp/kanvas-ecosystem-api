@@ -45,8 +45,8 @@ class PushLeadAction
                     ? trim($this->lead->source->description)
                     : '55694', // default source ID
                 'leadType' => strtoupper($this->lead?->type?->name ?? 'INTERNET'),
-                'contact' => $contact->id,
-                'isHot' => false,
+                'contact'  => $contact->id,
+                'isHot'    => false,
             ];
 
             $vinLead = Lead::create(
@@ -106,7 +106,7 @@ class PushLeadAction
         $this->vinLead->addNotes(
             $this->vinCredential->dealer,
             $this->vinCredential->user,
-            $user->firstname . ' ' . $user->lastname . ' started a Showroom visit.'
+            $user->firstname.' '.$user->lastname.' started a Showroom visit.'
         );
 
         $this->lead->del('currentUser');

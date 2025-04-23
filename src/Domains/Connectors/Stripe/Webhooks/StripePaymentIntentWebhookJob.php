@@ -21,21 +21,21 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
         //sleep(15);
         if ($chargeId === null) {
             return [
-                'message' => 'No charge ID found in the payload',
+                'message'  => 'No charge ID found in the payload',
                 'response' => null,
             ];
         }
 
         $order = Order::fromApp($this->receiver->app)
-        ->where('metadata', 'LIKE', '%' . $clientSecret . '%')
+        ->where('metadata', 'LIKE', '%'.$clientSecret.'%')
         ->first();
 
         if (empty($order)) {
             return [
                 'clientSecret' => $clientSecret,
-                'chargeId' => $chargeId,
+                'chargeId'     => $chargeId,
                 //'order' => $order->toArray(),
-                'message' => 'Order not found',
+                'message'  => 'Order not found',
                 'response' => null,
             ];
         }
@@ -46,14 +46,14 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
             WorkflowEnum::AFTER_PAYMENT_INTENT->value,
             true,
             [
-                'app' => $order->app,
+                'app'     => $order->app,
                 'company' => $order->company,
             ]
         );
 
         return [
             'message' => 'Payment intent processed successfully',
-            'order' => $order->toArray(),
+            'order'   => $order->toArray(),
         ];
     }
 }

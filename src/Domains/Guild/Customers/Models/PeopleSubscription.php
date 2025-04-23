@@ -8,10 +8,10 @@ use Baka\Casts\Json;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
- * @property int $id
- * @property int $peoples_id
- * @property string $subscription_type
- * @property string $status
+ * @property int      $id
+ * @property int      $peoples_id
+ * @property string   $subscription_type
+ * @property string   $status
  * @property datetime $first_date
  * @property datetime $start_date
  * @property datetime $end_date

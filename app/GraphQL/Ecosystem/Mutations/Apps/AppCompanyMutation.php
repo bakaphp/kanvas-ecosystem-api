@@ -15,9 +15,8 @@ use Kanvas\Users\Repositories\UsersRepository;
 class AppCompanyMutation
 {
     /**
-     * assignCompanyToApp
+     * assignCompanyToApp.
      *
-     * @param  array $req
      * @return void
      */
     public function assignCompanyToApp(mixed $root, array $request)
@@ -38,9 +37,9 @@ class AppCompanyMutation
     }
 
     /**
-     * removeCompanyToApp
-     * @param  null  $_
-     * @param  array{}  $args
+     * removeCompanyToApp.
+     *
+     * @param null $_
      */
     public function removeCompanyToApp($_, array $request): Companies
     {
@@ -62,9 +61,9 @@ class AppCompanyMutation
     }
 
     /**
-     * createAppTemplate
-     * @param  null  $_
-     * @param  array{}  $args
+     * createAppTemplate.
+     *
+     * @param null $_
      */
     public function createAppTemplate($_, array $request)
     {

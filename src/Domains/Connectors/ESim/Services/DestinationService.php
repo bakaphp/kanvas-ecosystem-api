@@ -27,13 +27,13 @@ class DestinationService
         ?int $limit = 25
     ): array {
         $query = http_build_query([
-            'code' => $code,
+            'code'     => $code,
             'provider' => $provider,
             'coverage' => $coverage,
-            'page' => $page,
-            'limit' => $limit,
+            'page'     => $page,
+            'limit'    => $limit,
         ]);
 
-        return $this->client->get('/api/v2/destinations/plans?' . $query);
+        return $this->client->get('/api/v2/destinations/plans?'.$query);
     }
 }

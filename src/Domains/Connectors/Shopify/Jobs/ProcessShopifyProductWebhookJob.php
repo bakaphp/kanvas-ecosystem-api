@@ -24,7 +24,7 @@ class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
             $integrationCompany = IntegrationsCompany::getById($integrationCompanyId);
         } catch (ModelNotFoundException $e) {
             return [
-                'message' => 'Integration company not found',
+                'message'    => 'Integration company not found',
                 'shopify_id' => $this->webhookRequest->payload['id'],
             ];
         }
@@ -59,8 +59,8 @@ class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
         );
 
         return [
-            'message' => 'Product synced successfully',
-            'shopify_id' => $this->webhookRequest->payload['id'],
+            'message'      => 'Product synced successfully',
+            'shopify_id'   => $this->webhookRequest->payload['id'],
             'product_name' => $mappedProduct['name'],
         ];
     }

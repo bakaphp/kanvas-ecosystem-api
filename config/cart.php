@@ -28,9 +28,9 @@ return [
         'redis' => RedisStorage::class,
         'session',
         'database' => [
-            'model' => \Kanvas\Souk\Cart\Support\RedisStorage::class,
-            'id' => 'session_id',
-            'items' => 'items',
+            'model'      => \Kanvas\Souk\Cart\Support\RedisStorage::class,
+            'id'         => 'session_id',
+            'items'      => 'items',
             'conditions' => 'conditions',
         ],
     ],

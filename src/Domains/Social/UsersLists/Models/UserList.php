@@ -16,16 +16,17 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
 
 /**
- *  class UserList
- *  @property int $id
- *  @property int $apps_id
- *  @property int $companies_id
- *  @property int $users_id
- *  @property string $name
- *  @property string $slug
- *  @property string $description
- *  @property bool $is_public
- *  @property bool $is_default
+ *  class UserList.
+ *
+ * @property int    $id
+ * @property int    $apps_id
+ * @property int    $companies_id
+ * @property int    $users_id
+ * @property string $name
+ * @property string $slug
+ * @property string $description
+ * @property bool   $is_public
+ * @property bool   $is_default
  */
 class UserList extends BaseModel
 {
@@ -56,7 +57,7 @@ class UserList extends BaseModel
      */
     public function searchableAs(): string
     {
-        return 'users_lists_index_app_' . app(Apps::class)->getId();
+        return 'users_lists_index_app_'.app(Apps::class)->getId();
     }
 
     /**

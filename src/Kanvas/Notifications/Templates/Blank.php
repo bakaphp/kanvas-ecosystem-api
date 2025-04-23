@@ -10,7 +10,7 @@ use Kanvas\Notifications\Notification;
 class Blank extends Notification
 {
     /**
-     * __construct
+     * __construct.
      */
     public function __construct(
         string $templateName,

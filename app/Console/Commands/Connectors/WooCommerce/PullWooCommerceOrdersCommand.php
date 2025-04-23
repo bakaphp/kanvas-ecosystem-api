@@ -52,9 +52,9 @@ class PullWooCommerceOrdersCommand extends Command
         $wooCommerce = new WooCommerce($app);
         $page = 1;
         $orders = $wooCommerce->client->get('orders', [
-            'status' => 'completed',
+            'status'   => 'completed',
             'per_page' => 100,
-            'page' => $page,
+            'page'     => $page,
         ]);
         $totalPage = $wooCommerce->client->http->getResponse()->getHeaders()['X-WP-TotalPages'][0] ?? 1;
         while ($page <= $totalPage) {
@@ -68,17 +68,17 @@ class PullWooCommerceOrdersCommand extends Command
                         $order
                     ))->execute();
                 } catch (Exception $e) {
-                    echo $e->getMessage() . PHP_EOL;
-                    echo $e->getTraceAsString() . PHP_EOL;
+                    echo $e->getMessage().PHP_EOL;
+                    echo $e->getTraceAsString().PHP_EOL;
 
                     break;
                 }
             }
             $page++;
             $orders = $wooCommerce->client->get('orders', [
-                'status' => 'completed',
+                'status'   => 'completed',
                 'per_page' => 100,
-                'page' => $page,
+                'page'     => $page,
             ]);
         }
     }

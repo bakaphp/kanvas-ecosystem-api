@@ -78,12 +78,12 @@ class CartManagementMutation
             }
 
             $tenPercentOff = new CartCondition([
-              'name' => 'APP15',
-              'type' => 'discount',
-              'target' => 'subtotal',
-              'value' => '-15%',
-              'minimum' => 1,
-              'order' => 1,
+                'name'    => 'APP15',
+                'type'    => 'discount',
+                'target'  => 'subtotal',
+                'value'   => '-15%',
+                'minimum' => 1,
+                'order'   => 1,
             ]);
 
             $cart->condition($tenPercentOff);

@@ -6,7 +6,6 @@ namespace Kanvas\Companies\Actions;
 
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Companies\DataTransferObject\CompaniesPutData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -21,8 +20,6 @@ class DeleteCompaniesAction
 {
     /**
      * Construct function.
-     *
-     * @param CompaniesPutData $data
      */
     public function __construct(
         protected Users $user

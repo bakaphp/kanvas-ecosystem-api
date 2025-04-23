@@ -31,7 +31,7 @@ class OrganizationTest extends TestCase
 
         if (empty($input)) {
             $input = [
-                'name' => $name,
+                'name'    => $name,
                 'address' => fake()->address(),
             ];
         }
@@ -55,7 +55,7 @@ class OrganizationTest extends TestCase
         $name = fake()->company();
 
         $input = [
-            'name' => $name,
+            'name'    => $name,
             'address' => fake()->address(),
         ];
 
@@ -83,7 +83,7 @@ class OrganizationTest extends TestCase
         $name = fake()->company();
 
         $input = [
-            'name' => $name,
+            'name'    => $name,
             'address' => fake()->address(),
         ];
 
@@ -105,12 +105,12 @@ class OrganizationTest extends TestCase
             }
         }
     ', [
-            'id' => $organizationId,
+            'id'    => $organizationId,
             'input' => $input,
         ])->assertJson([
             'data' => [
                 'updateOrganization' => [
-                    'id' => $organizationId,
+                    'id'   => $organizationId,
                     'name' => $newName,
 
                 ],
@@ -125,7 +125,7 @@ class OrganizationTest extends TestCase
         $name = fake()->company();
 
         $input = [
-            'name' => $name,
+            'name'    => $name,
             'address' => fake()->address(),
         ];
 
@@ -153,7 +153,7 @@ class OrganizationTest extends TestCase
         $name = fake()->company();
 
         $input = [
-            'name' => $name,
+            'name'    => $name,
             'address' => fake()->address(),
         ];
 
@@ -166,23 +166,23 @@ class OrganizationTest extends TestCase
                 deleteOrganization(id: $id)
             }
         ', [
-                'id' => $leadId,
-            ])->assertJson([
-                'data' => [
-                    'deleteOrganization' => true,
-                ],
-            ]);
+            'id' => $leadId,
+        ])->assertJson([
+            'data' => [
+                'deleteOrganization' => true,
+            ],
+        ]);
 
         $this->graphQL('
             mutation($id: ID!) {
                 restoreOrganization(id: $id)
             }
         ', [
-                'id' => $leadId,
-            ])->assertJson([
-                'data' => [
-                    'restoreOrganization' => true,
-                ],
-            ]);
+            'id' => $leadId,
+        ])->assertJson([
+            'data' => [
+                'restoreOrganization' => true,
+            ],
+        ]);
     }
 }

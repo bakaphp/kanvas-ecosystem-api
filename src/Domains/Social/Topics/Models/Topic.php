@@ -14,15 +14,15 @@ use Kanvas\Users\Models\Users;
 /**
  * Class Topics.
  *
- * @property int $id
- * @property int $apps_id
- * @property int $companies_id
- * @property int $users_id
+ * @property int    $id
+ * @property int    $apps_id
+ * @property int    $companies_id
+ * @property int    $users_id
  * @property string $name
  * @property string $slug
- * @property int $weight
- * @property int $is_feature
- * @property int $status
+ * @property int    $weight
+ * @property int    $is_feature
+ * @property int    $status
  */
 class Topic extends BaseModel
 {

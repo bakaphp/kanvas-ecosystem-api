@@ -70,24 +70,24 @@ class CMLinkProductService
             // Group variants under the same base name
             if (! isset($groupedProducts[$baseName])) {
                 $groupedProducts[$baseName] = [
-                    'name' => $baseName,
-                    'description' => $bundle['desc'][0]['value'] ?? '',
-                    'slug' => Str::slug($baseName),
-                    'sku' => $sku,
-                    'regionId' => $this->region->id,
-                    'price' => $price,
+                    'name'          => $baseName,
+                    'description'   => $bundle['desc'][0]['value'] ?? '',
+                    'slug'          => Str::slug($baseName),
+                    'sku'           => $sku,
+                    'regionId'      => $this->region->id,
+                    'price'         => $price,
                     'discountPrice' => $originalPrice,
-                    'quantity' => 1,
-                    'isPublished' => $bundle['status'] === 1,
-                    'status' => $bundle['status'] ?? 0,
-                    'files' => [
+                    'quantity'      => 1,
+                    'isPublished'   => $bundle['status'] === 1,
+                    'status'        => $bundle['status'] ?? 0,
+                    'files'         => [
                         [
                             'name' => 'logo.jpg',
-                            'url' => $bundle['imgurl'] ?? '',
+                            'url'  => $bundle['imgurl'] ?? '',
                         ],
                     ],
-                    'source' => CustomFieldEnum::CMLINK_SOURCE_ID->value,
-                    'sourceId' => $sku,
+                    'source'       => CustomFieldEnum::CMLINK_SOURCE_ID->value,
+                    'sourceId'     => $sku,
                     'customFields' => [
                         [
                             'name' => CustomFieldEnum::CMLINK_PRODUCT_ID->value,
@@ -96,27 +96,27 @@ class CMLinkProductService
                     ],
                     'categories' => [
                         [
-                            'name' => 'cmlink',
-                            'code' => crc32('cmlink'),
+                            'name'         => 'cmlink',
+                            'code'         => crc32('cmlink'),
                             'is_published' => true,
-                            'position' => 1,
-                        ],[
-                            'name' => 'esim',
-                            'code' => crc32('esim'),
+                            'position'     => 1,
+                        ], [
+                            'name'         => 'esim',
+                            'code'         => crc32('esim'),
                             'is_published' => true,
-                            'position' => 1,
+                            'position'     => 1,
                         ],
                     ],
                     'productType' => [
-                        'name' => ProductTypeEnum::getTypeByName($baseName)->value,
+                        'name'   => ProductTypeEnum::getTypeByName($baseName)->value,
                         'weight' => 0,
                     ],
                     'attributes' => $productAttributes,
-                    'variants' => [],
+                    'variants'   => [],
                     'warehouses' => [
                         [
                             'warehouse' => $this->warehouses->name,
-                            'channel' => $this->channel->name,
+                            'channel'   => $this->channel->name,
                         ],
                     ],
                 ];
@@ -145,20 +145,20 @@ class CMLinkProductService
     ): array {
         $fullName = $variantType == 'basic' ? $this->getDataSize($fullName) : $fullName;
         $variant = [
-            'name' => $fullName,
-            'description' => $bundle['desc'][0]['value'] ?? '',
-            'sku' => $sku,
-            'price' => $price,
+            'name'          => $fullName,
+            'description'   => $bundle['desc'][0]['value'] ?? '',
+            'sku'           => $sku,
+            'price'         => $price,
             'discountPrice' => $originalPrice,
-            'is_published' => $bundle['status'] === 1,
-            'slug' => $sku,
-            'attributes' => $variantAttributes,
-            'warehouse' => [
-                'id' => $this->warehouses->id,
-                'price' => $price,
+            'is_published'  => $bundle['status'] === 1,
+            'slug'          => $sku,
+            'attributes'    => $variantAttributes,
+            'warehouse'     => [
+                'id'       => $this->warehouses->id,
+                'price'    => $price,
                 'quantity' => 100000,
-                'sku' => $sku,
-                'is_new' => true,
+                'sku'      => $sku,
+                'is_new'   => true,
             ],
         ];
 
@@ -169,43 +169,43 @@ class CMLinkProductService
     {
         return [
             [
-                'name' => 'esim_bundle_type',
+                'name'  => 'esim_bundle_type',
                 'value' => $bundle['id'],
             ],
             [
-                'name' => 'esim_days',
+                'name'  => 'esim_days',
                 'value' => $bundle['period'] ?? 0,
             ],
             [
-                'name' => 'Variant Type',
+                'name'  => 'Variant Type',
                 'value' => $this->getVariantType($bundle['name'][0]['value'] ?? 'basic'),
             ],
             [
-                'name' => 'Variant Duration',
+                'name'  => 'Variant Duration',
                 'value' => $bundle['period'] ?? 0,
             ],
             [
-                'name' => 'Variant Network',
+                'name'  => 'Variant Network',
                 'value' => $bundle['desc'][0]['value'] ?? 'Unknown',
             ],
             [
-                'name' => 'refueling_package',
+                'name'  => 'refueling_package',
                 'value' => $bundle['refuelingPackage'] ?? null,
             ],
             [
-                'name' => 'Variant Speed',
+                'name'  => 'Variant Speed',
                 'value' => 'LTE', // Replace with actual speed if available
             ],
             [
-                'name' => 'Rechargeability',
+                'name'  => 'Rechargeability',
                 'value' => $bundle['activationMode'] ?? 'Unknown',
             ],
             [
-                'name' => 'Has Phone Number',
+                'name'  => 'Has Phone Number',
                 'value' => 0,
             ],
             [
-                'name' => 'Data',
+                'name'  => 'Data',
                 'value' => isset($bundle['name'][0]['value'])
                             ? $this->getDataSize($bundle['name'][0]['value'])
                             : 'unknown',
@@ -227,7 +227,7 @@ class CMLinkProductService
     {
         $attributes = [
             [
-                'name' => 'product-provider',
+                'name'  => 'product-provider',
                 'value' => ConfigurationEnum::NAME->value,
             ],
         ];
@@ -237,11 +237,11 @@ class CMLinkProductService
 
         if (! empty($mccs)) {
             $attributes[] = [
-                'name' => 'countries',
+                'name'  => 'countries',
                 'value' => $this->mapCountriesAttribute($mccs),
             ];
             $attributes[] = [
-                'name' => 'Countries Code',
+                'name'  => 'Countries Code',
                 'value' => $this->mapCountriesAttribute($mccs, 'code'),
             ];
         }
@@ -254,7 +254,7 @@ class CMLinkProductService
         }
 
         $attributes[] = [
-            'name' => 'max_unlimited_days',
+            'name'  => 'max_unlimited_days',
             'value' => $bundle['period'] ?? 0,
         ];
         /*         $attributes[] = [

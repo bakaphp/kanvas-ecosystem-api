@@ -46,7 +46,7 @@ class PlanMutation
         $data = $req['input'];
 
         $stripeProduct = StripeProduct::create([
-            'name' => $data['name'],
+            'name'        => $data['name'],
             'description' => $data['description'] ?? '',
         ]);
 
@@ -57,7 +57,7 @@ class PlanMutation
 
         if (! empty($data['prices'])) {
             foreach ($data['prices'] as $priceData) {
-                $priceData['apps_plans_id'] = (string)$newPlan->id;
+                $priceData['apps_plans_id'] = (string) $newPlan->id;
                 $priceData['stripe_id'] = $newPlan->stripe_id;
 
                 $priceDto = PriceDto::viaRequest($priceData, $this->user, $this->app);
@@ -76,12 +76,12 @@ class PlanMutation
     {
         $this->validateStripe();
         $data = $req['input'];
-        $plan = PlanRepository::getByIdWithApp((int)$req['id']);
+        $plan = PlanRepository::getByIdWithApp((int) $req['id']);
 
         StripeProduct::update($plan->stripe_id, [
-            'name' => $data['name'] ?? $plan->name,
+            'name'        => $data['name'] ?? $plan->name,
             'description' => $data['description'] ?? $plan->description,
-            'active' => $data['is_active'],
+            'active'      => $data['is_active'],
         ]);
 
         $data['stripe_id'] = $plan->stripe_id;
@@ -97,7 +97,7 @@ class PlanMutation
     public function delete(mixed $root, array $req): bool
     {
         $this->validateStripe();
-        $plan = PlanRepository::getByIdWithApp((int)$req['id']);
+        $plan = PlanRepository::getByIdWithApp((int) $req['id']);
 
         $stripeProduct = StripeProduct::retrieve($plan->stripe_id);
         $stripeProduct->delete();

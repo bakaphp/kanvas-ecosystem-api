@@ -26,8 +26,8 @@ class GenerateMessageTagsActivity extends KanvasActivity implements WorkflowActi
 
         if (! $entity instanceof Message) {
             return [
-                 'message' => 'Entity is not a message',
-             ];
+                'message' => 'Entity is not a message',
+            ];
         }
 
         $messageData = $entity->message;
@@ -42,22 +42,22 @@ class GenerateMessageTagsActivity extends KanvasActivity implements WorkflowActi
 
         if (empty($messagesTags)) {
             return [
-                 'message' => 'No tags found in the message data',
-                 'tags' => $params['tags'],
-             ];
+                'message' => 'No tags found in the message data',
+                'tags'    => $params['tags'],
+            ];
         }
 
         $entity->addTags(array_values($messagesTags));
 
         return [
             'message' => 'Tags added to the message',
-            'tags' => $messagesTags,
+            'tags'    => $messagesTags,
         ];
     }
 
     /**
      * find array keys in a given array.
-     * example how to define the list of keys
+     * example how to define the list of keys.
      *
      * $keysToFind = ['display_type.name','type.name', 'created_at'];
      */

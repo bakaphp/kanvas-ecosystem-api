@@ -10,14 +10,10 @@ class EmailDomain
 {
     /**
      * Verify if email domain is valid.
-     *
-     * @param string $email
-     *
-     * @return bool
      */
     public static function verifyDomain(string $email): bool
     {
-        if (! checkdnsrr(array_pop(explode('@', $email . '.')), 'MX')) {
+        if (! checkdnsrr(array_pop(explode('@', $email.'.')), 'MX')) {
             throw new ValidationException('Email domain is not valid.');
         }
 

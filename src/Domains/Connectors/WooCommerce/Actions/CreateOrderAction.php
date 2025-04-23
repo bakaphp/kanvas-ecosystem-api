@@ -37,27 +37,27 @@ class CreateOrderAction
         $people = PeoplesRepository::getByEmail($this->order->billing->email, $this->company);
         if (! $people) {
             $peopleDto = PeopleDto::from([
-                'app' => $this->app,
-                'branch' => $this->user->getCurrentBranch(),
-                'user' => $this->user,
+                'app'       => $this->app,
+                'branch'    => $this->user->getCurrentBranch(),
+                'user'      => $this->user,
                 'firstname' => $this->order->billing->first_name,
-                'lastname' => $this->order->billing->last_name,
-                'contacts' => Contact::collect([
+                'lastname'  => $this->order->billing->last_name,
+                'contacts'  => Contact::collect([
                     [
-                        'value' => $this->order->billing->email,
+                        'value'             => $this->order->billing->email,
                         'contacts_types_id' => ContactTypeEnum::EMAIL->value,
                     ],
                 ], DataCollection::class),
                 'address' => AddressDto::collect([
                     [
-                        'address' => $this->order->billing->address_1,
-                        'address_2' => $this->order->billing->address_2,
-                        'city' => $this->order->billing->city,
-                        'state' => $this->order->billing->state,
-                        'zip' => $this->order->billing->postcode,
+                        'address'      => $this->order->billing->address_1,
+                        'address_2'    => $this->order->billing->address_2,
+                        'city'         => $this->order->billing->city,
+                        'state'        => $this->order->billing->state,
+                        'zip'          => $this->order->billing->postcode,
                         'countries_id' => Countries::where('code', $this->order->billing->country)
                                     ->first()
-                                    ->id,],
+                                    ->id, ],
                 ], DataCollection::class),
             ]);
             $createPeople = new CreatePeopleAction($peopleDto);
@@ -65,11 +65,11 @@ class CreateOrderAction
         }
         if ($this->order->shipping->address_1 && $this->order->shipping->country) {
             $shippingAddress = AddressModel::create([
-                'address' => $this->order->shipping->address_1,
-                'address_2' => $this->order->shipping->address_2,
-                'city' => $this->order->shipping->city,
-                'state' => $this->order->shipping->state,
-                'zip' => $this->order->shipping->postcode,
+                'address'      => $this->order->shipping->address_1,
+                'address_2'    => $this->order->shipping->address_2,
+                'city'         => $this->order->shipping->city,
+                'state'        => $this->order->shipping->state,
+                'zip'          => $this->order->shipping->postcode,
                 'countries_id' => Countries::where('code', $this->order->shipping->country)
                     ->first()
                     ->id,
@@ -77,11 +77,11 @@ class CreateOrderAction
             ]);
         }
         $billingAddress = AddressModel::firstOrCreate([
-            'address' => $this->order->billing->address_1,
-            'address_2' => $this->order->billing->address_2,
-            'city' => $this->order->billing->city,
-            'state' => $this->order->billing->state,
-            'zip' => $this->order->billing->postcode,
+            'address'      => $this->order->billing->address_1,
+            'address_2'    => $this->order->billing->address_2,
+            'city'         => $this->order->billing->city,
+            'state'        => $this->order->billing->state,
+            'zip'          => $this->order->billing->postcode,
             'countries_id' => Countries::where('code', $this->order->billing->country)
                         ->first()
                         ->id,

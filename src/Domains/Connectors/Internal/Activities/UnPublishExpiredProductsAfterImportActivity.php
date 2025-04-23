@@ -13,9 +13,6 @@ use Override;
 
 class UnPublishExpiredProductsAfterImportActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    /**
-     * @param Products $product
-     */
     #[Override]
     public function execute(Model $company, AppInterface $app, array $params): array
     {
@@ -23,7 +20,7 @@ class UnPublishExpiredProductsAfterImportActivity extends KanvasActivity impleme
 
         if (! isset($params['process_product_ids'])) {
             return [
-                'status' => 'missing process_product_ids',
+                'status'       => 'missing process_product_ids',
                 'company_name' => $company->name,
             ];
         }
@@ -44,8 +41,8 @@ class UnPublishExpiredProductsAfterImportActivity extends KanvasActivity impleme
         }
 
         return [
-            'products' => $shouldBeUnPublished->pluck('id')->all(),
-            'status' => 'unpublished',
+            'products'     => $shouldBeUnPublished->pluck('id')->all(),
+            'status'       => 'unpublished',
             'company_name' => $company->name,
         ];
     }

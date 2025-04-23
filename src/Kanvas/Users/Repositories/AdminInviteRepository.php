@@ -12,14 +12,11 @@ class AdminInviteRepository
 {
     /**
      * getById.
-     *
-     * @param  int $id
-     *
-     * @return AdminInviteModel
      */
     public static function getById(int $id, ?AppInterface $app = null): AdminInviteModel
     {
         $app = $app ?: app(Apps::class);
+
         return AdminInviteModel::fromApp($app)
             ->notDeleted()
             ->where('id', $id)
@@ -28,10 +25,6 @@ class AdminInviteRepository
 
     /**
      * Get invite by its hash.
-     *
-     * @param  string $hash
-     *
-     * @return AdminInviteModel
      */
     public static function getByHash(string $hash, ?AppInterface $app = null): AdminInviteModel
     {

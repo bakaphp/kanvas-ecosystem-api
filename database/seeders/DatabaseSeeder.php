@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Kanvas\Modules\Models\Module;
 
 class DatabaseSeeder extends Seeder
 {

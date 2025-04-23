@@ -18,7 +18,7 @@ final class MessagesTest extends TestCase
         $faker = \Faker\Factory::create();
         $messageType = MessageType::factory()->create([
             'message_schema' => json_encode([
-                'name' => 'required|string',
+                'name'  => 'required|string',
                 'email' => 'required|string',
                 'phone' => 'required|string',
             ]),
@@ -27,17 +27,17 @@ final class MessagesTest extends TestCase
         $this->assertIsArray(json_decode($messageType->message_schema, true));
 
         $messageData = [
-            'name' => $faker->name(),
+            'name'  => $faker->name(),
             'email' => $faker->email(),
             'phone' => $faker->phoneNumber(),
         ];
 
         $message = new Message([
-            'message' => json_encode($messageData),
+            'message'          => json_encode($messageData),
             'message_types_id' => $messageType->id,
-            'apps_id' => 1,
-            'users_id' => Auth::user()->getId(),
-            'companies_id' => Auth::user()->currentCompanyId(),
+            'apps_id'          => 1,
+            'users_id'         => Auth::user()->getId(),
+            'companies_id'     => Auth::user()->currentCompanyId(),
         ]);
 
         $message->save();
@@ -53,7 +53,7 @@ final class MessagesTest extends TestCase
         $faker = \Faker\Factory::create();
         $messageType = MessageType::factory()->create([
             'message_schema' => json_encode([
-                'name' => 'required|string',
+                'name'  => 'required|string',
                 'email' => 'required|string',
                 'phone' => 'required|string',
             ]),
@@ -62,17 +62,17 @@ final class MessagesTest extends TestCase
         $this->assertIsArray(json_decode($messageType->message_schema, true));
 
         $messageData = [
-            'name' => $faker->name(),
+            'name'  => $faker->name(),
             'email' => $faker->email(),
             'phone' => 12312313,
         ];
 
         $message = new Message([
-            'message' => json_encode($messageData),
+            'message'          => json_encode($messageData),
             'message_types_id' => $messageType->id,
-            'apps_id' => 1,
-            'users_id' => Auth::user()->getId(),
-            'companies_id' => Auth::user()->currentCompanyId(),
+            'apps_id'          => 1,
+            'users_id'         => Auth::user()->getId(),
+            'companies_id'     => Auth::user()->currentCompanyId(),
         ]);
 
         $message->save();

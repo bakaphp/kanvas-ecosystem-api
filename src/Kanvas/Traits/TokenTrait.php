@@ -47,7 +47,7 @@ trait TokenTrait
      */
     protected function getTokenTimeNotBefore(): int
     {
-        return (time() + config('auth.token_not_before'));
+        return time() + config('auth.token_not_before');
     }
 
     /**
@@ -55,7 +55,7 @@ trait TokenTrait
      */
     protected function getTokenTimeExpiration(): int
     {
-        return (time() + config('auth.token_expiration'));
+        return time() + config('auth.token_expiration');
     }
 
     /**

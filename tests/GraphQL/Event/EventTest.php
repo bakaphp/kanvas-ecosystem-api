@@ -25,15 +25,15 @@ class EventTest extends TestCase
         $setup->run();
 
         $input = [
-            'name' => 'Test Event',
+            'name'        => 'Test Event',
             'description' => 'Test event description',
             'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
-            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
-            'dates' => [
+            'type_id'     => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'dates'       => [
                 [
-                    'date' => date('Y-m-d'),
+                    'date'       => date('Y-m-d'),
                     'start_time' => '11:00',
-                    'end_time' => '23:00',
+                    'end_time'   => '23:00',
                 ],
             ],
         ];

@@ -12,10 +12,9 @@ use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use PHPShopify\ShopifySDK;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ShopifyChannelService
 {
@@ -34,7 +33,7 @@ class ShopifyChannelService
     public function getAvailablePublicationChannels(): array
     {
         try {
-            $graphql = <<<QUERY
+            $graphql = <<<'QUERY'
         {
           publications(first: 250) {
             edges {
@@ -80,9 +79,9 @@ class ShopifyChannelService
                     continue;
                 }
 
-                $graphql = <<<QUERY
-            mutation publishablePublish(\$id: ID!, \$input: [PublicationInput!]!) {
-              publishablePublish(id: \$id, input: \$input) {
+                $graphql = <<<'QUERY'
+            mutation publishablePublish($id: ID!, $input: [PublicationInput!]!) {
+              publishablePublish(id: $id, input: $input) {
                 userErrors {
                   field
                   message
@@ -92,7 +91,7 @@ class ShopifyChannelService
             QUERY;
 
                 $variables = [
-                    'id' => 'gid://shopify/Product/' . $shopifyProductId,
+                    'id'    => 'gid://shopify/Product/'.$shopifyProductId,
                     'input' => [
                         'publicationId' => $publicationId,
                     ],
@@ -104,7 +103,7 @@ class ShopifyChannelService
 
             return count($responses) > 1 ? $responses : $responses[0] ?? [];
         } catch (Throwable $e) {
-            Log::error("Failed to add product {$product->id} to publication: " . $e->getMessage());
+            Log::error("Failed to add product {$product->id} to publication: ".$e->getMessage());
             captureException($e);
 
             return ['error' => $e->getMessage()];
@@ -133,9 +132,9 @@ class ShopifyChannelService
                     continue;
                 }
 
-                $graphql = <<<QUERY
-            mutation publishableUnpublish(\$id: ID!, \$input: [PublicationInput!]!) {
-              publishableUnpublish(id: \$id, input: \$input) {
+                $graphql = <<<'QUERY'
+            mutation publishableUnpublish($id: ID!, $input: [PublicationInput!]!) {
+              publishableUnpublish(id: $id, input: $input) {
                 publishable {
                   availablePublicationCount
                   publicationCount
@@ -152,7 +151,7 @@ class ShopifyChannelService
             QUERY;
 
                 $variables = [
-                    'id' => 'gid://shopify/Product/' . $shopifyProductId,
+                    'id'    => 'gid://shopify/Product/'.$shopifyProductId,
                     'input' => [
                         'publicationId' => $publicationId,
                     ],
@@ -164,7 +163,7 @@ class ShopifyChannelService
 
             return count($responses) > 1 ? $responses : $responses[0] ?? [];
         } catch (Throwable $e) {
-            Log::error("Failed to remove product {$product->id} from publication: " . $e->getMessage());
+            Log::error("Failed to remove product {$product->id} from publication: ".$e->getMessage());
             captureException($e);
 
             return ['error' => $e->getMessage()];
@@ -176,7 +175,7 @@ class ShopifyChannelService
         // Try to get from config first
         $defaultPublicationId = $this->company->get(ConfigEnum::SHOPIFY_PUBLICATION_ID->value);
         if ($defaultPublicationId) {
-            return 'gid://shopify/Publication/' . $defaultPublicationId;
+            return 'gid://shopify/Publication/'.$defaultPublicationId;
         }
 
         // Otherwise, fetch and look for 'Online Store'

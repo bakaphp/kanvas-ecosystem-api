@@ -45,8 +45,8 @@ class MailAllAppUsersCommand extends Command
         if (getenv('TEST_EMAIL_FEATURE')) {
             $userModelEntity = Users::getByEmail(getenv('TEST_EMAIL_FEATURE_ADRESS'));
             $this->sendEmailToUser($userModelEntity, $emailTemplateName, $emailSubject);
-            $this->info('Email Successfully sent to: ' . $userModelEntity->getId() . ' on app: ' . $app->getId());
-            exit();
+            $this->info('Email Successfully sent to: '.$userModelEntity->getId().' on app: '.$app->getId());
+            exit;
         }
 
         $user = DB::table('users_associated_apps')
@@ -58,14 +58,14 @@ class MailAllAppUsersCommand extends Command
             foreach ($users as $user) {
                 $userModelEntity = Users::getByEmail($user->email);
                 $this->sendEmailToUser($userModelEntity, $emailTemplateName, $emailSubject);
-                $this->info('Email Successfully sent to: ' . $user->users_id . ' on app: ' . $app->getId());
+                $this->info('Email Successfully sent to: '.$user->users_id.' on app: '.$app->getId());
                 $this->newLine();
             }
         });
     }
 
     /**
-     * Send email to user using a custom template
+     * Send email to user using a custom template.
      */
     private function sendEmailToUser(Users $user, string $emailTemplateName, string $emailSubject): void
     {

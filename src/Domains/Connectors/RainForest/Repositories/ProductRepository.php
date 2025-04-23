@@ -24,11 +24,11 @@ class ProductRepository
         $client = Client::getClient();
         $response = $client->get('/request', [
             'query' => [
-                'api_key' => $this->app->get(ConfigurationEnum::RAINFOREST_KEY->value),
-                'type' => 'search',
-                'amazon_domain' => 'amazon.com',
-                'search_term' => $name,
-                'sort_by' => 'featured',
+                'api_key'           => $this->app->get(ConfigurationEnum::RAINFOREST_KEY->value),
+                'type'              => 'search',
+                'amazon_domain'     => 'amazon.com',
+                'search_term'       => $name,
+                'sort_by'           => 'featured',
                 'exclude_sponsored' => true,
             ],
         ]);
@@ -42,10 +42,10 @@ class ProductRepository
         $client = Client::getClient();
         $response = $client->get('/request', [
             'query' => [
-                'api_key' => $this->app->get(ConfigurationEnum::RAINFOREST_KEY->value),
-                'type' => 'product',
+                'api_key'       => $this->app->get(ConfigurationEnum::RAINFOREST_KEY->value),
+                'type'          => 'product',
                 'amazon_domain' => 'amazon.com',
-                'asin' => $asin,
+                'asin'          => $asin,
             ],
         ]);
         $response = json_decode($response->getBody()->getContents(), true);

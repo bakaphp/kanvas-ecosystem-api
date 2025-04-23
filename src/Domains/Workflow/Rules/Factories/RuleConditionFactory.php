@@ -15,10 +15,10 @@ class RuleConditionFactory extends Factory
     public function definition()
     {
         return [
-           'rules_id' => Rule::factory()->create()->getId(),
-           'attribute_name' => 'id',
-           'operator' => '>=',
-              'value' => 0,
+            'rules_id'       => Rule::factory()->create()->getId(),
+            'attribute_name' => 'id',
+            'operator'       => '>=',
+            'value'          => 0,
         ];
     }
 }

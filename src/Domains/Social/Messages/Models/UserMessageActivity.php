@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Models;
 
-use Kanvas\Social\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Social\Models\BaseModel;
 
 /**
- *  class UserMessageActivity
- *  @property int $id
- *  @property int $user_messages_id
- *  @property int $from_entity_id
- *  @property string $entity_namespace
- *  @property string $username
- *  @property string $type
- *  @property string $text
+ *  class UserMessageActivity.
+ *
+ * @property int    $id
+ * @property int    $user_messages_id
+ * @property int    $from_entity_id
+ * @property string $entity_namespace
+ * @property string $username
+ * @property string $type
+ * @property string $text
  */
 class UserMessageActivity extends BaseModel
 {
@@ -24,9 +25,7 @@ class UserMessageActivity extends BaseModel
     protected $guarded = [];
 
     /**
-     * userMessage
-     *
-     * @return BelongsTo
+     * userMessage.
      */
     public function userMessage(): BelongsTo
     {

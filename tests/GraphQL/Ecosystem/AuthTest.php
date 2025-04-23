@@ -21,9 +21,9 @@ class AuthTest extends TestCase
     {
         if (empty(self::$loginData)) {
             self::$loginData = LoginInput::from([
-                'email' => fake()->email,
+                'email'    => fake()->email,
                 'password' => fake()->password(9),
-                'ip' => request()->ip(),
+                'ip'       => request()->ip(),
             ]);
         }
 
@@ -31,7 +31,7 @@ class AuthTest extends TestCase
     }
 
     /**
-     * Test the logout function to remove sessions
+     * Test the logout function to remove sessions.
      */
     public function testLogout(): void
     {
@@ -47,7 +47,7 @@ class AuthTest extends TestCase
     }
 
     /**
-     * Test the logout function to remove sessions
+     * Test the logout function to remove sessions.
      */
     public function testLogoutFromAllDevices(): void
     {
@@ -63,7 +63,8 @@ class AuthTest extends TestCase
     }
 
     /**
-     * Test if the user is allow to login using social media
+     * Test if the user is allow to login using social media.
+     *
      * @todo Look for a way to generate and pass the user token for the login using
      * a test account.
      */
@@ -98,8 +99,8 @@ class AuthTest extends TestCase
               }
         ', [
             'data' => [
-                'email' => $email,
-                'password' => $password,
+                'email'                 => $email,
+                'password'              => $password,
                 'password_confirmation' => $password,
             ],
         ])->assertJson([
@@ -143,7 +144,7 @@ class AuthTest extends TestCase
 
         ', [
             'data' => [
-                'email' => $email,
+                'email'    => $email,
                 'password' => $password,
             ],
         ])
@@ -158,7 +159,7 @@ class AuthTest extends TestCase
     }
 
     /**
-     * test_refresh_token
+     * test_refresh_token.
      */
     public function testRefreshToken(): void
     {
@@ -181,7 +182,7 @@ class AuthTest extends TestCase
 
         ', [
             'data' => [
-                'email' => $email,
+                'email'    => $email,
                 'password' => $password,
             ],
         ]);
@@ -226,9 +227,9 @@ class AuthTest extends TestCase
         ->assertJson([
             'data' => [
                 'me' => [
-                    'id' => $userData->id,
+                    'id'          => $userData->id,
                     'displayname' => $userData->displayname,
-                    'email' => $userData->email,
+                    'email'       => $userData->email,
                 ],
             ],
         ]);
@@ -275,9 +276,9 @@ class AuthTest extends TestCase
             }',
             [
                 'data' => [
-                    'new_password' => '11223344',
+                    'new_password'    => '11223344',
                     'verify_password' => '11223344',
-                    'hash_key' => $authentically->user_activation_forgot,
+                    'hash_key'        => $authentically->user_activation_forgot,
                 ],
             ]
         )

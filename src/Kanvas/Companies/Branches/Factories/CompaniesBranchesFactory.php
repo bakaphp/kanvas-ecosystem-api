@@ -28,16 +28,17 @@ class CompaniesBranchesFactory extends Factory
     {
         $user = Users::first();
         $company = Companies::first();
+
         return [
             'companies_id' => $company->id,
-            'users_id' => $user->id,
-            'name' => $this->faker->name(),
-            'address' => $this->faker->address(),
-            'zipcode' => $this->faker->postcode(),
-            'email' => $this->faker->email(),
-            'phone' => $this->faker->phoneNumber(),
-            'is_default' => 1,
-            'is_deleted' => 0
+            'users_id'     => $user->id,
+            'name'         => $this->faker->name(),
+            'address'      => $this->faker->address(),
+            'zipcode'      => $this->faker->postcode(),
+            'email'        => $this->faker->email(),
+            'phone'        => $this->faker->phoneNumber(),
+            'is_default'   => 1,
+            'is_deleted'   => 0,
         ];
     }
 }

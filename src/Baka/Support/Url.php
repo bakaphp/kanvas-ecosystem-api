@@ -41,15 +41,15 @@ class Url
         try {
             $response = $client->post('https://api-ssl.bitly.com/v4/shorten', [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $bitlyAccessToken,
-                    'Accept' => 'application/json',
+                    'Authorization' => 'Bearer '.$bitlyAccessToken,
+                    'Accept'        => 'application/json',
                 ],
                 'json' => [
                     'long_url' => $url,
-                    'domain' => $app->get('custom-short-url') ?? 'bit.ly',
+                    'domain'   => $app->get('custom-short-url') ?? 'bit.ly',
                 ],
             ]);
-            $response = json_decode((string)$response->getBody(), true);
+            $response = json_decode((string) $response->getBody(), true);
 
             return $response['link'];
         } catch (Throwable $ex) {
@@ -73,16 +73,16 @@ class Url
             $response = $client->post('https://api.short.io/links', [
                 'headers' => [
                     'Authorization' => $shortioAccessToken,
-                    'Accept' => 'application/json',
-                    'content-type' => 'application/json',
+                    'Accept'        => 'application/json',
+                    'content-type'  => 'application/json',
                 ],
                 'json' => [
                     'originalURL' => $url,
-                    'domain' => $app->get('custom-short-url'),
+                    'domain'      => $app->get('custom-short-url'),
                 ],
             ]);
 
-            $response = json_decode((string)$response->getBody(), true);
+            $response = json_decode((string) $response->getBody(), true);
 
             if (isset($response['shortURL'])) {
                 return (string) $response['shortURL'];

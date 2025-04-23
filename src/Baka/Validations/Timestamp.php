@@ -10,8 +10,6 @@ class Timestamp
      * Is valid timestamp.
      *
      * @param string|null $timestamp
-     *
-     * @return bool
      */
     public static function isValid(?int $timestamp = null): bool
     {

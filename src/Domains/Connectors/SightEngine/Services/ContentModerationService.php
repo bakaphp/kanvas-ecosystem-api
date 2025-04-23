@@ -24,14 +24,14 @@ class ContentModerationService
 
     public function scanImage(string $imageUrl): array
     {
-        $params = array(
-            'url' =>  $imageUrl,
-            'models' => self::IMAGE_MODERATION_MODELS,
-            'api_user' => config('services.sightengine.api_user'),
-            'api_secret' => config('services.sightengine.api_secret')
-        );
+        $params = [
+            'url'        => $imageUrl,
+            'models'     => self::IMAGE_MODERATION_MODELS,
+            'api_user'   => config('services.sightengine.api_user'),
+            'api_secret' => config('services.sightengine.api_secret'),
+        ];
 
-        $ch = curl_init(config('services.sightengine.image_moderation.api_url') . http_build_query($params));
+        $ch = curl_init(config('services.sightengine.image_moderation.api_url').http_build_query($params));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($ch);
         curl_close($ch);
@@ -41,14 +41,14 @@ class ContentModerationService
 
     public function scanText(string $text): array
     {
-        $params = array(
-            'text' => $text,
-            'lang' => 'en',
-            'models' => self::TEXT_MODERATION_MODELS,
-            'mode' => 'ml',
-            'api_user' => config('services.sightengine.api_user'),
-            'api_secret' => config('services.sightengine.api_secret')
-        );
+        $params = [
+            'text'       => $text,
+            'lang'       => 'en',
+            'models'     => self::TEXT_MODERATION_MODELS,
+            'mode'       => 'ml',
+            'api_user'   => config('services.sightengine.api_user'),
+            'api_secret' => config('services.sightengine.api_secret'),
+        ];
 
         $ch = curl_init(config('services.sightengine.text_moderation.api_url'));
         curl_setopt($ch, CURLOPT_POST, true);
@@ -68,11 +68,11 @@ class ContentModerationService
         $violenceResults = $results['violence']['prob'] >= self::VIOLENCE_THRESHOLD;
 
         return [
-            "scan_status" => $results['status'],
-            "nudity_results" => $nudityResults,
-            "weapon_results" => $weaponResults,
-            "gore_results" => $goreResults,
-            "violence_results" => $violenceResults
+            'scan_status'      => $results['status'],
+            'nudity_results'   => $nudityResults,
+            'weapon_results'   => $weaponResults,
+            'gore_results'     => $goreResults,
+            'violence_results' => $violenceResults,
         ];
     }
 
@@ -84,11 +84,11 @@ class ContentModerationService
         $insultingResults = $results['moderation_classes']['insulting'] >= self::INSULTING_THRESHOLD;
 
         return [
-            "scan_status" => $results['status'],
-            "sexual_results" => $sexualResults,
-            "discriminatory_results" => $discriminatoryResults,
-            "violent_results" => $violentResults,
-            "insulting_results" => $insultingResults
+            'scan_status'            => $results['status'],
+            'sexual_results'         => $sexualResults,
+            'discriminatory_results' => $discriminatoryResults,
+            'violent_results'        => $violentResults,
+            'insulting_results'      => $insultingResults,
         ];
     }
 }

@@ -56,8 +56,8 @@ class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
                     try {
                         $follower->notify($dynamicNotification);
                     } catch (Throwable $e) {
-                        Log::error('Error in notification to user : ' . $follower->displayname . ' ' . $e->getMessage(), [
-                            'job' => self::class,
+                        Log::error('Error in notification to user : '.$follower->displayname.' '.$e->getMessage(), [
+                            'job'       => self::class,
                             'exception' => $e,
                         ]);
 

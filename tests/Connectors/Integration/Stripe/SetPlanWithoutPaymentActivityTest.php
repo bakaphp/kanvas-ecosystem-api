@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Stripe;
 
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Users\Models\Users;
-use Kanvas\Subscription\Plans\Models\Plan;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Subscription\Plans\Models\Plan;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
-use Illuminate\Support\Facades\DB;
-use Baka\Users\Contracts\UserInterface;
-use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 
 final class SetPlanWithoutPaymentActivityTest extends TestCase
 {
@@ -48,15 +48,15 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
     {
         // Define the data you want to insert
         $plan = [
-            'apps_id' => $this->appModel->id,
-            'name' => 'Test Plan',
+            'apps_id'          => $this->appModel->id,
+            'name'             => 'Test Plan',
             'payment_interval' => 'year',
-            'description' => 'This is a test plan.',
-            'stripe_id' => 'prod_R2hvq1l4dBI0v2',
+            'description'      => 'This is a test plan.',
+            'stripe_id'        => 'prod_R2hvq1l4dBI0v2',
             'free_trial_dates' => 14,
-            'is_default' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'is_default'       => 1,
+            'created_at'       => now(),
+            'updated_at'       => now(),
         ];
 
         DB::table('apps_plans')->updateOrInsert(
@@ -65,14 +65,14 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
         );
         $planId = DB::table('apps_plans')->where('stripe_id', $plan['stripe_id'])->value('id');
         $price = [
-                'apps_plans_id' => $planId,
-                'stripe_id' => 'price_1QAcVrBwyV21ueMMngenEy2U',
-                'amount' => 100.00,
-                'currency' => 'USD',
-                'interval' => 'yearly',
-                'is_default' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
+            'apps_plans_id' => $planId,
+            'stripe_id'     => 'price_1QAcVrBwyV21ueMMngenEy2U',
+            'amount'        => 100.00,
+            'currency'      => 'USD',
+            'interval'      => 'yearly',
+            'is_default'    => 1,
+            'created_at'    => now(),
+            'updated_at'    => now(),
         ];
 
         DB::table('apps_plans_prices')->updateOrInsert(

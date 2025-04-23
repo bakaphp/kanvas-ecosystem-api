@@ -20,8 +20,8 @@ class SendLeadEmailsAction
 
     public function execute(array $payload, Model $user): void
     {
-        $userTemplate = 'user-' . $this->emailTemplate;
-        $leadTemplate = 'lead-' . $this->emailTemplate;
+        $userTemplate = 'user-'.$this->emailTemplate;
+        $leadTemplate = 'lead-'.$this->emailTemplate;
         $data = [
             ...$payload,
             'lead' => $this->lead,
@@ -41,15 +41,15 @@ class SendLeadEmailsAction
         $warehouse = $variant->warehouses->first();
 
         return (object) [
-            'name' => $product->name,
-            'price' => $variant->getPrice($warehouse),
+            'name'     => $product->name,
+            'price'    => $variant->getPrice($warehouse),
             'quantity' => $variant->quantity,
         ];
     }
 
     /**
-    * Send email to user or lead using a custom template
-    */
+     * Send email to user or lead using a custom template.
+     */
     protected function sendEmail(Model $entity, string $emailTemplateName, string $email, array $mailData): void
     {
         $notification = new Blank(

@@ -16,18 +16,18 @@ use Kanvas\Templates\Models\Templates;
 /**
  * NotificationTypes Model.
  *
- * @property int $apps_id
- * @property int $system_modules_id
- * @property int $notification_channel_id
+ * @property int    $apps_id
+ * @property int    $system_modules_id
+ * @property int    $notification_channel_id
  * @property string $name
  * @property string $key
  * @property string $description
  * @property string|null title
  * @property string $template
  * @property string $icon_url
- * @property int $with_realtime
- * @property int $parent_id
- * @property float $is_published
+ * @property int    $with_realtime
+ * @property int    $parent_id
+ * @property float  $is_published
  */
 class NotificationTypes extends BaseModel
 {

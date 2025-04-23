@@ -52,7 +52,7 @@ class Tag extends BaseModel
     {
         $databaseName = DB::connection($this->connection)->getDatabaseName();
 
-        return $databaseName . '.tags';
+        return $databaseName.'.tags';
     }
 
     public function searchableAs(): string
@@ -62,7 +62,7 @@ class Tag extends BaseModel
         $app = $tag->app ?? app(Apps::class);
         $customIndex = $app->get('app_custom_tag_index') ?? null;
 
-        return config('scout.prefix') . ($customIndex ?? 'tag_index');
+        return config('scout.prefix').($customIndex ?? 'tag_index');
     }
 
     public static function search($query = '', $callback = null)
@@ -80,22 +80,22 @@ class Tag extends BaseModel
     {
         return [
             'objectID' => $this->id,
-            'id' => $this->id,
-            'name' => $this->name,
-            'company' => [
-                'id' => $this->companies_id,
+            'id'       => $this->id,
+            'name'     => $this->name,
+            'company'  => [
+                'id'   => $this->companies_id,
                 'name' => $this->company->name,
             ],
             'user' => [
                 'firstname' => $this?->company?->user?->firstname,
-                'lastname' => $this?->company?->user?->lastname,
+                'lastname'  => $this?->company?->user?->lastname,
             ],
-            'slug' => $this->slug,
-            'apps_id' => $this->apps_id,
-            'weight' => $this->weight,
-            'status' => $this->status,
+            'slug'        => $this->slug,
+            'apps_id'     => $this->apps_id,
+            'weight'      => $this->weight,
+            'status'      => $this->status,
             'is_featured' => $this->is_feature,
-            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
+            'created_at'  => $this->created_at->format('Y-m-d H:i:s'),
         ];
     }
 }

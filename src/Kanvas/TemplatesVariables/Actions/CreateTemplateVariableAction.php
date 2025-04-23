@@ -25,17 +25,17 @@ class CreateTemplateVariableAction
     {
         return TemplatesVariables::updateOrCreate(
             [
-                'apps_id' => $this->templateVariable->app->getKey(),
+                'apps_id'      => $this->templateVariable->app->getKey(),
                 'companies_id' => $this->templateVariable->company ? $this->templateVariable->company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue(),
-                'name' => $this->templateVariable->name,
+                'name'         => $this->templateVariable->name,
             ],
             [
-                'users_id' => $this->templateVariable->user ? $this->templateVariable->user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
-                'apps_id' => $this->templateVariable->app->getKey(),
+                'users_id'     => $this->templateVariable->user ? $this->templateVariable->user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
+                'apps_id'      => $this->templateVariable->app->getKey(),
                 'companies_id' => $this->templateVariable->company ? $this->templateVariable->company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue(),
-                'name' => $this->templateVariable->name,
-                'value' => $this->templateVariable->value,
-                'template_id' => $this->templateVariable->template_id,
+                'name'         => $this->templateVariable->name,
+                'value'        => $this->templateVariable->value,
+                'template_id'  => $this->templateVariable->template_id,
             ]
         );
     }

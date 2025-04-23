@@ -22,14 +22,14 @@ class ChannelInfoType
         $warehouseInfo = $defaultChannelInfo?->productVariantWarehouse()->first();
 
         return [
-            'price' => $defaultChannelInfo?->price ?? 0,
+            'price'            => $defaultChannelInfo?->price ?? 0,
             'discounted_price' => $defaultChannelInfo?->discounted_price ?? 0,
-            'quantity' => $warehouseInfo?->quantity ?? 0,
-            'is_best_seller' => false,
-            'is_on_sale' => false,
-            'is_on_promotion' => false,
-            'is_coming_soon' => false,
-            'config' => $defaultChannelInfo?->config ?? null,
+            'quantity'         => $warehouseInfo?->quantity ?? 0,
+            'is_best_seller'   => false,
+            'is_on_sale'       => false,
+            'is_on_promotion'  => false,
+            'is_coming_soon'   => false,
+            'config'           => $defaultChannelInfo?->config ?? null,
         ];
     }
 }

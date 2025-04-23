@@ -18,10 +18,9 @@ use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use PHPShopify\ShopifySDK;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ShopifyInventoryService
 {
@@ -38,8 +37,8 @@ class ShopifyInventoryService
     }
 
     /**
-       * Split variants into chunks and create product title for each part.
-       */
+     * Split variants into chunks and create product title for each part.
+     */
     public function prepareProductParts(Products $product, int $variantLimit): array
     {
         //to avoid issues if one variant is deleted and it moves to the next part
@@ -52,8 +51,8 @@ class ShopifyInventoryService
 
             $productParts[] = [
                 'part_number' => $partNumber,
-                'title' => $product->name . $suffix,
-                'variants' => $variantChunk,
+                'title'       => $product->name.$suffix,
+                'variants'    => $variantChunk,
             ];
         }
 
@@ -66,7 +65,7 @@ class ShopifyInventoryService
             return $baseSlug;
         }
 
-        return $baseSlug . '-part-' . $partNumber;
+        return $baseSlug.'-part-'.$partNumber;
     }
 
     /**
@@ -88,13 +87,13 @@ class ShopifyInventoryService
             $shopifyProductId = $product->getShopifyId($this->warehouses->regions, $shopifyProductIdPartNumber);
 
             $productInfo = [
-                'title' => $part['title'],
-                'handle' => $this->getPartHandle($product->slug, $partNumber),
-                'body_html' => $product->description,
-                'product_type' => $product->productsTypes?->name ?? 'default',
-                'status' => $product->hasPrice($this->warehouses, $channel) ? $status->value : StatusEnum::ARCHIVED->value,
+                'title'           => $part['title'],
+                'handle'          => $this->getPartHandle($product->slug, $partNumber),
+                'body_html'       => $product->description,
+                'product_type'    => $product->productsTypes?->name ?? 'default',
+                'status'          => $product->hasPrice($this->warehouses, $channel) ? $status->value : StatusEnum::ARCHIVED->value,
                 'published_scope' => 'web',
-                'tags' => $product->tags->pluck('name')->implode(','),
+                'tags'            => $product->tags->pluck('name')->implode(','),
             ];
             if ($this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value)) {
                 $productInfo['vendor'] = $this->app->get(ConfigEnum::SHOPIFY_VENDOR_DEFAULT_NAME->value) ?? 'default'; //$product->category->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
@@ -176,7 +175,7 @@ class ShopifyInventoryService
     }
 
     /**
-     * Map the data from the variant into the array
+     * Map the data from the variant into the array.
      */
     public function mapVariant(Variants $variant, ?Channels $channel = null): array
     {
@@ -197,16 +196,16 @@ class ShopifyInventoryService
 
         $quantity = $warehouseInfo?->quantity ?? 0;
         $shopifyVariantInfo = [
-            'option1' => $variant->name ?? $variant->sku,
-            'sku' => $variant->sku,
-            'barcode' => $variant->barcode,
-            'price' => $price,
-            'quantity' => $quantity,
+            'option1'          => $variant->name ?? $variant->sku,
+            'sku'              => $variant->sku,
+            'barcode'          => $variant->barcode,
+            'price'            => $price,
+            'quantity'         => $quantity,
             'compare_at_price' => $discountedPrice ?? 0,
             'inventory_policy' => 'deny',
-            'published' => $variant->is_published,
-            'weight' => $variant->get(ConfigurationEnum::WEIGHT_UNIT->value) ?? 453.592,
-            'weight_unit' => 'g',
+            'published'        => $variant->is_published,
+            'weight'           => $variant->get(ConfigurationEnum::WEIGHT_UNIT->value) ?? 453.592,
+            'weight_unit'      => 'g',
         ];
 
         if ($quantity > 0 && $this->app->get(CustomFieldEnum::SHOPIFY_INVENTORY_MANAGEMENT->value)) {
@@ -298,15 +297,15 @@ class ShopifyInventoryService
         try {
             if ($isAdjustment) {
                 $shopifyInventory = $this->shopifySdk->InventoryLevel->adjust([
-                    'inventory_item_id' => $variant->getInventoryId($this->warehouses->regions),
-                    'location_id' => $defaultLocation,
+                    'inventory_item_id'    => $variant->getInventoryId($this->warehouses->regions),
+                    'location_id'          => $defaultLocation,
                     'available_adjustment' => $warehouseInfo?->quantity ?? 0,
                 ]);
             } else {
                 $shopifyInventory = $this->shopifySdk->InventoryLevel->set([
                     'inventory_item_id' => $variant->getInventoryId($this->warehouses->regions),
-                    'location_id' => $defaultLocation,
-                    'available' => $warehouseInfo?->quantity ?? 0,
+                    'location_id'       => $defaultLocation,
+                    'available'         => $warehouseInfo?->quantity ?? 0,
                 ]);
             }
 
@@ -325,7 +324,7 @@ class ShopifyInventoryService
         $shopifyProductId = $product->getShopifyId($this->warehouses->regions);
 
         $productInfo = [
-            'id' => $shopifyProductId,
+            'id'     => $shopifyProductId,
             'status' => $status->value,
         ];
 
@@ -350,13 +349,13 @@ class ShopifyInventoryService
         $shopifyProductId = $product->getShopifyId($this->warehouses->regions);
 
         $collectData = [
-           'collection_id' => $collectionId,
-           'product_id' => $shopifyProductId,
+            'collection_id' => $collectionId,
+            'product_id'    => $shopifyProductId,
         ];
         $collects = $this->shopifySdk->Collect->get([
             'collection_id' => $collectionId,
-            'product_id' => $shopifyProductId,
-            'limit' => 1,
+            'product_id'    => $shopifyProductId,
+            'limit'         => 1,
         ]);
         if ($collects) {
             return;

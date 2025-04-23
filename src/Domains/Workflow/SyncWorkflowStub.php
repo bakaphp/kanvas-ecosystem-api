@@ -30,7 +30,7 @@ use Workflow\Traits\Timers;
 
 /**
  * hate this , but since the parent class is final we
- * cant extend , need to contact the package owner
+ * cant extend , need to contact the package owner.
  */
 class SyncWorkflowStub
 {
@@ -48,9 +48,9 @@ class SyncWorkflowStub
     ) {
         self::setContext([
             'storedWorkflow' => $storedWorkflow,
-            'index' => 0,
-            'now' => Carbon::now(),
-            'replaying' => false,
+            'index'          => 0,
+            'now'            => Carbon::now(),
+            'replaying'      => false,
         ]);
     }
 
@@ -64,7 +64,7 @@ class SyncWorkflowStub
         ) {
             $this->storedWorkflow->signals()
                 ->create([
-                    'method' => $method,
+                    'method'    => $method,
                     'arguments' => Y::serialize($arguments),
                 ]);
 
@@ -220,7 +220,7 @@ class SyncWorkflowStub
         $this->storedWorkflow->parents()
             ->attach($parentWorkflow, [
                 'parent_index' => $index,
-                'parent_now' => $now,
+                'parent_now'   => $now,
             ]);
 
         $this->start(...$arguments);
@@ -231,7 +231,7 @@ class SyncWorkflowStub
         try {
             $this->storedWorkflow->exceptions()
                 ->create([
-                    'class' => $this->storedWorkflow->class,
+                    'class'     => $this->storedWorkflow->class,
                     'exception' => Y::serialize($exception),
                 ]);
         } catch (QueryException) {
@@ -244,12 +244,12 @@ class SyncWorkflowStub
         $iterator = new LimitIterator($file, max(0, $exception->getLine() - 4), 7);
 
         WorkflowFailed::dispatch($this->storedWorkflow->id, json_encode([
-            'class' => get_class($exception),
+            'class'   => get_class($exception),
             'message' => $exception->getMessage(),
-            'code' => $exception->getCode(),
-            'line' => $exception->getLine(),
-            'file' => $exception->getFile(),
-            'trace' => $exception->getTrace(),
+            'code'    => $exception->getCode(),
+            'line'    => $exception->getLine(),
+            'file'    => $exception->getFile(),
+            'trace'   => $exception->getTrace(),
             'snippet' => array_slice(iterator_to_array($iterator), 0, 7),
         ]), now()
             ->format('Y-m-d\TH:i:s.u\Z'));
@@ -270,9 +270,9 @@ class SyncWorkflowStub
         try {
             $this->storedWorkflow->logs()
                 ->create([
-                    'index' => $index,
-                    'now' => $now,
-                    'class' => $class,
+                    'index'  => $index,
+                    'now'    => $now,
+                    'class'  => $class,
                     'result' => Y::serialize($result),
                 ]);
         } catch (QueryException) {

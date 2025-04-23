@@ -10,10 +10,9 @@ use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class SyncProductWithShopifyActivity extends KanvasActivity
 {
@@ -35,8 +34,8 @@ class SyncProductWithShopifyActivity extends KanvasActivity
                     $response = $syncProductWithShopify->execute();
 
                     return [
-                        'company' => $product->company->getId(),
-                        'product' => $product->getId(),
+                        'company'          => $product->company->getId(),
+                        'product'          => $product->getId(),
                         'shopify_response' => $response,
                     ];
                 } catch (Throwable $e) {

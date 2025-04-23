@@ -20,15 +20,16 @@ class CheckMessageContentActivity extends KanvasActivity implements WorkflowActi
             $entity->is_public = 0;
             $entity->set('is_nsfw', 1);
             $entity->save();
+
             return [
-                'message' => 'Message content is not allowed, message has been set to private',
-                'is_public' => false,
+                'message'    => 'Message content is not allowed, message has been set to private',
+                'is_public'  => false,
                 'message_id' => $entity->message,
             ];
         }
 
         return [
-            'message' => 'No issues found in message content',
+            'message'    => 'No issues found in message content',
             'message_id' => $entity->getId(),
         ];
     }

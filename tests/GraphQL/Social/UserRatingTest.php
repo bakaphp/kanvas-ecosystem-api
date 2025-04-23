@@ -20,9 +20,9 @@ class UserRatingTest extends TestCase
 
         $input = [
             'system_module_id' => $systemModule->getId(),
-            'entity_id' => 1,
-            'rating' => 5.0,
-            'comment' => 'Great',
+            'entity_id'        => 1,
+            'rating'           => 5.0,
+            'comment'          => 'Great',
         ];
         $this->graphQL(
             '
@@ -50,9 +50,9 @@ class UserRatingTest extends TestCase
 
         $input = [
             'system_module_id' => $systemModule->getId(),
-            'entity_id' => 1,
-            'rating' => 5.0,
-            'comment' => 'Great',
+            'entity_id'        => 1,
+            'rating'           => 5.0,
+            'comment'          => 'Great',
         ];
         $this->graphQL(
             '
@@ -100,12 +100,12 @@ class UserRatingTest extends TestCase
     public function testFilterUsersRatings(): void
     {
         $data = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
-            'attributes' => [
+            'sku'         => fake()->time,
+            'attributes'  => [
                 [
-                    'name' => fake()->name,
+                    'name'  => fake()->name,
                     'value' => fake()->name,
                 ],
             ],
@@ -116,9 +116,9 @@ class UserRatingTest extends TestCase
         $systemModule = SystemModulesRepository::getByModelName(Products::class, app(Apps::class));
         $input = [
             'system_module_id' => $systemModule->getId(),
-            'entity_id' => $productId,
-            'rating' => 5.0,
-            'comment' => 'Great',
+            'entity_id'        => $productId,
+            'rating'           => 5.0,
+            'comment'          => 'Great',
         ];
         $this->graphQL(
             '
@@ -160,7 +160,7 @@ class UserRatingTest extends TestCase
                     'products' => [
                         'data' => [
                             [
-                                'name' => $data['name'],
+                                'name'        => $data['name'],
                                 'description' => $data['description'],
                             ],
                         ],
@@ -172,12 +172,12 @@ class UserRatingTest extends TestCase
     public function testFilterRatings(): void
     {
         $data = [
-            'name' => fake()->name,
+            'name'        => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
-            'attributes' => [
+            'sku'         => fake()->time,
+            'attributes'  => [
                 [
-                    'name' => fake()->name,
+                    'name'  => fake()->name,
                     'value' => fake()->name,
                 ],
             ],
@@ -188,9 +188,9 @@ class UserRatingTest extends TestCase
         $systemModule = SystemModulesRepository::getByModelName(Products::class, app(Apps::class));
         $input = [
             'system_module_id' => $systemModule->getId(),
-            'entity_id' => $productId,
-            'rating' => 5.0,
-            'comment' => 'Great',
+            'entity_id'        => $productId,
+            'rating'           => 5.0,
+            'comment'          => 'Great',
         ];
         $this->graphQL(
             '
@@ -235,8 +235,8 @@ class UserRatingTest extends TestCase
                     'products' => [
                         'data' => [
                             [
-                                'name' => $data['name'],
-                                'description' => $data['description'],
+                                'name'         => $data['name'],
+                                'description'  => $data['description'],
                                 'usersRatings' => [
                                     [
                                         'rating' => 5.0,

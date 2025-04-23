@@ -27,9 +27,9 @@ class ReactToEntityAction
             return false;
         }
         $userReaction = UserReaction::create([
-            'users_id' => $this->reactionDto->users->id,
-            'reactions_id' => $this->reactionDto->reactions->id,
-            'entity_id' => $this->reactionDto->entity_id,
+            'users_id'         => $this->reactionDto->users->id,
+            'reactions_id'     => $this->reactionDto->reactions->id,
+            'entity_id'        => $this->reactionDto->entity_id,
             'entity_namespace' => $this->reactionDto->system_modules->model_name,
         ]);
 

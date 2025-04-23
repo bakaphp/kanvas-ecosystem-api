@@ -16,7 +16,7 @@ trait HasLightHouseCache
         bool $withKanvasConfiguration = true,
         bool $cleanGlobalKey = false
     ): void {
-        $key = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
+        $key = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey).'*';
         $redis = Redis::connection('graph-cache');
         $keys = $redis->keys($key);
         if (empty($keys) && $withKanvasConfiguration) {
@@ -48,7 +48,7 @@ trait HasLightHouseCache
     public function generateRelationshipLighthouseCache(string $relationship, int $items = 25): void
     {
         $separator = CacheKeyAndTagsGenerator::SEPARATOR;
-        $key = $this->generateLighthouseCacheKey() . $separator . $relationship . $separator . 'first' . $separator . $items;
+        $key = $this->generateLighthouseCacheKey().$separator.$relationship.$separator.'first'.$separator.$items;
         $redis = Redis::connection('graph-cache');
         $result = $this->getRelationshipQueryBuilder($relationship)->paginate($items);
         $redis->set($key, $result);
@@ -76,17 +76,17 @@ trait HasLightHouseCache
         $graphTypeName = $this->getGraphTypeName();
         $separator = CacheKeyAndTagsGenerator::SEPARATOR;
 
-        $key = CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName;
+        $key = CacheKeyAndTagsGenerator::PREFIX.$separator.$graphTypeName;
 
-        return $globalModelKey ? $key : $key . $separator . $this->getId();
+        return $globalModelKey ? $key : $key.$separator.$this->getId();
     }
 
     protected function getRelationshipQueryBuilder(string $relationship)
     {
         return match ($relationship) {
             'custom_fields' => $this->getCustomFieldsQueryBuilder(),
-            'files' => $this->getFilesQueryBuilder(),
-            default => $this->$relationship(),
+            'files'         => $this->getFilesQueryBuilder(),
+            default         => $this->$relationship(),
         };
     }
 }

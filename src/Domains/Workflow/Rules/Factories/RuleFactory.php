@@ -30,14 +30,14 @@ class RuleFactory extends Factory
 
         return [
             'systems_modules_id' => SystemModulesRepository::getByModelName(Lead::class),
-            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
-            'apps_id' => $app->getId(),
-            'rules_types_id' => $ruleType->getId(),
-            'name' => 'Lead Zoho Test',
-            'description' => 'Lead Zoho Test',
-            'pattern' => 1,
-            'params' => ['test' => 'test'],
-            'is_async' => true,
+            'companies_id'       => AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            'apps_id'            => $app->getId(),
+            'rules_types_id'     => $ruleType->getId(),
+            'name'               => 'Lead Zoho Test',
+            'description'        => 'Lead Zoho Test',
+            'pattern'            => 1,
+            'params'             => ['test' => 'test'],
+            'is_async'           => true,
         ];
     }
 

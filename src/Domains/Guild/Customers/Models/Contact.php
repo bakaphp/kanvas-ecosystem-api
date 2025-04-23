@@ -13,11 +13,11 @@ use Kanvas\Guild\Models\BaseModel;
 /**
  * Class Contacts.
  *
- * @property int $id
- * @property int $contacts_types_id
- * @property int $peoples_id
+ * @property int    $id
+ * @property int    $contacts_types_id
+ * @property int    $peoples_id
  * @property string $value
- * @property int $weight
+ * @property int    $weight
  */
 class Contact extends BaseModel
 {

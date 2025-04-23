@@ -33,20 +33,20 @@ class CartTest extends TestCase
                 'items' => [
                     [
                         'variant_id' => $variantWarehouse->products_variants_id,
-                        'quantity' => 1,
+                        'quantity'   => 1,
                     ],
                 ],
             ],
             [],
             [
-                'X-Kanvas-Location' => $company->branch->uuid,
+                'X-Kanvas-Location'   => $company->branch->uuid,
                 'X-Kanvas-Identifier' => Str::uuid(),
             ],
         )->assertJson([
             'data' => [
                 'addToCart' => [
                     [
-                        'id' => $variantWarehouse->products_variants_id,
+                        'id'       => $variantWarehouse->products_variants_id,
                         'quantity' => 1,
                     ],
                 ],
@@ -75,13 +75,13 @@ class CartTest extends TestCase
                 'items' => [
                     [
                         'variant_id' => $variantWarehouse->products_variants_id,
-                        'quantity' => 1,
+                        'quantity'   => 1,
                     ],
                 ],
             ],
             [],
             [
-                'X-Kanvas-Location' => $company->branch->uuid,
+                'X-Kanvas-Location'   => $company->branch->uuid,
                 'X-Kanvas-Identifier' => $uuid,
             ],
         );
@@ -97,18 +97,18 @@ class CartTest extends TestCase
             ',
             [
                 'variant_id' => $variantWarehouse->products_variants_id,
-                'quantity' => 1,
+                'quantity'   => 1,
             ],
             [],
             [
-                'X-Kanvas-Location' => $company->branch->uuid,
+                'X-Kanvas-Location'   => $company->branch->uuid,
                 'X-Kanvas-Identifier' => $uuid,
             ],
         )->assertJson([
             'data' => [
                 'updateCart' => [
                     [
-                        'id' => $variantWarehouse->products_variants_id,
+                        'id'       => $variantWarehouse->products_variants_id,
                         'quantity' => 2,
                     ],
                 ],
@@ -137,13 +137,13 @@ class CartTest extends TestCase
                 'items' => [
                     [
                         'variant_id' => $variantWarehouse->products_variants_id,
-                        'quantity' => 1,
+                        'quantity'   => 1,
                     ],
                 ],
             ],
             [],
             [
-                'X-Kanvas-Location' => $company->branch->uuid,
+                'X-Kanvas-Location'   => $company->branch->uuid,
                 'X-Kanvas-Identifier' => $uuid,
             ],
         );
@@ -162,7 +162,7 @@ class CartTest extends TestCase
             ],
             [],
             [
-                'X-Kanvas-Location' => $company->branch->uuid,
+                'X-Kanvas-Location'   => $company->branch->uuid,
                 'X-Kanvas-Identifier' => $uuid,
             ],
         )->assertJson([
@@ -197,13 +197,13 @@ class CartTest extends TestCase
                 'items' => [
                     [
                         'variant_id' => $variantWarehouse->products_variants_id,
-                        'quantity' => 1,
+                        'quantity'   => 1,
                     ],
                 ],
             ],
             [],
             [
-                'X-Kanvas-Location' => $company->branch->uuid,
+                'X-Kanvas-Location'   => $company->branch->uuid,
                 'X-Kanvas-Identifier' => $uuid,
             ],
         );
@@ -222,7 +222,7 @@ class CartTest extends TestCase
             [],
             [],
             [
-                'X-Kanvas-Location' => $company->branch->uuid,
+                'X-Kanvas-Location'   => $company->branch->uuid,
                 'X-Kanvas-Identifier' => $uuid,
             ],
         )->assertJson([
@@ -230,7 +230,7 @@ class CartTest extends TestCase
                 'cart' => [
                     'items' => [
                         [
-                            'id' => $variantWarehouse->products_variants_id,
+                            'id'       => $variantWarehouse->products_variants_id,
                             'quantity' => 1,
                         ],
                     ],

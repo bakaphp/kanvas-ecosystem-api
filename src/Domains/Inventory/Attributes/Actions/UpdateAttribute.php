@@ -20,8 +20,6 @@ class UpdateAttribute
 
     /**
      * execute.
-     *
-     * @return Attributes
      */
     public function execute(): Attributes
     {
@@ -43,10 +41,10 @@ class UpdateAttribute
             'slug' => $slug,
             'name' => $this->dto->name,
             //'attributes_type_id' => $this->dto->attributeType?->getId(), for now we cant change attribute type
-            'is_visible' => $this->dto->isVisible,
+            'is_visible'    => $this->dto->isVisible,
             'is_searchable' => $this->dto->isSearchable,
-            'is_filtrable' => $this->dto->isFiltrable,
-            'is_required' => $this->dto->isRequired,
+            'is_filtrable'  => $this->dto->isFiltrable,
+            'is_required'   => $this->dto->isRequired,
         ]);
 
         return $this->attribute;

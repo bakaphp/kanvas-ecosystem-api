@@ -15,11 +15,11 @@ use Kanvas\Users\Models\Users;
 /**
  * Filesystem Model.
  *
- * @property int $id
+ * @property int    $id
  * @property string $uuid;
- * @property int $users_id
- * @property int $companies_id
- * @property int $apps_id
+ * @property int    $users_id
+ * @property int    $companies_id
+ * @property int    $apps_id
  * @property string $name
  * @property string $path
  * @property string $url
@@ -27,7 +27,7 @@ use Kanvas\Users\Models\Users;
  * @property string $file_type
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_deleted
+ * @property int    $is_deleted
  */
 class Filesystem extends BaseModel
 {

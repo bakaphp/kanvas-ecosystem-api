@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Actions;
 
-use Kanvas\AccessControlList\Templates\OwnerRoleTemplate;
-use Kanvas\AccessControlList\Templates\AdminRoleTemplate;
-use Kanvas\AccessControlList\Templates\UsersRoleTemplate;
-use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Bouncer;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Templates\AdminRoleTemplate;
+use Kanvas\AccessControlList\Templates\ModulesRepositories;
+use Kanvas\AccessControlList\Templates\OwnerRoleTemplate;
+use Kanvas\AccessControlList\Templates\UsersRoleTemplate;
+use Kanvas\Apps\Models\Apps;
 
 class CreateRolesByTemplatesAction
 {

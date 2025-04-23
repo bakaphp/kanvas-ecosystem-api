@@ -14,7 +14,7 @@ return [
     */
 
     'defaults' => [
-        'guard' => 'api',
+        'guard'     => 'api',
         'passwords' => 'users',
     ],
 
@@ -37,11 +37,11 @@ return [
 
     'guards' => [
         'web' => [
-            'driver' => 'session',
+            'driver'   => 'session',
             'provider' => 'users',
         ],
         'api' => [
-            'driver' => 'kanvasToken',
+            'driver'   => 'kanvasToken',
             'provider' => 'users',
         ],
     ],
@@ -66,7 +66,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => Kanvas\Users\Models\Users::class,
+            'model'  => Kanvas\Users\Models\Users::class,
         ],
 
         // 'users' => [
@@ -93,8 +93,8 @@ return [
     'passwords' => [
         'users' => [
             'provider' => 'users',
-            'table' => 'password_resets',
-            'expire' => 60,
+            'table'    => 'password_resets',
+            'expire'   => 60,
             'throttle' => 60,
         ],
     ],
@@ -112,9 +112,9 @@ return [
 
     'password_timeout' => 10800,
     // Kanvas keys
-    'login_reset_time' => env('AUTH_MAX_AUTOLOGIN_TIME', 5),
+    'login_reset_time'   => env('AUTH_MAX_AUTOLOGIN_TIME', 5),
     'max_login_attempts' => env('AUTH_MAX_AUTOLOGIN_ATTEMPTS', 5),
-    'token_audience' => env('TOKEN_AUDIENCE', ''),
-    'token_not_before' => env('TOKEN_NOT_BEFORE', 10),
-    'token_expiration' => env('TOKEN_EXPIRATION', 86400),
+    'token_audience'     => env('TOKEN_AUDIENCE', ''),
+    'token_not_before'   => env('TOKEN_NOT_BEFORE', 10),
+    'token_expiration'   => env('TOKEN_EXPIRATION', 86400),
 ];

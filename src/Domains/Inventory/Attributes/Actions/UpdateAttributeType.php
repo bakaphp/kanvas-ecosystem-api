@@ -32,8 +32,8 @@ class UpdateAttributeType
         );
 
         $this->attributeType->update([
-            'name' => $this->dto->name,
-            'slug' => $this->dto->slug,
+            'name'       => $this->dto->name,
+            'slug'       => $this->dto->slug,
             'is_default' => $this->dto->isDefault,
         ]);
 

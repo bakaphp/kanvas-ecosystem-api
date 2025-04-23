@@ -19,21 +19,22 @@ class CreatePipelineAction
 
     /**
      * execute.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function execute(): ModelsPipeline
     {
         $pipeline = ModelsPipeline::firstOrCreate([
-            'companies_id' => $this->pipelineData->branch->companies_id,
+            'companies_id'      => $this->pipelineData->branch->companies_id,
             'system_modules_id' => $this->pipelineData->systemModule->getId(),
-            'apps_id' => $this->pipelineData->systemModule->apps_id,
-            'name' => $this->pipelineData->name,
-            'is_deleted' => 0,
+            'apps_id'           => $this->pipelineData->systemModule->apps_id,
+            'name'              => $this->pipelineData->name,
+            'is_deleted'        => 0,
         ], [
-            'weight' => $this->pipelineData->weight,
-            'users_id' => $this->pipelineData->user->getId(),
+            'weight'     => $this->pipelineData->weight,
+            'users_id'   => $this->pipelineData->user->getId(),
             'is_default' => $this->pipelineData->isDefault,
-            'slug' => $this->pipelineData->slug,
+            'slug'       => $this->pipelineData->slug,
         ]);
 
         //create stages

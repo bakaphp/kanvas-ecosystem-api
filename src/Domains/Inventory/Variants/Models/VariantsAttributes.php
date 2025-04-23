@@ -17,12 +17,12 @@ use Override;
 /**
  * Class Variants Attributes.
  *
- * @property int $products_variants_id
- * @property int $attributes_id
+ * @property int         $products_variants_id
+ * @property int         $attributes_id
  * @property string|null $value
- * @property string $created_at
- * @property string $updated_at
- * @property bool $is_deleted
+ * @property string      $created_at
+ * @property string      $updated_at
+ * @property bool        $is_deleted
  */
 class VariantsAttributes extends BaseModel
 {

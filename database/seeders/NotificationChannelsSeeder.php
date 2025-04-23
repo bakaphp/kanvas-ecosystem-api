@@ -13,33 +13,33 @@ class NotificationChannelsSeeder extends Seeder
     public function run(): void
     {
         NotificationChannel::create([
-            'name' => 'mail',
-            'slug' => 'mail',
+            'name'       => 'mail',
+            'slug'       => 'mail',
             'created_at' => date('Y-m-d H:i:s'),
             'is_deleted' => 0,
         ]);
 
         NotificationChannel::create([
-            'name' => 'push',
-            'slug' => 'push',
+            'name'       => 'push',
+            'slug'       => 'push',
             'created_at' => date('Y-m-d H:i:s'),
             'is_deleted' => 0,
         ]);
         NotificationChannel::create([
-            'name' => 'database',
-            'slug' => 'database',
+            'name'       => 'database',
+            'slug'       => 'database',
             'created_at' => date('Y-m-d H:i:s'),
             'is_deleted' => 0,
         ]);
         NotificationChannel::create([
-            'name' => 'realtime',
-            'slug' => 'realtime',
+            'name'       => 'realtime',
+            'slug'       => 'realtime',
             'created_at' => date('Y-m-d H:i:s'),
             'is_deleted' => 0,
         ]);
         NotificationChannel::create([
-            'name' => 'sms',
-            'slug' => 'sms',
+            'name'       => 'sms',
+            'slug'       => 'sms',
             'created_at' => date('Y-m-d H:i:s'),
             'is_deleted' => 0,
         ]);

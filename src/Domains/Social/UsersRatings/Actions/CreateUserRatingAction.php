@@ -17,13 +17,13 @@ class CreateUserRatingAction
     public function execute(): UserRating
     {
         return UserRating::updateOrCreate([
-            'users_id' => $this->usersRatingsDTO->user->getId(),
-            'companies_id' => $this->usersRatingsDTO->company->getId(),
-            'apps_id' => $this->usersRatingsDTO->app->getId(),
+            'users_id'          => $this->usersRatingsDTO->user->getId(),
+            'companies_id'      => $this->usersRatingsDTO->company->getId(),
+            'apps_id'           => $this->usersRatingsDTO->app->getId(),
             'system_modules_id' => $this->usersRatingsDTO->systemModule->getId(),
-            'entity_id' => $this->usersRatingsDTO->entityId,
+            'entity_id'         => $this->usersRatingsDTO->entityId,
         ], [
-            'rating' => $this->usersRatingsDTO->rating,
+            'rating'  => $this->usersRatingsDTO->rating,
             'comment' => $this->usersRatingsDTO->comment,
         ]);
     }

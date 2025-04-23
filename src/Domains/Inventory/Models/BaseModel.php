@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Models;
 
-use Baka\Search\SearchEngineResolver;
 use Baka\Support\Str;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Traits\KanvasScopesTrait;
@@ -62,9 +61,9 @@ class BaseModel extends EloquentModel
         $productAttributes = [];
         foreach ($attributesValue as $attributeValue) {
             $productAttributes[] = [
-                'id' => $attributeValue->attributes_id,
-                'name' => $attributeValue->attribute->name,
-                'slug' => $attributeValue->attribute->slug,
+                'id'    => $attributeValue->attributes_id,
+                'name'  => $attributeValue->attribute->name,
+                'slug'  => $attributeValue->attribute->slug,
                 'value' => Str::isJson($attributeValue->value) ? json_decode($attributeValue->value, true) : $attributeValue->value,
             ];
         }

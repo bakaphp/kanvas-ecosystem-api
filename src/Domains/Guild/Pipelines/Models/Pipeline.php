@@ -12,15 +12,15 @@ use Kanvas\Guild\Models\BaseModel;
 /**
  * Class Pipeline.
  *
- * @property int $id
+ * @property int      $id
  * @property int|null $apps_id
- * @property int $companies_id
- * @property int $users_id
- * @property int $system_modules_id
- * @property string $name
- * @property string $slug
- * @property int $weight
- * @property int $is_default
+ * @property int      $companies_id
+ * @property int      $users_id
+ * @property int      $system_modules_id
+ * @property string   $name
+ * @property string   $slug
+ * @property int      $weight
+ * @property int      $is_default
  */
 class Pipeline extends BaseModel
 {

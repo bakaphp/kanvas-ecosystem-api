@@ -39,13 +39,13 @@ readonly class CreateLeadAttemptAction
 
         return LeadAttempt::create([
             'companies_id' => $this->company->getId(),
-            'apps_id' => $this->app->getId(),
-            'header' => $this->headers,
-            'request' => $sanitizedRequest, // Use the sanitized request
-            'ip' => $this->ip,
-            'source' => $this->source,
-            'public_key' => $this->request['public_key'] ?? null,
-            'processed' => 0,
+            'apps_id'      => $this->app->getId(),
+            'header'       => $this->headers,
+            'request'      => $sanitizedRequest, // Use the sanitized request
+            'ip'           => $this->ip,
+            'source'       => $this->source,
+            'public_key'   => $this->request['public_key'] ?? null,
+            'processed'    => 0,
         ]);
     }
 }

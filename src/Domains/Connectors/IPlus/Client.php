@@ -32,16 +32,16 @@ class Client
         $this->clientSecret = $this->app->get(ConfigurationEnum::CLIENT_SECRET->value);
 
         if (empty($this->clientId) || empty($this->clientSecret)) {
-            throw new ValidationException('IPlus keys are not set for ' . $this->app->name);
+            throw new ValidationException('IPlus keys are not set for '.$this->app->name);
         }
 
         // Define a unique Redis key prefix based on the app ID
-        $this->redisKeyPrefix = ConfigurationEnum::I_PLUS_REDIS_KEY_PREFIX->value . $this->app->getId();
+        $this->redisKeyPrefix = ConfigurationEnum::I_PLUS_REDIS_KEY_PREFIX->value.$this->app->getId();
 
         $this->httpClient = new GuzzleClient([
             'timeout' => 10,
             'headers' => [
-                'Accept' => 'application/json',
+                'Accept'       => 'application/json',
                 'Content-Type' => 'application/json',
             ],
         ]);
@@ -70,12 +70,12 @@ class Client
     protected function requestNewAccessToken(): string
     {
         try {
-            $response = $this->httpClient->post($this->authBaseUrl . '/oauth2/token', [
+            $response = $this->httpClient->post($this->authBaseUrl.'/oauth2/token', [
                 'form_params' => [
-                    'grant_type' => 'client_credentials',
-                    'client_id' => $this->clientId,
+                    'grant_type'    => 'client_credentials',
+                    'client_id'     => $this->clientId,
                     'client_secret' => $this->clientSecret,
-                    'scope' => 'iplus.read iplus.write',
+                    'scope'         => 'iplus.read iplus.write',
                 ],
             ]);
 
@@ -84,7 +84,7 @@ class Client
             // Cache the token with the app-specific key
             $token = [
                 'access_token' => $tokenData['access_token'],
-                'expires' => time() + $tokenData['expires_in'],
+                'expires'      => time() + $tokenData['expires_in'],
             ];
 
             Redis::set($this->redisKeyPrefix, json_encode($token), 'EX', $tokenData['expires_in']);
@@ -92,7 +92,7 @@ class Client
 
             return $token['access_token'];
         } catch (RequestException $e) {
-            throw new ValidationException('Failed to obtain access token: ' . $e->getMessage());
+            throw new ValidationException('Failed to obtain access token: '.$e->getMessage());
         }
     }
 
@@ -101,16 +101,16 @@ class Client
         try {
             $accessToken = $this->getValidAccessToken();
 
-            $response = $this->httpClient->get($this->apiBaseUrl . $path, [
+            $response = $this->httpClient->get($this->apiBaseUrl.$path, [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $accessToken,
+                    'Authorization' => 'Bearer '.$accessToken,
                 ],
                 'query' => $params,
             ]);
 
             return json_decode($response->getBody()->getContents(), true) ?? [];
         } catch (RequestException $e) {
-            throw new ValidationException('GET request failed: ' . $e->getMessage());
+            throw new ValidationException('GET request failed: '.$e->getMessage());
         }
     }
 
@@ -119,17 +119,17 @@ class Client
         try {
             $accessToken = $this->getValidAccessToken();
 
-            $response = $this->httpClient->post($this->apiBaseUrl . $path, [
+            $response = $this->httpClient->post($this->apiBaseUrl.$path, [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $accessToken,
+                    'Authorization' => 'Bearer '.$accessToken,
                 ],
-                'json' => $data,
+                'json'  => $data,
                 'query' => $params,
             ]);
 
             return json_decode($response->getBody()->getContents(), true) ?? [];
         } catch (RequestException $e) {
-            throw new ValidationException('POST request failed: ' . $e->getMessage());
+            throw new ValidationException('POST request failed: '.$e->getMessage());
         }
     }
 }

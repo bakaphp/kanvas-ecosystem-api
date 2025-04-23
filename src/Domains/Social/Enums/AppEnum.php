@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Enums;
 
-enum AppEnum: STRING
+enum AppEnum: string
 {
     case SHAREABLE_LINK = 'APP_SHAREABLE_LINK';
     case SHAREABLE_PROFILE_LINK = 'APP_SHAREABLE_PROFILE_LINK';

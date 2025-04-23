@@ -14,7 +14,7 @@ class Invite extends Notification
     public function getData(): array
     {
         return [
-           ...parent::getData(),
+            ...parent::getData(),
             'fromUser' => $this->getFromUser(),
         ];
     }

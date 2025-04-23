@@ -31,8 +31,6 @@ class SendPushPromptOfTheWeekCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -55,6 +53,5 @@ class SendPushPromptOfTheWeekCommand extends Command
                 }
             });
 
-        return;
     }
 }

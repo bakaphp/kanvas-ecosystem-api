@@ -43,8 +43,8 @@ class ProcessOrderItemAction
             ProcessOrderItemJob::dispatch($this->app, $this->user, $this->currentUserCompany, $validOrderItems, $channelId);
 
             return [
-                'status' => 'pending',
-                'message' => 'Items processed in queue' ,
+                'status'  => 'pending',
+                'message' => 'Items processed in queue',
             ];
         }
 
@@ -61,7 +61,7 @@ class ProcessOrderItemAction
 
         // Return the items processed.
         return [
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Items processed successfully',
         ];
     }

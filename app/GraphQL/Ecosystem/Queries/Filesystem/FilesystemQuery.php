@@ -16,7 +16,7 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 class FilesystemQuery
 {
     /**
-     * Get all file from a entity tied to the graph
+     * Get all file from a entity tied to the graph.
      */
     public function getFileByGraphType(
         mixed $root,
@@ -55,7 +55,7 @@ class FilesystemQuery
     }
 
     /**
-     * Get all file from a specific system module entity
+     * Get all file from a specific system module entity.
      */
     public function getFilesFromSystemModuleEntity(
         mixed $root,

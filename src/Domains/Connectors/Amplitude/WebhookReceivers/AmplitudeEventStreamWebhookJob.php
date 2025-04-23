@@ -24,15 +24,16 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
         $payload = $this->webhookRequest->payload;
 
         /**
-         * create the user interaction so its uses the workflow to stream to the diff distribution source
+         * create the user interaction so its uses the workflow to stream to the diff distribution source.
+         *
          * @todo make this dynamic , cant be hardcoded
          */
         $allowInteractions = [
-          'View Explore' => InteractionEnum::VIEW_HOME_PAGE->getValue(),
-          'Clicking Output Icon' => InteractionEnum::VIEW_ITEM->getValue(),
-          'Page Viewed' => InteractionEnum::VIEW_ITEM->getValue(),
-          'Clicking AI Nugget Preview' => InteractionEnum::VIEW_ITEM->getValue(),
-          'Select Prompt' => InteractionEnum::VIEW_ITEM->getValue(),
+            'View Explore'               => InteractionEnum::VIEW_HOME_PAGE->getValue(),
+            'Clicking Output Icon'       => InteractionEnum::VIEW_ITEM->getValue(),
+            'Page Viewed'                => InteractionEnum::VIEW_ITEM->getValue(),
+            'Clicking AI Nugget Preview' => InteractionEnum::VIEW_ITEM->getValue(),
+            'Select Prompt'              => InteractionEnum::VIEW_ITEM->getValue(),
         ];
 
         $eventType = $payload['event_type'] ?? null;
@@ -41,13 +42,13 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
 
         if ($eventType !== null) {
             return [
-              'message' => 'Event type not found',
+                'message' => 'Event type not found',
             ];
         }
 
         if (! isset($payload['user_id'])) {
             return [
-              'message' => 'User not found',
+                'message' => 'User not found',
             ];
         }
 
@@ -57,7 +58,7 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
 
         if (! isset($allowInteractions[$eventType])) {
             return [
-              'message' => 'Event not allowed to be streamed ' . $eventType,
+                'message' => 'Event not allowed to be streamed '.$eventType,
             ];
         }
 
@@ -72,7 +73,7 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
 
         if ($userMessages === null) {
             return [
-              'message' => 'User message not found',
+                'message' => 'User message not found',
             ];
         }
 
@@ -99,13 +100,13 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
         );
 
         return [
-          'message' => 'Event streamed successfully',
-          'event' => $eventType,
-          'data' => [
-            'user' => $user->getId(),
-            'interaction' => $internalEventName,
-            'message' => $userMessages->toArray(),
-          ],
+            'message' => 'Event streamed successfully',
+            'event'   => $eventType,
+            'data'    => [
+                'user'        => $user->getId(),
+                'interaction' => $internalEventName,
+                'message'     => $userMessages->toArray(),
+            ],
         ];
     }
 }

@@ -25,27 +25,27 @@ class CreateEventAction
         $event = DB::connection('event')->transaction(function () {
             $slug = $this->event->slug ?? Str::slug($this->event->name);
             //Slug no attached to the event type id , idk why
-            $slug = $slug . '-' . $this->event->type->getId();
+            $slug = $slug.'-'.$this->event->type->getId();
             // $this->validateSlug($slug);
             $event = ModelsEvent::updateOrCreate([
-                'apps_id' => $this->event->app->getId(),
-                'companies_id' => $this->event->company->getId(),
-                'users_id' => $this->event->user->getId(),
-                'name' => $this->event->name,
-                'theme_id' => $this->event->theme->getId(),
-                'theme_area_id' => $this->event->themeArea->getId(),
-                'event_status_id' => $this->event->status->getId(),
-                'event_type_id' => $this->event->type->getId(),
+                'apps_id'           => $this->event->app->getId(),
+                'companies_id'      => $this->event->company->getId(),
+                'users_id'          => $this->event->user->getId(),
+                'name'              => $this->event->name,
+                'theme_id'          => $this->event->theme->getId(),
+                'theme_area_id'     => $this->event->themeArea->getId(),
+                'event_status_id'   => $this->event->status->getId(),
+                'event_type_id'     => $this->event->type->getId(),
                 'event_category_id' => $this->event->category->getId(),
-                'event_class_id' => $this->event->class->getId(),
-                'description' => $this->event->description,
-                'slug' => $slug,
-                'meeting_link' => $this->event->meeting_link,
+                'event_class_id'    => $this->event->class->getId(),
+                'description'       => $this->event->description,
+                'slug'              => $slug,
+                'meeting_link'      => $this->event->meeting_link,
             ]);
             if ($this->event->dates->count()) {
-                $eventVersionSlug = Str::slug('events-versions-' . $slug . $this->event->dates[0]->date->format('Y-m-d'));
+                $eventVersionSlug = Str::slug('events-versions-'.$slug.$this->event->dates[0]->date->format('Y-m-d'));
             } else {
-                $eventVersionSlug = Str::slug('events-versions-' . $slug);
+                $eventVersionSlug = Str::slug('events-versions-'.$slug);
             }
             $eventVersionAction = new CreateEventVersionAction(
                 new EventVersion(
@@ -97,7 +97,7 @@ class CreateEventAction
                             ->exists();
 
                         if ($exists) {
-                            $fail('The ' . $attribute . ' has already been taken.');
+                            $fail('The '.$attribute.' has already been taken.');
                         }
                     },
                 ],

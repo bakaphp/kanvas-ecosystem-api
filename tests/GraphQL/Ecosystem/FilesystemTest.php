@@ -127,10 +127,10 @@ class FilesystemTest extends TestCase
             }',
             [
                 'input' => [
-                    'filesystem_uuid' => $filesystemUuid,
-                    'field_name' => 'avatar',
+                    'filesystem_uuid'    => $filesystemUuid,
+                    'field_name'         => 'avatar',
                     'system_module_uuid' => get_class(auth()->user()),
-                    'entity_id' => auth()->user()->uuid,
+                    'entity_id'          => auth()->user()->uuid,
                 ],
             ]
         );
@@ -160,7 +160,7 @@ class FilesystemTest extends TestCase
             [
                 'input' => [
                     'system_module_uuid' => get_class(auth()->user()),
-                    'entity_id' => auth()->user()->uuid,
+                    'entity_id'          => auth()->user()->uuid,
                 ],
             ]
         );
@@ -207,10 +207,10 @@ class FilesystemTest extends TestCase
             }',
             [
                 'input' => [
-                    'filesystem_uuid' => $filesystemUuid,
-                    'field_name' => 'avatar',
+                    'filesystem_uuid'    => $filesystemUuid,
+                    'field_name'         => 'avatar',
                     'system_module_uuid' => get_class(auth()->user()),
-                    'entity_id' => auth()->user()->uuid,
+                    'entity_id'          => auth()->user()->uuid,
                 ],
             ]
         );
@@ -270,10 +270,10 @@ class FilesystemTest extends TestCase
             }',
             [
                 'input' => [
-                    'filesystem_uuid' => $filesystemUuid,
-                    'field_name' => 'avatar',
+                    'filesystem_uuid'    => $filesystemUuid,
+                    'field_name'         => 'avatar',
                     'system_module_uuid' => get_class(auth()->user()),
-                    'entity_id' => auth()->user()->uuid,
+                    'entity_id'          => auth()->user()->uuid,
                 ],
             ]
         );

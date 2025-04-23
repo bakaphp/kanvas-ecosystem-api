@@ -41,62 +41,62 @@ class SyncEmailTemplateAction
     {
         $templates = [
             [
-                'name' => EmailTemplateEnum::DEFAULT->value,
+                'name'     => EmailTemplateEnum::DEFAULT->value,
                 'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             ], [
-                'name' => 'user-email-update',
+                'name'     => 'user-email-update',
                 'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             ], [
-                'name' => EmailTemplateEnum::USER_INVITE->value,
+                'name'     => EmailTemplateEnum::USER_INVITE->value,
                 'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
             ], [
-                'name' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
+                'name'     => EmailTemplateEnum::ADMIN_USER_INVITE->value,
                 'template' => File::get(resource_path('views/emails/adminUserInvite.blade.php')),
             ], [
-                'name' => EmailTemplateEnum::ADMIN_USER_INVITE_EXISTING_USER->value,
+                'name'     => EmailTemplateEnum::ADMIN_USER_INVITE_EXISTING_USER->value,
                 'template' => File::get(resource_path('views/emails/adminUserInviteAlreadyExist.blade.php')),
             ], [
-                'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
+                'name'     => EmailTemplateEnum::CHANGE_PASSWORD->value,
                 'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
             ], [
-                'name' => EmailTemplateEnum::RESET_PASSWORD->value,
+                'name'     => EmailTemplateEnum::RESET_PASSWORD->value,
                 'template' => File::get(resource_path('views/emails/resetPassword.blade.php')),
             ], [
-                'name' => EmailTemplateEnum::WELCOME->value,
+                'name'     => EmailTemplateEnum::WELCOME->value,
                 'template' => File::get(resource_path('views/emails/welcome.blade.php')),
             ], [
-                'name' => PushNotificationTemplateEnum::DEFAULT->value,
+                'name'     => PushNotificationTemplateEnum::DEFAULT->value,
                 'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
             ], [
-                'name' => EnumsEmailTemplateEnum::NEW_ORDER->value,
+                'name'     => EnumsEmailTemplateEnum::NEW_ORDER->value,
                 'template' => File::get(resource_path('views/emails/newOrder.blade.php')),
             ], [
-                'name' => EnumsEmailTemplateEnum::NEW_ORDER_STORE_OWNER->value,
+                'name'     => EnumsEmailTemplateEnum::NEW_ORDER_STORE_OWNER->value,
                 'template' => File::get(resource_path('views/emails/newOrderStoreOwner.blade.php')),
             ], [
-                'name' => LeadsEnumsEmailTemplateEnum::NEW_LEAD->value,
+                'name'     => LeadsEnumsEmailTemplateEnum::NEW_LEAD->value,
                 'template' => File::get(resource_path('views/emails/newLead.blade.php')),
             ], [
-                'name' => LeadsEnumsEmailTemplateEnum::NEW_LEAD_COMPANY_ADMIN->value,
+                'name'     => LeadsEnumsEmailTemplateEnum::NEW_LEAD_COMPANY_ADMIN->value,
                 'template' => File::get(resource_path('views/emails/newLeadCompany.blade.php')),
-            ],[
-                'name' => NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value,
+            ], [
+                'name'     => NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value,
                 'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
-            ],[
-                'name' => EnumsNotificationTemplateEnum::PUSH_NEW_MESSAGE->value,
+            ], [
+                'name'     => EnumsNotificationTemplateEnum::PUSH_NEW_MESSAGE->value,
                 'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
-            ],[
-                'name' => EnumsNotificationTemplateEnum::PUSH_NEW_INTERACTION_MESSAGE->value,
+            ], [
+                'name'     => EnumsNotificationTemplateEnum::PUSH_NEW_INTERACTION_MESSAGE->value,
                 'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
             ],
         ];
 
         $dto = TemplateInput::from([
-            'app' => $this->app,
-            'name' => $templates[0]['name'],
-            'template' => $templates[0]['template'],
-            'user' => $this->user,
-            'is_system' => true
+            'app'       => $this->app,
+            'name'      => $templates[0]['name'],
+            'template'  => $templates[0]['template'],
+            'user'      => $this->user,
+            'is_system' => true,
         ]);
 
         $action = new CreateTemplateAction($dto);
@@ -107,15 +107,15 @@ class SyncEmailTemplateAction
 
         foreach ($templates as $template) {
             $dto = TemplateInput::from([
-                'app' => $this->app,
-                'name' => $template['name'],
-                'template' => $template['template'],
-                'user' => $this->user,
-                'is_system' => true
+                'app'       => $this->app,
+                'name'      => $template['name'],
+                'template'  => $template['template'],
+                'user'      => $this->user,
+                'is_system' => true,
             ]);
             $action = new CreateTemplateAction($dto);
             $action->execute(
-                (! in_array($template['name'], [PushNotificationTemplateEnum::DEFAULT->value, 'user-email-update']) ? $parent : null),
+                ! in_array($template['name'], [PushNotificationTemplateEnum::DEFAULT->value, 'user-email-update']) ? $parent : null,
                 $overWrite
             );
         }
@@ -124,22 +124,22 @@ class SyncEmailTemplateAction
     public function createNotificationTypes(): void
     {
         $types = [
-            EmailTemplateEnum::USER_INVITE->value => Invite::class,
-            EmailTemplateEnum::RESET_PASSWORD->value => ResetPassword::class,
-            EmailTemplateEnum::WELCOME->value => Welcome::class,
+            EmailTemplateEnum::USER_INVITE->value     => Invite::class,
+            EmailTemplateEnum::RESET_PASSWORD->value  => ResetPassword::class,
+            EmailTemplateEnum::WELCOME->value         => Welcome::class,
             EmailTemplateEnum::CHANGE_PASSWORD->value => ChangePasswordUserLogged::class,
-            EmailTemplateEnum::BLANK->value => EmailTemplateEnum::BLANK->value,
+            EmailTemplateEnum::BLANK->value           => EmailTemplateEnum::BLANK->value,
         ];
 
         foreach ($types as $type => $value) {
             NotificationTypes::updateOrCreate([
-               'apps_id' => $this->app->getId(),
-               'key' => $value,
-               'name' => Str::simpleSlug($value),
-               'system_modules_id' => SystemModulesRepository::getByModelName($value, $this->app)->getId(),
-               'is_deleted' => 0,
+                'apps_id'           => $this->app->getId(),
+                'key'               => $value,
+                'name'              => Str::simpleSlug($value),
+                'system_modules_id' => SystemModulesRepository::getByModelName($value, $this->app)->getId(),
+                'is_deleted'        => 0,
             ], [
-               'template' => $type,
+                'template' => $type,
             ]);
         }
     }

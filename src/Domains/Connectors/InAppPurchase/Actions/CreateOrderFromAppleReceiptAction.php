@@ -50,10 +50,10 @@ class CreateOrderFromAppleReceiptAction
     public function execute(): ModelsOrder
     {
         $receipt = [
-            'productId' => $this->appleInAppPurchase->product_id,
-            'transactionId' => $this->appleInAppPurchase->transaction_id,
+            'productId'          => $this->appleInAppPurchase->product_id,
+            'transactionId'      => $this->appleInAppPurchase->transaction_id,
             'transactionReceipt' => $this->appleInAppPurchase->receipt,
-            'transactionDate' => $this->appleInAppPurchase->transaction_date,
+            'transactionDate'    => $this->appleInAppPurchase->transaction_date,
         ];
 
         $verifiedReceipt = $this->verifyReceipt($receipt);

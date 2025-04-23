@@ -34,30 +34,30 @@ class RegisterUsersAppAction
     {
         /**
          * for now use use company 0 has a default , for all user info on this app
-         * in future version we will remove company id from this table
+         * in future version we will remove company id from this table.
          */
         return UsersAssociatedApps::firstOrCreate([
-            'users_id' => $this->user->getKey(),
-            'apps_id' => $this->app->getId(),
+            'users_id'     => $this->user->getKey(),
+            'apps_id'      => $this->app->getId(),
             'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
         ], [
-            'identify_id' => $this->user->getKey(),
-            'password' => $password,
-            'firstname' => $this->user->firstname,
-            'lastname' => $this->user->lastname,
-            'email' => $this->user->email,
-            'is_active' => StatusEnums::ACTIVE->getValue(),
-            'user_active' => StatusEnums::ACTIVE->getValue(),
-            'user_role' => $this->user->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(),
-            'displayname' => $this->user->displayname,
-            'lastvisit' => date('Y-m-d H:i:s'),
-            'session_time' => time(),
-            'welcome' => 0,
-            'user_login_tries' => 0,
+            'identify_id'         => $this->user->getKey(),
+            'password'            => $password,
+            'firstname'           => $this->user->firstname,
+            'lastname'            => $this->user->lastname,
+            'email'               => $this->user->email,
+            'is_active'           => StatusEnums::ACTIVE->getValue(),
+            'user_active'         => StatusEnums::ACTIVE->getValue(),
+            'user_role'           => $this->user->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(),
+            'displayname'         => $this->user->displayname,
+            'lastvisit'           => date('Y-m-d H:i:s'),
+            'session_time'        => time(),
+            'welcome'             => 0,
+            'user_login_tries'    => 0,
             'user_last_login_try' => 0,
             'user_activation_key' => Hash::make(time()),
-            'banned' => StateEnums::NO->getValue(),
-            'status' => StatusEnums::ACTIVE->getValue(),
+            'banned'              => StateEnums::NO->getValue(),
+            'status'              => StatusEnums::ACTIVE->getValue(),
         ]);
     }
 }

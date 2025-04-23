@@ -15,15 +15,15 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
 
 /**
- * @property int $id
+ * @property int    $id
  * @property string $uuid
- * @property int $apps_id
- * @property int $users_id
- * @property int $regions_id
- * @property int $companies_id
- * @property int $companies_branches_id
- * @property int $filesystem_id
- * @property int $filesystem_mapper_id
+ * @property int    $apps_id
+ * @property int    $users_id
+ * @property int    $regions_id
+ * @property int    $companies_id
+ * @property int    $companies_branches_id
+ * @property int    $filesystem_id
+ * @property int    $filesystem_mapper_id
  * @property string $results
  * @property string $exception
  * @property string $created_at
@@ -41,9 +41,9 @@ class FilesystemImports extends BaseModel
     public function casts(): array
     {
         return [
-            'results' => Json::class,
+            'results'   => Json::class,
             'exception' => Json::class,
-            'extra' => Json::class,
+            'extra'     => Json::class,
         ];
     }
 

@@ -14,16 +14,15 @@ use Kanvas\Users\Models\Users;
 /**
  * UsersNotificationsSettings Model.
  *
- * @property int $users_id
- * @property int $apps_id
- * @property int $notifications_types_id
- * @property int $is_enabled
+ * @property int    $users_id
+ * @property int    $apps_id
+ * @property int    $notifications_types_id
+ * @property int    $is_enabled
  * @property string $channels
  * @property string $created_at
  * @property string $updated_at
  * @property string $is_deleted
  */
-
 class UsersNotificationsSettings extends BaseModel
 {
     public $table = 'users_notification_settings';
@@ -78,7 +77,7 @@ class UsersNotificationsSettings extends BaseModel
     /**
      * setKeysForSaveQuery.
      *
-     * @param  Builder $query
+     * @param Builder $query
      *
      * @return Builder
      */
@@ -99,7 +98,7 @@ class UsersNotificationsSettings extends BaseModel
 
     /**
      * hasChannel.
-     * the channelId is the value of the NotificationChannelEnum
+     * the channelId is the value of the NotificationChannelEnum.
      */
     public function hasChannel(int $channelId): bool
     {

@@ -47,7 +47,7 @@ class VariantsRepository
             ->first();
 
         if (! $variant) {
-            throw new ModelNotFoundException('No variant available found for product type ' . $productType->name);
+            throw new ModelNotFoundException('No variant available found for product type '.$productType->name);
         }
 
         return $variant;

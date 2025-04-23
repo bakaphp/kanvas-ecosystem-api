@@ -21,26 +21,26 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 /**
  * Class Variants Warehouse.
  *
- * @property int $products_variants_id
- * @property int $warehouses_id
- * @property int $quantity
- * @property float $price
+ * @property int    $products_variants_id
+ * @property int    $warehouses_id
+ * @property int    $quantity
+ * @property float  $price
  * @property string $sku
- * @property int $status_id
- * @property int $position
+ * @property int    $status_id
+ * @property int    $position
  * @property string $serial_number
- * @property int $is_default
- * @property int $is_oversellable
- * @property int $is_default
- * @property int $is_best_seller
- * @property int $is_on_sale
- * @property int $is_on_promo
- * @property int $can_pre_order
- * @property int $is_coming_soon
- * @property int $is_new
+ * @property int    $is_default
+ * @property int    $is_oversellable
+ * @property int    $is_default
+ * @property int    $is_best_seller
+ * @property int    $is_on_sale
+ * @property int    $is_on_promo
+ * @property int    $can_pre_order
+ * @property int    $is_coming_soon
+ * @property int    $is_new
  * @property string $created_at
  * @property string $updated_at
- * @property bool $is_deleted
+ * @property bool   $is_deleted
  */
 class VariantsWarehouses extends BaseModel
 {
@@ -56,9 +56,9 @@ class VariantsWarehouses extends BaseModel
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
+            'price'    => 'decimal:2',
             'quantity' => 'integer',
-            'config' => Json::class
+            'config'   => Json::class,
         ];
     }
 
@@ -141,11 +141,11 @@ class VariantsWarehouses extends BaseModel
 
         foreach ($this->statusHistory as $status) {
             $statusHistories[] = [
-                'id' => $status->id,
-                'name' => $status->name,
+                'id'        => $status->id,
+                'name'      => $status->name,
                 'from_date' => $status->pivot->from_date,
             ];
-        };
+        }
 
         return $statusHistories;
     }
