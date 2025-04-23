@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ESim\WorkflowActivities;
 
-use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\CMLink\Actions\CreateEsimOrderAction;
 use Kanvas\Connectors\ESim\Actions\PushOrderToCommerceAction;
@@ -26,9 +25,6 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\KanvasActivity;
-
-use function Sentry\captureException;
-
 use Stripe\StripeClient;
 use Throwable;
 
@@ -93,8 +89,8 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $createOrder = new OrderService($order);
                 $response = $createOrder->createOrder();
             }
-        } catch (ClientException $e) {
-            captureException($e);
+        } catch (Throwable $e) {
+            report($e);
 
             return [
                 'status' => 'error',
@@ -150,7 +146,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $response['data']['plan'] = $sku; // Overwrite the plan with the sku
             }
         } catch (Throwable $e) {
-            captureException($e);
+            report($e);
             // Log the exception or handle it as needed
         }
 
@@ -245,7 +241,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 'update' => $updateResponse ?? null,
             ];
         } catch (Throwable $e) {
-            captureException($e);
+            report($e);
 
             return [
                 'status' => 'error',
