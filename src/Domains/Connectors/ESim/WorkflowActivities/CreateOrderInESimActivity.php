@@ -28,8 +28,6 @@ use Kanvas\Workflow\KanvasActivity;
 use Stripe\StripeClient;
 use Throwable;
 
-use function Sentry\captureException;
-
 class CreateOrderInESimActivity extends KanvasActivity
 {
     //public $tries = 2;
