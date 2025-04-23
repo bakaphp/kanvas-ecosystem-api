@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Exception;
 use finfo;
 use Illuminate\Database\Eloquent\Model;
@@ -36,7 +37,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         $messageFiles = $entity->getFiles();
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
-        $imageFilter = $params['image_filter'] ?? 'cartoonify';
+        $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '');
 
         $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
 
@@ -138,7 +139,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                             'image' => $cdnImageUrl,
                         ],
                     ))->execute();
-
 
                     $messageCopy = $entity->message;
                     $messageCopy['ai_image'] = $cdnImageUrl;
