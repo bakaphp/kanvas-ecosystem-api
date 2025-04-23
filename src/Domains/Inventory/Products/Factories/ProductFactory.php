@@ -24,12 +24,12 @@ class ProductFactory extends Factory
         $productType = ProductsTypes::factory()->company($company->getId())->create();
 
         return [
-            'name' => $this->faker->name,
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'users_id' => $company->users_id,
+            'name'              => $this->faker->name,
+            'apps_id'           => $app->getId(),
+            'companies_id'      => $company->getId(),
+            'users_id'          => $company->users_id,
             'products_types_id' => $productType->getId(),
-            'description' => $this->faker->text,
+            'description'       => $this->faker->text,
             //'sku' => $this->faker->numberBetween(1000, 9000),
         ];
     }

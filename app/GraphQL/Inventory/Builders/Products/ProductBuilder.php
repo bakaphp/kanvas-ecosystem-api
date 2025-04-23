@@ -64,7 +64,7 @@ class ProductBuilder
             $url = $exportProducts->execute();
 
             return [
-                'url' => $url,
+                'url'     => $url,
                 'message' => 'Products exported successfully',
             ];
         } catch (Exception $e) {
@@ -73,7 +73,7 @@ class ProductBuilder
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            throw new Exception('Error exporting products: ' . $e->getMessage());
+            throw new Exception('Error exporting products: '.$e->getMessage());
         }
     }
 }

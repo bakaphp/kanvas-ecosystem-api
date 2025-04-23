@@ -10,6 +10,7 @@ use Firebase\JWT\JWK;
 /**
  * Decode Sign In with Apple identity token, and produce an ASPayload for
  * utilizing in backend auth flows to verify validity of provided user creds.
+ *
  * @link https://github.com/GriffinLedingham/php-apple-signin
  */
 class ASDecoder
@@ -62,7 +63,7 @@ class ASDecoder
 
         return [
             'publicKey' => $publicKeyDetails['key'],
-            'alg' => $parsedKeyData['alg'],
+            'alg'       => $parsedKeyData['alg'],
         ];
     }
 }

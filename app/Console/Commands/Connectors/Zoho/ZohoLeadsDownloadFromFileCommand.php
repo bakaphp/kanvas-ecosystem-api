@@ -32,8 +32,6 @@ class ZohoLeadsDownloadFromFileCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -85,8 +83,7 @@ class ZohoLeadsDownloadFromFileCommand extends Command
         // Finish the progress bar
         $this->output->progressFinish();
 
-        $this->info(PHP_EOL . "Synced {$i} leads from file.");
+        $this->info(PHP_EOL."Synced {$i} leads from file.");
 
-        return;
     }
 }

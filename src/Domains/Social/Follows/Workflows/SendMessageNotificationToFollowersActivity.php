@@ -14,7 +14,7 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
 {
     /**
      * todo we cap this to 3 tries for now. because of the
-     * issue encounter with onesignal Data Data must be no more than 2048 bytes long , to avoid infinite loop
+     * issue encounter with onesignal Data Data must be no more than 2048 bytes long , to avoid infinite loop.
      */
     public $tries = 1;
 
@@ -49,20 +49,20 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
         }
 
         $config = [
-            'email_template' => $emailTemplate,
-            'push_template' => $pushTemplate,
-            'app' => $app,
-            'company' => $message->company,
-            'message' => sprintf($notificationMessage, $message->user->displayname),
-            'title' => $notificationTitle,
-            'metadata' => $metaData,
-            'subject' => sprintf($subject, $message->user->displayname),
-            'via' => $endViaList,
-            'fromUser' => $message->user,
-            'message_id' => $message->getId(),
+            'email_template'    => $emailTemplate,
+            'push_template'     => $pushTemplate,
+            'app'               => $app,
+            'company'           => $message->company,
+            'message'           => sprintf($notificationMessage, $message->user->displayname),
+            'title'             => $notificationTitle,
+            'metadata'          => $metaData,
+            'subject'           => sprintf($subject, $message->user->displayname),
+            'via'               => $endViaList,
+            'fromUser'          => $message->user,
+            'message_id'        => $message->getId(),
             'parent_message_id' => $message->parent ? $message->parent->getId() : $message->getId(),
-            'destination_id' => $message->getId(),
-            'destination_type' => $params['destination_type'] ?? 'MESSAGE',
+            'destination_id'    => $message->getId(),
+            'destination_type'  => $params['destination_type'] ?? 'MESSAGE',
             'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
         ];
 
@@ -72,9 +72,9 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
         );
 
         return [
-            'result' => true,
-            'message' => 'Notification Message sent to all followers',
-            'data' => $config,
+            'result'     => true,
+            'message'    => 'Notification Message sent to all followers',
+            'data'       => $config,
             'message_id' => $message->getId(),
         ];
     }

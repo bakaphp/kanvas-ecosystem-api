@@ -83,7 +83,7 @@ class PeopleExportCommand extends Command
             // Send email with the generated CSV
             $this->sendEmailWithCsv($emails);
         } catch (Exception $e) {
-            $this->error('Export failed: ' . $e->getMessage());
+            $this->error('Export failed: '.$e->getMessage());
             $this->cleanup();
 
             throw $e;
@@ -92,7 +92,7 @@ class PeopleExportCommand extends Command
 
     private function initializeCsv(): void
     {
-        $this->csvFileName = 'people_export_' . now()->format('Y_m_d_H_i_s') . '.csv';
+        $this->csvFileName = 'people_export_'.now()->format('Y_m_d_H_i_s').'.csv';
 
         // Create CSV file with write buffer
         $filePath = Storage::disk('local')->path($this->csvFileName);
@@ -179,7 +179,7 @@ class PeopleExportCommand extends Command
                     $message->to($emails)
                         ->subject('People Export - Complete Dataset')
                         ->attach($filePath, [
-                            'as' => $this->csvFileName,
+                            'as'   => $this->csvFileName,
                             'mime' => 'text/csv',
                         ]);
                 }
@@ -187,8 +187,8 @@ class PeopleExportCommand extends Command
 
             $this->info('Email sent successfully.');
         } catch (Exception $e) {
-            $this->error('Failed to send email: ' . $e->getMessage());
-            $this->info('CSV file is still available at: ' . $filePath);
+            $this->error('Failed to send email: '.$e->getMessage());
+            $this->info('CSV file is still available at: '.$filePath);
 
             throw $e;
         } finally {

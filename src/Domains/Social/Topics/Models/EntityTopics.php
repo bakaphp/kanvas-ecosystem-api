@@ -4,20 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Topics\Models;
 
-use Kanvas\Social\Models\BaseModel;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
 /**
  * @class EntityTopics
- * @property int $id
- * @property int $entity_id
+ *
+ * @property int    $id
+ * @property int    $entity_id
  * @property string $entity_namespace
- * @property int $apps_id
- * @property int $companies_id
- * @property int $topics_id
- * @property int $users_id
+ * @property int    $apps_id
+ * @property int    $companies_id
+ * @property int    $topics_id
+ * @property int    $users_id
  */
 class EntityTopics extends BaseModel
 {

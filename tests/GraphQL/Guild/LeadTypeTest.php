@@ -24,9 +24,9 @@ class LeadTypeTest extends TestCase
         $companiesId = $companiesId->data->me->companies[0]->uuid;
         $input = [
             'companies_id' => $companiesId,
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'is_active' => fake()->boolean,
+            'name'         => fake()->name,
+            'description'  => fake()->text,
+            'is_active'    => fake()->boolean,
         ];
         $this->graphQL(
             '
@@ -44,7 +44,7 @@ class LeadTypeTest extends TestCase
             [
                 'data' => [
                     'createLeadType' => [
-                        'name' => $input['name'],
+                        'name'        => $input['name'],
                         'description' => $input['description'],
                     ],
                 ],
@@ -68,9 +68,9 @@ class LeadTypeTest extends TestCase
         $companiesId = $companiesId->data->me->companies[0]->uuid;
         $input = [
             'companies_id' => $companiesId,
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'is_active' => fake()->boolean,
+            'name'         => fake()->name,
+            'description'  => fake()->text,
+            'is_active'    => fake()->boolean,
         ];
         $leadType = $this->graphQL(
             '
@@ -88,9 +88,9 @@ class LeadTypeTest extends TestCase
         $leadType = $leadType->data->createLeadType;
         $input = [
             'companies_id' => $companiesId,
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'is_active' => fake()->boolean,
+            'name'         => fake()->name,
+            'description'  => fake()->text,
+            'is_active'    => fake()->boolean,
         ];
         $this->graphQL(
             '
@@ -102,14 +102,14 @@ class LeadTypeTest extends TestCase
             }
             ',
             [
-                'id' => $leadType->uuid,
+                'id'    => $leadType->uuid,
                 'input' => $input,
             ]
         )->assertJson(
             [
                 'data' => [
                     'updateLeadType' => [
-                        'name' => $input['name'],
+                        'name'        => $input['name'],
                         'description' => $input['description'],
                     ],
                 ],
@@ -133,9 +133,9 @@ class LeadTypeTest extends TestCase
         $companiesId = $companiesId->data->me->companies[0]->uuid;
         $input = [
             'companies_id' => $companiesId,
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'is_active' => fake()->boolean,
+            'name'         => fake()->name,
+            'description'  => fake()->text,
+            'is_active'    => fake()->boolean,
         ];
         $leadType = $this->graphQL(
             '
@@ -185,9 +185,9 @@ class LeadTypeTest extends TestCase
         $companiesId = $companiesId->data->me->companies[0]->uuid;
         $input = [
             'companies_id' => $companiesId,
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'is_active' => fake()->boolean,
+            'name'         => fake()->name,
+            'description'  => fake()->text,
+            'is_active'    => fake()->boolean,
         ];
         $leadType = $this->graphQL(
             '

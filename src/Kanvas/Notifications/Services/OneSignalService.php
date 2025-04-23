@@ -22,9 +22,9 @@ class OneSignalService
         protected AppInterface $app,
     ) {
         match (true) {
-            empty($app->get(AppSettingsEnums::ONE_SIGNAL_APP_ID->getValue())) => throw new Exception($app->name . ' OneSignal App ID is not set'),
-            empty($app->get(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue())) => throw new Exception($app->name . ' OneSignal Rest API Key is not set'),
-            default => null,
+            empty($app->get(AppSettingsEnums::ONE_SIGNAL_APP_ID->getValue()))       => throw new Exception($app->name.' OneSignal App ID is not set'),
+            empty($app->get(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue())) => throw new Exception($app->name.' OneSignal Rest API Key is not set'),
+            default                                                                 => null,
         };
 
         $this->oneSignalAppId = $app->get(AppSettingsEnums::ONE_SIGNAL_APP_ID->getValue());
@@ -75,8 +75,8 @@ class OneSignalService
         }
 
         $params = [
-            'app_id' => $this->oneSignalAppId,
-            'contents' => $contents,
+            'app_id'             => $this->oneSignalAppId,
+            'contents'           => $contents,
             'include_player_ids' => $this->getDevicesIds($user),
         ];
 

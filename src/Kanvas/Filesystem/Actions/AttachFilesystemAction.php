@@ -35,15 +35,15 @@ class AttachFilesystemAction
             } else {
                 // Lock the rows we're going to check to prevent race conditions
                 $fileEntity = FilesystemEntities::where([
-                    'entity_id' => $this->entity->getKey(),
+                    'entity_id'         => $this->entity->getKey(),
                     'system_modules_id' => $systemModule->getKey(),
-                    'filesystem_id' => $this->filesystem->getKey(),
-                    'companies_id' => $this->filesystem->companies_id,
+                    'filesystem_id'     => $this->filesystem->getKey(),
+                    'companies_id'      => $this->filesystem->companies_id,
                 ])->lockForUpdate()->first();
 
                 if (! $fileEntity) {
                     $filter = [
-                        'entity_id' => $this->entity->getKey(),
+                        'entity_id'         => $this->entity->getKey(),
                         'system_modules_id' => $systemModule->getKey(),
                     ];
 

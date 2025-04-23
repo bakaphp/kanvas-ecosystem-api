@@ -13,7 +13,7 @@ use Kanvas\Users\Repositories\UsersRepository;
 class FollowManagementMutation
 {
     /**
-     * userFollow
+     * userFollow.
      */
     public function userFollow(mixed $root, array $request): bool
     {
@@ -32,7 +32,7 @@ class FollowManagementMutation
     }
 
     /**
-     * userUnfollow
+     * userUnfollow.
      */
     public function userUnFollow(mixed $root, array $request): bool
     {

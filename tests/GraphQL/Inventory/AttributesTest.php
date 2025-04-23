@@ -11,8 +11,6 @@ class AttributesTest extends TestCase
 {
     /**
      * testCreate.
-     *
-     * @return void
      */
     public function testCreate(): void
     {
@@ -23,8 +21,6 @@ class AttributesTest extends TestCase
 
     /**
      * testSearch.
-     *
-     * @return void
      */
     public function testSearch(): void
     {
@@ -49,8 +45,6 @@ class AttributesTest extends TestCase
 
     /**
      * testUpdate.
-     *
-     * @return void
      */
     public function testUpdate(): void
     {
@@ -58,7 +52,7 @@ class AttributesTest extends TestCase
         $id = $response['data']['createAttribute']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name
+            'name' => fake()->name,
         ];
 
         $response = $this->graphQL('
@@ -82,7 +76,7 @@ class AttributesTest extends TestCase
         $id = $response['data']['createAttribute']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name . " es"
+            'name' => fake()->name.' es',
         ];
 
         $response = $this->graphQL('
@@ -100,10 +94,10 @@ class AttributesTest extends TestCase
                     }
                 }
             }', [
-                'dataUpdate' => $dataUpdate,
-                'id' => $id,
-                'code' => $language->code
-            ]);
+            'dataUpdate' => $dataUpdate,
+            'id'         => $id,
+            'code'       => $language->code,
+        ]);
 
         $this->assertEquals(
             $dataUpdate['name'],
@@ -113,8 +107,6 @@ class AttributesTest extends TestCase
 
     /**
      * testDelete.
-     *
-     * @return void
      */
     public function testDelete(): void
     {
@@ -125,18 +117,16 @@ class AttributesTest extends TestCase
             mutation($id: ID!) {
                 deleteAttribute(id: $id)
             }', ['id' => $id])->assertJson([
-            'data' => ['deleteAttribute' => true]
+            'data' => ['deleteAttribute' => true],
         ]);
     }
 
     /**
      * testCreateDuplicatedSlug.
-     *
-     * @return void
      */
     public function testCreateDuplicatedSlug(): void
     {
-        $slug = 'unique-slug-test-' . fake()->uuid;
+        $slug = 'unique-slug-test-'.fake()->uuid;
 
         $response = $this->createAttribute($slug);
         $firstAttributeId = $response['data']['createAttribute']['id'];
@@ -151,15 +141,13 @@ class AttributesTest extends TestCase
 
     /**
      * testUpdateDuplicatedSlug.
-     *
-     * @return void
      */
     public function testUpdateDuplicatedSlug(): void
     {
-        $slug = 'unique-slug-update-test-' . fake()->uuid;
+        $slug = 'unique-slug-update-test-'.fake()->uuid;
         $response = $this->createAttribute($slug);
 
-        $slug2 = 'another-unique-slug-' . fake()->uuid;
+        $slug2 = 'another-unique-slug-'.fake()->uuid;
         $response2 = $this->createAttribute($slug2);
 
         $response3 = $this->graphQL('
@@ -170,11 +158,11 @@ class AttributesTest extends TestCase
                     slug
                 }
             }', [
-            'id' => $response2['data']['createAttribute']['id'],
+            'id'   => $response2['data']['createAttribute']['id'],
             'data' => [
                 'name' => 'Updated Name',
                 'slug' => $slug,
-            ]
+            ],
         ])->json();
 
         $this->assertEquals(
@@ -186,7 +174,7 @@ class AttributesTest extends TestCase
     public function testCreateAttributeRequiredFields(): void
     {
         $data = [
-            'name' => fake()->name,
+            'name'   => fake()->name,
             'values' => [
                 ['value' => fake()->name],
             ],
@@ -211,15 +199,11 @@ class AttributesTest extends TestCase
 
     /**
      * Helper function createAttribute.
-     *
-     * @param string|null $slug
-     *
-     * @return array
      */
     private function createAttribute(?string $slug = null): array
     {
         $data = [
-            'name' => fake()->name,
+            'name'   => fake()->name,
             'values' => [
                 ['value' => fake()->name],
             ],

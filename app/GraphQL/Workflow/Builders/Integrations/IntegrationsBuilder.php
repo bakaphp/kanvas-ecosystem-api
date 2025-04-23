@@ -43,11 +43,11 @@ class IntegrationsBuilder
         $entityIntegrationHistoryTable = EntityIntegrationHistory::getFullTableName();
 
         $root->select([
-                'entity_integration_history.*',
-                'entity_integration_history.id as id'
-            ])
-            ->join($integrationsCompanyTable, $entityIntegrationHistoryTable . '.integrations_company_id', '=', $integrationsCompanyTable . '.id')
-            ->join($regionTable, $integrationsCompanyTable . '.region_id', '=', $regionTable . '.id')
+            'entity_integration_history.*',
+            'entity_integration_history.id as id',
+        ])
+            ->join($integrationsCompanyTable, $entityIntegrationHistoryTable.'.integrations_company_id', '=', $integrationsCompanyTable.'.id')
+            ->join($regionTable, $integrationsCompanyTable.'.region_id', '=', $regionTable.'.id')
             ->distinct();
 
         if (isset($args['HAS']['condition'])) {
@@ -56,8 +56,7 @@ class IntegrationsBuilder
             if ($column && $value) {
                 $root->when(
                     $value,
-                    fn ($query) =>
-                    $query->where($regionTable . '.' . $column, $value)
+                    fn ($query) => $query->where($regionTable.'.'.$column, $value)
                 );
             }
         }

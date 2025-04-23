@@ -23,7 +23,7 @@ class PeopleManagementMutation
     use HasMutationUploadFiles;
 
     /**
-     * Create new customer
+     * Create new customer.
      */
     public function create(mixed $root, array $req): ModelsPeople
     {
@@ -31,24 +31,24 @@ class PeopleManagementMutation
         $data = $req['input'];
 
         $people = People::from([
-            'app' => app(Apps::class),
-            'branch' => $user->getCurrentBranch(),
-            'user' => $user,
-            'firstname' => $data['firstname'],
-            'middlename' => $data['middlename'] ?? null,
-            'lastname' => $data['lastname'] ?? null,
-            'contacts' => Contact::collect($data['contacts'] ?? [], DataCollection::class),
-            'address' => Address::collect($data['address'] ?? [], DataCollection::class),
-            'id' => $data['id'] ?? 0,
-            'dob' => $data['dob'] ?? null,
-            'facebook_contact_id' => $data['facebook_contact_id'] ?? null,
-            'google_contact_id' => $data['google_contact_id'] ?? null,
-            'apple_contact_id' => $data['apple_contact_id'] ?? null,
-            'linkedin_contact_id' => $data['linkedin_contact_id'] ?? null,
-            'tags' => $data['tags'] ?? [],
-            'custom_fields' => $data['custom_fields'] ?? [],
+            'app'                     => app(Apps::class),
+            'branch'                  => $user->getCurrentBranch(),
+            'user'                    => $user,
+            'firstname'               => $data['firstname'],
+            'middlename'              => $data['middlename'] ?? null,
+            'lastname'                => $data['lastname'] ?? null,
+            'contacts'                => Contact::collect($data['contacts'] ?? [], DataCollection::class),
+            'address'                 => Address::collect($data['address'] ?? [], DataCollection::class),
+            'id'                      => $data['id'] ?? 0,
+            'dob'                     => $data['dob'] ?? null,
+            'facebook_contact_id'     => $data['facebook_contact_id'] ?? null,
+            'google_contact_id'       => $data['google_contact_id'] ?? null,
+            'apple_contact_id'        => $data['apple_contact_id'] ?? null,
+            'linkedin_contact_id'     => $data['linkedin_contact_id'] ?? null,
+            'tags'                    => $data['tags'] ?? [],
+            'custom_fields'           => $data['custom_fields'] ?? [],
             'peopleEmploymentHistory' => $data['peopleEmploymentHistory'] ?? [],
-            'organization' => $data['organization'] ?? null,
+            'organization'            => $data['organization'] ?? null,
         ]);
 
         $createPeople = new CreatePeopleAction($people);
@@ -77,23 +77,23 @@ class PeopleManagementMutation
         $people = $this->getPeopleById((int) $req['id'], $user, $app, $user->getCurrentCompany());
 
         $peopleData = People::from([
-            'app' => app(Apps::class),
-            'branch' => $user->getCurrentBranch(),
-            'user' => $user,
-            'firstname' => $data['firstname'],
-            'middlename' => $data['middlename'] ?? null,
-            'lastname' => $data['lastname'] ?? null,
-            'contacts' => Contact::collect($data['contacts'] ?? [], DataCollection::class),
-            'address' => Address::collect($data['address'] ?? [], DataCollection::class),
-            'id' => $people->getId(),
-            'dob' => $data['dob'] ?? null,
+            'app'                 => app(Apps::class),
+            'branch'              => $user->getCurrentBranch(),
+            'user'                => $user,
+            'firstname'           => $data['firstname'],
+            'middlename'          => $data['middlename'] ?? null,
+            'lastname'            => $data['lastname'] ?? null,
+            'contacts'            => Contact::collect($data['contacts'] ?? [], DataCollection::class),
+            'address'             => Address::collect($data['address'] ?? [], DataCollection::class),
+            'id'                  => $people->getId(),
+            'dob'                 => $data['dob'] ?? null,
             'facebook_contact_id' => $data['facebook_contact_id'] ?? null,
-            'google_contact_id' => $data['google_contact_id'] ?? null,
-            'apple_contact_id' => $data['apple_contact_id'] ?? null,
+            'google_contact_id'   => $data['google_contact_id'] ?? null,
+            'apple_contact_id'    => $data['apple_contact_id'] ?? null,
             'linkedin_contact_id' => $data['linkedin_contact_id'] ?? null,
-            'tags' => $data['tags'] ?? [],
-            'custom_fields' => $data['custom_fields'] ?? [],
-            'organization' => $data['organization'] ?? null,
+            'tags'                => $data['tags'] ?? [],
+            'custom_fields'       => $data['custom_fields'] ?? [],
+            'organization'        => $data['organization'] ?? null,
         ]);
 
         $updatePeople = new UpdatePeopleAction($people, $peopleData);

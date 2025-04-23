@@ -21,6 +21,7 @@ class OrderService
 
     /**
      * @todo use DTO to create the order
+     *
      * @throws GuzzleException
      * @throws RuntimeException
      * @throws Exception
@@ -45,7 +46,7 @@ class OrderService
         if (isset($data['status']) && $data['status'] === 0) {
             $errorMessage = $data['order_response'][0]['error'] ?? 'Other error';
 
-            throw new Exception('Error processing order: ' . $errorMessage);
+            throw new Exception('Error processing order: '.$errorMessage);
         }
 
         throw new RuntimeException('Error processing order.');
@@ -71,7 +72,7 @@ class OrderService
         }
 
         if (isset($data['status']) && $data['status'] === 0) {
-            throw new Exception($iccid . ' - Error checking esim status.');
+            throw new Exception($iccid.' - Error checking esim status.');
         }
 
         throw new Exception('Error checking esim status.');

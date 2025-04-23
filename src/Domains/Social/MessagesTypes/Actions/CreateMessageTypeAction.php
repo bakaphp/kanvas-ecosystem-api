@@ -10,7 +10,7 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 class CreateMessageTypeAction
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -20,24 +20,24 @@ class CreateMessageTypeAction
     }
 
     /**
-     * execute
+     * execute.
      */
     public function execute(): MessageType
     {
         return MessageType::firstOrCreate(
             [
-                'verb' => $this->messageTypeInput->verb,
-                'apps_id' => $this->messageTypeInput->apps_id,
+                'verb'         => $this->messageTypeInput->verb,
+                'apps_id'      => $this->messageTypeInput->apps_id,
                 'languages_id' => $this->messageTypeInput->languages_id,
             ],
             [
-            'apps_id' => $this->messageTypeInput->apps_id,
-            'languages_id' => $this->messageTypeInput->languages_id,
-            'name' => $this->messageTypeInput->name,
-            'verb' => $this->messageTypeInput->verb,
-            'template' => $this->messageTypeInput->template,
-            'templates_plura' => $this->messageTypeInput->templates_plura,
-        ]
+                'apps_id'         => $this->messageTypeInput->apps_id,
+                'languages_id'    => $this->messageTypeInput->languages_id,
+                'name'            => $this->messageTypeInput->name,
+                'verb'            => $this->messageTypeInput->verb,
+                'template'        => $this->messageTypeInput->template,
+                'templates_plura' => $this->messageTypeInput->templates_plura,
+            ]
         );
     }
 }

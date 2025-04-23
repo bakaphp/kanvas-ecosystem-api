@@ -12,10 +12,9 @@ class MessageActivityTypeSeeder extends Seeder
      */
     public function run(): void
     {
-
         UserMessageActivityType::create([
             'apps_id' => 1,
-            'name' => 'follow',
+            'name'    => 'follow',
         ]);
     }
 }

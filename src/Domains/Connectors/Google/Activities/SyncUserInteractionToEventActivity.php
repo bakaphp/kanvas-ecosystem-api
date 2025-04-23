@@ -23,8 +23,8 @@ class SyncUserInteractionToEventActivity extends KanvasActivity implements Workf
             $interactionEntity = $userInteraction->entityData();
         } catch (ModelNotFoundException $e) {
             return [
-                'result' => false,
-                'message' => 'Entity not found',
+                'result'           => false,
+                'message'          => 'Entity not found',
                 'user_interaction' => $userInteraction->toArray(),
             ];
         }
@@ -35,9 +35,9 @@ class SyncUserInteractionToEventActivity extends KanvasActivity implements Workf
         $company = $interactionEntity->company ?? ($globalAppCompany ? $globalAppCompany->company : null);
         if (! $company) {
             return [
-                'result' => false,
+                'result'  => false,
                 'message' => 'Company not found',
-                'slug' => $userInteraction->entity_id,
+                'slug'    => $userInteraction->entity_id,
             ];
         }
 
@@ -55,10 +55,10 @@ class SyncUserInteractionToEventActivity extends KanvasActivity implements Workf
         //re-generate the home feed
 
         return [
-            'result' => $result,
+            'result'              => $result,
             'user_interaction_id' => $userInteraction->id,
-            'entity_id' => $userInteraction->entity_id,
-            'entity_namespace' => $userInteraction->entity_namespace,
+            'entity_id'           => $userInteraction->entity_id,
+            'entity_namespace'    => $userInteraction->entity_namespace,
         ];
     }
 }

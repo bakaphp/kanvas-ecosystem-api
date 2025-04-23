@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
 
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Products\Models\Products;
 use Illuminate\Support\Facades\Log;
-use Shopify\Clients\Graphql;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Client;
-use Kanvas\Connectors\Shopify\Actions\PublishProductGraphqlAction;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Shopify\Clients\Graphql;
 
 // to do: rename to standard push product graphql
 // to do: create variant into the method execute
@@ -28,12 +27,12 @@ class CreateProductGraphql
 
     public function execute(): array
     {
-        Log::debug("ShopifySaveAction started");
+        Log::debug('ShopifySaveAction started');
 
         try {
-            $graphQL = <<<QUERY
-            mutation productCreate(\$product: ProductCreateInput, \$media: [CreateMediaInput!]) {
-                productCreate(product: \$product, media: \$media) {
+            $graphQL = <<<'QUERY'
+            mutation productCreate($product: ProductCreateInput, $media: [CreateMediaInput!]) {
+                productCreate(product: $product, media: $media) {
                     product {
                         id,
                         featuredMedia {
@@ -61,17 +60,17 @@ class CreateProductGraphql
             $media = [];
             foreach ($filesystems as $filesystem) {
                 $media[] = [
-                    'originalSource' => $filesystem->url,
-                    'alt' => $filesystem->name,
+                    'originalSource'   => $filesystem->url,
+                    'alt'              => $filesystem->name,
                     'mediaContentType' => 'IMAGE',
                 ];
             }
 
             $variables = [
-                "product" => [
-                    "title" => $this->products->name,
-                    "descriptionHtml" => $this->products->description,
-                    'handle' => $this->products->slug,
+                'product' => [
+                    'title'           => $this->products->name,
+                    'descriptionHtml' => $this->products->description,
+                    'handle'          => $this->products->slug,
                 ],
             ];
             if (! empty($this->metafields)) {
@@ -93,8 +92,10 @@ class CreateProductGraphql
             ))->execute();
         } catch (\Throwable $e) {
             Log::error('ShopifySaveAction failed', ['error' => $e->getMessage()]);
+
             return ['error' => $e->getMessage()];
         }
+
         return $response['data']['productCreate']['product'] ?? ['error' => 'Unknown error'];
     }
 }

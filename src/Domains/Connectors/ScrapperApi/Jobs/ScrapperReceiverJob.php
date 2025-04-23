@@ -32,7 +32,7 @@ class ScrapperReceiverJob extends ProcessWebhookJob
 
         return [
             'message' => 'Scrapper started',
-            'search' => $request['search'],
+            'search'  => $request['search'],
             'results' => $action->execute(),
         ];
     }

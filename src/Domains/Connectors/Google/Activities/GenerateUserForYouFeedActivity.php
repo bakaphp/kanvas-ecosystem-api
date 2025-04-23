@@ -37,10 +37,10 @@ class GenerateUserForYouFeedActivity extends KanvasActivity implements WorkflowA
         $generateUserMessage->execute($pageSize);
 
         return [
-            'user_id' => $user->getId(),
-            'app_id' => $app->getId(),
+            'user_id'         => $user->getId(),
+            'app_id'          => $app->getId(),
             'clean_user_feed' => $cleanUserFeed,
-            'message' => 'User message feed generated',
+            'message'         => 'User message feed generated',
         ];
     }
 }

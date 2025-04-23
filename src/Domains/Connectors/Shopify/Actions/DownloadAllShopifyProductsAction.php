@@ -69,7 +69,7 @@ class DownloadAllShopifyProductsAction
         // Using the Shopify API to query a product by its handle
         $shopifyProducts = $shopify->Product()->get([
             'handle' => $handle,
-            'limit' => 1,
+            'limit'  => 1,
         ]);
 
         // If a product is found with the given handle

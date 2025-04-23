@@ -7,13 +7,13 @@ namespace Kanvas\Connectors\WooCommerce\Webhooks;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Override;
 
 class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
@@ -25,7 +25,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
         if (empty($userData['email']) || empty($userData['first_name']) || empty($userData['last_name'])) {
             return [
                 'message' => 'Missing required user data',
-                'status' => 'error',
+                'status'  => 'error',
             ];
         }
 
@@ -39,7 +39,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
             return [
                 'message' => 'New user created successfully',
                 'user_id' => $user->getId(),
-                'status' => 'success',
+                'status'  => 'success',
             ];
         }
     }
@@ -73,7 +73,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
                 return [
                     'message' => 'User already exists in this app, data updated',
                     'user_id' => $user->getId(),
-                    'status' => 'success',
+                    'status'  => 'success',
                 ];
             } catch (ModelNotFoundException) {
                 $this->registerExistingUserInApp($user, $userData);
@@ -81,7 +81,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
                 return [
                     'message' => 'User exists but was added to this app',
                     'user_id' => $user->getId(),
-                    'status' => 'success',
+                    'status'  => 'success',
                 ];
             }
         } catch (ModelNotFoundException $e) {
@@ -105,14 +105,14 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     private function registerExistingUserInApp(Users $user, array $userData): void
     {
         $registerInput = $this->prepareRegisterInput([
-            'email' => $user->email,
-            'firstname' => $user->firstname,
-            'lastname' => $user->lastname,
-            'displayname' => $user->displayname,
-            'password' => $userData['password'],
-            'phone_number' => $user->phone_number,
+            'email'             => $user->email,
+            'firstname'         => $user->firstname,
+            'lastname'          => $user->lastname,
+            'displayname'       => $user->displayname,
+            'password'          => $userData['password'],
+            'phone_number'      => $user->phone_number,
             'cell_phone_number' => $user->cell_phone_number,
-            'custom_fields' => $userData['custom_fields'] ?? [],
+            'custom_fields'     => $userData['custom_fields'] ?? [],
         ]);
 
         $createUserAction = new CreateUserAction($registerInput, $this->receiver->app);
@@ -127,7 +127,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     {
         $user->firstname = $userData['first_name'] ?? $user->firstname;
         $user->lastname = $userData['last_name'] ?? $user->lastname;
-        $user->displayname = $userData['displayname'] ?? $user->firstname . ' ' . $user->lastname;
+        $user->displayname = $userData['displayname'] ?? $user->firstname.' '.$user->lastname;
         $user->phone_number = $userData['phone_number'] ?? $user->phone_number;
         $user->cell_phone_number = $userData['cell_phone_number'] ?? $user->cell_phone_number;
 
@@ -148,7 +148,7 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
             email: $userData['email'],
             firstname: $userData['first_name'],
             lastname: $userData['last_name'],
-            displayname: $userData['displayname'] ?? $userData['first_name'] . ' ' . $userData['last_name'],
+            displayname: $userData['displayname'] ?? $userData['first_name'].' '.$userData['last_name'],
             password: $password,
             raw_password: $rawPassword,
             phone_number: $userData['phone_number'] ?? null,

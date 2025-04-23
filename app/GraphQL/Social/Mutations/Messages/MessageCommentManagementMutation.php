@@ -18,16 +18,16 @@ class MessageCommentManagementMutation
 {
     public function addComment(mixed $root, array $request): MessageComment
     {
-        $message = Message::getById((int)$request['input']['message_id'], app(Apps::class));
+        $message = Message::getById((int) $request['input']['message_id'], app(Apps::class));
 
         $parentId = key_exists('parent_id', $request['input']) ? MessageComment::getById($request['input']['parent_id'])->id : 0;
 
         $dto = CommentsDto::from([
-            'app' => app(Apps::class),
-            'company' => auth()->user()->getCurrentCompany(),
-            'user' => auth()->user(),
-            'message' => $message,
-            'comment' => $request['input']['comment'],
+            'app'       => app(Apps::class),
+            'company'   => auth()->user()->getCurrentCompany(),
+            'user'      => auth()->user(),
+            'message'   => $message,
+            'comment'   => $request['input']['comment'],
             'parent_id' => $parentId,
         ]);
 
@@ -56,7 +56,7 @@ class MessageCommentManagementMutation
         $parentId = key_exists('parent_id', $request['input']) ? MessageComment::getById($request['input']['parent_id'])->id : $comment->parent_id;
 
         $comment->update([
-            'message' => $request['input']['comment'],
+            'message'   => $request['input']['comment'],
             'parent_id' => $parentId,
         ]);
 

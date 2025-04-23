@@ -38,28 +38,28 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
             integrationOperation: function ($entity) use ($messageData) {
                 if (! isset($messageData['ai_model'])) {
                     return [
-                        'result' => false,
+                        'result'  => false,
                         'message' => 'Message does not have an AI model',
                     ];
                 }
                 UserConfig::updateOrCreate(
                     [
                         'users_id' => $entity->user->getId(),
-                        'name' => 'llm_last_choice',
+                        'name'     => 'llm_last_choice',
                     ],
                     [
-                        'value' => $messageData['ai_model'],
+                        'value'     => $messageData['ai_model'],
                         'is_public' => 1,
                     ],
                 );
 
                 return [
-                    'message' => 'LLM choice saved',
-                    'result' => true,
-                    'user_id' => $entity->user->getId(),
-                    'model' => $messageData['ai_model'],
+                    'message'      => 'LLM choice saved',
+                    'result'       => true,
+                    'user_id'      => $entity->user->getId(),
+                    'model'        => $messageData['ai_model'],
                     'message_data' => $entity->message,
-                    'message_id' => $entity->getId(),
+                    'message_id'   => $entity->getId(),
                 ];
             },
             company: $company,

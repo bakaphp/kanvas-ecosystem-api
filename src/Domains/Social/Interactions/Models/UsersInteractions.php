@@ -14,16 +14,16 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
 /**
- * @property int $id
- * @property int $apps_id
- * @property int $users_id
- * @property string $entity_id
- * @property string $entity_namespace
- * @property int $interactions_id
- * @property string $notes
+ * @property int            $id
+ * @property int            $apps_id
+ * @property int            $users_id
+ * @property string         $entity_id
+ * @property string         $entity_namespace
+ * @property int            $interactions_id
+ * @property string         $notes
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
- * @property bool $is_deleted
+ * @property bool           $is_deleted
  */
 #[ObservedBy([UserInteractionObserver::class])]
 class UsersInteractions extends BaseModel
@@ -42,6 +42,6 @@ class UsersInteractions extends BaseModel
     #[Override]
     public function getCacheKey(): string
     {
-        return Str::simpleSlug($this->entity_namespace) . '-' . $this->entity_id;
+        return Str::simpleSlug($this->entity_namespace).'-'.$this->entity_id;
     }
 }

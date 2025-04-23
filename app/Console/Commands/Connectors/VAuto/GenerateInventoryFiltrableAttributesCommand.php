@@ -38,13 +38,13 @@ class GenerateInventoryFiltrableAttributesCommand extends Command
      */
     private array $attributeConfigs = [
         'millage_range' => [
-            'name' => 'Mileage Range',
-            'slug' => 'millage_range',
+            'name'   => 'Mileage Range',
+            'slug'   => 'millage_range',
             'values' => [0, 100000],
         ],
         'price_range' => [
-            'name' => 'Price Range',
-            'slug' => 'price_range',
+            'name'   => 'Price Range',
+            'slug'   => 'price_range',
             'values' => null, // Will be dynamically set based on max price
         ],
     ];

@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\PromptMine;
 
-use Illuminate\Console\Command;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Tags\Models\Tag;
 use Google\Service\Sheets;
-use Illuminate\Support\Facades\Log;
-use Kanvas\Users\Models\UsersAssociatedApps;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 class RedistributePromptsCommand extends Command
 {
@@ -37,7 +36,7 @@ class RedistributePromptsCommand extends Command
     {
         // The Google Client setup looks correct, but we should check if the GOOGLE_AUTH_FILE exists
         if (! file_exists(getenv('GOOGLE_AUTH_FILE'))) {
-            throw new \Exception('Google Auth file not found: ' . getenv('GOOGLE_AUTH_FILE'));
+            throw new \Exception('Google Auth file not found: '.getenv('GOOGLE_AUTH_FILE'));
         }
 
         $client = new \Google\Client();
@@ -72,7 +71,7 @@ class RedistributePromptsCommand extends Command
                     'prompt_id',
                     'user_id',
                     'category',
-                    'displayname'
+                    'displayname',
                 ];
 
                 foreach ($values as $row) {
@@ -85,7 +84,7 @@ class RedistributePromptsCommand extends Command
                     $redistributeCollection[] = $redistributeArray;
                 }
             } else {
-                echo "No data found.";
+                echo 'No data found.';
             }
 
             if ($skipSheet) {
@@ -169,29 +168,28 @@ class RedistributePromptsCommand extends Command
         }
     }
 
-
     private function createTags(string $tagName, int $userId, int $appId, int $companyId): int
     {
         return DB::connection('social')->table('tags')->insertGetId([
-            'name' => $tagName,
-            'apps_id' => $appId,
+            'name'         => $tagName,
+            'apps_id'      => $appId,
             'companies_id' => $companyId,
-            'users_id' => $userId,
-            'slug' => $this->slugify($tagName),
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
+            'users_id'     => $userId,
+            'slug'         => $this->slugify($tagName),
+            'created_at'   => date('Y-m-d H:i:s'),
+            'updated_at'   => date('Y-m-d H:i:s'),
         ]);
     }
 
     private function assignTagsToMessage(int $entityId, int $tagId, int $userId): void
     {
         DB::connection('social')->table('tags_entities')->insert([
-            'entity_id' => $entityId,
-            'tags_id' => $tagId,
-            'users_id' => $userId,
+            'entity_id'     => $entityId,
+            'tags_id'       => $tagId,
+            'users_id'      => $userId,
             'taggable_type' => "Kanvas\Social\Messages\Models\Message",
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
+            'created_at'    => date('Y-m-d H:i:s'),
+            'updated_at'    => date('Y-m-d H:i:s'),
         ]);
     }
 

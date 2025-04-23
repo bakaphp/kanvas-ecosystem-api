@@ -47,7 +47,7 @@ class KanvasUserRemoveFromCompany extends Command
         $assignCompanyAction->execute();
 
         $this->newLine();
-        $this->info("User {$email} successfully remove from branch : " . $branch->name . ' ( ' . $branch->getKey() . ') in app  ' . $app->name);
+        $this->info("User {$email} successfully remove from branch : ".$branch->name.' ( '.$branch->getKey().') in app  '.$app->name);
         $this->newLine();
     }
 }

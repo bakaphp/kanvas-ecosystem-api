@@ -25,15 +25,13 @@ class CreateIntegrationCompanyAction
 
     /**
      * execute.
-     *
-     * @return IntegrationsCompanyModel
      */
     public function execute(): IntegrationsCompanyModel
     {
         return IntegrationsCompanyModel::firstOrCreate([
-            'companies_id' => $this->dto->company->getId(),
+            'companies_id'    => $this->dto->company->getId(),
             'integrations_id' => $this->dto->integration->getId(),
-            'region_id' => $this->dto->region->getId(),
+            'region_id'       => $this->dto->region->getId(),
         ], [
             'status_id' => $this->status->getId(),
         ]);

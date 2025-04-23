@@ -10,9 +10,9 @@ use Kanvas\Models\BaseModel;
 /**
  * NotificationTypesMessageLogic Model.
  *
- * @property int $apps_id
- * @property int $messages_type_id
- * @property int $notifications_type_id
+ * @property int    $apps_id
+ * @property int    $messages_type_id
+ * @property int    $notifications_type_id
  * @property string $logic
  * @property string $created_at
  * @property string $updated_at

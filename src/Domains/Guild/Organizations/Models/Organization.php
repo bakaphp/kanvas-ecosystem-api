@@ -13,13 +13,13 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 /**
  * Class Organization.
  *
- * @property int $id
- * @property string $uuid
+ * @property int      $id
+ * @property string   $uuid
  * @property int|null $apps_id
- * @property int $users_id
- * @property int $companies_id
- * @property string $name
- * @property ?string $address = null
+ * @property int      $users_id
+ * @property int      $companies_id
+ * @property string   $name
+ * @property ?string  $address      = null
  */
 class Organization extends BaseModel
 {
@@ -60,7 +60,7 @@ class Organization extends BaseModel
     {
         return OrganizationPeople::firstOrCreate([
             'organizations_id' => $this->getId(),
-            'peoples_id' => $people->getId(),
+            'peoples_id'       => $people->getId(),
         ], [
             'created_at' => date('Y-m-d H:i:s'),
 

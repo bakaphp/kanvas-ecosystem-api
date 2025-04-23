@@ -27,7 +27,7 @@ class CountErrorHandler implements ErrorHandler
             if ($module = Str::contains($error->getMessage(), '\\')) {
                 $module = explode('\\', $error->getMessage());
                 $module = str_replace('].', '', end($module));
-                $message = 'No result found for model ' . $module;
+                $message = 'No result found for model '.$module;
             }
 
             return $next(new Error(

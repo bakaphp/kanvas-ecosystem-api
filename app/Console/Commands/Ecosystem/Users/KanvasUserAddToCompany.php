@@ -66,11 +66,11 @@ class KanvasUserAddToCompany extends Command
         try {
             $user->getAppProfile($app);
         } catch (Exception $e) {
-            $this->error('User didn\'t exist in this app, we just created it , run it again  ' . $e->getMessage());
+            $this->error('User didn\'t exist in this app, we just created it , run it again  '.$e->getMessage());
         }
 
         $this->newLine();
-        $this->info("User {$email} successfully added to branch : " . $branch->name . ' ( ' . $branch->getKey() . ') in app  ' . $app->name);
+        $this->info("User {$email} successfully added to branch : ".$branch->name.' ( '.$branch->getKey().') in app  '.$app->name);
         $this->newLine();
     }
 }

@@ -11,13 +11,13 @@ use Kanvas\Models\BaseModel;
 /**
  * CustomFieldsModules Model.
  *
- * @property int $id
- * @property int $apps_id
+ * @property int    $id
+ * @property int    $apps_id
  * @property string $name
  * @property string $model_name
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_delete
+ * @property int    $is_delete
  */
 class CustomFieldsSettings extends BaseModel
 {
@@ -30,8 +30,6 @@ class CustomFieldsSettings extends BaseModel
 
     /**
      * Belongs to app.
-     *
-     * @return BelongsTo
      */
     public function app(): BelongsTo
     {

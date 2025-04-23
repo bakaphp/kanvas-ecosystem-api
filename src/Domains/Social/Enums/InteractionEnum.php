@@ -41,36 +41,36 @@ enum InteractionEnum implements EnumsInterface
     public function getValue(): mixed
     {
         return match ($this) {
-            self::LIKE => 'like',
-            self::DISLIKE => 'dislike',
-            self::FOLLOW => 'follow',
-            self::FOLLOWERS => 'followers',
-            self::FOLLOWING => 'following',
-            self::SAVE => 'save',
-            self::REACTION => 'reaction',
-            self::COMMENT => 'comment',
-            self::SHARE => 'share',
-            self::MENTION => 'mention',
-            self::TAG => 'tag',
-            self::REPLY => 'reply',
-            self::PIN => 'pin',
-            self::VIEW => 'view',
-            self::SEARCH => 'search',
-            self::VIEW_ITEM => 'view-item',
-            self::VIEW_ITEM_LIST => 'view-item-list',
-            self::VIEW_HOME_PAGE => 'view-home-page',
+            self::LIKE               => 'like',
+            self::DISLIKE            => 'dislike',
+            self::FOLLOW             => 'follow',
+            self::FOLLOWERS          => 'followers',
+            self::FOLLOWING          => 'following',
+            self::SAVE               => 'save',
+            self::REACTION           => 'reaction',
+            self::COMMENT            => 'comment',
+            self::SHARE              => 'share',
+            self::MENTION            => 'mention',
+            self::TAG                => 'tag',
+            self::REPLY              => 'reply',
+            self::PIN                => 'pin',
+            self::VIEW               => 'view',
+            self::SEARCH             => 'search',
+            self::VIEW_ITEM          => 'view-item',
+            self::VIEW_ITEM_LIST     => 'view-item-list',
+            self::VIEW_HOME_PAGE     => 'view-home-page',
             self::VIEW_CATEGORY_PAGE => 'view-category-page',
-            self::ADD_TO_CART => 'add-to-cart',
-            self::PURCHASE => 'purchase',
-            self::MEDIA_PLAY => 'media-play',
-            self::MEDIA_COMPLETE => 'media-complete',
-            self::REPORT => 'report',
-            self::BLOCK => 'block',
+            self::ADD_TO_CART        => 'add-to-cart',
+            self::PURCHASE           => 'purchase',
+            self::MEDIA_PLAY         => 'media-play',
+            self::MEDIA_COMPLETE     => 'media-complete',
+            self::REPORT             => 'report',
+            self::BLOCK              => 'block',
         };
     }
 
     /**
-     * Get Like/Dislike Interaction Enum Value
+     * Get Like/Dislike Interaction Enum Value.
      */
     public static function getLikeInteractionEnumValue(bool $isDislike = false): string
     {

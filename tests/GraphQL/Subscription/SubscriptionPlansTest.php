@@ -65,12 +65,12 @@ final class SubscriptionPlansTest extends TestCase
         $response->assertJson([
             'data' => [
                 'createPlan' => [
-                    'name' => 'Test plan',
+                    'name'             => 'Test plan',
                     'free_trial_dates' => 15,
-                    'is_default' => true,
-                    'prices' => [
+                    'is_default'       => true,
+                    'prices'           => [
                         [
-                            'amount' => 30.00,
+                            'amount'   => 30.00,
                             'currency' => 'USD',
                             'interval' => 'year',
                         ],
@@ -80,9 +80,9 @@ final class SubscriptionPlansTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('apps_plans', [
-            'name' => 'Test plan',
+            'name'             => 'Test plan',
             'free_trial_dates' => 15,
-            'is_default' => true,
+            'is_default'       => true,
         ]);
     }
 
@@ -95,7 +95,7 @@ final class SubscriptionPlansTest extends TestCase
 
         $response = $this->graphQL('
             mutation {
-                updatePlan(id: ' . $planId . ', input: {
+                updatePlan(id: '.$planId.', input: {
                     name: "Updated plan",
                     description: "Updated description",
                     free_trial_dates: 42,
@@ -116,20 +116,20 @@ final class SubscriptionPlansTest extends TestCase
         $response->assertJson([
             'data' => [
                 'updatePlan' => [
-                    'name' => 'Updated plan',
-                    'description' => 'Updated description',
+                    'name'             => 'Updated plan',
+                    'description'      => 'Updated description',
                     'free_trial_dates' => 42,
-                    'is_active' => true,
-                    'is_default' => true,
+                    'is_active'        => true,
+                    'is_default'       => true,
                 ],
             ],
         ]);
 
         $this->assertDatabaseHas('apps_plans', [
-            'id' => $planId,
-            'name' => 'Updated plan',
+            'id'               => $planId,
+            'name'             => 'Updated plan',
             'free_trial_dates' => 42,
-            'is_default' => true,
+            'is_default'       => true,
         ]);
     }
 
@@ -160,7 +160,7 @@ final class SubscriptionPlansTest extends TestCase
 
         $deleteResponse = $this->graphQL('
             mutation {
-                deletePlan(id: ' . $planId . ')
+                deletePlan(id: '.$planId.')
             }
         ');
 
@@ -171,7 +171,7 @@ final class SubscriptionPlansTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('apps_plans', [
-            'id' => $planId,
+            'id'         => $planId,
             'is_deleted' => 1,
         ]);
     }

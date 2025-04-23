@@ -25,7 +25,8 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
 class UsersRepository
 {
     /**
-     * findUsersByIds
+     * findUsersByIds.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function findUsersByArray(array $users, AppInterface $app, ?CompanyInterface $company = null): Collection
@@ -55,6 +56,7 @@ class UsersRepository
 
     /**
      * Get the user by email.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function getByEmail(string $email): Users
@@ -75,6 +77,7 @@ class UsersRepository
 
     /**
      * Get the user if he exist in the current company.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function getUserOfCompanyById(CompanyInterface $company, int $id): Users
@@ -94,6 +97,7 @@ class UsersRepository
 
     /**
      * Get the user if he exist in the current app.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function getUserOfAppById(int $id, ?AppInterface $app = null): Users
@@ -120,6 +124,7 @@ class UsersRepository
 
     /**
      * getAll.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function getAll(int $companiesId): Collection
@@ -134,7 +139,9 @@ class UsersRepository
 
     /**
      * User belongs / has permission in this company.
+     *
      * @psalm-suppress MixedReturnStatement
+     *
      * @throws ExceptionsModelNotFoundException
      */
     public static function belongsToCompany(Users|UserInterface $user, CompanyInterface $company): UsersAssociatedCompanies
@@ -150,14 +157,16 @@ class UsersRepository
                 ->firstOrFail();
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException(
-                'User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin'
+                'User doesn\'t belong to this company '.$company->uuid.' , talk to the Admin'
             );
         }
     }
 
     /**
      * User belongs / has permission in this company.
+     *
      * @psalm-suppress MixedReturnStatement
+     *
      * @throws ExceptionsModelNotFoundException
      */
     public static function belongsToCompanyBranch(Users|UserInterface $user, CompanyInterface $company, CompaniesBranches $branch): UsersAssociatedCompanies
@@ -170,14 +179,16 @@ class UsersRepository
                 ->firstOrFail();
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException(
-                'User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin'
+                'User doesn\'t belong to this company '.$company->uuid.' , talk to the Admin'
             );
         }
     }
 
     /**
      * User associated to this company on the current app.
+     *
      * @psalm-suppress MixedReturnStatement
+     *
      * @throws ExceptionsModelNotFoundException
      */
     public static function belongsToThisApp(Users|UserInterface $user, Apps $app, ?CompanyInterface $company = null): UsersAssociatedApps
@@ -193,14 +204,16 @@ class UsersRepository
             return $query->firstOrFail();
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException(
-                'User doesn\'t belong to this app ' . $app->name . ', talk to the Admin'
+                'User doesn\'t belong to this app '.$app->name.', talk to the Admin'
             );
         }
     }
 
     /**
      * Is this user owner of the app?
+     *
      * @psalm-suppress MixedReturnStatement
+     *
      * @throws ExceptionsModelNotFoundException
      */
     public static function userOwnsThisApp(Users|UserInterface $user, Apps $app): UsersAssociatedApps
@@ -214,7 +227,7 @@ class UsersRepository
                 ->firstOrFail();
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException(
-                'User doesn\'t own this app ' . $app->uuid . ' , talk to the Admin'
+                'User doesn\'t own this app '.$app->uuid.' , talk to the Admin'
             );
         }
     }

@@ -53,22 +53,22 @@ use Override;
 /**
  * Class Products.
  *
- * @property int $id
- * @property int $apps_id
- * @property int $companies_id
- * @property int $products_types_id
- * @property int $users_id
- * @property string $uuid
- * @property string $name
- * @property string $slug
- * @property string $description
+ * @property int     $id
+ * @property int     $apps_id
+ * @property int     $companies_id
+ * @property int     $products_types_id
+ * @property int     $users_id
+ * @property string  $uuid
+ * @property string  $name
+ * @property string  $slug
+ * @property string  $description
  * @property ?string $short_description
  * @property ?string $html_description
  * @property ?string $warranty_terms
  * @property ?string $upc
- * @property bool $is_published
- * @property string $published_at
- * @property bool $is_deleted
+ * @property bool    $is_published
+ * @property string  $published_at
+ * @property bool    $is_deleted
  */
 #[ObservedBy(ProductsObserver::class)]
 class Products extends BaseModel implements EntityIntegrationInterface
@@ -96,12 +96,12 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     protected $casts = [
         'is_published' => 'boolean',
-        'is_deleted' => 'boolean',
+        'is_deleted'   => 'boolean',
     ];
 
     protected $is_deleted;
 
-    public $translatable = ['name','description','short_description','html_description','warranty_terms'];
+    public $translatable = ['name', 'description', 'short_description', 'html_description', 'warranty_terms'];
 
     #[Override]
     public function getGraphTypeName(): string
@@ -290,6 +290,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     /**
      * productsTypes.
+     *
      * @deprecated
      */
     public function productsTypes(): BelongsTo
@@ -299,6 +300,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     /**
      * productTypes.
+     *
      * @deprecated
      */
     public function productsType(): BelongsTo
@@ -329,49 +331,49 @@ class Products extends BaseModel implements EntityIntegrationInterface
     {
         $product = [
             'objectID' => $this->uuid,
-            'id' => (string) $this->id,
-            'name' => $this->name,
-            'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
+            'id'       => (string) $this->id,
+            'name'     => $this->name,
+            'files'    => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
-                    'uuid' => $files->uuid,
-                    'name' => $files->name,
-                    'url' => $files->url,
-                    'size' => $files->size,
+                    'uuid'       => $files->uuid,
+                    'name'       => $files->name,
+                    'url'        => $files->url,
+                    'size'       => $files->size,
                     'field_name' => $files->field_name,
                     'attributes' => $files->attributes,
                 ];
             }),
             'company' => [
-                'id' => $this->companies_id,
+                'id'   => $this->companies_id,
                 'name' => $this->company->name,
             ],
             'user' => [
-                'id' => $this->user?->getId(),
+                'id'        => $this->user?->getId(),
                 'firstname' => $this->user?->firstname,
-                'lastname' => $this->user?->lastname,
+                'lastname'  => $this->user?->lastname,
             ],
             'categories' => $this->categories->map(function ($category) {
                 return [
-                    'id' => $category->id,
-                    'name' => $category->name,
-                    'slug' => $category->slug,
+                    'id'       => $category->id,
+                    'name'     => $category->name,
+                    'slug'     => $category->slug,
                     'position' => $category->position,
-                  ];
+                ];
             }),
             'variants' => $this->getVariantsData(),
-            'status' => [
-                'id' => $this->status->id ?? null,
+            'status'   => [
+                'id'   => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,
             ],
-            'uuid' => $this->uuid,
-            'slug' => $this->slug,
-            'is_published' => $this->is_published,
-            'description' => $this->description,
+            'uuid'              => $this->uuid,
+            'slug'              => $this->slug,
+            'is_published'      => $this->is_published,
+            'description'       => $this->description,
             'short_description' => $this->short_description,
-            'attributes' => [],
-            'apps_id' => $this->apps_id,
-            'published_at' => $this->published_at,
-            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
+            'attributes'        => [],
+            'apps_id'           => $this->apps_id,
+            'published_at'      => $this->published_at,
+            'created_at'        => $this->created_at->format('Y-m-d H:i:s'),
         ];
 
         if ($this->isTypesense()) {
@@ -398,7 +400,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                                     // Store price with company ID for later sorting
                                     $allPrices[] = [
                                         'company_id' => $company->getId(),
-                                        'price' => (float) $channel->price,
+                                        'price'      => (float) $channel->price,
                                     ];
                                 }
                             } catch (Exception $e) {
@@ -423,7 +425,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
                 // Add the highest prices to the product
                 foreach ($highestPrices as $companyId => $price) {
-                    $product['prices']['price_b2b_' . $companyId] = $price;
+                    $product['prices']['price_b2b_'.$companyId] = $price;
                 }
             }
         }
@@ -448,7 +450,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
         $app = $product->app ?? app(Apps::class);
         $customIndex = $app->get('app_custom_product_index') ?? null;
 
-        return config('scout.prefix') . ($customIndex ?? 'product_index');
+        return config('scout.prefix').($customIndex ?? 'product_index');
     }
 
     public static function search($query = '', $callback = null)
@@ -532,15 +534,15 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
             } else {
                 $attributesDto = AttributesDto::from([
-                    'app' => $this->app,
-                    'user' => $user,
-                    'company' => $this->company,
-                    'name' => $attribute['name'],
-                    'value' => $attribute['value'],
-                    'isVisible' => true,
+                    'app'          => $this->app,
+                    'user'         => $user,
+                    'company'      => $this->company,
+                    'name'         => $attribute['name'],
+                    'value'        => $attribute['value'],
+                    'isVisible'    => true,
                     'isSearchable' => true,
-                    'isFiltrable' => true,
-                    'slug' => Str::slug($attribute['name']),
+                    'isFiltrable'  => true,
+                    'slug'         => Str::slug($attribute['name']),
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
@@ -554,7 +556,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                         $this->user,
                         [
                             [
-                                'id' => $attributeModel->getId(),
+                                'id'    => $attributeModel->getId(),
                                 'value' => $attribute['value'],
                             ],
                         ]
@@ -591,12 +593,12 @@ class Products extends BaseModel implements EntityIntegrationInterface
     }
 
     /**
-    * The Typesense schema to be created.
-    */
+     * The Typesense schema to be created.
+     */
     public function typesenseCollectionSchema(): array
     {
         return [
-            'name' => $this->searchableAs(),
+            'name'   => $this->searchableAs(),
             'fields' => [
                 [
                     'name' => 'objectID',
@@ -607,9 +609,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'type' => 'string',
                 ],
                 [
-                    'name' => 'name',
-                    'type' => 'string',
-                    'sort' => true,
+                    'name'  => 'name',
+                    'type'  => 'string',
+                    'sort'  => true,
                     'facet' => true,
                 ],
                 [
@@ -625,8 +627,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'type' => 'object',
                 ],
                 [
-                    'name' => 'categories',
-                    'type' => 'object[]',
+                    'name'  => 'categories',
+                    'type'  => 'object[]',
                     'facet' => true,  // Enable faceting on the whole object
                 ],
                 [
@@ -634,8 +636,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'type' => 'object[]', // Adjust based on what getVariantsData() returns
                 ],
                 [
-                    'name' => 'status',
-                    'type' => 'object',
+                    'name'     => 'status',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
@@ -651,13 +653,13 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'type' => 'bool',
                 ],
                 [
-                    'name' => 'description',
-                    'type' => 'string',
+                    'name'     => 'description',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'short_description',
-                    'type' => 'string',
+                    'name'     => 'short_description',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
@@ -665,57 +667,57 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'type' => 'object',
                 ],
                 [
-                    'name' => 'custom_fields',
-                    'type' => 'object',
+                    'name'     => 'custom_fields',
+                    'type'     => 'object',
                     'optional' => true,
                 ],
                 [
-                    'name' => 'weight',
-                    'type' => 'float',
+                    'name'     => 'weight',
+                    'type'     => 'float',
                     'optional' => true,
-                    'sort' => true,
+                    'sort'     => true,
                 ],
                 [
-                    'name' => 'prices',
-                    'type' => 'object',
+                    'name'     => 'prices',
+                    'type'     => 'object',
                     'optional' => true,
-                    'facet' => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'prices.*',
-                    'type' => 'float',
+                    'name'     => 'prices.*',
+                    'type'     => 'float',
                     'optional' => true,
-                    'sort' => true,
-                    'facet' => true,
+                    'sort'     => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'prices.regular',
-                    'type' => 'float',
+                    'name'     => 'prices.regular',
+                    'type'     => 'float',
                     'optional' => true,
-                    'sort' => true,
-                    'facet' => true,
+                    'sort'     => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'prices.sale',
-                    'type' => 'float',
+                    'name'     => 'prices.sale',
+                    'type'     => 'float',
                     'optional' => true,
-                    'sort' => true,
-                    'facet' => true,
+                    'sort'     => true,
+                    'facet'    => true,
                 ],
                 [
-                    'name' => 'prices.msrp',
-                    'type' => 'float',
+                    'name'     => 'prices.msrp',
+                    'type'     => 'float',
                     'optional' => true,
-                    'sort' => true,
-                    'facet' => true,
+                    'sort'     => true,
+                    'facet'    => true,
                 ],
                 [
                     'name' => 'apps_id',
                     'type' => 'int64',
                 ],
                 [
-                    'name' => 'published_at',
-                    'type' => 'string',
+                    'name'     => 'published_at',
+                    'type'     => 'string',
                     'optional' => true,
                 ],
                 [
@@ -724,7 +726,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+            'enable_nested_fields'  => true,  // Enable nested fields support for complex objects
         ];
     }
 }

@@ -27,7 +27,7 @@ class CreateShopifyDraftOrderActivity extends KanvasActivity
                 $shopifyDraftOrder = $createDraftOrder->execute();
 
                 return [
-                    'order' => $order->getId(),
+                    'order'               => $order->getId(),
                     'shopify_draft_order' => $shopifyDraftOrder,
                 ];
             },

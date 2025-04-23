@@ -43,7 +43,7 @@ class NetSuiteCustomerService
         if ($response->readResponse->status->isSuccess) {
             return $response->readResponse->record;
         } else {
-            throw new Exception('Error retrieving customer: ' . $response->readResponse->status->statusDetail[0]->message);
+            throw new Exception('Error retrieving customer: '.$response->readResponse->status->statusDetail[0]->message);
         }
     }
 
@@ -67,7 +67,7 @@ class NetSuiteCustomerService
         $response = $this->service->search($searchRequest);
 
         if (! $response->searchResult->status->isSuccess) {
-            throw new Exception('Error retrieving invoice: ' . $response->searchResult->status->statusDetail[0]->message);
+            throw new Exception('Error retrieving invoice: '.$response->searchResult->status->statusDetail[0]->message);
         }
 
         // Prepare data for CSV

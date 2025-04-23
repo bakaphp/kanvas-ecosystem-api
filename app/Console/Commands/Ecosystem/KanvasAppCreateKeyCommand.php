@@ -29,8 +29,6 @@ class KanvasAppCreateKeyCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -54,10 +52,9 @@ class KanvasAppCreateKeyCommand extends Command
         )->execute();
 
         $this->newLine();
-        $this->info('App Key created successfully: ' . $appKey->client_id);
+        $this->info('App Key created successfully: '.$appKey->client_id);
         $this->newLine();
-        $this->info('Secret: ' . $appKey->client_secret_id);
+        $this->info('Secret: '.$appKey->client_secret_id);
 
-        return;
     }
 }

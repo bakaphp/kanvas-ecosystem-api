@@ -19,12 +19,13 @@ class AddLeadParticipantAction
 
     /**
      * execute.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function execute(): LeadParticipant
     {
         $participant = LeadParticipant::firstOrCreate([
-            'leads_id' => $this->leadParticipant->lead->getId(),
+            'leads_id'   => $this->leadParticipant->lead->getId(),
             'peoples_id' => $this->leadParticipant->people->getId(),
         ], [
             'participants_types_id' => $this->leadParticipant->relationship ? $this->leadParticipant->relationship->id : 0,
@@ -35,7 +36,7 @@ class AddLeadParticipantAction
                 WorkflowEnum::CREATED->value,
                 true,
                 [
-                    'app' => $this->leadParticipant->lead->app,
+                    'app'     => $this->leadParticipant->lead->app,
                     'company' => $this->leadParticipant->lead->company,
                 ]
             );

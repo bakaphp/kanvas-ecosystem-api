@@ -13,15 +13,13 @@ class EntityInteractionsTest extends TestCase
 {
     /**
      * testSave.
-     *
-     * @return void
      */
     public function testLikeEntity(): void
     {
         $data = [
-            'entity_id' => fake()->uuid(),
-            'entity_namespace' => Lead::class,
-            'interacted_entity_id' => fake()->uuid(),
+            'entity_id'                   => fake()->uuid(),
+            'entity_namespace'            => Lead::class,
+            'interacted_entity_id'        => fake()->uuid(),
             'interacted_entity_namespace' => Variants::class,
         ];
 
@@ -29,25 +27,23 @@ class EntityInteractionsTest extends TestCase
             mutation($input: LikeEntityInput!){
                 likeEntity(input: $input)
             }', [
-                'input' => $data,
-            ], [], [
-                AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
-            ])->assertJson([
+            'input' => $data,
+        ], [], [
+            AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
+        ])->assertJson([
             'data' => ['likeEntity' => true],
         ]);
     }
 
     /**
      * testSave.
-     *
-     * @return void
      */
     public function testUnLikeEntity(): void
     {
         $data = [
-            'entity_id' => fake()->uuid(),
-            'entity_namespace' => Lead::class,
-            'interacted_entity_id' => fake()->uuid(),
+            'entity_id'                   => fake()->uuid(),
+            'entity_namespace'            => Lead::class,
+            'interacted_entity_id'        => fake()->uuid(),
             'interacted_entity_namespace' => Variants::class,
         ];
 
@@ -55,25 +51,23 @@ class EntityInteractionsTest extends TestCase
             mutation($input: LikeEntityInput!){
                 unLikeEntity(input: $input)
             }', [
-                'input' => $data,
-            ], [], [
-                AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
-            ])->assertJson([
+            'input' => $data,
+        ], [], [
+            AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
+        ])->assertJson([
             'data' => ['unLikeEntity' => true],
         ]);
     }
 
     /**
      * testSave.
-     *
-     * @return void
      */
     public function testDisLikeEntity(): void
     {
         $data = [
-            'entity_id' => fake()->uuid(),
-            'entity_namespace' => Lead::class,
-            'interacted_entity_id' => fake()->uuid(),
+            'entity_id'                   => fake()->uuid(),
+            'entity_namespace'            => Lead::class,
+            'interacted_entity_id'        => fake()->uuid(),
             'interacted_entity_namespace' => Variants::class,
         ];
 
@@ -81,25 +75,23 @@ class EntityInteractionsTest extends TestCase
             mutation($input: LikeEntityInput!){
                 disLikeEntity(input: $input)
             }', [
-                'input' => $data,
-            ], [], [
-                AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
-            ])->assertJson([
+            'input' => $data,
+        ], [], [
+            AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
+        ])->assertJson([
             'data' => ['disLikeEntity' => true],
         ]);
     }
 
     /**
      * testSave.
-     *
-     * @return void
      */
     public function testGetInteractionByEntity(): void
     {
         $data = [
-            'entity_id' => fake()->uuid(),
-            'entity_namespace' => Lead::class,
-            'interacted_entity_id' => fake()->uuid(),
+            'entity_id'                   => fake()->uuid(),
+            'entity_namespace'            => Lead::class,
+            'interacted_entity_id'        => fake()->uuid(),
             'interacted_entity_namespace' => Variants::class,
         ];
 
@@ -111,33 +103,31 @@ class EntityInteractionsTest extends TestCase
                     save
                 }
             }', [
-                'input' => $data,
-            ], [], [
-                AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
-            ])->assertJson([
+            'input' => $data,
+        ], [], [
+            AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
+        ])->assertJson([
             'data' => [
                 'getInteractionByEntity' => [
-                    'like' => null,
+                    'like'    => null,
                     'dislike' => null,
-                    'save' => null,
-                    ],
+                    'save'    => null,
                 ],
+            ],
         ]);
     }
 
     /**
      * testSave.
-     *
-     * @return void
      */
     public function testGetAllEntityInteractions(): void
     {
         $uuid = fake()->uuid();
 
         $data = [
-            'entity_id' => $uuid,
-            'entity_namespace' => 'Lead',
-            'interacted_entity_id' => fake()->uuid(),
+            'entity_id'                   => $uuid,
+            'entity_namespace'            => 'Lead',
+            'interacted_entity_id'        => fake()->uuid(),
             'interacted_entity_namespace' => Variants::class,
         ];
 
@@ -145,10 +135,10 @@ class EntityInteractionsTest extends TestCase
             mutation($input: LikeEntityInput!){
                 likeEntity(input: $input)
             }', [
-                'input' => $data,
-            ], [], [
-                AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
-            ])->assertJson([
+            'input' => $data,
+        ], [], [
+            AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
+        ])->assertJson([
             'data' => ['likeEntity' => true],
         ]);
 
@@ -156,7 +146,7 @@ class EntityInteractionsTest extends TestCase
             '
         {
             entityInteractions(
-                    entity_id: "' . $uuid . '",
+                    entity_id: "'.$uuid.'",
                     entity_namespace: "Lead"
                     ) {
                     data {
@@ -174,9 +164,9 @@ class EntityInteractionsTest extends TestCase
                 'entityInteractions' => [
                     'data' => [
                         [
-                            'entity_id' => $uuid,
+                            'entity_id'        => $uuid,
                             'entity_namespace' => 'Lead',
-                            'interactions' => [
+                            'interactions'     => [
                                 'like' => true,
                                 'save' => false,
                             ],

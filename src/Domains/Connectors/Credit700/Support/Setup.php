@@ -20,8 +20,8 @@ class Setup
     {
         $messageTypeDto = MessageTypeInput::from([
             'apps_id' => $this->app->getId(),
-            'name' => ConfigurationEnum::ACTION_VERB->value,
-            'verb' => ConfigurationEnum::ACTION_VERB->value,
+            'name'    => ConfigurationEnum::ACTION_VERB->value,
+            'verb'    => ConfigurationEnum::ACTION_VERB->value,
         ]);
         (new CreateMessageTypeAction($messageTypeDto))->execute();
     }

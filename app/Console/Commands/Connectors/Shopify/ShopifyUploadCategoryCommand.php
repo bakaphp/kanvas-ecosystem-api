@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\Shopify;
 
 use Illuminate\Console\Command;
-use Kanvas\Connectors\Shopify\Actions\UploadCategoriesToCollectionAction;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Shopify\Actions\UploadCategoriesToCollectionAction;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class ShopifyUploadCategoryCommand extends Command
 {
-    protected $signature = "kanvas:upload-categories-to-shopify {app_id} {categories_id} {warehouse_id} {shopify_id}";
-    protected $description = "
-    ";
+    protected $signature = 'kanvas:upload-categories-to-shopify {app_id} {categories_id} {warehouse_id} {shopify_id}';
+    protected $description = '
+    ';
 
     public function handle()
     {

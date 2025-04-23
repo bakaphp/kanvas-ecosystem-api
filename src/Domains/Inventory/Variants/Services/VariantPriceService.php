@@ -40,7 +40,7 @@ class VariantPriceService
      * This is the logic to get the company specific price
      * of this variant for the channel that has the slug of the current user company id
      * what is this for? for b2b where you have specific prices for each company
-     * not the best solution , @todo discuss if use inventory per company
+     * not the best solution , @todo discuss if use inventory per company.
      */
     private function getCompanySpecificPrice(Variants $variant): float
     {

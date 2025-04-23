@@ -12,7 +12,7 @@ use Override;
 /**
  * Class CompanyAction.
  *
- * @property int $id
+ * @property int    $id
  * @property string $visors_id
  * @property string $leads_id
  * @property string $receivers_id

@@ -31,13 +31,13 @@ final class CreatePeopleSubscriptionTest extends TestCase
             ->create();
 
         $payload = [
-            'email' => $people->getEmails()[0]->value,
-            'created_at' => time(),
+            'email'                => $people->getEmails()[0]->value,
+            'created_at'           => time(),
             'current_period_start' => time(),
         ];
 
         $workflowAction = WorkflowAction::firstOrCreate([
-            'name' => 'Update People Subscription',
+            'name'       => 'Update People Subscription',
             'model_name' => UpdatePeopleGhostSubscriptionJob::class,
         ]);
 
@@ -70,7 +70,7 @@ final class CreatePeopleSubscriptionTest extends TestCase
         $company = $user->getCurrentCompany();
 
         $workflowAction = WorkflowAction::firstOrCreate([
-            'name' => 'Create People',
+            'name'       => 'Create People',
             'model_name' => CreatePeopleFromGhostReceiverJob::class,
         ]);
 
@@ -168,7 +168,7 @@ final class CreatePeopleSubscriptionTest extends TestCase
         $company = $user->getCurrentCompany();
 
         $workflowAction = WorkflowAction::firstOrCreate([
-            'name' => 'Create People',
+            'name'       => 'Create People',
             'model_name' => CreatePeopleFromGhostReceiverJob::class,
         ]);
 
@@ -266,7 +266,7 @@ final class CreatePeopleSubscriptionTest extends TestCase
         $company = $user->getCurrentCompany();
 
         $workflowAction = WorkflowAction::firstOrCreate([
-            'name' => 'Create People',
+            'name'       => 'Create People',
             'model_name' => CreatePeopleFromGhostReceiverJob::class,
         ]);
 
@@ -340,7 +340,7 @@ final class CreatePeopleSubscriptionTest extends TestCase
                ->user($user->getId())
                ->company($company->getId())
                ->create([
-                      'action_id' => $workflowAction->getId(),
+                   'action_id' => $workflowAction->getId(),
                ]);
 
         $request = Request::create('https://localhost/ghosttest', 'POST', $payload);

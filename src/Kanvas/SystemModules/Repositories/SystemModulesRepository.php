@@ -41,7 +41,7 @@ class SystemModulesRepository
         return SystemModules::firstOrCreate(
             [
                 'model_name' => $modelName,
-                'apps_id' => $app->getKey(),
+                'apps_id'    => $app->getKey(),
             ],
             [
                 'slug' => Str::simpleSlug($modelName),
@@ -67,15 +67,15 @@ class SystemModulesRepository
     }
 
     /**
-     * Get the entity from the input
+     * Get the entity from the input.
      */
     public static function getEntityFromInput(SystemModuleInputInterface $entityInput, Users $user, bool $useCompanyReference = true): Model
     {
         $systemModule = self::getByUuidOrModelName($entityInput->systemModuleUuid);
 
         /**
-        * @var BaseModel
-        */
+         * @var BaseModel
+         */
         $entityModel = (new ($systemModule->model_name));
         $hasUuid = $entityModel->hasColumn('uuid');
 

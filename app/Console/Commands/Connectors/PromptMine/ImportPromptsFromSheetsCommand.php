@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\PromptMine;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Str;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Tags\Models\Tag;
-use Kanvas\Users\Models\Users;
-use Illuminate\Support\Facades\DB;
 use Google\Service\Sheets;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use PDO;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 
 class ImportPromptsFromSheetsCommand extends Command
 {
@@ -39,7 +36,7 @@ class ImportPromptsFromSheetsCommand extends Command
     {
         // The Google Client setup looks correct, but we should check if the GOOGLE_AUTH_FILE exists
         if (! file_exists(getenv('GOOGLE_AUTH_FILE'))) {
-            throw new \Exception('Google Auth file not found: ' . getenv('GOOGLE_AUTH_FILE'));
+            throw new \Exception('Google Auth file not found: '.getenv('GOOGLE_AUTH_FILE'));
         }
 
         $client = new \Google\Client();
@@ -76,7 +73,7 @@ class ImportPromptsFromSheetsCommand extends Command
                     'prompt',
                     'tags',
                     'preview',
-                    'nugget'
+                    'nugget',
                 ];
 
                 foreach ($values as $row) {
@@ -93,7 +90,7 @@ class ImportPromptsFromSheetsCommand extends Command
                     $promptsCollection[] = $promptArray;
                 }
             } else {
-                echo "No data found.";
+                echo 'No data found.';
             }
 
             if ($skipSheet) {
@@ -109,7 +106,6 @@ class ImportPromptsFromSheetsCommand extends Command
         }
     }
 
-
     public function insertPrompts(array $promptsCollection, int $appId, int $messageType, int $nuggetMessageType, int $companyId)
     {
         foreach ($promptsCollection as $prompt) {
@@ -120,26 +116,26 @@ class ImportPromptsFromSheetsCommand extends Command
                 ->first();
 
             if ($result) {
-                echo($prompt['title'] . 'message already exists with id: ' . $result->id . PHP_EOL);
-                Log::info($prompt['title'] . 'message already exists with id: ' . $result->id);
+                echo $prompt['title'].'message already exists with id: '.$result->id.PHP_EOL;
+                Log::info($prompt['title'].'message already exists with id: '.$result->id);
 
                 continue;
             }
 
             //insert into db message
             $lastId = DB::connection('social')->table('messages')->insertGetId([
-                'apps_id' => $appId,
-                'uuid' => DB::raw('uuid()'),
-                'companies_id' => $companyId,
-                'users_id' => $userId,
+                'apps_id'          => $appId,
+                'uuid'             => DB::raw('uuid()'),
+                'companies_id'     => $companyId,
+                'users_id'         => $userId,
                 'message_types_id' => $messageType,
-                'message' => json_encode([
-                    'title' => $prompt['title'],
+                'message'          => json_encode([
+                    'title'    => $prompt['title'],
                     'category' => $prompt['category'],
-                    'prompt' => $prompt['prompt'],
-                    'preview' => $prompt['preview'] ?? $prompt['prompt'],
+                    'prompt'   => $prompt['prompt'],
+                    'preview'  => $prompt['preview'] ?? $prompt['prompt'],
                 ]),
-                'slug' => $this->slugify($prompt['title']),
+                'slug'       => $this->slugify($prompt['title']),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -152,34 +148,34 @@ class ImportPromptsFromSheetsCommand extends Command
             //Create a child message for the nugget(prompt results) add the prompt preview as the message
 
             $nuggestId = DB::connection('social')->table('messages')->insertGetId([
-                'parent_id' => $lastId,
-                'apps_id' => $appId,
-                'uuid' => DB::raw('uuid()'),
-                'companies_id' => $companyId,
-                'users_id' => $userId,
+                'parent_id'        => $lastId,
+                'apps_id'          => $appId,
+                'uuid'             => DB::raw('uuid()'),
+                'companies_id'     => $companyId,
+                'users_id'         => $userId,
                 'message_types_id' => $nuggetMessageType,
-                'message' => json_encode([
-                    'title' => $prompt['title'],
+                'message'          => json_encode([
+                    'title'    => $prompt['title'],
                     'ai_model' => [
-                        'key' => 'openai',
-                        'value' => 'chatgpt-4o-latest',
-                        'name' => 'OpenAI - ChatGPT-4o',
+                        'key'     => 'openai',
+                        'value'   => 'chatgpt-4o-latest',
+                        'name'    => 'OpenAI - ChatGPT-4o',
                         'payment' => [
-                            'price' => 0,
-                            'is_locked' => false,
-                            'free_regeneration' => false
-                        ]
+                            'price'             => 0,
+                            'is_locked'         => false,
+                            'free_regeneration' => false,
+                        ],
                     ],
-                    "type" => "text-format",
-                    "nugget" => $prompt['nugget']
+                    'type'   => 'text-format',
+                    'nugget' => $prompt['nugget'],
                 ]),
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             DB::connection('social')->table('messages')
                 ->where('id', $nuggestId)
-                ->update(['path' => $lastId . "." . $nuggestId]);
+                ->update(['path' => $lastId.'.'.$nuggestId]);
 
             // Handle tags
             $tags = array_merge(explode(',', $prompt['tags']), [$prompt['category']]);
@@ -195,28 +191,28 @@ class ImportPromptsFromSheetsCommand extends Command
                     $tagId = $tagResult->id;
                 } else {
                     $tagId = DB::connection('social')->table('tags')->insertGetId([
-                        'name' => $tag,
-                        'apps_id' => $appId,
+                        'name'         => $tag,
+                        'apps_id'      => $appId,
                         'companies_id' => $companyId,
-                        'users_id' => $userId,
-                        'slug' => $this->slugify($tag),
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'updated_at' => date('Y-m-d H:i:s'),
+                        'users_id'     => $userId,
+                        'slug'         => $this->slugify($tag),
+                        'created_at'   => date('Y-m-d H:i:s'),
+                        'updated_at'   => date('Y-m-d H:i:s'),
                     ]);
                 }
 
                 DB::connection('social')->table('tags_entities')->insert([
-                    'entity_id' => $lastId,
-                    'tags_id' => $tagId,
-                    'users_id' => $userId,
+                    'entity_id'     => $lastId,
+                    'tags_id'       => $tagId,
+                    'users_id'      => $userId,
                     'taggable_type' => "Kanvas\Social\Messages\Models\Message",
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s'),
+                    'created_at'    => date('Y-m-d H:i:s'),
+                    'updated_at'    => date('Y-m-d H:i:s'),
                 ]);
             }
 
-            echo($prompt['title'] . ' message inserted with id: ' . $lastId . PHP_EOL);
-            Log::info($prompt['title'] . ' message inserted with id: ' . $lastId);
+            echo $prompt['title'].' message inserted with id: '.$lastId.PHP_EOL;
+            Log::info($prompt['title'].' message inserted with id: '.$lastId);
         }
     }
 
@@ -224,6 +220,7 @@ class ImportPromptsFromSheetsCommand extends Command
      * Generate a slug from a string.
      *
      * @param string $text The string to generate a slug from.
+     *
      * @return string The generated slug.
      */
     public function slugify(string $text): string
@@ -258,8 +255,6 @@ class ImportPromptsFromSheetsCommand extends Command
         return $users[array_rand($users->toArray())];
     }
 
-
-
     private function processContent($rawContent)
     {
         $result = [];
@@ -268,7 +263,7 @@ class ImportPromptsFromSheetsCommand extends Command
         $keywords = ['Category:', 'Prompt Title:', 'Full Prompt:', 'Tags:'];
 
         $rawContent = preg_replace('/\s+/', ' ', $rawContent);
-        $parts = preg_split('/(' . implode('|', array_map('preg_quote', $keywords)) . ')/', $rawContent, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $parts = preg_split('/('.implode('|', array_map('preg_quote', $keywords)).')/', $rawContent, -1, PREG_SPLIT_DELIM_CAPTURE);
 
         $currentKey = '';
         foreach ($parts as $part) {

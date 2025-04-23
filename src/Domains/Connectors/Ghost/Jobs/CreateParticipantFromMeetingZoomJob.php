@@ -31,19 +31,19 @@ class CreateParticipantFromMeetingZoomJob extends ProcessWebhookJob
         $people = PeoplesRepository::getByEmail($payload['object']['participant']['email'], $company);
         if (! $people) {
             $peopleDto = People::from([
-                'app' => $this->webhookRequest->receiverWebhook->app,
-                'company' => $company,
-                'user' => $this->webhookRequest->receiverWebhook->user,
+                'app'       => $this->webhookRequest->receiverWebhook->app,
+                'company'   => $company,
+                'user'      => $this->webhookRequest->receiverWebhook->user,
                 'firstname' => $payload['object']['participant']['user_name'],
-                'contacts' => [
+                'contacts'  => [
                     [
-                        'value' => $payload['object']['participant']['email'],
+                        'value'             => $payload['object']['participant']['email'],
                         'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [],
-                'branch' => $company->defaultBranch
+                'branch'  => $company->defaultBranch,
             ]);
             $action = new CreatePeopleAction($peopleDto);
             $people = $action->execute();
@@ -54,8 +54,8 @@ class CreateParticipantFromMeetingZoomJob extends ProcessWebhookJob
         $eventVersion->addParticipant($participant);
 
         return [
-            'message' => 'Participant created',
-            'people' => $people->toArray(),
+            'message'     => 'Participant created',
+            'people'      => $people->toArray(),
             'participant' => $participant->toArray(),
         ];
     }

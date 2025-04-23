@@ -9,12 +9,12 @@ use Kanvas\Models\BaseModel;
 /**
  * CustomFieldTypes Model.
  *
- * @property int $id
+ * @property int    $id
  * @property string $name
  * @property string $description
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_delete
+ * @property int    $is_delete
  */
 class CustomFieldsTypes extends BaseModel
 {

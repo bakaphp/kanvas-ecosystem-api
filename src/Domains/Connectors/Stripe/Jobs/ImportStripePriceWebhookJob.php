@@ -18,6 +18,7 @@ class ImportStripePriceWebhookJob extends ProcessWebhookJob
     {
         if (! in_array($this->webhookRequest->payload['type'], ['price.created', 'price.updated'])) {
             Log::error('Webhook type not found', ['type' => $this->webhookRequest->payload['type']]);
+
             return [];
         }
 
@@ -38,9 +39,9 @@ class ImportStripePriceWebhookJob extends ProcessWebhookJob
         ))->execute();
 
         return [
-            'message' => 'Price synced successfully',
+            'message'   => 'Price synced successfully',
             'stripe_id' => $webhookPrice['id'],
-            'data' => $price,
+            'data'      => $price,
         ];
     }
 }

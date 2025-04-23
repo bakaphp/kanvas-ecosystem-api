@@ -44,13 +44,13 @@ class AssignRoleAction
         );
 
         $userRole = UserRoles::firstOrCreate([
-            'users_id' => $this->user->id,
-            'apps_id' => $this->app->id,
+            'users_id'     => $this->user->id,
+            'apps_id'      => $this->app->id,
             'companies_id' => $this->company->id,
         ], [
-            'users_id' => $this->user->id,
-            'roles_id' => $role->id,
-            'apps_id' => $this->app->id,
+            'users_id'     => $this->user->id,
+            'roles_id'     => $role->id,
+            'apps_id'      => $this->app->id,
             'companies_id' => $this->company->id,
         ]);
 

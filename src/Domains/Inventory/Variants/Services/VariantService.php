@@ -48,7 +48,7 @@ class VariantService
             }
 
             $variantDto = VariantsDto::from([
-                'product' => $product,
+                'product'     => $product,
                 'products_id' => $product->getId(),
                 ...$variant,
             ]);
@@ -117,13 +117,13 @@ class VariantService
     public static function createDefaultVariant(Products $product, UserInterface $user, ?ProductDto $productDto = null): Variants
     {
         $variant = [
-            'name' => $product->name,
+            'name'        => $product->name,
             'description' => $product->description,
-            'sku' => $productDto->sku ?? Str::slug($product->name),
+            'sku'         => $productDto->sku ?? Str::slug($product->name),
         ];
 
         $variantDto = VariantsDto::from([
-            'product' => $product,
+            'product'     => $product,
             'products_id' => $product->getId(),
             ...$variant,
         ]);
@@ -230,7 +230,7 @@ class VariantService
 
             $missingVariants = [
                 ...$missingVariants,
-                ...array_values(array_diff($chunk, $foundVariants))
+                ...array_values(array_diff($chunk, $foundVariants)),
             ];
         }
 
@@ -245,9 +245,9 @@ class VariantService
         foreach ($productSkus as $variantData) {
             $variant = Variants::query()
             ->where([
-                'sku' => $variantData['sku'],
+                'sku'          => $variantData['sku'],
                 'companies_id' => $company->id,
-                'apps_id' => $app->id
+                'apps_id'      => $app->id,
             ])
             ->first();
 
@@ -262,8 +262,8 @@ class VariantService
         }
 
         return [
-            "missing_skus" => $missingSkus,
-            "changed_barcodes" => $changedBarcodes
+            'missing_skus'     => $missingSkus,
+            'changed_barcodes' => $changedBarcodes,
         ];
     }
 }

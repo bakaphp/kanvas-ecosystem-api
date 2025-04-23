@@ -48,7 +48,7 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
                ->searchable();
 
             return [
-                'message' => 'NetSuite Company Synced',
+                'message'           => 'NetSuite Company Synced',
                 'netSuiteCompanyId' => $netSuiteCompanyId,
             ];
         }

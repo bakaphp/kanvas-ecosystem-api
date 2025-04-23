@@ -16,9 +16,9 @@ class ChannelsTest extends TestCase
                         ->notDeleted()
                         ->firstOrFail();
         $data = [
-            'name' => fake()->name(),
-            'description' => fake()->text(),
-            'entity_id' => fake()->uuid(),
+            'name'                  => fake()->name(),
+            'description'           => fake()->text(),
+            'entity_id'             => fake()->uuid(),
             'entity_namespace_uuid' => $systemModule->uuid,
         ];
         $response = $this->graphQL('
@@ -37,10 +37,10 @@ class ChannelsTest extends TestCase
         ])->assertJson([
             'data' => [
                 'createSocialChannel' => [
-                    'name' => $data['name'],
-                    'description' => $data['description'],
-                    'entity_id' => $data['entity_id'],
-                    'entity_namespace' => $systemModule->model_name
+                    'name'             => $data['name'],
+                    'description'      => $data['description'],
+                    'entity_id'        => $data['entity_id'],
+                    'entity_namespace' => $systemModule->model_name,
                 ],
             ],
         ]);
@@ -53,9 +53,9 @@ class ChannelsTest extends TestCase
                         ->notDeleted()
                         ->firstOrFail();
         $data = [
-            'name' => fake()->name(),
-            'description' => fake()->text(),
-            'entity_id' => fake()->uuid(),
+            'name'                  => fake()->name(),
+            'description'           => fake()->text(),
+            'entity_id'             => fake()->uuid(),
             'entity_namespace_uuid' => $systemModule->uuid,
         ];
         $response = $this->graphQL('
@@ -84,7 +84,7 @@ class ChannelsTest extends TestCase
             }
         ',
             [
-                'id' => $response['data']['createSocialChannel']['id'],
+                'id'    => $response['data']['createSocialChannel']['id'],
                 'input' => $data,
             ]
         )->assertJson([
@@ -103,9 +103,9 @@ class ChannelsTest extends TestCase
                         ->notDeleted()
                         ->firstOrFail();
         $data = [
-            'name' => fake()->name(),
-            'description' => fake()->text(),
-            'entity_id' => fake()->uuid(),
+            'name'                  => fake()->name(),
+            'description'           => fake()->text(),
+            'entity_id'             => fake()->uuid(),
             'entity_namespace_uuid' => $systemModule->uuid,
         ];
         $response = $this->graphQL('
@@ -132,9 +132,9 @@ class ChannelsTest extends TestCase
         ',
             [
                 'input' => [
-                    'email' => fake()->email(),
-                    'firstname' => fake()->name(),
-                    'lastname' => fake()->name(),
+                    'email'         => fake()->email(),
+                    'firstname'     => fake()->name(),
+                    'lastname'      => fake()->name(),
                     'custom_fields' => [],
                 ],
             ]
@@ -154,9 +154,9 @@ class ChannelsTest extends TestCase
             [
                 'input' => [
                     'invite_hash' => $inviteHash,
-                    'lastname' => fake()->name(),
-                    'firstname' => fake()->name(),
-                    'password' => fake()->password(8),
+                    'lastname'    => fake()->name(),
+                    'firstname'   => fake()->name(),
+                    'password'    => fake()->password(8),
                 ],
             ]
         );
@@ -179,8 +179,8 @@ class ChannelsTest extends TestCase
             [
                 'input' => [
                     'channel_id' => $channelId,
-                    'user_id' => $user,
-                    'roles_id' => 'Admin',
+                    'user_id'    => $user,
+                    'roles_id'   => 'Admin',
                 ],
             ]
         );

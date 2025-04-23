@@ -27,7 +27,7 @@ class CustomerService
     public function getEsimInfo(string $iccid): array
     {
         return $this->client->post('/aep/SBO_queryEsimCardInfo/v1', [
-            'iccid' => $iccid,
+            'iccid'       => $iccid,
             'accessToken' => $this->client->getAccessToken(),
         ]);
     }
@@ -35,10 +35,10 @@ class CustomerService
     /**
      * Query User’s Active Plans.
      *
-     * @param string $iccid ICCID of the SIM card.
-     * @param string|null $status Plan status to filter (1: In use, 2: Used, 3: Unused, 4: Expired).
-     * @param int $beginIndex Start index for pagination (default: 0).
-     * @param int $count Number of results to return (default: 50).
+     * @param string      $iccid      ICCID of the SIM card.
+     * @param string|null $status     Plan status to filter (1: In use, 2: Used, 3: Unused, 4: Expired).
+     * @param int         $beginIndex Start index for pagination (default: 0).
+     * @param int         $count      Number of results to return (default: 50).
      */
     public function getUserPlans(
         string $iccid,
@@ -47,10 +47,10 @@ class CustomerService
         int $count = 50
     ): array {
         $payload = [
-            'iccid' => $iccid,
-            'beginIndex' => $beginIndex,
-            'count' => $count,
-            'language' => '2',
+            'iccid'       => $iccid,
+            'beginIndex'  => $beginIndex,
+            'count'       => $count,
+            'language'    => '2',
             'accessToken' => $this->client->getAccessToken(),
         ];
 
@@ -64,9 +64,9 @@ class CustomerService
     /**
      * Query Usage Details.
      *
-     * @param string $iccid ICCID of the SIM card.
+     * @param string      $iccid     ICCID of the SIM card.
      * @param string|null $beginTime Start date for usage data (format: YYYYMMDD).
-     * @param string|null $endTime End date for usage data (format: YYYYMMDD).
+     * @param string|null $endTime   End date for usage data (format: YYYYMMDD).
      */
     public function getUsageDetails(
         string $iccid,
@@ -74,7 +74,7 @@ class CustomerService
         ?string $endTime = null
     ): array {
         $payload = [
-            'iccid' => $iccid,
+            'iccid'       => $iccid,
             'accessToken' => $this->client->getAccessToken(),
         ];
 
@@ -97,7 +97,7 @@ class CustomerService
     public function unsubscribePlan(string $orderId): array
     {
         return $this->client->post('/aep/SBO_channel_unsubscribe/v1', [
-            'orderId' => $orderId,
+            'orderId'     => $orderId,
             'accessToken' => $this->client->getAccessToken(),
         ]);
     }

@@ -12,12 +12,12 @@ use Kanvas\Guild\Models\BaseModel;
 /**
  * Class PipelineStage.
  *
- * @property int $id
- * @property int $pipelines_id
+ * @property int    $id
+ * @property int    $pipelines_id
  * @property string $name
- * @property int $has_rotting_days
- * @property int $rotting_days
- * @property int $weight
+ * @property int    $has_rotting_days
+ * @property int    $rotting_days
+ * @property int    $weight
  */
 class PipelineStage extends BaseModel
 {

@@ -22,13 +22,13 @@ enum Defaults implements EnumsInterface
         $appDefaults = AppEnums::GLOBAL_COMPANY_ID;
 
         return match ($this) {
-            self::DEFAULT_COMPANY => 'DefaulCompany',
-            self::DEFAULT_COMPANY_APP => 'DefaulCompanyApp_',
+            self::DEFAULT_COMPANY              => 'DefaulCompany',
+            self::DEFAULT_COMPANY_APP          => 'DefaulCompanyApp_',
             self::PAYMENT_GATEWAY_CUSTOMER_KEY => 'payment_gateway_customer_id',
-            self::DEFAULT_COMPANY_BRANCH_APP => 'DefaultCompanyBranchApp_',
-            self::GLOBAL_COMPANIES_ID => $appDefaults->getValue(),
-            self::SEARCHABLE_INDEX => 'companies',
-            self::ALLOW_DUPLICATE_CONTACTS => 'feat_allow_duplicate_contacts',
+            self::DEFAULT_COMPANY_BRANCH_APP   => 'DefaultCompanyBranchApp_',
+            self::GLOBAL_COMPANIES_ID          => $appDefaults->getValue(),
+            self::SEARCHABLE_INDEX             => 'companies',
+            self::ALLOW_DUPLICATE_CONTACTS     => 'feat_allow_duplicate_contacts',
         };
     }
 }

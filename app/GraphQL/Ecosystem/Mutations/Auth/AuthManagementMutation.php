@@ -34,8 +34,6 @@ class AuthManagementMutation
     use AuthTrait;
 
     /**
-     * @param array $args
-     *
      * @throws \Exception
      */
     public function loginMutation(
@@ -51,9 +49,9 @@ class AuthManagementMutation
 
         $user = $this->login(
             LoginInput::from([
-                'email' => $email,
+                'email'    => $email,
                 'password' => $password,
-                'ip' => $request->ip(),
+                'ip'       => $request->ip(),
                 'deviceId' => $deviceId,
             ])
         );
@@ -62,7 +60,7 @@ class AuthManagementMutation
     }
 
     /**
-     * Logout from the current JWT token
+     * Logout from the current JWT token.
      */
     public function logout(mixed $rootValue, array $request): bool
     {
@@ -85,7 +83,7 @@ class AuthManagementMutation
     }
 
     /**
-     * Logout from all devices
+     * Logout from all devices.
      */
     public function logoutFromAllDevices(mixed $rootValue, array $request): bool
     {
@@ -98,8 +96,6 @@ class AuthManagementMutation
     }
 
     /**
-     * @param array $args
-     *
      * @throws \Exception
      */
     public function register(
@@ -132,13 +128,13 @@ class AuthManagementMutation
         $tokenResponse = $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
 
         return [
-            'user' => $registeredUser,
+            'user'  => $registeredUser,
             'token' => $tokenResponse,
         ];
     }
 
     /**
-     * resolve
+     * resolve.
      */
     public function refreshToken(mixed $rootValue, array $req): array
     {
@@ -152,7 +148,7 @@ class AuthManagementMutation
     }
 
     /**
-     * switchCompanyBranch
+     * switchCompanyBranch.
      */
     public function switchCompanyBranch(mixed $root, array $req): bool
     {
@@ -162,7 +158,7 @@ class AuthManagementMutation
     }
 
     /**
-     * Login with social login
+     * Login with social login.
      */
     public function socialLogin(mixed $root, array $req): array
     {
@@ -180,8 +176,6 @@ class AuthManagementMutation
     }
 
     /**
-     * @param array $args
-     *
      * @throws \Exception
      */
     public function forgot(
@@ -202,7 +196,7 @@ class AuthManagementMutation
             WorkflowEnum::REQUEST_FORGOT_PASSWORD->value,
             true,
             [
-                'app' => $app,
+                'app'     => $app,
                 'profile' => $user,
                 'company' => $companyBranch?->company,
             ]

@@ -59,6 +59,7 @@ class ScrapperProcessorAction
                 } else {
                     $mappedProduct['variants'] = $mappedProduct;
                 }
+
                 try {
                     $product = (
                         new ProductImporterAction(
@@ -144,9 +145,9 @@ class ScrapperProcessorAction
         $metafieldData = [
             [
                 'namespace' => 'custom',
-                'key' => 'amazon_price',
-                'value' => json_encode(['amount' => $attribute->value, 'currency_code' => 'USD']),
-                'type' => 'money',
+                'key'       => 'amazon_price',
+                'value'     => json_encode(['amount' => $attribute->value, 'currency_code' => 'USD']),
+                'type'      => 'money',
             ],
         ];
 

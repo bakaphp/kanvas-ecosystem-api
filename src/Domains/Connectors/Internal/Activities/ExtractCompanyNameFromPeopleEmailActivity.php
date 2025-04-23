@@ -29,16 +29,16 @@ class ExtractCompanyNameFromPeopleEmailActivity extends KanvasActivity implement
 
         if ($people->organizations->count() > 0) {
             return [
-                'people_id' => $people->getId(),
-                'message' => 'People already has an organization',
+                'people_id'       => $people->getId(),
+                'message'         => 'People already has an organization',
                 'organization_id' => $people->organizations->first()->getId(),
             ];
         }
 
         if ($this->hasBeenScreenedRecently($people)) {
             return [
-                'people_id' => $people->getId(),
-                'message' => 'People has been screened recently',
+                'people_id'       => $people->getId(),
+                'message'         => 'People has been screened recently',
                 'organization_id' => null,
             ];
         }
@@ -67,15 +67,15 @@ class ExtractCompanyNameFromPeopleEmailActivity extends KanvasActivity implement
                 $people->set('company', $companyName); //@todo remove this
 
                 return [
-                    'people_id' => $people->getId(),
+                    'people_id'       => $people->getId(),
                     'organization_id' => $organization->getId(),
                 ];
             }
         }
 
         return [
-            'people_id' => $people->getId(),
-            'message' => 'No company name found in people email',
+            'people_id'       => $people->getId(),
+            'message'         => 'No company name found in people email',
             'organization_id' => null,
         ];
     }

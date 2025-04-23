@@ -21,14 +21,13 @@ class MessageReportNotificationActivity extends KanvasActivity
         /**
          * @todo send notification to rotation of users?
          */
-
         $reportMessageId = $message->message['message_id'] ?? null;
 
         if ($reportMessageId === null) {
             return [
-                'result' => false,
+                'result'     => false,
                 'message_id' => $message->getId(),
-                'message' => 'No message id found in the report',
+                'message'    => 'No message id found in the report',
             ];
         }
 
@@ -42,8 +41,8 @@ class MessageReportNotificationActivity extends KanvasActivity
         $message->update();
 
         return [
-            'result' => true,
-            'message' => 'New report from ' . $message->user->getName(),
+            'result'     => true,
+            'message'    => 'New report from '.$message->user->getName(),
             'message_id' => $message->getId(),
         ];
     }

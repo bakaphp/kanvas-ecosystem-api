@@ -35,7 +35,7 @@ class Client
 
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUri,
-            'headers' => [
+            'headers'  => [
                 'Content-Type' => 'application/json',
             ],
         ]);
@@ -45,11 +45,11 @@ class Client
     {
         $nonce = bin2hex(random_bytes(16));
         $created = gmdate('Y-m-d\TH:i:s\Z');
-        $passwordDigest = base64_encode(hash('sha256', $nonce . $created . $this->appSecret, true));
+        $passwordDigest = base64_encode(hash('sha256', $nonce.$created.$this->appSecret, true));
 
         return [
             'Authorization' => 'WSSE realm="SDP", profile="UsernameToken", type="Appkey"',
-            'X-WSSE' => sprintf(
+            'X-WSSE'        => sprintf(
                 'UsernameToken Username="%s", PasswordDigest="%s", Nonce="%s", Created="%s"',
                 $this->appKey,
                 $passwordDigest,
@@ -62,7 +62,7 @@ class Client
     public function getAccessToken(): string
     {
         return $this->post('/aep/APP_getAccessToken_SBO/v1', [
-            'id' => $this->appId,
+            'id'   => $this->appId,
             'type' => $this->appType,
         ])['accessToken'];
     }
@@ -73,7 +73,7 @@ class Client
 
         $response = $this->client->request($method, $uri, [
             'headers' => $headers,
-            'json' => $body,
+            'json'    => $body,
         ]);
 
         return json_decode($response->getBody()->getContents(), true);

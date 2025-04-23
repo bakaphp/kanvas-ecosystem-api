@@ -31,8 +31,6 @@ class ZohoLeadsDownloadCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -59,8 +57,7 @@ class ZohoLeadsDownloadCommand extends Command
         // Finish the progress bar
         $this->output->progressFinish();
 
-        $this->info(PHP_EOL . $downloadAllLeads->getTotalLeadsProcessed() . ' leads downloaded from Zoho to ' . $leadReceiver->name);
+        $this->info(PHP_EOL.$downloadAllLeads->getTotalLeadsProcessed().' leads downloaded from Zoho to '.$leadReceiver->name);
 
-        return;
     }
 }

@@ -12,22 +12,22 @@ class CompanyBranchTest extends TestCase
     public function branchInputData(int $companyId): array
     {
         return [
-            'name' => fake()->company(),
-            'is_default' => false,
+            'name'         => fake()->company(),
+            'is_default'   => false,
             'companies_id' => $companyId,
-            'phone' => fake()->phoneNumber(),
-            'email' => fake()->email(),
+            'phone'        => fake()->phoneNumber(),
+            'email'        => fake()->email(),
             'country_code' => 'US',
-            'is_active' => fake()->boolean(),
+            'is_active'    => fake()->boolean(),
             'countries_id' => 1,
-            'states_id' => 1,
-            'cities_id' => 1,
-            'address' => fake()->address(),
-            'address_2' => fake()->address(),
-            'city' => fake()->city(),
-            'state' => fake()->state(),
-            'country' => fake()->country(),
-            'zip' => fake()->postcode(),
+            'states_id'    => 1,
+            'cities_id'    => 1,
+            'address'      => fake()->address(),
+            'address_2'    => fake()->address(),
+            'city'         => fake()->city(),
+            'state'        => fake()->state(),
+            'country'      => fake()->country(),
+            'zip'          => fake()->postcode(),
         ];
     }
 
@@ -121,7 +121,7 @@ class CompanyBranchTest extends TestCase
                 }
             }',
             [
-                'id' => $branch['id'],
+                'id'    => $branch['id'],
                 'input' => $branchData,
             ]
         )
@@ -240,7 +240,7 @@ class CompanyBranchTest extends TestCase
                 }
             ',
             'variables' => [
-                'id' => $company->branch->getId(),
+                'id'   => $company->branch->getId(),
                 'file' => null,
             ],
         ];

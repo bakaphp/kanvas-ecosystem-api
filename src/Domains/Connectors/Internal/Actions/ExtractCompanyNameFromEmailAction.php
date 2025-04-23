@@ -57,7 +57,7 @@ class ExtractCompanyNameFromEmailAction
 
     protected function scrapeWebsiteForCompanyName(string $domain): ?string
     {
-        $url = 'https://' . $domain;
+        $url = 'https://'.$domain;
 
         try {
             $response = Http::timeout(5)->get($url);

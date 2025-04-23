@@ -33,7 +33,7 @@ class ShopifyOrderService
     {
         $order = $this->shopifySdk->Order($orderId)->get();
 
-        $updatedNote = trim(($order['note'] ?? '') . "\n" . $note);
+        $updatedNote = trim(($order['note'] ?? '')."\n".$note);
 
         // Convert existing attributes to associative array
         $existingNoteAttributesAssoc = array_column($order['note_attributes'] ?? [], 'value', 'name');
@@ -50,7 +50,7 @@ class ShopifyOrderService
         }
 
         $payload = [
-            'note' => $updatedNote,
+            'note'            => $updatedNote,
             'note_attributes' => $formattedNoteAttributes,
         ];
 

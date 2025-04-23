@@ -11,10 +11,10 @@ class WarehouseProductTest extends TestCase
     public function testWarehouseProduct(): void
     {
         $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
+            'name'        => 'Test Region',
+            'slug'        => 'test-region',
+            'short_slug'  => 'test-region',
+            'is_default'  => 1,
             'currency_id' => 1,
         ];
         $response = $this->graphQL('
@@ -30,18 +30,18 @@ class WarehouseProductTest extends TestCase
             }
         }
     ', [
-            'data' => $data
+            'data' => $data,
         ])->assertJson([
-            'data' => ['createRegion' => $data]
+            'data' => ['createRegion' => $data],
         ]);
 
         $response = $response->decodeResponseJson();
 
         $data = [
-            'regions_id' => $response['data']['createRegion']['id'],
-            'name' => 'Test Warehouse',
-            'location' => 'Test Location',
-            'is_default' => true,
+            'regions_id'   => $response['data']['createRegion']['id'],
+            'name'         => 'Test Warehouse',
+            'location'     => 'Test Location',
+            'is_default'   => true,
             'is_published' => true,
         ];
 
@@ -57,13 +57,13 @@ class WarehouseProductTest extends TestCase
                 is_published
             }
         }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
+            'data' => ['createWarehouse' => $data],
         ]);
         $warehouseId = $response->decodeResponseJson()['data']['createWarehouse']['id'];
 
         $data = [
-            'name' => fake()->name,
-            'sku' => fake()->time,
+            'name'        => fake()->name,
+            'sku'         => fake()->time,
             'description' => fake()->text,
         ];
 
@@ -93,11 +93,11 @@ class WarehouseProductTest extends TestCase
                 }
             ',
             [
-                'id' => $productId,
-                'warehouse_id' => $warehouseId
+                'id'           => $productId,
+                'warehouse_id' => $warehouseId,
             ]
         )->assertJson([
-            'data' => ['addWarehouse' => ['id' => $productId]]
+            'data' => ['addWarehouse' => ['id' => $productId]],
         ]);
     }
 }

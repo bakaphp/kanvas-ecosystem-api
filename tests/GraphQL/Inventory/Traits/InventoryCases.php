@@ -26,14 +26,14 @@ trait InventoryCases
         if (empty($data)) {
             $name = fake()->name;
             $data = [
-                'name' => $name,
+                'name'        => $name,
                 'description' => fake()->text,
-                'sku' => fake()->time,
-                'slug' => Str::slug($name),
-                'weight' => 1,
-                'attributes' => [
+                'sku'         => fake()->time,
+                'slug'        => Str::slug($name),
+                'weight'      => 1,
+                'attributes'  => [
                     [
-                        'name' => fake()->name,
+                        'name'  => fake()->name,
                         'value' => fake()->name,
                     ],
                 ],
@@ -61,17 +61,17 @@ trait InventoryCases
     {
         if (empty($data)) {
             $data = [
-                'name' => fake()->name,
+                'name'        => fake()->name,
                 'description' => fake()->text,
                 'products_id' => $productId,
-                'sku' => fake()->time,
-                'ean' => fake()->ean13,
-                'barcode' => fake()->ean13,
-                'weight' => 1,
-                'warehouses' => [$warehouseData],
-                'attributes' => [
+                'sku'         => fake()->time,
+                'ean'         => fake()->ean13,
+                'barcode'     => fake()->ean13,
+                'weight'      => 1,
+                'warehouses'  => [$warehouseData],
+                'attributes'  => [
                     [
-                        'name' => fake()->name,
+                        'name'  => fake()->name,
                         'value' => fake()->name,
                     ],
                     ...$attributes,
@@ -99,9 +99,9 @@ trait InventoryCases
     {
         if (empty($data)) {
             $data = [
-                'name' => fake()->name,
+                'name'        => fake()->name,
                 'description' => fake()->text,
-                'is_default' => true,
+                'is_default'  => true,
             ];
         }
 
@@ -121,14 +121,14 @@ trait InventoryCases
     {
         if (empty($data)) {
             $data = [
-                'variants_id' => $variantId,
-                'channels_id' => $channelId,
+                'variants_id'   => $variantId,
+                'channels_id'   => $channelId,
                 'warehouses_id' => $warehouseData['id'],
-                'input' => [
-                    'price' => 100,
+                'input'         => [
+                    'price'            => 100,
                     'discounted_price' => 10,
-                    'is_published' => true,
-                ]
+                    'is_published'     => true,
+                ],
             ];
         }
 
@@ -146,8 +146,8 @@ trait InventoryCases
         if (empty($data)) {
             $data = [
                 'data' => [
-                    'id' => $warehouseId,
-                    'price' => rand(1, 1000),
+                    'id'       => $warehouseId,
+                    'price'    => rand(1, 1000),
                     'quantity' => $amount ?? rand(1, 5),
                     'position' => rand(1, 4),
                 ],
@@ -176,10 +176,10 @@ trait InventoryCases
     {
         if (empty($data)) {
             $data = [
-                'name' => fake()->name,
-                'slug' => Str::slug(fake()->name),
-                'short_slug' =>  Str::slug(fake()->name),
-                'is_default' => 1,
+                'name'        => fake()->name,
+                'slug'        => Str::slug(fake()->name),
+                'short_slug'  => Str::slug(fake()->name),
+                'is_default'  => 1,
                 'currency_id' => 1,
             ];
         }
@@ -203,10 +203,10 @@ trait InventoryCases
     {
         if (empty($data)) {
             $data = [
-                'regions_id' => $regionId,
-                'name' => fake()->name,
-                'location' => 'Test Location',
-                'is_default' => true,
+                'regions_id'   => $regionId,
+                'name'         => fake()->name,
+                'location'     => 'Test Location',
+                'is_default'   => true,
                 'is_published' => true,
             ];
         }

@@ -12,11 +12,10 @@ use Kanvas\Models\BaseModel;
 /**
  * AppsSettings Class.
  *
- * @property int $apps_id
+ * @property int    $apps_id
  * @property string $name
  * @property string $value
  */
-
 class Settings extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
@@ -36,8 +35,6 @@ class Settings extends BaseModel
 
     /**
      * Apps relationship.
-     *
-     * @return BelongsTo
      */
     public function app(): BelongsTo
     {

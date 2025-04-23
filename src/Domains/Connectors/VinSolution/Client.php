@@ -49,10 +49,10 @@ class Client
             throw new ValidationException('VinSolutions API keys not set');
         }
 
-        $this->redisKey .= '-v3-' . $app->getId();
+        $this->redisKey .= '-v3-'.$app->getId();
         $this->client = new GuzzleClient(
             [
-                'base_uri' => $this->baseUrl,
+                'base_uri'     => $this->baseUrl,
                 'curl.options' => [
                     CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
                 ],
@@ -75,16 +75,16 @@ class Client
     {
         if (($token = Redis::get($this->redisKey)) === null) {
             $response = $this->client->post(
-                $this->authBaseUrl . '/connect/token',
+                $this->authBaseUrl.'/connect/token',
                 [
                     'headers' => [
                         'Content-Type' => 'application/x-www-form-urlencoded',
                     ],
                     'form_params' => [
-                        'grant_type' => $this->grantType,
-                        'client_id' => $this->clientId,
+                        'grant_type'    => $this->grantType,
+                        'client_id'     => $this->clientId,
                         'client_secret' => $this->clientSecret,
-                        'scope' => $this->scope,
+                        'scope'         => $this->scope,
                     ],
                 ]
             );
@@ -109,7 +109,7 @@ class Client
     protected function setHeaders(array $headers): array
     {
         $headers['headers']['api_key'] = ! $this->useDigitalShowRoomKey ? $this->apiKey : $this->apiKeyDigitalShowRoom;
-        $headers['headers']['Authorization'] = 'Bearer ' . $this->auth()['access_token'];
+        $headers['headers']['Authorization'] = 'Bearer '.$this->auth()['access_token'];
 
         return $headers;
     }

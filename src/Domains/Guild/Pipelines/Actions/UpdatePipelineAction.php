@@ -20,13 +20,14 @@ class UpdatePipelineAction
 
     /**
      * execute.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function execute(): ModelsPipeline
     {
         $this->pipeline->update([
-            'name' => $this->pipelineData->name,
-            'weight' => $this->pipelineData->weight,
+            'name'       => $this->pipelineData->name,
+            'weight'     => $this->pipelineData->weight,
             'is_default' => $this->pipelineData->isDefault,
             //'stages' => $this->pipelineData->stages,
             'slug' => $this->pipelineData->slug ?? $this->pipeline->slug,

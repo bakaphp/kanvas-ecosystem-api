@@ -30,7 +30,7 @@ trait TokenTrait
      */
     public function getToken(): array
     {
-        $sessionId = (string)Str::uuid();
+        $sessionId = (string) Str::uuid();
 
         $token = self::createJwtToken($sessionId, $this->user->getEmail());
 
@@ -38,11 +38,11 @@ trait TokenTrait
         $refreshToken = self::createJwtToken($sessionId, $this->user->getEmail(), $monthInHours);
 
         $tokenArray = [
-            'sessionId' => $sessionId,
-            'token' => $token['token'],
-            'refresh_token' => $refreshToken['token'],
+            'sessionId'                => $sessionId,
+            'token'                    => $token['token'],
+            'refresh_token'            => $refreshToken['token'],
             'refresh_token_expiration' => $refreshToken['expiration']->format('Y-m-d H:i:s'),
-            'token_expiration' => $token['expiration']->format('Y-m-d H:i:s'),
+            'token_expiration'         => $token['expiration']->format('Y-m-d H:i:s'),
         ];
 
         return $this->format($tokenArray);
@@ -50,21 +50,19 @@ trait TokenTrait
 
     /**
      * Given a token format it to the standard response.
-     *
-     * @param UserInterface $user
      */
     public function format(array $token): array
     {
         return [
-            'sessionId' => $token['sessionId'],
-            'token' => $token['token'],
-            'refresh_token' => $token['refresh_token'],
-            'token_expires' => $token['token_expiration'],
+            'sessionId'             => $token['sessionId'],
+            'token'                 => $token['token'],
+            'refresh_token'         => $token['refresh_token'],
+            'token_expires'         => $token['token_expiration'],
             'refresh_token_expires' => $token['refresh_token_expiration'],
-            'time' => date('Y-m-d H:i:s'),
-            'timezone' => $this->user->timezone,
-            'id' => $this->user->id,
-            'uuid' => $this->user->uuid,
+            'time'                  => date('Y-m-d H:i:s'),
+            'timezone'              => $this->user->timezone,
+            'id'                    => $this->user->id,
+            'uuid'                  => $this->user->uuid,
         ];
     }
 
@@ -112,23 +110,21 @@ trait TokenTrait
                 ->identifiedBy($sessionId)
                 ->issuedAt($now)
                 ->canOnlyBeUsedAfter($now)
-                ->expiresAt($now->modify('+' . $expiration . ' hour'))
+                ->expiresAt($now->modify('+'.$expiration.' hour'))
                 ->withClaim('sessionId', $sessionId)
                 ->withClaim('email', $email)
                 // Builds a new token
                 ->getToken($config->signer(), $config->signingKey());
 
         return [
-            'sessionId' => $sessionId,
-            'token' => $token->toString(),
+            'sessionId'  => $sessionId,
+            'token'      => $token->toString(),
             'expiration' => $token->claims()->get('exp'),
         ];
     }
 
     /**
      * Get the user Auth Response.
-     *
-     * @param Users $user
      */
     protected function generateToken(Request $request): array
     {
@@ -190,7 +186,7 @@ trait TokenTrait
      */
     protected function getTokenTimeNotBefore(): int
     {
-        return (time() + config('auth.token_not_before'));
+        return time() + config('auth.token_not_before');
     }
 
     /**
@@ -198,6 +194,6 @@ trait TokenTrait
      */
     protected function getTokenTimeExpiration(): int
     {
-        return (time() + config('auth.token_expiration'));
+        return time() + config('auth.token_expiration');
     }
 }

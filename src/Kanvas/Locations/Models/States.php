@@ -13,7 +13,7 @@ use Kanvas\Users\Models\Users;
 /**
  * States Class.
  *
- * @property int $countries_id
+ * @property int    $countries_id
  * @property string $name
  * @property string $code
  */

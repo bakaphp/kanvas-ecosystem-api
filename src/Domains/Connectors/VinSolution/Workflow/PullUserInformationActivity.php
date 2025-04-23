@@ -50,16 +50,16 @@ class PullUserInformationActivity extends KanvasActivity
 
         if (! $match) {
             return [
-                'error' => 'User not found in VinSolution',
-                'looking' => $user->email,
+                'error'    => 'User not found in VinSolution',
+                'looking'  => $user->email,
                 'vinUsers' => $vinUser,
             ];
         }
 
         return [
-            'success' => $match,
-            'message' => 'User information pulled successfully',
-            'user' => $user,
+            'success'  => $match,
+            'message'  => 'User information pulled successfully',
+            'user'     => $user,
             'vinUsers' => $vinUser,
         ];
     }

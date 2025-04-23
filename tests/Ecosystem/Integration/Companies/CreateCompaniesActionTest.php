@@ -21,7 +21,7 @@ final class CreateCompaniesActionTest extends TestCase
         $faker = \Faker\Factory::create();
         $user = Users::factory(1)->create()->first();
         $data = [
-            'name' => $faker->company,
+            'name'     => $faker->company,
             'users_id' => Auth::user()->id,
         ];
 

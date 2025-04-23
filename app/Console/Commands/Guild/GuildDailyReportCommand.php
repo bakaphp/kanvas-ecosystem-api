@@ -36,9 +36,9 @@ class GuildDailyReportCommand extends Command
         $this->overwriteAppService($app);
 
         //for now just apollo, but this should be for sending all the different reports
-        $this->info('Sending Apollo Daily Report - ' . date('Y-m-d'));
+        $this->info('Sending Apollo Daily Report - '.date('Y-m-d'));
         $apolloDailyReport = new DailyUsageReportAction($app, $company);
         $result = $apolloDailyReport->execute();
-        $this->info('Total report send ' . count($result));
+        $this->info('Total report send '.count($result));
     }
 }

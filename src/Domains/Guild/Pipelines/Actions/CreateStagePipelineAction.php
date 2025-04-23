@@ -19,6 +19,7 @@ class CreateStagePipelineAction
 
     /**
      * execute.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function execute(): ModelsPipelineStage
@@ -26,10 +27,10 @@ class CreateStagePipelineAction
         $weight = ModelsPipelineStage::where('pipelines_id', $this->stageData->pipeline->getId())->max('weight') + 1;
 
         return ModelsPipelineStage::firstOrCreate([
-            'name' => $this->stageData->name,
+            'name'         => $this->stageData->name,
             'pipelines_id' => $this->stageData->pipeline->getId(),
         ], [
-            'weight' => $this->stageData->pipeline->stages->count() > 0 && $this->stageData->weight === 0 ? $weight : $this->stageData->weight,
+            'weight'       => $this->stageData->pipeline->stages->count() > 0 && $this->stageData->weight === 0 ? $weight : $this->stageData->weight,
             'rotting_days' => $this->stageData->rotting_days,
         ]);
     }

@@ -16,7 +16,6 @@ trait LikableTrait
 {
     /**
      * Like an entity.
-     * @param ?string $note
      */
     public function like(Model $entity, ?string $note = null, bool $isDislike = false): UsersInteractions|EntityInteractions
     {
@@ -24,23 +23,23 @@ trait LikableTrait
 
         if ($this instanceof Users) {
             return UsersInteractions::firstOrCreate([
-                'users_id' => $this->getId(),
-                'interactions_id' => $interaction->getId(),
-                'entity_id' => $entity->getId(),
+                'users_id'         => $this->getId(),
+                'interactions_id'  => $interaction->getId(),
+                'entity_id'        => $entity->getId(),
                 'entity_namespace' => $entity::class,
-                'is_deleted' => 0,
+                'is_deleted'       => 0,
             ], [
                 'notes' => $note,
             ]);
         }
 
         return EntityInteractions::firstOrCreate([
-            'entity_id' => $this->getId(),
-            'entity_namespace' => $this::class,
-            'interactions_id' => $interaction->getId(),
-            'interacted_entity_id' => $entity->getId(),
+            'entity_id'                   => $this->getId(),
+            'entity_namespace'            => $this::class,
+            'interactions_id'             => $interaction->getId(),
+            'interacted_entity_id'        => $entity->getId(),
             'interacted_entity_namespace' => $entity::class,
-            'is_deleted' => 0,
+            'is_deleted'                  => 0,
         ], [
             'notes' => $note,
         ]);
@@ -48,8 +47,6 @@ trait LikableTrait
 
     /**
      * Dislike an entity.
-     * @param ?string $note
-     * @param bool $isDislike
      */
     public function dislike(Model $entity, ?string $note = null): UsersInteractions|EntityInteractions
     {
@@ -62,7 +59,6 @@ trait LikableTrait
 
     /**
      * Unlike an entity.
-     * @param ?string $note
      */
     public function unLike(Model $entity, ?string $note = null, bool $isDislike = false): bool
     {
@@ -88,8 +84,6 @@ trait LikableTrait
 
     /**
      * Unlike a dislike of an entity.
-     * @param ?string $note
-     * @param bool $isDislike
      */
     public function unLikeDislike(Model $entity, ?string $note = null): bool
     {
@@ -152,8 +146,8 @@ trait LikableTrait
     }
 
     /**
-    * Retrieve dislikes of entity.
-    */
+     * Retrieve dislikes of entity.
+     */
     public function dislikes(): HasMany
     {
         return $this->likes(true);

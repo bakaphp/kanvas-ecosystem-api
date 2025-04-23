@@ -12,9 +12,8 @@ use Kanvas\Users\Repositories\UsersRepository;
 class SwitchCompanyBranchAction
 {
     /**
-     * __construct
-     * @param Users $user
-     * @param int $companyId
+     * __construct.
+     *
      * @return void
      */
     public function __construct(
@@ -24,9 +23,7 @@ class SwitchCompanyBranchAction
     }
 
     /**
-     * execute
-     *
-     * @return bool
+     * execute.
      */
     public function execute(): bool
     {

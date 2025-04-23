@@ -10,7 +10,7 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 class MessagesTypesRepository
 {
     /**
-     * getById
+     * getById.
      */
     public static function getById(int $id, AppInterface $app): MessageType
     {
@@ -18,7 +18,7 @@ class MessagesTypesRepository
     }
 
     /**
-     * getByUuid
+     * getByUuid.
      */
     public static function getByUuid(string $uuid): MessageType
     {
@@ -26,7 +26,7 @@ class MessagesTypesRepository
     }
 
     /**
-     * getByUuid
+     * getByUuid.
      */
     public static function getByVerb(string $verb, AppInterface $app): MessageType
     {

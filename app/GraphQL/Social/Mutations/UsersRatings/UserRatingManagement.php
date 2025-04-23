@@ -22,7 +22,7 @@ class UserRatingManagement
             auth()->user(),
             auth()->user()->getCurrentCompany(),
             SystemModules::getById($input['system_module_id'], $app),
-            (int)$input['entity_id'],
+            (int) $input['entity_id'],
             $input['rating'],
             $input['comment']
         );

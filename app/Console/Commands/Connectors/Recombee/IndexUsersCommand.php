@@ -51,12 +51,11 @@ class IndexUsersCommand extends Command
 
             $result = $usersIndex->indexUsers($userAssociatedApp->user, $company);
 
-            $this->info('Message ID: ' . $userAssociatedApp->user->getId() . ' indexed with result: ' . $result);
+            $this->info('Message ID: '.$userAssociatedApp->user->getId().' indexed with result: '.$result);
             $this->output->progressAdvance();
         }
 
         $this->output->progressFinish();
 
-        return;
     }
 }

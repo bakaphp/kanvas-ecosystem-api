@@ -10,8 +10,6 @@ class AttributesTypesTest extends TestCase
 {
     /**
      * testCreate.
-     *
-     * @return void
      */
     // public function testCreate(): void
     // {
@@ -32,8 +30,6 @@ class AttributesTypesTest extends TestCase
 
     /**
      * testSearch.
-     *
-     * @return void
      */
     public function testSearch(): void
     {
@@ -108,7 +104,6 @@ class AttributesTypesTest extends TestCase
     //         }', ['data' => $data])->json()['data']['createAttributeType'];
 
     //     $this->assertArrayHasKey('name', $response);
-
 
     //     $id = $response['id'];
     //     $this->graphQL('

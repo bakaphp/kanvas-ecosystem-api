@@ -34,17 +34,17 @@ class CreateAttribute
         }
 
         return Attributes::firstOrCreate([
-            'slug' => $this->dto->slug,
+            'slug'         => $this->dto->slug,
             'companies_id' => $this->dto->company->getId(),
-            'apps_id' => $this->dto->app->getId(),
+            'apps_id'      => $this->dto->app->getId(),
         ], [
-            'users_id' => $this->user->getId(),
-            'name' => $this->dto->name,
+            'users_id'           => $this->user->getId(),
+            'name'               => $this->dto->name,
             'attributes_type_id' => $this->dto->attributeType?->getId(),
-            'is_visible' => $this->dto->isVisible,
-            'is_searchable' => $this->dto->isSearchable,
-            'is_filtrable' => $this->dto->isFiltrable,
-            'is_required' => $this->dto->isRequired,
+            'is_visible'         => $this->dto->isVisible,
+            'is_searchable'      => $this->dto->isSearchable,
+            'is_filtrable'       => $this->dto->isFiltrable,
+            'is_required'        => $this->dto->isRequired,
         ]);
     }
 }

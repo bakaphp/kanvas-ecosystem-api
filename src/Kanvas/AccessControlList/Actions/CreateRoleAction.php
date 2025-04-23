@@ -41,20 +41,21 @@ class CreateRoleAction
                 'name' => $this->name,
             ],
             [
-                'name' => 'required|unique:roles,name,null,id,scope,' . RolesEnums::getScope($this->app),
+                'name' => 'required|unique:roles,name,null,id,scope,'.RolesEnums::getScope($this->app),
             ]
         );
 
         if ($validator->fails()) {
-            throw new ValidationException($validator->errors()->first() . 'for roles in the current app');
+            throw new ValidationException($validator->errors()->first().'for roles in the current app');
         }
 
         Bouncer::useRoleModel(Role::class);
         $role = Bouncer::role()->firstOrCreate([
-            'name' => $this->name,
+            'name'  => $this->name,
             'title' => $this->title ?? $this->name,
             'scope' => RolesEnums::getScope($this->app),
         ]);
+
         return $role;
     }
 }

@@ -21,13 +21,13 @@ class ProductTypeFactory extends Factory
         $company = Companies::factory()->create();
 
         return [
-            'name' => $this->faker->name,
-            'apps_id' => $app->getId(),
+            'name'         => $this->faker->name,
+            'apps_id'      => $app->getId(),
             'companies_id' => $company->getId(),
-            'users_id' => $company->users_id,
-            'description' => $this->faker->text,
+            'users_id'     => $company->users_id,
+            'description'  => $this->faker->text,
             'is_published' => 1,
-            'weight' => 0,
+            'weight'       => 0,
         ];
     }
 }

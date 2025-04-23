@@ -60,9 +60,9 @@ class SwitchZohoLeadOwnerReceiverJob extends ProcessWebhookJob
         $zohoLead = $zohoCrm->leads->update($zohoLeadId, $zohoData);
 
         return [
-            'message' => 'Lead update successfully via receiver ' . $leadReceiver->uuid,
-            'receiver' => $leadReceiver->getId(),
-            'lead' => $lead->getId(),
+            'message'   => 'Lead update successfully via receiver '.$leadReceiver->uuid,
+            'receiver'  => $leadReceiver->getId(),
+            'lead'      => $lead->getId(),
             'zoho_data' => $zohoLead,
         ];
     }

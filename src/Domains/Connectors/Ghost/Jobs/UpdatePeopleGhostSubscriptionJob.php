@@ -36,7 +36,7 @@ class UpdatePeopleGhostSubscriptionJob extends ProcessWebhookJob
 
         return [
             'success' => true,
-            'data' => $peopleSub,
+            'data'    => $peopleSub,
         ];
     }
 }

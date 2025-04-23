@@ -13,8 +13,6 @@ class SearchBuilder
 {
     /**
      * Build the search query.
-     *
-     * @param string $search
      */
     public function search(mixed $builder, mixed $req): Builder|ScoutBuilder
     {

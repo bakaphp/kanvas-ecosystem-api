@@ -11,9 +11,9 @@ class LeadRotationTest extends TestCase
     public function testCreateLeadRotation(): void
     {
         $input = [
-            'name' => fake()->word,
+            'name'                  => fake()->word,
             'leads_rotations_email' => fake()->email,
-            'hits' => fake()->numberBetween(1, 100),
+            'hits'                  => fake()->numberBetween(1, 100),
         ];
 
         $this->graphQL(
@@ -32,9 +32,9 @@ class LeadRotationTest extends TestCase
         )->assertJson([
             'data' => [
                 'createLeadRotation' => [
-                    'name' => $input['name'],
+                    'name'                  => $input['name'],
                     'leads_rotations_email' => $input['leads_rotations_email'],
-                    'hits' => $input['hits'],
+                    'hits'                  => $input['hits'],
                 ],
             ],
         ]);
@@ -43,9 +43,9 @@ class LeadRotationTest extends TestCase
     public function testUpdateLeadRotation(): void
     {
         $input = [
-            'name' => fake()->word,
+            'name'                  => fake()->word,
             'leads_rotations_email' => fake()->email,
-            'hits' => fake()->numberBetween(1, 100),
+            'hits'                  => fake()->numberBetween(1, 100),
         ];
 
         $response = $this->graphQL(
@@ -62,16 +62,16 @@ class LeadRotationTest extends TestCase
         );
         $id = $response->json('data.createLeadRotation.id');
         $input = [
-            'name' => fake()->word,
+            'name'                  => fake()->word,
             'leads_rotations_email' => fake()->email,
-            'hits' => fake()->numberBetween(1, 100),
-            'agents' => [
+            'hits'                  => fake()->numberBetween(1, 100),
+            'agents'                => [
                 [
-                    "users_id" => auth()->user()->getId(),
-                    "phone" => fake()->phoneNumber,
-                    "percent" => 100,
-                ]
-            ]
+                    'users_id' => auth()->user()->getId(),
+                    'phone'    => fake()->phoneNumber,
+                    'percent'  => 100,
+                ],
+            ],
         ];
         $this->graphQL(
             '
@@ -82,24 +82,24 @@ class LeadRotationTest extends TestCase
             }
         ',
             [
-            'id' => $id,
-            'input' => $input
-        ]
+                'id'    => $id,
+                'input' => $input,
+            ]
         )->assertJson([
-                    'data' => [
-                        "updateLeadRotation" => [
-                            "name" => $input['name']
-                        ]
-                    ]
-                ]);
+            'data' => [
+                'updateLeadRotation' => [
+                    'name' => $input['name'],
+                ],
+            ],
+        ]);
     }
 
     public function testDeleteLeadRotation()
     {
         $input = [
-            'name' => fake()->word,
+            'name'                  => fake()->word,
             'leads_rotations_email' => fake()->email,
-            'hits' => fake()->numberBetween(1, 100),
+            'hits'                  => fake()->numberBetween(1, 100),
         ];
 
         $response = $this->graphQL(
@@ -120,28 +120,28 @@ class LeadRotationTest extends TestCase
                 deleteLeadRotation(id: $id)
             }
         ', [
-            "id" => $id
+            'id' => $id,
         ])->assertJson([
             'data' => [
-                "deleteLeadRotation" => true
-            ]
+                'deleteLeadRotation' => true,
+            ],
         ]);
     }
 
     public function testGetLeadRotation(): void
     {
         $input = [
-            'name' => fake()->word,
+            'name'                  => fake()->word,
             'leads_rotations_email' => fake()->email,
-            'hits' => fake()->numberBetween(1, 100),
-            'agents' => [
+            'hits'                  => fake()->numberBetween(1, 100),
+            'agents'                => [
                 [
                     'users_id' => auth()->user()->getId(),
-                    'phone' => fake()->phoneNumber,
-                    'percent' => 10,
-                    'hits' => 0
-                ]
-            ]
+                    'phone'    => fake()->phoneNumber,
+                    'percent'  => 10,
+                    'hits'     => 0,
+                ],
+            ],
         ];
 
         $response = $this->graphQL(
@@ -164,12 +164,12 @@ class LeadRotationTest extends TestCase
         )->assertJson([
             'data' => [
                 'createLeadRotation' => [
-                    'name' => $input['name'],
+                    'name'                  => $input['name'],
                     'leads_rotations_email' => $input['leads_rotations_email'],
-                    'hits' => $input['hits'],
-                    'company' => [
-                        'id' => auth()->user()->getCurrentCompany()->id
-                    ]
+                    'hits'                  => $input['hits'],
+                    'company'               => [
+                        'id' => auth()->user()->getCurrentCompany()->id,
+                    ],
                 ],
             ],
         ]);
@@ -199,20 +199,20 @@ class LeadRotationTest extends TestCase
                 'leadsRotations' => [
                     'data' => [
                         [
-                            'name' => $input['name'],
+                            'name'                  => $input['name'],
                             'leads_rotations_email' => $input['leads_rotations_email'],
-                            'hits' => $input['hits'],
-                            'agents' => [
+                            'hits'                  => $input['hits'],
+                            'agents'                => [
                                 [
-                                    "user" => [
-                                        "id" => $input['agents'][0]['users_id']
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
-            ]
+                                    'user' => [
+                                        'id' => $input['agents'][0]['users_id'],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
         ]);
     }
 }

@@ -75,10 +75,10 @@ class NotificationTest extends TestCase
 
         $createParentTemplate = new CreateTemplateAction(
             TemplateInput::from([
-                'app' => app(Apps::class),
-                'name' => 'test-notification',
+                'app'      => app(Apps::class),
+                'name'     => 'test-notification',
                 'template' => '<html><body>Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values</body></html>',
-                ])
+            ])
         );
         $template = $createParentTemplate->execute();
 
@@ -116,14 +116,14 @@ class NotificationTest extends TestCase
             [
                 'metadata' => [
                     'notification_type_id' => $notificationType->getId(),
-                    'distribution' => [
-                        'type' => 'USERS',
+                    'distribution'         => [
+                        'type'     => 'USERS',
                         'users_id' => [$user->getId()],
                     ],
                 ],
                 'message' => [
-                    'title' => 'Example Title',
-                    'is_public' => 1,
+                    'title'        => 'Example Title',
+                    'is_public'    => 1,
                     'is_published' => 1,
                 ],
             ],
@@ -151,10 +151,10 @@ class NotificationTest extends TestCase
 
         $createParentTemplate = new CreateTemplateAction(
             TemplateInput::from([
-                'app' => app(Apps::class),
-                'name' => 'test-notification',
+                'app'      => app(Apps::class),
+                'name'     => 'test-notification',
                 'template' => '<html><body>Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values</body></html>',
-                ])
+            ])
         );
         $template = $createParentTemplate->execute();
 
@@ -192,14 +192,14 @@ class NotificationTest extends TestCase
             [
                 'metadata' => [
                     'notification_type_id' => $notificationType->getId(),
-                    'distribution' => [
-                        'type' => 'FOLLOWERS',
+                    'distribution'         => [
+                        'type'     => 'FOLLOWERS',
                         'users_id' => [],
                     ],
                 ],
                 'message' => [
-                    'title' => 'Example Title',
-                    'is_public' => 1,
+                    'title'        => 'Example Title',
+                    'is_public'    => 1,
                     'is_published' => 1,
                 ],
             ],

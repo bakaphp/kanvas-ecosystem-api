@@ -18,7 +18,7 @@ class ImportMutation
     /**
      * importer.
      *
-     * @param  mixed $req
+     * @param mixed $req
      */
     public function product(mixed $root, array $req): string
     {

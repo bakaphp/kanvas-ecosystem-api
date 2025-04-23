@@ -8,12 +8,12 @@ declare(strict_types=1);
 return [
     'multi_schemas' => [
         'schema1' => [
-            'route_uri' => '/2025-01-graphql',
-            'route_name' => '2025-01-graphql',
-            'schema_path' => base_path('graphql/2025-01-schema.graphql'),
-            'schema_cache_path' => env('LIGHTHOUSE_SCHEMA1_CACHE_PATH', base_path('bootstrap/cache/schema1-schema.php')),
+            'route_uri'           => '/2025-01-graphql',
+            'route_name'          => '2025-01-graphql',
+            'schema_path'         => base_path('graphql/2025-01-schema.graphql'),
+            'schema_cache_path'   => env('LIGHTHOUSE_SCHEMA1_CACHE_PATH', base_path('bootstrap/cache/schema1-schema.php')),
             'schema_cache_enable' => env('LIGHTHOUSE_SCHEMA1_CACHE_ENABLE', false),
-            'middleware' => [
+            'middleware'          => [
                 // Always set the `Accept: application/json` header.
                 Nuwave\Lighthouse\Http\Middleware\AcceptJson::class,
 

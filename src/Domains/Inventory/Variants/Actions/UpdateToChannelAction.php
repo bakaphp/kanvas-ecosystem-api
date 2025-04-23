@@ -28,16 +28,17 @@ class UpdateToChannelAction
 
     /**
      * execute.
+     *
      * @psalm-suppress ArgumentTypeCoercion
      */
     public function execute(): VariantsChannels
     {
         $this->variantsChannels->update(
             [
-                'price' => $this->variantsChannelsDto->price,
+                'price'            => $this->variantsChannelsDto->price,
                 'discounted_price' => $this->variantsChannelsDto->discounted_price,
-                'is_published' => $this->variantsChannelsDto->is_published,
-                'config' => $this->variantsChannelsDto->config,
+                'is_published'     => $this->variantsChannelsDto->is_published,
+                'config'           => $this->variantsChannelsDto->config,
             ]
         );
 

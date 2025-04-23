@@ -12,17 +12,18 @@ use Override;
 /**
  * Class Products.
  *
- * @property int $id
- * @property int $apps_id
- * @property int $companies_id
+ * @property int    $id
+ * @property int    $apps_id
+ * @property int    $companies_id
  * @property string $name
  * @property string $uuid
  * @property string $slug
  * @property string $description
- * @property int $weight
+ * @property int    $weight
  * @property string $created_at
  * @property string $updated_at
- * @property bool $is_deleted
+ * @property bool   $is_deleted
+ *
  * @deprecated v2 (use ProductsTypes instead)
  */
 class ProductsTypes extends BaseModel

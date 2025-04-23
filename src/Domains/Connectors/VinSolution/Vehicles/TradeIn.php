@@ -15,7 +15,7 @@ class TradeIn
     public array $items;
 
     /**
-     * Initialize
+     * Initialize.
      */
     public function __construct(array $data)
     {
@@ -31,7 +31,7 @@ class TradeIn
     {
         $client = new Client($dealer->id, $user->id);
 
-        $response = $client->get('/vehicles/trade?leadId=' . $leadsId, [
+        $response = $client->get('/vehicles/trade?leadId='.$leadsId, [
             'headers' => [
                 'Accept' => 'application/vnd.coxauto.v1+json',
             ],
@@ -48,7 +48,7 @@ class TradeIn
         $client = new Client($dealer->id, $user->id);
 
         $response = $client->put(
-            '/vehicles/trade/id/' . $id,
+            '/vehicles/trade/id/'.$id,
             json_encode(
                 $data
             ),
@@ -86,7 +86,7 @@ class TradeIn
         }
 
         return [
-            'id' => $id,
+            'id'      => $id,
             'vehicle' => $filteredVehicle,
         ];
     }

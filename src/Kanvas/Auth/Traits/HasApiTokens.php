@@ -26,8 +26,6 @@ trait HasApiTokens
     /**
      * Determine if the current API token has a given scope.
      *
-     * @param  string  $ability
-     *
      * @return bool
      */
     public function tokenCan(string $ability)
@@ -48,7 +46,7 @@ trait HasApiTokens
     /**
      * Set the current access token for the user.
      *
-     * @param  \Laravel\Sanctum\Contracts\HasAbilities  $accessToken
+     * @param \Laravel\Sanctum\Contracts\HasAbilities $accessToken
      *
      * @return $this
      */

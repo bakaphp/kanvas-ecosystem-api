@@ -48,21 +48,20 @@ class InventoryCompareCommand extends Command
         $missingBarcodes = $this->compareInventory($app, $company, $barcodeList);
         $skusOfMissingBarcodes = collect($missingBarcodes)->map(fn ($barcode) => $productList[$barcode])->toArray();
 
-        ["missing_skus" => $missingSkus, "changed_barcodes" => $changedBarcodes] = $this->compareInventoryBySku($app, $company, $skusOfMissingBarcodes);
+        ['missing_skus' => $missingSkus, 'changed_barcodes' => $changedBarcodes] = $this->compareInventoryBySku($app, $company, $skusOfMissingBarcodes);
         $barcodesOfMissingSkus = collect($missingSkus)->map(fn ($sku) => $inverseProductList[$sku])->toArray();
         $barcodesOfChangedBarcodes = collect($changedBarcodes)->map(fn ($barcode) => $inverseProductList[$barcode])->toArray();
 
+        $this->info('Missing barcodes: '.json_encode($missingBarcodes));
 
-        $this->info('Missing barcodes: ' . json_encode($missingBarcodes));
-
-        $this->info('Missing variants by barcode ' . $company->name . ': ' . json_encode($missingBarcodes));
-        $this->info('Total missing variants in ' . $company->name . ': ' . count($missingBarcodes));
-        $this->info('Total changed barcodes in ' . $company->name . ': ' . count($changedBarcodes));
-        $this->info('Total missing skus in ' . $company->name . ': ' . count($missingSkus));
+        $this->info('Missing variants by barcode '.$company->name.': '.json_encode($missingBarcodes));
+        $this->info('Total missing variants in '.$company->name.': '.count($missingBarcodes));
+        $this->info('Total changed barcodes in '.$company->name.': '.count($changedBarcodes));
+        $this->info('Total missing skus in '.$company->name.': '.count($missingSkus));
         Storage::disk('local')->put('missing_variants.json', json_encode([
             'missing_barcodes' => $missingBarcodes,
             'changed_barcodes' => $barcodesOfChangedBarcodes,
-            'missing_skus' => $barcodesOfMissingSkus,
+            'missing_skus'     => $barcodesOfMissingSkus,
         ]));
     }
 
@@ -85,7 +84,7 @@ class InventoryCompareCommand extends Command
 
             $missingVariants = [
                 ...$missingVariants,
-                ...array_values(array_diff($chunk, $foundVariants))
+                ...array_values(array_diff($chunk, $foundVariants)),
             ];
         }
 
@@ -111,23 +110,20 @@ class InventoryCompareCommand extends Command
 
             $missingSkus = [
                 ...$missingSkus,
-                ...array_values(array_diff($chunk, $foundVariants))
+                ...array_values(array_diff($chunk, $foundVariants)),
             ];
 
             $changedSkus = [
                 ...$changedSkus,
-                ...$foundVariants
+                ...$foundVariants,
             ];
         }
 
         return [
-            'missing_skus' => $missingSkus,
-            'changed_barcodes' => $foundVariants
+            'missing_skus'     => $missingSkus,
+            'changed_barcodes' => $foundVariants,
         ];
     }
-
-
-
 
     private function getProductList(string $csvFilePath): array
     {
@@ -144,7 +140,7 @@ class InventoryCompareCommand extends Command
             }
 
             $barcode = $record['Copic Item No/ UPC'];
-            $sku = $record["Macpherson  Item #"];
+            $sku = $record['Macpherson  Item #'];
             $productList[$barcode] = $sku;
         }
 

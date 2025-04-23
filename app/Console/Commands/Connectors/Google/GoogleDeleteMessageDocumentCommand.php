@@ -11,7 +11,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Google\Services\DiscoveryEngineDocumentService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Users\Models\Users;
 
 class GoogleDeleteMessageDocumentCommand extends Command
 {
@@ -33,8 +32,6 @@ class GoogleDeleteMessageDocumentCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -62,6 +59,5 @@ class GoogleDeleteMessageDocumentCommand extends Command
 
         $this->output->progressFinish();
 
-        return;
     }
 }

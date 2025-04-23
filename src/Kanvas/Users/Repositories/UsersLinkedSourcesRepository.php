@@ -14,7 +14,7 @@ use Kanvas\Users\Models\UserLinkedSources;
 class UsersLinkedSourcesRepository
 {
     /**
-     * Get record by users_id
+     * Get record by users_id.
      */
     public static function getByUsersId(int $usersId): UserLinkedSources
     {

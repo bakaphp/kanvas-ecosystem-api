@@ -11,8 +11,8 @@ use Override;
 class BuilderMacroServiceProvider extends ServiceProvider
 {
     /**
-    * @psalm-suppress UndefinedMethod
-    */
+     * @psalm-suppress UndefinedMethod
+     */
     public function boot()
     {
         Builder::macro('wheresContain', function (string $column, string $operator, mixed $value) {

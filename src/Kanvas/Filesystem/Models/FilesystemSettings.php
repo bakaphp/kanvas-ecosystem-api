@@ -11,13 +11,13 @@ use Kanvas\Models\BaseModel;
 /**
  * Apps Model.
  *
- * @property int $id
- * @property int $filesystem_id
+ * @property int    $id
+ * @property int    $filesystem_id
  * @property string $name
  * @property string $value
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_deleted
+ * @property int    $is_deleted
  */
 class FilesystemSettings extends BaseModel
 {

@@ -23,7 +23,7 @@ class PlanService
      * Activate a plan.
      *
      * @param string $dataBundleId ID of the data bundle to activate.
-     * @param string $iccid ICCID of the SIM card.
+     * @param string $iccid        ICCID of the SIM card.
      */
     public function activatePlan(
         string $dataBundleId,
@@ -31,15 +31,15 @@ class PlanService
     ): array {
         return $this->client->post('/aep/APP_activeDataBundle_SBO/v1', [
             'dataBundleId' => $dataBundleId,
-            'iccid' => $iccid,
-            'accessToken' => $this->client->getAccessToken(),
+            'iccid'        => $iccid,
+            'accessToken'  => $this->client->getAccessToken(),
         ]);
     }
 
     /**
      * Terminate a plan.
      *
-     * @param string $iccid ICCID of the SIM card.
+     * @param string $iccid        ICCID of the SIM card.
      * @param string $dataBundleId ID of the data bundle to terminate.
      */
     public function terminatePlan(string $iccid, string $dataBundleId): array
@@ -47,7 +47,7 @@ class PlanService
         return $this->client->post('/aep/SBO_package_end/v1', [
             'iccidPackageList' => [
                 [
-                    'iccid' => $iccid,
+                    'iccid'     => $iccid,
                     'packageid' => $dataBundleId,
                 ],
             ],

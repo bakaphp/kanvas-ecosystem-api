@@ -33,9 +33,9 @@ class GenerateCompanyDashboardActivity extends KanvasActivity implements Workflo
                 $company = $entity->company;
             } else {
                 return [
-                    'msg' => 'No company found for entity',
+                    'msg'          => 'No company found for entity',
                     'entity_class' => get_class($entity),
-                    'entity' => $entity->toArray(),
+                    'entity'       => $entity->toArray(),
                 ];
             }
 
@@ -58,17 +58,17 @@ class GenerateCompanyDashboardActivity extends KanvasActivity implements Workflo
             $totalLeads = Lead::fromApp($app)->fromCompany($company)->notDeleted()->count();
 
             $dashboard = [
-                'total_users' => $totalUsers,
-                'total_active_users' => $totalActiveUsers,
-                'total_suspended_users' => $suspendedUsers,
-                'total_products' => $totalProducts,
-                'total_published_products' => $totalPublishedProducts,
+                'total_users'                => $totalUsers,
+                'total_active_users'         => $totalActiveUsers,
+                'total_suspended_users'      => $suspendedUsers,
+                'total_products'             => $totalProducts,
+                'total_published_products'   => $totalPublishedProducts,
                 'total_unpublished_products' => $totalUnpublishedProducts,
-                'total_expired_products' => $totalUnpublishedProducts,
-                'total_events' => $totalEvents,
-                'total_event_versions' => $totalEventVersions,
-                'total_people' => $totalPeople,
-                'total_leads' => $totalLeads,
+                'total_expired_products'     => $totalUnpublishedProducts,
+                'total_events'               => $totalEvents,
+                'total_event_versions'       => $totalEventVersions,
+                'total_people'               => $totalPeople,
+                'total_leads'                => $totalLeads,
             ];
 
             $company->set('dashboard', $dashboard, true);

@@ -29,7 +29,7 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
         $fieldToSlug = $messageData[$slugField] ?? null;
 
         if ($fieldToSlug === null) {
-            return ['No slug field {' . $slugField . ' found in message ' . $message->id];
+            return ['No slug field {'.$slugField.' found in message '.$message->id];
         }
 
         $message->slug = Str::simpleSlug($fieldToSlug);
@@ -40,7 +40,7 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
 
         return [
             'message' => $message->id,
-            'slug' => $message->slug,
+            'slug'    => $message->slug,
         ];
     }
 }

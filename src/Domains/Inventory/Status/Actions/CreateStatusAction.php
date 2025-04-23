@@ -25,8 +25,6 @@ class CreateStatusAction
 
     /**
      * execute.
-     *
-     * @return Status
      */
     public function execute(): Status
     {
@@ -37,11 +35,11 @@ class CreateStatusAction
 
         return Status::firstOrCreate([
             'companies_id' => $this->dto->company->getId(),
-            'apps_id' => $this->dto->app->getId(),
-            'slug' => $this->dto->slug ?? Str::slug($this->dto->name),
+            'apps_id'      => $this->dto->app->getId(),
+            'slug'         => $this->dto->slug ?? Str::slug($this->dto->name),
         ], [
-            'name' => $this->dto->name,
-            'is_default' => $this->dto->is_default
+            'name'       => $this->dto->name,
+            'is_default' => $this->dto->is_default,
         ]);
     }
 }

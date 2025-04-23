@@ -53,7 +53,6 @@ class TagsManagement
             ->fromApp($app)
             ->firstOrFail();
 
-
         return $tag->delete();
     }
 
@@ -65,7 +64,7 @@ class TagsManagement
         if ($isFollowing) {
             return (new UnFollowAction(auth()->user(), $tag))->execute();
         } else {
-            return (bool)(new FollowAction(auth()->user(), $tag))->execute();
+            return (bool) (new FollowAction(auth()->user(), $tag))->execute();
         }
     }
 
@@ -92,7 +91,7 @@ class TagsManagement
             //'entity_namespace' => $systemModule->model_name,
             //'apps_id' => $tag->apps_id,
             //'companies_id' => $user->getCurrentCompany()->getId(),
-            'users_id' => $user->getId(),
+            'users_id'      => $user->getId(),
             'taggable_type' => $systemModule->model_name,
         ]);
 

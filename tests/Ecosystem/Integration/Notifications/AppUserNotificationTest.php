@@ -18,8 +18,8 @@ final class AppUserNotificationTest extends TestCase
         $user = auth()->user();
         $params = [
             'template_name' => EmailTemplateEnum::USER_INVITE->value,
-            'from_user_id' => $user->getId(),
-            'role' => RolesEnums::USER->value,
+            'from_user_id'  => $user->getId(),
+            'role'          => RolesEnums::USER->value,
         ];
 
         $action = new AppUsersNotificationByRoleAction($app, $user, $params);

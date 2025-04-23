@@ -36,17 +36,17 @@ trait SearchableDynamicIndexTrait
 
         $indexName = $companyId === null && self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
-            : self::searchableIndex() . (string) $companyId;
+            : self::searchableIndex().(string) $companyId;
 
-        return config('scout.prefix') . 'app_' . $appId . '_' . $indexName;
+        return config('scout.prefix').'app_'.$appId.'_'.$indexName;
     }
 
     /**
-     * Overwrite the search index when calling the method via static methods
+     * Overwrite the search index when calling the method via static methods.
      */
     public static function setSearchIndex(int $companyId): void
     {
-        self::$overWriteSearchIndex = self::searchableIndex() . $companyId;
+        self::$overWriteSearchIndex = self::searchableIndex().$companyId;
     }
 
     public function searchableDeleteRecord(): bool
@@ -65,7 +65,7 @@ trait SearchableDynamicIndexTrait
         $indexName = self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
             : self::searchableIndex();
-        $indexName = config('scout.prefix') . 'app_' . $appId . '_' . $indexName;
+        $indexName = config('scout.prefix').'app_'.$appId.'_'.$indexName;
         // Manually index the model in the second index
         IndexInMeiliSearchJob::dispatch($indexName, $this);
     }

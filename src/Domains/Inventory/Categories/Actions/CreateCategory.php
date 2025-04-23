@@ -35,14 +35,14 @@ class CreateCategory
 
         return Categories::firstOrCreate([
             'companies_id' => $this->dto->company->getId(),
-            'apps_id' => $this->dto->app->getId(),
-            'slug' => $this->dto->slug ?? Str::slug($this->dto->name),
+            'apps_id'      => $this->dto->app->getId(),
+            'slug'         => $this->dto->slug ?? Str::slug($this->dto->name),
         ], [
-            'name' => $this->dto->name,
-            'users_id' => $this->dto->user->getId(),
-            'parent_id' => $this->dto->parent_id ? $this->dto->parent_id : null,
-            'code' => $this->dto->code,
-            'position' => $this->dto->position,
+            'name'         => $this->dto->name,
+            'users_id'     => $this->dto->user->getId(),
+            'parent_id'    => $this->dto->parent_id ? $this->dto->parent_id : null,
+            'code'         => $this->dto->code,
+            'position'     => $this->dto->position,
             'is_published' => $this->dto->is_published,
         ]);
     }

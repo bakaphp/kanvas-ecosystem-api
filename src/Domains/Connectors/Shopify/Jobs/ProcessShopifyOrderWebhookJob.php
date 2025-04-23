@@ -30,7 +30,7 @@ class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
         if ($isB2BOrder && ! $this->validateUserCompany($this->webhookRequest->payload)) {
             return [
                 'message' => 'Is not a B2B order',
-                'order' => null,
+                'order'   => null,
             ];
         }
 
@@ -42,7 +42,7 @@ class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
 
         return [
             'message' => 'Order synced successfully',
-            'order' => $order->getId(),
+            'order'   => $order->getId(),
         ];
     }
 
@@ -53,6 +53,7 @@ class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
             if (! $user) {
                 return false;
             }
+
             return (bool) UsersRepository::belongsToThisApp($user, $this->receiver->app, $this->receiver->company);
         } catch (Exception) {
             return false;

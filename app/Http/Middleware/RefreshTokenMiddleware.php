@@ -34,7 +34,7 @@ class RefreshTokenMiddleware
         return response()->json([
             'errors' => [
                 [
-                    'message' => $message,
+                    'message'    => $message,
                     'extensions' => [
                         'reason' => null, // You can populate this if needed
                     ],

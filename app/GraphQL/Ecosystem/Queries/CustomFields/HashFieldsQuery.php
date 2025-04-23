@@ -14,7 +14,7 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 class HashFieldsQuery
 {
     /**
-     * Get all file from a entity tied to the graph
+     * Get all file from a entity tied to the graph.
      */
     public function getAllByGraphType(
         mixed $root,

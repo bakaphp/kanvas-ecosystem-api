@@ -29,7 +29,7 @@ class TaskEngagementItemEvent implements ShouldBroadcast
         )->get();
 
         return [
-            'lead_id' => $this->taskEngagementItem->leadId,
+            'lead_id'           => $this->taskEngagementItem->leadId,
             'task_list_item_id' => $this->taskEngagementItem->taskListItemId,
             //'tasks' => $taskEngagementItem->task->toArray(),
             //'status' => $taskEngagementItem->status,
@@ -38,7 +38,7 @@ class TaskEngagementItemEvent implements ShouldBroadcast
 
     public function broadcastOn(): Channel
     {
-        return new Channel('lead-tasks-' . $this->taskEngagementItem->leadId);
+        return new Channel('lead-tasks-'.$this->taskEngagementItem->leadId);
     }
 
     public function broadcastAs(): string

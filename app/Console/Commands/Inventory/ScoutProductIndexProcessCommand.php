@@ -30,8 +30,6 @@ class ScoutProductIndexProcessCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -47,7 +45,6 @@ class ScoutProductIndexProcessCommand extends Command
         );
         $this->executeAction($option, $app);
 
-        return;
     }
 
     protected function executeAction(int $option, Apps $app)
@@ -66,7 +63,7 @@ class ScoutProductIndexProcessCommand extends Command
 
     public function reindex(Apps $app)
     {
-        $this->info('Reindex scout index for products App ' . $app->name);
+        $this->info('Reindex scout index for products App '.$app->name);
         $products = Products::fromApp($app)->where('is_published', 1)->where('is_deleted', 0)->cursor();
 
         $i = 0;
@@ -75,12 +72,12 @@ class ScoutProductIndexProcessCommand extends Command
             $product->searchable();
             $i++;
         }
-        $this->info('Total products to reindexed: ' . $i);
+        $this->info('Total products to reindexed: '.$i);
     }
 
     public function delete(Apps $app)
     {
-        $this->info('Cleaning up scout index for deleted products App ' . $app->name);
+        $this->info('Cleaning up scout index for deleted products App '.$app->name);
         $products = Products::fromApp($app)->withTrashed()->where('is_published', 0)->orWhere('is_deleted', 1)->cursor();
 
         $i = 0;
@@ -88,6 +85,6 @@ class ScoutProductIndexProcessCommand extends Command
             $product->unsearchable();
             $i++;
         }
-        $this->info('Total products to clean up: ' . $i);
+        $this->info('Total products to clean up: '.$i);
     }
 }

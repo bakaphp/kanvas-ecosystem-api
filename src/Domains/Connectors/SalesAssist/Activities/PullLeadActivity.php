@@ -15,7 +15,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 {
     #[Override]
     /**
-     * $entity <Lead>
+     * $entity <Lead>.
      */
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
@@ -24,8 +24,8 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $lead = $entity;
         if ($lead === null) {
             return [
-                'result' => false,
-                'message' => 'Lead not found with id ' . $leadId,
+                'result'  => false,
+                'message' => 'Lead not found with id '.$leadId,
             ];
         }
 

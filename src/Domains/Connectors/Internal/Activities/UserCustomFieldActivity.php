@@ -31,7 +31,7 @@ class UserCustomFieldActivity extends KanvasActivity implements WorkflowActivity
         }
 
         return [
-            'user_id' => $user->getId(),
+            'user_id'      => $user->getId(),
             'custom_field' => $customField,
         ];
     }

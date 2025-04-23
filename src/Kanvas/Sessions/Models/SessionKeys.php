@@ -11,10 +11,10 @@ use Kanvas\Users\Models\Users;
 /**
  * Apps Model.
  *
- * @property int $sessions_id
- * @property int $users_id
+ * @property int    $sessions_id
+ * @property int    $users_id
  * @property string $last_ip
- * @property int $last_login
+ * @property int    $last_login
  */
 class SessionKeys extends BaseModel
 {
@@ -36,8 +36,6 @@ class SessionKeys extends BaseModel
 
     /**
      * Sessions relationship.
-     *
-     * @return BelongsTo
      */
     public function session(): BelongsTo
     {
@@ -46,8 +44,6 @@ class SessionKeys extends BaseModel
 
     /**
      * Users relationship.
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {

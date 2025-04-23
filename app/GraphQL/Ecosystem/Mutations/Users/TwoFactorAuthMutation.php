@@ -11,10 +11,9 @@ use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Enums\UserConfigEnum;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class TwoFactorAuthMutation
 {
@@ -33,7 +32,7 @@ class TwoFactorAuthMutation
             ->v2
             ->services($app->get(ConfigurationEnum::TWILIO_VERIFICATION_SID->value))
             ->verifications
-            ->create('+' . $user->getAppProfile($app)->getTwoStepPhoneNumber(), 'sms');
+            ->create('+'.$user->getAppProfile($app)->getTwoStepPhoneNumber(), 'sms');
 
         return $verification->status === 'pending';
     }
@@ -58,7 +57,7 @@ class TwoFactorAuthMutation
                     ->verificationChecks
                     ->create(
                         [
-                            'to' => '+' . $userApp->getTwoStepPhoneNumber(),
+                            'to'   => '+'.$userApp->getTwoStepPhoneNumber(),
                             'code' => $code,
                         ]
                     );
@@ -86,7 +85,7 @@ class TwoFactorAuthMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $key = $user->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $user->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
+        $key = $user->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value.'-'.$user->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
 
         if ($request['active']) {
             return $user->set($key, (int) $request['active']);

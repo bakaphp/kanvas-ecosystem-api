@@ -50,7 +50,7 @@ class CompanyActionTest extends TestCase
                             'is_published',
                             'weight',
                             'pipeline' => ['id'],
-                            'parent' => ['id'],
+                            'parent'   => ['id'],
                             'children' => [['id']],
                         ],
                     ],

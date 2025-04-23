@@ -21,10 +21,10 @@ class PaymentManagementMutation
         $branch = app(CompaniesBranches::class);
 
         return [
-            'status' => 'success',
+            'status'         => 'success',
             'transaction_id' => Str::uuid(),
-            'order_status' => 'paid',
-            'message' => 'Payment processed successfully',
+            'order_status'   => 'paid',
+            'message'        => 'Payment processed successfully',
         ];
     }
 
@@ -43,17 +43,17 @@ class PaymentManagementMutation
 
         $totalAmount = $amount * 100;
         $intent = PaymentIntent::create([
-            'amount' => $totalAmount,
+            'amount'   => $totalAmount,
             'currency' => 'usd',
             //'customer' => $customer->id,
-            ]);
+        ]);
 
         return [
-            'status' => 'success',
+            'status'        => 'success',
             'client_secret' => $intent->client_secret,
-            'message' => [
-                'message' => 'Payment intent generated successfully',
-                'amount' => $amount,
+            'message'       => [
+                'message'  => 'Payment intent generated successfully',
+                'amount'   => $amount,
                 'currency' => 'usd',
             ],
         ];

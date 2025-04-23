@@ -33,8 +33,6 @@ class PopulateTrendingFeedCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -61,6 +59,5 @@ class PopulateTrendingFeedCommand extends Command
          $tag->is_feature = 1;
          $tag->saveOrFail(); */
 
-        return;
     }
 }

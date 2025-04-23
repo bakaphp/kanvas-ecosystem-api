@@ -59,13 +59,13 @@ class ForgotPassword
         $recoverUser->generateForgotHash($this->app);
 
         try {
-            $resetPasswordTitle = $this->app->get((string) AppSettingsEnums::RESET_PASSWORD_EMAIL_SUBJECT->getValue()) ?? $this->app->name . ' - Reset your password';
+            $resetPasswordTitle = $this->app->get((string) AppSettingsEnums::RESET_PASSWORD_EMAIL_SUBJECT->getValue()) ?? $this->app->name.' - Reset your password';
 
             $recoverUser->notify(new ResetPassword(
                 $recoverUser,
                 [
                     'subject' => $resetPasswordTitle,
-                    'app' => $this->app,
+                    'app'     => $this->app,
                 ]
             ));
         } catch (ModelNotFoundException $e) {
@@ -84,7 +84,7 @@ class ForgotPassword
             $recoverUser = UsersAssociatedApps::fromApp($this->app)
                 ->notDeleted()
                 ->where([
-                    'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
+                    'companies_id'           => AppEnums::GLOBAL_COMPANY_ID->getValue(),
                     'user_activation_forgot' => $hashKey,
                 ])->firstOrFail();
         } catch (ModelNotFoundException $e) {

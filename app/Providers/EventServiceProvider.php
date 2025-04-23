@@ -75,24 +75,24 @@ class EventServiceProvider extends ServiceProvider
     public function boot()
     {
         Users::observe(UsersObserver::class);
-        #Companies::observe(CompaniesObserver::class);
+        //Companies::observe(CompaniesObserver::class);
         CompaniesGroups::observe(CompaniesGroupsObserver::class);
         UserMessageActivity::observe(UserMessageActivityObserver::class);
         UserList::observe(UsersListsObserver::class);
         Lead::observe(LeadObserver::class);
-        #UserMessage::observe(UserMessageObserver::class);
+        //UserMessage::observe(UserMessageObserver::class);
         Warehouses::observe(WarehouseObserver::class);
         Regions::observe(RegionObserver::class);
         Status::observe(StatusObserver::class);
         VariantsWarehouses::observe(VariantsWarehouseObserver::class);
         Channels::observe(ChannelObserver::class);
-        #Products::observe(ProductsObserver::class);
+        //Products::observe(ProductsObserver::class);
         ProductsTypes::observe(ProductsTypesObserver::class);
-        #Variants::observe(VariantObserver::class);
+        //Variants::observe(VariantObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
-        #Attributes::observe(AttributeObserver::class);
-        #UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
-        #UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
+        //Attributes::observe(AttributeObserver::class);
+        //UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
+        //UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);

@@ -92,16 +92,16 @@ class CreateShopifyDraftOrderAction
 
             $discount = $applyDiscount ? [
                 'description' => 'Custom Price',
-                'value_type' => 'fixed_amount',
-                'value' => $formattedPrice,
-                'amount' => $formattedPrice,
-                'title' => 'Custom Price',
+                'value_type'  => 'fixed_amount',
+                'value'       => $formattedPrice,
+                'amount'      => $formattedPrice,
+                'title'       => 'Custom Price',
             ] : null;
 
             $lineItems[] = [
-                'variant_id' => $shopifyVariantId,
-                'quantity' => $item->quantity,
-                'price' => $itemPrice,
+                'variant_id'       => $shopifyVariantId,
+                'quantity'         => $item->quantity,
+                'price'            => $itemPrice,
                 'applied_discount' => $discount,
                 // 'title' => $item->variant->product->name,
             ];
@@ -122,29 +122,29 @@ class CreateShopifyDraftOrderAction
         $shippingAddress = $this->order->shippingAddress ? [
             'address1' => $this->order->shippingAddress->address,
             'address2' => $this->order->shippingAddress->address_2,
-            'city' => $this->order->shippingAddress->city,
+            'city'     => $this->order->shippingAddress->city,
             'province' => $this->order->shippingAddress->state,
-            'country' => $this->order->shippingAddress->country->code ?? $this->company->country_code ?? 'US',
-            'zip' => $this->order->shippingAddress->zip,
+            'country'  => $this->order->shippingAddress->country->code ?? $this->company->country_code ?? 'US',
+            'zip'      => $this->order->shippingAddress->zip,
         ] : null;
 
         // Prepare draft order payload
         return [
-                'line_items' => $lineItems,
-                'customer' => [
-                    'id' => $customer,
-                ],
-                'shipping_address' => $shippingAddress,
-                'note' => "Kanvas Order #{$this->order->order_number}",
-                'total_price' => $this->order->getTotalAmount(),
-                'subtotal_price' => $this->order->getSubTotalAmount(),
-                'total_tax' => $this->order->getTotalTaxAmount(),
-                'currency' => 'USD', //$this->order->region->currency->code,
+            'line_items' => $lineItems,
+            'customer'   => [
+                'id' => $customer,
+            ],
+            'shipping_address' => $shippingAddress,
+            'note'             => "Kanvas Order #{$this->order->order_number}",
+            'total_price'      => $this->order->getTotalAmount(),
+            'subtotal_price'   => $this->order->getSubTotalAmount(),
+            'total_tax'        => $this->order->getTotalTaxAmount(),
+            'currency'         => 'USD', //$this->order->region->currency->code,
         ];
     }
 
     /**
-     * Save Shopify draft order ID to our order
+     * Save Shopify draft order ID to our order.
      */
     protected function saveDraftOrderId(int $shopifyDraftOrderId): void
     {

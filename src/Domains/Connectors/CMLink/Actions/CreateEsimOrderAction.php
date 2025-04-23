@@ -172,7 +172,7 @@ class CreateEsimOrderAction
 
         $qrCode = $writer->writeString($downloadUrl);
 
-        return 'data:image/png;base64,' . base64_encode($qrCode);
+        return 'data:image/png;base64,'.base64_encode($qrCode);
     }
 
     protected function createESimObject(string $qrCodeBase64): ESim
@@ -205,7 +205,7 @@ class CreateEsimOrderAction
                 'data',
                 FileSizeConverter::toBytes($totalData),
                 FileSizeConverter::toBytes($totalData),
-                $formattedEst . ' EST' ?? $this->order->created_at->format('Y-m-d H:i:s'),
+                $formattedEst.' EST' ?? $this->order->created_at->format('Y-m-d H:i:s'),
                 $this->esimData['data']['activationCode'],
                 $this->esimData['data']['state'],
                 $this->orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,

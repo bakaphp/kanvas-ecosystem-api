@@ -83,8 +83,8 @@ class SyncProductWithShopifyWithIntegrationActivity extends KanvasActivity
         }
 
         return [
-            'company' => $product->company->getId(),
-            'product' => $product->getId(),
+            'company'          => $product->company->getId(),
+            'product'          => $product->getId(),
             'shopify_response' => $response ?? [],
         ];
     }

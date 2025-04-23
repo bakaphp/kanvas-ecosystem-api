@@ -13,10 +13,6 @@ class LoginInput extends Data
 {
     /**
      * Construct.
-     *
-     * @param string $email
-     * @param string $password
-     * @param string $ip
      */
     public function __construct(
         public string $email,
@@ -28,8 +24,6 @@ class LoginInput extends Data
 
     /**
      * Get trim email.
-     *
-     * @return string
      */
     public function getEmail(): string
     {
@@ -38,8 +32,6 @@ class LoginInput extends Data
 
     /**
      * Get trim password.
-     *
-     * @return string
      */
     public function getPassword(): string
     {

@@ -23,7 +23,7 @@ class BlockUserBuilder
         $app = app(Apps::class);
 
         return Users::query()
-            ->join($socialDb . '.blocked_users', 'users.id', '=', 'blocked_users.blocked_users_id')
+            ->join($socialDb.'.blocked_users', 'users.id', '=', 'blocked_users.blocked_users_id')
             ->where('blocked_users.is_deleted', 0)
             ->when($app, function (Builder $query) use ($app) {
                 $query->where('apps_id', $app->id);

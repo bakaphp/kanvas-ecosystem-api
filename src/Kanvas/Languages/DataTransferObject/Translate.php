@@ -24,6 +24,7 @@ class Translate extends Data
 
     /**
      * @psalm-suppress ArgumentTypeCoercion
+     *
      * @throws BindingResolutionException
      * @throws ModelNotFoundException
      */

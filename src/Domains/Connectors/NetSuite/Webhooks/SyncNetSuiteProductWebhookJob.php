@@ -31,9 +31,9 @@ class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
         }
 
         return [
-            'message' => $successMessage,
-            'barcode' => $barcode,
-            'mainCompanyId' => $mainCompanyId,
+            'message'           => $successMessage,
+            'barcode'           => $barcode,
+            'mainCompanyId'     => $mainCompanyId,
             'productSyncResult' => $productSyncResult,
         ];
     }

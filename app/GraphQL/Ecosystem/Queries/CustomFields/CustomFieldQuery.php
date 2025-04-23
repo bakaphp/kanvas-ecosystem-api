@@ -15,7 +15,7 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 class CustomFieldQuery
 {
     /**
-     * Get all file from a entity tied to the graph
+     * Get all file from a entity tied to the graph.
      */
     public function getAllByGraphType(
         mixed $root,
@@ -51,8 +51,8 @@ class CustomFieldQuery
     }
 
     /**
-    * Get custom field
-    */
+     * Get custom field.
+     */
     public function get(mixed $rootValue, array $request): mixed
     {
         $customFieldInput = new CustomFieldInput(
@@ -73,7 +73,7 @@ class CustomFieldQuery
     }
 
     /**
-     * Get custom field
+     * Get custom field.
      */
     public function getAll(mixed $rootValue, array $request): array
     {

@@ -31,7 +31,7 @@ class KanvasFakeMigration extends Command
         $class = $this->argument('class');
         DB::table('migrations')->insert([
             'migration' => $class,
-            'batch' => 1,
+            'batch'     => 1,
         ]);
         echo "Inserted $class into migrations table\n";
     }

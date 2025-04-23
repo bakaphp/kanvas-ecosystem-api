@@ -34,14 +34,14 @@ class UpdatePeopleAction
     public function execute(): People
     {
         $attributes = [
-            'firstname' => $this->peopleData->firstname,
-            'middlename' => $this->peopleData->middlename,
-            'lastname' => $this->peopleData->lastname,
-            'name' => $this->peopleData->firstname . ' ' . $this->peopleData->lastname, // @todo remove this
-            'dob' => $this->peopleData->dob,
-            'google_contact_id' => $this->peopleData->google_contact_id,
+            'firstname'           => $this->peopleData->firstname,
+            'middlename'          => $this->peopleData->middlename,
+            'lastname'            => $this->peopleData->lastname,
+            'name'                => $this->peopleData->firstname.' '.$this->peopleData->lastname, // @todo remove this
+            'dob'                 => $this->peopleData->dob,
+            'google_contact_id'   => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
-            'apple_contact_id' => $this->peopleData->apple_contact_id,
+            'apple_contact_id'    => $this->peopleData->apple_contact_id,
         ];
 
         //@todo how to avoid duplicated? should it be use or frontend?
@@ -62,8 +62,8 @@ class UpdatePeopleAction
                 if ($contact->id && $this->people->contacts()->find($contact->id)) {
                     $this->people->contacts()->find($contact->id)->update([
                         'contacts_types_id' => $contact->contacts_types_id,
-                        'value' => $contact->value,
-                        'weight' => $contact->weight,
+                        'value'             => $contact->value,
+                        'weight'            => $contact->weight,
                     ]);
                     $keepIDs[] = $contact->id;
                     continue;
@@ -72,8 +72,8 @@ class UpdatePeopleAction
                 if (! $existingContact) {
                     $contacts[] = new Contact([
                         'contacts_types_id' => $contact->contacts_types_id,
-                        'value' => $contact->value,
-                        'weight' => $contact->weight,
+                        'value'             => $contact->value,
+                        'weight'            => $contact->weight,
                     ]);
                 }
             }
@@ -96,18 +96,18 @@ class UpdatePeopleAction
 
                 if (! $existingAddress) {
                     $addresses[] = new Address([
-                        'address' => $address->address,
+                        'address'   => $address->address,
                         'address_2' => $address->address_2,
-                        'city' => $address->city,
-                        'state' => $address->state,
-                        'zip' => $address->zip,
+                        'city'      => $address->city,
+                        'state'     => $address->state,
+                        'zip'       => $address->zip,
                         //'country' => $address->country,
-                        'is_default' => $address->is_default,
-                        'city_id' => $address->city_id ?? 0,
-                        'state_id' => $address->state_id ?? 0,
-                        'countries_id' => $address->country_id ?? 0,
+                        'is_default'      => $address->is_default,
+                        'city_id'         => $address->city_id ?? 0,
+                        'state_id'        => $address->state_id ?? 0,
+                        'countries_id'    => $address->country_id ?? 0,
                         'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->people->app)->getId(),
-                        'duration' => $address->duration ?? 0.0,
+                        'duration'        => $address->duration ?? 0.0,
                     ]);
                 }
             }

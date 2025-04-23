@@ -50,6 +50,7 @@ class Product extends Data
 
     /**
      * @psalm-suppress ArgumentTypeCoercion
+     *
      * @throws BindingResolutionException
      * @throws ModelNotFoundException
      */

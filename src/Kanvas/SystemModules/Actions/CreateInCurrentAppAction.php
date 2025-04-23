@@ -30,12 +30,12 @@ class CreateInCurrentAppAction
 
         return SystemModules::firstOrCreate([
             'model_name' => $class,
-            'apps_id' => $this->app->getKey(),
+            'apps_id'    => $this->app->getKey(),
         ], [
             'model_name' => $class,
-            'name' => $class,
-            'apps_id' => $this->app->getKey(),
-            'slug' => Str::simpleSlug($class),
+            'name'       => $class,
+            'apps_id'    => $this->app->getKey(),
+            'slug'       => Str::simpleSlug($class),
         ]);
     }
 }

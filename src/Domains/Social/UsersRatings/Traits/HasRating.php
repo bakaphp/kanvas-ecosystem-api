@@ -38,15 +38,15 @@ trait HasRating
 
         $systemModule = SystemModulesRepository::getByModelName(get_class($model), app(Apps::class));
         $dto = DataTransferObjectUserRating::from([
-            'app' => $app,
-            'user' => $this,
-            'company' => $company,
+            'app'          => $app,
+            'user'         => $this,
+            'company'      => $company,
             'systemModule' => $systemModule,
-            'entityId' => $model->getId(),
-            'rating' => $rating,
-            'comment' => $comment,
+            'entityId'     => $model->getId(),
+            'rating'       => $rating,
+            'comment'      => $comment,
         ]);
 
-        return (bool)(new CreateUserRatingAction($dto))->execute();
+        return (bool) (new CreateUserRatingAction($dto))->execute();
     }
 }

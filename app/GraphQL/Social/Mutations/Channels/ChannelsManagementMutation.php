@@ -40,7 +40,7 @@ class ChannelsManagementMutation
 
     public function updateChannel(mixed $rootValue, array $request): Channel
     {
-        $channel = ChannelRepository::getById((int)$request['id'], auth()->user());
+        $channel = ChannelRepository::getById((int) $request['id'], auth()->user());
         $systemModule = SystemModulesRepository::getByUuidOrModelName($request['input']['entity_namespace_uuid']);
 
         $channel->name = $request['input']['name'];
@@ -65,9 +65,10 @@ class ChannelsManagementMutation
 
     public function attachUserToChannel(mixed $rootValue, array $request): Channel
     {
-        $channel = ChannelRepository::getById((int)$request['input']['channel_id'], auth()->user());
+        $channel = ChannelRepository::getById((int) $request['input']['channel_id'], auth()->user());
         $user = Users::getByIdFromCompany($request['input']['user_id'], auth()->user()->getCurrentCompany());
         $app = app(Apps::class);
+
         try {
             $roles = RolesRepository::getByMixedParamFromCompany($request['input']['roles_id'], auth()->user()->getCurrentCompany(), $app);
         } catch (Exception $e) {
@@ -80,7 +81,7 @@ class ChannelsManagementMutation
 
     public function detachUserToChannel(mixed $rootValue, array $request): Channel
     {
-        $channel = ChannelRepository::getById((int)$request['channel_id'], auth()->user());
+        $channel = ChannelRepository::getById((int) $request['channel_id'], auth()->user());
 
         $user = Users::getById($request['user_id']);
 

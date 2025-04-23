@@ -18,8 +18,8 @@ class SyncOrderWithIPlusActivities extends KanvasActivity
         $response = $createOrder->execute();
 
         return [
-            'status' => 'success',
-            'message' => 'Order synced with IPlus',
+            'status'   => 'success',
+            'message'  => 'Order synced with IPlus',
             'response' => $response,
         ];
     }

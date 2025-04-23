@@ -17,11 +17,6 @@ class ProductsTypes
 {
     /**
      * create.
-     *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return ProductsTypesModel
      */
     public function create(mixed $root, array $request): ProductsTypesModel
     {
@@ -60,11 +55,6 @@ class ProductsTypes
 
     /**
      * update.
-     *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return ProductsTypesModel
      */
     public function update(mixed $root, array $request): ProductsTypesModel
     {
@@ -101,11 +91,7 @@ class ProductsTypes
     }
 
     /**
-     * Assign attributes to products types
-     *
-     * @param mixed $root
-     * @param array $request
-     * @return ProductsTypesModel
+     * Assign attributes to products types.
      */
     public function assignAttributes(mixed $root, array $request): ProductsTypesModel
     {
@@ -126,15 +112,11 @@ class ProductsTypes
 
     /**
      * delete.
-     *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return bool
      */
     public function delete(mixed $root, array $request): bool
     {
         $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
+
         return $productType->delete();
     }
 

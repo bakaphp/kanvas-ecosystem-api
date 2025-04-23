@@ -17,11 +17,12 @@ class TranslationResolver
         $response = array_reduce($entity->getTranslatableAttributes(), function ($result, $attribute) use ($entity, $language) {
             //WithoutFallback Allow the translation to try get a non-existed locale.
             $result[$attribute] = $entity->getTranslationWithoutFallback($attribute, strtolower($language->code)) ?? null;
+
             return $result;
         });
 
         $response['language'] = [
-            'code' => $language->code,
+            'code'     => $language->code,
             'language' => $language->name,
         ];
 

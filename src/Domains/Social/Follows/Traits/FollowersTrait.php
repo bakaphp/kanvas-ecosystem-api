@@ -34,7 +34,7 @@ trait FollowersTrait
     public function getFollowersCount(AppInterface $app): array
     {
         //app_2_social_count
-        return $this->get('app_' . $app->getId() . '_social_count') ?? [];
+        return $this->get('app_'.$app->getId().'_social_count') ?? [];
     }
 
     public function getTotalFollowing(AppInterface $app): int

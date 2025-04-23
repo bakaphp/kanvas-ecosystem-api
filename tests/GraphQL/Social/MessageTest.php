@@ -11,7 +11,7 @@ use Tests\TestCase;
 class MessageTest extends TestCase
 {
     /**
-     * testCreateMessage
+     * testCreateMessage.
      *
      * @return void
      */
@@ -33,16 +33,16 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         )->assertJson([
             'data' => [
                 'createMessage' => [
-                    'message' => $message,
+                    'message'   => $message,
                     'is_public' => 1,
                 ],
             ],
@@ -67,17 +67,17 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
-                    'is_public' => 0,
+                    'entity_id'         => '1',
+                    'is_public'         => 0,
                 ],
             ]
         )->assertJson([
             'data' => [
                 'createMessage' => [
-                    'message' => $message,
+                    'message'   => $message,
                     'is_public' => 0,
                 ],
             ],
@@ -99,10 +99,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -125,10 +125,10 @@ class MessageTest extends TestCase
                 }
             ',
             [
-                'id' => $createdMessageId,
+                'id'    => $createdMessageId,
                 'input' => [
                     'message' => $newMessage,
-                    'tags' => [
+                    'tags'    => [
                         [
                             'name' => 'tag1',
                         ],
@@ -139,7 +139,7 @@ class MessageTest extends TestCase
             'data' => [
                 'updateMessage' => [
                     'message' => $newMessage,
-                'tags' => [
+                    'tags'    => [
                         'data' => [
                             [
                                 'name' => 'tag1',
@@ -166,10 +166,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -196,11 +196,11 @@ class MessageTest extends TestCase
                 }
             ',
             [
-                'id' => $createdMessageId,
+                'id'    => $createdMessageId,
                 'input' => [
-                    'message' => $newMessage,
+                    'message'      => $newMessage,
                     'message_verb' => $newMessageType->verb,
-                    'tags' => [
+                    'tags'         => [
                         [
                             'name' => 'tag1',
                         ],
@@ -210,11 +210,11 @@ class MessageTest extends TestCase
         )->assertJson([
             'data' => [
                 'updateMessage' => [
-                    'message' => $newMessage,
+                    'message'     => $newMessage,
                     'messageType' => [
                         'verb' => $newMessageType->verb,
                     ],
-                'tags' => [
+                    'tags' => [
                         'data' => [
                             [
                                 'name' => 'tag1',
@@ -241,10 +241,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -282,10 +282,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -338,10 +338,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -379,10 +379,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -422,10 +422,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -465,10 +465,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -502,9 +502,9 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
+                    'message'      => $message,
                     'message_verb' => $messageType->verb,
-                    'entity_id' => '1',
+                    'entity_id'    => '1',
                 ],
             ]
         );
@@ -529,10 +529,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $childMessage,
+                    'message'      => $childMessage,
                     'message_verb' => $messageType->verb,
-                    'entity_id' => '1',
-                    'parent_id' => $createdMessageId,
+                    'entity_id'    => '1',
+                    'parent_id'    => $createdMessageId,
                 ],
             ]
         );
@@ -542,7 +542,7 @@ class MessageTest extends TestCase
             query {
                 messages(
                     where: {
-                        column: ID, operator: EQ, value: ' . $createdMessageId . '
+                        column: ID, operator: EQ, value: '.$createdMessageId.'
                         } 
                 ) {
                   data {
@@ -564,8 +564,8 @@ class MessageTest extends TestCase
                     'data' => [
                         [
                             'total_children' => 1,
-                            'message' => $message,
-                            'children' => [
+                            'message'        => $message,
+                            'children'       => [
                                 'data' => [
                                     [
                                         'message' => $childMessage,
@@ -594,10 +594,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -609,7 +609,7 @@ class MessageTest extends TestCase
             query {
                 messages(
                     where: {
-                        column: ID, operator: EQ, value: ' . $createdMessageId . '
+                        column: ID, operator: EQ, value: '.$createdMessageId.'
                         } 
                 ) {
                   data {
@@ -650,10 +650,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -687,10 +687,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -738,10 +738,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -775,10 +775,10 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -817,17 +817,17 @@ class MessageTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
+                    'message'      => $message,
                     'message_verb' => $messageType->verb,
-                    'tags' => [
+                    'tags'         => [
                         [
                             'name' => 'tag1',
-                        ],[
+                        ], [
                             'name' => 'tag2',
                         ],
                     ],
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -852,25 +852,25 @@ class MessageTest extends TestCase
               }
             '
         )->assertJson([
-           'data' => [
-               'messages' => [
-                   'data' => [
-                       [
-                           'message' => $message,
-                           'tags' => [
-                               'data' => [
-                                   [
-                                       'name' => 'tag1',
-                                   ],
-                                   [
-                                       'name' => 'tag2',
-                                   ],
-                               ],
-                           ],
-                       ],
-                   ],
-               ],
-           ],
+            'data' => [
+                'messages' => [
+                    'data' => [
+                        [
+                            'message' => $message,
+                            'tags'    => [
+                                'data' => [
+                                    [
+                                        'name' => 'tag1',
+                                    ],
+                                    [
+                                        'name' => 'tag2',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
         ]);
     }
 }

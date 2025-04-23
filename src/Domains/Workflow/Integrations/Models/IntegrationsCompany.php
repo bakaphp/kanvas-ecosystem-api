@@ -24,7 +24,7 @@ class IntegrationsCompany extends BaseModel
     ];
 
     protected $casts = [
-        'config' => Json::class,
+        'config'     => Json::class,
         'is_deleted' => 'boolean',
     ];
 
@@ -63,10 +63,10 @@ class IntegrationsCompany extends BaseModel
     }
 
     /**
-     * Get the integration company using the integration name
+     * Get the integration company using the integration name.
      *
      * @param Status $status Current status of the integration company
-     * @param string $name name of the integration
+     * @param string $name   name of the integration
      * @param Region $region The region of the company integration
      */
     public static function getByIntegration(Companies $company, Status $status, string $name, Regions $region): ?IntegrationsCompany

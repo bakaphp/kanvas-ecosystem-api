@@ -31,6 +31,6 @@ return [
 
     'monitor_queue' => env(
         'WORKFLOW_MONITOR_QUEUE',
-        config('queue.connections.' . config('queue.default') . '.queue', 'default')
+        config('queue.connections.'.config('queue.default').'.queue', 'default')
     ),
 ];

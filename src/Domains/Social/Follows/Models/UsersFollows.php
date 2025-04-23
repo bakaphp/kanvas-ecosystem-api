@@ -12,13 +12,14 @@ use Kanvas\Users\Models\Users;
 use Override;
 
 /**
- *  class UsersFollows
- *  @property int $id
- *  @property int $users_id
- *  @property int $entity_id
- *  @property int $companies_id
- *  @property int $companies_branches_id
- *  @property string $entity_namespace
+ *  class UsersFollows.
+ *
+ * @property int    $id
+ * @property int    $users_id
+ * @property int    $entity_id
+ * @property int    $companies_id
+ * @property int    $companies_branches_id
+ * @property string $entity_namespace
  */
 #[ObservedBy([UserFollowObserver::class])]
 class UsersFollows extends BaseModel

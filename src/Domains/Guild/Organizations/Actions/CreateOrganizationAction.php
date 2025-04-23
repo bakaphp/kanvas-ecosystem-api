@@ -23,14 +23,14 @@ class CreateOrganizationAction
     public function execute(): Organization
     {
         return Organization::firstOrCreate([
-            'name' => $this->organizationData->name,
+            'name'         => $this->organizationData->name,
             'companies_id' => $this->organizationData->company->getId(),
-            'apps_id' => $this->organizationData->app->getId(),
+            'apps_id'      => $this->organizationData->app->getId(),
         ], [
-            'address' => $this->organizationData->address,
+            'address'  => $this->organizationData->address,
             'users_id' => $this->organizationData->user->getId(),
-            'email' => $this->organizationData->email,
-            'state' => $this->organizationData->state,
+            'email'    => $this->organizationData->email,
+            'state'    => $this->organizationData->state,
         ]);
     }
 }

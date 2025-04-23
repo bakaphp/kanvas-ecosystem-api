@@ -88,8 +88,8 @@ class UserManagementTest extends TestCase
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation{
                 appUserUpdatePassword(
-                    uuid: "' . $userList['data']['appUsers']['data'][0]['uuid'] . '",
-                    password: "' . $password . '"
+                    uuid: "'.$userList['data']['appUsers']['data'][0]['uuid'].'",
+                    password: "'.$password.'"
                 ) 
             }',
             [],
@@ -142,8 +142,8 @@ class UserManagementTest extends TestCase
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation{
                 appUserUpdateEmail(
-                    uuid: "' . $userList['data']['appUsers']['data'][0]['uuid'] . '",
-                    email: "' . $email . '"
+                    uuid: "'.$userList['data']['appUsers']['data'][0]['uuid'].'",
+                    email: "'.$email.'"
                 ) 
             }',
             [],
@@ -178,9 +178,9 @@ class UserManagementTest extends TestCase
               }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'email' => $email,
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
+                    'email'         => $email,
                     'custom_fields' => [],
                 ],
             ],
@@ -220,9 +220,9 @@ class UserManagementTest extends TestCase
               }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'email' => $email,
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
+                    'email'         => $email,
                     'custom_fields' => [],
                 ],
             ],
@@ -265,9 +265,9 @@ class UserManagementTest extends TestCase
               }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'email' => $email,
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
+                    'email'         => $email,
                     'custom_fields' => [],
                 ],
             ],
@@ -326,10 +326,10 @@ class UserManagementTest extends TestCase
               }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'email' => $email,
-                    'custom_fields' => [],
+                    'firstname'      => fake()->firstName(),
+                    'lastname'       => fake()->lastName(),
+                    'email'          => $email,
+                    'custom_fields'  => [],
                     'create_company' => true,
                 ],
             ],
@@ -369,12 +369,12 @@ class UserManagementTest extends TestCase
               }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'email' => $email,
-                    'custom_fields' => [],
+                    'firstname'      => fake()->firstName(),
+                    'lastname'       => fake()->lastName(),
+                    'email'          => $email,
+                    'custom_fields'  => [],
                     'create_company' => false,
-                    'company_id' => $company->getId(),
+                    'company_id'     => $company->getId(),
                 ],
             ],
             [],
@@ -414,9 +414,9 @@ class UserManagementTest extends TestCase
               }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'email' => $email,
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
+                    'email'         => $email,
                     'custom_fields' => [],
                 ],
             ],
@@ -440,7 +440,7 @@ class UserManagementTest extends TestCase
                 appResetUserPassword(user_id: $user_id, password: $password) 
             }',
             [
-                'user_id' => $user->uuid,
+                'user_id'  => $user->uuid,
                 'password' => 'password',
             ]
         )->assertJson([
@@ -468,9 +468,9 @@ class UserManagementTest extends TestCase
               }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'email' => $email,
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
+                    'email'         => $email,
                     'custom_fields' => [],
                 ],
             ],
@@ -494,7 +494,7 @@ class UserManagementTest extends TestCase
                 appUpdateUserDisplayname(user_id: $user_id, displayname: $displayname) 
             }',
             [
-                'user_id' => $user->getId(),
+                'user_id'     => $user->getId(),
                 'displayname' => fake()->userName(),
             ]
         )->assertJson([
@@ -544,7 +544,7 @@ class UserManagementTest extends TestCase
         $company = $user->getCurrentCompany();
 
         $email = fake()->email();
-        $password = "12345678";
+        $password = '12345678';
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation appCreateUser($data: CreateUserInput!) {
                 appCreateUser(data: $data) {
@@ -554,10 +554,10 @@ class UserManagementTest extends TestCase
               }',
             [
                 'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'email' => $email,
-                    'password' => $password,
+                    'firstname'     => fake()->firstName(),
+                    'lastname'      => fake()->lastName(),
+                    'email'         => $email,
+                    'password'      => $password,
                     'custom_fields' => [],
                 ],
             ],
@@ -582,7 +582,6 @@ class UserManagementTest extends TestCase
         $userAssociate = UsersRepository::belongsToThisApp($createdUser, $app);
         $activeState = $userAssociate->isActive();
 
-
         $this->graphQL(/** @lang GraphQL */ '
            mutation login($data: LoginInput!) {
                 login(data: $data) {
@@ -598,7 +597,7 @@ class UserManagementTest extends TestCase
 
         ', [
             'data' => [
-                'email' => $email,
+                'email'    => $email,
                 'password' => $password,
             ],
         ]);
@@ -611,7 +610,6 @@ class UserManagementTest extends TestCase
                 'user_id' => $createdUser->getId(),
             ]
         );
-
 
         $response->assertJson([
             'data' => [
