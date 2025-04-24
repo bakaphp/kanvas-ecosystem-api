@@ -24,12 +24,12 @@ class SyncPeopleWithParticipantAction
             ->where('name', 'Virtual')->firstOrFail();
 
         return Participant::firstOrCreate([
-            'people_id' => $this->people->getId(),
-            'apps_id' => $this->people->apps_id,
+            'people_id'    => $this->people->getId(),
+            'apps_id'      => $this->people->apps_id,
             'companies_id' => $this->people->companies_id,
         ], [
-            'users_id' => $this->user->getId(),
-            'theme_area_id' => $themeArea->getId(),
+            'users_id'              => $this->user->getId(),
+            'theme_area_id'         => $themeArea->getId(),
             'participant_status_id' => 1,
         ]);
     }

@@ -19,9 +19,9 @@ class GetUserInteraction
             ->get();
 
         return [
-                    'entity_id' => $args['entity_id'],
-                    'entity_namespace' => $args['entity_namespace'],
-                    'interactions' => $userInteraction,
-            ];
+            'entity_id'        => $args['entity_id'],
+            'entity_namespace' => $args['entity_namespace'],
+            'interactions'     => $userInteraction,
+        ];
     }
 }

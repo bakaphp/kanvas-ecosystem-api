@@ -25,12 +25,12 @@ class EntityIntegrationHistory extends BaseModel
         'response',
         'exception',
         'workflow_id',
-        'rules_id'
+        'rules_id',
     ];
 
     protected $casts = [
-        'response' => Json::class,
-        'exception' => Json::class,
+        'response'   => Json::class,
+        'exception'  => Json::class,
         'is_deleted' => 'boolean',
     ];
 

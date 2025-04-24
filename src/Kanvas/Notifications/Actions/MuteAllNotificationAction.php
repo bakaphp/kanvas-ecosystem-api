@@ -33,8 +33,8 @@ class MuteAllNotificationAction
                             ->get();
         foreach ($notificationsTypes as $type) {
             UsersNotificationsSettings::updateOrCreate([
-                'users_id' => $this->user->id,
-                'apps_id' => $this->app->id,
+                'users_id'               => $this->user->id,
+                'apps_id'                => $this->app->id,
                 'notifications_types_id' => $type->id,
             ], [
                 'is_enabled' => 0,

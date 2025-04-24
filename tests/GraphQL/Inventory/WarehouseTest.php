@@ -13,8 +13,6 @@ class WarehouseTest extends TestCase
 
     /**
      * testCreateWarehouse.
-     *
-     * @return void
      */
     public function testCreateWarehouse(): void
     {
@@ -29,8 +27,6 @@ class WarehouseTest extends TestCase
 
     /**
      * testFindWarehouse.
-     *
-     * @return void
      */
     public function testFindWarehouse(): void
     {
@@ -64,8 +60,6 @@ class WarehouseTest extends TestCase
 
     /**
      * testUpdateWareHouse.
-     *
-     * @return void
      */
     public function testUpdateWarehouse(): void
     {
@@ -89,23 +83,23 @@ class WarehouseTest extends TestCase
                     is_published
                 }
             }', [
-            'id' => $warehouseResponse['id'],
+            'id'   => $warehouseResponse['id'],
             'data' => [
-                'regions_id' => $warehouseResponse['regions_id'],
-                'name' => 'Test Warehouse Updated',
-                'location' => 'Test Location Updated',
-                'is_default' => true,
+                'regions_id'   => $warehouseResponse['regions_id'],
+                'name'         => 'Test Warehouse Updated',
+                'location'     => 'Test Location Updated',
+                'is_default'   => true,
                 'is_published' => 0,
-            ]
+            ],
         ])->assertJson([
             'data' => ['updateWarehouse' => [
-                'id' => $warehouseResponse['id'],
-                'regions_id' => $warehouseResponse['regions_id'],
-                'name' => 'Test Warehouse Updated',
-                'location' => 'Test Location Updated',
-                'is_default' => true,
+                'id'           => $warehouseResponse['id'],
+                'regions_id'   => $warehouseResponse['regions_id'],
+                'name'         => 'Test Warehouse Updated',
+                'location'     => 'Test Location Updated',
+                'is_default'   => true,
                 'is_published' => 0,
-            ]]
+            ]],
         ]);
     }
 
@@ -116,10 +110,10 @@ class WarehouseTest extends TestCase
         $regionResponse = $regionResponse->json()['data']['createRegion'];
 
         $data = [
-            'regions_id' => $regionResponse['id'],
-            'name' => 'Test Warehouse',
-            'location' => 'Test Location',
-            'is_default' => false,
+            'regions_id'   => $regionResponse['id'],
+            'name'         => 'Test Warehouse',
+            'location'     => 'Test Location',
+            'is_default'   => false,
             'is_published' => true,
         ];
 
@@ -133,7 +127,7 @@ class WarehouseTest extends TestCase
             }', [
             'id' => $warehouseResponse['id'],
         ])->assertJson([
-            'data' => ['deleteWarehouse' => true]
+            'data' => ['deleteWarehouse' => true],
         ]);
     }
 }

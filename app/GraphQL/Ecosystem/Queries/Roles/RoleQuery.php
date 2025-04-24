@@ -17,6 +17,7 @@ class RoleQuery
 {
     /**
      * getAllRoles.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function getAllRoles(

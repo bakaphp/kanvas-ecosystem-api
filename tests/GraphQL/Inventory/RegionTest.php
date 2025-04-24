@@ -11,6 +11,7 @@ use Tests\TestCase;
 class RegionTest extends TestCase
 {
     use InventoryCases;
+
     /**
      * testCreateRegion.
      *
@@ -59,10 +60,10 @@ class RegionTest extends TestCase
         $regionResponse = $regionResponse->json()['data']['createRegion'];
 
         $data = [
-            'name' => fake()->name . '2',
-            'slug' => Str::slug(fake()->name),
-            'short_slug' =>  Str::slug(fake()->name),
-            'is_default' => 1,
+            'name'        => fake()->name.'2',
+            'slug'        => Str::slug(fake()->name),
+            'short_slug'  => Str::slug(fake()->name),
+            'is_default'  => 1,
             'currency_id' => 1,
         ];
         $this->graphQL('
@@ -79,7 +80,7 @@ class RegionTest extends TestCase
             }
         ', [
             'data' => $data,
-            'id' => $regionResponse['id'],
+            'id'   => $regionResponse['id'],
         ])->assertJson([
             'data' => ['updateRegion' => $data],
         ]);
@@ -93,10 +94,10 @@ class RegionTest extends TestCase
     public function testDeleteRegion()
     {
         $data = [
-            'name' => 'delete test',
-            'slug' => 'delete-test',
-            'short_slug' => 'delete-test',
-            'is_default' => 0,
+            'name'        => 'delete test',
+            'slug'        => 'delete-test',
+            'short_slug'  => 'delete-test',
+            'is_default'  => 0,
             'currency_id' => 1,
         ];
 

@@ -60,6 +60,5 @@ class IndexUserInteractionRecombeeCommand extends Command
 
         $this->output->progressFinish();
 
-        return;
     }
 }

@@ -20,7 +20,7 @@ abstract class BaseIntegration
 
     /**
      * setup the connection
-     * test the integration connection
+     * test the integration connection.
      */
     abstract public function setup(): bool;
 }

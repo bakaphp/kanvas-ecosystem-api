@@ -56,14 +56,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             integrationOperation: function ($entity) use ($messageFiles, $params, $imageFilter, $isOpenAi) {
                 if (empty($this->apiUrl)) {
                     return [
-                        'result' => false,
+                        'result'  => false,
                         'message' => 'API URL not configured',
                     ];
                 }
 
                 if ($messageFiles->isEmpty()) {
                     return [
-                        'result' => false,
+                        'result'  => false,
                         'message' => 'Message does not have any files',
                     ];
                 }
@@ -79,8 +79,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $entity->message['prompt'], $entity);
                         if ($fileSystemRecord === null) {
                             return [
-                                'result' => false,
-                                'filter' => $imageFilter,
+                                'result'  => false,
+                                'filter'  => $imageFilter,
                                 'message' => 'Failed to retrieve processed image',
                             ];
                         }
@@ -94,10 +94,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                         if ($fileSystemRecord === null) {
                             return [
-                                'result' => false,
-                                'filter' => $imageFilter,
+                                'result'     => false,
+                                'filter'     => $imageFilter,
                                 'request_id' => $requestId,
-                                'message' => 'Failed to retrieve processed image',
+                                'message'    => 'Failed to retrieve processed image',
                             ];
                         }
                     }
@@ -115,9 +115,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     report($e);
 
                     return [
-                        'result' => false,
+                        'result'     => false,
                         'message_id' => $entity->getId(),
-                        'message' => 'Error processing image: ' . $e->getMessage(),
+                        'message'    => 'Error processing image: '.$e->getMessage(),
                     ];
                 }
             },
@@ -126,7 +126,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     }
 
     /**
-     * Get the company for this workflow
+     * Get the company for this workflow.
      */
     protected function getCompany(AppInterface $app, Model $entity): object
     {
@@ -142,7 +142,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     }
 
     /**
-     * Process image with fal.ai
+     * Process image with fal.ai.
      *
      * @return array [fileSystemRecord, processedImageUrl, requestId]
      */
@@ -152,7 +152,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $submitResponse = $this->submitImage($fileUrl, $imageFilter);
 
         if (! isset($submitResponse['request_id'])) {
-            throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
+            throw new Exception('Failed to submit image for processing: '.json_encode($submitResponse));
         }
 
         $requestId = $submitResponse['request_id'];
@@ -161,7 +161,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $statusResponse = $this->checkProcessingStatus($requestId, $imageFilter);
 
         if ($statusResponse['status'] !== 'COMPLETED') {
-            throw new Exception('Image processing did not complete successfully: ' . json_encode($statusResponse));
+            throw new Exception('Image processing did not complete successfully: '.json_encode($statusResponse));
         }
 
         // Step 3: Get the processed image result
@@ -169,7 +169,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $processedImageUrl = $this->extractImageUrl($resultResponse);
 
         if ($processedImageUrl === null) {
-            throw new Exception('Failed to extract image URL from response: ' . json_encode($resultResponse));
+            throw new Exception('Failed to extract image URL from response: '.json_encode($resultResponse));
         }
 
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
@@ -193,7 +193,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     }
 
     /**
-     * Process image with OpenAI
+     * Process image with OpenAI.
      */
     protected function processImageWithOpenAI(string $imageUrl, string $prompt, Model $entity): ?Filesystem
     {
@@ -231,7 +231,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         ['Content-Type' => $mimeType]
                     )
                     ->post($this->openaiApiUrl, [
-                        'model' => 'gpt-image-1',
+                        'model'  => 'gpt-image-1',
                         'prompt' => $prompt,
                     ]);
 
@@ -242,11 +242,11 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                 // If we're out of retries, rethrow the exception
                 if ($attempt >= $maxRetries) {
-                    throw new Exception("Image processing failed after {$maxRetries} attempts: " . $e->getMessage());
+                    throw new Exception("Image processing failed after {$maxRetries} attempts: ".$e->getMessage());
                 }
 
                 // Log the retry attempt
-                report(new Exception("Image processing attempt {$attempt} failed: " . $e->getMessage() . ". Retrying in {$retryDelay} seconds."));
+                report(new Exception("Image processing attempt {$attempt} failed: ".$e->getMessage().". Retrying in {$retryDelay} seconds."));
 
                 // Wait before retrying
                 sleep($retryDelay);
@@ -260,7 +260,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         @unlink($tempFile);
 
         if (! $response->successful()) {
-            throw new Exception('OpenAI API request failed: ' . $response->body());
+            throw new Exception('OpenAI API request failed: '.$response->body());
         }
 
         // Parse the response
@@ -279,7 +279,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
         if (! $base64ImageData) {
             // Log the entire response structure to help diagnose the issue
-            report(new Exception('Unexpected OpenAI API response format: ' . json_encode($responseData)));
+            report(new Exception('Unexpected OpenAI API response format: '.json_encode($responseData)));
 
             return null;
         }
@@ -294,7 +294,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     }
 
     /**
-     * Finalize the processing by creating a nugget message and sending notification
+     * Finalize the processing by creating a nugget message and sending notification.
      */
     protected function finalizeProcessing(
         Model $entity,
@@ -307,12 +307,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $title = $entity->message['title'] ?? 'your prompt';
 
         // Create a new nugget message with the processed image
-        $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
+        $cdnImageUrl = $entity->app->get('cloud-cdn').'/'.$fileSystemRecord->path;
         $createNuggetMessage = (new CreateNuggetMessageAction(
             parentMessage: $entity,
             messageData: [
                 'title' => $title,
-                'type' => 'image-format',
+                'type'  => 'image-format',
                 'image' => $cdnImageUrl,
             ],
         ))->execute();
@@ -328,19 +328,19 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         );
 
         $config = [
-            'email_template' => $params['email_template'] ?? null,
-            'push_template' => $params['push_template'] ?? null,
-            'app' => $entity->app,
-            'company' => $entity->company,
-            'message' => "Your image for {$title} has been processed",
-            'title' => 'Image Processed',
-            'metadata' => $entity->getMessage(),
-            'via' => $endViaList,
-            'message_owner_id' => $entity->user->getId(),
-            'message_id' => $entity->getId(),
+            'email_template'    => $params['email_template'] ?? null,
+            'push_template'     => $params['push_template'] ?? null,
+            'app'               => $entity->app,
+            'company'           => $entity->company,
+            'message'           => "Your image for {$title} has been processed",
+            'title'             => 'Image Processed',
+            'metadata'          => $entity->getMessage(),
+            'via'               => $endViaList,
+            'message_owner_id'  => $entity->user->getId(),
+            'message_id'        => $entity->getId(),
             'parent_message_id' => $entity->getId(),
-            'destination_id' => $entity->getId(),
-            'destination_type' => 'MESSAGE',
+            'destination_id'    => $entity->getId(),
+            'destination_type'  => 'MESSAGE',
             'destination_event' => 'NEW_MESSAGE',
         ];
 
@@ -356,21 +356,21 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             report($e);
 
             return [
-                'result' => false,
-                'message' => 'Error in notification to user',
+                'result'    => false,
+                'message'   => 'Error in notification to user',
                 'exception' => $e,
             ];
         }
 
         $result = [
-            'message' => 'Image processed successfully',
-            'result' => true,
-            'user_id' => $entity->user->getId(),
-            'message_data' => $entity->message,
-            'message_id' => $entity->getId(),
-            'nugget_message_id' => $createNuggetMessage->getId(),
+            'message'            => 'Image processed successfully',
+            'result'             => true,
+            'user_id'            => $entity->user->getId(),
+            'message_data'       => $entity->message,
+            'message_id'         => $entity->getId(),
+            'nugget_message_id'  => $createNuggetMessage->getId(),
             'original_image_url' => $originalImageUrl,
-            'config' => $config,
+            'config'             => $config,
         ];
 
         // Add processed image URL and request ID if they exist (for fal-ai processing)
@@ -386,7 +386,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     }
 
     /**
-     * Submit an image for processing
+     * Submit an image for processing.
      */
     protected function submitImage(string $imageUrl, string $imageFilter): array
     {
@@ -395,14 +395,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ])->post($this->apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
-            'model' => 'fal-ai/' . $imageFilter,
+            'model'     => 'fal-ai/'.$imageFilter,
         ]);
 
         return $response->json();
     }
 
     /**
-     * Check the processing status of a submitted image
+     * Check the processing status of a submitted image.
      */
     protected function checkProcessingStatus(string $requestId, string $imageFilter): array
     {
@@ -415,8 +415,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             ])->post($this->apiUrl, [
                 'operation' => 'status',
                 'requestId' => $requestId,
-                'model' => 'fal-ai/' . $imageFilter,
-                'logs' => true,
+                'model'     => 'fal-ai/'.$imageFilter,
+                'logs'      => true,
             ]);
 
             $statusResponse = $response->json();
@@ -426,7 +426,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             }
 
             if ($statusResponse['status'] === 'FAILED') {
-                throw new Exception('Image processing failed for this request' . $requestId);
+                throw new Exception('Image processing failed for this request'.$requestId);
             }
 
             // Wait before checking again
@@ -435,14 +435,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         if ($attempts >= self::MAX_STATUS_CHECKS) {
-            throw new Exception('Image processing timed out' . $requestId);
+            throw new Exception('Image processing timed out'.$requestId);
         }
 
         return $statusResponse;
     }
 
     /**
-     * Get the result of a processed image
+     * Get the result of a processed image.
      */
     protected function getProcessingResult(string $requestId, string $imageFilter): array
     {
@@ -451,14 +451,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ])->post($this->apiUrl, [
             'operation' => 'result',
             'requestId' => $requestId,
-            'model' => 'fal-ai/' . $imageFilter,
+            'model'     => 'fal-ai/'.$imageFilter,
         ]);
 
         return $response->json();
     }
 
     /**
-     * Extract image URL from the result response
+     * Extract image URL from the result response.
      */
     private function extractImageUrl(array $resultResponse): ?string
     {

@@ -93,8 +93,8 @@ class PeoplesRepository
             $people->contacts()->save(
                 new Contact([
                     'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                    'value' => $email,
-                    'weight' => 100,
+                    'value'             => $email,
+                    'weight'            => 100,
                 ])
             );
         }

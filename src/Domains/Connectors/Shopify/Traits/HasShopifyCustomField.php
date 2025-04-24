@@ -17,8 +17,8 @@ trait HasShopifyCustomField
     {
         return match (true) {
             $this instanceof Variants => $this->get(ShopifyConfigurationService::getVariantKey($this, $region)),
-            $this instanceof Order => $this->get(ShopifyConfigurationService::getOrderKey($region)),
-            default => $this->get(ShopifyConfigurationService::getProductKey($this, $region) . $part),
+            $this instanceof Order    => $this->get(ShopifyConfigurationService::getOrderKey($region)),
+            default                   => $this->get(ShopifyConfigurationService::getProductKey($this, $region).$part),
         };
     }
 
@@ -26,8 +26,8 @@ trait HasShopifyCustomField
     {
         return match (true) {
             $this instanceof Variants => $this->del(ShopifyConfigurationService::getVariantKey($this, $region)),
-            $this instanceof Order => $this->del(ShopifyConfigurationService::getOrderKey($region)),
-            default => $this->del(ShopifyConfigurationService::getProductKey($this, $region) . $part),
+            $this instanceof Order    => $this->del(ShopifyConfigurationService::getOrderKey($region)),
+            default                   => $this->del(ShopifyConfigurationService::getProductKey($this, $region).$part),
         };
     }
 
@@ -35,8 +35,8 @@ trait HasShopifyCustomField
     {
         match (true) {
             $this instanceof Variants => $this->set(ShopifyConfigurationService::getVariantKey($this, $region), $shopifyId),
-            $this instanceof Order => $this->set(ShopifyConfigurationService::getOrderKey($region), $shopifyId),
-            default => $this->set(ShopifyConfigurationService::getProductKey($this, $region) . $part, $shopifyId),
+            $this instanceof Order    => $this->set(ShopifyConfigurationService::getOrderKey($region), $shopifyId),
+            default                   => $this->set(ShopifyConfigurationService::getProductKey($this, $region).$part, $shopifyId),
         };
     }
 
@@ -44,7 +44,7 @@ trait HasShopifyCustomField
     {
         match (true) {
             $this instanceof Variants => $this->set(ShopifyConfigurationService::getVariantInventoryKey($this, $region), $inventoryId),
-            default => throw new ValidationException('Only variants can have inventory id'),
+            default                   => throw new ValidationException('Only variants can have inventory id'),
         };
     }
 
@@ -52,17 +52,17 @@ trait HasShopifyCustomField
     {
         return match (true) {
             $this instanceof Variants => $this->get(ShopifyConfigurationService::getVariantInventoryKey($this, $region)),
-            default => null,
+            default                   => null,
         };
     }
 
     public function getShopifyUrl(Regions $region): ?string
     {
-        $key = CustomFieldEnum::SHOPIFY_PRODUCT_URL->value . '-' . $region->getId();
+        $key = CustomFieldEnum::SHOPIFY_PRODUCT_URL->value.'-'.$region->getId();
 
         return match (true) {
             $this instanceof Variants => $this->product->get($key),
-            default => $this->get($key),
+            default                   => $this->get($key),
         };
     }
 }

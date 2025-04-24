@@ -46,9 +46,9 @@ class DailyUsageReportAction
                     new Blank(
                         'apollo-daily-report',
                         [
-                            'report' => $report,
-                            'today' => $date,
-                            'subject' => 'Apollo Daily Enrichment Report - ' . $date,
+                            'report'  => $report,
+                            'today'   => $date,
+                            'subject' => 'Apollo Daily Enrichment Report - '.$date,
                         ],
                         ['mail'],
                         $user

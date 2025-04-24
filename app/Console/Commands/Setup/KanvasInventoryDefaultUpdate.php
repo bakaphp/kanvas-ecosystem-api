@@ -37,8 +37,6 @@ class KanvasInventoryDefaultUpdate extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -65,18 +63,18 @@ class KanvasInventoryDefaultUpdate extends Command
 
                 try {
                     $defaultRegion = Regions::firstOrCreate([
-                        'apps_id' => $app->getId(),
+                        'apps_id'      => $app->getId(),
                         'companies_id' => $companyData->getId(),
-                        'slug' => Str::slug('Default'),
+                        'slug'         => Str::slug('Default'),
                     ], [
-                        'name' => 'Default',
-                        'is_default' => true,
+                        'name'        => 'Default',
+                        'is_default'  => true,
                         'currency_id' => Currencies::where('code', 'USD')->firstOrFail()->getId(),
-                        'users_id' => $companyData->users_id,
-                        'short_slug' => Str::slug('Default'),
+                        'users_id'    => $companyData->users_id,
+                        'short_slug'  => Str::slug('Default'),
                     ]);
                 } catch (Throwable $e) {
-                    $this->error('Error creating default region for : ' . $companyData->getId() . ' ' . $e->getMessage());
+                    $this->error('Error creating default region for : '.$companyData->getId().' '.$e->getMessage());
                 }
             }
 
@@ -85,17 +83,17 @@ class KanvasInventoryDefaultUpdate extends Command
 
                 try {
                     $defaultWarehouses = Warehouses::firstOrCreate([
-                        'name' => 'Default',
+                        'name'         => 'Default',
                         'companies_id' => $companyData->getId(),
-                        'apps_id' => $app->getId(),
-                        'regions_id' => $defaultRegion->getId(),
+                        'apps_id'      => $app->getId(),
+                        'regions_id'   => $defaultRegion->getId(),
                     ], [
-                        'is_default' => true,
-                        'users_id' => $companyData->users_id,
+                        'is_default'   => true,
+                        'users_id'     => $companyData->users_id,
                         'is_published' => true,
                     ]);
                 } catch (Throwable $e) {
-                    $this->error('Error creating default warehouse for : ' . $companyData->getId() . ' ' . $e->getMessage());
+                    $this->error('Error creating default warehouse for : '.$companyData->getId().' '.$e->getMessage());
                 }
             }
 
@@ -104,15 +102,15 @@ class KanvasInventoryDefaultUpdate extends Command
 
                 try {
                     $defaultStatus = Status::firstOrCreate([
-                        'apps_id' => $app->getId(),
+                        'apps_id'      => $app->getId(),
                         'companies_id' => $companyData->getId(),
-                        'slug' => Str::slug('Default'),
+                        'slug'         => Str::slug('Default'),
                     ], [
-                        'name' => 'Default',
+                        'name'       => 'Default',
                         'is_default' => true,
                     ]);
                 } catch (Throwable $e) {
-                    $this->error('Error creating default status for : ' . $companyData->getId() . ' ' . $e->getMessage());
+                    $this->error('Error creating default status for : '.$companyData->getId().' '.$e->getMessage());
                 }
             }
 
@@ -122,15 +120,15 @@ class KanvasInventoryDefaultUpdate extends Command
                 try {
                     $defaultChannel = Channels::firstOrCreate([
                         'companies_id' => $companyData->getId(),
-                        'apps_id' => $app->getId(),
-                        'slug' => Str::slug('Default'),
+                        'apps_id'      => $app->getId(),
+                        'slug'         => Str::slug('Default'),
                     ], [
-                        'name' => 'Default',
-                        'users_id' => $companyData->users_id,
+                        'name'       => 'Default',
+                        'users_id'   => $companyData->users_id,
                         'is_default' => true,
                     ]);
                 } catch (Throwable $e) {
-                    $this->error('Error creating default channel for : ' . $companyData->getId() . ' ' . $e->getMessage());
+                    $this->error('Error creating default channel for : '.$companyData->getId().' '.$e->getMessage());
                 }
             }
 
@@ -172,6 +170,5 @@ class KanvasInventoryDefaultUpdate extends Command
             }
         }
 
-        return;
     }
 }

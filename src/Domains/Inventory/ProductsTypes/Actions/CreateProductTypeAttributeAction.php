@@ -26,8 +26,8 @@ class CreateProductTypeAttributeAction
 
         return ProductsTypesAttributes::firstOrCreate([
             'products_types_id' => $this->data->productsTypes->getId(),
-            'attributes_id' => $this->data->attributes->getId(),
-            'to_variant' => $this->data->toVariant,
+            'attributes_id'     => $this->data->attributes->getId(),
+            'to_variant'        => $this->data->toVariant,
         ]);
     }
 }

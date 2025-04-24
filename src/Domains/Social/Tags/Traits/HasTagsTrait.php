@@ -19,7 +19,7 @@ trait HasTagsTrait
     {
         $dbConnection = config('database.connections.social.database');
 
-        $query = $this->morphToMany(ModelsTag::class, 'taggable', $dbConnection . '.tags_entities', 'entity_id', 'tags_id')
+        $query = $this->morphToMany(ModelsTag::class, 'taggable', $dbConnection.'.tags_entities', 'entity_id', 'tags_id')
             ->using(TagEntity::class);
 
         return $query;
@@ -51,8 +51,8 @@ trait HasTagsTrait
         // Check if the tag is already attached before syncing
         if (! $this->tags()->wherePivot('tags_id', $tag->getId())->exists()) {
             $this->tags()->attach($this->getId(), [
-                'tags_id' => $tag->getId(),
-                'users_id' => $user->getId(),
+                'tags_id'    => $tag->getId(),
+                'users_id'   => $user->getId(),
                 'is_deleted' => 0,
             ]);
         }
@@ -103,7 +103,7 @@ trait HasTagsTrait
          * [
          *   ['name' => 'tag1'],
          *   ['name' => 'tag2'],
-         * ]
+         * ].
          */
         $tags = array_map(
             fn ($tag) => $tag['name'] ?? $tag,

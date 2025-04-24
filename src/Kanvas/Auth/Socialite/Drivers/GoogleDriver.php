@@ -41,11 +41,11 @@ class GoogleDriver implements DriverInterface
         );
 
         return User::from([
-            'id' => $payload['sub'],
-            'email' => $payload['email'],
+            'id'       => $payload['sub'],
+            'email'    => $payload['email'],
             'nickname' => Random::generateDisplayName($payload['name']),
-            'name' => $payload['name'],
-            'token' => $token,
+            'name'     => $payload['name'],
+            'token'    => $token,
         ]);
     }
 }

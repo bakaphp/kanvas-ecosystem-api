@@ -16,12 +16,6 @@ trait HasJwtToken
 {
     /**
      * Create a new personal access token for the user.
-     *
-     * @param  string  $name
-     * @param  array  $abilities
-     * @param  \DateTimeInterface|null  $expiresAt
-     *
-     * @return NewAccessToken
      */
     public function createToken(
         string $name,
@@ -32,7 +26,7 @@ trait HasJwtToken
         $userIp = request()->ip();
         $pageId = 1;
 
-        $sessionId = (string)Str::uuid();
+        $sessionId = (string) Str::uuid();
         $tokenResponse = Jwt::createToken($sessionId, $this->email, 0, $deviceId);
         $monthInHours = ceil((config('kanvas.jwt.payload.refresh_exp') ?? 2628000) / 3600);
         $refreshToken = Jwt::createToken($sessionId, $this->email, $monthInHours, $deviceId);

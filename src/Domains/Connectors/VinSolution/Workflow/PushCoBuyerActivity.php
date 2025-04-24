@@ -43,9 +43,9 @@ class PushCoBuyerActivity extends KanvasActivity
                 return [
                     'message' => 'Co-buyer added successfully',
                     'vinLead' => $vinLead->id,
-                    'people' => $people->toArray(),
-                    'entity' => $entity->toArray(),
-                    'lead' => $lead->toArray(),
+                    'people'  => $people->toArray(),
+                    'entity'  => $entity->toArray(),
+                    'lead'    => $lead->toArray(),
                 ];
             },
             company: $company,

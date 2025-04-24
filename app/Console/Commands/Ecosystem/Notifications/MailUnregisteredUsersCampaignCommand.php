@@ -49,7 +49,7 @@ class MailUnregisteredUsersCampaignCommand extends Command
         /**
          * @todo make this dynamic
          */
-        $campaignWeek = (int)ceil(now()->day / 7);
+        $campaignWeek = (int) ceil(now()->day / 7);
 
         switch ($campaignWeek) {
             case 1:
@@ -107,7 +107,7 @@ class MailUnregisteredUsersCampaignCommand extends Command
                         }
                         $notification->setSubject($emailSubject);
                         Notification::route('mail', $user->email)->notify($notification);
-                        $this->info('Email Successfully sent to: ' . $user->getId() . ' on app: ' . $app->getId());
+                        $this->info('Email Successfully sent to: '.$user->getId().' on app: '.$app->getId());
                         $this->newLine();
                     }
                 }

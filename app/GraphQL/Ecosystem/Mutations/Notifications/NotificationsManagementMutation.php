@@ -21,7 +21,7 @@ use Kanvas\Users\Repositories\UsersRepository;
 class NotificationsManagementMutation
 {
     /**
-     * sendNotificationBaseOnTemplate
+     * sendNotificationBaseOnTemplate.
      */
     public function sendNotificationBaseOnTemplate(mixed $root, array $request): bool
     {
@@ -81,7 +81,7 @@ class NotificationsManagementMutation
     }
 
     /**
-     * sendNotificationByMessage
+     * sendNotificationByMessage.
      */
     public function sendNotificationByMessage(mixed $root, array $request): array
     {
@@ -94,7 +94,7 @@ class NotificationsManagementMutation
 
         if (! $notificationType) {
             return [
-                'sent' => false,
+                'sent'    => false,
                 'message' => 'Notification type not found',
             ];
         }
@@ -112,7 +112,7 @@ class NotificationsManagementMutation
 
         if (! $canSendNotification) {
             return [
-                'sent' => false,
+                'sent'    => false,
                 'message' => 'Notification logic not met',
             ];
         }
@@ -126,14 +126,14 @@ class NotificationsManagementMutation
             );
 
             return [
-                'sent' => true,
-                'message' => 'Notification sent to users ' . implode(',', $notificationMessagePayload->usersId),
+                'sent'    => true,
+                'message' => 'Notification sent to users '.implode(',', $notificationMessagePayload->usersId),
             ];
         }
 
         if (! $notificationMessagePayload->distributeToFollowers()) {
             return [
-                'sent' => false,
+                'sent'    => false,
                 'message' => 'Notification distribution type not found in request payload',
             ];
         }
@@ -146,7 +146,7 @@ class NotificationsManagementMutation
         );
 
         return [
-            'sent' => true,
+            'sent'    => true,
             'message' => 'Notification sent to all followers',
         ];
     }

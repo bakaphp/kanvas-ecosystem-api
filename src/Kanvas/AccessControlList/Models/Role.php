@@ -10,7 +10,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Silber\Bouncer\Database\Role as SilberRole;
 
 /**
- * @property int $id
+ * @property int    $id
  * @property string $name
  * @property string $title
  * @property string $scope
@@ -22,24 +22,24 @@ class Role extends SilberRole
 
     public function getUserCountAttribute(): int
     {
-        $count = Redis::get('role:' . $this->id . ':users_count');
+        $count = Redis::get('role:'.$this->id.':users_count');
         if (! $count) {
             $count = $this->users()->count();
-            Redis::set('role:' . $this->id . ':users_count', 120, $count);
+            Redis::set('role:'.$this->id.':users_count', 120, $count);
         }
 
-        return (int)$count;
+        return (int) $count;
     }
 
     public function getAbilitiesCountAttribute(): int
     {
-        $count = Redis::get('role:' . $this->id . ':abilities_count');
+        $count = Redis::get('role:'.$this->id.':abilities_count');
         if (! $count) {
             $count = $this->abilities()->count();
-            Redis::set('role:' . $this->id . ':abilities_count', 120, $count);
+            Redis::set('role:'.$this->id.':abilities_count', 120, $count);
         }
 
-        return (int)$count;
+        return (int) $count;
     }
 
     public function getModules(): array

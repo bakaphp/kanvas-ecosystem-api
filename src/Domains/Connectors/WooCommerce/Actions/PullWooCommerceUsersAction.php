@@ -28,10 +28,10 @@ class PullWooCommerceUsersAction
                 $user = UsersRepository::getUserOfAppByEmail($user['email'], $this->app);
             } catch (Exception $e) {
                 $dto = RegisterInput::from([
-                    'email' => $user['email'],
-                    'password' => $user['password_hash'],
-                    'firstname' => '',
-                    'lastname' => '',
+                    'email'       => $user['email'],
+                    'password'    => $user['password_hash'],
+                    'firstname'   => '',
+                    'lastname'    => '',
                     'displayname' => $user['display_name'],
                 ]);
                 $createUser = new CreateUserAction($dto, $this->app);

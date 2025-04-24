@@ -50,18 +50,18 @@ class SetPlanWithoutPaymentActivity extends KanvasActivity
                 }
 
                 $response = [
-                    'status' => 'success',
-                    'user_id' => $user->id,
-                    'company_id' => $company->id,
-                    'default_plan' => $plan->name,
+                    'status'        => 'success',
+                    'user_id'       => $user->id,
+                    'company_id'    => $company->id,
+                    'default_plan'  => $plan->name,
                     'trial_ends_at' => $trialEndsAt->toDateTimeString(),
                 ];
             } catch (Throwable $e) {
                 $response = [
-                    'status' => 'error',
-                    'message' => $e->getMessage(),
-                    'user_id' => $user->id,
-                    'company_id' => $company->id,
+                    'status'       => 'error',
+                    'message'      => $e->getMessage(),
+                    'user_id'      => $user->id,
+                    'company_id'   => $company->id,
                     'default_plan' => $app->default_apps_plan_id,
                 ];
             }

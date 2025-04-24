@@ -15,7 +15,7 @@ class ActionFactory extends Factory
     public function definition()
     {
         return [
-            'name' => 'ShopifyProcessOrderJob',
+            'name'       => 'ShopifyProcessOrderJob',
             'model_name' => ProcessShopifyOrderWebhookJob::class,
         ];
     }

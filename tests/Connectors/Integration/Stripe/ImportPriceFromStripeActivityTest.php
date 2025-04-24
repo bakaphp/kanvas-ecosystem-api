@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Stripe;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Users\Models\Users;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Services\StripePriceService;
 use Kanvas\Subscription\Importer\Actions\PriceImporterAction;
 use Kanvas\Subscription\Importer\DataTransferObjects\PriceImporter;
-use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
-use Illuminate\Support\Facades\DB;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 final class ImportPriceFromStripeActivityTest extends TestCase
@@ -104,15 +104,15 @@ final class ImportPriceFromStripeActivityTest extends TestCase
     protected function seedAppPlans()
     {
         $plan = [
-            'apps_id' => $this->appModel->id,
-            'name' => 'Test Plan',
+            'apps_id'          => $this->appModel->id,
+            'name'             => 'Test Plan',
             'payment_interval' => 'year',
-            'description' => 'This is a test plan.',
-            'stripe_id' => 'prod_R7aFDqoZMlE1E7',
+            'description'      => 'This is a test plan.',
+            'stripe_id'        => 'prod_R7aFDqoZMlE1E7',
             'free_trial_dates' => 15,
-            'is_default' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'is_default'       => 1,
+            'created_at'       => now(),
+            'updated_at'       => now(),
         ];
 
         DB::table('apps_plans')->updateOrInsert(

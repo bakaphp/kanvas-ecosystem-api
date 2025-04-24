@@ -46,14 +46,14 @@ final class LeadReceiverParserTest extends TestCase
         $url = fake()->url;
 
         $leadReceived = json_encode([
-            'firstname' => $name,
-            'lastname' => $lastname,
-            'phone' => $phone,
-            'email' => $email,
-            'Member' => 'lpr2230',
-            'URL' => $url,
+            'firstname'    => $name,
+            'lastname'     => $lastname,
+            'phone'        => $phone,
+            'email'        => $email,
+            'Member'       => 'lpr2230',
+            'URL'          => $url,
             'credit_score' => 'Poor',
-            'SMS_Opt_Out' => '1',
+            'SMS_Opt_Out'  => '1',
         ]);
 
         $parseTemplate = new ConvertJsonTemplateToLeadStructureAction(
@@ -109,21 +109,21 @@ final class LeadReceiverParserTest extends TestCase
         $url = fake()->url;
 
         $leadReceived = json_encode([
-            'firstname' => $name,
-            'lastname' => $lastname,
-            'phone' => $phone,
-            'email' => $email,
-            'Member' => 'lpr2230',
-            'URL' => $url,
-            'credit_score' => 'Poor',
-            'SMS_Opt_Out' => '1',
+            'firstname'                    => $name,
+            'lastname'                     => $lastname,
+            'phone'                        => $phone,
+            'email'                        => $email,
+            'Member'                       => 'lpr2230',
+            'URL'                          => $url,
+            'credit_score'                 => 'Poor',
+            'SMS_Opt_Out'                  => '1',
             'CRE_Estimated_Property_Value' => '1',
-            'CRE_Estimated_1st_Mortgage' => '1',
-            'CRE_Loan_Purpose' => '1',
-            'CRE_Amount_of_Loan_Request' => '1',
-            'amount_requested' => '1',
-            'business_name' => '1',
-            'compay' => '1',
+            'CRE_Estimated_1st_Mortgage'   => '1',
+            'CRE_Loan_Purpose'             => '1',
+            'CRE_Amount_of_Loan_Request'   => '1',
+            'amount_requested'             => '1',
+            'business_name'                => '1',
+            'compay'                       => '1',
         ]);
 
         $parseTemplate = new ConvertJsonTemplateToLeadStructureAction(
@@ -232,23 +232,23 @@ final class LeadReceiverParserTest extends TestCase
         $url = fake()->url;
 
         $leadReceived = json_encode([
-            'First Name' => $name,
-            'Last Name' => $lastname,
-            'Phone' => $phone,
-            'Email' => $email,
-            'Company' => 'TEST, LLC',
-            'City' => 'aa BB',
-            'State' => 'PA',
-            'Zip Code' => '19053',
+            'First Name'            => $name,
+            'Last Name'             => $lastname,
+            'Phone'                 => $phone,
+            'Email'                 => $email,
+            'Company'               => 'TEST, LLC',
+            'City'                  => 'aa BB',
+            'State'                 => 'PA',
+            'Zip Code'              => '19053',
             'Type of Incorporation' => 'soleProprietorship',
-            'Industry' => 'real_estate',
-            'Business Founded' => '2004-05-01T00:00:00',
-            'SubID' => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
-            'SubID2' => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
-            'Test' => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
-            'Credit Score' => 'Excellent (720+)',
-            'Amount Requested' => '1150000',
-            'Annual Revenue' => '70000',
+            'Industry'              => 'real_estate',
+            'Business Founded'      => '2004-05-01T00:00:00',
+            'SubID'                 => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
+            'SubID2'                => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
+            'Test'                  => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
+            'Credit Score'          => 'Excellent (720+)',
+            'Amount Requested'      => '1150000',
+            'Annual Revenue'        => '70000',
         ]);
 
         $parseTemplate = new ConvertJsonTemplateToLeadStructureAction(
@@ -353,21 +353,21 @@ final class LeadReceiverParserTest extends TestCase
         $url = fake()->url;
 
         $leadReceived = json_encode([
-            'First Name' => $name,
-            'Last Name' => $lastname,
-            'Phone' => $phone,
-            'Email' => $email,
-            'Company' => 'TEST, LLC',
-            'City' => 'aa BB',
-            'State' => 'PA',
-            'Zip Code' => '19053',
+            'First Name'            => $name,
+            'Last Name'             => $lastname,
+            'Phone'                 => $phone,
+            'Email'                 => $email,
+            'Company'               => 'TEST, LLC',
+            'City'                  => 'aa BB',
+            'State'                 => 'PA',
+            'Zip Code'              => '19053',
             'Type of Incorporation' => 'soleProprietorship',
-            'Industry' => 'real_estate',
-            'Business Founded' => '2004-05-01T00:00:00',
-            'SubID' => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
-            'Credit Score' => 'Excellent (720+)',
-            'Amount Requested' => '1150000',
-            'Annual Revenue' => '70000',
+            'Industry'              => 'real_estate',
+            'Business Founded'      => '2004-05-01T00:00:00',
+            'SubID'                 => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
+            'Credit Score'          => 'Excellent (720+)',
+            'Amount Requested'      => '1150000',
+            'Annual Revenue'        => '70000',
         ]);
 
         $parseTemplate = new ConvertJsonTemplateToLeadStructureAction(
@@ -495,44 +495,44 @@ final class LeadReceiverParserTest extends TestCase
 
         $leadReceived = json_encode([
             'request_header' => [
-                'request_id' => fake()->uuid,
+                'request_id'   => fake()->uuid,
                 'request_date' => fake()->iso8601,
                 'is_test_lead' => false,
             ],
             'business' => [
-                'business_name' => fake()->company,
+                'business_name'           => fake()->company,
                 'self_reported_cash_flow' => [
                     'annual_revenue' => fake()->numberBetween(100000, 500000),
                 ],
                 'address' => [
                     'zip' => fake()->postcode,
                 ],
-                'naics' => fake()->randomNumber(6, true),
+                'naics'              => fake()->randomNumber(6, true),
                 'business_inception' => fake()->date('m-d-Y'),
-                'use_of_proceeds' => 'Purchasing equipment',
+                'use_of_proceeds'    => 'Purchasing equipment',
             ],
             'owners' => [
                 [
-                    'full_name' => fake()->name,
-                    'first_name' => fake()->firstName,
-                    'last_name' => fake()->lastName,
-                    'email' => fake()->email,
+                    'full_name'    => fake()->name,
+                    'first_name'   => fake()->firstName,
+                    'last_name'    => fake()->lastName,
+                    'email'        => fake()->email,
                     'home_address' => [
                         'address_1' => fake()->streetAddress,
                         'address_2' => null,
-                        'city' => fake()->city,
-                        'state' => fake()->state,
-                        'zip' => fake()->postcode,
+                        'city'      => fake()->city,
+                        'state'     => fake()->state,
+                        'zip'       => fake()->postcode,
                     ],
                     'phone_number' => fake()->phoneNumber,
                 ],
             ],
             'application_data' => [
-                'loan_amount' => fake()->numberBetween(50000, 150000),
+                'loan_amount'  => fake()->numberBetween(50000, 150000),
                 'credit_score' => fake()->numberBetween(1, 850),
-                'entity_type' => 'LLC',
-                'filter_id' => fake()->uuid,
-                'campaign_id' => fake()->uuid,
+                'entity_type'  => 'LLC',
+                'filter_id'    => fake()->uuid,
+                'campaign_id'  => fake()->uuid,
             ],
         ]);
 

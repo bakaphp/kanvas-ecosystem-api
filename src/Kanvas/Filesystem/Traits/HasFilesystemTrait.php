@@ -66,7 +66,7 @@ trait HasFilesystemTrait
             $fileSystem->companies_id = $companyId;
             $fileSystem->apps_id = $app ? $app->getId() : app(Apps::class)->getId();
             $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
-            $fileSystem->path = $fileInfo['dirname'] . '/' . $fileInfo['basename'];
+            $fileSystem->path = $fileInfo['dirname'].'/'.$fileInfo['basename'];
             $fileSystem->url = $url;
             $fileSystem->name = $fileInfo['basename'];
             $fileSystem->file_type = $this->cleanExtension($extension);
@@ -91,7 +91,7 @@ trait HasFilesystemTrait
             if (isset($file['file']) && $file['file'] instanceof UploadedFile) {
                 // Validate file extension
                 if (! in_array($file['file']->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
-                    throw new Exception('Invalid file format ' . $file->extension());
+                    throw new Exception('Invalid file format '.$file->extension());
                 }
 
                 // Attach file to the entity

@@ -16,7 +16,7 @@ use Tests\TestCase;
 class FollowTest extends TestCase
 {
     /**
-     * testFollowUser
+     * testFollowUser.
      */
     public function testFollowUser(): void
     {
@@ -67,7 +67,7 @@ class FollowTest extends TestCase
     }
 
     /**
-     * testUnFollowUser
+     * testUnFollowUser.
      */
     public function testUnFollowUser(): void
     {
@@ -111,13 +111,13 @@ class FollowTest extends TestCase
             ]
         )->assertJson(
             [
-            'data' => ['userUnFollow' => true],
-        ]
+                'data' => ['userUnFollow' => true],
+            ]
         );
     }
 
     /**
-     * testFollowUser
+     * testFollowUser.
      */
     public function testIsFollowing(): void
     {
@@ -165,7 +165,7 @@ class FollowTest extends TestCase
 
         $this->graphQL(/** @lang GraphQL */ '
             { 
-                user(id: ' . $user->id . ') {
+                user(id: '.$user->id.') {
                     social {
                         total_followers
                     }
@@ -183,7 +183,7 @@ class FollowTest extends TestCase
     }
 
     /**
-     * testGetFollowers
+     * testGetFollowers.
      */
     public function testGetFollowers(): void
     {
@@ -234,16 +234,16 @@ class FollowTest extends TestCase
             ]
         )->assertJson(
             [
-            'data' => [
-                'getFollowers' => [
-                    'data' => [
-                        [
-                            'email' => auth()->user()->email,
+                'data' => [
+                    'getFollowers' => [
+                        'data' => [
+                            [
+                                'email' => auth()->user()->email,
+                            ],
                         ],
                     ],
                 ],
-            ],
-        ]
+            ]
         );
     }
 
@@ -291,15 +291,15 @@ class FollowTest extends TestCase
             ]
         )->assertJson(
             [
-            'data' => [
-                'getTotalFollowers' => 1,
-            ],
-        ]
+                'data' => [
+                    'getTotalFollowers' => 1,
+                ],
+            ]
         );
     }
 
     /**
-     * testGetFollowing
+     * testGetFollowing.
      */
     public function testGetUserFollowing(): void
     {
@@ -455,14 +455,14 @@ class FollowTest extends TestCase
             }
             ',
             [
-                'user_id' => auth()->id(),
+                'user_id'               => auth()->id(),
                 'static_recommendation' => false,
-                'first' => 10,
+                'first'                 => 10,
             ]
         );
 
         // Debug - print the actual response content
-        $this->assertTrue(true, 'Response: ' . json_encode($response->json()));
+        $this->assertTrue(true, 'Response: '.json_encode($response->json()));
 
         // Try a more lenient assertion first
         $response->assertStatus(200);
@@ -498,7 +498,7 @@ class FollowTest extends TestCase
             }
         } else {
             // Handle error response
-            $this->fail('GraphQL query failed: ' . json_encode($response->json()));
+            $this->fail('GraphQL query failed: '.json_encode($response->json()));
         }
     }
 }

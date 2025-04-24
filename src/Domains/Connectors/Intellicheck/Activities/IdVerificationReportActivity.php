@@ -54,22 +54,22 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                 integration: IntegrationsEnum::INTELLICHECK,
                 integrationOperation: function ($entity, $app) use ($name, $verificationResults, $verificationData, $isShowRoom) {
                     $reportData = [
-                        'name' => $name,
-                        'status' => $verificationResults['status'],
-                        'message' => $verificationResults['message'],
-                        'flags' => $verificationResults['flags'],
-                        'failures' => $verificationResults['failures'],
-                        'results' => $verificationResults['results'],
-                        'verificationData' => $verificationData,
-                        'id_verification_status' => $verificationResults['status'],
+                        'name'                    => $name,
+                        'status'                  => $verificationResults['status'],
+                        'message'                 => $verificationResults['message'],
+                        'flags'                   => $verificationResults['flags'],
+                        'failures'                => $verificationResults['failures'],
+                        'results'                 => $verificationResults['results'],
+                        'verificationData'        => $verificationData,
+                        'id_verification_status'  => $verificationResults['status'],
                         'id_verification_message' => $verificationResults['message'],
-                        'id_verification_result' => [
-                            'intelicheck' => $verificationResults['status'] == 'green' || $verificationResults['status'] == 'flag',
-                            'status' => $verificationResults['status'],
-                            'message' => $verificationResults['message'],
-                            'scandit' => $verificationResults['status'] == 'green' || $verificationResults['status'] == 'flag',
-                            'expired' => $verificationResults['status'] == 'flag',
-                            'ocMatch' => $verificationResults['ocMatch'] ?? false,
+                        'id_verification_result'  => [
+                            'intelicheck'          => $verificationResults['status'] == 'green' || $verificationResults['status'] == 'flag',
+                            'status'               => $verificationResults['status'],
+                            'message'              => $verificationResults['message'],
+                            'scandit'              => $verificationResults['status'] == 'green' || $verificationResults['status'] == 'flag',
+                            'expired'              => $verificationResults['status'] == 'flag',
+                            'ocMatch'              => $verificationResults['ocMatch'] ?? false,
                             'intellicheckResponse' => $verificationResults['status'],
                         ],
                     ];
@@ -78,12 +78,12 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     $notification = new Blank(
                         'id-verification-report',
                         [
-                            'message' => $reportData['message'],
-                            'status' => $reportData['status'],
-                            'flags' => $reportData['flags'],
-                            'failures' => $reportData['failures'],
-                            'results' => $reportData['results'],
-                            'isShowRoom' => $isShowRoom,
+                            'message'          => $reportData['message'],
+                            'status'           => $reportData['status'],
+                            'flags'            => $reportData['flags'],
+                            'failures'         => $reportData['failures'],
+                            'results'          => $reportData['results'],
+                            'isShowRoom'       => $isShowRoom,
                             'verificationData' => $verificationData,
                         ],
                         ['mail'],
@@ -100,12 +100,12 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         'id-verification-report',
                         $entity,
                         [
-                            'message' => $reportData['message'],
-                            'status' => $reportData['status'],
-                            'flags' => $reportData['flags'],
-                            'failures' => $reportData['failures'],
-                            'results' => $reportData['results'],
-                            'isShowRoom' => $isShowRoom,
+                            'message'          => $reportData['message'],
+                            'status'           => $reportData['status'],
+                            'flags'            => $reportData['flags'],
+                            'failures'         => $reportData['failures'],
+                            'results'          => $reportData['results'],
+                            'isShowRoom'       => $isShowRoom,
                             'verificationData' => $verificationData,
                         ]
                     );
@@ -113,26 +113,26 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     $entity->addFile($pdfReport, 'id-verification');
 
                     return [
-                        'report' => $reportData['status'],
-                        'result' => true,
+                        'report'  => $reportData['status'],
+                        'result'  => true,
                         'message' => 'IdVerificationReportActivity executed successfully',
-                        'data' => $reportData,
+                        'data'    => $reportData,
                     ];
                 },
                 company: $company,
             );
         } catch (Throwable $e) {
             return [
-                'report' => 'fail',
-                'result' => false,
-                'message' => 'Error processing ID verification: ' . $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'report'  => 'fail',
+                'result'  => false,
+                'message' => 'Error processing ID verification: '.$e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
             ];
         }
     }
 
     /**
-     * Process the Intellicheck data to determine verification status
+     * Process the Intellicheck data to determine verification status.
      */
     private function processIntellicheckData(array $verificationData, string $name, bool $isShowRoom = false): array
     {
@@ -194,7 +194,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         }
 
         if ($hasOcrFailure) {
-            $failures[] = 'OCR verification failed: ' . implode(', ', $ocrFailedFields);
+            $failures[] = 'OCR verification failed: '.implode(', ', $ocrFailedFields);
             $failureGroups[] = 'OCR mismatch';
         }
 
@@ -230,7 +230,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             $failures[] = 'ID process result is unknown';
             $failureGroups[] = 'ID check fail';
         } elseif (strtolower($idCheck['processResult'] ?? '') !== 'documentprocessok' && strtolower($idCheck['processResult'] ?? '') !== 'documentunknown') {
-            $flags[] = 'ID process result is ' . ($idCheck['processResult'] ?? 'unknown');
+            $flags[] = 'ID process result is '.($idCheck['processResult'] ?? 'unknown');
             $flagGroups[] = 'ID check incomplete';
         }
 
@@ -366,7 +366,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     }
                 }
 
-                $message = "$name ID Verification needs further investigation due to " . implode(', ', $flagReasons) . '. Proceed with caution.';
+                $message = "$name ID Verification needs further investigation due to ".implode(', ', $flagReasons).'. Proceed with caution.';
                 $status = 'flag';
             } else {
                 $message = "$name passed the ID Verification.";
@@ -374,20 +374,20 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             }
         } else {
             if ($isExpired) {
-                $message = "$name failed the ID Verification due to expired ID" . (! empty($failedGroups) ? ' and detected fraud from ' . implode(', ', $failedGroups) : '') . '. Proceed with caution.';
+                $message = "$name failed the ID Verification due to expired ID".(! empty($failedGroups) ? ' and detected fraud from '.implode(', ', $failedGroups) : '').'. Proceed with caution.';
             } else {
-                $message = "$name failed the ID Verification due to detected fraud from " . implode(', ', $failedGroups) . '. Proceed with caution.';
+                $message = "$name failed the ID Verification due to detected fraud from ".implode(', ', $failedGroups).'. Proceed with caution.';
             }
             $status = 'fail';
         }
 
         return [
-            'status' => $status,
-            'message' => $message,
-            'flags' => $flags,
+            'status'   => $status,
+            'message'  => $message,
+            'flags'    => $flags,
             'failures' => $failures,
-            'results' => $results,
-            'ocMatch' => $ocMatch,
+            'results'  => $results,
+            'ocMatch'  => $ocMatch,
         ];
     }
 }

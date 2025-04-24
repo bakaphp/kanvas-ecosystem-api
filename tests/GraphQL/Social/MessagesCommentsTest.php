@@ -27,10 +27,10 @@ class MessagesCommentsTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -58,7 +58,7 @@ class MessagesCommentsTest extends TestCase
             [
                 'input' => [
                     'message_id' => $id,
-                    'comment' => $comment,
+                    'comment'    => $comment,
                 ],
             ]
         )->assertJson([
@@ -86,16 +86,15 @@ class MessagesCommentsTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => fake()->text(),
-                    'message_verb' => $messageType->verb,
+                    'message'           => fake()->text(),
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
 
         $messageId = $response->json('data.createMessage.id');
-
 
         $comment = fake()->text();
         $response = $this->graphQL(
@@ -110,7 +109,7 @@ class MessagesCommentsTest extends TestCase
             [
                 'input' => [
                     'message_id' => $messageId,
-                    'comment' => $comment,
+                    'comment'    => $comment,
                 ],
             ]
         );
@@ -156,16 +155,15 @@ class MessagesCommentsTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => fake()->text(),
-                    'message_verb' => $messageType->verb,
+                    'message'           => fake()->text(),
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
 
         $messageId = $response->json('data.createMessage.id');
-
 
         $comment = fake()->text();
         $response = $this->graphQL(
@@ -180,7 +178,7 @@ class MessagesCommentsTest extends TestCase
             [
                 'input' => [
                     'message_id' => $messageId,
-                    'comment' => $comment,
+                    'comment'    => $comment,
                 ],
             ]
         );

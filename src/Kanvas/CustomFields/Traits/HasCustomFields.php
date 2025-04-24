@@ -46,7 +46,7 @@ trait HasCustomFields
      */
     public function getCustomFieldPrimaryKey(): string
     {
-        return Str::simpleSlug(get_class($this) . ' ' . $this->getKey());
+        return Str::simpleSlug(get_class($this).' '.$this->getKey());
     }
 
     /**
@@ -73,7 +73,7 @@ trait HasCustomFields
 
         // Build the query dynamically
         $query = 'SELECT name, value 
-            FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
+            FROM '.DB::connection('ecosystem')->getDatabaseName().'.apps_custom_fields
             WHERE companies_id = ? AND entity_id = ?';
 
         $parameters = [$companyId, $this->getKey()];
@@ -112,8 +112,8 @@ trait HasCustomFields
 
         if (empty($keys)) {
             return [
-                'results' => [],
-                'total' => 0,
+                'results'  => [],
+                'total'    => 0,
                 'per_page' => $limit,
             ];
         }
@@ -135,14 +135,14 @@ trait HasCustomFields
         $paginatedResult = [];
         foreach ($paginatedKeys as $index => $key) {
             $paginatedResult[] = [
-                'name' => $key,
+                'name'  => $key,
                 'value' => Str::jsonToArray($values[$index]),
             ];
         }
 
         return [
-            'results' => $paginatedResult,
-            'total' => $total,
+            'results'  => $paginatedResult,
+            'total'    => $total,
             'per_page' => $perPage,
         ];
     }
@@ -239,39 +239,39 @@ trait HasCustomFields
 
         $customField = AppsCustomFields::updateOrCreate([
             'companies_id' => $companyId,
-            'model_name' => $modelName,
-            'entity_id' => $this->getKey(),
-            'name' => $name,
+            'model_name'   => $modelName,
+            'entity_id'    => $this->getKey(),
+            'name'         => $name,
         ], [
             'companies_id' => $companyId,
-            'users_id' => $user !== null ? $user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
-            'model_name' => $modelName,
-            'entity_id' => $this->getKey(),
-            'label' => $name,
-            'name' => $name,
-            'value' => $value,
+            'users_id'     => $user !== null ? $user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
+            'model_name'   => $modelName,
+            'entity_id'    => $this->getKey(),
+            'label'        => $name,
+            'name'         => $name,
+            'value'        => $value,
         ]);
 
         /**
          * @todo remove this once legacy is removed
          */
         try {
-            $useLegacySystemModule = isset($this->app) && $this->app->get('legacy_custom_field_' . SystemModules::getSlugBySystemModuleNameSpace($modelName));
+            $useLegacySystemModule = isset($this->app) && $this->app->get('legacy_custom_field_'.SystemModules::getSlugBySystemModuleNameSpace($modelName));
             if ($useLegacySystemModule) {
                 $modelName = SystemModules::getLegacyNamespace($modelName);
                 $customField = AppsCustomFields::updateOrCreate([
                     'companies_id' => $companyId,
-                    'model_name' => $modelName,
-                    'entity_id' => $this->getKey(),
-                    'name' => $name,
+                    'model_name'   => $modelName,
+                    'entity_id'    => $this->getKey(),
+                    'name'         => $name,
                 ], [
                     'companies_id' => $companyId,
-                    'users_id' => $user !== null ? $user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
-                    'model_name' => $modelName,
-                    'entity_id' => $this->getKey(),
-                    'label' => $name,
-                    'name' => $name,
-                    'value' => $value,
+                    'users_id'     => $user !== null ? $user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
+                    'model_name'   => $modelName,
+                    'entity_id'    => $this->getKey(),
+                    'label'        => $name,
+                    'name'         => $name,
+                    'value'        => $value,
                 ]);
             }
         } catch (Throwable $e) {
@@ -286,7 +286,6 @@ trait HasCustomFields
     }
 
     /**
-     * @param array<array-key, array{name: string, data: mixed}> $data
      * @throws ConfigurationException
      */
     public function setAllCustomFields(array $customFields, bool|int $isPublic = false): bool
@@ -316,25 +315,25 @@ trait HasCustomFields
 
         $customFieldModules = CustomFieldsModules::firstOrCreate([
             'model_name' => get_class($this),
-            'apps_id' => $appsId,
+            'apps_id'    => $appsId,
         ], [
             'model_name' => get_class($this),
-            'name' => get_class($this),
-            'apps_id' => $appsId,
+            'name'       => get_class($this),
+            'apps_id'    => $appsId,
         ]);
 
         $customField = CustomFields::firstOrCreate([
-            'apps_id' => $appsId,
-            'name' => $name,
+            'apps_id'                  => $appsId,
+            'name'                     => $name,
             'custom_fields_modules_id' => $customFieldModules->getKey(),
         ], [
-            'users_id' => $user !== null ? $user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
-            'companies_id' => $companiesId,
-            'apps_id' => $appsId,
-            'name' => $name,
-            'label' => $name,
+            'users_id'                 => $user !== null ? $user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
+            'companies_id'             => $companiesId,
+            'apps_id'                  => $appsId,
+            'name'                     => $name,
+            'label'                    => $name,
             'custom_fields_modules_id' => $customFieldModules->getKey(),
-            'fields_type_id' => $textField,
+            'fields_type_id'           => $textField,
         ]);
 
         return $customField;
@@ -381,8 +380,6 @@ trait HasCustomFields
 
     /**
      * Remove all the custom fields from the entity.
-     *
-     * @param  int $id
      */
     public function deleteAllCustomFields(): bool
     {
@@ -393,14 +390,14 @@ trait HasCustomFields
 
         return DB::statement('
             DELETE
-                FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
+                FROM '.DB::connection('ecosystem')->getDatabaseName().'.apps_custom_fields
                     WHERE
                         companies_id = :companies_id
                         AND model_name = :model_name
                         AND entity_id = :entity_id', [
             'companies_id' => $companyId,
-            'model_name' => get_class($this),
-            'entity_id' => $this->getKey(),
+            'model_name'   => get_class($this),
+            'entity_id'    => $this->getKey(),
         ]);
     }
 
@@ -454,6 +451,7 @@ trait HasCustomFields
      * If something happened to redis
      * And we need to re insert all the custom fields
      * for this entity , we run this method.
+     *
      * @deprecated
      */
     public function reCacheCustomFields(): void
@@ -474,7 +472,7 @@ trait HasCustomFields
         $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $table = (new static())->getTable();
 
-        $query = self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
+        $query = self::join(DB::connection('ecosystem')->getDatabaseName().'.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table.'.id')
             ->where('apps_custom_fields.companies_id', $company)
             ->where('apps_custom_fields.model_name', static::class)
             ->where('apps_custom_fields.name', $name);
@@ -483,7 +481,7 @@ trait HasCustomFields
             $query->where('apps_custom_fields.value', $value);
         }
 
-        return $query->select($table . '.*');
+        return $query->select($table.'.*');
     }
 
     protected function clearCustomFieldsCacheIfNeeded(): void

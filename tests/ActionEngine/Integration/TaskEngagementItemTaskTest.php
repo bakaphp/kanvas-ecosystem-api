@@ -51,12 +51,12 @@ final class TaskEngagementItemTaskTest extends TestCase
     {
         return Action::firstOrCreate(array_merge([
             'companies_id' => 0,
-            'apps_id' => 0,
-            'users_id' => 0,
+            'apps_id'      => 0,
+            'users_id'     => 0,
             'pipelines_id' => 1,
-            'is_active' => 1,
+            'is_active'    => 1,
             'is_published' => 1,
-            'is_deleted' => 0,
+            'is_deleted'   => 0,
         ], $attributes));
     }
 
@@ -64,10 +64,10 @@ final class TaskEngagementItemTaskTest extends TestCase
     {
         return CompanyAction::firstOrCreate(array_merge([
             'pipelines_id' => 1,
-            'is_active' => 1,
+            'is_active'    => 1,
             'is_published' => 1,
-            'weight' => 1,
-            'is_deleted' => 0,
+            'weight'       => 1,
+            'is_deleted'   => 0,
         ], $attributes));
     }
 
@@ -100,43 +100,43 @@ final class TaskEngagementItemTaskTest extends TestCase
         ]);
 
         $companyAction = $this->createCompanyAction([
-            'companies_id' => $company->getId(),
+            'companies_id'          => $company->getId(),
             'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => auth()->user()->getId(),
-            'actions_id' => $actions->getId(),
-            'name' => 'Test Company Action',
+            'apps_id'               => $app->getId(),
+            'users_id'              => auth()->user()->getId(),
+            'actions_id'            => $actions->getId(),
+            'name'                  => 'Test Company Action',
         ]);
 
         $companyActionTwo = $this->createCompanyAction([
-            'companies_id' => $company->getId(),
+            'companies_id'          => $company->getId(),
             'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => auth()->user()->getId(),
-            'actions_id' => $actionTwo->getId(),
-            'name' => 'Test Company Action2',
+            'apps_id'               => $app->getId(),
+            'users_id'              => auth()->user()->getId(),
+            'actions_id'            => $actionTwo->getId(),
+            'name'                  => 'Test Company Action2',
         ]);
 
         $taskList = $this->createTaskList([
             'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => auth()->user()->getId(),
-            'name' => 'Test Task List',
+            'apps_id'      => $app->getId(),
+            'users_id'     => auth()->user()->getId(),
+            'name'         => 'Test Task List',
         ]);
 
         $taskListItem = $this->createTaskListItem([
-            'task_list_id' => $taskList->getId(),
+            'task_list_id'        => $taskList->getId(),
             'companies_action_id' => $companyAction->getId(),
-            'name' => 'Test Task List Item 1',
-            'config' => [],
-            'weight' => 1,
+            'name'                => 'Test Task List Item 1',
+            'config'              => [],
+            'weight'              => 1,
         ]);
 
         $taskListItemTwo = $this->createTaskListItem([
-            'task_list_id' => $taskList->getId(),
+            'task_list_id'        => $taskList->getId(),
             'companies_action_id' => $companyActionTwo->getId(),
-            'name' => 'Test Task List Item 2',
-            'config' => [
+            'name'                => 'Test Task List Item 2',
+            'config'              => [
                 'other_items_to_disable' => [$taskListItem->getId()],
             ],
             'weight' => 1,
@@ -175,44 +175,44 @@ final class TaskEngagementItemTaskTest extends TestCase
         ]);
 
         $companyAction = $this->createCompanyAction([
-            'companies_id' => $company->getId(),
+            'companies_id'          => $company->getId(),
             'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => auth()->user()->getId(),
-            'actions_id' => $actions->getId(),
-            'name' => 'Test Company Action',
+            'apps_id'               => $app->getId(),
+            'users_id'              => auth()->user()->getId(),
+            'actions_id'            => $actions->getId(),
+            'name'                  => 'Test Company Action',
         ]);
 
         $companyActionTwo = $this->createCompanyAction([
-            'companies_id' => $company->getId(),
+            'companies_id'          => $company->getId(),
             'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => auth()->user()->getId(),
-            'actions_id' => $actionTwo->getId(),
-            'name' => 'Test Company Action2',
+            'apps_id'               => $app->getId(),
+            'users_id'              => auth()->user()->getId(),
+            'actions_id'            => $actionTwo->getId(),
+            'name'                  => 'Test Company Action2',
         ]);
 
         $taskList = $this->createTaskList([
             'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => auth()->user()->getId(),
-            'name' => 'Test Task List',
-            'config' => [],
+            'apps_id'      => $app->getId(),
+            'users_id'     => auth()->user()->getId(),
+            'name'         => 'Test Task List',
+            'config'       => [],
         ]);
 
         $taskListItem = $this->createTaskListItem([
-            'task_list_id' => $taskList->getId(),
+            'task_list_id'        => $taskList->getId(),
             'companies_action_id' => $companyAction->getId(),
-            'name' => 'Test Task List Item 1',
-            'config' => [],
-            'weight' => 1,
+            'name'                => 'Test Task List Item 1',
+            'config'              => [],
+            'weight'              => 1,
         ]);
 
         $taskListItemTwo = $this->createTaskListItem([
-            'task_list_id' => $taskList->getId(),
+            'task_list_id'        => $taskList->getId(),
             'companies_action_id' => $companyActionTwo->getId(),
-            'name' => 'Test Task List Item 2',
-            'config' => [
+            'name'                => 'Test Task List Item 2',
+            'config'              => [
                 'disabled' => true,
             ],
             'weight' => 1,
@@ -267,44 +267,44 @@ final class TaskEngagementItemTaskTest extends TestCase
         ]);
 
         $companyAction = $this->createCompanyAction([
-            'companies_id' => $company->getId(),
+            'companies_id'          => $company->getId(),
             'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => auth()->user()->getId(),
-            'actions_id' => $actions->getId(),
-            'name' => 'Test Company Action',
+            'apps_id'               => $app->getId(),
+            'users_id'              => auth()->user()->getId(),
+            'actions_id'            => $actions->getId(),
+            'name'                  => 'Test Company Action',
         ]);
 
         $companyActionTwo = $this->createCompanyAction([
-            'companies_id' => $company->getId(),
+            'companies_id'          => $company->getId(),
             'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => auth()->user()->getId(),
-            'actions_id' => $actionTwo->getId(),
-            'name' => 'Test Company Action2',
+            'apps_id'               => $app->getId(),
+            'users_id'              => auth()->user()->getId(),
+            'actions_id'            => $actionTwo->getId(),
+            'name'                  => 'Test Company Action2',
         ]);
 
         $taskList = $this->createTaskList([
             'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => auth()->user()->getId(),
-            'name' => 'Test Task List',
-            'config' => [],
+            'apps_id'      => $app->getId(),
+            'users_id'     => auth()->user()->getId(),
+            'name'         => 'Test Task List',
+            'config'       => [],
         ]);
 
         $taskListItem = $this->createTaskListItem([
-            'task_list_id' => $taskList->getId(),
+            'task_list_id'        => $taskList->getId(),
             'companies_action_id' => $companyAction->getId(),
-            'name' => 'Test Task List Item 1',
-            'config' => [],
-            'weight' => 1,
+            'name'                => 'Test Task List Item 1',
+            'config'              => [],
+            'weight'              => 1,
         ]);
 
         $taskListItemTwo = $this->createTaskListItem([
-            'task_list_id' => $taskList->getId(),
+            'task_list_id'        => $taskList->getId(),
             'companies_action_id' => $companyActionTwo->getId(),
-            'name' => 'Test Task List Item 2',
-            'config' => [
+            'name'                => 'Test Task List Item 2',
+            'config'              => [
                 'complete_other_task_items' => [$taskListItem->getId()],
             ],
             'weight' => 1,

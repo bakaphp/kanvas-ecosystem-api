@@ -50,9 +50,9 @@ enum IccidStatusEnum: string
             'downloaded', 'finished' => self::COMPLETED->value,
             'installed', 'active', 'enable' => self::ACTIVE->value,
             'unavailable', 'UNKNOWN' => self::UNAVAILABLE->value,
-            'deleted' => self::RELEASED->value,
+            'deleted'    => self::RELEASED->value,
             'not_active' => self::INACTIVE->value,
-            'expired' => self::EXPIRED->value,
+            'expired'    => self::EXPIRED->value,
             'disable', 'disabled' => self::DISABLED->value,
             default => '',
         };
@@ -61,10 +61,10 @@ enum IccidStatusEnum: string
     public static function getStatusById(string|int $id): string
     {
         return match ($id) {
-            1 => self::PENDING->value,
-            2 => self::EXPIRED->value,
-            3 => self::ACTIVE->value,
-            99 => self::REFUND->value,
+            1       => self::PENDING->value,
+            2       => self::EXPIRED->value,
+            3       => self::ACTIVE->value,
+            99      => self::REFUND->value,
             default => '',
         };
     }

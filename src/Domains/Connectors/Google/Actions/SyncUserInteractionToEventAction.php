@@ -41,9 +41,9 @@ class SyncUserInteractionToEventAction
 
         $userEventService = new DiscoveryEngineUserEventService($this->app, $this->company);
         $totalProcessed = [
-            'total' => 0,
+            'total'   => 0,
             'success' => 0,
-            'error' => 0,
+            'error'   => 0,
         ];
 
         $query->chunk($interactionPerBatch, function ($interactions) use ($userEventService, &$totalProcessed) {

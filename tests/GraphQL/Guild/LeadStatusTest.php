@@ -9,8 +9,8 @@ class LeadStatusTest extends TestCase
     public function testCreateLeadStatus(): void
     {
         $input = [
-            'name' => fake()->word,
-            'is_default' => (int)fake()->boolean,
+            'name'       => fake()->word,
+            'is_default' => (int) fake()->boolean,
         ];
 
         $this->graphQL(
@@ -28,7 +28,7 @@ class LeadStatusTest extends TestCase
         )->assertJson([
             'data' => [
                 'createLeadStatus' => [
-                    'name' => $input['name'],
+                    'name'       => $input['name'],
                     'is_default' => $input['is_default'],
                 ],
             ],
@@ -38,8 +38,8 @@ class LeadStatusTest extends TestCase
     public function testUpdateLeadStatus(): void
     {
         $input = [
-            'name' => fake()->word,
-            'is_default' => (int)fake()->boolean,
+            'name'       => fake()->word,
+            'is_default' => (int) fake()->boolean,
         ];
         $response = $this->graphQL(
             '
@@ -58,8 +58,8 @@ class LeadStatusTest extends TestCase
 
         $id = $response->json('data.createLeadStatus.id');
         $input = [
-            'name' => fake()->word,
-            'is_default' => (int)fake()->boolean,
+            'name'       => fake()->word,
+            'is_default' => (int) fake()->boolean,
         ];
         $this->graphQL(
             '
@@ -71,13 +71,13 @@ class LeadStatusTest extends TestCase
             }
             ',
             [
-                'id' => $id,
+                'id'    => $id,
                 'input' => $input,
             ]
         )->assertJson([
             'data' => [
                 'updateLeadStatus' => [
-                    'name' => $input['name'],
+                    'name'       => $input['name'],
                     'is_default' => $input['is_default'],
                 ],
             ],
@@ -87,8 +87,8 @@ class LeadStatusTest extends TestCase
     public function testDeleteLeadStatus(): void
     {
         $input = [
-            'name' => fake()->word,
-            'is_default' => (int)fake()->boolean,
+            'name'       => fake()->word,
+            'is_default' => (int) fake()->boolean,
         ];
         $response = $this->graphQL(
             '

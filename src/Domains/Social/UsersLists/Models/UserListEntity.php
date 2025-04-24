@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\UsersLists\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphPivot;
-use Kanvas\SystemModules\Models\SystemModules;
 
 class UserListEntity extends MorphPivot
 {

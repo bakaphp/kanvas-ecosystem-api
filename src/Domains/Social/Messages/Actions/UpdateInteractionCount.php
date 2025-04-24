@@ -16,7 +16,7 @@ class UpdateInteractionCount
     }
 
     /**
-     * Update all interaction counts for the message using a single query
+     * Update all interaction counts for the message using a single query.
      */
     public function execute(): void
     {

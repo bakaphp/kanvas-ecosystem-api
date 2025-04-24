@@ -42,7 +42,7 @@ class LightHouseCacheCleanUpJob implements ShouldQueue
 
     public function uniqueId(): string
     {
-        return Str::simpleSlug(get_class($this->model) . '-' . $this->model->getKey());
+        return Str::simpleSlug(get_class($this->model).'-'.$this->model->getKey());
     }
 
     public function middleware(): array

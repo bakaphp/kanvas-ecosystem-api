@@ -15,6 +15,7 @@ class TemplatesRepository
 {
     /**
      * Retrieve email template by name.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function getByName(string $name, AppInterface $app, ?CompanyInterface $company = null): Templates
@@ -35,7 +36,7 @@ class TemplatesRepository
                     END', [$companyId, $app->getId(), $app->getId()])
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
-            throw new ExceptionsModelNotFoundException('Template not found - ' . $name);
+            throw new ExceptionsModelNotFoundException('Template not found - '.$name);
         }
     }
 }

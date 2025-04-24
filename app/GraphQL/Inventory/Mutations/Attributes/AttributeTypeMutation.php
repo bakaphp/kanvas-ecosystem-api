@@ -17,9 +17,6 @@ class AttributeTypeMutation
     /**
      * create.
      *
-     * @param  mixed $root
-     * @param  array $req
-     *
      * @return AttributeModel
      */
     public function create(mixed $root, array $req): AttributesTypesModel
@@ -36,9 +33,6 @@ class AttributeTypeMutation
     /**
      * update.
      *
-     * @param  mixed $root
-     * @param  array $req
-     *
      * @return AttributeModel
      */
     public function update(mixed $root, array $req): AttributesTypesModel
@@ -54,15 +48,11 @@ class AttributeTypeMutation
 
     /**
      * delete.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function delete(mixed $root, array $req): bool
     {
         $attributeType = AttributesTypesRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+
         return $attributeType->delete();
     }
 }

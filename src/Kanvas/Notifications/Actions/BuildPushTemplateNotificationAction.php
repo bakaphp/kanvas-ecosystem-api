@@ -29,9 +29,9 @@ class BuildPushTemplateNotificationAction
     {
         $templateJson = json_decode($this->template);
         $data = [
-            'toUser' => $this->toUser,
+            'toUser'   => $this->toUser,
             'fromUser' => $this->fromUser,
-            'entity' => $this->message,
+            'entity'   => $this->message,
         ];
 
         $bladeTitle = Blade::compileString($templateJson->title);
@@ -41,22 +41,21 @@ class BuildPushTemplateNotificationAction
         extract($data);
 
         ob_start();
-        eval(' ?>' . $bladeTitle . '<?php ');
+        eval(' ?>'.$bladeTitle.'<?php ');
         $compiledTitle = ob_get_clean();
 
         ob_start();
-        eval(' ?>' . $bladeSubtitle . '<?php ');
+        eval(' ?>'.$bladeSubtitle.'<?php ');
         $compiledSubtitle = ob_get_clean();
 
         ob_start();
-        eval(' ?>' . $bladeMessage . '<?php ');
+        eval(' ?>'.$bladeMessage.'<?php ');
         $compiledMessage = ob_get_clean();
 
-
         return [
-            'title' => $compiledTitle,
+            'title'    => $compiledTitle,
             'subtitle' => $compiledSubtitle,
-            'message' => $compiledMessage,
+            'message'  => $compiledMessage,
         ];
     }
 }

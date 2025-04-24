@@ -38,18 +38,18 @@ class UpdateRoleAction
                     'name' => $this->name,
                 ],
                 [
-                    'name' => 'required|unique:roles,name,' . $this->id . ',id,scope,' . RolesEnums::getScope($this->app),
+                    'name' => 'required|unique:roles,name,'.$this->id.',id,scope,'.RolesEnums::getScope($this->app),
                 ]
             );
 
             if ($validator->fails()) {
-                throw new ValidationException($validator->errors()->first() . 'for roles in the current app');
+                throw new ValidationException($validator->errors()->first().'for roles in the current app');
             }
         }
 
         $role = Role::find($this->id);
         $role->update([
-            'name' => $this->name ?? $role->name,
+            'name'  => $this->name ?? $role->name,
             'title' => $this->title ?? ($role->title ?? $role->name),
         ]);
 

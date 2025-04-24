@@ -39,32 +39,32 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
 
         $customerEmail = [
             [
-                'value' => $payload['email'],
+                'value'             => $payload['email'],
                 'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                'weight' => 0,
+                'weight'            => 0,
             ],
         ];
 
         $tags = [];
         $customFields = [
             [
-                'key' => 'status',
+                'key'   => 'status',
                 'value' => true,
             ],
             [
-                'key' => 'paid_subscription',
+                'key'   => 'paid_subscription',
                 'value' => $payload['status'] !== 'free',
             ],
             [
-                'key' => 'subscribed_to_emails',
+                'key'   => 'subscribed_to_emails',
                 'value' => true,
             ],
             [
-                'key' => CustomFieldEnum::GHOST_MEMBER_ID->value,
+                'key'   => CustomFieldEnum::GHOST_MEMBER_ID->value,
                 'value' => $payload['id'],
             ],
             [
-                'key' => CustomFieldEnum::GHOST_MEMBER_UUID->value,
+                'key'   => CustomFieldEnum::GHOST_MEMBER_UUID->value,
                 'value' => $payload['uuid'],
             ],
         ];
@@ -75,7 +75,7 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
                     // Split "key:value" into key and value for custom fields
                     [$key, $value] = explode(':', $label['name'], 2);
                     $customFields[] = [
-                        'key' => $key,
+                        'key'   => $key,
                         'value' => $value,
                     ];
                     if ($key === 'report') {
@@ -88,12 +88,12 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
             }
 
             $customFields[] = [
-                'key' => CustomFieldEnum::GHOST_UNLOCK_CUSTOM_FIELD->value,
+                'key'   => CustomFieldEnum::GHOST_UNLOCK_CUSTOM_FIELD->value,
                 'value' => $unlockedReports,
             ];
         }
         $customFields[] = [
-            'key' => CustomFieldEnum::GHOST_UNLOCK_CUSTOM_FIELD->value,
+            'key'   => CustomFieldEnum::GHOST_UNLOCK_CUSTOM_FIELD->value,
             'value' => $unlockedReports,
         ];
 
@@ -101,45 +101,45 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
         if (isset($payload['newsletters']) && ! empty($payload['newsletters'])) {
             foreach ($payload['newsletters'] as $newsletter) {
                 $newsletters[] = [
-                    'id' => $newsletter['id'],
-                    'name' => $newsletter['name'],
+                    'id'          => $newsletter['id'],
+                    'name'        => $newsletter['name'],
                     'description' => $newsletter['description'],
-                    'status' => $newsletter['status'],
+                    'status'      => $newsletter['status'],
                 ];
             }
         }
 
         if (! empty($newsletters)) {
             $customFields[] = [
-                'key' => 'newsletters',
+                'key'   => 'newsletters',
                 'value' => $newsletters,
             ];
         }
 
         $createPeople = new CreatePeopleAction(
             People::from([
-                'app' => $this->webhookRequest->receiverWebhook->app,
-                'branch' => $this->webhookRequest->receiverWebhook->company->defaultBranch,
-                'user' => $this->webhookRequest->receiverWebhook->user,
-                'firstname' => $firstname,
-                'middlename' => null,
-                'lastname' => $lastname,
-                'contacts' => Contact::collect($customerEmail ?? [], DataCollection::class),
-                'address' => Address::collect([], DataCollection::class),
-                'dob' => null,
+                'app'                 => $this->webhookRequest->receiverWebhook->app,
+                'branch'              => $this->webhookRequest->receiverWebhook->company->defaultBranch,
+                'user'                => $this->webhookRequest->receiverWebhook->user,
+                'firstname'           => $firstname,
+                'middlename'          => null,
+                'lastname'            => $lastname,
+                'contacts'            => Contact::collect($customerEmail ?? [], DataCollection::class),
+                'address'             => Address::collect([], DataCollection::class),
+                'dob'                 => null,
                 'facebook_contact_id' => null,
-                'google_contact_id' => null,
-                'apple_contact_id' => null,
+                'google_contact_id'   => null,
+                'apple_contact_id'    => null,
                 'linkedin_contact_id' => null,
-                'tags' => $tags ?? [],
-                'custom_fields' => $customFields ?? [],
+                'tags'                => $tags ?? [],
+                'custom_fields'       => $customFields ?? [],
             ])
         );
         $people = $createPeople->execute();
 
         return [
             'message' => 'People created successfully',
-            'people' => $people->getId(),
+            'people'  => $people->getId(),
         ];
     }
 }

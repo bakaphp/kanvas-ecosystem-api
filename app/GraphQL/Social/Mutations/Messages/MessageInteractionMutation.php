@@ -19,7 +19,7 @@ class MessageInteractionMutation
 {
     public function interaction(mixed $root, array $request): Message
     {
-        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message = Message::getById((int) $request['id'], app(Apps::class));
         $action = new CreateMessageAction(
             $message,
             auth()->user(),
@@ -33,7 +33,7 @@ class MessageInteractionMutation
     public function like(mixed $root, array $request): bool
     {
         $user = auth()->user();
-        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message = Message::getById((int) $request['id'], app(Apps::class));
 
         $messageInteractionService = new MessageInteractionService($message);
         $messageInteractionService->like($user);
@@ -44,7 +44,7 @@ class MessageInteractionMutation
     public function dislike(mixed $root, array $request): bool
     {
         $user = auth()->user();
-        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message = Message::getById((int) $request['id'], app(Apps::class));
 
         $messageInteractionService = new MessageInteractionService($message);
         $messageInteractionService->dislike($user);
@@ -54,7 +54,7 @@ class MessageInteractionMutation
 
     public function share(mixed $root, array $request): string
     {
-        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message = Message::getById((int) $request['id'], app(Apps::class));
         $this->createInteraction(InteractionEnum::SHARE->getValue());
 
         $messageInteractionService = new MessageInteractionService($message);
@@ -65,7 +65,7 @@ class MessageInteractionMutation
     public function view(mixed $root, array $request): int
     {
         $user = auth()->user();
-        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message = Message::getById((int) $request['id'], app(Apps::class));
         $this->createInteraction(InteractionEnum::VIEW->getValue());
 
         $messageInteractionService = new MessageInteractionService($message);

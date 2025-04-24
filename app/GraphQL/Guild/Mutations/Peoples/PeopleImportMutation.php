@@ -14,7 +14,7 @@ use Kanvas\Regions\Models\Regions;
 class PeopleImportMutation
 {
     /**
-     * Create new customer
+     * Create new customer.
      */
     public function import(mixed $root, array $req): string
     {

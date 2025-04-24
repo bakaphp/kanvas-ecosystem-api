@@ -21,9 +21,9 @@ class SyncMessageToDocumentActivity extends KanvasActivity implements WorkflowAc
         if ($messageType !== null) {
             if ((int) $message->message_types_id !== (int) $messageType) {
                 return [
-                    'result' => false,
-                    'message' => 'Message type does not match the expected ' . $messageType . ' but found ' . $message->message_types_id,
-                    'id' => $message->id,
+                    'result'  => false,
+                    'message' => 'Message type does not match the expected '.$messageType.' but found '.$message->message_types_id,
+                    'id'      => $message->id,
                 ];
             }
         }
@@ -40,9 +40,9 @@ class SyncMessageToDocumentActivity extends KanvasActivity implements WorkflowAc
         );
 
         return [
-            'result' => $result,
+            'result'  => $result,
             'message' => $message->id,
-            'slug' => $message->slug ?? $message->uuid,
+            'slug'    => $message->slug ?? $message->uuid,
         ];
     }
 }

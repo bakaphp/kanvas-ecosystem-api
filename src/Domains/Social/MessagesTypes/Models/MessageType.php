@@ -10,18 +10,18 @@ use Kanvas\Social\MessagesTypes\Factories\MessageTypeFactory;
 use Kanvas\Social\Models\BaseModel;
 
 /**
- *  class MessageType
- *  @package Kanvas\Social\MessagesTypes\Models
- *  @property int $id
- *  @property string $name
- *  @property ?string $uuid
- *  @property int $apps_id
- *  @property int $languages_id
- *  @property string $name
- *  @property string $verb
- *  @property string $template
- *  @property string $templates_plura
- *  @property string $message_schema
+ *  class MessageType.
+ *
+ * @property int     $id
+ * @property string  $name
+ * @property ?string $uuid
+ * @property int     $apps_id
+ * @property int     $languages_id
+ * @property string  $name
+ * @property string  $verb
+ * @property string  $template
+ * @property string  $templates_plura
+ * @property string  $message_schema
  */
 class MessageType extends BaseModel
 {

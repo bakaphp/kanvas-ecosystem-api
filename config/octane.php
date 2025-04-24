@@ -25,14 +25,14 @@ use Laravel\Octane\Octane;
 
 return [
 
-    'host' => '0.0.0.0',
-    'port' => '8000',
+    'host'   => '0.0.0.0',
+    'port'   => '8000',
     'swoole' => [
         'options' => [
-            'worker_num' => 10,
-            'task_worker_num' => 10,
+            'worker_num'       => 10,
+            'task_worker_num'  => 10,
             'enable_coroutine' => true,
-            'max_request' => 1000,
+            'max_request'      => 1000,
         ],
     ],
 
@@ -49,7 +49,7 @@ return [
     |
     */
 
-    'server' => env('OCTANE_SERVER', 'swoole'),
+    'server'             => env('OCTANE_SERVER', 'swoole'),
     'concurrent_clients' => env('OCTANE_CONCURRENT_CLIENTS', 300),
 
     /*
@@ -156,7 +156,7 @@ return [
     */
 
     'cache' => [
-        'rows' => 1000,
+        'rows'  => 1000,
         'bytes' => 10000,
     ],
 
@@ -173,7 +173,7 @@ return [
 
     'tables' => [
         'example:1000' => [
-            'name' => 'string:1000',
+            'name'  => 'string:1000',
             'votes' => 'int',
         ],
     ],

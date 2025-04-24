@@ -13,14 +13,14 @@ use Kanvas\ActionEngine\Models\BaseModel;
 /**
  * Class Pipeline.
  *
- * @property int $id
+ * @property int    $id
  * @property string $uuid
- * @property int $apps_id
- * @property int $companies_id
- * @property int $users_id
+ * @property int    $apps_id
+ * @property int    $companies_id
+ * @property int    $users_id
  * @property string $slug
  * @property string $name
- * @property int $weight
+ * @property int    $weight
  */
 class Pipeline extends BaseModel
 {

@@ -16,38 +16,38 @@ class LeadReceiverTest extends TestCase
     public function testCreateLeadReceiver(): void
     {
         $leadRotation = LeadRotation::create([
-            'apps_id' => app(Apps::class)->getId(),
-            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
-            'name' => 'Lead Rotation',
-            'hits' => 1,
+            'apps_id'               => app(Apps::class)->getId(),
+            'companies_id'          => auth()->user()->getCurrentCompany()->getId(),
+            'name'                  => 'Lead Rotation',
+            'hits'                  => 1,
             'leads_rotations_email' => '',
         ]);
         $leadType = LeadType::create([
-            'apps_id' => app(Apps::class)->getId(),
+            'apps_id'      => app(Apps::class)->getId(),
             'companies_id' => auth()->user()->getCurrentCompany()->getId(),
-            'name' => 'Lead Type',
-            'description' => 'Lead Type Description',
-            'is_active' => true,
-            'uuid' => Str::uuid(),
+            'name'         => 'Lead Type',
+            'description'  => 'Lead Type Description',
+            'is_active'    => true,
+            'uuid'         => Str::uuid(),
         ]);
         $leadSource = LeadSource::create([
-            'apps_id' => app(Apps::class)->getId(),
-            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
-            'name' => 'Lead Source',
-            'description' => 'Lead Source Description',
-            'is_active' => true,
-            'uuid' => Str::uuid(),
+            'apps_id'        => app(Apps::class)->getId(),
+            'companies_id'   => auth()->user()->getCurrentCompany()->getId(),
+            'name'           => 'Lead Source',
+            'description'    => 'Lead Source Description',
+            'is_active'      => true,
+            'uuid'           => Str::uuid(),
             'leads_types_id' => $leadType->getId(),
         ]);
         $input = [
-            'name' => fake()->word,
-            'agents_id' => auth()->user()->getId(),
-            'is_default' => true,
-            'rotations_id' => $leadRotation->getId(),
-            'source_name' => 'source',
+            'name'            => fake()->word,
+            'agents_id'       => auth()->user()->getId(),
+            'is_default'      => true,
+            'rotations_id'    => $leadRotation->getId(),
+            'source_name'     => 'source',
             'lead_sources_id' => $leadSource->getId(),
-            'lead_types_id' => $leadType->getId(),
-            'template' => 'template',
+            'lead_types_id'   => $leadType->getId(),
+            'template'        => 'template',
         ];
         $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {
@@ -73,13 +73,13 @@ class LeadReceiverTest extends TestCase
         )->assertJson([
             'data' => [
                 'createLeadReceiver' => [
-                    'name' => $input['name'],
+                    'name'  => $input['name'],
                     'agent' => [
                         'id' => $input['agents_id'],
                     ],
-                    'is_default' => $input['is_default'],
+                    'is_default'  => $input['is_default'],
                     'source_name' => $input['source_name'],
-                    'leadSource' => [
+                    'leadSource'  => [
                         'id' => $input['lead_sources_id'],
                     ],
                     'leadType' => [
@@ -90,13 +90,13 @@ class LeadReceiverTest extends TestCase
             ],
         ]);
         $input = [
-            'name' => fake()->word,
-            'agents_id' => auth()->user()->getId(),
-            'is_default' => true,
-            'source_name' => 'source',
+            'name'            => fake()->word,
+            'agents_id'       => auth()->user()->getId(),
+            'is_default'      => true,
+            'source_name'     => 'source',
             'lead_sources_id' => $leadSource->getId(),
-            'lead_types_id' => $leadType->getId(),
-            'template' => 'template',
+            'lead_types_id'   => $leadType->getId(),
+            'template'        => 'template',
         ];
         $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {
@@ -122,13 +122,13 @@ class LeadReceiverTest extends TestCase
         )->assertJson([
             'data' => [
                 'createLeadReceiver' => [
-                    'name' => $input['name'],
+                    'name'  => $input['name'],
                     'agent' => [
                         'id' => $input['agents_id'],
                     ],
-                    'is_default' => $input['is_default'],
+                    'is_default'  => $input['is_default'],
                     'source_name' => $input['source_name'],
-                    'leadSource' => [
+                    'leadSource'  => [
                         'id' => $input['lead_sources_id'],
                     ],
                     'leadType' => [
@@ -143,14 +143,14 @@ class LeadReceiverTest extends TestCase
     public function testUpdateLeadReceiver(): void
     {
         $input = [
-            'name' => fake()->word,
-            'agents_id' => auth()->user()->getId(),
-            'is_default' => true,
-            'rotations_id' => 1,
-            'source_name' => 'source',
+            'name'            => fake()->word,
+            'agents_id'       => auth()->user()->getId(),
+            'is_default'      => true,
+            'rotations_id'    => 1,
+            'source_name'     => 'source',
             'lead_sources_id' => 0,
-            'lead_types_id' => 0,
-            'template' => 'template',
+            'lead_types_id'   => 0,
+            'template'        => 'template',
         ];
         $response = $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {
@@ -178,19 +178,19 @@ class LeadReceiverTest extends TestCase
                 }
             }',
             [
-                'id' => $id,
+                'id'    => $id,
                 'input' => $input,
             ]
         )->assertJson([
             'data' => [
                 'updateLeadReceiver' => [
-                    'name' => $input['name'],
+                    'name'  => $input['name'],
                     'agent' => [
                         'id' => $input['agents_id'],
                     ],
-                    'is_default' => $input['is_default'],
+                    'is_default'  => $input['is_default'],
                     'source_name' => $input['source_name'],
-                    'template' => $input['template'],
+                    'template'    => $input['template'],
                 ],
             ],
         ]);
@@ -208,19 +208,19 @@ class LeadReceiverTest extends TestCase
                 }
             }',
             [
-                'id' => $id,
+                'id'    => $id,
                 'input' => $input,
             ]
         )->assertJson([
             'data' => [
                 'updateLeadReceiver' => [
-                    'name' => $input['name'],
+                    'name'  => $input['name'],
                     'agent' => [
                         'id' => $input['agents_id'],
                     ],
-                    'is_default' => $input['is_default'],
+                    'is_default'  => $input['is_default'],
                     'source_name' => $input['source_name'],
-                    'template' => $input['template'],
+                    'template'    => $input['template'],
                 ],
             ],
         ]);
@@ -229,13 +229,13 @@ class LeadReceiverTest extends TestCase
     public function testDeleteLeadReceiver(): void
     {
         $input = [
-            'name' => fake()->word,
-            'agents_id' => auth()->user()->getId(),
-            'is_default' => true,
-            'rotations_id' => 1,
-            'source_name' => 'source',
+            'name'            => fake()->word,
+            'agents_id'       => auth()->user()->getId(),
+            'is_default'      => true,
+            'rotations_id'    => 1,
+            'source_name'     => 'source',
             'lead_sources_id' => 0,
-            'lead_types_id' => 0,
+            'lead_types_id'   => 0,
         ];
         $response = $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {
@@ -265,13 +265,13 @@ class LeadReceiverTest extends TestCase
     public function testGetLeadReceivers(): void
     {
         $input = [
-            'name' => fake()->word,
-            'agents_id' => auth()->user()->getId(),
-            'is_default' => true,
-            'rotations_id' => 1,
-            'source_name' => 'source',
+            'name'            => fake()->word,
+            'agents_id'       => auth()->user()->getId(),
+            'is_default'      => true,
+            'rotations_id'    => 1,
+            'source_name'     => 'source',
             'lead_sources_id' => 0,
-            'lead_types_id' => 0,
+            'lead_types_id'   => 0,
         ];
         $response = $this->graphQL(
             'mutation createLeadReceiver($input: LeadReceiverInput!) {

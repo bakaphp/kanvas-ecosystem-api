@@ -14,10 +14,9 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\NewMessageNotification;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
 {
@@ -60,8 +59,8 @@ class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
                     } catch (Throwable $e) {
                         captureException($e);
 
-                        Log::error('Error in notification to user : ' . $follower->displayname . ' ' . $e->getMessage(), [
-                            'job' => self::class,
+                        Log::error('Error in notification to user : '.$follower->displayname.' '.$e->getMessage(), [
+                            'job'       => self::class,
                             'exception' => $e,
                         ]);
 

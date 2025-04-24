@@ -49,8 +49,6 @@ class Authentication
     /**
      * Get the real from the JWT Token.
      *
-     * @param Micro $api
-     * @param Config $config
      * @param RequestInterface $request
      *
      * @throws UnauthorizedException

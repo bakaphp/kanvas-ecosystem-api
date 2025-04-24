@@ -16,7 +16,7 @@ class TagsTest extends TestCase
     public function testCreateTag()
     {
         $input = [
-            'name' => fake()->name(),
+            'name'   => fake()->name(),
             'weight' => random_int(1, 100),
         ];
         $this->graphQL(/** @lang GRAPHQL */
@@ -46,7 +46,7 @@ class TagsTest extends TestCase
     public function testCreateTagWithoutSlug()
     {
         $input = [
-            'name' => fake()->name(),
+            'name'   => fake()->name(),
             'weight' => random_int(1, 100),
         ];
         $this->graphQL(/** @lang GRAPHQL */
@@ -76,10 +76,10 @@ class TagsTest extends TestCase
     public function testUpdateTag()
     {
         $input = [
-             'name' => fake()->name(),
-             'slug' => Str::slug(fake()->name()),
-             'weight' => random_int(1, 100),
-         ];
+            'name'   => fake()->name(),
+            'slug'   => Str::slug(fake()->name()),
+            'weight' => random_int(1, 100),
+        ];
         $response = $this->graphQL(/** @lang GRAPHQL */
             '
                 mutation createTag(
@@ -95,7 +95,7 @@ class TagsTest extends TestCase
                 }
             ',
             [
-               'input' => $input,
+                'input' => $input,
             ]
         );
         $tag = $response->json('data.createTag');
@@ -118,7 +118,7 @@ class TagsTest extends TestCase
                 }
             ',
             [
-                'id' => $tag['id'],
+                'id'    => $tag['id'],
                 'input' => $input,
             ]
         )->assertJson([
@@ -131,8 +131,8 @@ class TagsTest extends TestCase
     public function testDeleteTag()
     {
         $input = [
-            'name' => fake()->name(),
-            'slug' => Str::slug(fake()->name()),
+            'name'   => fake()->name(),
+            'slug'   => Str::slug(fake()->name()),
             'weight' => random_int(1, 100),
         ];
         $response = $this->graphQL(/** @lang GRAPHQL */
@@ -176,8 +176,8 @@ class TagsTest extends TestCase
     public function testFollowTag()
     {
         $input = [
-            'name' => fake()->name(),
-            'slug' => Str::slug(fake()->name()),
+            'name'   => fake()->name(),
+            'slug'   => Str::slug(fake()->name()),
             'weight' => random_int(1, 100),
         ];
         $response = $this->graphQL(/** @lang GRAPHQL */
@@ -236,10 +236,10 @@ class TagsTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         );
@@ -250,7 +250,7 @@ class TagsTest extends TestCase
         $message = $response->json('data.createMessage');
 
         $input = [
-            'name' => fake()->name(),
+            'name'   => fake()->name(),
             'weight' => random_int(1, 100),
         ];
 
@@ -274,9 +274,9 @@ class TagsTest extends TestCase
 
         $tag = $response->json('data.createTag');
         $attach = [
-            'tag_id' => $tag['id'],
+            'tag_id'             => $tag['id'],
             'system_module_uuid' => $systemModule->uuid,
-            'entity_id' => $message['id'],
+            'entity_id'          => $message['id'],
         ];
         $this->graphQL(/** @lang GRAPHQL */
             '
@@ -315,8 +315,8 @@ class TagsTest extends TestCase
             }
         ', [
             'where' => [
-                'value' => $tag['id'],
-                'column' => 'ID',
+                'value'    => $tag['id'],
+                'column'   => 'ID',
                 'operator' => 'EQ',
             ],
         ])->assertJson([
@@ -324,12 +324,12 @@ class TagsTest extends TestCase
                 'tags' => [
                     'data' => [
                         [
-                            'id' => $tag['id'],
-                            'name' => $input['name'],
-                            'weight' => $input['weight'],
+                            'id'        => $tag['id'],
+                            'name'      => $input['name'],
+                            'weight'    => $input['weight'],
                             'taggables' => [
                                 [
-                                    'tags_id' => $tag['id'],
+                                    'tags_id'   => $tag['id'],
                                     'entity_id' => $message['id'],
                                 ],
                             ],
@@ -361,31 +361,31 @@ class TagsTest extends TestCase
             }',
             [
                 'where' => [
-                    'value' => $message['id'],
-                    'column' => 'ID',
+                    'value'    => $message['id'],
+                    'column'   => 'ID',
                     'operator' => 'EQ',
                 ],
             ]
         )->assertJson([
-                'data' => [
-                    'messages' => [
-                        'data' => [
-                            [
-                                'id' => $message['id'],
-                                'message' => $message['message'],
-                                'tags' => [
-                                    'data' => [
-                                        [
-                                            'id' => $tag['id'],
-                                            'name' => $input['name'],
-                                            'weight' => $input['weight'],
-                                        ]
-                                     ],
-                                ]
+            'data' => [
+                'messages' => [
+                    'data' => [
+                        [
+                            'id'      => $message['id'],
+                            'message' => $message['message'],
+                            'tags'    => [
+                                'data' => [
+                                    [
+                                        'id'     => $tag['id'],
+                                        'name'   => $input['name'],
+                                        'weight' => $input['weight'],
+                                    ],
+                                ],
                             ],
                         ],
                     ],
                 ],
-            ]);
+            ],
+        ]);
     }
 }

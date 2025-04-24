@@ -32,33 +32,33 @@ class LeadTest extends TestCase
 
         if (empty($input)) {
             $input = [
-                'branch_id' => $branch->getId(),
-                'title' => $title,
+                'branch_id'         => $branch->getId(),
+                'title'             => $title,
                 'pipeline_stage_id' => 0,
-                'people' => [
+                'people'            => [
                     'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'contacts' => [
+                    'lastname'  => fake()->lastName(),
+                    'contacts'  => [
                         [
-                            'value' => fake()->email(),
+                            'value'             => fake()->email(),
                             'contacts_types_id' => 1,
-                            'weight' => 0,
+                            'weight'            => 0,
                         ],
                     ],
                     'address' => [
                         [
                             'address' => fake()->address(),
-                            'city' => fake()->city(),
-                            'state' => fake()->state(),
+                            'city'    => fake()->city(),
+                            'state'   => fake()->state(),
                             'country' => fake()->country(),
-                            'zip' => fake()->postcode(),
+                            'zip'     => fake()->postcode(),
                         ],
                     ],
                 ],
                 'custom_fields' => [],
-                'files' => [
+                'files'         => [
                     [
-                        'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                        'url'  => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
                         'name' => 'dummy.pdf',
                     ],
                 ],
@@ -94,32 +94,32 @@ class LeadTest extends TestCase
         $title = fake()->title();
 
         $input = [
-            'branch_id' => $branch->getId(),
-            'title' => $title,
+            'branch_id'         => $branch->getId(),
+            'title'             => $title,
             'pipeline_stage_id' => 0,
-            'people' => [
+            'people'            => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-                'contacts' => [
+                'lastname'  => fake()->lastName(),
+                'contacts'  => [
                     [
-                        'value' => fake()->email(),
+                        'value'             => fake()->email(),
                         'contacts_types_id' => 1,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [
                     [
                         'address' => fake()->address(),
-                        'city' => fake()->city(),
-                        'state' => fake()->state(),
+                        'city'    => fake()->city(),
+                        'state'   => fake()->state(),
                         'country' => fake()->country(),
-                        'zip' => fake()->postcode(),
+                        'zip'     => fake()->postcode(),
                     ],
                 ],
                 'custom_fields' => [],
             ],
             'organization' => [
-                'name' => fake()->company(),
+                'name'    => fake()->company(),
                 'address' => fake()->address(),
             ],
             'custom_fields' => [
@@ -130,7 +130,7 @@ class LeadTest extends TestCase
             ],
             'files' => [
                 [
-                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'url'  => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
                     'name' => 'dummy.pdf',
                 ],
             ],
@@ -177,32 +177,32 @@ class LeadTest extends TestCase
         ',
             'variables' => [
                 'input' => [
-                    'branch_id' => $branch->getId(),
-                    'title' => $title,
+                    'branch_id'         => $branch->getId(),
+                    'title'             => $title,
                     'pipeline_stage_id' => 0,
-                    'people' => [
+                    'people'            => [
                         'firstname' => fake()->firstName(),
-                        'lastname' => fake()->lastName(),
-                        'contacts' => [
+                        'lastname'  => fake()->lastName(),
+                        'contacts'  => [
                             [
-                                'value' => fake()->email(),
+                                'value'             => fake()->email(),
                                 'contacts_types_id' => 1,
-                                'weight' => 0,
+                                'weight'            => 0,
                             ],
                         ],
                         'address' => [
                             [
                                 'address' => fake()->address(),
-                                'city' => fake()->city(),
-                                'state' => fake()->state(),
+                                'city'    => fake()->city(),
+                                'state'   => fake()->state(),
                                 'country' => fake()->country(),
-                                'zip' => fake()->postcode(),
+                                'zip'     => fake()->postcode(),
                             ],
                         ],
                         'custom_fields' => [],
                     ],
                     'organization' => [
-                        'name' => fake()->company(),
+                        'name'    => fake()->company(),
                         'address' => fake()->address(),
                     ],
                     'custom_fields' => [
@@ -213,11 +213,11 @@ class LeadTest extends TestCase
                     ],
                     'files' => [
                         [
-                            'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                            'url'  => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
                             'name' => 'dummy.pdf',
                         ],
                         [
-                            'url' => 'none',
+                            'url'  => 'none',
                             'name' => 'dummy2.pdf',
                             'file' => null, // This will be mapped to the actual file
                         ],
@@ -254,26 +254,26 @@ class LeadTest extends TestCase
         $title = fake()->title();
 
         $input = [
-            'branch_id' => $branch->getId(),
-            'title' => $title,
+            'branch_id'         => $branch->getId(),
+            'title'             => $title,
             'pipeline_stage_id' => 0,
-            'people' => [
+            'people'            => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-                'contacts' => [
+                'lastname'  => fake()->lastName(),
+                'contacts'  => [
                     [
-                        'value' => fake()->email(),
+                        'value'             => fake()->email(),
                         'contacts_types_id' => 1,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [
                     [
                         'address' => fake()->address(),
-                        'city' => fake()->city(),
-                        'state' => fake()->state(),
+                        'city'    => fake()->city(),
+                        'state'   => fake()->state(),
                         'country' => fake()->country(),
-                        'zip' => fake()->postcode(),
+                        'zip'     => fake()->postcode(),
                     ],
                 ],
                 'custom_fields' => [],
@@ -286,7 +286,7 @@ class LeadTest extends TestCase
             ],
             'files' => [
                 [
-                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'url'  => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
                     'name' => 'dummy.pdf',
                 ],
             ],
@@ -298,11 +298,11 @@ class LeadTest extends TestCase
         $peopleId = $response['data']['createLead']['people']['id'];
 
         $input = [
-            'branch_id' => $branch->getId(),
-            'title' => $title,
-            'people_id' => $peopleId,
+            'branch_id'     => $branch->getId(),
+            'title'         => $title,
+            'people_id'     => $peopleId,
             'custom_fields' => [],
-            'files' => [],
+            'files'         => [],
         ];
 
         $this->graphQL('
@@ -313,12 +313,12 @@ class LeadTest extends TestCase
             }
         }
     ', [
-            'id' => $leadId,
+            'id'    => $leadId,
             'input' => $input,
         ])->assertJson([
             'data' => [
                 'updateLead' => [
-                    'id' => $leadId,
+                    'id'    => $leadId,
                     'title' => $title,
                 ],
             ],
@@ -332,26 +332,26 @@ class LeadTest extends TestCase
         $title = fake()->title();
 
         $input = [
-            'branch_id' => $branch->getId(),
-            'title' => $title,
+            'branch_id'         => $branch->getId(),
+            'title'             => $title,
             'pipeline_stage_id' => 0,
-            'people' => [
+            'people'            => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-                'contacts' => [
+                'lastname'  => fake()->lastName(),
+                'contacts'  => [
                     [
-                        'value' => fake()->email(),
+                        'value'             => fake()->email(),
                         'contacts_types_id' => 1,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [
                     [
                         'address' => fake()->address(),
-                        'city' => fake()->city(),
-                        'state' => fake()->state(),
+                        'city'    => fake()->city(),
+                        'state'   => fake()->state(),
                         'country' => fake()->country(),
-                        'zip' => fake()->postcode(),
+                        'zip'     => fake()->postcode(),
                     ],
                 ],
                 'custom_fields' => [],
@@ -364,7 +364,7 @@ class LeadTest extends TestCase
             ],
             'files' => [
                 [
-                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'url'  => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
                     'name' => 'dummy.pdf',
                 ],
             ],
@@ -394,26 +394,26 @@ class LeadTest extends TestCase
         $title = fake()->title();
 
         $input = [
-            'branch_id' => $branch->getId(),
-            'title' => $title,
+            'branch_id'         => $branch->getId(),
+            'title'             => $title,
             'pipeline_stage_id' => 0,
-            'people' => [
+            'people'            => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-                'contacts' => [
+                'lastname'  => fake()->lastName(),
+                'contacts'  => [
                     [
-                        'value' => fake()->email(),
+                        'value'             => fake()->email(),
                         'contacts_types_id' => 1,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [
                     [
                         'address' => fake()->address(),
-                        'city' => fake()->city(),
-                        'state' => fake()->state(),
+                        'city'    => fake()->city(),
+                        'state'   => fake()->state(),
                         'country' => fake()->country(),
-                        'zip' => fake()->postcode(),
+                        'zip'     => fake()->postcode(),
                     ],
                 ],
                 'custom_fields' => [],
@@ -426,7 +426,7 @@ class LeadTest extends TestCase
             ],
             'files' => [
                 [
-                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'url'  => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
                     'name' => 'dummy.pdf',
                 ],
             ],
@@ -441,24 +441,24 @@ class LeadTest extends TestCase
                 deleteLead(id: $id)
             }
         ', [
-                'id' => $leadId,
-            ])->assertJson([
-                'data' => [
-                    'deleteLead' => true,
-                ],
-            ]);
+            'id' => $leadId,
+        ])->assertJson([
+            'data' => [
+                'deleteLead' => true,
+            ],
+        ]);
 
         $this->graphQL('
             mutation($id: ID!) {
                 restoreLead(id: $id)
             }
         ', [
-                'id' => $leadId,
-            ])->assertJson([
-                'data' => [
-                    'restoreLead' => true,
-                ],
-            ]);
+            'id' => $leadId,
+        ])->assertJson([
+            'data' => [
+                'restoreLead' => true,
+            ],
+        ]);
     }
 
     public function testDashboard()
@@ -490,26 +490,26 @@ class LeadTest extends TestCase
         $title = fake()->title();
 
         $input = [
-            'branch_id' => $branch->getId(),
-            'title' => $title,
+            'branch_id'         => $branch->getId(),
+            'title'             => $title,
             'pipeline_stage_id' => 0,
-            'people' => [
+            'people'            => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-                'contacts' => [
+                'lastname'  => fake()->lastName(),
+                'contacts'  => [
                     [
-                        'value' => fake()->email(),
+                        'value'             => fake()->email(),
                         'contacts_types_id' => 1,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [
                     [
                         'address' => fake()->address(),
-                        'city' => fake()->city(),
-                        'state' => fake()->state(),
+                        'city'    => fake()->city(),
+                        'state'   => fake()->state(),
                         'country' => fake()->country(),
-                        'zip' => fake()->postcode(),
+                        'zip'     => fake()->postcode(),
                     ],
                 ],
                 'custom_fields' => [],
@@ -522,7 +522,7 @@ class LeadTest extends TestCase
             ],
             'files' => [
                 [
-                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'url'  => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
                     'name' => 'dummy.pdf',
                 ],
             ],
@@ -537,10 +537,10 @@ class LeadTest extends TestCase
             followLead(input: $input)
             }
         ', [
-        'input' => [
-            'entity_id' => $leadUuid,
-            'user_id' => $user->getId(),
-        ],
+            'input' => [
+                'entity_id' => $leadUuid,
+                'user_id'   => $user->getId(),
+            ],
         ])->assertJson([
             'data' => [
                 'followLead' => true,
@@ -555,26 +555,26 @@ class LeadTest extends TestCase
         $title = fake()->title();
 
         $input = [
-            'branch_id' => $branch->getId(),
-            'title' => $title,
+            'branch_id'         => $branch->getId(),
+            'title'             => $title,
             'pipeline_stage_id' => 0,
-            'people' => [
+            'people'            => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-                'contacts' => [
+                'lastname'  => fake()->lastName(),
+                'contacts'  => [
                     [
-                        'value' => fake()->email(),
+                        'value'             => fake()->email(),
                         'contacts_types_id' => 1,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [
                     [
                         'address' => fake()->address(),
-                        'city' => fake()->city(),
-                        'state' => fake()->state(),
+                        'city'    => fake()->city(),
+                        'state'   => fake()->state(),
                         'country' => fake()->country(),
-                        'zip' => fake()->postcode(),
+                        'zip'     => fake()->postcode(),
                     ],
                 ],
                 'custom_fields' => [],
@@ -587,7 +587,7 @@ class LeadTest extends TestCase
             ],
             'files' => [
                 [
-                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'url'  => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
                     'name' => 'dummy.pdf',
                 ],
             ],
@@ -602,10 +602,10 @@ class LeadTest extends TestCase
             followLead(input: $input)
             }
         ', [
-        'input' => [
-            'entity_id' => $leadUuid,
-            'user_id' => $user->getId(),
-        ],
+            'input' => [
+                'entity_id' => $leadUuid,
+                'user_id'   => $user->getId(),
+            ],
         ])->assertJson([
             'data' => [
                 'followLead' => true,
@@ -617,10 +617,10 @@ class LeadTest extends TestCase
             unFollowLead(input: $input)
             }
         ', [
-        'input' => [
-            'entity_id' => $leadUuid,
-            'user_id' => $user->getId(),
-        ],
+            'input' => [
+                'entity_id' => $leadUuid,
+                'user_id'   => $user->getId(),
+            ],
         ])->assertJson([
             'data' => [
                 'unFollowLead' => true,
@@ -656,13 +656,13 @@ class LeadTest extends TestCase
         $channel = $channel->json()['data']['socialChannels']['data'][0];
         $messageType = MessageType::factory()->create();
         $messageInput = [
-            'message' => json_encode($lead['data']['createLead']),
-            'message_verb' => $messageType->verb,
+            'message'           => json_encode($lead['data']['createLead']),
+            'message_verb'      => $messageType->verb,
             'system_modules_id' => $lead['data']['createLead']['systemModule']['id'],
-            'entity_id' => $lead['data']['createLead']['id'],
-            'distribution' => [
+            'entity_id'         => $lead['data']['createLead']['id'],
+            'distribution'      => [
                 'distributionType' => 'Channels',
-                'channels' => [
+                'channels'         => [
                     $channel['id'],
                 ],
                 'followers' => [],
@@ -701,19 +701,19 @@ class LeadTest extends TestCase
             }
         ',
             [
-            'channel_uuid' => $channel['uuid'],
-        ]
+                'channel_uuid' => $channel['uuid'],
+            ]
         );
         $message->assertJsonStructure([
-        'data' => [
-            'channelMessages' => [
-                'data' => [
-                    '*' => [
-                        'message',
+            'data' => [
+                'channelMessages' => [
+                    'data' => [
+                        '*' => [
+                            'message',
+                        ],
                     ],
                 ],
             ],
-        ],
         ]);
     }
 
@@ -731,8 +731,8 @@ class LeadTest extends TestCase
         }
 
     ', [
-        'lead_id' => $leadId, // Passing the lead ID to the GraphQL query
-    ])->assertOk();
+            'lead_id' => $leadId, // Passing the lead ID to the GraphQL query
+        ])->assertOk();
     }
 
     public function testCreationOfDuplicateLeads()
@@ -744,26 +744,26 @@ class LeadTest extends TestCase
         $title = fake()->title();
 
         $input = [
-            'branch_id' => $branch->getId(),
-            'title' => $title,
+            'branch_id'         => $branch->getId(),
+            'title'             => $title,
             'pipeline_stage_id' => 0,
-            'people' => [
+            'people'            => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-                'contacts' => [
+                'lastname'  => fake()->lastName(),
+                'contacts'  => [
                     [
-                        'value' => fake()->email(),
+                        'value'             => fake()->email(),
                         'contacts_types_id' => 1,
-                        'weight' => 0,
+                        'weight'            => 0,
                     ],
                 ],
                 'address' => [
                     [
                         'address' => fake()->address(),
-                        'city' => fake()->city(),
-                        'state' => fake()->state(),
+                        'city'    => fake()->city(),
+                        'state'   => fake()->state(),
                         'country' => fake()->country(),
-                        'zip' => fake()->postcode(),
+                        'zip'     => fake()->postcode(),
                     ],
                 ],
                 'custom_fields' => [],
@@ -776,7 +776,7 @@ class LeadTest extends TestCase
             ],
             'files' => [
                 [
-                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'url'  => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
                     'name' => 'dummy.pdf',
                 ],
             ],

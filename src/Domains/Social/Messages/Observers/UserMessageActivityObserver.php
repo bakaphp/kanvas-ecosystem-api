@@ -9,7 +9,7 @@ use Kanvas\Social\Messages\Models\UserMessageActivity;
 class UserMessageActivityObserver
 {
     /**
-     * created
+     * created.
      */
     public function created(UserMessageActivity $activity): void
     {
@@ -17,11 +17,11 @@ class UserMessageActivityObserver
                                     ->where('user_messages_id', $activity->user_messages_id)
                                     ->count();
         $notes = [
-            'notes' => $activity->userMessage->notes,
-            'message_activity_count' => $count,
+            'notes'                     => $activity->userMessage->notes,
+            'message_activity_count'    => $count,
             'message_activity_username' => $activity->username,
-            'message_type_activity' => $activity->type,
-            'message_activity_text' => $activity->text,
+            'message_type_activity'     => $activity->type,
+            'message_activity_text'     => $activity->text,
         ];
         $userMessage = $activity->userMessage;
         $userMessage->activities = json_encode($notes);

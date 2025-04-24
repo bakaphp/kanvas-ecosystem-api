@@ -32,12 +32,12 @@ trait NotificationOneSignalTrait
         $messageContent = json_decode($messageContent, true);
 
         return [
-            'user_id' => $this->toUser->getId(),
-            'message' => $messageContent['message'],
-            'title' => $messageContent['title'] ?? '',
+            'user_id'  => $this->toUser->getId(),
+            'message'  => $messageContent['message'],
+            'title'    => $messageContent['title'] ?? '',
             'subtitle' => $messageContent['subtitle'] ?? '',
-            'apps_id' => $this->app->getId(),
-            'data' => $this->getData()
+            'apps_id'  => $this->app->getId(),
+            'data'     => $this->getData(),
         ];
     }
 }

@@ -25,8 +25,8 @@ class CarrierService
         ?string $continent = null
     ): array {
         $body = [
-            'language' => $language,
-            'mcc' => $mcc,
+            'language'  => $language,
+            'mcc'       => $mcc,
             'continent' => $continent,
         ];
 
@@ -40,18 +40,18 @@ class CarrierService
         ?string $mcc = null,
     ): array {
         $body = [
-            'accessToken' => $this->client->getAccessToken(),
-            'Partner' => '',
-            'dataBundleId' => '',
-            'dataBundleName' => '',
-            'Group_id' => '',
-            'language' => $language,
-            'country' => 'US',
-            'mcc' => $mcc,
-            'status' => '1',
-            'currency' => ['USD'],
-            'beginIndex' => $beginIndex,
-            'count' => $count,
+            'accessToken'     => $this->client->getAccessToken(),
+            'Partner'         => '',
+            'dataBundleId'    => '',
+            'dataBundleName'  => '',
+            'Group_id'        => '',
+            'language'        => $language,
+            'country'         => 'US',
+            'mcc'             => $mcc,
+            'status'          => '1',
+            'currency'        => ['USD'],
+            'beginIndex'      => $beginIndex,
+            'count'           => $count,
             'cooperationMode' => '1',
         ];
 

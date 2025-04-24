@@ -14,16 +14,16 @@ final class CustomFieldsTest extends TestCase
     public function createTemplate(): Templates
     {
         return Templates::firstOrCreate([
-            'users_id' => 1,
+            'users_id'     => 1,
             'companies_id' => 1,
-            'apps_id' => 1,
-            'name' => 'test',
+            'apps_id'      => 1,
+            'name'         => 'test',
         ], [
-            'users_id' => 1,
+            'users_id'     => 1,
             'companies_id' => 1,
-            'apps_id' => 1,
-            'name' => 'test',
-            'template' => 'test',
+            'apps_id'      => 1,
+            'name'         => 'test',
+            'template'     => 'test',
         ]);
     }
 
@@ -91,11 +91,11 @@ final class CustomFieldsTest extends TestCase
         $template->deleteAllCustomFields();
 
         $template->setCustomFields([
-            'test_1' => fake()->name,
-            'test_2' => fake()->name,
-            'test_3' => fake()->name,
-            'test_4' => fake()->name,
-            'name' => fake()->name,
+            'test_1'   => fake()->name,
+            'test_2'   => fake()->name,
+            'test_3'   => fake()->name,
+            'test_4'   => fake()->name,
+            'name'     => fake()->name,
             'template' => fake()->name,
         ]);
 

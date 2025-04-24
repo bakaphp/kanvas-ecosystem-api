@@ -73,20 +73,20 @@ class ProductImporterAction
 
             $status = $this->createStatus();
             $productDto = ProductsDto::from([
-                'app' => $this->app,
-                'company' => $this->company,
-                'user' => $this->user,
-                'name' => $this->importedProduct->name,
-                'slug' => $this->importedProduct->slug,
-                'description' => $this->importedProduct->description,
+                'app'               => $this->app,
+                'company'           => $this->company,
+                'user'              => $this->user,
+                'name'              => $this->importedProduct->name,
+                'slug'              => $this->importedProduct->slug,
+                'description'       => $this->importedProduct->description,
                 'short_description' => $this->importedProduct->shortDescription,
-                'html_description' => $this->importedProduct->htmlDescription,
-                'warranty_terms' => $this->importedProduct->warrantyTerms,
-                'upc' => $this->importedProduct->upc,
-                'variants' => $this->importedProduct->variants,
-                'status_id' => $status ? $status->getId() : null,
-                'is_published' => $this->importedProduct->isPublished,
-                'attributes' => $this->importedProduct->attributes,
+                'html_description'  => $this->importedProduct->htmlDescription,
+                'warranty_terms'    => $this->importedProduct->warrantyTerms,
+                'upc'               => $this->importedProduct->upc,
+                'variants'          => $this->importedProduct->variants,
+                'status_id'         => $status ? $status->getId() : null,
+                'is_published'      => $this->importedProduct->isPublished,
+                'attributes'        => $this->importedProduct->attributes,
             ]);
             $createAction = new CreateProductAction($productDto, $this->user);
             $createAction->setRunWorkflow($this->runWorkflow);
@@ -167,11 +167,11 @@ class ProductImporterAction
             $this->product->update(['products_types_id' => $productType->id]);
         } else {
             $productTypeDto = ProductsTypes::from([
-                'company' => $this->company,
-                'user' => $this->user,
-                'name' => $this->importedProduct->productType['name'],
+                'company'     => $this->company,
+                'user'        => $this->user,
+                'name'        => $this->importedProduct->productType['name'],
                 'description' => $this->importedProduct->productType['description'] ?? null,
-                'weight' => $this->importedProduct->productType['weight'],
+                'weight'      => $this->importedProduct->productType['weight'],
             ]);
 
             $productType = (new CreateProductTypeAction($productTypeDto, $this->user))->execute();
@@ -214,13 +214,13 @@ class ProductImporterAction
                 $this->product->categories()->syncWithoutDetaching([$categoryModel->getId()]);
             } else {
                 $categoryDto = CategoryDto::from([
-                    'app' => $this->app,
-                    'user' => $this->user,
-                    'company' => $this->company,
+                    'app'       => $this->app,
+                    'user'      => $this->user,
+                    'company'   => $this->company,
                     'parent_id' => $category['parent_id'] ?? null,
-                    'name' => $category['name'],
-                    'code' => $category['code'],
-                    'position' => $category['position'],
+                    'name'      => $category['name'],
+                    'code'      => $category['code'],
+                    'position'  => $category['position'],
                 ]);
                 $categoryModel = (new CreateCategory($categoryDto, $this->user))->execute();
                 if (isset($category['source_id']) && $this->importedProduct->isFromThirdParty()) {
@@ -248,11 +248,11 @@ class ProductImporterAction
 
             if (! $attributeModel && ! empty($attribute['name']) && ! empty($attribute['value'])) {
                 $attributesDto = AttributesDto::from([
-                    'app' => $this->app,
-                    'user' => $this->user,
+                    'app'     => $this->app,
+                    'user'    => $this->user,
                     'company' => $this->company,
-                    'name' => $attribute['name'],
-                    'value' => $attribute['value'],
+                    'name'    => $attribute['name'],
+                    'value'   => $attribute['value'],
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
 
@@ -271,12 +271,12 @@ class ProductImporterAction
     {
         foreach ($this->importedProduct->warehouses as $warehouseLocation) {
             $warehouseData = Warehouses::from([
-                'company' => $this->company,
-                'user' => $this->user,
-                'app' => $this->app,
-                'region' => $this->region,
+                'company'    => $this->company,
+                'user'       => $this->user,
+                'app'        => $this->app,
+                'region'     => $this->region,
                 'regions_id' => $this->region->getId(),
-                'name' => $warehouseLocation['warehouse'],
+                'name'       => $warehouseLocation['warehouse'],
             ]);
 
             $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
@@ -305,8 +305,8 @@ class ProductImporterAction
                 $this->product->variants()->save($variantModel);
             } else {
                 $variantDto = VariantsDto::from([
-                    'product' => $this->product,
-                    'products_id' => $this->product->getId(),
+                    'product'      => $this->product,
+                    'products_id'  => $this->product->getId(),
                     'warehouse_id' => (int) $variant['warehouse']['id'],
                     ...$variant,
                 ]);
@@ -353,11 +353,11 @@ class ProductImporterAction
 
                 if (! $attributeModel && ! empty($attribute['name']) && ! empty($attribute['value'])) {
                     $attributesDto = AttributesDto::from([
-                        'app' => $this->app,
-                        'user' => $this->user,
+                        'app'     => $this->app,
+                        'user'    => $this->user,
                         'company' => $this->company,
-                        'name' => $attribute['name'],
-                        'value' => $attribute['value'],
+                        'name'    => $attribute['name'],
+                        'value'   => $attribute['value'],
                     ]);
                     $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
 
@@ -381,21 +381,21 @@ class ProductImporterAction
         //add to warehouse
         foreach ($this->importedProduct->warehouses as $warehouseLocation) {
             $warehouseData = Warehouses::from([
-                'company' => $this->company,
-                'user' => $this->user,
-                'app' => $this->app,
-                'region' => $this->region,
+                'company'    => $this->company,
+                'user'       => $this->user,
+                'app'        => $this->app,
+                'region'     => $this->region,
                 'regions_id' => $this->region->getId(),
-                'name' => $warehouseLocation['warehouse'],
+                'name'       => $warehouseLocation['warehouse'],
             ]);
 
             $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
 
             $channelData = Channels::from([
-                'app' => $this->app,
-                'user' => $this->user,
+                'app'     => $this->app,
+                'user'    => $this->user,
                 'company' => $this->company,
-                'name' => $warehouseLocation['channel'],
+                'name'    => $warehouseLocation['channel'],
             ]);
 
             $channel = (new CreateChannel($channelData, $this->user))->execute();
@@ -410,23 +410,23 @@ class ProductImporterAction
 
                 if (! empty($variantData['warehouse'])) {
                     $variantData = [
-                        'quantity' => $variantData['warehouse']['quantity'] ?? ($variantData['quantity'] ?? 1),
-                        'price' => $variantData['warehouse']['price'] ?? $variantData['price'],
+                        'quantity'      => $variantData['warehouse']['quantity'] ?? ($variantData['quantity'] ?? 1),
+                        'price'         => $variantData['warehouse']['price'] ?? $variantData['price'],
                         'discountPrice' => $variantData['warehouse']['discountPrice'] ?? ($variantData['discountPrice'] ?? 0),
                     ];
                 }
             } else {
                 $variantData = [
-                    'quantity' => $this->importedProduct->quantity,
-                    'price' => $this->importedProduct->price,
+                    'quantity'      => $this->importedProduct->quantity,
+                    'price'         => $this->importedProduct->price,
                     'discountPrice' => $this->importedProduct->discountPrice,
                 ];
             }
 
             $variantChannel = VariantChannel::from([
-                'price' => (float) $variantData['price'],
+                'price'            => (float) $variantData['price'],
                 'discounted_price' => (float) $variantData['discountPrice'],
-                'is_published' => $this->importedProduct->isPublished,
+                'is_published'     => $this->importedProduct->isPublished,
             ]);
 
             $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variantModel->getId())
@@ -438,18 +438,18 @@ class ProductImporterAction
                     $variantModel,
                     $warehouse,
                     VariantsWarehouses::from([
-                        'variant' => $variantModel,
+                        'variant'   => $variantModel,
                         'warehouse' => $warehouse,
-                        'quantity' => $variantData['quantity'] ?? 1,
-                        'price' => $variantData['price'],
-                        'sku' => $variantModel->sku,
+                        'quantity'  => $variantData['quantity'] ?? 1,
+                        'price'     => $variantData['price'],
+                        'sku'       => $variantModel->sku,
                     ]),
                 ))->execute();
             } else {
                 VariantService::updateWarehouseVariant($variantModel, $warehouse, [
                     'quantity' => $variantData['quantity'] ?? 1,
-                    'price' => $variantData['price'],
-                    'sku' => $variantModel->sku,
+                    'price'    => $variantData['price'],
+                    'sku'      => $variantModel->sku,
                 ]);
             }
 

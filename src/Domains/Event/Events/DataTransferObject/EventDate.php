@@ -26,7 +26,7 @@ class EventDate extends Data
     {
         return [
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):([0-5]\d)$/'],
-            'end_time' => ['required', 'regex:/^([01]\d|2[0-3]):([0-5]\d)$/'],
+            'end_time'   => ['required', 'regex:/^([01]\d|2[0-3]):([0-5]\d)$/'],
         ];
     }
 }

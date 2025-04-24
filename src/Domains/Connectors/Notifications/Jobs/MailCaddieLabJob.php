@@ -16,10 +16,9 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Notifications\Templates\Blank;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class MailCaddieLabJob implements ShouldQueue
 {
@@ -64,7 +63,7 @@ class MailCaddieLabJob implements ShouldQueue
                     continue;
                 }
 
-                $url = $baseUrl . '/' . '?email=' . $email->value . '&paid=false';
+                $url = $baseUrl.'/'.'?email='.$email->value.'&paid=false';
                 $notification = new Blank(
                     $template,
                     ['membershipUpgradeUrl' => $url, 'app' => $this->app],
@@ -74,7 +73,7 @@ class MailCaddieLabJob implements ShouldQueue
                 $notification->setSubject($subject);
                 if (! $people->get('paid_subscription')) {
                     $mail = $this->email ?? $email->value;
-                    echo ' Sending email to ' . $mail . "\n";
+                    echo ' Sending email to '.$mail."\n";
                     Notification::route('mail', $mail)->notify($notification);
                     if ($this->email) {
                         break;

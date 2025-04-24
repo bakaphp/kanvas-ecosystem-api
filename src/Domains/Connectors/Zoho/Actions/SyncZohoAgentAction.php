@@ -72,10 +72,10 @@ class SyncZohoAgentAction
 
             // Attempt to find an existing agent with the same member number for this company
             $agentWithTheSameMemberNumber = Agent::where([
-                    'apps_id' => $this->app->getId(),
-                    'companies_id' => $this->company->getId(),
-                    'member_id' => $memberNumber,
-                ])->lockForUpdate()->first();
+                'apps_id'      => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+                'member_id'    => $memberNumber,
+            ])->lockForUpdate()->first();
 
             // If the member number is already used by a different user, get a new unique member number
             if ($agentWithTheSameMemberNumber && $agentWithTheSameMemberNumber->users_id !== $user->getId()) {
@@ -85,9 +85,9 @@ class SyncZohoAgentAction
 
             // Find or create an agent record for the user within the company with the verified member number
             $agent = Agent::where([
-                'apps_id' => $this->app->getId(),
-                'users_id' => $user->getId(),
-                'companies_id' => $this->company->getId(),
+                'apps_id'                => $this->app->getId(),
+                'users_id'               => $user->getId(),
+                'companies_id'           => $this->company->getId(),
                 'users_linked_source_id' => $zohoId,
             ])->lockForUpdate()->first();
 
@@ -97,11 +97,11 @@ class SyncZohoAgentAction
 
             // Update the agent if it exists, otherwise create a new record
             $agentData = [
-                'name' => $record->Name,
+                'name'                   => $record->Name,
                 'owner_linked_source_id' => $owner['id'],
-                'owner_id' => $record->Sponsor ?? ($ownerAgent ? $ownerAgent->member_id : null),
-                'status_id' => 1,
-                'updated_at' => now(),
+                'owner_id'               => $record->Sponsor ?? ($ownerAgent ? $ownerAgent->member_id : null),
+                'status_id'              => 1,
+                'updated_at'             => now(),
             ];
 
             if ($agent) {
@@ -130,9 +130,9 @@ class SyncZohoAgentAction
 
         // First try to find the existing agent by member number
         $existingAgent = Agent::where([
-            'apps_id' => $this->app->getId(),
+            'apps_id'      => $this->app->getId(),
             'companies_id' => $this->company->getId(),
-            'member_id' => $record->Member_Number,
+            'member_id'    => $record->Member_Number,
         ])->lockForUpdate()->first();
 
         if ($existingAgent) {
@@ -144,7 +144,7 @@ class SyncZohoAgentAction
             }
 
             return [
-                'user' => $ownerUser,
+                'user'  => $ownerUser,
                 'agent' => $existingAgent,
             ];
         }
@@ -173,19 +173,19 @@ class SyncZohoAgentAction
         // Create owner agent record with the specified member number
         $ownerAgent = Agent::create([
             'users_linked_source_id' => $owner['id'],
-            'apps_id' => $this->app->getId(),
-            'users_id' => $ownerUser->getId(),
-            'companies_id' => $this->company->getId(),
-            'member_id' => $record->Member_Number, // Use the provided member number
+            'apps_id'                => $this->app->getId(),
+            'users_id'               => $ownerUser->getId(),
+            'companies_id'           => $this->company->getId(),
+            'member_id'              => $record->Member_Number, // Use the provided member number
             'owner_linked_source_id' => $record->Owner['id'],
-            'name' => $owner['name'],
-            'owner_id' => $record->Sponsor,
-            'status_id' => 1,
-            'updated_at' => now(),
+            'name'                   => $owner['name'],
+            'owner_id'               => $record->Sponsor,
+            'status_id'              => 1,
+            'updated_at'             => now(),
         ]);
 
         return [
-            'user' => $ownerUser,
+            'user'  => $ownerUser,
             'agent' => $ownerAgent,
         ];
     }

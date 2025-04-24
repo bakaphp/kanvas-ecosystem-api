@@ -11,18 +11,18 @@ use Kanvas\Models\BaseModel;
 /**
  * CustomFieldsModules Model.
  *
- * @property int $id
- * @property int $companies_id
- * @property int $users_id
- * @property int $apps_id
- * @property int $custom_fields_modules_id
- * @property int $fields_type_id
+ * @property int    $id
+ * @property int    $companies_id
+ * @property int    $users_id
+ * @property int    $apps_id
+ * @property int    $custom_fields_modules_id
+ * @property int    $fields_type_id
  * @property string $name
  * @property string $label
  * @property string $attributes
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_delete
+ * @property int    $is_delete
  */
 class CustomFields extends BaseModel
 {
@@ -50,8 +50,6 @@ class CustomFields extends BaseModel
 
     /**
      * Custom field modules.
-     *
-     * @return BelongsTo
      */
     public function customFieldModule(): BelongsTo
     {
@@ -60,8 +58,6 @@ class CustomFields extends BaseModel
 
     /**
      * Belongs to.
-     *
-     * @return BelongsTo
      */
     public function fieldType(): BelongsTo
     {

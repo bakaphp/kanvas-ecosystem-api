@@ -59,20 +59,20 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
 
         $creditApplicant = $this->processCreditScore($messageData, $lead, $app, $params);
         $leadPullCreditHistory = $lead->get(CustomFieldEnum::LEAD_PULL_CREDIT_HISTORY->value) ?? [];
-        $digitalJacketUrl = $app->get(ConfigurationEnum::DIGITAL_JACKET_DOMAIN->value) . '/pull-credit?leadId=' . $lead->getId() . '&bcid=' . $lead->company->branch->uuid;
+        $digitalJacketUrl = $app->get(ConfigurationEnum::DIGITAL_JACKET_DOMAIN->value).'/pull-credit?leadId='.$lead->getId().'&bcid='.$lead->company->branch->uuid;
 
         //override the iframe url with the digital jacket url
         $creditApplicant['digital_jacket_url'] = $digitalJacketUrl;
         $creditApplicant['iframe_url_digital_jacket'] = $digitalJacketUrl;
 
         $history = [
-            'date' => date('Y-m-d H:i:s'),
-            'detail' => $creditApplicant,
-            'iframe_url' => $creditApplicant['iframe_url'],
-            'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
+            'date'                      => date('Y-m-d H:i:s'),
+            'detail'                    => $creditApplicant,
+            'iframe_url'                => $creditApplicant['iframe_url'],
+            'iframe_url_signed'         => $creditApplicant['iframe_url_signed'],
             'iframe_url_digital_jacket' => $creditApplicant['digital_jacket_url'],
-            'digital_jacket_url' => $creditApplicant['digital_jacket_url'],
-            'passed' => (bool) $creditApplicant['pull_credit_pass'],
+            'digital_jacket_url'        => $creditApplicant['digital_jacket_url'],
+            'passed'                    => (bool) $creditApplicant['pull_credit_pass'],
         ];
 
         $lead->set(
@@ -106,15 +106,15 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $lead->set('pull_credit_pass', (int) $creditApplicant['pull_credit_pass']);
 
         return [
-            'scores' => $creditApplicant['scores'],
-            'iframe_url' => $creditApplicant['iframe_url'],
-            'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
+            'scores'                    => $creditApplicant['scores'],
+            'iframe_url'                => $creditApplicant['iframe_url'],
+            'iframe_url_signed'         => $creditApplicant['iframe_url_signed'],
             'iframe_url_digital_jacket' => $creditApplicant['digital_jacket_url'],
-            'pull_credit_pass' => $creditApplicant['pull_credit_pass'],
-            'pdf' => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
-            'message_id' => $parentMessage->getId(),
-            'message' => 'Credit score created successfully',
-            'lead_id' => $lead->getId(),
+            'pull_credit_pass'          => $creditApplicant['pull_credit_pass'],
+            'pdf'                       => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
+            'message_id'                => $parentMessage->getId(),
+            'message'                   => 'Credit score created successfully',
+            'lead_id'                   => $lead->getId(),
         ];
     }
 
@@ -127,8 +127,8 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
     {
         return [
             'message' => $message,
-            'status' => 'error',
-            'data' => $data ?: $lead->getId(),
+            'status'  => 'error',
+            'data'    => $data ?: $lead->getId(),
         ];
     }
 
@@ -155,7 +155,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $provider = $params['provider'] ?? 'TU'; // Default to 'TU' if not provided
         $provider = Str::replace(',', '|', trim($provider)); // Replace commas with '|' and trim whitespace
 
-        $name = isset($personal['last_name']) ? $personal['first_name'] . ' ' . $personal['last_name'] : $personal['first_name'];
+        $name = isset($personal['last_name']) ? $personal['first_name'].' '.$personal['last_name'] : $personal['first_name'];
 
         return $creditScoreService->getCreditScore(
             new CreditApplicant(
@@ -187,14 +187,14 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         );
 
         $messageInput = [
-            'message' => $engagementMessage->toArray(),
+            'message'         => $engagementMessage->toArray(),
             'reactions_count' => 0,
-            'comments_count' => 0,
-            'total_liked' => 0,
-            'total_disliked' => 0,
-            'total_saved' => 0,
-            'total_shared' => 0,
-            'ip_address' => '127.0.0.1',
+            'comments_count'  => 0,
+            'total_liked'     => 0,
+            'total_disliked'  => 0,
+            'total_saved'     => 0,
+            'total_shared'    => 0,
+            'ip_address'      => '127.0.0.1',
         ];
 
         if ($parentId) {
@@ -266,16 +266,16 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
     protected function createEngagement($message, Lead $lead, Apps $app, $originalMessage, $stage, $companyAction): void
     {
         Engagement::firstOrCreate([
-            'companies_id' => $message->company->getId(),
-            'apps_id' => $app->getId(),
-            'users_id' => $message->user->getId(),
-            'message_id' => $message->getId(),
-            'leads_id' => $lead->getId(),
-            'slug' => ConfigurationEnum::ACTION_VERB->value,
-            'people_id' => $lead->people->getId(),
-            'pipelines_stages_id' => $stage->getId(),
+            'companies_id'         => $message->company->getId(),
+            'apps_id'              => $app->getId(),
+            'users_id'             => $message->user->getId(),
+            'message_id'           => $message->getId(),
+            'leads_id'             => $lead->getId(),
+            'slug'                 => ConfigurationEnum::ACTION_VERB->value,
+            'people_id'            => $lead->people->getId(),
+            'pipelines_stages_id'  => $stage->getId(),
             'companies_actions_id' => $companyAction->getId(),
-            'entity_uuid' => $lead->uuid,
+            'entity_uuid'          => $lead->uuid,
         ]);
     }
 }

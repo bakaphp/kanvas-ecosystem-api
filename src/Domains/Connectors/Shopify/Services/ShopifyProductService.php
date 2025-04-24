@@ -57,47 +57,47 @@ class ShopifyProductService
         }
 
         return [
-           'name' => $name,
-           'description' => $description ?? '',
-           'slug' => $slug,
-           'sku' => (string) $productId,
-           'regionId' => $this->region->id,
-           'price' => 0,
-           'discountPrice' => 0,
-           'quantity' => 1,
-           'isPublished' => (int) ($shopifyProduct['status'] == 'active'),
-           'status' => $shopifyProduct['status'],
-           'files' => $this->files['files'] ?? [],
-           'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
-           'sourceId' => $productId,
-           'customFields' => [
-               [
-                   'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
-                   'data' => $productId,
-               ],
-           ],
-           'vendor' => $shopifyProduct['vendor'],
-           'categories' => [
-               [
-                   'name' => $productCategory,
-                   'code' => ! empty($shopifyProduct['category']) ? Str::afterLast($shopifyProduct['category']['admin_graphql_api_id'], '/') : 'Uncategorized',
-                   'is_published' => true,
-                   'position' => 1,
-               ],
-           ],
-           'productType' => [
-                'name' => $productType,
-                'weight' => 0,
-           ],
-           'attributes' => [],
-           'variants' => $this->mapVariantsForImport($shopifyProduct['variants'], $shopifyProduct['options']),
-           'warehouses' => [
+            'name'          => $name,
+            'description'   => $description ?? '',
+            'slug'          => $slug,
+            'sku'           => (string) $productId,
+            'regionId'      => $this->region->id,
+            'price'         => 0,
+            'discountPrice' => 0,
+            'quantity'      => 1,
+            'isPublished'   => (int) ($shopifyProduct['status'] == 'active'),
+            'status'        => $shopifyProduct['status'],
+            'files'         => $this->files['files'] ?? [],
+            'source'        => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
+            'sourceId'      => $productId,
+            'customFields'  => [
                 [
-                     'warehouse' => $this->warehouses->name,
-                     'channel' => $this->channel->name,
+                    'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
+                    'data' => $productId,
                 ],
-           ],
-           'tags' => $productTags,
+            ],
+            'vendor'     => $shopifyProduct['vendor'],
+            'categories' => [
+                [
+                    'name'         => $productCategory,
+                    'code'         => ! empty($shopifyProduct['category']) ? Str::afterLast($shopifyProduct['category']['admin_graphql_api_id'], '/') : 'Uncategorized',
+                    'is_published' => true,
+                    'position'     => 1,
+                ],
+            ],
+            'productType' => [
+                'name'   => $productType,
+                'weight' => 0,
+            ],
+            'attributes' => [],
+            'variants'   => $this->mapVariantsForImport($shopifyProduct['variants'], $shopifyProduct['options']),
+            'warehouses' => [
+                [
+                    'warehouse' => $this->warehouses->name,
+                    'channel'   => $this->channel->name,
+                ],
+            ],
+            'tags' => $productTags,
         ];
     }
 
@@ -107,17 +107,17 @@ class ShopifyProductService
             $variantName = $variant['title'];
 
             $productVariants[] = [
-                'name' => $variantName,
-                'description' => null,
-                'sku' => ! empty($variant['sku']) ? (string) $variant['sku'] : (string) $variant['id'],
-                'price' => (float) $variant['price'],
+                'name'          => $variantName,
+                'description'   => null,
+                'sku'           => ! empty($variant['sku']) ? (string) $variant['sku'] : (string) $variant['id'],
+                'price'         => (float) $variant['price'],
                 'discountPrice' => (float) $variant['compare_at_price'],
-                'is_published' => true,
-                'slug' => (string) $variant['id'],
-                'files' => $this->files['filesSystemVariantImages'][$variant['id']] ?? [],
-                'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
-                'sourceId' => $variant['id'],
-                'barcode' => $variant['barcode'],
+                'is_published'  => true,
+                'slug'          => (string) $variant['id'],
+                'files'         => $this->files['filesSystemVariantImages'][$variant['id']] ?? [],
+                'source'        => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
+                'sourceId'      => $variant['id'],
+                'barcode'       => $variant['barcode'],
                 'custom_fields' => [
                     [
                         'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
@@ -129,15 +129,15 @@ class ShopifyProductService
                     ],
                 ],
                 'warehouse' => [
-                    'id' => $this->warehouses->id,
-                    'price' => (float) $variant['price'],
+                    'id'       => $this->warehouses->id,
+                    'price'    => (float) $variant['price'],
                     'quantity' => $variant['inventory_quantity'],
-                    'sku' => (string) ($variant['sku'] ?? $variant['id']),
-                    'is_new' => true,
+                    'sku'      => (string) ($variant['sku'] ?? $variant['id']),
+                    'is_new'   => true,
                 ],
                 'attributes' => [
                     [
-                        'name' => $shopifyProductOptions[0]['name'],
+                        'name'  => $shopifyProductOptions[0]['name'],
                         'value' => $variant['option1'],
                     ],
                 ],
@@ -164,7 +164,7 @@ class ShopifyProductService
             $cleanedFilename = Str::before($filename, '?'); //shopify name may have query string
 
             $shopifyImage = [
-                'url' => $file['src'],
+                'url'  => $file['src'],
                 'name' => $cleanedFilename,
             ];
             $fileSystem[] = $shopifyImage;
@@ -176,7 +176,7 @@ class ShopifyProductService
         }
 
         $this->files = [
-            'files' => $fileSystem,
+            'files'                    => $fileSystem,
             'filesSystemVariantImages' => $filesSystemVariantImages,
         ];
     }

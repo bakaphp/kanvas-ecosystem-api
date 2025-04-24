@@ -89,7 +89,7 @@ return [
     'attributesForFaceting' => [
         'status.name',
         'attributes',
-        'warehouses.name'
+        'warehouses.name',
     ],
 
     /*
@@ -153,7 +153,7 @@ return [
     | Example(attributeForDistinct): 'slug'
     */
 
-    'distinct' => null,
+    'distinct'             => null,
     'attributeForDistinct' => null,
 
     /*

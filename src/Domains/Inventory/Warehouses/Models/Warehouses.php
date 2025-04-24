@@ -18,20 +18,19 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 /**
  * Class Warehouses.
  *
- * @property int $id
- * @property int $companies_id
- * @property int $apps_id
- * @property int $regions_id
+ * @property int    $id
+ * @property int    $companies_id
+ * @property int    $apps_id
+ * @property int    $regions_id
  * @property string $uuid
  * @property string $name
  * @property string $location
- * @property bool $is_default
- * @property int $is_published
- * @property int $is_deleted
+ * @property bool   $is_default
+ * @property int    $is_published
+ * @property int    $is_deleted
  * @property string $created_at
  * @property string $updated_at
  */
-
 class Warehouses extends BaseModel
 {
     use UuidTrait;

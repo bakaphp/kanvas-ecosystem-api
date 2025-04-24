@@ -19,9 +19,9 @@ class RequestDeleteAccountAction
     public function execute(): bool
     {
         RequestDeletedAccount::create([
-            'apps_id' => $this->app->getId(),
-            'users_id' => $this->user->getId(),
-            'email' => $this->user->email,
+            'apps_id'      => $this->app->getId(),
+            'users_id'     => $this->user->getId(),
+            'email'        => $this->user->email,
             'request_date' => date('Y-m-d H:i:s'),
         ]);
 

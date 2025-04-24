@@ -58,18 +58,17 @@ class KanvasSetupCommand extends Command
         ];
 
         foreach ($commands as $command) {
-            $this->line('Running command: ' . $command);
+            $this->line('Running command: '.$command);
             $exitCode = Artisan::call($command);
 
             if ($exitCode !== 0) {
-                $this->error('Command failed: ' . $command);
+                $this->error('Command failed: '.$command);
 
                 break;
             }
         }
 
-        $this->info('All commands executed successfully - Welcome to Kanvas Ecosystem ' . AppEnums::VERSION->getValue());
+        $this->info('All commands executed successfully - Welcome to Kanvas Ecosystem '.AppEnums::VERSION->getValue());
 
-        return;
     }
 }

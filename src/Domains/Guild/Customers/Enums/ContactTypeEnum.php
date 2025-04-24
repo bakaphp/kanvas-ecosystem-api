@@ -13,8 +13,8 @@ enum ContactTypeEnum: int
     public function getName(): string
     {
         return match ($this->value) {
-            self::EMAIL->value => 'Email',
-            self::PHONE->value => 'Phone',
+            self::EMAIL->value     => 'Email',
+            self::PHONE->value     => 'Phone',
             self::CELLPHONE->value => 'Cellphone',
         };
     }

@@ -35,70 +35,70 @@ final class IntegrationMapperTest extends TestCase
         $app = app(Apps::class);
 
         $mapper = [
-            'name' => 'List Number',
-            'description' => 'Features',
-            'sku' => 'List Number',
-            'slug' => 'List Number',
-            'regionId' => 'regionId',
-            'price' => 'Original List Price',
+            'name'          => 'List Number',
+            'description'   => 'Features',
+            'sku'           => 'List Number',
+            'slug'          => 'List Number',
+            'regionId'      => 'regionId',
+            'price'         => 'Original List Price',
             'discountPrice' => 'Discount Price',
-            'quantity' => 'Quantity',
-            'is_published' => 1,
-            'files' => 'File URL',
-            'productType' => [
-                'name' => 'Property Type',
-                'description' => 'Property Type',
+            'quantity'      => 'Quantity',
+            'is_published'  => 1,
+            'files'         => 'File URL',
+            'productType'   => [
+                'name'         => 'Property Type',
+                'description'  => 'Property Type',
                 'is_published' => 'Is Published',
-                'weight' => 'Weight',
+                'weight'       => 'Weight',
             ],
             'customFields' => [],
-            'attributes' => [
+            'attributes'   => [
                 [
-                    'name' => '_Compensation Comments',
+                    'name'  => '_Compensation Comments',
                     'value' => 'Compensation Comments',
                 ],
                 [
-                    'name' => 'Default Value',
+                    'name'  => 'Default Value',
                     'value' => '_Default Value',
                 ],
                 [
-                    'name' => '_Start Date',
-                    'value' => "Listing Date"
-                ]
+                    'name'  => '_Start Date',
+                    'value' => 'Listing Date',
+                ],
             ],
             'variants' => [
                 [
-                    'name' => 'List Number',
-                    'description' => 'Features',
-                    'sku' => 'List Number',
-                    'price' => 'Original List Price',
+                    'name'          => 'List Number',
+                    'description'   => 'Features',
+                    'sku'           => 'List Number',
+                    'price'         => 'Original List Price',
                     'discountPrice' => 'Discount Price',
-                    'is_published' => 'Status',
-                    'slug' => 'List Number',
-                    'files' => 'File URL',
-                    'warehouse' => [
+                    'is_published'  => 'Status',
+                    'slug'          => 'List Number',
+                    'files'         => 'File URL',
+                    'warehouse'     => [
                         [
-                            'id' => 'Warehouse ID',
-                            'price' => 'Original List Price',
+                            'id'       => 'Warehouse ID',
+                            'price'    => 'Original List Price',
                             'quantity' => 'Quantity',
-                            'sku' => 'List Number',
-                            'is_new' => true,
+                            'sku'      => 'List Number',
+                            'is_new'   => true,
                         ],
                     ],
                 ],
             ],
             'categories' => [
                 [
-                    'name' => 'Style',
-                    'code' => 'Style',
+                    'name'         => 'Style',
+                    'code'         => 'Style',
                     'is_published' => 'Is Published',
-                    'position' => 'Position',
+                    'position'     => 'Position',
                 ],
             ],
             'options' => [], // validate optional params is enable
         ];
 
-        $filesystemMapperName = 'Products' . uniqid();
+        $filesystemMapperName = 'Products'.uniqid();
         $dto = new FilesystemMapper(
             $app,
             $user->getCurrentBranch(),
@@ -133,26 +133,26 @@ final class IntegrationMapperTest extends TestCase
         );
         $warehouse = (new CreateWarehouseAction($warehouseDto, $user))->execute();
         $values = [
-                    'List Number' => fake()->numerify('LIST-####'),
-                    'Features' => fake()->sentence,
-                    'regionId' => $region->getId(),
-                    'Original List Price' => fake()->randomFloat(2, 100, 1000),
-                    'Discount Price' => fake()->randomFloat(2, 50, 900),
-                    'Quantity' => fake()->numberBetween(1, 100),
-                    'Is Published' => fake()->boolean,
-                    'File URL' => fake()->imageUrl . '|' . fake()->imageUrl . '|' . fake()->imageUrl,
-                    'File Name' => fake()->word . '.jpg',
-                    'Property Type' => fake()->word,
-                    'Weight' => fake()->randomFloat(2, 0.5, 5),
-                    'customFields' => [],
-                    'Status' => fake()->boolean,
-                    'Warehouse ID' => $warehouse->getId(),
-                    'is_new' => fake()->boolean,
-                    'Style' => fake()->word,
-                    'Position' => fake()->numberBetween(1, 10),
-                    'Compensation Comments' => fake()->sentence,
-                    "Listing Date" => "14/2/25", // This is a date for test format date
-            ];
+            'List Number'           => fake()->numerify('LIST-####'),
+            'Features'              => fake()->sentence,
+            'regionId'              => $region->getId(),
+            'Original List Price'   => fake()->randomFloat(2, 100, 1000),
+            'Discount Price'        => fake()->randomFloat(2, 50, 900),
+            'Quantity'              => fake()->numberBetween(1, 100),
+            'Is Published'          => fake()->boolean,
+            'File URL'              => fake()->imageUrl.'|'.fake()->imageUrl.'|'.fake()->imageUrl,
+            'File Name'             => fake()->word.'.jpg',
+            'Property Type'         => fake()->word,
+            'Weight'                => fake()->randomFloat(2, 0.5, 5),
+            'customFields'          => [],
+            'Status'                => fake()->boolean,
+            'Warehouse ID'          => $warehouse->getId(),
+            'is_new'                => fake()->boolean,
+            'Style'                 => fake()->word,
+            'Position'              => fake()->numberBetween(1, 10),
+            'Compensation Comments' => fake()->sentence,
+            'Listing Date'          => '14/2/25', // This is a date for test format date
+        ];
 
         $importDataFromFilesystemAction = new ImportDataFromFilesystemAction(new FilesystemImports());
         $dataMapper = $importDataFromFilesystemAction->mapper($filesystemMapper->mapping, $values);
@@ -176,7 +176,7 @@ final class IntegrationMapperTest extends TestCase
 
         $mapper = [
             'input' => [
-                'name' => 'events trb 5',
+                'name'        => 'events trb 5',
                 'file_header' => [
                     'NAME',
                     'TITLE',
@@ -190,43 +190,43 @@ final class IntegrationMapperTest extends TestCase
                     'TRB SUBSCRIBER? Y / N',
                 ],
                 'system_module_id' => 31,
-                'mapping' => [
-                    'name' => 'NAME',
-                    'firstname' => 'NAME',
+                'mapping'          => [
+                    'name'         => 'NAME',
+                    'firstname'    => 'NAME',
                     'organization' => 'COMPANY',
-                    'contacts' => [
+                    'contacts'     => [
                         [
-                            'value' => 'EMAIL',
-                            'weight' => '_0',
+                            'value'             => 'EMAIL',
+                            'weight'            => '_0',
                             'contacts_types_id' => '_1',
                         ],
                         [
-                            'value' => 'LINKEDIN',
-                            'weight' => '_0',
+                            'value'             => 'LINKEDIN',
+                            'weight'            => '_0',
                             'contacts_types_id' => '_5',
                         ],
                     ],
                     'address' => [
                         [
                             'address' => 'LOCATION',
-                            'city' => 'LOCATION',
+                            'city'    => 'LOCATION',
                         ],
                     ],
                     'custom_fields' => [
                         [
-                            'name' => '_title',
+                            'name'  => '_title',
                             'value' => 'TITLE',
                         ],
                         [
-                            'name' => '_company',
+                            'name'  => '_company',
                             'value' => 'COMPANY',
                         ],
                         [
-                            'name' => '_location',
+                            'name'  => '_location',
                             'value' => 'LOCATION',
                         ],
                         [
-                            'name' => '_trb_subscriber',
+                            'name'  => '_trb_subscriber',
                             'value' => 'TRB SUBSCRIBER? Y / N',
                         ],
                     ],
@@ -238,7 +238,7 @@ final class IntegrationMapperTest extends TestCase
             ],
         ];
 
-        $filesystemMapperName = 'People' . uniqid();
+        $filesystemMapperName = 'People'.uniqid();
         $dto = new FilesystemMapper(
             $app,
             $user->getCurrentBranch(),
@@ -251,39 +251,39 @@ final class IntegrationMapperTest extends TestCase
         $filesystemMapper = (new CreateFilesystemMapperAction($dto))->execute();
 
         $values = [
-            'NAME' => 'Ryan MC',
-            'TITLE' => 'Founder',
-            'COMPANY' => 'MC City',
-            'EMAIL' => 'nada@nodeknot.com',
-            'TOPIC 1' => 'Local',
-            'TOPIC 2' => null,
-            'LOCATION' => 'LA',
-            'DINNER' => null,
-            'LINKEDIN' => 'https://www.linkedin.com/in/someonebody/',
+            'NAME'                  => 'Ryan MC',
+            'TITLE'                 => 'Founder',
+            'COMPANY'               => 'MC City',
+            'EMAIL'                 => 'nada@nodeknot.com',
+            'TOPIC 1'               => 'Local',
+            'TOPIC 2'               => null,
+            'LOCATION'              => 'LA',
+            'DINNER'                => null,
+            'LINKEDIN'              => 'https://www.linkedin.com/in/someonebody/',
             'TRB SUBSCRIBER? Y / N' => 'Y',
-            ];
+        ];
 
         $importDataFromFilesystemAction = new ImportDataFromFilesystemAction(new FilesystemImports());
         $customerData = $importDataFromFilesystemAction->mapper($filesystemMapper->mapping, $values);
         $customerData = $customerData['input']['mapping'];
         $people = DataTransferObjectPeople::from([
-            'app' => $app,
-            'branch' => $user->getCurrentCompany()->branch,
-            'user' => $user,
-            'firstname' => $customerData['firstname'],
-            'middlename' => $customerData['middlename'] ?? null,
-            'lastname' => $customerData['lastname'] ?? null,
-            'contacts' => Contact::collect($customerData['contacts'] ?? [], DataCollection::class),
-            'address' => Address::collect($customerData['address'] ?? [], DataCollection::class),
-            'dob' => $customerData['dob'] ?? null,
+            'app'                 => $app,
+            'branch'              => $user->getCurrentCompany()->branch,
+            'user'                => $user,
+            'firstname'           => $customerData['firstname'],
+            'middlename'          => $customerData['middlename'] ?? null,
+            'lastname'            => $customerData['lastname'] ?? null,
+            'contacts'            => Contact::collect($customerData['contacts'] ?? [], DataCollection::class),
+            'address'             => Address::collect($customerData['address'] ?? [], DataCollection::class),
+            'dob'                 => $customerData['dob'] ?? null,
             'facebook_contact_id' => $customerData['facebook_contact_id'] ?? null,
-            'google_contact_id' => $customerData['google_contact_id'] ?? null,
-            'apple_contact_id' => $customerData['apple_contact_id'] ?? null,
+            'google_contact_id'   => $customerData['google_contact_id'] ?? null,
+            'apple_contact_id'    => $customerData['apple_contact_id'] ?? null,
             'linkedin_contact_id' => $customerData['linkedin_contact_id'] ?? null,
-            'custom_fields' => $customerData['custom_fields'] ?? [],
-            'tags' => $customerData['tags'] ?? [],
-            'organization' => $customerData['organization'] ?? null,
-            'created_at' => $customerData['created_at'] ?? null,
+            'custom_fields'       => $customerData['custom_fields'] ?? [],
+            'tags'                => $customerData['tags'] ?? [],
+            'organization'        => $customerData['organization'] ?? null,
+            'created_at'          => $customerData['created_at'] ?? null,
         ]);
 
         if ($people->contacts->count()) {

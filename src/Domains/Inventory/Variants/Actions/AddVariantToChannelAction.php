@@ -25,15 +25,15 @@ class AddVariantToChannelAction
         return DB::connection('inventory')->transaction(function () {
             $search = [
                 'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
-                'channels_id' => $this->channel->getId(),
+                'channels_id'                   => $this->channel->getId(),
             ];
 
             $updateData = [
-                'price' => (float) ($this->variantChannelDto->price ?? 0.00),
-                'discounted_price' => (float) ($this->variantChannelDto->discounted_price ?? 0.00),
-                'is_published' => $this->variantChannelDto->is_published,
+                'price'                => (float) ($this->variantChannelDto->price ?? 0.00),
+                'discounted_price'     => (float) ($this->variantChannelDto->discounted_price ?? 0.00),
+                'is_published'         => $this->variantChannelDto->is_published,
                 'products_variants_id' => $this->variantsWarehouses->products_variants_id,
-                'warehouses_id' => $this->variantsWarehouses->warehouses_id,
+                'warehouses_id'        => $this->variantsWarehouses->warehouses_id,
             ];
 
             // Only add config to update data if it's not null

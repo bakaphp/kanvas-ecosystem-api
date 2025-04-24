@@ -32,7 +32,7 @@ class OrderReceiverJob extends ProcessWebhookJob
 
         return [
             'message' => 'Order created successfully',
-            'order' => $createOrder->execute()->getId(),
+            'order'   => $createOrder->execute()->getId(),
         ];
     }
 }

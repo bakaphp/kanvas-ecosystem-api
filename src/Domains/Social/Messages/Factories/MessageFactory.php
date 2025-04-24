@@ -14,15 +14,15 @@ class MessageFactory extends Factory
     public function definition()
     {
         return [
-            'parent_id' => null,
+            'parent_id'        => null,
             'parent_unique_id' => null,
-            'apps_id' => 1,
-            'companies_id' => 1,
-            'users_id' => 1,
+            'apps_id'          => 1,
+            'companies_id'     => 1,
+            'users_id'         => 1,
             'message_types_id' => 1,
-            'message' => [
+            'message'          => [
                 'message' => $this->faker->text,
-                'params' => [],
+                'params'  => [],
             ],
         ];
     }

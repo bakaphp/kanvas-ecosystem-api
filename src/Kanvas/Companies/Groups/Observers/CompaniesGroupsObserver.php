@@ -9,10 +9,6 @@ class CompaniesGroupsObserver
 {
     /**
      * Handle the "saving" event.
-     *
-     * @param  CompaniesGroups $companyGroup
-     *
-     * @return void
      */
     public function saving(CompaniesGroups $companyGroup): void
     {

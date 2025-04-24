@@ -10,7 +10,7 @@ use Kanvas\Social\Messages\Models\Message;
 class CheckMessagePostLimitAction
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -23,7 +23,7 @@ class CheckMessagePostLimitAction
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return void
      */

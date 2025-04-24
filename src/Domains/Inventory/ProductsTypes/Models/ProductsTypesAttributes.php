@@ -13,9 +13,9 @@ use Kanvas\Inventory\Models\BaseModel;
 /**
  * Class ProductsTypesAttributes.
  *
- * @property int $id
- * @property int $products_types_id
- * @property int $attributes_id
+ * @property int  $id
+ * @property int  $products_types_id
+ * @property int  $attributes_id
  * @property bool $toVariant
  */
 class ProductsTypesAttributes extends BaseModel

@@ -78,9 +78,9 @@ class SyncShopifyOrderAction
             shippingAddress: $shippingAddress,
             billingAddress: $billingAddress,
             total: (float) $this->orderData['current_total_price'],
-            taxes: (float)  $this->orderData['current_total_tax'],
-            totalDiscount: (float)  $this->orderData['total_discounts'],
-            totalShipping: (float)   $this->orderData['total_shipping_price_set']['shop_money']['amount'],
+            taxes: (float) $this->orderData['current_total_tax'],
+            totalDiscount: (float) $this->orderData['total_discounts'],
+            totalShipping: (float) $this->orderData['total_shipping_price_set']['shop_money']['amount'],
             status: ! empty($this->orderData['cancelled_at']) ? OrderStatusEnum::CANCELED->value : OrderStatusEnum::COMPLETED->value,
             orderNumber: (string) $this->orderData['order_number'],
             shippingMethod: $this->orderData['shipping_lines'][0]['title'] ?? null,
@@ -102,9 +102,9 @@ class SyncShopifyOrderAction
 
         if ($orderExist) {
             match (true) {
-                $order->fulfill() => $orderExist->fulfill(),
+                $order->fulfill()     => $orderExist->fulfill(),
                 $order->isCancelled() => $orderExist->cancel(),
-                default => null,
+                default               => null,
             };
 
             return $orderExist;

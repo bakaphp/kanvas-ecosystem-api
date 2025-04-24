@@ -69,19 +69,19 @@ class CreateEntityWorkflowCommand extends Command
         $companyId = text('company id?', '0', '0');
 
         $rule = Rule::firstOrCreate([
-            'name' => $ruleName,
-            'rules_types_id' => $ruleType,
+            'name'               => $ruleName,
+            'rules_types_id'     => $ruleType,
             'systems_modules_id' => $systemModule,
-            'apps_id' => $app->getId(),
-            'companies_id' => $companyId,
+            'apps_id'            => $app->getId(),
+            'companies_id'       => $companyId,
         ], [
             'description' => $description,
-            'params' => $ruleParam,
-            'pattern' => 1,
-            'is_deleted' => 0,
+            'params'      => $ruleParam,
+            'pattern'     => 1,
+            'is_deleted'  => 0,
         ]);
 
-        info('Rule created successfully - ' . $rule->getId() . ' - ' . $rule->name);
+        info('Rule created successfully - '.$rule->getId().' - '.$rule->name);
 
         info('Now lets setup when to run the rule');
 
@@ -92,8 +92,8 @@ class CreateEntityWorkflowCommand extends Command
             options: [
                 '==' => '==',
                 '!=' => '!=',
-                '>' => '>',
-                '<' => '<',
+                '>'  => '>',
+                '<'  => '<',
                 '>=' => '>=',
                 '<=' => '<=',
             ],
@@ -103,8 +103,8 @@ class CreateEntityWorkflowCommand extends Command
 
         $rule->getRulesConditions()->firstOrCreate([
             'attribute_name' => $attribute,
-            'operator' => $operator,
-            'value' => $attributeValue,
+            'operator'       => $operator,
+            'value'          => $attributeValue,
         ], [
             'is_deleted' => 0,
         ]);
@@ -122,16 +122,16 @@ class CreateEntityWorkflowCommand extends Command
         foreach ($actions as $action) {
             $ruleWorkflowAction = RuleWorkflowAction::firstOrCreate([
                 'system_modules_id' => $systemModule,
-                'actions_id' => $action,
+                'actions_id'        => $action,
             ], [
                 'is_deleted' => 0,
             ]);
 
             RuleAction::firstOrCreate([
-                'rules_id' => $rule->getId(),
+                'rules_id'                  => $rule->getId(),
                 'rules_workflow_actions_id' => $ruleWorkflowAction->getId(),
             ], [
-                'weight' => $weight,
+                'weight'     => $weight,
                 'is_deleted' => 0,
             ]);
 

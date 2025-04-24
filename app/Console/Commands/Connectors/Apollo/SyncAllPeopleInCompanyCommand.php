@@ -33,8 +33,6 @@ class SyncAllPeopleInCompanyCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -47,10 +45,10 @@ class SyncAllPeopleInCompanyCommand extends Command
         $hourlyRateLimit = 400;
         $dailyRateLimit = 2000;
         $batchSize = 100;
-        $hourlyCacheKey = 'api_hourly_rate_limit_' . $app->getId();
-        $dailyCacheKey = 'api_daily_rate_limit_' . $app->getId();
-        $resetHourlyKey = 'api_hourly_rate_limit_reset_' . $app->getId();
-        $resetDailyKey = 'api_daily_rate_limit_reset_' . $app->getId();
+        $hourlyCacheKey = 'api_hourly_rate_limit_'.$app->getId();
+        $dailyCacheKey = 'api_daily_rate_limit_'.$app->getId();
+        $resetHourlyKey = 'api_hourly_rate_limit_reset_'.$app->getId();
+        $resetDailyKey = 'api_daily_rate_limit_reset_'.$app->getId();
         $hourlyTimeWindow = 60 * 60;
         $dailyTimeWindow = 24 * 60 * 60;
 

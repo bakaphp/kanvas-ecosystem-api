@@ -32,14 +32,14 @@ class CreateEntityInteractionAction
 
         return EntityInteractions::updateOrCreate(
             [
-                'entity_id' => $this->entityInteractionData->entity->uuid,
-                'entity_namespace' => get_class($this->entityInteractionData->entity),
-                'interactions_id' => $interaction->getId(),
-                'interacted_entity_id' => $this->entityInteractionData->interactedEntity->uuid,
+                'entity_id'                   => $this->entityInteractionData->entity->uuid,
+                'entity_namespace'            => get_class($this->entityInteractionData->entity),
+                'interactions_id'             => $interaction->getId(),
+                'interacted_entity_id'        => $this->entityInteractionData->interactedEntity->uuid,
                 'interacted_entity_namespace' => get_class($this->entityInteractionData->interactedEntity),
             ],
             [
-                'notes' => $this->entityInteractionData->note,
+                'notes'      => $this->entityInteractionData->note,
                 'is_deleted' => StateEnums::NO->getValue(),
             ]
         );

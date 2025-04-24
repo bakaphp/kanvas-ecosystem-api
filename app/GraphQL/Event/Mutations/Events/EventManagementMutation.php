@@ -12,7 +12,7 @@ use Kanvas\Event\Events\Models\Event;
 class EventManagementMutation
 {
     /**
-     * Create new lead
+     * Create new lead.
      */
     public function create(mixed $root, array $req): Event
     {

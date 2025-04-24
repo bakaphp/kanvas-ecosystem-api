@@ -11,12 +11,12 @@ use Kanvas\Models\BaseModel;
 /**
  * AppsCustomFields  Model.
  *
- * @property int $companies_id
- * @property int $users_id
- * @property string $model_name
- * @property string $entity_id
- * @property string $name
- * @property string $label
+ * @property int     $companies_id
+ * @property int     $users_id
+ * @property string  $model_name
+ * @property string  $entity_id
+ * @property string  $name
+ * @property string  $label
  * @property ?string $value
  */
 class AppsCustomFields extends BaseModel
@@ -39,7 +39,7 @@ class AppsCustomFields extends BaseModel
 
     public function __construct(array $attributes = [])
     {
-        $this->setTable(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields');
+        $this->setTable(DB::connection('ecosystem')->getDatabaseName().'.apps_custom_fields');
         parent::__construct($attributes);
     }
 }

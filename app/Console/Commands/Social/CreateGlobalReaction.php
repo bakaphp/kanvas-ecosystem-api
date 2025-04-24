@@ -33,14 +33,14 @@ class CreateGlobalReaction extends Command
     public function handle()
     {
         $reactionDto = ReactionDto::from([
-            'name' => $this->argument('name'),
-            'icon' => $this->argument('icon'),
-            'apps' => Apps::find($this->argument('apps')),
+            'name'      => $this->argument('name'),
+            'icon'      => $this->argument('icon'),
+            'apps'      => Apps::find($this->argument('apps')),
             'companies' => Companies::find(AppEnums::GLOBAL_COMPANY_ID->getValue()),
         ]);
 
         $action = new CreateReactionAction($reactionDto);
         $reaction = $action->execute();
-        echo 'Reaction created with id: ' . $reaction->getId() . PHP_EOL;
+        echo 'Reaction created with id: '.$reaction->getId().PHP_EOL;
     }
 }

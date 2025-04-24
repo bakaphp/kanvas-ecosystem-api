@@ -11,7 +11,7 @@ use Kanvas\Users\Repositories\UsersRepository;
 class GetFollowingBuilder
 {
     /**
-     * __invoke
+     * __invoke.
      */
     public function __invoke(mixed $root, array $request): mixed
     {

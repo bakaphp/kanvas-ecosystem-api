@@ -28,10 +28,10 @@ final class DynamicWorkflowTest extends TestCase
 
         $ruleWorkflowAction = RuleAction::factory()->create();
         RuleCondition::factory()->create([
-            'rules_id' => $ruleWorkflowAction->rules_id,
+            'rules_id'       => $ruleWorkflowAction->rules_id,
             'attribute_name' => 'id',
-            'operator' => '>=',
-            'value' => 0,
+            'operator'       => '>=',
+            'value'          => 0,
         ]);
 
         $processWorkflow = new ProcessWorkflowEventAction($app, $lead);
@@ -53,10 +53,10 @@ final class DynamicWorkflowTest extends TestCase
 
         $ruleWorkflowAction = RuleAction::factory()->withAsync(false)->create();
         RuleCondition::factory()->create([
-            'rules_id' => $ruleWorkflowAction->rules_id,
+            'rules_id'       => $ruleWorkflowAction->rules_id,
             'attribute_name' => 'interaction',
-            'operator' => '==',
-            'value' => 'likes',
+            'operator'       => '==',
+            'value'          => 'likes',
         ]);
 
         $processWorkflow = new ProcessWorkflowEventAction($app, $lead);
@@ -82,10 +82,10 @@ final class DynamicWorkflowTest extends TestCase
 
         $ruleWorkflowAction = RuleAction::factory()->withAsync(false)->create();
         RuleCondition::factory()->create([
-            'rules_id' => $ruleWorkflowAction->rules_id,
+            'rules_id'       => $ruleWorkflowAction->rules_id,
             'attribute_name' => 'id',
-            'operator' => '>=',
-            'value' => 0,
+            'operator'       => '>=',
+            'value'          => 0,
         ]);
 
         $processWorkflow = new ProcessWorkflowEventAction($app, $lead);

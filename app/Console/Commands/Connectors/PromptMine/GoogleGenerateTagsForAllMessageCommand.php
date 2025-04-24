@@ -33,8 +33,6 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -71,13 +69,12 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
                     totalTags: 3
                 );
             }
-            $this->info('Message ID: ' . $message->getId() . ' Tags: ' . json_encode($messageTags->tags->pluck('name'), JSON_PRETTY_PRINT));
+            $this->info('Message ID: '.$message->getId().' Tags: '.json_encode($messageTags->tags->pluck('name'), JSON_PRETTY_PRINT));
             //$this->newLine();
             $this->output->progressAdvance();
         }
 
         $this->output->progressFinish();
 
-        return;
     }
 }

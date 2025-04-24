@@ -18,16 +18,16 @@ use Kanvas\Inventory\Variants\Models\VariantsChannels;
 /**
  * Class Channels.
  *
- * @property int $id
- * @property int $companies_id
- * @property int $apps_id
- * @property int $users_id
+ * @property int    $id
+ * @property int    $companies_id
+ * @property int    $apps_id
+ * @property int    $users_id
  * @property string $uuid
  * @property string $name
  * @property string $description
  * @property string $slug
- * @property int $is_published
- * @property int $is_deleted
+ * @property int    $is_published
+ * @property int    $is_deleted
  * @property string $created_at
  * @property string $updated_at
  */
@@ -42,7 +42,7 @@ class Channels extends BaseModel
     protected $guarded = [];
 
     /**
-     * Available products in this channel
+     * Available products in this channel.
      */
     public function availableProducts(): HasMany
     {
@@ -54,7 +54,7 @@ class Channels extends BaseModel
     }
 
     /**
-     * Update all variants doesn't matter the location from this channel
+     * Update all variants doesn't matter the location from this channel.
      */
     public function unPublishAllVariants(): bool
     {

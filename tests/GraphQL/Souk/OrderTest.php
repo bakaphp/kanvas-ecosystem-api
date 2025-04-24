@@ -25,23 +25,23 @@ class OrderTest extends TestCase
 
         // Prepare input data for the draft order
         $data = [
-            'email' => fake()->email(),
+            'email'     => fake()->email(),
             'region_id' => $region->getId(),
-            'metadata' => hash('sha256', random_bytes(10)),
-            'customer' => [
+            'metadata'  => hash('sha256', random_bytes(10)),
+            'customer'  => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
+                'lastname'  => fake()->lastName(),
             ],
             'shipping_address' => [
-                'address' => fake()->address(),
+                'address'   => fake()->address(),
                 'address_2' => fake()->postcode(),
-                'city' => fake()->city(),
-                'state' => fake()->state(),
+                'city'      => fake()->city(),
+                'state'     => fake()->state(),
             ],
             'items' => [
                 [
                     'variant_id' => $variantWarehouse->variant->getId(),
-                    'quantity' => 1,
+                    'quantity'   => 1,
                 ],
             ],
         ];
@@ -72,31 +72,31 @@ class OrderTest extends TestCase
         // Prepare input data for the order
         $data = [
             'CreditCardInput' => [
-                'name' => fake()->name(),
-                'number' => fake()->creditCardNumber(null, false, ''),
+                'name'      => fake()->name(),
+                'number'    => fake()->creditCardNumber(null, false, ''),
                 'exp_month' => 12,
-                'exp_year' => 2026,
+                'exp_year'  => 2026,
             ],
             'CreditCardBillingInput' => [
-                'address' => fake()->address(),
+                'address'  => fake()->address(),
                 'address2' => fake()->address(),
-                'city' => fake()->city(),
-                'state' => 'MT',
-                'zip' => 59068,
-                'country' => 'US',
+                'city'     => fake()->city(),
+                'state'    => 'MT',
+                'zip'      => 59068,
+                'country'  => 'US',
             ],
             'items' => [
                 [
                     'variant_id' => $variantWarehouse->variant->getId(),
-                    'quantity' => 2,
+                    'quantity'   => 2,
                 ],
             ],
             'shipping_address' => [
-                'address' => fake()->address(),
+                'address'   => fake()->address(),
                 'address_2' => fake()->postcode(),
-                'city' => fake()->city(),
-                'state' => fake()->state(),
-            ]
+                'city'      => fake()->city(),
+                'state'     => fake()->state(),
+            ],
         ];
 
         // Perform GraphQL mutation to create a draft order
@@ -134,7 +134,6 @@ class OrderTest extends TestCase
             warehouseData: $warehouseData
         )->json()['data']['createVariant'];
 
-
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $this->addVariantToChannel(
@@ -142,7 +141,6 @@ class OrderTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
@@ -156,28 +154,28 @@ class OrderTest extends TestCase
         $endDate = now()->subDays(1);
 
         $data = [
-            'email' => fake()->email(),
+            'email'     => fake()->email(),
             'region_id' => $region->getId(),
-            'metadata' => [
+            'metadata'  => [
                 'data' => [
                     'start_at' => now()->subDays(2)->toDateTimeString(),
-                    'end_at' => now()->subDays(1)->toDateTimeString(),
+                    'end_at'   => now()->subDays(1)->toDateTimeString(),
                 ],
             ],
             'customer' => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
+                'lastname'  => fake()->lastName(),
             ],
             'shipping_address' => [
-                'address' => fake()->address(),
+                'address'   => fake()->address(),
                 'address_2' => fake()->postcode(),
-                'city' => fake()->city(),
-                'state' => fake()->state(),
+                'city'      => fake()->city(),
+                'state'     => fake()->state(),
             ],
             'items' => [
                 [
                     'variant_id' => $variantResponse['id'],
-                    'quantity' => 1,
+                    'quantity'   => 1,
                 ],
             ],
         ];
@@ -194,8 +192,6 @@ class OrderTest extends TestCase
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
-
-
 
         $createOrderResponse = $response->json()['data']['createDraftOrder'];
 
@@ -217,17 +213,17 @@ class OrderTest extends TestCase
                 }
             }
         ', [
-            "id" => $createOrderResponse['id'],
+            'id'    => $createOrderResponse['id'],
             'input' => [
-                "items" => [
+                'items' => [
                     [
                         'variant_id' => $variantResponse['id'],
-                        'quantity' => 2,
+                        'quantity'   => 2,
                     ],
                 ],
-                "metadata" => [
-                    "data" => [
-                        "end_at" => $extendedEndAt,
+                'metadata' => [
+                    'data' => [
+                        'end_at' => $extendedEndAt,
                     ],
                 ],
             ],
@@ -262,7 +258,6 @@ class OrderTest extends TestCase
             warehouseData: $warehouseData
         )->json()['data']['createVariant'];
 
-
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $this->addVariantToChannel(
@@ -270,7 +265,6 @@ class OrderTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
@@ -284,28 +278,28 @@ class OrderTest extends TestCase
         $endDate = now()->subDays(1);
 
         $data = [
-            'email' => fake()->email(),
+            'email'     => fake()->email(),
             'region_id' => $region->getId(),
-            'metadata' => [
+            'metadata'  => [
                 'data' => [
                     'start_at' => now()->subDays(2)->toDateTimeString(),
-                    'end_at' => now()->subDays(1)->toDateTimeString(),
+                    'end_at'   => now()->subDays(1)->toDateTimeString(),
                 ],
             ],
             'customer' => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
+                'lastname'  => fake()->lastName(),
             ],
             'shipping_address' => [
-                'address' => fake()->address(),
+                'address'   => fake()->address(),
                 'address_2' => fake()->postcode(),
-                'city' => fake()->city(),
-                'state' => fake()->state(),
+                'city'      => fake()->city(),
+                'state'     => fake()->state(),
             ],
             'items' => [
                 [
                     'variant_id' => $variantResponse['id'],
-                    'quantity' => 1,
+                    'quantity'   => 1,
                 ],
             ],
         ];
@@ -322,8 +316,6 @@ class OrderTest extends TestCase
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
-
-
 
         $createOrderResponse = $response->json()['data']['createDraftOrder'];
 
@@ -345,11 +337,11 @@ class OrderTest extends TestCase
                 }
             }
         ', [
-            "id" => $createOrderResponse['id'],
+            'id'    => $createOrderResponse['id'],
             'input' => [
-                "metadata" => [
-                    "data" => [
-                        "end_at" => $extendedEndAt,
+                'metadata' => [
+                    'data' => [
+                        'end_at' => $extendedEndAt,
                     ],
                 ],
             ],
@@ -384,7 +376,6 @@ class OrderTest extends TestCase
             warehouseData: $warehouseData
         )->json()['data']['createVariant'];
 
-
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $this->addVariantToChannel(
@@ -392,7 +383,6 @@ class OrderTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
@@ -406,28 +396,28 @@ class OrderTest extends TestCase
         $endDate = now()->subDays(1);
 
         $data = [
-            'email' => fake()->email(),
+            'email'     => fake()->email(),
             'region_id' => $region->getId(),
-            'metadata' => [
+            'metadata'  => [
                 'data' => [
                     'start_at' => now()->subDays(2)->toDateTimeString(),
-                    'end_at' => now()->subDays(1)->toDateTimeString(),
+                    'end_at'   => now()->subDays(1)->toDateTimeString(),
                 ],
             ],
             'customer' => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
+                'lastname'  => fake()->lastName(),
             ],
             'shipping_address' => [
-                'address' => fake()->address(),
+                'address'   => fake()->address(),
                 'address_2' => fake()->postcode(),
-                'city' => fake()->city(),
-                'state' => fake()->state(),
+                'city'      => fake()->city(),
+                'state'     => fake()->state(),
             ],
             'items' => [
                 [
                     'variant_id' => $variantResponse['id'],
-                    'quantity' => 1,
+                    'quantity'   => 1,
                 ],
             ],
         ];
@@ -444,8 +434,6 @@ class OrderTest extends TestCase
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
-
-
 
         $createOrderResponse = $response->json()['data']['createDraftOrder'];
 
@@ -468,9 +456,9 @@ class OrderTest extends TestCase
                 }
             }
         ', [
-            "id" => $createOrderResponse['id'],
+            'id'    => $createOrderResponse['id'],
             'input' => [
-                "fulfillment_status" => "fulfilled",
+                'fulfillment_status' => 'fulfilled',
             ],
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,
@@ -479,7 +467,7 @@ class OrderTest extends TestCase
         $orderData = $response->json()['data']['updateOrder']['order'];
         $order = Order::find($orderData['id']);
 
-        $this->assertEquals("fulfilled", $order->fulfillment_status);
+        $this->assertEquals('fulfilled', $order->fulfillment_status);
     }
 
     public function testCreateOrderWithDecimalQuantity()
@@ -500,7 +488,6 @@ class OrderTest extends TestCase
             warehouseData: $warehouseData
         )->json()['data']['createVariant'];
 
-
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $this->addVariantToChannel(
@@ -508,7 +495,6 @@ class OrderTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
@@ -522,28 +508,28 @@ class OrderTest extends TestCase
         $endDate = now()->subDays(1);
 
         $data = [
-            'email' => fake()->email(),
+            'email'     => fake()->email(),
             'region_id' => $region->getId(),
-            'metadata' => [
+            'metadata'  => [
                 'data' => [
                     'start_at' => now()->subDays(2)->toDateTimeString(),
-                    'end_at' => now()->subDays(1)->toDateTimeString(),
+                    'end_at'   => now()->subDays(1)->toDateTimeString(),
                 ],
             ],
             'customer' => [
                 'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
+                'lastname'  => fake()->lastName(),
             ],
             'shipping_address' => [
-                'address' => fake()->address(),
+                'address'   => fake()->address(),
                 'address_2' => fake()->postcode(),
-                'city' => fake()->city(),
-                'state' => fake()->state(),
+                'city'      => fake()->city(),
+                'state'     => fake()->state(),
             ],
             'items' => [
                 [
                     'variant_id' => $variantResponse['id'],
-                    'quantity' => 2.5,
+                    'quantity'   => 2.5,
                 ],
             ],
         ];

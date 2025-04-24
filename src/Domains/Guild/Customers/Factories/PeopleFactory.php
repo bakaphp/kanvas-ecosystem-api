@@ -15,9 +15,9 @@ class PeopleFactory extends Factory
     {
         return [
             'firstname' => fake()->firstName,
-            'lastname' => fake()->lastName,
-            'name' => fake()->name,
-            'users_id' => 1,
+            'lastname'  => fake()->lastName,
+            'name'      => fake()->name,
+            'users_id'  => 1,
         ];
     }
 
@@ -54,13 +54,13 @@ class PeopleFactory extends Factory
             $person->contacts()->createMany([
                 [
                     'contacts_types_id' => 1,
-                    'value' => fake()->email,
-                    'weight' => 0,
+                    'value'             => fake()->email,
+                    'weight'            => 0,
                 ],
                 [
                     'contacts_types_id' => 2,
-                    'value' => fake()->phoneNumber,
-                    'weight' => 0,
+                    'value'             => fake()->phoneNumber,
+                    'weight'            => 0,
                 ],
             ]);
         });

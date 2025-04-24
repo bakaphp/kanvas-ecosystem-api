@@ -78,9 +78,9 @@ class TaskEngagementMutation
             WorkflowEnum::UPDATED->value,
             true,
             [
-                'app' => $app,
+                'app'     => $app,
                 'company' => $company,
-                'lead' => $lead,
+                'lead'    => $lead,
             ]
         );
 

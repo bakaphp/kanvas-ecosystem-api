@@ -47,27 +47,27 @@ class CreateVariantsAction
         }
 
         $search = [
-            'products_id' => $this->variantDto->product->getId(),
-            'sku' => $this->variantDto->sku,
+            'products_id'  => $this->variantDto->product->getId(),
+            'sku'          => $this->variantDto->sku,
             'companies_id' => $this->variantDto->product->companies_id,
-            'apps_id' => $this->variantDto->product->apps_id,
+            'apps_id'      => $this->variantDto->product->apps_id,
         ];
 
         $variant = Variants::updateOrCreate(
             $search,
             [
-                'name' => $this->variantDto->name,
-                'users_id' => $this->user->getId(),
-                'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
-                'description' => $this->variantDto->description,
+                'name'              => $this->variantDto->name,
+                'users_id'          => $this->user->getId(),
+                'slug'              => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
+                'description'       => $this->variantDto->description,
                 'short_description' => $this->variantDto->short_description,
-                'html_description' => $this->variantDto->html_description,
-                'status_id' => $this->variantDto->status_id,
-                'ean' => $this->variantDto->ean,
-                'barcode' => $this->variantDto->barcode,
-                'serial_number' => $this->variantDto->serial_number,
-                'weight' => $this->variantDto->weight ?? 0,
-                'is_published' => $this->variantDto->is_published,
+                'html_description'  => $this->variantDto->html_description,
+                'status_id'         => $this->variantDto->status_id,
+                'ean'               => $this->variantDto->ean,
+                'barcode'           => $this->variantDto->barcode,
+                'serial_number'     => $this->variantDto->serial_number,
+                'weight'            => $this->variantDto->weight ?? 0,
+                'is_published'      => $this->variantDto->is_published,
             ]
         );
 

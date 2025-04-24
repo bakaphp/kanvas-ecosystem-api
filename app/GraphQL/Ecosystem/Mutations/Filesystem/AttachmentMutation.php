@@ -38,7 +38,7 @@ class AttachmentMutation
     }
 
     /**
-     * deAttach a file from filesystem
+     * deAttach a file from filesystem.
      */
     public function deAttachFile(mixed $rootValue, array $request): bool
     {

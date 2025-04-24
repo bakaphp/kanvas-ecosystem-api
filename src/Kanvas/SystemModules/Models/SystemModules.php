@@ -33,17 +33,17 @@ use Silber\Bouncer\Database\Ability;
  * @property string $uuid
  * @property string $slug
  * @property string $model_name
- * @property int $apps_id
- * @property int $parents_id
- * @property int $menu_order
- * @property int $show
- * @property int $use_elastic
+ * @property int    $apps_id
+ * @property int    $parents_id
+ * @property int    $menu_order
+ * @property int    $show
+ * @property int    $use_elastic
  * @property string $browse_fields
  * @property string $bulk_actions
  * @property string $mobile_component_type
  * @property string $mobile_navigation_type
- * @property int $mobile_tab_index
- * @property int $protected
+ * @property int    $mobile_tab_index
+ * @property int    $protected
  */
 class SystemModules extends BaseModel
 {
@@ -97,9 +97,9 @@ class SystemModules extends BaseModel
     public static function convertLegacySystemModules(string $className): string
     {
         $mapping = [
-            'Gewaer\\Models\\Leads' => Lead::class,
-            'Gewaer\\Models\\Messages' => Message::class,
-            'Gewaer\\Models\\Companies' => Companies::class,
+            'Gewaer\\Models\\Leads'                      => Lead::class,
+            'Gewaer\\Models\\Messages'                   => Message::class,
+            'Gewaer\\Models\\Companies'                  => Companies::class,
             'Kanvas\\Packages\\Social\\Models\\Messages' => Message::class,
             // 'Kanvas\Guild\Activities\Models\Activities' => Message::class,
         ];
@@ -110,9 +110,9 @@ class SystemModules extends BaseModel
     public static function getLegacyNamespace(string $className): string
     {
         $mapping = [
-            Lead::class => 'Gewaer\\Models\\Leads',
-            People::class => 'Gewaer\\Models\\Peoples\\Peoples',
-            Message::class => 'Gewaer\\Models\\Messages',
+            Lead::class      => 'Gewaer\\Models\\Leads',
+            People::class    => 'Gewaer\\Models\\Peoples\\Peoples',
+            Message::class   => 'Gewaer\\Models\\Messages',
             Companies::class => 'Gewaer\\Models\\Companies',
             // Message::class => 'Kanvas\Packages\Social\Models\Messages',
             // Message::class => 'Kanvas\Guild\Activities\Models\Activities',
@@ -124,37 +124,37 @@ class SystemModules extends BaseModel
     public static function getSystemModuleNameSpaceBySlug(string $slug): string
     {
         $internalMapping = [
-            'lead' => Lead::class,
-            'people' => People::class,
+            'lead'    => Lead::class,
+            'people'  => People::class,
             'message' => Message::class,
             'product' => Products::class,
             'variant' => Variants::class,
-            'order' => Order::class,
-            'user' => Users::class,
+            'order'   => Order::class,
+            'user'    => Users::class,
             'company' => Companies::class,
-            'branch' => CompaniesBranches::class,
-            'region' => Regions::class,
+            'branch'  => CompaniesBranches::class,
+            'region'  => Regions::class,
         ];
 
-        return $internalMapping[strtolower($slug)] ?? throw new InvalidArgumentException('Entity ' . $slug . ' not found');
+        return $internalMapping[strtolower($slug)] ?? throw new InvalidArgumentException('Entity '.$slug.' not found');
     }
 
     public static function getSlugBySystemModuleNameSpace(string $namespace): string
     {
         $internalMapping = [
-            Lead::class => 'lead',
-            People::class => 'people',
-            Message::class => 'message',
-            Products::class => 'product',
-            Variants::class => 'variant',
-            Order::class => 'order',
-            Users::class => 'user',
-            Companies::class => 'company',
+            Lead::class              => 'lead',
+            People::class            => 'people',
+            Message::class           => 'message',
+            Products::class          => 'product',
+            Variants::class          => 'variant',
+            Order::class             => 'order',
+            Users::class             => 'user',
+            Companies::class         => 'company',
             CompaniesBranches::class => 'branch',
-            Regions::class => 'region',
+            Regions::class           => 'region',
         ];
 
-        return $internalMapping[$namespace] ?? throw new InvalidArgumentException('Namespace ' . $namespace . ' not found');
+        return $internalMapping[$namespace] ?? throw new InvalidArgumentException('Namespace '.$namespace.' not found');
     }
 
     public function abilities(): BelongsToMany

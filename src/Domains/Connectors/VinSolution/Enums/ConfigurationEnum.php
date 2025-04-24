@@ -25,6 +25,6 @@ enum ConfigurationEnum: string
 
     public static function getUserKey(Companies $company, UserInterface $user): string
     {
-        return self::USER->value . '_' . $company->getId() . '_' . $user->getId();
+        return self::USER->value.'_'.$company->getId().'_'.$user->getId();
     }
 }

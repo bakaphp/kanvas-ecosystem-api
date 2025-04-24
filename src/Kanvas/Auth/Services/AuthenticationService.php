@@ -65,7 +65,8 @@ class AuthenticationService
 
         try {
             /**
-             * until v3 (legacy) is deprecated we have to check or create the user profile the first time
+             * until v3 (legacy) is deprecated we have to check or create the user profile the first time.
+             *
              * @todo remove in v2
              */
             $authentically = $user->getAppProfile($app);
@@ -176,7 +177,7 @@ class AuthenticationService
     }
 
     /**
-     * clean user session
+     * clean user session.
      */
     public function logout(Users $user, Token $token): bool
     {
@@ -196,8 +197,8 @@ class AuthenticationService
 
     public static function getSocialite(Apps $app, string $provider)
     {
-        $config = $app->get($provider . '_socialite');
-        config(['services.' . $provider => $config]);
+        $config = $app->get($provider.'_socialite');
+        config(['services.'.$provider => $config]);
 
         return Socialite::driver($provider);
     }

@@ -20,10 +20,10 @@ class SocialManager
         $app = $app ?? app(Apps::class);
 
         return match ($driver) {
-            SourceEnum::GOOGLE->value => new GoogleDriver((array) $app->get(AppSettingsEnums::SOCIALITE_PROVIDER_GOOGLE->getValue())),
+            SourceEnum::GOOGLE->value   => new GoogleDriver((array) $app->get(AppSettingsEnums::SOCIALITE_PROVIDER_GOOGLE->getValue())),
             SourceEnum::FACEBOOK->value => new FacebookDriver((array) $app->get(AppSettingsEnums::SOCIALITE_PROVIDER_FACEBOOK->getValue())),
-            SourceEnum::APPLE->value => new AppleDriver((array) $app->get(AppSettingsEnums::SOCIALITE_PROVIDER_APPLE->getValue())),
-            default => throw new Exception('Driver not found'),
+            SourceEnum::APPLE->value    => new AppleDriver((array) $app->get(AppSettingsEnums::SOCIALITE_PROVIDER_APPLE->getValue())),
+            default                     => throw new Exception('Driver not found'),
         };
     }
 }

@@ -18,17 +18,17 @@ use Kanvas\Traits\DefaultTrait;
 /**
  * Class Regions.
  *
- * @property int $id
- * @property int $companies_id
- * @property int $apps_id
- * @property int $currency_id
+ * @property int    $id
+ * @property int    $companies_id
+ * @property int    $apps_id
+ * @property int    $currency_id
  * @property string $uuid
  * @property string $name
  * @property string $slug
  * @property string $short_slug
  * @property ?string settings = null
- * @property int $is_default
- * @property int $is_deleted
+ * @property int    $is_default
+ * @property int    $is_deleted
  * @property string $created_at
  * @property string $updated_at
  */

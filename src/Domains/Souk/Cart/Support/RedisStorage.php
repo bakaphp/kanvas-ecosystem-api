@@ -25,15 +25,15 @@ class RedisStorage implements ArrayAccess
         $this->itemsKey = $config['storage']['database']['items'] ?? 'items';
         $this->conditionsKey = $config['storage']['database']['conditions'] ?? 'conditions';
 
-        $this->cartId = $this->key . app(Apps::class)->getId() . '_' . $sessionKey;
+        $this->cartId = $this->key.app(Apps::class)->getId().'_'.$sessionKey;
 
         $redisData = Redis::connection('cart')->get($this->cartId);
 
         // Initialize data structure if it doesn't exist
         if (! $redisData) {
             $this->data = [
-                $this->sessionId => $sessionKey,
-                $this->itemsKey => [],
+                $this->sessionId     => $sessionKey,
+                $this->itemsKey      => [],
                 $this->conditionsKey => [],
             ];
         } else {

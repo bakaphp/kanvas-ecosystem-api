@@ -18,9 +18,9 @@ class SyncPeopleWithNetSuiteActivity extends KanvasActivity
         $company = $syncPeopleWithNetSuite->execute();
 
         return [
-            'people' => $people->getId(),
+            'people'       => $people->getId(),
             'net_suite_id' => $people->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value),
-            'name' => $people->name,
+            'name'         => $people->name,
         ];
     }
 }

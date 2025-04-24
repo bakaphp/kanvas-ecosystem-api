@@ -46,32 +46,32 @@ class FacebookDriver implements DriverInterface
         throw_if($data['iss'] !== 'https://www.facebook.com', new Exception('Token has incorrect issuer.'));
 
         return User::from([
-            'id' => $data['sub'],
-            'email' => $data['email'],
+            'id'       => $data['sub'],
+            'email'    => $data['email'],
             'nickname' => Random::generateDisplayName($data['given_name']),
-            'name' => $data['name'],
-            'token' => $token,
+            'name'     => $data['name'],
+            'token'    => $token,
         ]);
     }
 
     public function getUserFromClassicToken(string $token): User
     {
-        $response = $this->client->get('https://graph.facebook.com/me?access_token=' . $token . '&fields=id,name,email,first_name,last_name');
+        $response = $this->client->get('https://graph.facebook.com/me?access_token='.$token.'&fields=id,name,email,first_name,last_name');
 
         $data = json_decode($response->getBody()->getContents(), true);
 
         return User::from([
-            'id' => $data['id'],
-            'email' => $data['email'],
+            'id'       => $data['id'],
+            'email'    => $data['email'],
             'nickname' => Random::generateDisplayName($data['first_name']),
-            'name' => $data['name'],
-            'token' => $token,
+            'name'     => $data['name'],
+            'token'    => $token,
         ]);
     }
 
     /**
      * from socialite, https://github.com/laravel/socialite/blob/beb3adcff1a6e400955c459d5ad329c0576da3ed/src/Two/FacebookProvider.php#L158
-     * cant extend the class because of our current implementation
+     * cant extend the class because of our current implementation.
      */
     protected function getPublicKeyOfOIDCToken(string $kid)
     {

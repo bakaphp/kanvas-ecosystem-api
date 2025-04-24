@@ -25,10 +25,10 @@ class MessageInteractionTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         )->assertJson([
@@ -73,10 +73,10 @@ class MessageInteractionTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         )->assertJson([
@@ -121,10 +121,10 @@ class MessageInteractionTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         )->assertJson([
@@ -169,10 +169,10 @@ class MessageInteractionTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         )->assertJson([
@@ -202,10 +202,10 @@ class MessageInteractionTest extends TestCase
     }
 
     /**
-    * testMessagesLikedByUser
-    *
-    * @return void
-    */
+     * testMessagesLikedByUser.
+     *
+     * @return void
+     */
     public function testMessagesLikedByUser()
     {
         $messageType = MessageType::factory()->create();
@@ -223,10 +223,10 @@ class MessageInteractionTest extends TestCase
             ',
             [
                 'input' => [
-                    'message' => $message,
-                    'message_verb' => $messageType->verb,
+                    'message'           => $message,
+                    'message_verb'      => $messageType->verb,
                     'system_modules_id' => 1,
-                    'entity_id' => '1',
+                    'entity_id'         => '1',
                 ],
             ]
         )->assertJson([

@@ -27,24 +27,24 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
 
         if ($interaction === null) {
             return [
-                'result' => false,
+                'result'  => false,
                 'message' => 'Interaction is required',
-                'params' => $params,
+                'params'  => $params,
             ];
         }
 
         if ($userInteraction === null) {
             return [
-                'result' => false,
+                'result'  => false,
                 'message' => 'User Interaction is required',
-                'params' => $params,
+                'params'  => $params,
             ];
         }
 
         $interactionType = ucfirst($interaction); // Capitalize interaction for consistency
         $notificationMessage = $params['message'] ?? 'New %s from %s on your message';
-        $notificationTitle = $params['title'] ?? 'New ' . $interactionType;
-        $subject = $params['subject'] ?? $notificationTitle . ' from %s';
+        $notificationTitle = $params['title'] ?? 'New '.$interactionType;
+        $subject = $params['subject'] ?? $notificationTitle.' from %s';
         $viaList = $params['via'] ?? ['database'];
 
         // Map notification channels
@@ -67,24 +67,24 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
         }
 
         $config = [
-            'email_template' => $emailTemplate,
-            'push_template' => $pushTemplate,
-            'app' => $app,
-            'company' => $message->company,
-            'message' => sprintf($notificationMessage, $interactionType, $userInteraction->user->displayname),
-            'title' => $notificationTitle,
-            'metadata' => $metaData,
-            'interaction_type' => $interactionType,
-            'interaction' => $interaction,
-            'subject' => sprintf($subject, $message->user->displayname),
-            'via' => $endViaList,
-            'message_owner_id' => $message->user->getId(),
-            'from_user_id' => $userInteraction->user->getId(),
-            'fromUser' => $userInteraction->user,
-            'message_id' => $message->getId(),
+            'email_template'    => $emailTemplate,
+            'push_template'     => $pushTemplate,
+            'app'               => $app,
+            'company'           => $message->company,
+            'message'           => sprintf($notificationMessage, $interactionType, $userInteraction->user->displayname),
+            'title'             => $notificationTitle,
+            'metadata'          => $metaData,
+            'interaction_type'  => $interactionType,
+            'interaction'       => $interaction,
+            'subject'           => sprintf($subject, $message->user->displayname),
+            'via'               => $endViaList,
+            'message_owner_id'  => $message->user->getId(),
+            'from_user_id'      => $userInteraction->user->getId(),
+            'fromUser'          => $userInteraction->user,
+            'message_id'        => $message->getId(),
             'parent_message_id' => $message->parent ? $message->parent->getId() : $message->getId(),
-            'destination_id' => $message->getId(),
-            'destination_type' => $params['destination_type'] ?? 'MESSAGE',
+            'destination_id'    => $message->getId(),
+            'destination_type'  => $params['destination_type'] ?? 'MESSAGE',
             'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
         ];
 
@@ -99,16 +99,16 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
             $message->user->notify($newMessageNotification);
         } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
             return [
-                'result' => false,
-                'message' => 'Error in notification to user',
+                'result'    => false,
+                'message'   => 'Error in notification to user',
                 'exception' => $e,
             ];
         }
 
         return [
-            'result' => true,
-            'message' => 'Interaction Notification sent to message owner',
-            'data' => $config,
+            'result'     => true,
+            'message'    => 'Interaction Notification sent to message owner',
+            'data'       => $config,
             'message_id' => $message->getId(),
         ];
     }

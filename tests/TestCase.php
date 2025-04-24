@@ -30,10 +30,10 @@ class TestCase extends BaseTestCase
     public function createUser(): Users
     {
         $dto = RegisterPostDataDto::from([
-            'email' => fake()->email,
-            'password' => fake()->password(8),
+            'email'     => fake()->email,
+            'password'  => fake()->password(8),
             'firstname' => fake()->firstName,
-            'lastname' => fake()->lastName,
+            'lastname'  => fake()->lastName,
         ]);
         $user = (new RegisterUsersAction($dto))->execute();
 
@@ -45,9 +45,9 @@ class TestCase extends BaseTestCase
         $config = Container::getInstance()->make(ConfigRepository::class);
 
         $routeName = match ($this->graphqlVersion) {
-            'graphql' => $config->get('lighthouse.route.name'),
+            'graphql'         => $config->get('lighthouse.route.name'),
             'graphql-2025-01' => $config->get('lighthouse-multi-schema.multi_schemas.schema1.route_name'),
-            default => $config->get('lighthouse.route.name'),
+            default           => $config->get('lighthouse.route.name'),
         };
 
         return route($routeName, $routeParams);

@@ -18,9 +18,9 @@ class ReactionTest extends TestCase
     public function testCreateReaction()
     {
         $input = [
-        'name' => fake()->name(),
-        'icon' => fake()->emoji(),
-       ];
+            'name' => fake()->name(),
+            'icon' => fake()->emoji(),
+        ];
         $this->graphQL(/** @lang GRAPHQL */
             '
                mutation createReaction(
@@ -35,21 +35,21 @@ class ReactionTest extends TestCase
                }
            ',
             [
-               'input' => $input,
-           ]
+                'input' => $input,
+            ]
         )->assertJson([
-           'data' => [
-               'createReaction' => $input,
-           ],
-       ]);
+            'data' => [
+                'createReaction' => $input,
+            ],
+        ]);
     }
 
     public function testUpdateReaction()
     {
         $input = [
-        'name' => fake()->name(),
-        'icon' => fake()->emoji(),
-       ];
+            'name' => fake()->name(),
+            'icon' => fake()->emoji(),
+        ];
         $response = $this->graphQL(/** @lang GRAPHQL */
             '
                mutation createReaction(
@@ -64,8 +64,8 @@ class ReactionTest extends TestCase
                }
            ',
             [
-               'input' => $input,
-           ]
+                'input' => $input,
+            ]
         );
         $id = $response->json('data.createReaction.id');
         $input = [
@@ -87,25 +87,25 @@ class ReactionTest extends TestCase
                }
            ',
             [
-               'id' => $id,
-               'input' => $input,
-           ]
+                'id'    => $id,
+                'input' => $input,
+            ]
         )->assertJson([
-           'data' => [
-               'updateReaction' => [
-                   'name' => $input['name'],
-                   'icon' => $input['icon'],
-               ],
-           ],
-       ]);
+            'data' => [
+                'updateReaction' => [
+                    'name' => $input['name'],
+                    'icon' => $input['icon'],
+                ],
+            ],
+        ]);
     }
 
     public function testDeleteReaction()
     {
         $input = [
-        'name' => fake()->name(),
-        'icon' => fake()->emoji(),
-       ];
+            'name' => fake()->name(),
+            'icon' => fake()->emoji(),
+        ];
         $response = $this->graphQL(/** @lang GRAPHQL */
             '
                mutation createReaction(
@@ -120,8 +120,8 @@ class ReactionTest extends TestCase
                }
            ',
             [
-               'input' => $input,
-           ]
+                'input' => $input,
+            ]
         );
         $id = $response->json('data.createReaction.id');
         $this->graphQL(/** @lang GRAPHQL */
@@ -134,13 +134,13 @@ class ReactionTest extends TestCase
                }
            ',
             [
-               'id' => $id,
-           ]
+                'id' => $id,
+            ]
         )->assertJson([
-           'data' => [
-               'deleteReaction' => true,
-           ],
-       ]);
+            'data' => [
+                'deleteReaction' => true,
+            ],
+        ]);
     }
 
     public function testGetReactions()
@@ -163,12 +163,12 @@ class ReactionTest extends TestCase
                }
            ',
             [
-               'input' => $input,
-           ]
+                'input' => $input,
+            ]
         )->assertJson([
-           'data' => [
-               'createReaction' => $input,
-           ], ]);
+            'data' => [
+                'createReaction' => $input,
+            ], ]);
 
         $response = $this->graphQL(/** @lang GRAPHQL */
             '
@@ -195,8 +195,8 @@ class ReactionTest extends TestCase
         $systemModule = SystemModules::fromApp()->orderBy('id', 'ASC')->first();
         $reaction = Reaction::fromApp()->orderBy('id', 'DESC')->first();
         $input = [
-            'reactions_id' => $reaction->id,
-            'entity_id' => Str::uuid(),
+            'reactions_id'        => $reaction->id,
+            'entity_id'           => Str::uuid(),
             'system_modules_uuid' => $systemModule->uuid,
         ];
         $this->graphQL(/** @lang GRAPHQL */
@@ -222,8 +222,8 @@ class ReactionTest extends TestCase
         $systemModule = SystemModules::fromApp()->orderBy('id', 'ASC')->first();
         $reaction = Reaction::fromApp()->orderBy('id', 'DESC')->first();
         $input = [
-            'reactions_id' => $reaction->id,
-            'entity_id' => Str::uuid(),
+            'reactions_id'        => $reaction->id,
+            'entity_id'           => Str::uuid(),
             'system_modules_uuid' => $systemModule->uuid,
         ];
         $this->graphQL(/** @lang GRAPHQL */
@@ -247,9 +247,9 @@ class ReactionTest extends TestCase
             /** @lang GRAPHQL */
             '{
                 countUserReaction(
-                    where: {column: ENTITY_ID, value: "' . $input['entity_id'] . '", operator: EQ,
+                    where: {column: ENTITY_ID, value: "'.$input['entity_id'].'", operator: EQ,
                     AND: [
-                        {column: ENTITY_NAMESPACE, value: "' . $modelName . '", operator: EQ}
+                        {column: ENTITY_NAMESPACE, value: "'.$modelName.'", operator: EQ}
                     ]
                 }) 
             }

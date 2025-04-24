@@ -32,7 +32,7 @@ class GenerateEsimRecommendationCommand extends Command
                 $recommendations
             );
 
-            $this->info('Set recommendation for product ' . $product->getId() . ' - ' . $product->name);
+            $this->info('Set recommendation for product '.$product->getId().' - '.$product->name);
         }
     }
 
@@ -69,7 +69,7 @@ class GenerateEsimRecommendationCommand extends Command
             if ($dataSize === 0) {
                 // Extract GB from the variant SKU using regex
                 preg_match('/(\d+)GB/i', $variant['sku'], $matches);
-                $dataSize = isset($matches[1]) ? (int)$matches[1] : 0;
+                $dataSize = isset($matches[1]) ? (int) $matches[1] : 0;
             }
 
             $dataSizeMap[$variant['sku']] = $dataSize;
@@ -105,7 +105,7 @@ class GenerateEsimRecommendationCommand extends Command
 
         // Create recommendations for each section
         foreach ($sectionRanges as $sectionName => $dayRange) {
-            $sectionNumber = (int)substr($sectionName, -1);
+            $sectionNumber = (int) substr($sectionName, -1);
             $sectionVariants = [];
 
             if ($sectionNumber <= 4) {
@@ -164,7 +164,7 @@ class GenerateEsimRecommendationCommand extends Command
 
             // Add section to results
             $sections[] = [
-                'name' => $sectionName,
+                'name'       => $sectionName,
                 'variantSku' => $sectionVariants,
             ];
         }
@@ -210,7 +210,7 @@ class GenerateEsimRecommendationCommand extends Command
     {
         foreach ($attributes as $attribute) {
             if (isset($attribute['name']) && $attribute['name'] === $attributeName && isset($attribute['value'])) {
-                return (int)$attribute['value'];
+                return (int) $attribute['value'];
             }
         }
 

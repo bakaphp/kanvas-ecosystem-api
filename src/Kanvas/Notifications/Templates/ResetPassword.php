@@ -18,11 +18,11 @@ class ResetPassword extends Notification
     public function getData(): array
     {
         //replace url for app link
-        $resetUrl = $this->app->get(AppSettingsEnums::RESET_LINK_URL->getValue()) ?? $this->app->url . '/reset-password';
+        $resetUrl = $this->app->get(AppSettingsEnums::RESET_LINK_URL->getValue()) ?? $this->app->url.'/reset-password';
 
         return [
-           ...parent::getData(),
-            'resetUrl' => $resetUrl . '/' . $this->toUser->getAppProfile($this->app)->user_activation_forgot,
+            ...parent::getData(),
+            'resetUrl' => $resetUrl.'/'.$this->toUser->getAppProfile($this->app)->user_activation_forgot,
         ];
     }
 }

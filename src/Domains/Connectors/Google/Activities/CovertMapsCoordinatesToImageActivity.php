@@ -8,14 +8,13 @@ use Baka\Contracts\AppInterface;
 use finfo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Google\Services\MapStaticApiService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Workflow\KanvasActivity;
 use Kanvas\Inventory\Attributes\Actions\CreateAttributeType;
-use Kanvas\Inventory\Attributes\DataTransferObject\AttributesType;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
+use Kanvas\Inventory\Attributes\DataTransferObject\AttributesType;
+use Kanvas\Workflow\KanvasActivity;
 
 class CovertMapsCoordinatesToImageActivity extends KanvasActivity
 {
@@ -23,13 +22,13 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $mapCoordinates = json_decode($entity->getAttributeBySlug("coordinates")->attribute->value, true);
+        $mapCoordinates = json_decode($entity->getAttributeBySlug('coordinates')->attribute->value, true);
 
         if (empty($mapCoordinates)) {
             return [
-                'result' => false,
-                'message' => 'Coordinates not found on message body',
-                'activity' => self::class,
+                'result'     => false,
+                'message'    => 'Coordinates not found on message body',
+                'activity'   => self::class,
                 'message_id' => $entity->getId(),
             ];
         }
@@ -57,7 +56,7 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
             $imageAttributeType = new CreateAttributeType(
                 AttributesType::viaRequest([
                     'company_id' => $entity->companies_id,
-                    'name' => 'image',
+                    'name'       => 'image',
                     'is_default' => false,
                 ], $entity->user),
                 $entity->user
@@ -67,14 +66,14 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
             $imageAttribute = (new CreateAttribute(
                 AttributeDto::viaRequest(
                     [
-                        'company' => $entity->company,
-                        'app' => $app,
-                        'name' => 'Image',
-                        'slug' => 'image',
+                        'company'       => $entity->company,
+                        'app'           => $app,
+                        'name'          => 'Image',
+                        'slug'          => 'image',
                         'attributeType' => $imageAttributeType,
-                        'isVisible' => true,
-                        'isSearchable' => true,
-                        'isFiltrable' => true,
+                        'isVisible'     => true,
+                        'isSearchable'  => true,
+                        'isFiltrable'   => true,
                     ],
                     $entity->user,
                     $app
@@ -85,11 +84,11 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
             $imageAttribute->addDefaultValue($fileSystemRecord->url);
         } catch (\Throwable $th) {
             return [
-                'result' => false,
-                'message' => 'Failed to save image attribute',
-                'activity' => self::class,
+                'result'    => false,
+                'message'   => 'Failed to save image attribute',
+                'activity'  => self::class,
                 'entity_id' => $entity->getId(),
-                'error' => $th->getMessage(),
+                'error'     => $th->getMessage(),
             ];
         }
 
@@ -97,10 +96,10 @@ class CovertMapsCoordinatesToImageActivity extends KanvasActivity
         unlink($tempFilePath);
 
         return [
-            'result' => true,
-            'message' => 'Image Url converted to Kanvas Filesystem',
-            'activity' => self::class,
-            'data' => $fileSystemRecord,
+            'result'     => true,
+            'message'    => 'Image Url converted to Kanvas Filesystem',
+            'activity'   => self::class,
+            'data'       => $fileSystemRecord,
             'message_id' => $entity->getId(),
         ];
     }

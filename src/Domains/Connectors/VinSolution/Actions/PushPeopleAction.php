@@ -49,20 +49,20 @@ class PushPeopleAction
             // Create new contact
             $contact = [
                 'ContactInformation' => [
-                    'FirstName' => Str::of($this->people->firstname)->trim(),
-                    'LastName' => Str::of($this->people->lastname)->trim(),
+                    'FirstName'  => Str::of($this->people->firstname)->trim(),
+                    'LastName'   => Str::of($this->people->lastname)->trim(),
                     'MiddleName' => Str::of($this->people->middlename)->trim(),
-                    'Emails' => $contactEmail,
-                    'Phones' => $contactPhone,
-                    'Addresses' => $contactAddress,
+                    'Emails'     => $contactEmail,
+                    'Phones'     => $contactPhone,
+                    'Addresses'  => $contactAddress,
                 ],
                 'LeadInformation' => [
                     'CurrentSalesRepUserId' => $this->vinCredential->user->id ?? 0,
-                    'SplitSalesRepUserId' => 0,
-                    'LeadSourceId' => 0,
-                    'LeadTypeId' => 0,
-                    'OnShowRoom' => false,
-                    'SaleNotes' => '',
+                    'SplitSalesRepUserId'   => 0,
+                    'LeadSourceId'          => 0,
+                    'LeadTypeId'            => 0,
+                    'OnShowRoom'            => false,
+                    'SaleNotes'             => '',
                 ],
             ];
 
@@ -113,9 +113,9 @@ class PushPeopleAction
             $i = 1;
             foreach ($emails as $email) {
                 $contactEmail[] = [
-                    'EmailId' => $isNew ? 0 : $i,
-                    'EmailAddress' => strtolower(trim((string)$email->value)),
-                    'EmailType' => 'primary',
+                    'EmailId'      => $isNew ? 0 : $i,
+                    'EmailAddress' => strtolower(trim((string) $email->value)),
+                    'EmailType'    => 'primary',
                 ];
                 $i++;
             }
@@ -136,8 +136,8 @@ class PushPeopleAction
             $i = 1;
             foreach ($phones as $phone) {
                 $contactPhone[] = [
-                    'PhoneId' => $isNew ? 0 : $i,
-                    'Number' => Phone::removeUSCountryCode($phone->getCleanPhone()),
+                    'PhoneId'   => $isNew ? 0 : $i,
+                    'Number'    => Phone::removeUSCountryCode($phone->getCleanPhone()),
                     'PhoneType' => 'Cell',
                 ];
                 $i++;
@@ -188,16 +188,16 @@ class PushPeopleAction
                 };
 
                 return [
-                    'State' => $driversLicense->state,
-                    'Name' => $driversLicense->firstName,
-                    'LastName' => $driversLicense->lastName,
-                    'PostalCode' => $driversLicense->zipCode,
-                    'Country' => 'USA',
-                    'LicenseID' => $driversLicense->documentNumber,
-                    'DateOfBirth' => $formatDate($driversLicense->birthDate),
+                    'State'          => $driversLicense->state,
+                    'Name'           => $driversLicense->firstName,
+                    'LastName'       => $driversLicense->lastName,
+                    'PostalCode'     => $driversLicense->zipCode,
+                    'Country'        => 'USA',
+                    'LicenseID'      => $driversLicense->documentNumber,
+                    'DateOfBirth'    => $formatDate($driversLicense->birthDate),
                     'ExpirationDate' => $formatDate($driversLicense->expirationDate),
-                    'IssueDate' => $formatDate($driversLicense->issueDate),
-                    'Sex' => $driversLicense->sex,
+                    'IssueDate'      => $formatDate($driversLicense->issueDate),
+                    'Sex'            => $driversLicense->sex,
                 ];
             } catch (Throwable $e) {
                 report($e);
@@ -206,8 +206,8 @@ class PushPeopleAction
             }
         } elseif ($legacyLicense = $people->get('get_docs_drivers_license')) {
             try {
-                $birthday = $legacyLicense['birthday']['year'] . '-' . $legacyLicense['birthday']['month'] . '-' . $legacyLicense['birthday']['day'];
-                $expirationDate = $legacyLicense['exp_date']['year'] . '-' . $legacyLicense['exp_date']['month'] . '-' . $legacyLicense['exp_date']['day'];
+                $birthday = $legacyLicense['birthday']['year'].'-'.$legacyLicense['birthday']['month'].'-'.$legacyLicense['birthday']['day'];
+                $expirationDate = $legacyLicense['exp_date']['year'].'-'.$legacyLicense['exp_date']['month'].'-'.$legacyLicense['exp_date']['day'];
 
                 $birthDay = Carbon::parse($birthday, 'UTC');
                 $expirationData = Carbon::parse($expirationDate, 'UTC');
@@ -220,16 +220,16 @@ class PushPeopleAction
                 }
 
                 return [
-                    'State' => $legacyLicense['state'],
-                    'Name' => $people->firstname,
-                    'LastName' => $people->lastname,
-                    'PostalCode' => $zipCode,
-                    'Country' => 'USA',
-                    'LicenseID' => $legacyLicense['license'],
-                    'DateOfBirth' => $birthDay->format('Y-m-d\TH:i:s.u\Z'),
+                    'State'          => $legacyLicense['state'],
+                    'Name'           => $people->firstname,
+                    'LastName'       => $people->lastname,
+                    'PostalCode'     => $zipCode,
+                    'Country'        => 'USA',
+                    'LicenseID'      => $legacyLicense['license'],
+                    'DateOfBirth'    => $birthDay->format('Y-m-d\TH:i:s.u\Z'),
                     'ExpirationDate' => $expirationData->format('Y-m-d\TH:i:s.u\Z'),
-                    'IssueDate' => null,
-                    'Sex' => null,
+                    'IssueDate'      => null,
+                    'Sex'            => null,
                 ];
             } catch (Throwable $e) {
                 report($e);

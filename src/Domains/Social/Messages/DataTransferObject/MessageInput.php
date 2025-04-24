@@ -17,7 +17,7 @@ use Spatie\LaravelData\Data;
 class MessageInput extends Data
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -61,7 +61,7 @@ class MessageInput extends Data
         }
 
         if (key_exists('parent_id', $data)) {
-            $parent = Message::getById((int)$data['parent_id'], $app);
+            $parent = Message::getById((int) $data['parent_id'], $app);
         }
 
         return new self(

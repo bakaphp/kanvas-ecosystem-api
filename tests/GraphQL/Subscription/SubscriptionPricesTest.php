@@ -34,12 +34,12 @@ final class SubscriptionPricesTest extends TestCase
     public function testCreatePrice()
     {
         $plan = [
-            'apps_id' => 1,
-            'name' => 'Test plan',
-            'stripe_id' => 'prod_R0llYZVFCMX0Dz',
+            'apps_id'          => 1,
+            'name'             => 'Test plan',
+            'stripe_id'        => 'prod_R0llYZVFCMX0Dz',
             'free_trial_dates' => 0,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'created_at'       => now(),
+            'updated_at'       => now(),
         ];
         DB::table('apps_plans')->updateOrInsert(
             ['stripe_id' => $plan['stripe_id']],
@@ -50,7 +50,7 @@ final class SubscriptionPricesTest extends TestCase
         $response = $this->graphQL('
             mutation {
                 createPrice(input: {
-                    apps_plans_id: ' . $planId . ',
+                    apps_plans_id: '.$planId.',
                     amount: 13.00,
                     currency: "USD",
                     interval: "year"
@@ -66,7 +66,7 @@ final class SubscriptionPricesTest extends TestCase
         $response->assertJson([
             'data' => [
                 'createPrice' => [
-                    'amount' => 13.00,
+                    'amount'   => 13.00,
                     'currency' => 'USD',
                 ],
             ],
@@ -74,8 +74,8 @@ final class SubscriptionPricesTest extends TestCase
 
         $this->assertDatabaseHas('apps_plans_prices', [
             'apps_plans_id' => $planId,
-            'amount' => 13.00,
-            'currency' => 'USD',
+            'amount'        => 13.00,
+            'currency'      => 'USD',
         ]);
     }
 
@@ -88,7 +88,7 @@ final class SubscriptionPricesTest extends TestCase
 
         $response = $this->graphQL('
             mutation {
-                updatePrice(id: ' . $priceId . ', input: {
+                updatePrice(id: '.$priceId.', input: {
                     is_active: true
                 }) {
                     id
@@ -107,7 +107,7 @@ final class SubscriptionPricesTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('apps_plans_prices', [
-            'id' => $priceId,
+            'id'        => $priceId,
             'is_active' => true,
         ]);
     }

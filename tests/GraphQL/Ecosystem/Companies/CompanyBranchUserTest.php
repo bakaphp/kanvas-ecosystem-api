@@ -11,11 +11,11 @@ class CompanyBranchUserTest extends TestCase
     public function branchInputData(int $companyId): array
     {
         return [
-            'name' => fake()->company(),
-            'is_default' => false,
+            'name'         => fake()->company(),
+            'is_default'   => false,
             'companies_id' => $companyId,
-            'phone' => fake()->phoneNumber(),
-            'email' => fake()->email(),
+            'phone'        => fake()->phoneNumber(),
+            'email'        => fake()->email(),
             'country_code' => 'US',
         ];
     }
@@ -49,7 +49,7 @@ class CompanyBranchUserTest extends TestCase
 
             }',
             [
-                'id' => $branch['id'],
+                'id'      => $branch['id'],
                 'user_id' => auth()->user()->getId(),
             ]
         )
@@ -115,7 +115,7 @@ class CompanyBranchUserTest extends TestCase
 
             }',
             [
-                'id' => $branch['id'],
+                'id'      => $branch['id'],
                 'user_id' => auth()->user()->getId(),
             ]
         )
@@ -128,7 +128,7 @@ class CompanyBranchUserTest extends TestCase
 
             }',
             [
-                'id' => $branch['id'],
+                'id'      => $branch['id'],
                 'user_id' => auth()->user()->getId(),
             ]
         )

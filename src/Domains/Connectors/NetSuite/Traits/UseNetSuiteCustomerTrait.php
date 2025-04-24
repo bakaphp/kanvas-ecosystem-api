@@ -24,7 +24,7 @@ trait UseNetSuiteCustomerTrait
 
         if (! $addResponse->writeResponse->status->isSuccess) {
             throw new Exception(
-                'Error creating customer: ' .
+                'Error creating customer: '.
                 ($addResponse->writeResponse->status->statusDetail[0]->message ?? 'Unknown error')
             );
         }

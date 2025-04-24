@@ -22,7 +22,7 @@ class DashboardBuilder
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $memberId = 'member_number_' . $company->getId();
+        $memberId = 'member_number_'.$company->getId();
 
         $agentInfo = Agent::where('companies_id', $company->getId())
             ->where('users_id', $user->getId())

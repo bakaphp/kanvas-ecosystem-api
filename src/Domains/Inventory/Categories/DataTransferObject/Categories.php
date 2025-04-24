@@ -35,10 +35,6 @@ class Categories extends Data
 
     /**
      * fromArray.
-     *
-     * @param  array $request
-     *
-     * @return self
      */
     public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {

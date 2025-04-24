@@ -34,11 +34,11 @@ trait SocialInteractionsTrait
                 ))->execute();
 
             return UsersInteractions::firstOrCreate([
-                'users_id' => $this->getId(),
-                'interactions_id' => $interaction->getId(),
-                'entity_id' => $entity->getId(),
+                'users_id'         => $this->getId(),
+                'interactions_id'  => $interaction->getId(),
+                'entity_id'        => $entity->getId(),
                 'entity_namespace' => $entity::class,
-                'is_deleted' => 0,
+                'is_deleted'       => 0,
             ], [
                 'notes' => $note,
             ]);
@@ -46,20 +46,18 @@ trait SocialInteractionsTrait
 
         return (
             new CreateEntityInteractionAction(
-                (new EntityInteraction(
+                new EntityInteraction(
                     $this,
                     $entity,
                     $interaction,
                     $note
-                )),
+                ),
                 $this->app
             ))->execute();
     }
 
     /**
      * Given a visitorInput get the social interactions for the entity.
-     *
-     * @param array $visitorInput<string,string>
      *
      * @return array<array-key,bool> #graph Interactions
      */

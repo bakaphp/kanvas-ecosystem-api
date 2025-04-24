@@ -48,7 +48,7 @@ return [
 
     'queue' => [
         'connection' => env('SCOUT_QUEUE_CONNECTION', null),
-        'queue' => env('SCOUT_QUEUE_NAME', 'scout'),
+        'queue'      => env('SCOUT_QUEUE_NAME', 'scout'),
     ],
 
     /*
@@ -76,7 +76,7 @@ return [
     */
 
     'chunk' => [
-        'searchable' => 500,
+        'searchable'   => 500,
         'unsearchable' => 500,
     ],
 
@@ -120,18 +120,18 @@ return [
     */
 
     'algolia' => [
-        'id' => env('ALGOLIA_APP_ID', ''),
-        'secret' => env('ALGOLIA_SECRET', ''),
+        'id'            => env('ALGOLIA_APP_ID', ''),
+        'secret'        => env('ALGOLIA_SECRET', ''),
         'settings_path' => env('ALGOLIA_SETTINGS_PATH'),
     ],
 
     'typesense' => [
         'api_key' => env('TYPESENSE_API_KEY', ''),
-        'nodes' => [
+        'nodes'   => [
             [
-                'host' => env('TYPESENSE_HOST', 'localhost'),
-                'port' => env('TYPESENSE_PORT', 8108),
-                'path' => env('TYPESENSE_PATH', '/'),
+                'host'     => env('TYPESENSE_HOST', 'localhost'),
+                'port'     => env('TYPESENSE_PORT', 8108),
+                'path'     => env('TYPESENSE_PATH', '/'),
                 'protocol' => env('TYPESENSE_PROTOCOL', 'http'),
             ],
         ],
@@ -152,12 +152,12 @@ return [
     */
 
     'meilisearch' => [
-        'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
-        'key' => env('MEILISEARCH_KEY', null),
+        'host'           => env('MEILISEARCH_HOST', 'http://localhost:7700'),
+        'key'            => env('MEILISEARCH_KEY', null),
         'index-settings' => [
-           Message::class => [
+            Message::class => [
                 'filterableAttributes' => ['apps_id'],
-                'sortableAttributes' => ['created_at','updated_at'],
+                'sortableAttributes'   => ['created_at', 'updated_at'],
             ],
             Role::class => [
                 'filterableAttributes' => ['scope', 'name', 'title'],
@@ -176,7 +176,7 @@ return [
                     'description',
                     'items',
                 ],
-                'sortableAttributes' => ['created_at','updated_at'],
+                'sortableAttributes' => ['created_at', 'updated_at'],
             ],
         ],
     ],

@@ -20,12 +20,12 @@ class CreateChannelAction
     public function execute(): Channel
     {
         $channel = Channel::firstOrCreate([
-            'apps_id' => $this->channelDto->apps->id,
-            'companies_id' => $this->channelDto->companies->id,
-            'name' => $this->channelDto->name,
-            'slug' => $this->channelDto->slug ?? Str::slug($this->channelDto->name),
-            'description' => $this->channelDto->description,
-            'entity_id' => $this->channelDto->entity_id,
+            'apps_id'          => $this->channelDto->apps->id,
+            'companies_id'     => $this->channelDto->companies->id,
+            'name'             => $this->channelDto->name,
+            'slug'             => $this->channelDto->slug ?? Str::slug($this->channelDto->name),
+            'description'      => $this->channelDto->description,
+            'entity_id'        => $this->channelDto->entity_id,
             'entity_namespace' => $this->channelDto->entity_namespace,
         ]);
 

@@ -20,10 +20,10 @@ enum DefaultRoles implements EnumsInterface
     public function getValue(): mixed
     {
         return match ($this) {
-            self::ADMIN => 'Admin',
-            self::USER => 'Users',
-            self::AGENT => 'Agents',
-            self::MANAGER => 'Managers',
+            self::ADMIN     => 'Admin',
+            self::USER      => 'Users',
+            self::AGENT     => 'Agents',
+            self::MANAGER   => 'Managers',
             self::DEVELOPER => 'Developer',
         };
     }

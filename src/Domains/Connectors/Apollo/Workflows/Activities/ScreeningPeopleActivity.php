@@ -43,10 +43,10 @@ class ScreeningPeopleActivity extends KanvasActivity
             $peopleData = (new ScreeningAction($people, $app))->execute();
         } catch (GuzzleException $e) {
             return [
-                'status' => 'failed',
-                'message' => $e->getMessage(),
+                'status'    => 'failed',
+                'message'   => $e->getMessage(),
                 'people_id' => $people->id,
-                'data' => [],
+                'data'      => [],
             ];
         }
 
@@ -87,22 +87,22 @@ class ScreeningPeopleActivity extends KanvasActivity
     private function buildPeopleDto(Model $people, AppInterface $app, array $peopleData, array $contacts, array $address): People
     {
         return People::from([
-            'app' => $app,
-            'branch' => $people->company->defaultBranch,
-            'user' => $people->user,
-            'firstname' => $peopleData['first_name'] ?? $people->firstname,
-            'middlename' => $people->middlename ?? $people->middlename,
-            'lastname' => $peopleData['last_name'] ?? $people->lastname,
-            'contacts' => Contact::collect($contacts, DataCollection::class),
-            'address' => DataTransferObjectAddress::collect($address, DataCollection::class),
-            'id' => $people->getId(),
+            'app'           => $app,
+            'branch'        => $people->company->defaultBranch,
+            'user'          => $people->user,
+            'firstname'     => $peopleData['first_name'] ?? $people->firstname,
+            'middlename'    => $people->middlename ?? $people->middlename,
+            'lastname'      => $peopleData['last_name'] ?? $people->lastname,
+            'contacts'      => Contact::collect($contacts, DataCollection::class),
+            'address'       => DataTransferObjectAddress::collect($address, DataCollection::class),
+            'id'            => $people->getId(),
             'custom_fields' => [
                 'headline' => $peopleData['headline'] ?? '',
-                'title' => $peopleData['title'] ?? '',
+                'title'    => $peopleData['title'] ?? '',
             ],
             'location' => [
-                'city' => $address[0]['city'] ?? null,
-                'state' => $address[0]['state'] ?? null,
+                'city'    => $address[0]['city'] ?? null,
+                'state'   => $address[0]['state'] ?? null,
                 'country' => $address[0]['countries_id'] ?? null,
             ],
         ]);
@@ -115,10 +115,10 @@ class ScreeningPeopleActivity extends KanvasActivity
         $today = date('Y-m-d');
 
         $todayReport[$today] = [
-            'total' => $todayReport[$today]['total'] + 1 ?? 1,
-            'success' => $successExtraction ? ($todayReport[$today]['success'] + 1 ?? 1) : ($todayReport[$today]['success'] ?? 0),
+            'total'     => $todayReport[$today]['total'] + 1 ?? 1,
+            'success'   => $successExtraction ? ($todayReport[$today]['success'] + 1 ?? 1) : ($todayReport[$today]['success'] ?? 0),
             'processed' => $todayReport[$today]['processed'] + 1 ?? 1,
-            'failed' => ! $successExtraction ? ($todayReport[$today]['failed'] + 1 ?? 1) : ($todayReport[$today]['failed'] ?? 0),
+            'failed'    => ! $successExtraction ? ($todayReport[$today]['failed'] + 1 ?? 1) : ($todayReport[$today]['failed'] ?? 0),
         ];
 
         $company->set(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value, $todayReport);
@@ -197,12 +197,12 @@ class ScreeningPeopleActivity extends KanvasActivity
             }
 
             PeopleEmploymentHistory::firstOrCreate([
-                'status' => (int)$employment['current'],
-                'start_date' => $employment['start_date'],
-                'end_date' => $employment['end_date'],
-                'position' => $employment['title'],
-                'apps_id' => $app->getId(),
-                'peoples_id' => $people->id,
+                'status'           => (int) $employment['current'],
+                'start_date'       => $employment['start_date'],
+                'end_date'         => $employment['end_date'],
+                'position'         => $employment['title'],
+                'apps_id'          => $app->getId(),
+                'peoples_id'       => $people->id,
                 'organizations_id' => $organization->getId(),
             ]);
 
@@ -260,8 +260,8 @@ class ScreeningPeopleActivity extends KanvasActivity
     {
         return [
             'contacts_types_id' => $typeId,
-            'value' => $value,
-            'weight' => $weight,
+            'value'             => $value,
+            'weight'            => $weight,
         ];
     }
 
@@ -291,16 +291,16 @@ class ScreeningPeopleActivity extends KanvasActivity
     private function createAddress(array $peopleData, ?States $state, Countries $country): array
     {
         return [
-            'address' => '',
-            'address_2' => '',
-            'city' => $peopleData['city'],
-            'state' => $state?->code,
-            'county' => '',
-            'zip' => '',
-            'city_id' => null,
-            'state_id' => $state?->id,
+            'address'      => '',
+            'address_2'    => '',
+            'city'         => $peopleData['city'],
+            'state'        => $state?->code,
+            'county'       => '',
+            'zip'          => '',
+            'city_id'      => null,
+            'state_id'     => $state?->id,
             'countries_id' => $country->getId(),
-            'country' => $country->name,
+            'country'      => $country->name,
         ];
     }
 
@@ -318,30 +318,30 @@ class ScreeningPeopleActivity extends KanvasActivity
     private function limitReachedResponse(Model $people): array
     {
         return [
-            'status' => 'failed',
-            'message' => 'Limit reached',
+            'status'    => 'failed',
+            'message'   => 'Limit reached',
             'people_id' => $people->id,
-            'data' => [],
+            'data'      => [],
         ];
     }
 
     private function alreadyScreenedResponse(Model $people): array
     {
         return [
-            'status' => 'success',
-            'message' => 'People already screened',
+            'status'    => 'success',
+            'message'   => 'People already screened',
             'people_id' => $people->id,
-            'data' => [],
+            'data'      => [],
         ];
     }
 
     private function successResponse(Model $people, array $peopleData): array
     {
         return [
-            'status' => 'success',
-            'message' => 'People screened successfully',
+            'status'    => 'success',
+            'message'   => 'People screened successfully',
             'people_id' => $people->id,
-            'data' => $peopleData,
+            'data'      => $peopleData,
         ];
     }
 }

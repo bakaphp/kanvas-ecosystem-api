@@ -21,8 +21,6 @@ class CreateRegionAction
 
     /**
      * execute.
-     *
-     * @return RegionModel
      */
     public function execute(): RegionModel
     {
@@ -32,16 +30,16 @@ class CreateRegionAction
         );
 
         return RegionModel::firstOrCreate([
-            'slug' => $this->data->slug ?? Str::slug($this->data->name),
+            'slug'         => $this->data->slug ?? Str::slug($this->data->name),
             'companies_id' => $this->data->company->getId(),
-            'apps_id' => $this->data->app->getId(),
+            'apps_id'      => $this->data->app->getId(),
         ], [
-            'name' => $this->data->name,
-            'users_id' => $this->data->user->getId(),
+            'name'        => $this->data->name,
+            'users_id'    => $this->data->user->getId(),
             'currency_id' => $this->data->currency->getId(),
-            'short_slug' => $this->data->short_slug,
-            'settings' => $this->data->settings,
-            'is_default' => $this->data->is_default,
+            'short_slug'  => $this->data->short_slug,
+            'settings'    => $this->data->settings,
+            'is_default'  => $this->data->is_default,
         ]);
     }
 }

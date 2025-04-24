@@ -39,7 +39,7 @@ class ZohoLeadOwnerActivity extends KanvasActivity
         $zohoCrm = Client::getInstance($app, $company);
 
         $zohoData = [
-            'Owner' => $ownerZohoId,
+            'Owner'     => $ownerZohoId,
             'Sales Rep' => $agentOwner->name,
         ];
 
@@ -50,7 +50,7 @@ class ZohoLeadOwnerActivity extends KanvasActivity
 
         return [
             'message' => 'Owner updated successfully',
-            'lead' => $zohoLead->toArray(),
+            'lead'    => $zohoLead->toArray(),
         ];
     }
 }

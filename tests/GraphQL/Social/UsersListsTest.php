@@ -10,17 +10,17 @@ use Tests\TestCase;
 class UsersListsTest extends TestCase
 {
     /**
-     * testCreateUsersLists
+     * testCreateUsersLists.
      *
      * @return void
      */
     public function testCreateUsersLists()
     {
         $input = [
-            'name' => fake()->name(),
+            'name'        => fake()->name(),
             'description' => fake()->text(),
-            'is_public' => fake()->boolean(),
-            'is_default' => fake()->boolean(),
+            'is_public'   => fake()->boolean(),
+            'is_default'  => fake()->boolean(),
         ];
         $this->graphQL(
             '
@@ -44,17 +44,17 @@ class UsersListsTest extends TestCase
     }
 
     /**
-     * testUpdateUsersLists
+     * testUpdateUsersLists.
      *
      * @return void
      */
     public function testUpdateUsersLists()
     {
         $input = [
-            'name' => fake()->name(),
+            'name'        => fake()->name(),
             'description' => fake()->text(),
-            'is_public' => fake()->boolean(),
-            'is_default' => fake()->boolean(),
+            'is_public'   => fake()->boolean(),
+            'is_default'  => fake()->boolean(),
         ];
         $response = $this->graphQL(
             '
@@ -80,18 +80,18 @@ class UsersListsTest extends TestCase
                 }
             ',
             [
-                'id' => $id,
+                'id'    => $id,
                 'input' => [
-                    'name' => $newName,
+                    'name'        => $newName,
                     'description' => fake()->text(),
-                    'is_public' => fake()->boolean(),
-                    'is_default' => fake()->boolean(),
+                    'is_public'   => fake()->boolean(),
+                    'is_default'  => fake()->boolean(),
                 ],
             ]
         )->assertJson([
             'data' => [
                 'updateUserList' => [
-                    'id' => $id,
+                    'id'   => $id,
                     'name' => $newName,
                 ],
             ],
@@ -99,17 +99,17 @@ class UsersListsTest extends TestCase
     }
 
     /**
-     * testDeleteUsersLists
+     * testDeleteUsersLists.
      *
      * @return void
      */
     public function testDeleteUsersLists()
     {
         $input = [
-            'name' => fake()->name(),
+            'name'        => fake()->name(),
             'description' => fake()->text(),
-            'is_public' => fake()->boolean(),
-            'is_default' => fake()->boolean(),
+            'is_public'   => fake()->boolean(),
+            'is_default'  => fake()->boolean(),
         ];
         $response = $this->graphQL(
             '
@@ -144,10 +144,10 @@ class UsersListsTest extends TestCase
     {
         $message = Message::factory()->create();
         $input = [
-            'name' => fake()->name(),
+            'name'        => fake()->name(),
             'description' => fake()->text(),
-            'is_public' => fake()->boolean(),
-            'is_default' => fake()->boolean(),
+            'is_public'   => fake()->boolean(),
+            'is_default'  => fake()->boolean(),
         ];
         $response = $this->graphQL(
             '
@@ -171,7 +171,7 @@ class UsersListsTest extends TestCase
             ',
             [
                 'users_lists_id' => $id,
-                'messages_id' => $message->id,
+                'messages_id'    => $message->id,
             ]
         )->assertJson([
             'data' => [
@@ -184,10 +184,10 @@ class UsersListsTest extends TestCase
     {
         $message = Message::factory()->create();
         $input = [
-            'name' => fake()->name(),
+            'name'        => fake()->name(),
             'description' => fake()->text(),
-            'is_public' => fake()->boolean(),
-            'is_default' => fake()->boolean(),
+            'is_public'   => fake()->boolean(),
+            'is_default'  => fake()->boolean(),
         ];
         $response = $this->graphQL(
             '
@@ -211,7 +211,7 @@ class UsersListsTest extends TestCase
             ',
             [
                 'users_lists_id' => $id,
-                'messages_id' => $message->id,
+                'messages_id'    => $message->id,
             ]
         )->assertJson([
             'data' => [
@@ -227,7 +227,7 @@ class UsersListsTest extends TestCase
             ',
             [
                 'users_lists_id' => $id,
-                'messages_id' => $message->id,
+                'messages_id'    => $message->id,
             ]
         )->assertJson([
             'data' => [
@@ -235,14 +235,15 @@ class UsersListsTest extends TestCase
             ],
         ]);
     }
+
     public function testAddEntityToList()
     {
         $message = Message::factory()->create();
         $input = [
-            'name' => fake()->name(),
+            'name'        => fake()->name(),
             'description' => fake()->text(),
-            'is_public' => fake()->boolean(),
-            'is_default' => fake()->boolean(),
+            'is_public'   => fake()->boolean(),
+            'is_default'  => fake()->boolean(),
         ];
         $response = $this->graphQL(
             '
@@ -267,8 +268,8 @@ class UsersListsTest extends TestCase
             [
                 'entity' => [
                     'users_lists_id' => $id,
-                    'entity_id' => $message->id,
-                    'entity_type' => 'message',
+                    'entity_id'      => $message->id,
+                    'entity_type'    => 'message',
                 ],
             ]
         )->assertJson([
@@ -282,10 +283,10 @@ class UsersListsTest extends TestCase
     {
         $message = Message::factory()->create();
         $input = [
-            'name' => fake()->name(),
+            'name'        => fake()->name(),
             'description' => fake()->text(),
-            'is_public' => fake()->boolean(),
-            'is_default' => fake()->boolean(),
+            'is_public'   => fake()->boolean(),
+            'is_default'  => fake()->boolean(),
         ];
         $response = $this->graphQL(
             '
@@ -310,8 +311,8 @@ class UsersListsTest extends TestCase
             [
                 'entity' => [
                     'users_lists_id' => $id,
-                    'entity_id' => $message->id,
-                    'entity_type' => 'message',
+                    'entity_id'      => $message->id,
+                    'entity_type'    => 'message',
                 ],
             ]
         );
@@ -325,8 +326,8 @@ class UsersListsTest extends TestCase
             [
                 'entity' => [
                     'users_lists_id' => $id,
-                    'entity_id' => $message->id,
-                    'entity_type' => 'message',
+                    'entity_id'      => $message->id,
+                    'entity_type'    => 'message',
                 ],
             ]
         )->assertJson([

@@ -26,18 +26,18 @@ class HealthProvider extends ServiceProvider
     public function register()
     {
         Health::checks([
-           DatabaseCheck::new()->name('ecosystem'),
-           DatabaseCheck::new()->name('inventory')->connectionName('inventory'),
-           DatabaseCheck::new()->name('social')->connectionName('social'),
-           DatabaseCheck::new()->name('crm')->connectionName('crm'),
-           DatabaseCheck::new()->name('content_engine')->connectionName('content_engine'),
-           DatabaseCheck::new()->name('workflow')->connectionName('workflow'),
-           RedisCheck::new()->name('redis'),
-           RedisMemoryUsageCheck::new()->failWhenAboveMb(5000),
-           //QueueCheck::new(),
-           //MeiliSearchCheck::new()->url(config('scout.meilisearch.host') . '/health'),
-           //ScheduleCheck::new()->heartbeatMaxAgeInMinutes(5),
-          /* OptimizedAppCheck::new()->if(app()->isProduction()), */
+            DatabaseCheck::new()->name('ecosystem'),
+            DatabaseCheck::new()->name('inventory')->connectionName('inventory'),
+            DatabaseCheck::new()->name('social')->connectionName('social'),
+            DatabaseCheck::new()->name('crm')->connectionName('crm'),
+            DatabaseCheck::new()->name('content_engine')->connectionName('content_engine'),
+            DatabaseCheck::new()->name('workflow')->connectionName('workflow'),
+            RedisCheck::new()->name('redis'),
+            RedisMemoryUsageCheck::new()->failWhenAboveMb(5000),
+            //QueueCheck::new(),
+            //MeiliSearchCheck::new()->url(config('scout.meilisearch.host') . '/health'),
+            //ScheduleCheck::new()->heartbeatMaxAgeInMinutes(5),
+            /* OptimizedAppCheck::new()->if(app()->isProduction()), */
         ]);
     }
 }

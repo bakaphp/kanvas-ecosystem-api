@@ -15,12 +15,12 @@ class DownloadImageAndUploadToS3Action
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $file = file_get_contents($entity->url);
-        $filesystemName = uniqid(Str::random(10) . '_');
+        $filesystemName = uniqid(Str::random(10).'_');
         Storage::disk('local')->put($filesystemName, $file);
         if ($app->get('size_product_width') && $app->get('size_product_height')) {
             $width = $app->get('size_product_width');
             $height = $app->get('size_product_height');
-            $path = storage_path('app/') . $filesystemName;
+            $path = storage_path('app/').$filesystemName;
             $filesystemName = $this->resizeImageGD($path, $width, $height);
         }
 
@@ -38,9 +38,9 @@ class DownloadImageAndUploadToS3Action
         $entity->saveOrFail();
 
         return [
-            'message' => 'Image downloaded',
+            'message'        => 'Image downloaded',
             'filesystemName' => $filesystemName,
-            'url' => $entity->url,
+            'url'            => $entity->url,
         ];
     }
 
@@ -60,22 +60,22 @@ class DownloadImageAndUploadToS3Action
             $newWidth = $maxWidth;
             $newHeight = round($maxWidth / $aspectRatio);
         }
-        $newHeight = (int)$newHeight;
-        $newWidth = (int)$newWidth;
+        $newHeight = (int) $newHeight;
+        $newWidth = (int) $newWidth;
 
         $newImage = imagecreatetruecolor($newWidth, $newHeight);
 
         $ext = pathinfo($file, PATHINFO_EXTENSION);
 
-        $name = basename($file, '.' . $ext);
+        $name = basename($file, '.'.$ext);
 
-        $path = storage_path('app/') ;
+        $path = storage_path('app/');
 
-        $newFile = $name . '_' . $maxWidth . 'x' . $maxHeight . '.' . $ext;
+        $newFile = $name.'_'.$maxWidth.'x'.$maxHeight.'.'.$ext;
         $sourceImage = imagecreatefromjpeg($file);
         imagecopyresampled($newImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
 
-        imagejpeg($newImage, $path . $newFile);
+        imagejpeg($newImage, $path.$newFile);
 
         imagedestroy($sourceImage);
         imagedestroy($newImage);

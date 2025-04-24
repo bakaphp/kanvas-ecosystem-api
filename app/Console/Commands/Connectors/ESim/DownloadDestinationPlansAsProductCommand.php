@@ -31,8 +31,6 @@ class DownloadDestinationPlansAsProductCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -49,6 +47,5 @@ class DownloadDestinationPlansAsProductCommand extends Command
 
         $downloadPlanProducts->execute(json_decode($this->argument('destination_plans'), true));
 
-        return;
     }
 }

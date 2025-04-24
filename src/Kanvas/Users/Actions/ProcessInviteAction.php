@@ -34,12 +34,12 @@ class ProcessInviteAction
         $invite = UsersInviteRepository::getByHash($this->userInvite->getInviteHash());
 
         $dto = RegisterPostDataDto::fromArray([
-            'email' => $invite->email,
-            'password' => $this->userInvite->password,
-            'firstname' => $this->userInvite->firstname,
-            'lastname' => $this->userInvite->lastname ?? '',
+            'email'        => $invite->email,
+            'password'     => $this->userInvite->password,
+            'firstname'    => $this->userInvite->firstname,
+            'lastname'     => $this->userInvite->lastname ?? '',
             'phone_number' => $this->userInvite->phone_number ?? null,
-            'role_ids' => [$invite->role_id],
+            'role_ids'     => [$invite->role_id],
         ], $invite->branch);
 
         DB::beginTransaction();
@@ -48,7 +48,7 @@ class ProcessInviteAction
             $user = (new CreateUserAction($dto))->execute();
 
             $company = $invite->company;
-            #$branch = $invite->branch;
+            //$branch = $invite->branch;
 
             $company->associateUserApp(
                 $user,

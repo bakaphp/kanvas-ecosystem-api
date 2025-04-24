@@ -16,11 +16,10 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Imports\AbstractImporterJob;
 use Override;
-
-use function Sentry\captureException;
-
 use Spatie\LaravelData\DataCollection;
 use Throwable;
+
+use function Sentry\captureException;
 
 class CustomerImporterJob extends AbstractImporterJob
 {
@@ -60,23 +59,23 @@ class CustomerImporterJob extends AbstractImporterJob
                     }
                 }
                 $people = People::from([
-                    'app' => $this->app,
-                    'branch' => $this->branch,
-                    'user' => $this->user,
-                    'firstname' => $customerData['firstname'],
-                    'middlename' => $customerData['middlename'] ?? null,
-                    'lastname' => $customerData['lastname'] ?? null,
-                    'contacts' => Contact::collect($customerData['contacts'] ?? [], DataCollection::class),
-                    'address' => Address::collect($customerData['address'] ?? [], DataCollection::class),
-                    'dob' => $customerData['dob'] ?? null,
+                    'app'                 => $this->app,
+                    'branch'              => $this->branch,
+                    'user'                => $this->user,
+                    'firstname'           => $customerData['firstname'],
+                    'middlename'          => $customerData['middlename'] ?? null,
+                    'lastname'            => $customerData['lastname'] ?? null,
+                    'contacts'            => Contact::collect($customerData['contacts'] ?? [], DataCollection::class),
+                    'address'             => Address::collect($customerData['address'] ?? [], DataCollection::class),
+                    'dob'                 => $customerData['dob'] ?? null,
                     'facebook_contact_id' => $customerData['facebook_contact_id'] ?? null,
-                    'google_contact_id' => $customerData['google_contact_id'] ?? null,
-                    'apple_contact_id' => $customerData['apple_contact_id'] ?? null,
+                    'google_contact_id'   => $customerData['google_contact_id'] ?? null,
+                    'apple_contact_id'    => $customerData['apple_contact_id'] ?? null,
                     'linkedin_contact_id' => $customerData['linkedin_contact_id'] ?? null,
-                    'custom_fields' => $customerData['custom_fields'] ?? [],
-                    'tags' => $customerData['tags'] ?? [],
-                    'organization' => $customerData['organization'] ?? null,
-                    'created_at' => $customerData['created_at'] ?? null,
+                    'custom_fields'       => $customerData['custom_fields'] ?? [],
+                    'tags'                => $customerData['tags'] ?? [],
+                    'organization'        => $customerData['organization'] ?? null,
+                    'created_at'          => $customerData['created_at'] ?? null,
                 ]);
 
                 $peopleSync = new CreatePeopleAction($people);
@@ -109,7 +108,7 @@ class CustomerImporterJob extends AbstractImporterJob
 
                 $errors[] = [
                     'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
+                    'trace'   => $e->getTraceAsString(),
                     'request' => $customerData,
                 ];
 
@@ -145,19 +144,19 @@ class CustomerImporterJob extends AbstractImporterJob
         Companies $company
     ): void {
         $subscriptionData = [
-                   'jobUuid' => $this->jobUuid,
-                   'status' => 'completed',
-                   'results' => [
-                       'total_items' => $totalItems,
-                       'total_process_successfully' => $totalProcessSuccessfully,
-                       'total_process_failed' => $totalProcessFailed,
-                       'created' => $created,
-                       'updated' => $updated,
-                   ],
-                   'exception' => $errors,
-                  // 'user' => $this->user,
-                  // 'company' => $company,
-               ];
+            'jobUuid' => $this->jobUuid,
+            'status'  => 'completed',
+            'results' => [
+                'total_items'                => $totalItems,
+                'total_process_successfully' => $totalProcessSuccessfully,
+                'total_process_failed'       => $totalProcessFailed,
+                'created'                    => $created,
+                'updated'                    => $updated,
+            ],
+            'exception' => $errors,
+            // 'user' => $this->user,
+            // 'company' => $company,
+        ];
         ImportResultEvents::dispatch(
             $this->app,
             $this->branch->company,

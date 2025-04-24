@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Search\Algolia;
 
+use Algolia\AlgoliaSearch\SearchClient;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Algolia\AlgoliaSearch\SearchClient;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Enums\AppEnum;
 
 class DeleteIndexRecordsCommand extends Command
 {
@@ -38,11 +36,13 @@ class DeleteIndexRecordsCommand extends Command
 
         if (empty($indexName)) {
             $this->error('The index name param is required.');
+
             return;
         }
 
         if (empty($filter)) {
             $this->error('The filter param is required.');
+
             return;
         }
 
@@ -55,11 +55,11 @@ class DeleteIndexRecordsCommand extends Command
 
         try {
             $index->deleteBy([
-                'filters' => $filter
+                'filters' => $filter,
             ]);
             $this->info("Records deleted from index '{$indexName}' with filter '{$filter}'.");
         } catch (\Exception $e) {
-            $this->error("Error: " . $e->getMessage());
+            $this->error('Error: '.$e->getMessage());
         }
     }
 }

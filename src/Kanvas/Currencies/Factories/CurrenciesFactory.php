@@ -25,11 +25,11 @@ class CurrenciesFactory extends Factory
     public function definition()
     {
         return [
-            'country' => $this->faker->locale(),
-            'currency' => $this->faker->currencyCode(),
-            'code' => $this->faker->countryCode(),
-            'symbol' => $this->faker->locale(),
-            'is_deleted' => 0
+            'country'    => $this->faker->locale(),
+            'currency'   => $this->faker->currencyCode(),
+            'code'       => $this->faker->countryCode(),
+            'symbol'     => $this->faker->locale(),
+            'is_deleted' => 0,
         ];
     }
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
-use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
@@ -35,7 +34,7 @@ class CompanyManagementMutation
     use HasMutationUploadFiles;
 
     /**
-     * createCompany
+     * createCompany.
      */
     public function createCompany(mixed $root, array $request): Companies
     {
@@ -45,7 +44,7 @@ class CompanyManagementMutation
 
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
-            UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
+            UsersRepository::belongsToThisApp($user, app(Apps::class));
         } else {
             $user = auth()->user();
         }
@@ -73,7 +72,7 @@ class CompanyManagementMutation
 
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
-            UsersRepository::belongsToThisApp($user, app(Apps::class), $company) ;
+            UsersRepository::belongsToThisApp($user, app(Apps::class), $company);
         } else {
             $user = auth()->user();
         }
@@ -127,7 +126,7 @@ class CompanyManagementMutation
     }
 
     /**
-     * deleteCompany
+     * deleteCompany.
      */
     public function deleteCompany(mixed $root, array $request): bool
     {

@@ -32,7 +32,7 @@ class CreateOrderAction
         $orderId = DB::connection('commerce')->transaction(function () {
             // Lock the table for uniqueness check
             $existingOrder = ModelsOrder::where([
-                'apps_id' => $this->orderData->app->getId(),
+                'apps_id'      => $this->orderData->app->getId(),
                 'companies_id' => $this->orderData->company->getId(),
                 'order_number' => $this->orderData->orderNumber,
             ])->lockForUpdate()->first();
@@ -95,7 +95,7 @@ class CreateOrderAction
 
                 try {
                     $order->user->notify(new NewOrderNotification($order, [
-                        'app' => $this->orderData->app,
+                        'app'     => $this->orderData->app,
                         'company' => $this->orderData->company,
                     ]));
                 } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {

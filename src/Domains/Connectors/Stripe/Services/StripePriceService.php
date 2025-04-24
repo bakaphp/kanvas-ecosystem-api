@@ -29,11 +29,11 @@ class StripePriceService
         $status = $webhookPrice['active'];
 
         return [
-            'amount' => $amount,
-            'currency' => $currency,
-            'interval' => $interval,
-            'stripe_id' => $this->stripePriceId,
-            'is_active' => $status,
+            'amount'        => $amount,
+            'currency'      => $currency,
+            'interval'      => $interval,
+            'stripe_id'     => $this->stripePriceId,
+            'is_active'     => $status,
             'apps_plans_id' => $this->getPlanId($stripeplan),
         ];
     }
@@ -41,6 +41,7 @@ class StripePriceService
     protected function getPlanId(string $productId): int
     {
         $plan = PlanRepository::getByStripeId($productId, $this->app);
+
         return $plan->id;
     }
 }

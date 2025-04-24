@@ -14,7 +14,7 @@ use Kanvas\Models\BaseModel;
  *
  * @property string $title
  * @property string $url
- * @property int $language_id
+ * @property int    $language_id
  */
 class Sources extends BaseModel
 {

@@ -30,8 +30,8 @@ class SoftPullFromLeadActivity extends KanvasActivity
 
         if ($receiver->source_name !== ConfigurationEnum::ACTION_VERB->value) {
             return [
-                'message' => 'This receiver is not a Soft Pull - ' . $receiver->source_name,
-                'lead_id' => $lead->getId(),
+                'message'     => 'This receiver is not a Soft Pull - '.$receiver->source_name,
+                'lead_id'     => $lead->getId(),
                 'receiver_id' => $receiver->getId(),
             ];
         }
@@ -43,8 +43,8 @@ class SoftPullFromLeadActivity extends KanvasActivity
 
         if (! $address) {
             return [
-                'message' => 'Address is required',
-                'lead_id' => $lead->getId(),
+                'message'     => 'Address is required',
+                'lead_id'     => $lead->getId(),
                 'receiver_id' => $receiver->getId(),
             ];
         }
@@ -53,8 +53,8 @@ class SoftPullFromLeadActivity extends KanvasActivity
             $people,
             [
                 'last_4_digits_of_ssn' => $people->get('last_4_digits_of_ssn') ?? '',
-                'city' => $address->city,
-                'state' => $address->state,
+                'city'                 => $address->city,
+                'state'                => $address->state,
             ]
         );
 
@@ -72,14 +72,14 @@ class SoftPullFromLeadActivity extends KanvasActivity
         if (filter_var($results, FILTER_VALIDATE_URL)) {
             $filesystem = new Filesystem();
             $filesystem->fill([
-                'name' => 'soft_pull',
+                'name'         => 'soft_pull',
                 'companies_id' => $lead->companies_id,
-                'apps_id' => $lead->apps_id,
-                'users_id' => $lead->users_id,
-                'path' => pathinfo($results, PATHINFO_DIRNAME),
-                'url' => $results,
-                'file_type' => 'pdf',
-                'size' => '0',
+                'apps_id'      => $lead->apps_id,
+                'users_id'     => $lead->users_id,
+                'path'         => pathinfo($results, PATHINFO_DIRNAME),
+                'url'          => $results,
+                'file_type'    => 'pdf',
+                'size'         => '0',
             ]);
             $filesystem->saveOrFail();
 
@@ -179,14 +179,14 @@ class SoftPullFromLeadActivity extends KanvasActivity
         );
 
         $messageInput = [
-            'message' => $engagementMessage->toArray(),
+            'message'         => $engagementMessage->toArray(),
             'reactions_count' => 0,
-            'comments_count' => 0,
-            'total_liked' => 0,
-            'total_disliked' => 0,
-            'total_saved' => 0,
-            'total_shared' => 0,
-            'ip_address' => '127.0.0.1',
+            'comments_count'  => 0,
+            'total_liked'     => 0,
+            'total_disliked'  => 0,
+            'total_saved'     => 0,
+            'total_shared'    => 0,
+            'ip_address'      => '127.0.0.1',
         ];
 
         if ($parentId) {

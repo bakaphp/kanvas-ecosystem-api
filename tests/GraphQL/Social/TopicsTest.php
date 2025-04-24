@@ -11,10 +11,10 @@ class TopicsTest extends TestCase
     public function testCreateTopic()
     {
         $input = [
-            'name' => fake()->name(),
-            'weight' => fake()->numberBetween(0, 1),
+            'name'       => fake()->name(),
+            'weight'     => fake()->numberBetween(0, 1),
             'is_feature' => fake()->numberBetween(0, 1),
-            'status' => fake()->boolean(),
+            'status'     => fake()->boolean(),
         ];
 
         $this->graphQL(/** @lang GRAPHQL */
@@ -44,10 +44,10 @@ class TopicsTest extends TestCase
     public function testUpdateTopic()
     {
         $input = [
-            'name' => fake()->name(),
-            'weight' => fake()->numberBetween(0, 1),
+            'name'       => fake()->name(),
+            'weight'     => fake()->numberBetween(0, 1),
             'is_feature' => fake()->numberBetween(0, 1),
-            'status' => fake()->boolean(),
+            'status'     => fake()->boolean(),
         ];
 
         $response = $this->graphQL(/** @lang GRAPHQL */
@@ -72,10 +72,10 @@ class TopicsTest extends TestCase
 
         $topic = $response->json('data.createTopic');
         $input = [
-            'name' => fake()->name(),
-            'weight' => fake()->numberBetween(0, 1),
+            'name'       => fake()->name(),
+            'weight'     => fake()->numberBetween(0, 1),
             'is_feature' => fake()->numberBetween(0, 1),
-            'status' => fake()->boolean(),
+            'status'     => fake()->boolean(),
         ];
         $this->graphQL(/** @lang GRAPHQL */
             '
@@ -93,9 +93,9 @@ class TopicsTest extends TestCase
                 }
              ',
             [
-                    'id' => $topic['id'],
-                    'input' => $input,
-                ]
+                'id'    => $topic['id'],
+                'input' => $input,
+            ]
         )->assertJson([
             'data' => [
                 'updateTopic' => $input,
@@ -106,10 +106,10 @@ class TopicsTest extends TestCase
     public function testGetTopic()
     {
         $input = [
-            'name' => fake()->name(),
-            'weight' => fake()->numberBetween(0, 1),
+            'name'       => fake()->name(),
+            'weight'     => fake()->numberBetween(0, 1),
             'is_feature' => fake()->numberBetween(0, 1),
-            'status' => fake()->boolean(),
+            'status'     => fake()->boolean(),
         ];
 
         $response = $this->graphQL(/** @lang GRAPHQL */
@@ -147,10 +147,10 @@ class TopicsTest extends TestCase
             }    
             '
         )->assertJsonFragment([
-                'name' => $input['name'],
-                'weight' => $input['weight'],
-                'is_feature' => $input['is_feature'],
-                'status' => $input['status'],
-            ]);
+            'name'       => $input['name'],
+            'weight'     => $input['weight'],
+            'is_feature' => $input['is_feature'],
+            'status'     => $input['status'],
+        ]);
     }
 }

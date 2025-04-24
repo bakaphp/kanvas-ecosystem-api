@@ -185,10 +185,10 @@ class SyncEsimWithProviderCommand extends Command
 
         return [
             ...$response,
-            'bundleState' => IccidStatusEnum::getStatus($iccidStatus['profileStatus']),
-            'installed_date' => $installDate?->format('Y-m-d H:i:s'),
+            'bundleState'     => IccidStatusEnum::getStatus($iccidStatus['profileStatus']),
+            'installed_date'  => $installDate?->format('Y-m-d H:i:s'),
             'expiration_date' => null,
-            'phone_number' => null,
+            'phone_number'    => null,
         ];
     }
 
@@ -196,8 +196,8 @@ class SyncEsimWithProviderCommand extends Command
     {
         return [
             ...$response,
-            'bundleState' => strtolower($response['esim_status']),
-            'installed_date' => null,
+            'bundleState'     => strtolower($response['esim_status']),
+            'installed_date'  => null,
             'expiration_date' => isset($response['expire_date'])
                 ? (new DateTime($response['expire_date']))->format('Y-m-d\TH:i:s.u\Z')
                 : null,
@@ -276,7 +276,7 @@ class SyncEsimWithProviderCommand extends Command
         if ($iccid && $isValidState) {
             // Convert remainFlow to bytes - assuming it's in MB
             if (isset($activePlan['remainFlow'])) {
-                $remainingData = (float)$activePlan['remainFlow'] * 1024 * 1024; // Convert MB to bytes
+                $remainingData = (float) $activePlan['remainFlow'] * 1024 * 1024; // Convert MB to bytes
             }
         } elseif ($isValidState == false && $remainingData <= 0) {
             $remainingData = $totalBytesData;
@@ -365,13 +365,12 @@ class SyncEsimWithProviderCommand extends Command
         $esimStatusArray = $esimStatus->toArray();
         // Check and send notifications if needed
         $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
+
         return $esimStatusArray;
     }
 
     /**
-     * Check if notifications should be sent for a specific ESim and send them if needed
-     *
-     * @param bool $shouldForceActive
+     * Check if notifications should be sent for a specific ESim and send them if needed.
      */
     private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isValidState): void
     {
@@ -392,7 +391,7 @@ class SyncEsimWithProviderCommand extends Command
 
         if ($esimStatus['unlimited']) {
             $dataNotification = [
-                'title' => 'Has alcanzado tu límite diario de datos a alta velocidad.',
+                'title'   => 'Has alcanzado tu límite diario de datos a alta velocidad.',
                 'message' => 'Ahora navegarás a una velocidad reducida de 384kbps.',
             ];
             $this->checkUnlimitedPlanUsage($esimStatus, $notifyUser, $message, $dataNotification);
@@ -403,7 +402,7 @@ class SyncEsimWithProviderCommand extends Command
     }
 
     /**
-     * Check data usage thresholds and send notifications at 70% and 90% usage
+     * Check data usage thresholds and send notifications at 70% and 90% usage.
      */
     private function checkDataUsageThresholds(array $esimStatus, Users $notifyUser, Message $message): void
     {
@@ -442,9 +441,7 @@ class SyncEsimWithProviderCommand extends Command
     }
 
     /**
-     * Check if unlimited plan is about to expire and send notification
-     *
-     * @param Users $user
+     * Check if unlimited plan is about to expire and send notification.
      */
     private function checkUnlimitedPlanExpiration(array $esimStatus, Users $notifyUser, Message $message): void
     {
@@ -466,9 +463,7 @@ class SyncEsimWithProviderCommand extends Command
     }
 
     /**
-     * Check if unlimited plan is about to expire and send notification
-     *
-     * @param Users $user
+     * Check if unlimited plan is about to expire and send notification.
      */
     private function checkUnlimitedPlanUsage(array $esimStatus, Users $notifyUser, Message $message, array $dataNotification): void
     {
@@ -496,7 +491,7 @@ class SyncEsimWithProviderCommand extends Command
     }
 
     /**
-     * Send push notification to user
+     * Send push notification to user.
      */
     private function sendPushNotification(
         Users $notifyUser,
@@ -509,10 +504,10 @@ class SyncEsimWithProviderCommand extends Command
         $app = $message->app;
 
         $data = [
-            'title' => $title,
+            'title'   => $title,
             'message' => $notificationMessage,
-            'app' => $app,
-            'data' => $additionalData,
+            'app'     => $app,
+            'data'    => $additionalData,
         ];
 
         $vias = [NotificationChannelEnum::getNotificationChannelBySlug('PUSH')];

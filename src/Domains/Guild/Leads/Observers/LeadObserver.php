@@ -74,7 +74,7 @@ class LeadObserver
                         $lead->app,
                         $lead->company,
                         $lead->user,
-                        (string)$lead->id,
+                        (string) $lead->id,
                         Lead::class,
                         'Default Channel',
                         $lead->description ?? '',

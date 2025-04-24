@@ -35,7 +35,7 @@ class Random
 
         $part3 = ($randNo > 0) ? rand(1, $randNo) : '';
 
-        return $part1 . $part2 . $part3;
+        return $part1.$part2.$part3;
     }
 
     public static function generateDisplayNameFromEmail(string $email, AppInterface $app, int $randNo = 200): string
@@ -99,18 +99,19 @@ class Random
 
             // Add random suffix
             $randomNumber = ($randNo > 0) ? rand(1, $randNo) : '';
-            $username = $originalName . $randomNumber;
+            $username = $originalName.$randomNumber;
             $counter++;
         }
 
         // Ultimate fallback - timestamp will guarantee uniqueness
-        return $originalName . time();
+        return $originalName.time();
     }
 
     /**
      * Create a URL-friendly slug from a display name.
      *
      * @param string $displayName The display name to convert to a slug
+     *
      * @return string Slug-formatted string
      */
     public static function cleanUpDisplayNameForSlug(string $displayName): string

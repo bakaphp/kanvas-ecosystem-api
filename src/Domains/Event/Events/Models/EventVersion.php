@@ -56,7 +56,7 @@ class EventVersion extends BaseModel
     {
         return [
             'metadata' => Json::class,
-            'agenda' => Json::class,
+            'agenda'   => Json::class,
         ];
     }
 
@@ -70,9 +70,9 @@ class EventVersion extends BaseModel
         collect($dates)->each(function ($date) {
             $this->dates()->firstOrCreate([
                 'event_date' => $date['date'],
-                'users_id' => $this->users_id,
+                'users_id'   => $this->users_id,
                 'start_time' => $date['start_time'],
-                'end_time' => $date['end_time'],
+                'end_time'   => $date['end_time'],
             ]);
         });
     }
@@ -97,10 +97,10 @@ class EventVersion extends BaseModel
         } else {
             // Create a new record if no existing one is found
             $eventVersionParticipant = EventVersionParticipant::create([
-                'event_version_id' => $this->getId(),
-                'participant_id' => $participant->getId(),
+                'event_version_id'    => $this->getId(),
+                'participant_id'      => $participant->getId(),
                 'participant_type_id' => $participantType->getId(),
-                'is_deleted' => 0,
+                'is_deleted'          => 0,
             ]);
         }
 

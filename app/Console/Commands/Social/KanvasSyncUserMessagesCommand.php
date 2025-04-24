@@ -46,9 +46,9 @@ class KanvasSyncUserMessagesCommand extends Command
             ->where('message_types_id', $message_type_id->getId())
             ->where('companies_id', $company_id->getId())
             ->where('is_deleted', 0)
-            ->chunk(50, function ($messages) use ($app_id, $company_id) {
+            ->chunk(50, function ($messages) use ($app_id) {
                 foreach ($messages as $message) {
-                    echo('-Working on message: ' . $message->getId() . PHP_EOL);
+                    echo '-Working on message: '.$message->getId().PHP_EOL;
                     UsersAssociatedApps::where('apps_id', $app_id->getId())
                         ->where('companies_id', 0)
                         ->where('is_active', 1)
@@ -69,7 +69,7 @@ class KanvasSyncUserMessagesCommand extends Command
                                     continue;
                                 }
 
-                                $this->info('--Found user follow: ' . $user->users_id . ' with entity id: ' . $userFollow->entity_id . ' on message: ' . $message->getId() . PHP_EOL);
+                                $this->info('--Found user follow: '.$user->users_id.' with entity id: '.$userFollow->entity_id.' on message: '.$message->getId().PHP_EOL);
 
                                 $userInteraction = UsersInteractions::fromApp($app_id)
                                     ->where('users_id', $user->users_id)
@@ -78,26 +78,26 @@ class KanvasSyncUserMessagesCommand extends Command
                                     ->where('entity_id', $message->getId())
                                     ->first();
                                 if ($userInteraction) {
-                                    $this->info('--Found user interaction: ' . $userInteraction->getId() . ' on message: ' . $message->getId() . 'from user: ' . $user->users_id . PHP_EOL);
+                                    $this->info('--Found user interaction: '.$userInteraction->getId().' on message: '.$message->getId().'from user: '.$user->users_id.PHP_EOL);
                                 }
 
                                 UserMessage::updateOrCreate(
                                     [
-                                        'users_id' => $user->users_id,
-                                        'apps_id' => $app_id->getId(),
+                                        'users_id'    => $user->users_id,
+                                        'apps_id'     => $app_id->getId(),
                                         'messages_id' => $message->getId(),
-                                        'is_deleted' => 0,
+                                        'is_deleted'  => 0,
                                     ],
                                     [
-                                        'users_id' => $user->users_id,
-                                        'apps_id' => $app_id->getId(),
-                                        'is_liked' => $userInteraction ? 1 : 0,
+                                        'users_id'    => $user->users_id,
+                                        'apps_id'     => $app_id->getId(),
+                                        'is_liked'    => $userInteraction ? 1 : 0,
                                         'messages_id' => $message->getId(),
-                                        'is_deleted' => 0,
+                                        'is_deleted'  => 0,
                                     ]
                                 );
 
-                                $this->info('---Added user message: ' . $user->users_id . ' - ' . $message->getId() . PHP_EOL);
+                                $this->info('---Added user message: '.$user->users_id.' - '.$message->getId().PHP_EOL);
                             }
                         });
                 }

@@ -80,14 +80,15 @@ class MessageBuilder
      * Apply options to the query.
      *  customFilters: [
      *      "SHOW_OWN_PARENT_MESSAGES_ONLY"
-     *  ]
+     *  ].
+     *
      * @throws InvalidArgumentException
      */
     protected function applyCustomFilters(Builder $query, array $args, UserInterface $user): Builder
     {
         foreach ($args['customFilters'] as $option) {
             $query = match ($option) {
-                'SHOW_OWN_PARENT_MESSAGES_ONLY' => $query->where(function ($q) use ($user) {
+                'SHOW_OWN_PARENT_MESSAGES_ONLY' => $query->where(function ($q) {
                     $q->whereNull('parent_id')
                         ->orWhereRaw('NOT EXISTS (
                         SELECT 1 FROM messages AS parent 
@@ -226,7 +227,7 @@ class MessageBuilder
         $index = $client->initIndex($app->get($suggestionIndex));
 
         $results = $index->search($args['search'], [
-            'hitsPerPage' => 15,
+            'hitsPerPage'          => 15,
             'attributesToRetrieve' => ['name', 'description'],
         ]);
 

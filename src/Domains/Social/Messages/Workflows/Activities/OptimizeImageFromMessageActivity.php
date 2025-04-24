@@ -26,7 +26,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
 
         if (! isset($messageContent['image']) && ! isset($messageContent['ai_image'])) {
             return [
-                'result' => false,
+                'result'  => false,
                 'message' => 'Message does not have an image url',
             ];
         }
@@ -36,7 +36,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             // For child messages, use 'image' key
             if (! isset($messageContent['image'])) {
                 return [
-                    'result' => false,
+                    'result'  => false,
                     'message' => 'Child message does not have an image url',
                 ];
             }
@@ -45,7 +45,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             // For parent messages, use 'ai_image.image' key
             if (! isset($messageContent['ai_image']) || ! isset($messageContent['ai_image']['image'])) {
                 return [
-                    'result' => false,
+                    'result'  => false,
                     'message' => 'Parent message does not have a valid AI image url',
                 ];
             }
@@ -116,9 +116,9 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
         unlink($tempFilePath);
 
         return [
-            'result' => true,
-            'message' => 'Image optimized and uploaded',
-            'data' => $fileSystemRecord,
+            'result'     => true,
+            'message'    => 'Image optimized and uploaded',
+            'data'       => $fileSystemRecord,
             'message_id' => $message->getId(),
         ];
     }

@@ -87,7 +87,7 @@ class TokenGuard extends AuthTokenGuard
             $sessionUser = $session->check(
                 $user,
                 $token->claims()->get('sessionId'),
-                (string)  $request->ip(),
+                (string) $request->ip(),
                 app(Apps::class),
                 1
             );

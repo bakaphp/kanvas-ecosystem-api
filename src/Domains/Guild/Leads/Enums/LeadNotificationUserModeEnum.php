@@ -13,8 +13,8 @@ enum LeadNotificationUserModeEnum: string
     {
         return match ($value) {
             'NOTIFY_ROTATION_USERS' => self::NOTIFY_ROTATION_USERS,
-            'NOTIFY_OWNER' => self::NOTIFY_OWNER,
-            default => self::NOTIFY_OWNER,
+            'NOTIFY_OWNER'          => self::NOTIFY_OWNER,
+            default                 => self::NOTIFY_OWNER,
         };
     }
 }

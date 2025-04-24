@@ -13,13 +13,14 @@ use Nevadskiy\Tree\AsTree;
 
 /**
  *  class MessageComment.
- *  @property int $id
- *  @property int $message_id
- *  @property int $apps_id
- *  @property int $companies_id
- *  @property int $users_id
- *  @property string $message
- *  @property int $reactions_count
+ *
+ * @property int    $id
+ * @property int    $message_id
+ * @property int    $apps_id
+ * @property int    $companies_id
+ * @property int    $users_id
+ * @property string $message
+ * @property int    $reactions_count
  */
 class MessageComment extends BaseModel
 {
@@ -31,7 +32,7 @@ class MessageComment extends BaseModel
     protected $guarded = [];
 
     protected $casts = [
-       'message' => Json::class,
+        'message' => Json::class,
     ];
 
     public function message(): BelongsTo

@@ -42,21 +42,21 @@ class KanvasCreateReceiverCommand extends Command
 
         $company = Companies::getById($companyId);
 
-        $user = UsersRepository::getUserOfCompanyById($company, (int)$userId);
+        $user = UsersRepository::getUserOfCompanyById($company, (int) $userId);
 
         $receiver = ReceiverWebhook::create([
-            'apps_id' => $app,
-            'action_id' => $action,
+            'apps_id'      => $app,
+            'action_id'    => $action,
             'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-            'name' => $name,
-            'description' => $description,
-            'is_active' => true,
-            'is_deleted' => false,
+            'users_id'     => $user->getId(),
+            'name'         => $name,
+            'description'  => $description,
+            'is_active'    => true,
+            'is_deleted'   => false,
         ]);
 
         $this->info('Receiver created successfully!');
-        $url = config('app.url') . '/v1/receiver/' . $receiver->uuid;
-        $this->info('Webhook URL: ' . $url);
+        $url = config('app.url').'/v1/receiver/'.$receiver->uuid;
+        $this->info('Webhook URL: '.$url);
     }
 }

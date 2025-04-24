@@ -63,7 +63,7 @@ class DriversLicense extends Data
             (string) $license[3]['value'],
             (string) $license[4]['value'],
             (string) $license[5]['value'],
-            $license[5]['value'] . ' ' . $license[4]['value'],
+            $license[5]['value'].' '.$license[4]['value'],
             (string) $license[7]['value'],
             (string) $license[8]['value'],
             (string) $license[9]['value'],

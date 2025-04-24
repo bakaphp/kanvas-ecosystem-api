@@ -45,16 +45,16 @@ class CreatePeopleAction
         }
 
         $attributes = [
-            'apps_id' => $this->peopleData->app->getId(),
-            'users_id' => $this->peopleData->user->getId(),
-            'firstname' => $this->peopleData->firstname,
-            'middlename' => $this->peopleData->middlename,
-            'lastname' => $this->peopleData->lastname,
-            'name' => $this->peopleData->firstname . ' ' . $this->peopleData->lastname, // @todo remove this
-            'dob' => $this->peopleData->dob,
-            'google_contact_id' => $this->peopleData->google_contact_id,
+            'apps_id'             => $this->peopleData->app->getId(),
+            'users_id'            => $this->peopleData->user->getId(),
+            'firstname'           => $this->peopleData->firstname,
+            'middlename'          => $this->peopleData->middlename,
+            'lastname'            => $this->peopleData->lastname,
+            'name'                => $this->peopleData->firstname.' '.$this->peopleData->lastname, // @todo remove this
+            'dob'                 => $this->peopleData->dob,
+            'google_contact_id'   => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
-            'apple_contact_id' => $this->peopleData->apple_contact_id,
+            'apple_contact_id'    => $this->peopleData->apple_contact_id,
         ];
 
         if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
@@ -89,8 +89,8 @@ class CreatePeopleAction
                 if (! in_array($contact->value, $existingContacts)) {
                     $contactsToAdd[] = new Contact([
                         'contacts_types_id' => $contact->contacts_types_id,
-                        'value' => $contact->value,
-                        'weight' => $contact->weight,
+                        'value'             => $contact->value,
+                        'weight'            => $contact->weight,
                     ]);
                 }
             }
@@ -112,17 +112,17 @@ class CreatePeopleAction
 
             foreach ($this->peopleData->address as $address) {
                 $newAddress = [
-                    'address' => $address->address,
-                    'address_2' => $address->address_2,
-                    'city' => $address->city,
-                    'county' => $address->county,
-                    'state' => $address->state,
-                    'zip' => $address->zip,
-                    'city_id' => $address->city_id ?? 0,
-                    'state_id' => $address->state_id ?? 0,
-                    'countries_id' => $address->country_id ?? 0,
+                    'address'         => $address->address,
+                    'address_2'       => $address->address_2,
+                    'city'            => $address->city,
+                    'county'          => $address->county,
+                    'state'           => $address->state,
+                    'zip'             => $address->zip,
+                    'city_id'         => $address->city_id ?? 0,
+                    'state_id'        => $address->state_id ?? 0,
+                    'countries_id'    => $address->country_id ?? 0,
                     'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->peopleData->app)->getId(),
-                    'duration' => $address->duration ?? 0.0,
+                    'duration'        => $address->duration ?? 0.0,
                 ];
 
                 if (! in_array($newAddress, $existingAddresses)) {
@@ -137,15 +137,15 @@ class CreatePeopleAction
                 $people->employmentHistory()->updateOrCreate(
                     [
                         'organizations_id' => $employmentHistory['organizations_id'],
-                        'apps_id' => $this->peopleData->app->getId(),
-                        'position' => $employmentHistory['position'],
+                        'apps_id'          => $this->peopleData->app->getId(),
+                        'position'         => $employmentHistory['position'],
                     ],
                     [
-                        'position' => $employmentHistory['position'],
-                        'income' => $employmentHistory['income'],
-                        'start_date' => $employmentHistory['start_date'],
-                        'end_date' => $employmentHistory['end_date'],
-                        'status' => $employmentHistory['status'],
+                        'position'    => $employmentHistory['position'],
+                        'income'      => $employmentHistory['income'],
+                        'start_date'  => $employmentHistory['start_date'],
+                        'end_date'    => $employmentHistory['end_date'],
+                        'status'      => $employmentHistory['status'],
                         'income_type' => $employmentHistory['income_type'] ?? null,
                     ]
                 );
@@ -197,7 +197,7 @@ class CreatePeopleAction
                 if ($people) {
                     $this->peopleData->id = $people->getId();
 
-                    return ;
+                    return;
                 }
             }
         }

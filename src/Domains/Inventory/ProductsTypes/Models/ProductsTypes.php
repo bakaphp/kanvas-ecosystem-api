@@ -23,15 +23,15 @@ use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 /**
  * Class ProductsTypes.
  *
- * @property int $id
- * @property int $apps_id
- * @property int $users_id
- * @property int $companies_id
+ * @property int    $id
+ * @property int    $apps_id
+ * @property int    $users_id
+ * @property int    $companies_id
  * @property string $name
  * @property string $uuid
  * @property string $slug
  * @property string $description
- * @property int $weight
+ * @property int    $weight
  */
 class ProductsTypes extends BaseModel
 {
@@ -104,7 +104,7 @@ class ProductsTypes extends BaseModel
     }
 
     /**
-     * Get all the products attributes from the product type
+     * Get all the products attributes from the product type.
      */
     public function getProductsAttributes(): Collection
     {
@@ -115,7 +115,7 @@ class ProductsTypes extends BaseModel
     }
 
     /**
-     * Get all the variants attributes from the product type
+     * Get all the variants attributes from the product type.
      */
     public function getVariantsAttributes(): Collection
     {

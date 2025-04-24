@@ -156,7 +156,7 @@ class SubscriptionMutation
 
                 return $newSubscription->create($subscription->latestPayment()->payment_method);
             } catch (Throwable $e) {
-                throw new ValidationException('Failed to create new subscription: ' . $e->getMessage());
+                throw new ValidationException('Failed to create new subscription: '.$e->getMessage());
             }
         }
 
@@ -164,7 +164,7 @@ class SubscriptionMutation
         try {
             return $subscription->resume();
         } catch (Throwable $e) {
-            throw new ValidationException('Failed to reactivate subscription: ' . $e->getMessage());
+            throw new ValidationException('Failed to reactivate subscription: '.$e->getMessage());
         }
     }
 }

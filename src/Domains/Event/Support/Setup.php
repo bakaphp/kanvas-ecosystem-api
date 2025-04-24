@@ -67,28 +67,28 @@ class Setup
 
     protected array $categories = [
         [
-            'type' => 'Seminar',
-            'class' => 'Free',
+            'type'     => 'Seminar',
+            'class'    => 'Free',
             'category' => 'Educational',
         ],
         [
-            'type' => 'Workshop',
-            'class' => 'Paid',
+            'type'     => 'Workshop',
+            'class'    => 'Paid',
             'category' => 'Skill Development',
         ],
         [
-            'type' => 'Webinar',
-            'class' => 'VIP',
+            'type'     => 'Webinar',
+            'class'    => 'VIP',
             'category' => 'Exclusive Knowledge',
         ],
         [
-            'type' => 'Networking',
-            'class' => 'Public',
+            'type'     => 'Networking',
+            'class'    => 'Public',
             'category' => 'Professional Growth',
         ],
         [
-            'type' => 'Festival',
-            'class' => 'Exclusive',
+            'type'     => 'Festival',
+            'class'    => 'Exclusive',
             'category' => 'Entertainment',
         ],
     ];
@@ -113,70 +113,70 @@ class Setup
 
         foreach ($this->themes as $key => $theme) {
             Theme::firstOrCreate([
-                'name' => $theme,
+                'name'         => $theme,
                 'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
-                'users_id' => $this->user->getId(),
-                'is_default' => (int) ($key == 0),
+                'apps_id'      => $this->app->getId(),
+                'users_id'     => $this->user->getId(),
+                'is_default'   => (int) ($key == 0),
             ]);
         }
 
         foreach ($this->themArea as $key => $area) {
             ThemeArea::firstOrCreate([
-                'name' => $area,
+                'name'         => $area,
                 'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
-                'users_id' => $this->user->getId(),
-                'is_default' => (int) ($key == 0),
+                'apps_id'      => $this->app->getId(),
+                'users_id'     => $this->user->getId(),
+                'is_default'   => (int) ($key == 0),
             ]);
         }
 
         foreach ($this->participantType as $type) {
             ParticipantType::firstOrCreate([
-                'name' => $type,
+                'name'         => $type,
                 'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
-                'users_id' => $this->user->getId(),
+                'apps_id'      => $this->app->getId(),
+                'users_id'     => $this->user->getId(),
             ]);
         }
 
         foreach ($this->eventType as $key => $type) {
             EventType::firstOrCreate([
-                'name' => $type,
+                'name'         => $type,
                 'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
-                'users_id' => $this->user->getId(),
+                'apps_id'      => $this->app->getId(),
+                'users_id'     => $this->user->getId(),
             ]);
         }
 
         foreach ($this->eventStatus as $key => $status) {
             EventStatus::firstOrCreate([
-                'name' => $status,
+                'name'         => $status,
                 'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
-                'users_id' => $this->user->getId(),
-                'is_default' => (int) ($key == 0),
+                'apps_id'      => $this->app->getId(),
+                'users_id'     => $this->user->getId(),
+                'is_default'   => (int) ($key == 0),
             ]);
         }
 
         foreach ($this->eventClass as $key => $class) {
             EventClass::firstOrCreate([
-                'name' => $class,
+                'name'         => $class,
                 'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
-                'users_id' => $this->user->getId(),
-                'is_default' => (int) ($key == 0),
+                'apps_id'      => $this->app->getId(),
+                'users_id'     => $this->user->getId(),
+                'is_default'   => (int) ($key == 0),
             ]);
         }
 
         foreach ($this->categories as $category) {
             EventCategory::firstOrCreate([
-                'event_type_id' => EventType::fromApp($this->app)->fromCompany($this->company)->where('name', $category['type'])->first()->getId(),
+                'event_type_id'  => EventType::fromApp($this->app)->fromCompany($this->company)->where('name', $category['type'])->first()->getId(),
                 'event_class_id' => EventClass::fromApp($this->app)->fromCompany($this->company)->where('name', $category['class'])->first()->getId(),
-                'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
-                'users_id' => $this->user->getId(),
-                'name' => $category['category'],
+                'companies_id'   => $this->company->getId(),
+                'apps_id'        => $this->app->getId(),
+                'users_id'       => $this->user->getId(),
+                'name'           => $category['category'],
             ]);
         }
 

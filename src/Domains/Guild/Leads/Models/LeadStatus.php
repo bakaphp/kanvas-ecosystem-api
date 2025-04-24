@@ -12,12 +12,12 @@ use Kanvas\Guild\Models\BaseModel;
 /**
  * Class LeadStatus.
  *
- * @property int $id
+ * @property int    $id
  * @property string $name
- * @property int $is_default
+ * @property int    $is_default
  * @property string $created_at
  * @property string $updated_at
- * @property int $is_deleted
+ * @property int    $is_deleted
  *
  * @todo add company_id
  */

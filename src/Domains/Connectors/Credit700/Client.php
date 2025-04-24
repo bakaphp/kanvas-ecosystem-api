@@ -34,13 +34,13 @@ class Client
         }
 
         if (empty($this->clientId) || empty($this->clientSecret)) {
-            throw new ValidationException('700Credit credentials are not set for ' . $this->app->name);
+            throw new ValidationException('700Credit credentials are not set for '.$this->app->name);
         }
 
         $this->httpClient = new GuzzleClient([
             'timeout' => 20,
             'headers' => [
-                'Accept' => 'application/json',
+                'Accept'       => 'application/json',
                 'Content-Type' => 'application/x-www-form-urlencoded',
             ],
         ]);
@@ -53,7 +53,7 @@ class Client
 
     public function post(string $path, array $data = []): array
     {
-        $response = $this->httpClient->post($this->apiBaseUrl . $path, [
+        $response = $this->httpClient->post($this->apiBaseUrl.$path, [
             'headers' => [
                 //'Authorization' => 'Bearer ' . $this->accessToken,
                 'Content-Type' => 'application/x-www-form-urlencoded',
@@ -80,9 +80,9 @@ class Client
 
     public function generateToken(): string
     {
-        $response = $this->httpClient->post($this->apiBaseUrl . '/.auth/token', [
+        $response = $this->httpClient->post($this->apiBaseUrl.'/.auth/token', [
             'json' => [
-                'ClientId' => $this->clientId,
+                'ClientId'     => $this->clientId,
                 'ClientSecret' => $this->clientSecret,
             ],
         ]);
@@ -102,13 +102,13 @@ class Client
     {
         $this->generateToken();
 
-        $response = $this->httpClient->post($this->apiBaseUrl . '/.auth/sign', [
+        $response = $this->httpClient->post($this->apiBaseUrl.'/.auth/sign', [
             'headers' => [
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type'  => 'application/json',
             ],
-           'json' => [
-                'url' => $unsignedUrl,
+            'json' => [
+                'url'      => $unsignedUrl,
                 'duration' => $duration,
                 'signedBy' => $signedBy,
             ],

@@ -27,7 +27,7 @@ class ImportOrderCsvMutation
             );
         } catch (Exception $e) {
             return [
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => $e->getMessage(),
             ];
         }

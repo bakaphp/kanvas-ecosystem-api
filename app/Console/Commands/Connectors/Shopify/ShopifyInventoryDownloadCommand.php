@@ -30,8 +30,6 @@ class ShopifyInventoryDownloadCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
@@ -63,8 +61,7 @@ class ShopifyInventoryDownloadCommand extends Command
 
         $total = $downloadProduct->execute($params);
 
-        $this->info($total . ' Products downloaded successfully from Shopify to warehouse. Running queue');
+        $this->info($total.' Products downloaded successfully from Shopify to warehouse. Running queue');
 
-        return;
     }
 }

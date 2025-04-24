@@ -45,7 +45,7 @@ trait KanvasModelTrait
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage() . "  $name");
+            throw new ExceptionsModelNotFoundException($e->getMessage()."  $name");
         }
     }
 
@@ -60,7 +60,7 @@ trait KanvasModelTrait
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage() . "  $uuid");
+            throw new ExceptionsModelNotFoundException($e->getMessage()."  $uuid");
         }
     }
 
@@ -75,7 +75,7 @@ trait KanvasModelTrait
             ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
+            throw new ExceptionsModelNotFoundException($e->getMessage()." $id");
         }
     }
 
@@ -128,8 +128,8 @@ trait KanvasModelTrait
                     'No %s record found with UUID %s%s%s.',
                     get_called_class(),
                     $uuid,
-                    $company ? ' for Company ID ' . $company->getId() : '',
-                    $app ? ' and App ID ' . $app->getId() : ''
+                    $company ? ' for Company ID '.$company->getId() : '',
+                    $app ? ' and App ID '.$app->getId() : ''
                 )
             );
         }
@@ -236,7 +236,7 @@ trait KanvasModelTrait
     }
 
     /**
-     * restore
+     * restore.
      *
      * @todo change to laravel default behavior
      */
@@ -254,7 +254,7 @@ trait KanvasModelTrait
     {
         $model = new static();
 
-        return $model->getConnection()->getDatabaseName() . '.' . $model->getTable();
+        return $model->getConnection()->getDatabaseName().'.'.$model->getTable();
     }
 
     /**
@@ -262,7 +262,7 @@ trait KanvasModelTrait
      */
     public static function getTableName(): string
     {
-        return ((new static())->getTable());
+        return (new static())->getTable();
     }
 
     /**
@@ -276,7 +276,7 @@ trait KanvasModelTrait
 
     public function getCacheKey(): string
     {
-        return Str::simpleSlug(static::class) . '-' . $this->getId();
+        return Str::simpleSlug(static::class).'-'.$this->getId();
     }
 
     public function isDeleted(): bool
@@ -304,7 +304,8 @@ trait KanvasModelTrait
 
     /**
      * for scout don't index the record if is deleted.
-     * cant use return type because of laravel scout class
+     * cant use return type because of laravel scout class.
+     *
      * @return bool
      */
     public function shouldBeSearchable()

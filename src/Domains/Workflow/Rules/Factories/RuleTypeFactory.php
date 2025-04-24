@@ -15,7 +15,7 @@ class RuleTypeFactory extends Factory
     public function definition()
     {
         return [
-           'name' => WorkflowEnum::CREATED->value,
+            'name' => WorkflowEnum::CREATED->value,
         ];
     }
 }
