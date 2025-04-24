@@ -43,8 +43,7 @@ class RecombeeUserRecommendationService
         $recommendationOptions = [
             'rotationRate' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_RATE->value ?? '0.2'),
             'booster' => $this->getUserSpecificBoosters($user),
-            // Uncomment when ready to use configuration
-            // 'rotationTime' => $this->config->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value, 7200.0),
+            'rotationTime' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value, 7200.0),
         ];
 
         try {
