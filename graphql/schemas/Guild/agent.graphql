@@ -27,6 +27,7 @@ extend type Query @guard {
                 columns: [
                     "id"
                     "users_id"
+                    "name"
                     "member_id"
                     "owner_id"
                     "status_id"
