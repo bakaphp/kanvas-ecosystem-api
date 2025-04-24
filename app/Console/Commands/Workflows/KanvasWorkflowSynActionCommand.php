@@ -20,6 +20,7 @@ use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
+use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
@@ -159,6 +160,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncExternalWooCommerceUserWebhookJob::class,
             PullLeadActivity::class,
             PullPeopleActivity::class,
+            CalculateWarehouseQuantityActivity::class,
         ];
 
         $createdActions = [];
