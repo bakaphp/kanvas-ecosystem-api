@@ -24,7 +24,10 @@ class FixPromptDataCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:promptmine-fix-prompt-data {app_id} {message_type_id} {child_message_type_id}';
+    protected $signature = 'kanvas:promptmine-fix-prompt-data 
+                        {--app_id= : The app ID (default: 78)} 
+                        {--message_type_id= : The message type ID (default: 588)} 
+                        {--child_message_type_id= : The child message type ID (default: 576)}';
 
     /**
      * The console command description.
@@ -40,11 +43,11 @@ class FixPromptDataCommand extends Command
      */
     public function handle()
     {
-        $app = Apps::getById((int) $this->argument('app_id'));
+        $app = Apps::getById((int) $this->option('app_id'));
         $this->overwriteAppService($app);
-        $messageTypeId = (int) $this->argument('message_type_id');
+        $messageTypeId = (int) $this->option('message_type_id');
         $messageType = MessageType::find($messageTypeId);
-        $childMessageTypeId = (int) $this->argument('child_message_type_id');
+        $childMessageTypeId = (int) $this->option('child_message_type_id');
         $childMessageType = MessageType::find($childMessageTypeId);
         // $companiesId = (int) $this->argument('companies_id');
 
@@ -174,6 +177,7 @@ class FixPromptDataCommand extends Command
 
         $message->message = $messageData;
         $message->save();
+
         $this->info('-Prompt Message ID: ' . $message->getId() . ' updated');
     }
 
