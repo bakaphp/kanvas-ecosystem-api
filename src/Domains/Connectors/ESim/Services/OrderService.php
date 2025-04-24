@@ -8,17 +8,20 @@ use Baka\Support\Str;
 use Kanvas\Connectors\ESim\Client;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
+use Kanvas\Connectors\ESimGo\Services\EsimGoOrderService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
 
 class OrderService
 {
     protected Client $client;
+    protected EsimGoOrderService $esimGoOrderService;
 
     public function __construct(
         protected Order $order
     ) {
         $this->client = new Client($order->app, $order->company);
+        $this->esimGoOrderService = new EsimGoOrderService($order->app);
     }
 
     public function createOrder(): array
@@ -63,32 +66,19 @@ class OrderService
             ];
         }
 
-        return $this->client->post('/api/v1/esimgo/recharge', [
-            'iccid' => $iccid,
-            'name' => $esimBundle->value,
-        ]);
+        return $this->esimGoOrderService->rechargeOrder($iccid, $esimBundle->value);
     }
 
     protected function processEsimGoNewOrder(OrderItem $item): array
     {
         $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
-        $totalDays = $item->variant->getAttributeByName('esim_days');
-        $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
 
-        return $this->client->post('/api/v2/esimgo/create/order', [
-            'bundles' => [
-                [
-                    'type' => 'bundle',
-                    'quantity' => $item->quantity,
-                    'item' => $esimBundle->value,
-                ],
+        return $this->esimGoOrderService->makeOrder([
+            [
+                'type' => 'bundle',
+                'quantity' => $item->quantity,
+                'item' => $esimBundle->value,
             ],
-            'total' => $this->order->total_net_amount,
-            'total_days' => $totalDays->value,
-            'wc_order_id' => 0,
-            'device_id' => $channelId,
-            'from_mobile' => 1,
-            'client' => $this->getClientDetails(),
         ]);
     }
 

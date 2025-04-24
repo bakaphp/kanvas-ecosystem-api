@@ -14,6 +14,7 @@ class Client
     public GuzzleClient $client;
     public string $baseUri = 'https://api.esim-go.com';
     public string $appToken;
+    public int $perPage = 4000;
 
     public function __construct(
         protected AppInterface $app
@@ -48,5 +49,10 @@ class Client
     public function post($uri, $body = []): array
     {
         return $this->request('POST', $uri, $body);
+    }
+
+    public function put($uri, $body = []): array
+    {
+        return $this->request('PUT', $uri, $body);
     }
 }
