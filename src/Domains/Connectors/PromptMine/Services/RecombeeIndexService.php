@@ -58,7 +58,6 @@ class RecombeeIndexService
             'updated_at' => 'timestamp',
             'is_premium' => 'boolean',
             'ai_model' => 'string',
-            'type' => 'string',
             'image' => 'string',
             'categories' => 'set',
             'type' => 'string',
