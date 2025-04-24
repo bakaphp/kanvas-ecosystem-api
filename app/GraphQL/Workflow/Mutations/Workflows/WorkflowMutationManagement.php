@@ -90,7 +90,7 @@ class WorkflowMutationManagement
             $activity = new $pullActivity(
                 index: 0,
                 now: now()->toDateTimeString(),
-                storedWorkflow: StoredWorkflow::make(),
+                storedWorkflow: new StoredWorkflow(),
                 arguments: []
             );
 
