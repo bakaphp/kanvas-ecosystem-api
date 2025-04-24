@@ -45,7 +45,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $this->openaiApiUrl = $entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
         $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
 
-        $isOpenAi = Str::contains($imageFilter, 'openai');
+        $isOpenAi = Str::contains($imageFilter, 'gpt');
 
         $company = $this->getCompany($app, $entity);
 
