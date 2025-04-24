@@ -187,7 +187,7 @@ class PromptCreatorAgentCommand extends Command
     1. Role: "You are a [highly credible authority figure relevant to the topic]."
     2. Goal: "Generate [very specific and actionable output]."
     3. Constraints: "Use a [specific framework/tone - e.g., concise, empathetic, step-by-step]/Keep it under [word/character limit]." (Provide short examples if helpful)
-    4. CTA: "To make this your own, [instruction for customization - e.g., 'replace [X] with your specific situation,' 'share your results using #YourHashtag']."
+    4. CTA: "To make this your own, [instruction for customization - e.g., 'replace [X] with your specific situation,' and include an example that will make for a fascinating, captivating use case for people to read in the ouput."
     5. New lines must be separated with \n
     
     #### Step 3: Quality Check
@@ -247,7 +247,7 @@ PROMPT;
     3. Provide comprehensive content that fully addresses the prompt
     4. Do NOT include phrases like "let me know if you need more" or "is there anything else"
     5. Do NOT frame this as the beginning of a conversation
-    6. Maintain a length between 300-2000 characters (not including title)
+    6. Maintain a length up to 3000 characters (not including title)
     7. New lines must be separated with \n
     8. Replace any variables or placeholders with realistic examples
     
@@ -275,6 +275,7 @@ PROMPT;
        - 1 actionable template/code snippet
        - Customization reminder
     4. Validate no follow-up needed
+    5. Maintain a length up to 3000 characters (not including title)
 
     This is the prompt to execute: $prompt
     
