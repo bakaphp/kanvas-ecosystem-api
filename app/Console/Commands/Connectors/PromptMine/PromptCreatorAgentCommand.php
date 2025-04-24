@@ -6,6 +6,7 @@ namespace App\Console\Commands\Connectors\PromptMine;
 
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
@@ -229,7 +230,7 @@ PROMPT;
             }
 
             return $promptData;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->error('Exception generating viral prompt: ' . $e->getMessage());
 
             return null;
