@@ -9,6 +9,7 @@ use Kanvas\Connectors\ESim\Client;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESimGo\Services\EsimGoOrderService;
+use Kanvas\Connectors\Airalo\Services\AiraloOrderService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
 
@@ -16,12 +17,14 @@ class OrderService
 {
     protected Client $client;
     protected EsimGoOrderService $esimGoOrderService;
+    protected AiraloOrderService $airaloOrderService;
 
     public function __construct(
         protected Order $order
     ) {
         $this->client = new Client($order->app, $order->company);
         $this->esimGoOrderService = new EsimGoOrderService($order->app);
+        $this->airaloOrderService = new AiraloOrderService($order->app);
     }
 
     public function createOrder(): array
@@ -120,33 +123,40 @@ class OrderService
 
     protected function airaloOrder(OrderItem $item): array
     {
-        $esimPlan = $item->variant->getAttributeByName('esim_bundle_type');
-        $esimDays = $item->variant->getAttributeByName('esim_days');
-        $totalDays = $esimDays ? $esimDays->value : 7;
-        $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
+        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
 
-        $metaData = $this->order->metadata;
-        $imeiNumber = $metaData['deviceImei'] ?? null;
+        if ($isRefuelOrder) {
+            return $this->processAiraloRefuelOrder($item);
+        } else {
+            return $this->processAiraloNewOrder($item);
+        }
+    }
 
-        // Get the agent name
-        $agentName = $this->order->user->firstname . ' ' . $this->order->user->lastname;
+    protected function processAiraloRefuelOrder(OrderItem $item): array
+    {
+        $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
+        $iccid = $this->order->metadata['data']['iccid'] ?? null;
 
-        // Create client details with IMEI number
-        $clientDetails = $this->getClientDetails();
-        $clientDetails['imei_number'] = $imeiNumber;
+        if (! $iccid) {
+            return [
+                'status' => 'error',
+                'message' => 'ICCID is required',
+            ];
+        }
 
-        return $this->client->post('/api/v2/airalo/create/order', [
-            'quantity' => $item->quantity,
-            'plan' => $esimPlan->value,
-            'type' => 'sim',
-            'description' => $item->quantity . ' ' . $esimPlan->value,
-            'agent_name' => $agentName,
-            'device_id' => $channelId,
-            'total' => (string) $this->order->total_net_amount,
-            'total_days' => (string) $totalDays,
-            'client' => $clientDetails,
-            'from_mobile' => 1,
-            'language' => 'en',
+        return $this->airaloOrderService->rechargeOrder($iccid, $esimBundle->value);
+    }
+
+    protected function processAiraloNewOrder(OrderItem $item): array
+    {
+        $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
+
+        return $this->airaloOrderService->makeOrder([
+            [
+                'type' => 'bundle',
+                'quantity' => $item->quantity,
+                'item' => $esimBundle->value,
+            ],
         ]);
     }
 

@@ -34,24 +34,25 @@ class Client
         ]);
     }
 
-    protected function request($method, $uri, $body): array
+    protected function request(string $method, string $uri, array $body = []): array
     {
-        $response = $this->client->request($method, $uri, ! empty($body) ? ['json' => $body] : []);
+        $options = ! empty($body) ? ['json' => $body] : [];
+        $response = $this->client->request($method, $uri, $options);
 
         return json_decode($response->getBody()->getContents(), true);
     }
 
-    public function get($uri, $body = []): array
+    public function get(string $uri, array $body = []): array
     {
         return $this->request('GET', $uri, $body);
     }
 
-    public function post($uri, $body = []): array
+    public function post(string $uri, array $body = []): array
     {
         return $this->request('POST', $uri, $body);
     }
 
-    public function put($uri, $body = []): array
+    public function put(string $uri, array $body = []): array
     {
         return $this->request('PUT', $uri, $body);
     }
