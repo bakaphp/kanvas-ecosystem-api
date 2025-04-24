@@ -6,9 +6,9 @@ namespace Baka\Traits;
 
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
-use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 trait SlugTrait
 {

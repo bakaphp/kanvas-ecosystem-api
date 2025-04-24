@@ -14,7 +14,6 @@ use Override;
 class UnPublishExpiredProductsAfterImportActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     /**
-     * @param Products $product
      */
     #[Override]
     public function execute(Model $company, AppInterface $app, array $params): array

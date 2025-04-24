@@ -11,7 +11,6 @@ class VariantsChannelsTest extends TestCase
     /**
      * testVariantToChannel.
      *
-     * @return void
      */
     public function testVariantToChannel(): void
     {

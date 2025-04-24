@@ -59,8 +59,6 @@ trait SocialInteractionsTrait
     /**
      * Given a visitorInput get the social interactions for the entity.
      *
-     * @param array $visitorInput<string,string>
-     *
      * @return array<array-key,bool> #graph Interactions
      */
     public function getEntitySocialInteractions(array $visitorInput): array

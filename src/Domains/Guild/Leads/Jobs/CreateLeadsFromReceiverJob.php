@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Jobs;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use JsonException;
 use Kanvas\Companies\Models\Companies;
@@ -103,8 +102,8 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             : [$emailReceiverUser];
 
             $payload['fieldMaps'] = $this->mapCustomFields($payload['custom_fields']);
-                $this->sendLeadEmails($emailTemplate, $users, $lead, $payload, $notificationMode);
-            }
+            $this->sendLeadEmails($emailTemplate, $users, $lead, $payload, $notificationMode);
+        }
 
         $lead->fireWorkflow(
             WorkflowEnum::AFTER_RUNNING_RECEIVER->value,

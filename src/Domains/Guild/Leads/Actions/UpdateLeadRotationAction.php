@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
-use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\DataTransferObject\LeadRotation as LeadRotationDto;
-use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Users\Models\Users;
+use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\Models\LeadRotationAgent;
+use Kanvas\Users\Models\Users;
 
 class UpdateLeadRotationAction
 {

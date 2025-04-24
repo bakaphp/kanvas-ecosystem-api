@@ -19,7 +19,6 @@ class Str extends IlluminateStr
     /**
      * Given a json string decode it into array.
      *
-     * @param mixed $string
      */
     public static function jsonToArray($string): mixed
     {

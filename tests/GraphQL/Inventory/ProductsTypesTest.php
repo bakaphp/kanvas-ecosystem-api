@@ -12,7 +12,6 @@ class ProductsTypesTest extends TestCase
     /**
      * testCreate.
      *
-     * @return void
      */
     public function testCreate(): void
     {
@@ -35,7 +34,6 @@ class ProductsTypesTest extends TestCase
     /**
      * testSearch.
      *
-     * @return void
      */
     public function testSearch(): void
     {
@@ -68,7 +66,6 @@ class ProductsTypesTest extends TestCase
     /**
      * testUpdate.
      *
-     * @return void
      */
     public function testUpdate(): void
     {
@@ -130,7 +127,6 @@ class ProductsTypesTest extends TestCase
     /**
      * testDelete.
      *
-     * @return void
      */
     public function testDelete(): void
     {

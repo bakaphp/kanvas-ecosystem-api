@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\DataTransferObject;
 
-use Spatie\LaravelData\Data;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Spatie\LaravelData\Data;
 
 class PeopleSubscription extends Data
 {

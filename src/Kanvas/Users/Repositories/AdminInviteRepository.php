@@ -13,9 +13,6 @@ class AdminInviteRepository
     /**
      * getById.
      *
-     * @param  int $id
-     *
-     * @return AdminInviteModel
      */
     public static function getById(int $id, ?AppInterface $app = null): AdminInviteModel
     {
@@ -29,9 +26,6 @@ class AdminInviteRepository
     /**
      * Get invite by its hash.
      *
-     * @param  string $hash
-     *
-     * @return AdminInviteModel
      */
     public static function getByHash(string $hash, ?AppInterface $app = null): AdminInviteModel
     {

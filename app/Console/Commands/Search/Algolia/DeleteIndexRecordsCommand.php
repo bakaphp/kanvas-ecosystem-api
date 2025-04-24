@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Search\Algolia;
 
+use Algolia\AlgoliaSearch\SearchClient;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Algolia\AlgoliaSearch\SearchClient;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Enums\AppEnum;
 
 class DeleteIndexRecordsCommand extends Command
 {

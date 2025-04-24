@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Subscription\Plans\Repositories\PlanRepository;
 
 class StripePlanService
 {

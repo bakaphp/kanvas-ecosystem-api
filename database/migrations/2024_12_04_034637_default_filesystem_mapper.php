@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('filesystem_mappers', function (Blueprint $table) {
-            //
+
             $table->boolean('is_default')->default(0)->after('configuration');
         });
     }
@@ -22,7 +22,7 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('filesystem_mappers', function (Blueprint $table) {
-            //
+
             $table->dropColumn('is_default');
         });
     }

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\Shopify;
 
 use Illuminate\Console\Command;
-use Kanvas\Connectors\Shopify\Actions\UploadCategoriesToCollectionAction;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Shopify\Actions\UploadCategoriesToCollectionAction;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 

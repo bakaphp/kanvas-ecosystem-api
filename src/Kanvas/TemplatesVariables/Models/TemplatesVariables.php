@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\TemplatesVariables\Models;
 
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
 use Kanvas\Templates\Models\Templates;
 

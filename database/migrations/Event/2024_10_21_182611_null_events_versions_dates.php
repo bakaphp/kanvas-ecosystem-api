@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('event_version_dates', function (Blueprint $table) {
-            //
+
             $table->time('start_time')->nullable()->change();
             $table->time('end_time')->nullable()->change();
         });
@@ -23,7 +23,7 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('event_version_dates', function (Blueprint $table) {
-            //
+
         });
     }
 };

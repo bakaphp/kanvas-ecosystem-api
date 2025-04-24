@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Channels\Actions;
 
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Channels\Models\VariantChannelPriceHistory;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 
 class CreatePriceHistoryAction
 {
@@ -25,7 +25,6 @@ class CreatePriceHistoryAction
     /**
      * execute.
      *
-     * @return VariantChannelPriceHistory
      */
     public function execute(): VariantChannelPriceHistory
     {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -22,7 +23,6 @@ use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 use Kanvas\Souk\Services\B2BConfigurationService;
-use Kanvas\Exceptions\ValidationException;
 
 class OrderManagementMutation
 {

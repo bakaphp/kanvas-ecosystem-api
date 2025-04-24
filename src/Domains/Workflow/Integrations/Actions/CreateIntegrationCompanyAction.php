@@ -26,7 +26,6 @@ class CreateIntegrationCompanyAction
     /**
      * execute.
      *
-     * @return IntegrationsCompanyModel
      */
     public function execute(): IntegrationsCompanyModel
     {

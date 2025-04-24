@@ -25,6 +25,7 @@ use Kanvas\Users\Actions\CreateInviteAction;
 use Kanvas\Users\Actions\ProcessAdminInviteAction;
 use Kanvas\Users\Actions\ProcessInviteAction;
 use Kanvas\Users\Actions\RequestDeleteAccountAction as RequestDeleteAction;
+use Kanvas\Users\Actions\SaveUserAppPreferencesAction;
 use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
@@ -36,7 +37,6 @@ use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserContactsService;
-use Kanvas\Users\Actions\SaveUserAppPreferencesAction;
 
 class UserManagementMutation
 {
@@ -81,7 +81,6 @@ class UserManagementMutation
     /**
      * insertInvite.
      *
-     * @param  mixed $rootValue
      */
     public function insertUserInvite($rootValue, array $request): UsersInvite
     {
@@ -112,7 +111,6 @@ class UserManagementMutation
     /**
      * insertAdminInvite.
      *
-     * @param  mixed $rootValue
      */
     public function insertAdminInvite($rootValue, array $request): AdminInvite
     {
@@ -157,7 +155,6 @@ class UserManagementMutation
     /**
      * deleteInvite.
      *
-     * @param  mixed $rootValue
      */
     public function deleteInvite($rootValue, array $request): bool
     {
@@ -174,7 +171,6 @@ class UserManagementMutation
     /**
      * deleteInvite.
      *
-     * @param  mixed $rootValue
      */
     public function deleteAdminInvite($rootValue, array $request): bool
     {
@@ -191,7 +187,6 @@ class UserManagementMutation
     /**
      * processInvite.
      *
-     * @param  mixed $rootValue
      */
     public function getInvite($rootValue, array $request): UsersInvite
     {
@@ -202,7 +197,6 @@ class UserManagementMutation
     /**
      * Process User invite.
      *
-     * @param  mixed $rootValue
      */
     public function process($rootValue, array $request): array
     {

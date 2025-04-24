@@ -14,9 +14,6 @@ use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
-
-use function Sentry\captureException;
-
 use Throwable;
 
 trait ActivityIntegrationTrait

@@ -32,7 +32,6 @@ class CustomFieldsValues extends BaseModel
     /**
      * Custom field modules.
      *
-     * @return BelongsTo
      */
     public function customField(): BelongsTo
     {

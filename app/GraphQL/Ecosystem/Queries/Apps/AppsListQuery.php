@@ -12,7 +12,6 @@ class AppsListQuery
     /**
      * Get user from the current company.
      *
-     * @param mixed $rootValue
      */
     public function getAppSettings($rootValue, array $request): array
     {

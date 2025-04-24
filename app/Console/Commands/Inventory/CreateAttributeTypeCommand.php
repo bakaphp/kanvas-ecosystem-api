@@ -12,11 +12,10 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Attributes\Enums\AttributeTypeEnum;
 use Kanvas\Inventory\Attributes\Models\AttributesTypes;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
-
-use function Laravel\Prompts\info;
-
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
+
+use function Laravel\Prompts\info;
 
 class CreateAttributeTypeCommand extends Command
 {

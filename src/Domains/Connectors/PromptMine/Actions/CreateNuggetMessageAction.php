@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Actions;
 
-use Kanvas\Social\Messages\Models\Message;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 
 class CreateNuggetMessageAction
 {

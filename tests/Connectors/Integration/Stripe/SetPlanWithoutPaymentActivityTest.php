@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Stripe;
 
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Users\Models\Users;
-use Kanvas\Subscription\Plans\Models\Plan;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Subscription\Plans\Models\Plan;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
-use Illuminate\Support\Facades\DB;
-use Baka\Users\Contracts\UserInterface;
-use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 
 final class SetPlanWithoutPaymentActivityTest extends TestCase
 {

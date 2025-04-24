@@ -20,7 +20,6 @@ class CreateAttributeType
     /**
      * execute.
      *
-     * @return AttributesTypes
      */
     public function execute(): AttributesTypes
     {

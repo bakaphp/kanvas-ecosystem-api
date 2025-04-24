@@ -22,7 +22,6 @@ class ProductsTypesRepository
      *
      * @param  mixed $id
      *
-     * @return ProductsTypes
      */
     public static function getBySourceKey(string $key, string $id): ProductsTypes
     {

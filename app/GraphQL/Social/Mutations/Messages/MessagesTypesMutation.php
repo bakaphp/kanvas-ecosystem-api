@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Messages;
 
 use Kanvas\Apps\Models\Apps;
-use  Kanvas\Languages\Models\Languages;
+use Kanvas\Languages\Models\Languages;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;

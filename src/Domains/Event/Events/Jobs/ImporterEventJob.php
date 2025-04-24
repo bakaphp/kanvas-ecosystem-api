@@ -18,10 +18,9 @@ use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ImporterEventJob extends ProductImporterJob
 {

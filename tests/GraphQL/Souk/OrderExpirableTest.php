@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
-use Kanvas\Apps\Models\Apps;
-use Tests\GraphQL\Inventory\Traits\InventoryCases;
-use Tests\TestCase;
 use Illuminate\Support\Facades\Artisan;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\TestCase;
 
 class OrderExpirableTest extends TestCase
 {

@@ -29,7 +29,6 @@ class CustomFieldsTypeSettings extends BaseModel
     /**
      * Belong sto.
      *
-     * @return BelongsTo
      */
     public function customFieldType(): BelongsTo
     {

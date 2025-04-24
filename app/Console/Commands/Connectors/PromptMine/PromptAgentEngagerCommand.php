@@ -6,12 +6,12 @@ namespace App\Console\Commands\Connectors\PromptMine;
 
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
-use Prism\Prism\Prism;
-use Prism\Prism\Enums\Provider;
 use GuzzleHttp\Client;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Prism;
 
 class PromptAgentEngagerCommand extends Command
 {

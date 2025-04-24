@@ -11,7 +11,6 @@ use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionParticipant;
 use Kanvas\Event\Events\Models\EventVersionParticipantDate;
 use Kanvas\Event\Participants\Models\Participant;
-use Kanvas\Guild\Customers\Models\People;
 
 class EventVersionBuilder
 {
