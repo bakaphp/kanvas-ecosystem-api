@@ -74,7 +74,7 @@ class ProductsTypes extends BaseModel
             ProductsTypesAttributes::class,
             'products_types_id',
             'attributes_id'
-        );
+        )->withPivot('is_required');
     }
 
     /**
@@ -108,10 +108,15 @@ class ProductsTypes extends BaseModel
      */
     public function getProductsAttributes(): Collection
     {
-        return $this->attributes()
+        $attribute = $this->attributes()
                             ->where('to_variant', 0)
                             ->where('products_types_attributes.is_deleted', 0)
-                            ->get();
+                            ->get()
+                            ->map(function ($attribute) {
+                                $attribute->is_required = $attribute->pivot->is_required ?? false;
+                                return $attribute;
+                            });
+        return $attribute;
     }
 
     /**
