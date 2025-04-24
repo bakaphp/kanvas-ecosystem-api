@@ -1,0 +1,25 @@
+# .github/workflows/php-cs-fixer.yml
+name: PHP CS Fixer (Global Install)
+
+on: [pull_request]
+
+jobs:
+  php-cs-fixer:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+
+      - name: Install PHP CS Fixer Globally
+        run: |
+          curl -LsS https://cs.symfony.com/download/php-cs-fixer-v3.phar -o php-cs-fixer
+          chmod +x php-cs-fixer
+          sudo mv php-cs-fixer /usr/local/bin/php-cs-fixer
+
+      - name: Run PHP-CS-Fixer
+        run: php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.php
