@@ -10,7 +10,7 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        //
+
         Schema::table('email_templates', function (Blueprint $table) {
             $table->string('title')->nullable()->after('name');
             $table->string('subject')->nullable()->after('title');
@@ -22,7 +22,7 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        //
+
         Schema::table('email_templates', function (Blueprint $table) {
             $table->dropColumn('title');
             $table->dropColumn('subject');

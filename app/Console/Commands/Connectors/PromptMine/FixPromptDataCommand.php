@@ -6,13 +6,13 @@ namespace App\Console\Commands\Connectors\PromptMine;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Prism\Prism\Prism;
-use Prism\Prism\Enums\Provider;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Prism;
 use Throwable;
 
 class FixPromptDataCommand extends Command

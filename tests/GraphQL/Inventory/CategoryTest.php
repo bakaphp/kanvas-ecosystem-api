@@ -12,7 +12,6 @@ class CategoryTest extends TestCase
     /**
      * testCreateCategory.
      *
-     * @return void
      */
     public function testCreateCategory(): void
     {
@@ -42,7 +41,6 @@ class CategoryTest extends TestCase
     /**
      * testGetCategory.
      *
-     * @return void
      */
     public function testGetCategory(): void
     {
@@ -85,7 +83,6 @@ class CategoryTest extends TestCase
     /**
      * testUpdateCategory.
      *
-     * @return void
      */
     public function testUpdateCategory(): void
     {
@@ -137,7 +134,6 @@ class CategoryTest extends TestCase
     /**
      * testUpdateCategory.
      *
-     * @return void
      */
     public function testUpdateCategoryTranslation(): void
     {
@@ -178,7 +174,6 @@ class CategoryTest extends TestCase
     /**
      * testDeleteCategory.
      *
-     * @return void
      */
     public function testDeleteCategory(): void
     {

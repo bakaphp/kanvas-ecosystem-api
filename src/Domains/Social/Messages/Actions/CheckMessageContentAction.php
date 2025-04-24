@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Actions;
 
-use Exception;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SightEngine\Services\ContentModerationService;
 

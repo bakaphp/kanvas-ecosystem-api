@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\Apps\Models\Apps;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Apps\Models\Apps;
 
 trait KanvasAppScopesTrait
 {
     /**
      * scopeApp.
      *
-     * @param mixed $app
      */
     public function scopeFromApp(Builder $query, mixed $app = null): Builder
     {

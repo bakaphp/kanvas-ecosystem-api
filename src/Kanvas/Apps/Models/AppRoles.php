@@ -25,7 +25,6 @@ class AppRoles extends BaseModel
     /**
      * Apps relationship.
      *
-     * @return BelongsTo
      */
     public function app(): BelongsTo
     {

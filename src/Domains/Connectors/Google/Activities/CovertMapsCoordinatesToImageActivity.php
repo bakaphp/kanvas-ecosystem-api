@@ -8,14 +8,13 @@ use Baka\Contracts\AppInterface;
 use finfo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Google\Services\MapStaticApiService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Workflow\KanvasActivity;
 use Kanvas\Inventory\Attributes\Actions\CreateAttributeType;
-use Kanvas\Inventory\Attributes\DataTransferObject\AttributesType;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
+use Kanvas\Inventory\Attributes\DataTransferObject\AttributesType;
+use Kanvas\Workflow\KanvasActivity;
 
 class CovertMapsCoordinatesToImageActivity extends KanvasActivity
 {

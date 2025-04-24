@@ -13,10 +13,6 @@ class CompaniesGroupsRepository
     /**
      * Associate a company to this company Group.
      *
-     * @param Companies $company
-     * @param int $isDefault
-     *
-     * @return CompaniesAssociations
      */
     public static function associate(CompaniesGroups $companyGroup, Companies $company, int $isDefault = 1): CompaniesAssociations
     {

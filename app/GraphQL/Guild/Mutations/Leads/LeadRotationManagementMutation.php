@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Leads;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\CreateLeadRotationAction;
 use Kanvas\Guild\Leads\Actions\UpdateLeadRotationAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadRotation;
 use Kanvas\Guild\Leads\Models\LeadRotation as LeadRotationModel;
-use Kanvas\Apps\Models\Apps;
 
 class LeadRotationManagementMutation
 {

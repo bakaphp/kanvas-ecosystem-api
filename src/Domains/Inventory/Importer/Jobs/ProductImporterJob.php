@@ -15,10 +15,9 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Override;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ProductImporterJob extends AbstractImporterJob
 {

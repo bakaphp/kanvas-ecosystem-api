@@ -12,12 +12,12 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Traits\SearchProductWorkflowTrait;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Kanvas\Inventory\Products\Traits\SearchProductWorkflowTrait;
 
 class AllProductsPublishedOnChannel
 {

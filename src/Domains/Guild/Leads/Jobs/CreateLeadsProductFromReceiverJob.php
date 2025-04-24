@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Jobs;
 
-use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Leads\Actions\SendLeadEmailsAction;
 use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
 use Kanvas\Guild\Leads\Models\Lead;

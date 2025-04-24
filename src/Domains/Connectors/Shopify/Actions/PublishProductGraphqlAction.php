@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
 
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Connectors\Shopify\Client;
-use Throwable;
 use Exception;
-use Illuminate\Support\Facades\Log;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Throwable;
 
 class PublishProductGraphqlAction
 {

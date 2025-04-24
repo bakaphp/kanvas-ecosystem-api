@@ -13,8 +13,6 @@ class SwitchCompanyBranchAction
 {
     /**
      * __construct
-     * @param Users $user
-     * @param int $companyId
      * @return void
      */
     public function __construct(
@@ -26,7 +24,6 @@ class SwitchCompanyBranchAction
     /**
      * execute
      *
-     * @return bool
      */
     public function execute(): bool
     {

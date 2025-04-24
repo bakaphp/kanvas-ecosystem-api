@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
 
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Products\Models\Products;
 use Illuminate\Support\Facades\Log;
-use Shopify\Clients\Graphql;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Client;
-use Kanvas\Connectors\Shopify\Actions\PublishProductGraphqlAction;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Shopify\Clients\Graphql;
 
 // to do: rename to standard push product graphql
 // to do: create variant into the method execute

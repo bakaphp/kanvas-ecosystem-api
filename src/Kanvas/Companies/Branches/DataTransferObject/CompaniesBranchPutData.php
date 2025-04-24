@@ -14,7 +14,6 @@ class CompaniesBranchPutData extends Data
     /**
      * Construct function.
      *
-     * @param int|null $users_id
      */
     public function __construct(
         public string $name,

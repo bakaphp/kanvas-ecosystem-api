@@ -13,7 +13,6 @@ class VariantTest extends TestCase
     /**
      * testUpdateVariant.
      *
-     * @return void
      */
     public function testUpdateVariant(): void
     {
@@ -65,7 +64,6 @@ class VariantTest extends TestCase
     /**
      * testAddVariantToWarehouse.
      *
-     * @return void
      */
     public function testAddVariantToWarehouse(): void
     {
@@ -141,7 +139,6 @@ class VariantTest extends TestCase
     /**
      * testAddVariantToWarehouse.
      *
-     * @return void
      */
     public function testUpdateVariantToWarehouse(): void
     {

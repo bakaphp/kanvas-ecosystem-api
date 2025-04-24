@@ -55,7 +55,7 @@ class OrderFinishExpiredCommand extends Command
         if (count($order->items) > 0) {
             $variant = $order->items->first(function ($item) {
                 return $item->variant->product?->attributes
-                ->contains(fn ($attribute) =>in_array($attribute->slug, ['capacity', 'slots']) && !empty($attribute->value));
+                ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));
             })->variant;
             $channel = $variant->variantChannels()->first();
 

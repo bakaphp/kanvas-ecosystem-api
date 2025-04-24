@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Roles;
 
-use Kanvas\Apps\Enums\DefaultRoles;
 use Tests\TestCase;
 
 class RolesTest extends TestCase
