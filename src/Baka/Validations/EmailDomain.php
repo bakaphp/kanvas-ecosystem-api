@@ -11,9 +11,6 @@ class EmailDomain
     /**
      * Verify if email domain is valid.
      *
-     * @param string $email
-     *
-     * @return bool
      */
     public static function verifyDomain(string $email): bool
     {

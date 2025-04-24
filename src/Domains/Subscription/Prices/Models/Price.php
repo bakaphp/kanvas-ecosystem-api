@@ -37,7 +37,6 @@ class Price extends BaseModel
     /**
      * Determine if the model instance has been soft-deleted.
      *
-     * @return bool
      */
     public function trashed(): bool
     {

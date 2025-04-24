@@ -11,9 +11,6 @@ class AppsRepository
     /**
      * Get the default company group for this company on the current app.
      *
-     * @param string $key
-     *
-     * @return Apps|null
      */
     public static function findFirstByKey(string $key): ?Apps
     {
@@ -23,9 +20,6 @@ class AppsRepository
     /**
      * Get the default company group for this company on the current app.
      *
-     * @param string $domainName
-     *
-     * @return Apps|null
      */
     public static function getByDomainName(string $domainName): ?Apps
     {

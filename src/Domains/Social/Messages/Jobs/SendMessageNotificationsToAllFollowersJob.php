@@ -14,10 +14,9 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\NewMessageNotification;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
 {

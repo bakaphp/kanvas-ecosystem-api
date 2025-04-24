@@ -7,7 +7,6 @@ namespace Kanvas\Apps\Support;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Contracts\HashTableInterface;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 
 class SmtpRuntimeConfiguration

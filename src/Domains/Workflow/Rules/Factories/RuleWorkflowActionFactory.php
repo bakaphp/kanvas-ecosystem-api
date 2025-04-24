@@ -19,7 +19,7 @@ class RuleWorkflowActionFactory extends Factory
     {
         try {
             $action = Action::getByName('Lead Zoho');
-        } catch(Throwable $e) {
+        } catch (Throwable $e) {
             $action = Action::factory()->create();
         }
 

@@ -31,7 +31,7 @@ class SendLeadEmailsAction
         $leadEmail = $this->lead->people()->first()->emails()->first()?->value;
         $shouldSend = $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL || $notificationMode === LeadNotificationModeEnum::NOTIFY_ROTATION_USERS;
         $shouldSendLead = $leadEmail && ($notificationMode === LeadNotificationModeEnum::NOTIFY_LEAD || $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL);
-        
+
         if ($shouldSend) {
             foreach ($users as $user) {
                 try {

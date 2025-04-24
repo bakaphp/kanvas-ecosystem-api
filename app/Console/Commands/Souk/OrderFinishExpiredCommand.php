@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
 class OrderFinishExpiredCommand extends Command
@@ -37,7 +38,7 @@ class OrderFinishExpiredCommand extends Command
             $this->checkApps($appsId);
         } else {
             $appsIds = Settings::where([
-                'name' => 'check_expired_orders',
+                'name' => ConfigurationEnum::CHECK_EXPIRED_ORDERS->value,
                 'value' => '1',
             ])->select('apps_id')->get()->pluck('apps_id');
             $this->info('Checking ' . $appsIds->count() . ' apps');
@@ -52,13 +53,27 @@ class OrderFinishExpiredCommand extends Command
     {
         // get the variant
         if (count($order->items) > 0) {
-            $variant = $order->items[0]->variant;
+            $variant = $order->items->first(function ($item) {
+                return $item->variant->product?->attributes
+                ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));
+            })->variant;
             $channel = $variant->variantChannels()->first();
 
             $variantWarehouse = $channel?->productVariantWarehouse()->first();
             // Mark order as completed
             $order->fulfill();
-            $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $variantWarehouse->quantity + 1);
+            $available = $variantWarehouse->quantity + 1;
+            $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
+            $product = $variant->product;
+            $capacity = $product->getAttributeByName('capacity')?->value;
+            // @deprecated: remove this after new flow is implemented
+            if ($capacity) {
+                $product->addAttribute('capacity', [
+                    'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
+                    'availableParkingSpaces' => $available,
+                    'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
+                ]);
+            }
             $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
         } else {
             $this->info('No items found for order ' . $order->id . ' for app ' . $order->app->name . ' with ' . count($order->items) . ' items');

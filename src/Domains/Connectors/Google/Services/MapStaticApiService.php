@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Google\Services;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Throwable;

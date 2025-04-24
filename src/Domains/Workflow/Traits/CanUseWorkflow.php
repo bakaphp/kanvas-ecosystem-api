@@ -7,7 +7,6 @@ namespace Kanvas\Workflow\Traits;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWorkflowEventAction;
 use Kanvas\Workflow\SyncWorkflowStub;
-use Workflow\WorkflowStub;
 
 trait CanUseWorkflow
 {

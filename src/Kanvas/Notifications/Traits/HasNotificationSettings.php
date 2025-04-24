@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Traits;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Repositories\NotificationSettingsRepository;

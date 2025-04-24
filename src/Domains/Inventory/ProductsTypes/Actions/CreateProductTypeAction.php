@@ -27,7 +27,6 @@ class CreateProductTypeAction
     /**
      * execute.
      *
-     * @return ProductsTypes
      */
     public function execute(): ProductsTypes
     {

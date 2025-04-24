@@ -11,7 +11,6 @@ class Timestamp
      *
      * @param string|null $timestamp
      *
-     * @return bool
      */
     public static function isValid(?int $timestamp = null): bool
     {

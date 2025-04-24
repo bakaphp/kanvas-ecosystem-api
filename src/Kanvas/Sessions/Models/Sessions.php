@@ -338,7 +338,6 @@ class Sessions extends PersonalAccessToken
      * It will delete the entry in the sessions table for this session,
      * remove the corresponding auto-login key and reset the cookies.
      *
-     * @param string|null $ip
      */
     public function end(Users $user, Apps $app, ?string $sessionId = null): bool
     {

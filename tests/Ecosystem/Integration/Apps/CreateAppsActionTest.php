@@ -14,7 +14,6 @@ final class CreateAppsActionTest extends TestCase
     /**
      * Test Create Apps Action.
      *
-     * @return void
      */
     public function testCreateAppsAction(): void
     {

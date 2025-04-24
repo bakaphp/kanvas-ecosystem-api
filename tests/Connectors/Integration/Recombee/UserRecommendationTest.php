@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Recombee;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Recombee\Actions\GenerateRecommendUserWhoToFollowAction;
 use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Social\Messages\Models\Message;

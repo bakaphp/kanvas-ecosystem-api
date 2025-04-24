@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Queries\Roles;
 
 use Illuminate\Support\Facades\Redis;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 
 class RoleAbilitiesQuery
 {

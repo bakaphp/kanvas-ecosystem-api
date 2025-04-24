@@ -11,10 +11,9 @@ use Illuminate\Support\Facades\Redis;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ScrapperSearchActivity extends KanvasActivity
 {
