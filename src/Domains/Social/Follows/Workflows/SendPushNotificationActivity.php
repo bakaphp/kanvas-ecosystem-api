@@ -27,7 +27,7 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
     {
         $this->overwriteAppService($app);
 
-        if (!$entity->is_public) {
+        if (! $entity->is_public) {
             return [
                 'result' => false,
                 'message' => 'Entity is not public',
