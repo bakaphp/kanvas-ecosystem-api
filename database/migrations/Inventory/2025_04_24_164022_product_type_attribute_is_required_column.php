@@ -18,8 +18,6 @@ return new class () extends Migration {
         Schema::table('attributes', function (Blueprint $table) {
             $table->dropColumn('is_required');
         });
-
-
     }
 
     /**
@@ -27,6 +25,6 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        //
+
     }
 };

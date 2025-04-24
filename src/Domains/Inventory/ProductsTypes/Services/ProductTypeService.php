@@ -22,7 +22,6 @@ class ProductTypeService
         array $attributes,
         bool $toVariant = false
     ): ProductsTypes {
-
         foreach ($attributes as $attribute) {
             $attributeObject = Attributes::getById((int) $attribute['id']);
             $productsAttributesDto = (

@@ -181,12 +181,12 @@ class ProductsTypesTest extends TestCase
                 }
             }', ['data' => $data])->json();
 
-            $this->assertArrayHasKey('id', $productType['data']['createProductType']);
+        $this->assertArrayHasKey('id', $productType['data']['createProductType']);
 
-            $this->assertEquals(
-                $data['products_attributes'][0]['id'],
-                $productType['data']['createProductType']['products_attributes'][0]['id']
-            );
+        $this->assertEquals(
+            $data['products_attributes'][0]['id'],
+            $productType['data']['createProductType']['products_attributes'][0]['id']
+        );
     }
 
     private function createProductType()
