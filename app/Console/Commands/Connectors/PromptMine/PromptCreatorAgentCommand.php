@@ -275,6 +275,8 @@ PROMPT;
        - 1 actionable template/code snippet
        - Customization reminder
     4. Validate no follow-up needed
+
+    This is the prompt to execute: $prompt
     
     Output Requirements:
     {
