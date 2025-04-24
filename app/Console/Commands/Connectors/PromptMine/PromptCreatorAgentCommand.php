@@ -310,7 +310,7 @@ ADVANCEPROMPT;
             }
 
             return $promptData;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->error('Exception generating viral prompt: ' . $e->getMessage());
 
             return null;
