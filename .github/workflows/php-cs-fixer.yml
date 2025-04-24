@@ -1,5 +1,4 @@
-# .github/workflows/php-cs-fixer.yml
-name: PHP CS Fixer (Global Install)
+name: PHP CS Fixer (PHP 8.4 forced)
 
 on: [pull_request]
 
@@ -23,3 +22,5 @@ jobs:
 
       - name: Run PHP-CS-Fixer
         run: php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.php
+        env:
+          PHP_CS_FIXER_IGNORE_ENV: 1
