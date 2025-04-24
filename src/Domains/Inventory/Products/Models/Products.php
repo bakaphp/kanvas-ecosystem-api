@@ -271,6 +271,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $query;
     }
 
+    // @TODO: optimize this using another engine
     public function scopeFilterByNearLocation(Builder $query, array $location): Builder
     {
         $EarthRadius = 6371; // km
