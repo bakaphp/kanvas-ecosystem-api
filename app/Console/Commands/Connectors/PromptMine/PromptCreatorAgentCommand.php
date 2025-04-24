@@ -366,12 +366,6 @@ ADVANCEPROMPT;
 
     /**
      * Post a message with the generated prompt
-     *
-     * @param string $token Authentication token
-     * @param string $title The title of the prompt
-     * @param string $content The content of the prompt
-     * @param array $agent The agent data
-     * @return int|null The message ID if successful, null otherwise
      */
     protected function postMessage(string $token, array $messageContent, string $verb, bool $isPublic = true): ?int
     {
