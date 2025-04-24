@@ -76,7 +76,7 @@ class WorkflowMutationManagement
         /**
          * @todo this is a stupid hack, but we will handle this for now until we figure out a better way
          */
-        if (in_array(SystemModules::getSlugBySystemModuleNameSpace($entityClass), ['lead', 'people'])) {
+        if (in_array(SystemModules::getSlugBySystemModuleNameSpace($entityClass), ['lead', 'people']) && $canRunSync) {
             $pullActivity = match (SystemModules::getSlugBySystemModuleNameSpace($entityClass)) {
                 'lead' => PullLeadActivity::class,
                 'people' => PullPeopleActivity::class,
