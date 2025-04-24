@@ -123,7 +123,7 @@ class RecombeeUserRecommendationService
         foreach ($recombeeUserContentPreferences as $preference => $boosterRule) {
             if ($user->get($preference)) {
                 if (str_contains($booster, '1.0')) {
-                    $booster = str_replace('1.0', '('.addslashes($boosterRule).')', $booster);
+                    $booster = str_replace('1.0', '(' . addslashes($boosterRule) . ')', $booster);
                     continue;
                 }
                 $booster .= addslashes($boosterRule);
