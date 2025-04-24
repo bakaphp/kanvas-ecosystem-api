@@ -8,9 +8,9 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Users\Models\Users;
-use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 
 class GenerateWhoToFollowRecommendationsAction
 {

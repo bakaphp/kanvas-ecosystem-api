@@ -60,6 +60,7 @@ class RecombeeIndexService
             'ai_model' => 'string',
             'image' => 'string',
             'categories' => 'set',
+            'type' => 'string',
         ];
         $existingProperties = $this->client->send(new ListItemProperties());
         $existingPropertyNames = array_column($existingProperties, 'name');
@@ -137,6 +138,7 @@ class RecombeeIndexService
                 'ai_model' => $messageData['ai_model']['name'] ?? null,
                 'image' => $messageData['ai_image']['image'] ?? null,
                 'categories' => $message->tags->pluck('name')->toArray(),
+                'type' => $messageData['type'] ?? null,
             ],
             ['cascadeCreate' => true]
         );

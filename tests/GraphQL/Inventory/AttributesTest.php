@@ -12,7 +12,6 @@ class AttributesTest extends TestCase
     /**
      * testCreate.
      *
-     * @return void
      */
     public function testCreate(): void
     {
@@ -24,7 +23,6 @@ class AttributesTest extends TestCase
     /**
      * testSearch.
      *
-     * @return void
      */
     public function testSearch(): void
     {
@@ -50,7 +48,6 @@ class AttributesTest extends TestCase
     /**
      * testUpdate.
      *
-     * @return void
      */
     public function testUpdate(): void
     {
@@ -114,7 +111,6 @@ class AttributesTest extends TestCase
     /**
      * testDelete.
      *
-     * @return void
      */
     public function testDelete(): void
     {
@@ -132,7 +128,6 @@ class AttributesTest extends TestCase
     /**
      * testCreateDuplicatedSlug.
      *
-     * @return void
      */
     public function testCreateDuplicatedSlug(): void
     {
@@ -152,7 +147,6 @@ class AttributesTest extends TestCase
     /**
      * testUpdateDuplicatedSlug.
      *
-     * @return void
      */
     public function testUpdateDuplicatedSlug(): void
     {
@@ -212,9 +206,6 @@ class AttributesTest extends TestCase
     /**
      * Helper function createAttribute.
      *
-     * @param string|null $slug
-     *
-     * @return array
      */
     private function createAttribute(?string $slug = null): array
     {

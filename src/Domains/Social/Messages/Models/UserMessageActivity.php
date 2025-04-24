@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Models;
 
-use Kanvas\Social\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Social\Models\BaseModel;
 
 /**
  *  class UserMessageActivity
@@ -26,7 +26,6 @@ class UserMessageActivity extends BaseModel
     /**
      * userMessage
      *
-     * @return BelongsTo
      */
     public function userMessage(): BelongsTo
     {

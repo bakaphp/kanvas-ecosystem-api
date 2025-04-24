@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('products_warehouses', function (Blueprint $table) {
-            //
+
             $table->string('vendor')->nullable()->after('products_id');
         });
     }
@@ -22,7 +22,7 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('products_warehouses', function (Blueprint $table) {
-            //
+
             $table->dropColumn('vendor');
         });
     }

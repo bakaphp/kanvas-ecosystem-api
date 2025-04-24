@@ -8,12 +8,11 @@ use Baka\Contracts\AppInterface;
 use Generator;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyActivity;
 use Kanvas\Inventory\Products\Models\Products;
-
-use function Sentry\captureLastError;
-
 use Throwable;
 use Workflow\ActivityStub;
 use Workflow\Workflow;
+
+use function Sentry\captureLastError;
 
 class SyncProductWithShopifyWorkflow extends Workflow
 {

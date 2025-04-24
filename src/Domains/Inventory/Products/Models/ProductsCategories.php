@@ -39,7 +39,6 @@ class ProductsCategories extends BaseModel
     /**
      * Get the product.
      *
-     * @return BelongsTo
      */
     public function product(): BelongsTo
     {
@@ -49,7 +48,6 @@ class ProductsCategories extends BaseModel
     /**
      * Get the category.
      *
-     * @return BelongsTo
      */
     public function category(): BelongsTo
     {

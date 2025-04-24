@@ -16,10 +16,9 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Notifications\Templates\Blank;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class MailCaddieLabJob implements ShouldQueue
 {

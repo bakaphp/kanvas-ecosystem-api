@@ -2,10 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\KanvasModules\Enums\KanvasModuleEnum;
+use Kanvas\KanvasModules\Models\KanvasModule;
 
 class KanvasModulesSeeder extends Seeder
 {
@@ -14,7 +13,7 @@ class KanvasModulesSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+
         KanvasModule::firstOrCreate(
             [
                 'id' => KanvasModuleEnum::ECOSYSTEM->value,

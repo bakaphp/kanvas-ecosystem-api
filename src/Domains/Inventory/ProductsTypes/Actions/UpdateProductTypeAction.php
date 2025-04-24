@@ -26,7 +26,6 @@ class UpdateProductTypeAction
     /**
      * execute.
      *
-     * @return ProductsTypes
      */
     public function execute(): ProductsTypes
     {

@@ -21,7 +21,7 @@ use Kanvas\Regions\Models\Regions;
 
 trait InventoryCases
 {
-    public function createProduct(array $data = []): TestResponse
+    public function createProduct(array $data = [], array $attributes = []): TestResponse
     {
         if (empty($data)) {
             $name = fake()->name;
@@ -36,6 +36,7 @@ trait InventoryCases
                         'name' => fake()->name,
                         'value' => fake()->name,
                     ],
+                    ...$attributes,
                 ],
             ];
         }

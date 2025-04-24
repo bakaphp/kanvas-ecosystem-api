@@ -16,10 +16,6 @@ class Category
     /**
      * create.
      *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return Categories
      */
     public function create(mixed $root, array $request): Categories
     {
@@ -40,10 +36,6 @@ class Category
     /**
      * update.
      *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return Categories
      */
     public function update(mixed $root, array $request): Categories
     {
@@ -55,10 +47,6 @@ class Category
     /**
      * delete.
      *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return bool
      */
     public function delete(mixed $root, array $request): bool
     {

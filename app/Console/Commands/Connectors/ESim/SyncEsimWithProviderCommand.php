@@ -371,7 +371,6 @@ class SyncEsimWithProviderCommand extends Command
     /**
      * Check if notifications should be sent for a specific ESim and send them if needed
      *
-     * @param bool $shouldForceActive
      */
     private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isValidState): void
     {
@@ -444,7 +443,6 @@ class SyncEsimWithProviderCommand extends Command
     /**
      * Check if unlimited plan is about to expire and send notification
      *
-     * @param Users $user
      */
     private function checkUnlimitedPlanExpiration(array $esimStatus, Users $notifyUser, Message $message): void
     {
@@ -468,7 +466,6 @@ class SyncEsimWithProviderCommand extends Command
     /**
      * Check if unlimited plan is about to expire and send notification
      *
-     * @param Users $user
      */
     private function checkUnlimitedPlanUsage(array $esimStatus, Users $notifyUser, Message $message, array $dataNotification): void
     {

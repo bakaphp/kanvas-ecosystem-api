@@ -21,7 +21,6 @@ class UpdateAttribute
     /**
      * execute.
      *
-     * @return Attributes
      */
     public function execute(): Attributes
     {

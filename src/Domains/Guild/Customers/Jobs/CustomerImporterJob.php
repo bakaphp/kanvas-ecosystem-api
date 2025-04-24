@@ -16,11 +16,10 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Imports\AbstractImporterJob;
 use Override;
-
-use function Sentry\captureException;
-
 use Spatie\LaravelData\DataCollection;
 use Throwable;
+
+use function Sentry\captureException;
 
 class CustomerImporterJob extends AbstractImporterJob
 {

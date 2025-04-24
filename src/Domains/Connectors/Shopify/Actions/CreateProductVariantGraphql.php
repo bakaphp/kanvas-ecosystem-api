@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
 
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Products\Models\Products;
 use Illuminate\Support\Facades\Log;
-use Shopify\Clients\Graphql;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use PHPShopify\ShopifySDK;
+use Shopify\Clients\Graphql;
 
 // to do: rename to standard push variant product graphql
 

@@ -132,15 +132,22 @@ class CreateEsimOrderAction
 
     protected function getAvailableVariant(): Variants
     {
+        // Check for previously assigned ICCID in failed orders
+        if ($this->order->allItems()->count() === 2) {
+            $lastVariant = $this->order->allItems()->latest()->first()->variant;
+
+            if ($lastVariant->product->productType->slug === ConfigurationEnum::ICCID_INVENTORY_PRODUCT_TYPE->value) {
+                return $lastVariant;
+            }
+        }
+
         $productTypeSlug = ConfigurationEnum::ICCID_INVENTORY_PRODUCT_TYPE->value;
         $productType = ProductsTypes::fromApp($this->order->app)
             ->fromCompany($this->order->company)
             ->where('slug', $productTypeSlug)
             ->firstOrFail();
 
-        $warehouse = $this->warehouse;
-
-        return VariantsRepository::getAvailableVariant($productType, $warehouse);
+        return VariantsRepository::getAvailableVariant($productType, $this->warehouse);
     }
 
     protected function addVariantToOrder(Variants $variant): void

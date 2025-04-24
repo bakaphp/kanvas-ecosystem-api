@@ -13,7 +13,6 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Override;
-use Spatie\Translatable\HasTranslations;
 
 /**
  * Class Products.

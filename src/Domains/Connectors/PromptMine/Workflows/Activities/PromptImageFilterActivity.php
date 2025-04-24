@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Exception;
 use finfo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
@@ -27,6 +30,8 @@ use Override;
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     protected ?string $apiUrl = null;
+    protected ?string $openaiApiUrl = null;
+    protected ?Apps $app = null;
     protected const int MAX_STATUS_CHECKS = 30;
     protected const int STATUS_CHECK_DELAY = 2;
     public $tries = 3;
@@ -35,23 +40,20 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $messageFiles = $entity->getFiles();
+        $this->app = $app;
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
-        $imageFilter = $params['image_filter'] ?? 'cartoonify';
+        $this->openaiApiUrl = $entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
+        $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
 
-        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+        $isOpenAi = Str::contains($imageFilter, 'gpt');
 
-        try {
-            $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
-            $company = $branch->company;
-        } catch (ModelNotFoundException $e) {
-            $company = $entity->company;
-        }
+        $company = $this->getCompany($app, $entity);
 
         return $this->executeIntegration(
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity) use ($messageFiles, $params, $imageFilter) {
+            integrationOperation: function ($entity) use ($messageFiles, $params, $imageFilter, $isOpenAi) {
                 if (empty($this->apiUrl)) {
                     return [
                         'result' => false,
@@ -67,129 +69,48 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 }
 
                 $fileUrl = $messageFiles->first()->url;
+                $fileSystemRecord = null;
+                $processedImageUrl = null;
+                $requestId = null;
 
                 try {
-                    // Step 1: Submit the image for processing
-                    $submitResponse = $this->submitImage($fileUrl, $imageFilter);
-
-                    if (! isset($submitResponse['request_id'])) {
-                        return [
-                            'result' => false,
-                            'response' => $submitResponse,
-                            'filter' => $imageFilter,
-                            'message' => 'Failed to submit image for processing',
-                        ];
-                    }
-
-                    $requestId = $submitResponse['request_id'];
-
-                    // Step 2: Check processing status until complete
-                    $statusResponse = $this->checkProcessingStatus($requestId, $imageFilter);
-
-                    if ($statusResponse['status'] !== 'COMPLETED') {
-                        return [
-                            'result' => false,
-                            'response' => $statusResponse,
-                            'filter' => $imageFilter,
-                            'request_id' => $requestId,
-                            'message' => 'Image processing did not complete successfully',
-                        ];
-                    }
-
-                    // Step 3: Get the processed image result
-                    $resultResponse = $this->getProcessingResult($requestId, $imageFilter);
-                    $processedImageUrl = $this->extractImageUrl($resultResponse);
-
-                    if ($processedImageUrl === null) {
-                        return [
-                            'result' => false,
-                            'response' => $resultResponse,
-                            'filter' => $imageFilter,
-                            'request_id' => $requestId,
-                            'message' => 'Failed to retrieve processed image',
-                        ];
-                    }
-
-                    $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
-                    $fileName = basename($tempFilePath);
-
-                    $finfo = new finfo(FILEINFO_MIME_TYPE);
-                    $mimeType = $finfo->file($tempFilePath);
-
-                    $uploadedFile = new UploadedFile(
-                        $tempFilePath,
-                        $fileName,
-                        $mimeType,
-                        null,
-                        true
-                    );
-
-                    $filesystem = new FilesystemServices($entity->app);
-                    $fileSystemRecord = $filesystem->upload($uploadedFile, $entity->user);
-
-                    $title = $entity->message['title'] ?? 'your prompt';
-                    // Step 4: Create a new nugget message with the processed image
-                    $createNuggetMessage = (new CreateNuggetMessageAction(
-                        parentMessage: $entity,
-                        messageData: [
-                            'title' => $title,
-                            'type' => 'image-format',
-                            'image' => $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path,
-                            'parent_id' => $entity->parent_id,
-                        ],
-                    ))->execute();
-
-                    $endViaList = array_map(
-                        [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                        $params['via'] ?? ['database']
-                    );
-
-                    $config = [
-                        'email_template' => $params['email_template'],
-                        'push_template' => $params['push_template'],
-                        'app' => $entity->app,
-                        'company' => $entity->company,
-                        'message' => "Your image for {$title} has been processed",
-                        'title' => 'Image Processed',
-                        'metadata' => $createNuggetMessage->getMessage(),
-                        'via' => $endViaList,
-                        'message_owner_id' => $entity->user->getId(),
-                        'message_id' => $entity->getId(),
-                        'destination_id' => $entity->getId(),
-                        'destination_type' => 'MESSAGE',
-                        'destination_event' => 'NEW_MESSAGE',
-                    ];
-
-                    try {
-                        // Send notification to the user
-                        $newMessageNotification = new CustomMessageNotification(
-                            $entity,
-                            $config,
-                            $config['via']
+                    // Process image based on the model type
+                    if ($isOpenAi) {
+                        $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $entity->message['prompt'], $entity);
+                        if ($fileSystemRecord === null) {
+                            return [
+                                'result' => false,
+                                'filter' => $imageFilter,
+                                'message' => 'Failed to retrieve processed image',
+                            ];
+                        }
+                    } else {
+                        // Process with fal.ai
+                        list($fileSystemRecord, $processedImageUrl, $requestId) = $this->processImageWithFalAi(
+                            $fileUrl,
+                            $imageFilter,
+                            $entity
                         );
-                        $entity->user->notify($newMessageNotification);
-                    } catch (InternalServerErrorException $e) {
-                        report($e);
 
-                        return [
-                            'result' => false,
-                            'message' => 'Error in notification to user',
-                            'exception' => $e,
-                        ];
+                        if ($fileSystemRecord === null) {
+                            return [
+                                'result' => false,
+                                'filter' => $imageFilter,
+                                'request_id' => $requestId,
+                                'message' => 'Failed to retrieve processed image',
+                            ];
+                        }
                     }
 
-                    return [
-                        'message' => 'Image processed successfully',
-                        'result' => true,
-                        'user_id' => $entity->user->getId(),
-                        'message_data' => $entity->message,
-                        'message_id' => $entity->getId(),
-                        'nugget_message_id' => $createNuggetMessage->getId(),
-                        'processed_image_url' => $processedImageUrl,
-                        'original_image_url' => $fileUrl,
-                        'request_id' => $requestId,
-                        'config' => $config,
-                    ];
+                    // Create nugget message and send notification - common for both methods
+                    return $this->finalizeProcessing(
+                        $entity,
+                        $fileSystemRecord,
+                        $fileUrl,
+                        $processedImageUrl,
+                        $params,
+                        $requestId
+                    );
                 } catch (Exception $e) {
                     report($e);
 
@@ -202,6 +123,266 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             },
             company: $company,
         );
+    }
+
+    /**
+     * Get the company for this workflow
+     */
+    protected function getCompany(AppInterface $app, Model $entity): object
+    {
+        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+
+        try {
+            $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
+
+            return $branch->company;
+        } catch (ModelNotFoundException $e) {
+            return $entity->company;
+        }
+    }
+
+    /**
+     * Process image with fal.ai
+     *
+     * @return array [fileSystemRecord, processedImageUrl, requestId]
+     */
+    protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity): array
+    {
+        // Step 1: Submit the image for processing
+        $submitResponse = $this->submitImage($fileUrl, $imageFilter);
+
+        if (! isset($submitResponse['request_id'])) {
+            throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
+        }
+
+        $requestId = $submitResponse['request_id'];
+
+        // Step 2: Check processing status until complete
+        $statusResponse = $this->checkProcessingStatus($requestId, $imageFilter);
+
+        if ($statusResponse['status'] !== 'COMPLETED') {
+            throw new Exception('Image processing did not complete successfully: ' . json_encode($statusResponse));
+        }
+
+        // Step 3: Get the processed image result
+        $resultResponse = $this->getProcessingResult($requestId, $imageFilter);
+        $processedImageUrl = $this->extractImageUrl($resultResponse);
+
+        if ($processedImageUrl === null) {
+            throw new Exception('Failed to extract image URL from response: ' . json_encode($resultResponse));
+        }
+
+        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
+        $fileName = basename($tempFilePath);
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($tempFilePath);
+
+        $uploadedFile = new UploadedFile(
+            $tempFilePath,
+            $fileName,
+            $mimeType,
+            null,
+            true
+        );
+
+        $filesystem = new FilesystemServices($entity->app);
+        $fileSystemRecord = $filesystem->upload($uploadedFile, $entity->user);
+
+        return [$fileSystemRecord, $processedImageUrl, $requestId];
+    }
+
+    /**
+     * Process image with OpenAI
+     */
+    protected function processImageWithOpenAI(string $imageUrl, string $prompt, Model $entity): ?Filesystem
+    {
+        // Download the image file
+        $imageContents = file_get_contents($imageUrl);
+        $filename = basename(parse_url($imageUrl, PHP_URL_PATH));
+
+        if ($imageContents === false) {
+            throw new Exception("Failed to download image from URL: {$imageUrl}");
+        }
+
+        // Create a temporary file
+        $tempFile = tempnam(sys_get_temp_dir(), 'openai_img_');
+        file_put_contents($tempFile, $imageContents);
+
+        // Get the file's mime type
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($tempFile);
+
+        // Set up retry mechanism
+        $maxRetries = 3;
+        $retryDelay = 2; // seconds
+        $attempt = 0;
+        $success = false;
+        $response = null;
+
+        while ($attempt < $maxRetries && ! $success) {
+            try {
+                // Create a multipart request with extended timeout (180 seconds = 3 minutes)
+                $response = Http::timeout(200)
+                    ->attach(
+                        'image',
+                        file_get_contents($tempFile),
+                        basename($imageUrl),
+                        ['Content-Type' => $mimeType]
+                    )
+                    ->post($this->openaiApiUrl, [
+                        'model' => 'gpt-image-1',
+                        'prompt' => $prompt,
+                    ]);
+
+                // If we get here, we got a response without timeout
+                $success = true;
+            } catch (Exception $e) {
+                $attempt++;
+
+                // If we're out of retries, rethrow the exception
+                if ($attempt >= $maxRetries) {
+                    throw new Exception("Image processing failed after {$maxRetries} attempts: " . $e->getMessage());
+                }
+
+                // Log the retry attempt
+                report(new Exception("Image processing attempt {$attempt} failed: " . $e->getMessage() . ". Retrying in {$retryDelay} seconds."));
+
+                // Wait before retrying
+                sleep($retryDelay);
+
+                // Increase the delay for next attempt (exponential backoff)
+                $retryDelay *= 2;
+            }
+        }
+
+        // Delete the original temporary file
+        @unlink($tempFile);
+
+        if (! $response->successful()) {
+            throw new Exception('OpenAI API request failed: ' . $response->body());
+        }
+
+        // Parse the response
+        $responseData = $response->json();
+
+        // Extract the base64 image data from the response
+        $base64ImageData = null;
+
+        if (isset($responseData[0]['b64_json'])) {
+            $base64ImageData = $responseData[0]['b64_json'];
+        } elseif (isset($responseData['data']) && isset($responseData['data']['b64_json'])) {
+            $base64ImageData = $responseData['data']['b64_json'];
+        } elseif (isset($responseData['b64_json'])) {
+            $base64ImageData = $responseData['b64_json'];
+        }
+
+        if (! $base64ImageData) {
+            // Log the entire response structure to help diagnose the issue
+            report(new Exception('Unexpected OpenAI API response format: ' . json_encode($responseData)));
+
+            return null;
+        }
+
+        $filesystemServices = new FilesystemServices($this->app);
+
+        return $filesystemServices->createFileSystemFromBase64(
+            $base64ImageData,
+            $filename,
+            $entity->user
+        );
+    }
+
+    /**
+     * Finalize the processing by creating a nugget message and sending notification
+     */
+    protected function finalizeProcessing(
+        Model $entity,
+        Filesystem $fileSystemRecord,
+        string $originalImageUrl,
+        ?string $processedImageUrl = null,
+        array $params = [],
+        ?string $requestId = null
+    ): array {
+        $title = $entity->message['title'] ?? 'your prompt';
+
+        // Create a new nugget message with the processed image
+        $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
+        $createNuggetMessage = (new CreateNuggetMessageAction(
+            parentMessage: $entity,
+            messageData: [
+                'title' => $title,
+                'type' => 'image-format',
+                'image' => $cdnImageUrl,
+            ],
+        ))->execute();
+
+        $messageCopy = $entity->message;
+        $messageCopy['ai_image'] = $cdnImageUrl;
+        $entity->message = $messageCopy;
+        $entity->save();
+
+        $endViaList = array_map(
+            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+            $params['via'] ?? ['database']
+        );
+
+        $config = [
+            'email_template' => $params['email_template'] ?? null,
+            'push_template' => $params['push_template'] ?? null,
+            'app' => $entity->app,
+            'company' => $entity->company,
+            'message' => "Your image for {$title} has been processed",
+            'title' => 'Image Processed',
+            'metadata' => $entity->getMessage(),
+            'via' => $endViaList,
+            'message_owner_id' => $entity->user->getId(),
+            'message_id' => $entity->getId(),
+            'parent_message_id' => $entity->getId(),
+            'destination_id' => $entity->getId(),
+            'destination_type' => 'MESSAGE',
+            'destination_event' => 'NEW_MESSAGE',
+        ];
+
+        try {
+            // Send notification to the user
+            $newMessageNotification = new CustomMessageNotification(
+                $entity,
+                $config,
+                $config['via']
+            );
+            $entity->user->notify($newMessageNotification);
+        } catch (InternalServerErrorException $e) {
+            report($e);
+
+            return [
+                'result' => false,
+                'message' => 'Error in notification to user',
+                'exception' => $e,
+            ];
+        }
+
+        $result = [
+            'message' => 'Image processed successfully',
+            'result' => true,
+            'user_id' => $entity->user->getId(),
+            'message_data' => $entity->message,
+            'message_id' => $entity->getId(),
+            'nugget_message_id' => $createNuggetMessage->getId(),
+            'original_image_url' => $originalImageUrl,
+            'config' => $config,
+        ];
+
+        // Add processed image URL and request ID if they exist (for fal-ai processing)
+        if ($processedImageUrl !== null) {
+            $result['processed_image_url'] = $processedImageUrl;
+        }
+
+        if ($requestId !== null) {
+            $result['request_id'] = $requestId;
+        }
+
+        return $result;
     }
 
     /**
@@ -276,6 +457,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         return $response->json();
     }
 
+    /**
+     * Extract image URL from the result response
+     */
     private function extractImageUrl(array $resultResponse): ?string
     {
         // Check for data.image.url format
