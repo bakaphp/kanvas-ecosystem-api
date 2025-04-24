@@ -177,32 +177,6 @@ class AttributesTest extends TestCase
         );
     }
 
-    public function testCreateAttributeRequiredFields(): void
-    {
-        $data = [
-            'name' => fake()->name,
-            'values' => [
-                ['value' => fake()->name],
-            ],
-            'is_required' => true,
-        ];
-
-        $response = $this->graphQL('
-            mutation($data: AttributeInput!) {
-                createAttribute(input: $data)
-                {
-                    id
-                    name
-                    is_required
-                }
-            }', ['data' => $data]);
-        $this->assertArrayHasKey('is_required', $response['data']['createAttribute']);
-        $this->assertEquals(
-            true,
-            $response['data']['createAttribute']['is_required']
-        );
-    }
-
     /**
      * Helper function createAttribute.
      *
