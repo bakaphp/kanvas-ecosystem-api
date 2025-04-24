@@ -9,6 +9,9 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Testing\TestResponse;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as DataTransferObjectAttributes;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
@@ -278,5 +281,22 @@ trait InventoryCases
         );
 
         return $createDefaultStatus->execute();
+    }
+
+    public function createAttribute(CompanyInterface $company, AppInterface $app, UserInterface $user): Attributes
+    {
+        $createAttributes = new CreateAttribute(
+            new DataTransferObjectAttributes(
+                app: $app,
+                company: $company,
+                user : $user,
+                name: 'Default',
+                slug: 'default',
+                attributeType: null
+            ),
+            $user
+        );
+
+        return $createAttributes->execute();
     }
 }

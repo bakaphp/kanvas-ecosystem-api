@@ -36,18 +36,18 @@ class ProductsTypes
 
         if (isset($request['products_attributes'])) {
             ProductTypeService::addAttributes(
-                $productType,
-                auth()->user(),
-                $request['products_attributes']
+                productsTypes: $productType,
+                user: auth()->user(),
+                attributes: $request['products_attributes']
             );
         }
 
         if (isset($request['variants_attributes'])) {
             ProductTypeService::addAttributes(
-                $productType,
-                auth()->user(),
-                $request['variants_attributes'],
-                true
+                productsTypes: $productType,
+                user: auth()->user(),
+                attributes: $request['variants_attributes'],
+                toVariant: true
             );
         }
 
