@@ -21,6 +21,6 @@ jobs:
           sudo mv php-cs-fixer /usr/local/bin/php-cs-fixer
 
       - name: Run PHP-CS-Fixer
-        run: php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.php
+        run: php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.php --path-mode=intersection --parallel
         env:
           PHP_CS_FIXER_IGNORE_ENV: 1
