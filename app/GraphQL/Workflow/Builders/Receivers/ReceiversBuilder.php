@@ -98,7 +98,6 @@ class ReceiversBuilder
                 }
             }
         }
-        dd($query->toSql());
         return $query;
     }
 
