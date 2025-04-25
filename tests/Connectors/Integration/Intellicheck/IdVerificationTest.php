@@ -6,14 +6,16 @@ namespace Tests\Connectors\Integration\Intellicheck;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
+use Kanvas\Connectors\Intellicheck\Services\PeopleService;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;
 
 final class IdVerificationTest extends TestCase
 {
-    public function testIdVerificationShowroom()
+    protected function idVerificationData(): array
     {
-        $params = [
+        return [
             'is_showroom' => true,
             'idcheck' => [
                 'data' => [
@@ -199,8 +201,11 @@ final class IdVerificationTest extends TestCase
             ],
             'ip' => '172.18.0.24',
         ];
+    }
 
-        $verificationData = $params ?? [];
+    public function testIdVerificationShowroom()
+    {
+        $verificationData = $this->idVerificationData();
 
         $isShowRoom = $params['is_showroom'] ?? false;
         $app = app(Apps::class);
@@ -221,5 +226,25 @@ final class IdVerificationTest extends TestCase
         $this->assertArrayHasKey('message', $verificationResults);
         $this->assertArrayHasKey('ocMatch', $verificationResults);
         $this->assertArrayHasKey('status', $verificationResults);
+    }
+
+    public function testUpdatePeopleInfo()
+    {
+        $verificationData = $this->idVerificationData();
+
+        $isShowRoom = $params['is_showroom'] ?? false;
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
+        $name = $lead->people->name;
+
+        // Update people info
+        PeopleService::updatePeopleInformation($lead->people, $verificationData);
+
+        // Assert that the lead's people info has been updated
+        $this->assertEquals('Keira Knightley', People::getById($lead->people->getId())->name);
     }
 }
