@@ -100,7 +100,9 @@ class WorkflowMutationManagement
 
         //if its sync we return the results
         if ($results instanceof SyncWorkflowStub) {
-            return $results->output();
+            $output = $results->output();
+
+            return count($output) > 1 ? $output : current($output);
         }
 
         return ['success' => true];

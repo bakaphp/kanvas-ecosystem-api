@@ -82,47 +82,48 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     if ($people instanceof People) {
                         PeopleService::updatePeopleInformation($people, $verificationData);
                     }
+                    dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData) {
+                        $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
+                        $notification = new Blank(
+                            'id-verification-report',
+                            [
+                                'message' => $reportData['message'],
+                                'status' => $reportData['status'],
+                                'flags' => $reportData['flags'],
+                                'failures' => $reportData['failures'],
+                                'results' => $reportData['results'],
+                                'isShowRoom' => $isShowRoom,
+                                'verificationData' => $verificationData,
+                            ],
+                            ['mail'],
+                            $entity,
+                        );
 
-                    $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
-                    $notification = new Blank(
-                        'id-verification-report',
-                        [
-                            'message' => $reportData['message'],
-                            'status' => $reportData['status'],
-                            'flags' => $reportData['flags'],
-                            'failures' => $reportData['failures'],
-                            'results' => $reportData['results'],
-                            'isShowRoom' => $isShowRoom,
-                            'verificationData' => $verificationData,
-                        ],
-                        ['mail'],
-                        $entity,
-                    );
+                        $notification->setSubject('ID Verification Report');
+                        Notification::send($usersToNotify, $notification);
 
-                    $notification->setSubject('ID Verification Report');
-                    Notification::send($usersToNotify, $notification);
+                        // Generate PDF
+                        $pdfReport = PdfService::generatePdfFromTemplate(
+                            $app,
+                            $entity->user,
+                            'id-verification-report',
+                            $entity,
+                            [
+                                'message' => $reportData['message'],
+                                'status' => $reportData['status'],
+                                'flags' => $reportData['flags'],
+                                'failures' => $reportData['failures'],
+                                'results' => $reportData['results'],
+                                'isShowRoom' => $isShowRoom,
+                                'verificationData' => $verificationData,
+                            ]
+                        );
 
-                    //generate PDF
-                    $pdfReport = PdfService::generatePdfFromTemplate(
-                        $app,
-                        $entity->user,
-                        'id-verification-report',
-                        $entity,
-                        [
-                            'message' => $reportData['message'],
-                            'status' => $reportData['status'],
-                            'flags' => $reportData['flags'],
-                            'failures' => $reportData['failures'],
-                            'results' => $reportData['results'],
-                            'isShowRoom' => $isShowRoom,
-                            'verificationData' => $verificationData,
-                        ]
-                    );
-
-                    $entity->addFile($pdfReport, 'id-verification');
+                        $entity->addFile($pdfReport, 'id-verification');
+                    });
 
                     return [
-                        'report' => $reportData['status'],
+                        'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
                         'result' => true,
                         'message' => 'IdVerificationReportActivity executed successfully',
                         'data' => $reportData,

@@ -22,12 +22,20 @@ class PeopleService
             : $people->dob;
         $people->saveOrFail();
 
-        $people->addAddress(new Address(
-            address: $verificationData['idcheck']['data']['address1'] ?? '',
-            city: $verificationData['idcheck']['data']['city'] ?? '',
-            state: $verificationData['idcheck']['data']['state'] ?? '',
-            country: $verificationData['idcheck']['data']['country'] ?? Countries::getByCode('US')->name,
-            zip: $verificationData['idcheck']['data']['postalCode'] ?? '',
-        ));
+        // Check if address data exists before adding it
+        if (
+            isset($verificationData['idcheck']['data']['address1']) ||
+            isset($verificationData['idcheck']['data']['city']) ||
+            isset($verificationData['idcheck']['data']['state']) ||
+            isset($verificationData['idcheck']['data']['postalCode'])
+        ) {
+            $people->addAddress(new Address(
+                address: $verificationData['idcheck']['data']['address1'] ?? '',
+                city: $verificationData['idcheck']['data']['city'] ?? '',
+                state: $verificationData['idcheck']['data']['state'] ?? '',
+                country: $verificationData['idcheck']['data']['country'] ?? Countries::getByCode('US')->name,
+                zip: $verificationData['idcheck']['data']['postalCode'] ?? '',
+            ));
+        }
     }
 }
