@@ -12,6 +12,7 @@ use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Locations\Models\Countries;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -158,7 +159,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             address: $verificationData['idcheck']['data']['address1'] ?? '',
             city: $verificationData['idcheck']['data']['city'] ?? '',
             state: $verificationData['idcheck']['data']['state'] ?? '',
-            country: $verificationData['idcheck']['data']['country'] ?? 'USA',
+            country: $verificationData['idcheck']['data']['country'] ?? Countries::getByCode('US')->name,
             zip: $verificationData['idcheck']['data']['postalCode'] ?? '',
         ));
     }
