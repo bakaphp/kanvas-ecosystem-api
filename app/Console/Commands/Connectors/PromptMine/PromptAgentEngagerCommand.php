@@ -52,6 +52,7 @@ class PromptAgentEngagerCommand extends Command
 
         // Find the agent assigned to the current hour
         $currentAgent = null;
+        shuffle($users);
         foreach ($users as $user) {
             if (isset($user['activeHour']) && $user['activeHour'] === $currentHour) {
                 $currentAgent = $user;
