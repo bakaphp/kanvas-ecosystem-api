@@ -6,17 +6,28 @@ namespace Kanvas\Connectors\Shopify\Jobs;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $integrationCompanyId = $this->receiver->configuration['integration_company_id'];
-        $integrationCompany = IntegrationsCompany::getById($integrationCompanyId);
+
+        try {
+            $integrationCompany = IntegrationsCompany::getById($integrationCompanyId);
+        } catch (ModelNotFoundException $e) {
+            return [
+                'message' => 'Integration company not found',
+                'shopify_id' => $this->webhookRequest->payload['id'],
+            ];
+        }
 
         $warehouses = Warehouses::where('regions_id', $integrationCompany->region_id)
                                 ->fromCompany($integrationCompany->company)
@@ -50,7 +61,7 @@ class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
         return [
             'message' => 'Product synced successfully',
             'shopify_id' => $this->webhookRequest->payload['id'],
-            'product_name' => $mappedProduct['name']
+            'product_name' => $mappedProduct['name'],
         ];
     }
 }

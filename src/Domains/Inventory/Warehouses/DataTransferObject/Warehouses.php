@@ -11,17 +11,12 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
+use Kanvas\Regions\Models\Regions;
 use Spatie\LaravelData\Data;
 
 class Warehouses extends Data
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         public CompanyInterface $company,
         public AppInterface $app,
@@ -37,9 +32,6 @@ class Warehouses extends Data
     /**
      * fromArray.
      *
-     * @param  array $data
-     *
-     * @return self
      */
     public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {

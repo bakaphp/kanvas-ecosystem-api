@@ -4,11 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
-use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Enums\AppEnums;
-use Kanvas\Locations\Models\Countries;
-use Kanvas\Locations\Models\States;
 use Tests\TestCase;
 
 class TemplatesTest extends TestCase
@@ -30,6 +25,7 @@ class TemplatesTest extends TestCase
         ){
             name
             template
+            is_system
             template_variables {
             name
             value
@@ -41,6 +37,7 @@ class TemplatesTest extends TestCase
             'input' => [
                 'name' => $name,
                 'parent_template_id' => 0,
+                'is_system' => false,
                 'template_variables' => [
                 [
                     'key' => $contentName,
@@ -56,6 +53,7 @@ class TemplatesTest extends TestCase
 
                     'name' => $name,
                     'template' => $template,
+                    'is_system' => false,
                     'template_variables' => [
                         [
                             'name' => $contentName,
@@ -143,5 +141,55 @@ class TemplatesTest extends TestCase
         );
 
         $this->assertArrayHasKey('data', $response);
+    }
+
+    public function testDeleteTemplate(): void
+    {
+        $name = fake()->name;
+        $contentName = 'content';
+        $contentValue = 'This is an example content';
+        $template = "<p>{$contentName}/p>";
+
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation createTemplate($input: TemplateInput!) {
+                createTemplate(
+            input: $input
+        ){
+            id
+        }
+        }
+        ',
+            [
+                'input' => [
+                    'name' => $name,
+                    'parent_template_id' => 0,
+                    'is_system' => false,
+                    'template_variables' => [
+                        [
+                            'key' => $contentName,
+                            'value' => $contentValue
+                        ]
+                    ],
+                    'template' => $template
+                ]
+            ]
+        );
+        dump($response->json());
+        $id = $response->json('data.createTemplate.id');
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation deleteTemplate($id: ID!) {
+                deleteTemplate(
+                    id: $id
+                )
+            }',
+            [
+                'id' => $id
+            ]
+        )->assertJson([
+            'data' => [
+                'deleteTemplate' => true,
+            ],
+        ]);
     }
 }

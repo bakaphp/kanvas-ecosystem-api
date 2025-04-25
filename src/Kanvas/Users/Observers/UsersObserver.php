@@ -21,7 +21,6 @@ class UsersObserver
     /**
      * Handle the Apps "saving" event.
      *
-     * @param  Apps $app
      */
     public function creating(Users $user): void
     {
@@ -66,7 +65,7 @@ class UsersObserver
 
         try {
             $appUser = $user->getAppProfile($app);
-        } catch(ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             $userRegisterInApp = new RegisterUsersAppAction($user, $app);
             $appUser = $userRegisterInApp->execute($user->password);
         }
@@ -77,6 +76,10 @@ class UsersObserver
             'email' => $user->email,
         ]);
 
-        $user->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['company' => $user->getCurrentCompany()]);
+        $user->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            ['company' => $user->getCurrentCompany()]
+        );
     }
 }

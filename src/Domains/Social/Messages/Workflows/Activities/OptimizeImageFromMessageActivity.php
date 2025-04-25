@@ -17,20 +17,42 @@ use Kanvas\Workflow\KanvasActivity;
 class OptimizeImageFromMessageActivity extends KanvasActivity
 {
     public $tries = 3;
-    public $queue = 'default';
 
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
 
-        if (empty($message->message['ai_image']) || empty($message->message['ai_image']['image'])) {
+        $messageContent = ! is_array($message->message) ? json_decode($message->message, true) : $message->message;
+
+        if (! isset($messageContent['image']) && ! isset($messageContent['ai_image'])) {
             return [
                 'result' => false,
-                'message' => 'Message does not have an AI image',
+                'message' => 'Message does not have an image url',
             ];
         }
 
-        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($message->message['ai_image']['image']);
+        // Safely retrieve the image URL based on message type
+        if ($message->parent_id) {
+            // For child messages, use 'image' key
+            if (! isset($messageContent['image'])) {
+                return [
+                    'result' => false,
+                    'message' => 'Child message does not have an image url',
+                ];
+            }
+            $imageUrl = $messageContent['image'];
+        } else {
+            // For parent messages, use 'ai_image.image' key
+            if (! isset($messageContent['ai_image']) || ! isset($messageContent['ai_image']['image'])) {
+                return [
+                    'result' => false,
+                    'message' => 'Parent message does not have a valid AI image url',
+                ];
+            }
+            $imageUrl = $messageContent['ai_image']['image'];
+        }
+
+        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($imageUrl);
         $fileName = basename($tempFilePath);
 
         $finfo = new finfo(FILEINFO_MIME_TYPE);
@@ -56,25 +78,36 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             $defaultUser = $defaultCompany->user;
         }
 
-        if (array_key_exists('image', $message->message['ai_image'])) {
-            $tempMessageArray = $message->message;
-            $tempMessageArray['ai_image'] = array_merge($message->message['ai_image'], ['image' => $fileSystemRecord->url]);
+        if (! $message->parent_id && isset($messageContent['ai_image'])) {
+            $tempMessageArray = $messageContent;
+            $tempMessageArray['ai_image'] = array_merge($messageContent['ai_image'], ['image' => $fileSystemRecord->url]);
             $message->message = $tempMessageArray;
             $message->addTag('image', $app, $defaultUser, $defaultCompany);
             $message->saveOrFail();
-
+            $imageTitle = $messageContent['title'] ?? '';
             // Update child messages too
 
             foreach ($message->children as $childMessage) {
-                if (! array_key_exists('image', $childMessage->message['ai_image'])) {
+                $childMessageArray = is_array($childMessage->message) ? $childMessage->message : json_decode($childMessage->message, true);
+                if (! is_array($childMessageArray) || ! array_key_exists('image', $childMessageArray)) {
                     continue;
                 }
-                $tempChildMessageArray = $childMessage->message;
-                $tempChildMessageArray['ai_image'] = array_merge($childMessage->message['ai_image'], ['image' => $fileSystemRecord->url]);
-                $childMessage->message = $tempChildMessageArray;
+                $tempChildMessageArray = $childMessageArray;
+                $tempChildMessageArray['image'] = $fileSystemRecord->url;
+                if (! empty($imageTitle)) {
+                    $tempChildMessageArray['title'] = $imageTitle;
+                }
+
+                $childMessage->message = json_encode($tempChildMessageArray);
                 $childMessage->addTag('image', $app, $defaultUser, $defaultCompany);
                 $childMessage->saveOrFail();
             }
+        } elseif ($message->parent_id && isset($messageContent['image'])) {
+            $tempMessageArray = $messageContent;
+            $tempMessageArray['image'] = $fileSystemRecord->url;
+            $message->message = json_encode($tempMessageArray);
+            $message->addTag('image', $app, $defaultUser, $defaultCompany);
+            $message->saveOrFail();
         } else {
             $message->addTag('text', $app, $defaultUser, $defaultCompany);
         }

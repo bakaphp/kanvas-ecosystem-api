@@ -12,8 +12,11 @@ use Kanvas\Workflow\KanvasActivity;
 
 class SendMessageNotificationToFollowersActivity extends KanvasActivity
 {
-    public $tries = 3;
-    public $queue = 'default';
+    /**
+     * todo we cap this to 3 tries for now. because of the
+     * issue encounter with onesignal Data Data must be no more than 2048 bytes long , to avoid infinite loop
+     */
+    public $tries = 1;
 
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
@@ -33,8 +36,17 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
         );
 
         $metaData = $message->getMessage();
-        unset($metaData['ai_nugged']); //@todo move this to a customization
-        unset($metaData['nugget']); //@todo move this to a customization
+        $keysToUnset = ['ai_nugged', 'nugget'];
+        foreach ($keysToUnset as $key) {
+            unset($metaData[$key]); // @todo move this to a customization
+        }
+
+        $keysToClear = ['prompt', 'image'];
+        foreach ($keysToClear as $key) {
+            if (isset($metaData[$key])) {
+                $metaData[$key] = ''; // @todo move this to a customization
+            }
+        }
 
         $config = [
             'email_template' => $emailTemplate,

@@ -42,7 +42,7 @@ class EventVersionParticipant extends BaseModel
         return $this->belongsTo(ParticipantType::class);
     }
 
-    public function casts(): array
+    protected function casts(): array
     {
         return [
             'metadata' => Json::class,

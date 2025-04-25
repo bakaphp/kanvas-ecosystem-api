@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Override;
 use Spatie\Health\Checks\Checks\DatabaseCheck;
 use Spatie\Health\Checks\Checks\MeiliSearchCheck;
 use Spatie\Health\Checks\Checks\OptimizedAppCheck;
@@ -21,6 +22,7 @@ class HealthProvider extends ServiceProvider
      *
      * @return void
      */
+    #[Override]
     public function register()
     {
         Health::checks([

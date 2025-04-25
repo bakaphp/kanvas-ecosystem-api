@@ -14,6 +14,11 @@ type Variant {
     status: Status
     rating: Float
     weight: Float
+    is_published: Boolean
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     files: [Filesystem]
         @cacheRedis
         @paginate(
@@ -26,12 +31,11 @@ type Variant {
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]!
-        @BelongsToMany(relation: "visibleAttributes")
+    attributes: [VariantsAttributes!]! @method(name: "visibleAttributes") @cacheRedis
     companies: Company! @belongsTo(relation: "company")
-    channels: [VariantChannelRelationship!]!
+    channels(currencyCode: String): [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")
-    channel: VariantPricingInfo
+    channel(currencyCode: String): VariantPricingInfo
         @field(
             resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price"
         )
@@ -56,6 +60,16 @@ type VariantPricingInfo {
     is_on_promotion: Boolean
     is_coming_soon: Boolean
     config: Mixed
+}
+
+type VariantAttributesValue {
+    variant: Variant!
+    attribute: Attributes!
+    translation(languageCode: String!): AttributeValueTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    value: Mixed
 }
 
 #@deprecated(reason: "Use the ProductAttributesInput type instead")
@@ -109,6 +123,13 @@ input VariantsUpdateInput {
     custom_fields: [CustomFieldEntityInput!]
 }
 
+input VariantTranslationInput {
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+}
+
 extend type Mutation @guard {
     createVariant(input: VariantsInput!): Variant
         @field(
@@ -117,6 +138,23 @@ extend type Mutation @guard {
     updateVariant(input: VariantsUpdateInput!, id: ID!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update"
+        )
+    updateVariantTranslations(
+        id: ID!
+        input: VariantTranslationInput!
+        code: String
+    ): Variant!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantTranslation"
+        )
+    updateVariantAttributeTranslations(
+        variant_id: ID!
+        attribute_id: ID!
+        code: String!
+        value: Mixed
+    ): VariantAttributesValue!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantAttributeTranslation"
         )
     uploadFileToVariant(id: ID!, file: Upload!): Product!
         @field(

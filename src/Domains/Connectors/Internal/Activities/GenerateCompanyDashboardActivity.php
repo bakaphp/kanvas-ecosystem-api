@@ -16,59 +16,69 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
+use Throwable;
 
 class GenerateCompanyDashboardActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
 
-        if ($entity instanceof CompanyInterface) {
-            $company = $entity;
-        } elseif (is_object($entity->company)) {
-            $company = $entity->company;
-        } else {
+        try {
+            if ($entity instanceof CompanyInterface) {
+                $company = $entity;
+            } elseif (is_object($entity->company)) {
+                $company = $entity->company;
+            } else {
+                return [
+                    'msg' => 'No company found for entity',
+                    'entity_class' => get_class($entity),
+                    'entity' => $entity->toArray(),
+                ];
+            }
+
+            $userAssociatedCompanyBuilder = UsersAssociatedApps::where('apps_id', $app->getId())
+                        ->where('is_deleted', StateEnums::NO->getValue())
+                        ->where('companies_id', $company->getId());
+
+            $totalUsers = (clone $userAssociatedCompanyBuilder)->count();
+            $totalActiveUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 1)->count();
+            $suspendedUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 0)->count();
+
+            $totalProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->count();
+            $totalPublishedProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count();
+            $totalUnpublishedProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 0)->count();
+
+            $totalEvents = Event::fromApp($app)->fromCompany($company)->notDeleted()->count();
+            $totalEventVersions = EventVersion::fromApp($app)->fromCompany($company)->notDeleted()->count();
+
+            $totalPeople = People::fromApp($app)->fromCompany($company)->notDeleted()->count();
+            $totalLeads = Lead::fromApp($app)->fromCompany($company)->notDeleted()->count();
+
+            $dashboard = [
+                'total_users' => $totalUsers,
+                'total_active_users' => $totalActiveUsers,
+                'total_suspended_users' => $suspendedUsers,
+                'total_products' => $totalProducts,
+                'total_published_products' => $totalPublishedProducts,
+                'total_unpublished_products' => $totalUnpublishedProducts,
+                'total_expired_products' => $totalUnpublishedProducts,
+                'total_events' => $totalEvents,
+                'total_event_versions' => $totalEventVersions,
+                'total_people' => $totalPeople,
+                'total_leads' => $totalLeads,
+            ];
+
+            $company->set('dashboard', $dashboard, true);
+
+            return array_merge(['company' => $company->getId()], $dashboard);
+        } catch (Throwable $e) {
             return [
-                'msg' => 'No company found for entity',
-                'entity_class' => get_class($entity),
-                'entity' => $entity->toArray(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTrace(),
             ];
         }
-
-        $userAssociatedCompanyBuilder = UsersAssociatedApps::where('apps_id', $app->getId())
-                    ->where('is_deleted', StateEnums::NO->getValue())
-                    ->where('companies_id', $company->getId());
-
-        $totalUsers = (clone $userAssociatedCompanyBuilder)->count();
-        $totalActiveUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 1)->count();
-        $suspendedUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 0)->count();
-
-        $totalProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->count();
-        $totalPublishedProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count();
-        $totalUnpublishedProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 0)->count();
-
-        $totalEvents = Event::fromApp($app)->fromCompany($company)->notDeleted()->count();
-        $totalEventVersions = EventVersion::fromApp($app)->fromCompany($company)->notDeleted()->count();
-
-        $totalPeople = People::fromApp($app)->fromCompany($company)->notDeleted()->count();
-        $totalLeads = Lead::fromApp($app)->fromCompany($company)->notDeleted()->count();
-
-        $dashboard = [
-            'total_users' => $totalUsers,
-            'total_active_users' => $totalActiveUsers,
-            'total_suspended_users' => $suspendedUsers,
-            'total_products' => $totalProducts,
-            'total_published_products' => $totalPublishedProducts,
-            'total_unpublished_products' => $totalUnpublishedProducts,
-            'total_expired_products' => $totalUnpublishedProducts,
-            'total_events' => $totalEvents,
-            'total_event_versions' => $totalEventVersions,
-            'total_people' => $totalPeople,
-            'total_leads' => $totalLeads,
-        ];
-
-        $company->set('dashboard', $dashboard, true);
-
-        return array_merge(['company' => $company->getId()], $dashboard);
     }
 }

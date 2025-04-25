@@ -32,10 +32,10 @@ class DashboardBuilder
 
         if ($company->get(AgentFilterEnum::FITTER_BY_OWNER->value) && $agentInfo) {
             return Lead::selectRaw('
-                    COUNT(CASE WHEN leads_status.name = ? THEN 1 END) + COUNT(CASE WHEN leads_status.name = ? THEN 1 END)  as total_active_leads,
-                    COUNT(CASE WHEN leads_status.name = ? THEN 1 END) as total_closed_leads,
+                    COUNT(CASE WHEN leads_status.name != ? AND leads_status.name != ? THEN 1 END) as total_active_leads,
+                    COUNT(CASE WHEN leads_status.name = ? OR leads_status.name = ? THEN 1 END) as total_closed_leads,
                     (SELECT count(*) FROM agents where owner_linked_source_id = ? AND companies_id = ? and status_id = 1) as total_agents
-                ', ['active', 'created', 'complete', $agentInfo->users_linked_source_id, $company->getId()])
+                ', ['complete', 'closed', 'complete', 'closed', $agentInfo->users_linked_source_id, $company->getId()])
                 ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
                 ->fromCompany($company);
         }
@@ -44,10 +44,10 @@ class DashboardBuilder
          * @var Builder
          */
         return Lead::selectRaw('
-                    COUNT(CASE WHEN leads_status.name = ? THEN 1 END) + COUNT(CASE WHEN leads_status.name = ? THEN 1 END)  as total_active_leads,
-                    COUNT(CASE WHEN leads_status.name = ? THEN 1 END) as total_closed_leads,
+                    COUNT(CASE WHEN leads_status.name != ? AND leads_status.name != ? THEN 1 END) as total_active_leads,
+                    COUNT(CASE WHEN leads_status.name = ? OR leads_status.name = ? THEN 1 END) as total_closed_leads,
                     (SELECT count(*) FROM agents where owner_id = ? AND companies_id = ? and status_id = 1) as total_agents
-                ', ['active', 'created', 'complete', $memberId, $company->getId()])
+                ', ['complete', 'closed', 'complete', 'closed', $memberId, $company->getId()])
                  ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
                  ->fromCompany($company);
     }

@@ -15,13 +15,14 @@ class ProductScrapperEvent implements ShouldBroadcast
 {
     use Dispatchable;
     use InteractsWithSockets;
+    public $connection = 'sync';
 
     public function __construct(
         protected AppInterface $app,
         protected string $uuid,
         protected Products $product,
+        protected float $price,
         protected ?string $shopifyProductId = null,
-        protected ?array $shopifyProduct = null
     ) {
     }
 
@@ -31,10 +32,10 @@ class ProductScrapperEvent implements ShouldBroadcast
             'kanvas_product_id' => $this->product->getId(),
             'shopify_product_id' => $this->shopifyProductId,
             'sku' => $this->product->variants()->first()->sku,
-            'title' => mb_substr($this->shopifyProduct['title'], 0, 255),
-            'image' => $this->shopifyProduct['image'],
-            'price' => $this->shopifyProduct['variants'][0]['price'],
-            'images' => $this->shopifyProduct['images'],
+            'title' => $this->product->name,
+            'image' => $this->product->getFiles()[0]->url,
+            'price' => $this->price,
+            'images' => $this->product->getFiles(),
             'discounted_price' => 0
         ];
     }

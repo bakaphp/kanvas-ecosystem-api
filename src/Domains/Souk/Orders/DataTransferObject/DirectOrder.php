@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\DataTransferObject;
 
-use Wearepixel\Cart\Cart;
+use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Users\Models\Users;

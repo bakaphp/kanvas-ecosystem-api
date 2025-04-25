@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use App\Http\Controllers\IndexController;
@@ -8,6 +10,7 @@ use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvi
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Override;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -25,6 +28,7 @@ class RouteServiceProvider extends ServiceProvider
      *
      * @return void
      */
+    #[Override]
     public function boot()
     {
         $this->configureRateLimiting();
@@ -45,8 +49,6 @@ class RouteServiceProvider extends ServiceProvider
 
     /**
      * Register Routes function.
-     *
-     * @return void
      */
     protected function registerRoutes(): void
     {
@@ -59,8 +61,6 @@ class RouteServiceProvider extends ServiceProvider
 
     /**
      * Routes Configuration.
-     *
-     * @return array
      */
     protected function routeConfiguration(): array
     {

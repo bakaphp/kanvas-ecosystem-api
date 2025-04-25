@@ -10,16 +10,14 @@ use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsT
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
+use Kanvas\Languages\DataTransferObject\Translate;
+use Kanvas\Languages\Services\Translation as TranslationService;
 
 class ProductsTypes
 {
     /**
      * create.
      *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return ProductsTypesModel
      */
     public function create(mixed $root, array $request): ProductsTypesModel
     {
@@ -38,18 +36,18 @@ class ProductsTypes
 
         if (isset($request['products_attributes'])) {
             ProductTypeService::addAttributes(
-                $productType,
-                auth()->user(),
-                $request['products_attributes']
+                productsTypes: $productType,
+                user: auth()->user(),
+                attributes: $request['products_attributes']
             );
         }
 
         if (isset($request['variants_attributes'])) {
             ProductTypeService::addAttributes(
-                $productType,
-                auth()->user(),
-                $request['variants_attributes'],
-                true
+                productsTypes: $productType,
+                user: auth()->user(),
+                attributes: $request['variants_attributes'],
+                toVariant: true
             );
         }
 
@@ -59,10 +57,6 @@ class ProductsTypes
     /**
      * update.
      *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return ProductsTypesModel
      */
     public function update(mixed $root, array $request): ProductsTypesModel
     {
@@ -101,9 +95,6 @@ class ProductsTypes
     /**
      * Assign attributes to products types
      *
-     * @param mixed $root
-     * @param array $request
-     * @return ProductsTypesModel
      */
     public function assignAttributes(mixed $root, array $request): ProductsTypesModel
     {
@@ -125,14 +116,29 @@ class ProductsTypes
     /**
      * delete.
      *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return bool
      */
     public function delete(mixed $root, array $request): bool
     {
         $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         return $productType->delete();
+    }
+
+    /**
+     * update.
+     */
+    public function updateProductTypeTranslation(mixed $root, array $req): ProductsTypesModel
+    {
+        $company = auth()->user()->getCurrentCompany();
+
+        $productType = ProductsTypesRepository::getById((int) $req['id'], $company);
+        $productTypeTranslateDto = Translate::fromMultiple($req['input'], $company);
+
+        $response = TranslationService::updateTranslation(
+            model: $productType,
+            dto: $productTypeTranslateDto,
+            code: $req['code']
+        );
+
+        return $response;
     }
 }

@@ -6,7 +6,6 @@ namespace Tests\Inventory\Integration;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
-use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
@@ -14,6 +13,7 @@ use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status;
 use Kanvas\Inventory\Support\Setup;
+use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
 use Tests\TestCase;
@@ -294,6 +294,6 @@ final class ImporterTest extends TestCase
         $product = $productImporter->execute();
         $this->assertInstanceOf(Products::class, $product);
         $attribute = $product->variants()->first()->getAttributeByName($customAttribute);
-        $this->assertInstanceOf(Attributes::class, $attribute);
+        $this->assertInstanceOf(VariantsAttributes::class, $attribute);
     }
 }

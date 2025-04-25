@@ -72,6 +72,9 @@ class CreateAppsAction
         Artisan::call('kanvas:update-abilities', [
             'app' => $app->key,
         ]);
+        Artisan::call('kanvas:update-abilities-templates', [
+            'app' => $app->key,
+        ]);
 
         return $app;
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Models;
 
 use Baka\Traits\AddressTraitRelationship;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,7 +20,6 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
-use Laravel\Scout\Searchable;
 
 /**
  * Companies Model.
@@ -44,16 +44,11 @@ class CompaniesBranches extends BaseModel
 {
     use UuidTrait;
     use HasFilesystemTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use NoAppRelationshipTrait;
     use HasCustomFields;
     use AddressTraitRelationship;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'companies_branches';
 
     protected $guarded = ['users_id', 'companies_id'];

@@ -14,16 +14,30 @@ use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationMetadata;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Override;
 use Workflow\Activity;
 
 class SendPushNotificationActivity extends Activity implements WorkflowActivityInterface
 {
     use KanvasJobsTrait;
-    public $tries = 3;
+    public $tries = 1;
 
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
+
+        if (! $entity->is_public) {
+            return [
+                'result' => false,
+                'message' => 'Entity is not public',
+                'data' => $params,
+                'entity' => [
+                    get_class($entity),
+                    $entity->getId(),
+                ],
+            ];
+        }
 
         $user = Users::getById($entity->users_id);
         $notificationType = NotificationTypesRepository::getByName($params['notification_name'], $app);

@@ -113,7 +113,7 @@ input SocialLoginInput {
 }
 
 input ForgotPasswordInput {
-    email: String! @rules(apply: ["required", "email"])
+    email: String! @rules(apply: ["required"])
 }
 
 input ResetPasswordInput {
@@ -292,6 +292,11 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserContactsManagementMutation@checkUsersContactsMatch"
         )
+    saveUserAppPreferences(preferences: Mixed!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@saveUserAppPreferences"
+        )
 }
 
 type Query @guard {
@@ -303,5 +308,47 @@ type Query @guard {
     userByDisplayName(displayname: String!): User!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersListQuery@getByDisplayNameFromApp"
+        )
+}
+
+extend type Query @guard {
+    users(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "description"
+                    "dob"
+                    "email"
+                    "is_active"
+                    "verify_two_factor"
+                    "sex"
+                    "user_active"
+                    "timezone"
+                    "mainRole"
+                    "welcome"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                ]
+            )
+        search: String @search
+    ): [User!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersBuilder@getAll"
+            scopes: ["fromApp", "notDeleted"]
         )
 }

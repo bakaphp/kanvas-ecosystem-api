@@ -5,6 +5,24 @@ input UserListInput {
     is_default: Boolean
 }
 
+union RelatedEntity = Message | Product
+
+type Entity {
+    id: ID!
+    users_lists_id: ID!
+    entity_id: ID!
+    entity_namespace: String
+    description: String
+    is_pin: Boolean
+    entity: RelatedEntity!
+}
+
+input EntityInput {
+    users_lists_id: ID! 
+    entity_id: ID! 
+    entity_type: String!
+}
+
 type UserList @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList") {
     id: ID!
     slug: String!
@@ -16,6 +34,7 @@ type UserList @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList") {
     apps: [App]
     company: Company!
     items: [Message]
+    entities: [Entity]
 }
 
 extend type Mutation @guard {
@@ -39,10 +58,30 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@removeFromList"
         )
+    addEntityToUserList(entity: EntityInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@addEntityToList"
+        )
+    removeEntityFromUserList(entity: EntityInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@removeEntityFromList"
+        )
 }
 
 extend type Query @guard {
     getUsersLists(
+        where: _
+            @whereConditions(
+                columns: ["id", "company_id", "name", "description"]
+            )
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    ): [UserList!]!
+        @paginate(
+            model: "Kanvas\\Social\\UsersLists\\Models\\UserList"
+            scopes: ["fromApp", "fromUser"]
+            defaultCount: 25
+        )
+      getUsersListsEntities(
         where: _
             @whereConditions(
                 columns: ["id", "company_id", "name", "description"]

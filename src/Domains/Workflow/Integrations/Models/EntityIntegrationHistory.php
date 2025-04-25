@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Integrations\Models;
 
+use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Kanvas\Workflow\Rules\Models\Rule;
 
 class EntityIntegrationHistory extends BaseModel
 {
@@ -22,10 +24,13 @@ class EntityIntegrationHistory extends BaseModel
         'status_id',
         'response',
         'exception',
-        'workflow_id'
+        'workflow_id',
+        'rules_id'
     ];
 
     protected $casts = [
+        'response' => Json::class,
+        'exception' => Json::class,
         'is_deleted' => 'boolean',
     ];
 
@@ -41,7 +46,7 @@ class EntityIntegrationHistory extends BaseModel
 
     public function entity(): BelongsTo
     {
-        return $this->belongsTo($this->entity_class_name, 'entity_id');
+        return $this->belongsTo($this->entity_namespace, 'entity_id');
     }
 
     public function status(): BelongsTo
@@ -54,9 +59,19 @@ class EntityIntegrationHistory extends BaseModel
         return $this->belongsTo(StoredWorkflow::class, 'workflow_id');
     }
 
+    public function rules(): BelongsTo
+    {
+        return $this->belongsTo(Rule::class, 'rules_id', 'id');
+    }
+
     public function setStatus(Status $status): void
     {
         $this->status_id = $status->getId();
         $this->saveOrFail();
+    }
+
+    public function getTrigger(): ?string
+    {
+        return $this->rules?->type->name;
     }
 }

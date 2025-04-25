@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Facade;
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Application Name
@@ -137,7 +136,6 @@ return [
     */
 
     'providers' => [
-
         /*
          * Laravel Framework Service Providers...
          */
@@ -191,6 +189,10 @@ return [
         App\Providers\HealthProvider::class,
         Berkayk\OneSignal\OneSignalServiceProvider::class,
         App\Providers\BuilderMacroServiceProvider::class,
+        //Laravel\Scout\ScoutServiceProvider::class,
+        Typesense\LaravelTypesense\TypesenseServiceProvider::class,
+        App\Providers\SearchServiceProvider::class,
+        App\Providers\CartServiceProvider::class,
     ],
 
     /*
@@ -207,5 +209,4 @@ return [
     'aliases' => Facade::defaultAliases()->merge([
         'OneSignal' => Berkayk\OneSignal\OneSignalFacade::class,
     ])->toArray(),
-
 ];

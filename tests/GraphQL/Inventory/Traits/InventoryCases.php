@@ -9,6 +9,9 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Testing\TestResponse;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as DataTransferObjectAttributes;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
@@ -21,7 +24,7 @@ use Kanvas\Regions\Models\Regions;
 
 trait InventoryCases
 {
-    public function createProduct(array $data = []): TestResponse
+    public function createProduct(array $data = [], array $attributes = []): TestResponse
     {
         if (empty($data)) {
             $name = fake()->name;
@@ -36,6 +39,7 @@ trait InventoryCases
                         'name' => fake()->name,
                         'value' => fake()->name,
                     ],
+                    ...$attributes,
                 ],
             ];
         }
@@ -57,7 +61,7 @@ trait InventoryCases
             }', ['data' => $data]);
     }
 
-    public function createVariant(string $productId, array $warehouseData, array $data = []): TestResponse
+    public function createVariant(string $productId, array $warehouseData, array $data = [], array $attributes = []): TestResponse
     {
         if (empty($data)) {
             $data = [
@@ -65,6 +69,8 @@ trait InventoryCases
                 'description' => fake()->text,
                 'products_id' => $productId,
                 'sku' => fake()->time,
+                'ean' => fake()->ean13,
+                'barcode' => fake()->ean13,
                 'weight' => 1,
                 'warehouses' => [$warehouseData],
                 'attributes' => [
@@ -72,6 +78,7 @@ trait InventoryCases
                         'name' => fake()->name,
                         'value' => fake()->name,
                     ],
+                    ...$attributes,
                 ],
             ];
         }
@@ -83,11 +90,90 @@ trait InventoryCases
                     id
                     name
                     sku
+                    ean
+                    barcode
                     description
                     products_id
                     weight
                 }
             }', ['data' => $data]);
+    }
+
+    public function createChannel(array $data = []): TestResponse
+    {
+        if (empty($data)) {
+            $data = [
+                'name' => fake()->name,
+                'description' => fake()->text,
+                'is_default' => true,
+            ];
+        }
+
+        return $this->graphQL('
+        mutation($data: CreateChannelInput!) {
+            createChannel(input: $data)
+            {
+                id
+                name
+                description,
+                is_default
+            }
+        }', ['data' => $data]);
+    }
+
+    public function addVariantToChannel(string $variantId, string $channelId, array $warehouseData, array $data = []): TestResponse
+    {
+        if (empty($data)) {
+            $data = [
+                'variants_id' => $variantId,
+                'channels_id' => $channelId,
+                'warehouses_id' => $warehouseData['id'],
+                'input' => [
+                    'price' => 100,
+                    'discounted_price' => 10,
+                    'is_published' => true,
+                ]
+            ];
+        }
+
+        return $this->graphQL('
+        mutation addVariantToChannel($variants_id: ID! $channels_id: ID! $warehouses_id: ID! $input: VariantChannelInput!){
+            addVariantToChannel(variants_id: $variants_id channels_id:$channels_id warehouses_id:$warehouses_id input:$input){
+                id
+            } 
+        }
+        ', $data);
+    }
+
+    public function addVariantToWarehouse(string $variantId, string $warehouseId, int $amount = 0, array $data = []): TestResponse
+    {
+        if (empty($data)) {
+            $data = [
+                'data' => [
+                    'id' => $warehouseId,
+                    'price' => rand(1, 1000),
+                    'quantity' => $amount ?? rand(1, 5),
+                    'position' => rand(1, 4),
+                ],
+                'id' => $variantId,
+            ];
+        }
+
+        return $this->graphQL('
+        mutation addVariantToWarehouse($data: WarehouseReferenceInput! $id: ID!) {
+            addVariantToWarehouse(input: $data id: $id)
+            {
+                id
+                name
+                description
+                products_id
+                warehouses{
+                    warehouseinfo{
+                        id
+                    }
+                }
+            }
+        }', $data);
     }
 
     public function createRegion(array $data = []): TestResponse
@@ -195,5 +281,22 @@ trait InventoryCases
         );
 
         return $createDefaultStatus->execute();
+    }
+
+    public function createAttribute(CompanyInterface $company, AppInterface $app, UserInterface $user): Attributes
+    {
+        $createAttributes = new CreateAttribute(
+            new DataTransferObjectAttributes(
+                app: $app,
+                company: $company,
+                user : $user,
+                name: 'Default',
+                slug: 'default',
+                attributeType: null
+            ),
+            $user
+        );
+
+        return $createAttributes->execute();
     }
 }

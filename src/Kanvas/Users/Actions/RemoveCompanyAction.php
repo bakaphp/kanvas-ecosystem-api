@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Actions;
 
+use Kanvas\AccessControlList\Actions\ForbiddenRolesUsersAction;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -65,5 +66,10 @@ class RemoveCompanyAction
                 $this->branch
             )->delete();
         }
+        (new ForbiddenRolesUsersAction(
+            $this->app,
+            $this->user,
+            $this->company
+        ))->execute();
     }
 }

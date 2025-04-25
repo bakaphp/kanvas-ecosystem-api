@@ -9,7 +9,6 @@ class CompanySettingQuery
     /**
      * Get user from the current company.
      *
-     * @param mixed $rootValue
      */
     public function getAllSettings($rootValue, array $request): array
     {

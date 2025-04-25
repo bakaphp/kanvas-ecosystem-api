@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\UsersLists;
 
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\UsersLists\Actions\CreateUserListAction;
 use Kanvas\Social\UsersLists\DataTransferObject\UserList;
 use Kanvas\Social\UsersLists\Models\UserList as ModelUserList;
 use Kanvas\Social\UsersLists\Repositories\UserListRepository;
+use Kanvas\SystemModules\Models\SystemModules;
 
 class UsersListsManagement
 {
@@ -66,5 +68,34 @@ class UsersListsManagement
         $userList->items()->detach($message);
 
         return true;
+    }
+
+    public function addEntityToList(mixed $rootValue, array $req): bool
+    {
+        $userList = UserListRepository::getById((int)$req['entity']['users_lists_id'], auth()->user());
+        $entity = $this->getEntity($req['entity']['entity_type'], (int)$req['entity']['entity_id']);
+        $userList->entities()->create([
+            'entity_id' => $entity->id,
+            'entity_namespace' => $entity->getMorphClass(),
+            'description' => "",
+            'is_pin' => false
+        ]);
+        return true;
+    }
+
+    public function removeEntityFromList(mixed $rootValue, array $req): bool
+    {
+        $userList = UserListRepository::getById((int)$req['entity']['users_lists_id'], auth()->user());
+        $entity = $this->getEntity($req['entity']['entity_type'], (int)$req['entity']['entity_id']);
+
+        $userList->entities()->where('entity_id', $entity->id)->delete();
+
+        return true;
+    }
+
+    private function getEntity(string $entityType, int $entityId): Model
+    {
+        $entityClass = SystemModules::getSystemModuleNameSpaceBySlug($entityType);
+        return $entityClass::getById($entityId);
     }
 }

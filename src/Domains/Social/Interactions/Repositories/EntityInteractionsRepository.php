@@ -14,8 +14,6 @@ class EntityInteractionsRepository
     /**
      * Given a visitorInput get the social interactions for the entity.
      *
-     * @param array $visitorInput<string,string>
-     *
      * @return array<array-key,bool> #graph Interactions
      */
     public static function getEntityInteractions(LikeEntityInput $entityInput): array

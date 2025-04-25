@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Stripe;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Users\Models\Users;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Services\StripePlanService;
 use Kanvas\Subscription\Importer\Actions\PlanImporterAction;
 use Kanvas\Subscription\Importer\DataTransferObjects\PlanImporter;
-use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 final class ImportPlanFromStripeActivityTest extends TestCase

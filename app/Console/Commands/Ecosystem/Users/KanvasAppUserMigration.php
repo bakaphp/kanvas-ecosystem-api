@@ -29,7 +29,6 @@ class KanvasAppUserMigration extends Command
     /**
      * Execute the console command.
      *
-     * @return mixed
      */
     public function handle()
     {
@@ -51,7 +50,7 @@ class KanvasAppUserMigration extends Command
                     $app
                 );
                 $userRegisterInApp->execute($userData->password);
-            } catch(Throwable $e) {
+            } catch (Throwable $e) {
                 $this->error('Error creating user : ' . $user->user_id . ' ' . $e->getMessage());
             }
         }

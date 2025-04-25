@@ -7,6 +7,7 @@ namespace App\Console\Commands\Social;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Repositories\UserAppRepository;
 
 class SocialUserCounterResetCommand extends Command
@@ -32,7 +33,14 @@ class SocialUserCounterResetCommand extends Command
      */
     public function handle()
     {
-        $app = Apps::getById($this->argument('app_id'));
+        try {
+            $app = Apps::getById($this->argument('app_id'));
+        } catch (ModelNotFoundException $e) {
+            $this->error('App not found with id ' . $this->argument('app_id'));
+
+            return;
+        }
+
         $this->overwriteAppService($app);
 
         $this->info('Resetting social counter for app: ' . $this->argument('app_id'));

@@ -1,10 +1,14 @@
-type Product {
+type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     id: ID!
     products_types_id: ID
     uuid: String!
     name: String!
     slug: String!
     description: String
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     short_description: String
     html_description: String
     warranty_terms: String
@@ -23,8 +27,13 @@ type Product {
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
     attributes: [ProductAttribute!]!
-        @BelongsToMany(relation: "visibleAttributes")
-    variants: [Variant!]! @HasMany
+        @method(name: "visibleAttributes")
+        @cacheRedis
+    variants(includeUnpublished: Boolean = false): [Variant!]!
+        @HasMany
+        @builder(
+            method: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"
+        )
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo
@@ -42,6 +51,18 @@ type Product {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+}
+
+### @todo extract this into its own type.
+type EntityExport {
+    url: String!
+    message: Mixed!
+}
+
+type ProductTranslation {
+    name: String
+    description: String
+    language: LanguageDisplay!
 }
 
 input ProductInput {
@@ -91,10 +112,24 @@ input ProductInputUpdate {
     categories: [ProductCategoriesReferenceInput!]
 }
 
+input NearByLocationInput {
+    lat: Float!
+    long: Float!
+    radius: Float! # in kilometers
+}
+
 input ProductAttributeOrderBy {
     name: String
     sort: String
     format: FormatSortAttribute!
+}
+
+input ProductTranslationInput {
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
 }
 
 enum FormatSortAttribute {
@@ -102,8 +137,16 @@ enum FormatSortAttribute {
     STRING
     DATE
 }
-
-extend type Mutation @guardByAdmin {
+type ProductAttributesValue {
+    product: Product!
+    attribute: Attributes!
+    translation(languageCode: String!): AttributeValueTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    value: Mixed
+}
+extend type Mutation @guard {
     createProduct(input: ProductInput!): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"
@@ -111,6 +154,14 @@ extend type Mutation @guardByAdmin {
     updateProduct(id: ID!, input: ProductInputUpdate): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
+        )
+    updateProductTranslations(
+        id: ID!
+        input: ProductTranslationInput!
+        code: String!
+    ): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductTranslation"
         )
     uploadFileToProduct(id: ID!, file: Upload!): Product!
         @field(
@@ -140,6 +191,15 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
         )
+    updateProductAttributeTranslations(
+        product_id: ID!
+        attribute_id: ID!
+        code: String!
+        value: Mixed
+    ): ProductAttributesValue!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductAttributeTranslation"
+        )
 }
 
 extend type Query @guard {
@@ -148,6 +208,7 @@ extend type Query @guard {
         variantAttributeValue: String
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy
+        nearByLocation: NearByLocationInput
         where: _
             @whereConditions(
                 columns: [
@@ -160,6 +221,7 @@ extend type Query @guard {
                     "uuid"
                     "is_published"
                     "rating"
+                    "users_id"
                 ]
             )
         hasVariants: _
@@ -207,5 +269,9 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
             defaultCount: 25
+        )
+    productsExport: EntityExport
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"
         )
 }

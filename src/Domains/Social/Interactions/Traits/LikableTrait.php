@@ -16,7 +16,6 @@ trait LikableTrait
 {
     /**
      * Like an entity.
-     * @param ?string $note
      */
     public function like(Model $entity, ?string $note = null, bool $isDislike = false): UsersInteractions|EntityInteractions
     {
@@ -48,8 +47,6 @@ trait LikableTrait
 
     /**
      * Dislike an entity.
-     * @param ?string $note
-     * @param bool $isDislike
      */
     public function dislike(Model $entity, ?string $note = null): UsersInteractions|EntityInteractions
     {
@@ -62,7 +59,6 @@ trait LikableTrait
 
     /**
      * Unlike an entity.
-     * @param ?string $note
      */
     public function unLike(Model $entity, ?string $note = null, bool $isDislike = false): bool
     {
@@ -88,8 +84,6 @@ trait LikableTrait
 
     /**
      * Unlike a dislike of an entity.
-     * @param ?string $note
-     * @param bool $isDislike
      */
     public function unLikeDislike(Model $entity, ?string $note = null): bool
     {

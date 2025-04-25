@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             CustomFieldsTypesSeeder::class,
             MessageActivityTypeSeeder::class,
             NotificationChannelsSeeder::class,
+            KanvasModulesSeeder::class,
         ]);
     }
 }

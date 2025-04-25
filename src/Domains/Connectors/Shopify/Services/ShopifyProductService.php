@@ -11,8 +11,8 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 
 class ShopifyProductService
 {
@@ -43,7 +43,10 @@ class ShopifyProductService
         $this->mapFilesForImport($files);
 
         //attributes
-        $productTags = ! empty($shopifyProduct['tags']) ? explode($shopifyProduct['tags'], ',') : [];
+        $productTags = ! empty($shopifyProduct['tags']) ? explode(',', $shopifyProduct['tags']) : [];
+        $productTags = array_map(function ($tag) {
+            return ['name' => $tag];
+        }, $productTags);
         $productAttributes = [];
 
         $productType = $shopifyProduct['product_type'] ?? 'Default';
@@ -73,6 +76,7 @@ class ShopifyProductService
                    'data' => $productId,
                ],
            ],
+           'vendor' => $shopifyProduct['vendor'],
            'categories' => [
                [
                    'name' => $productCategory,
@@ -93,6 +97,7 @@ class ShopifyProductService
                      'channel' => $this->channel->name,
                 ],
            ],
+           'tags' => $productTags,
         ];
     }
 
@@ -100,8 +105,6 @@ class ShopifyProductService
     {
         foreach ($variants as $variant) {
             $variantName = $variant['title'];
-            $options = array_filter([$variant['option1'], $variant['option2'], $variant['option3']]);
-            $variantName .= ' ' . implode(' ', $options);
 
             $productVariants[] = [
                 'name' => $variantName,

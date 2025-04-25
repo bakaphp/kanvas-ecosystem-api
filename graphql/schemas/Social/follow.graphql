@@ -28,12 +28,17 @@ extend type Query @guard {
         )
     getFollowingEntity(user_id: ID!): [Following!]!
         @paginate(
-        builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"
             defaultCount: 25
         )
     getTotalFollowers(user_id: ID!): Int!
         @field(
             resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getTotalFollowers"
+        )
+    getWhoToFollow(user_id: ID!, static_recommendation: Boolean!): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getWhoToFollow"
+            defaultCount: 25
         )
 }
 

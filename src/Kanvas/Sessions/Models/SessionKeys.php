@@ -37,7 +37,6 @@ class SessionKeys extends BaseModel
     /**
      * Sessions relationship.
      *
-     * @return BelongsTo
      */
     public function session(): BelongsTo
     {
@@ -47,7 +46,6 @@ class SessionKeys extends BaseModel
     /**
      * Users relationship.
      *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {

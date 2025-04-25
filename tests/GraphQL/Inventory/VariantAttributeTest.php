@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class VariantAttributeTest extends TestCase
 {
+    use InventoryCases;
+
     /**
      * testAddAttributeToVariant.
      *
-     * @return void
      */
     public function testAddAttributeToVariant(): void
     {
@@ -141,7 +143,6 @@ class VariantAttributeTest extends TestCase
     /**
      * testRemoveAttributeFromVariant.
      *
-     * @return void
      */
     public function testRemoveAttributeFromVariant(): void
     {
@@ -289,6 +290,71 @@ class VariantAttributeTest extends TestCase
             'id' => $variantId,
             'attributesId' => $attributeId,
         ]);
+        $this->assertArrayHasKey('data', $response->json());
+    }
+
+    public function testUpdateVariantAttributeValueTranslate(): void
+    {
+        $regionResponse = $this->createRegion();
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
+        $regionResponse = $regionResponse->json()['data']['createRegion'];
+
+        $warehouseResponse = $this->createWarehouses($regionResponse['id']);
+        $this->assertArrayHasKey('id', $warehouseResponse['data']['createWarehouse']);
+        $warehouseResponse = $warehouseResponse->json()['data']['createWarehouse'];
+
+        $productResponse = $this->createProduct();
+        $this->assertArrayHasKey('id', $productResponse['data']['createProduct']);
+        $id = $productResponse->json()['data']['createProduct']['id'];
+
+        $warehouseData = [
+            'id' => $warehouseResponse['id'],
+        ];
+
+        $variantResponse = $this->createVariant(
+            productId: $id,
+            warehouseData: $warehouseData
+        );
+
+        $this->assertArrayHasKey('id', $variantResponse->json()['data']['createVariant']);
+
+        $variantResponse = $variantResponse->json()['data']['createVariant'];
+
+        $dataAttribute = [
+            'name' => fake()->name,
+        ];
+
+        $response = $this->graphQL('
+        mutation($data: AttributeInput!) {
+            createAttribute(input: $data)
+            {
+                id
+                name
+                values {
+                    value
+                }
+            }
+        }', ['data' => $dataAttribute]);
+
+        $attributeId = $response->json()['data']['createAttribute']['id'];
+
+        $response = $this->graphQL('
+            mutation($id: ID! $attributes_id: ID! $input: VariantsAttributesInput!) {
+                addAttributeToVariant(id: $id, attributes_id: $attributes_id, input: $input)
+                {
+                    id
+                    name
+                }
+            }
+        ', [
+            'id' => $variantResponse['id'],
+            'attributes_id' => $attributeId,
+            'input' => [
+                'value' => fake()->name,
+                'name' => fake()->name,
+            ]
+        ]);
+
         $this->assertArrayHasKey('data', $response->json());
     }
 }

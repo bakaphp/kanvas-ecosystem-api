@@ -41,9 +41,9 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehou
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
+use Kanvas\Regions\Models\Regions as KanvasRegions;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
-use Kanvas\Regions\Models\Regions as KanvasRegions;
 
 class ProductImporterAction
 {
@@ -97,19 +97,27 @@ class ProductImporterAction
             }
 
             if (! empty($this->importedProduct->files)) {
-                $this->product->overWriteFiles($this->importedProduct->files);
+                $this->product->overWriteFiles($this->importedProduct->files, $this->product->app);
             }
 
             $this->categories();
 
             $this->productWarehouse();
 
+            if ($this->importedProduct->vendor) {
+                $this->product->warehouses()->newPivotStatement()->update([
+                    'vendor' => $this->importedProduct->vendor,
+                ]);
+            }
             //$this->variants();
             // @todo to be removed
             $this->variantsLocation($this->product);
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
+            }
+            if ($this->importedProduct->tags) {
+                $this->product->syncTags($this->importedProduct->tags);
             }
             DB::connection('inventory')->commit();
             $this->product->fireWorkflow(WorkflowEnum::SYNC_SHOPIFY->value);
@@ -195,6 +203,13 @@ class ProductImporterAction
                 );
             }
 
+            if (isset($category['slug'])) {
+                $categoryModel = Categories::where('slug', $category['slug'])
+                    ->fromApp($this->app)
+                    ->fromCompany($this->company)
+                    ->first();
+            }
+
             if ($categoryModel) {
                 $this->product->categories()->syncWithoutDetaching([$categoryModel->getId()]);
             } else {
@@ -202,7 +217,7 @@ class ProductImporterAction
                     'app' => $this->app,
                     'user' => $this->user,
                     'company' => $this->company,
-                    'parent_id' => $category['parent_id'] ?? 0,
+                    'parent_id' => $category['parent_id'] ?? null,
                     'name' => $category['name'],
                     'code' => $category['code'],
                     'position' => $category['position'],

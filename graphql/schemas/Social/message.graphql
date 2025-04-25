@@ -21,7 +21,7 @@ type Message {
     total_children: Int
     total_purchase: Int
     parent: Message @cacheRedis
-    user: User! @cacheRedis
+    user: User!
     children: [Message!] @hasMany(type: PAGINATOR)
     messageType: MessageType! @cacheRedis
     appModuleMessage: AppModuleMessage @cacheRedis
@@ -73,6 +73,7 @@ input MessageInput {
     distribution: DistributionInput
     tags: [TagInput!]
     slug: String
+    files: [Upload!]
 }
 
 input MessageUpdateInput {
@@ -205,6 +206,8 @@ extend type Query @guard {
                 relation: "tags"
                 columns: ["id", "name", "slug"]
             )
+        requiredTags: [String!]
+        customFilters: [String!]
         hasType: _
             @whereHasConditions(
                 relation: "messageType"
@@ -281,11 +284,63 @@ extend type Query @guard {
                     "total_disliked"
                 ]
             )
-        search: String @search
     ): [Message!]!
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getUserFeed"
+            resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getForYouFeed"
+            scopes: ["fromApp", "notDeleted"]
+        )
+    followingFeedMessages(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_children"
+                    "total_disliked"
+                    "total_saved"
+                    "total_view"
+                    "total_shared"
+                    "is_public"
+                ]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getFollowingFeed"
             scopes: ["notDeleted"]
         )
 

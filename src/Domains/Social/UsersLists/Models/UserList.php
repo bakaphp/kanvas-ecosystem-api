@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\UsersLists\Models;
 
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\SoftDeletesTrait;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
-use Laravel\Scout\Searchable;
 
 /**
  *  class UserList
@@ -33,7 +32,7 @@ class UserList extends BaseModel
     use SlugTrait;
     use KanvasAppScopesTrait;
     use SoftDeletesTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use HasFilesystemTrait;
 
     protected $table = 'users_lists';
@@ -45,6 +44,11 @@ class UserList extends BaseModel
     public function items(): BelongsToMany
     {
         return $this->belongsToMany(Message::class, 'users_lists_messages', 'users_lists_id', 'messages_id');
+    }
+
+    public function entities(): HasMany
+    {
+        return $this->hasMany(UserListEntity::class, 'users_lists_id');
     }
 
     /**

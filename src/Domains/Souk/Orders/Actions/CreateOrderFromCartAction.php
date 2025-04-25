@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
@@ -22,7 +23,6 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Spatie\LaravelData\DataCollection;
-use Wearepixel\Cart\Cart;
 
 class CreateOrderFromCartAction
 {
@@ -66,23 +66,29 @@ class CreateOrderFromCartAction
             ));
         }
 
-        if (! empty($this->cart)) {
+        $hasItemsInCart = ! $this->cart->isEmpty(); //&& $this->cart->getTotal() > 0;
+        if ($hasItemsInCart) {
             $total = $this->cart->getTotal();
             $totalTax = ($this->cart->getTotal()) - ($this->cart->getSubTotal());
             $totalDiscount = 0.0;
+            $lineItems = $this->cart->getContent()->toArray();
         } else {
             $total = 0;
             $totalTax = 0;
             $totalDiscount = 0;
             $lineItems = [];
+
             foreach ($this->request['input']['items'] as $key => $lineItem) {
                 $lineItems[$key] = OrderItem::viaRequest($this->app, $this->company, $this->region, $lineItem);
                 $total += $lineItems[$key]->getTotal();
                 $totalTax += $lineItems[$key]->getTotalTax();
                 $totalDiscount = $lineItems[$key]->getTotalDiscount();
             }
+
+            $lineItems = OrderItem::collect($lineItems, DataCollection::class);
         }
-        $items = $this->getOrderItems($this->cart->getContent()->toArray(), $this->app);
+
+        $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
 
         $order = new Order(
             app: $this->app,
@@ -134,9 +140,9 @@ class CreateOrderFromCartAction
             $orderItems[] = new OrderItem(
                 app: $app,
                 variant: $variant,
-                name: $lineItem['name'],
+                name: (string) $lineItem['name'],
                 sku: (string) ($variant->sku ?? $lineItem['id']),
-                quantity: (int) $lineItem['quantity'],
+                quantity: (float) $lineItem['quantity'],
                 price: (float) $lineItem['price'],
                 tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),

@@ -50,7 +50,7 @@ class UpdateProductAction
                     'status_id' => $this->productDto->status_id ?? $this->product->status_id,
                     'is_published' => $this->productDto->is_published,
                     'published_at' => $this->productDto->is_published ? Carbon::now() : null,
-                    'weight' => $this->productDto->weight ?? $this->product->weight,
+                    'weight' => $this->productDto->weight ?? $this->product->weight ?? 0,
                 ]
             );
 
@@ -80,7 +80,13 @@ class UpdateProductAction
 
             throw $e;
         }
-        $this->product->searchable();
+
+        if ($this->product->isPublished()) {
+            $this->product->searchable();
+        } else {
+            $this->product->unsearchable();
+        }
+
         if ($this->runWorkflow) {
             $this->product->fireWorkflow(
                 WorkflowEnum::UPDATED->value,

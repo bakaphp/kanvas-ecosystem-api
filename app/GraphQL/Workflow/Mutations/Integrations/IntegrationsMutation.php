@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Workflow\Mutations\Integrations;
 
-use Kanvas\Inventory\Status\Models\Status as StatusModel;
-use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Exceptions\InternalServerErrorException;
@@ -13,19 +11,16 @@ use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
+use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as ModelsIntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Integrations\Validations\ConfigValidation;
+use Kanvas\Workflow\Models\Integrations;
 
 class IntegrationsMutation
 {
     /**
      * create.
-     *
-     * @param  mixed $rootValue
-     * @param  array $args
-     *
-     * @return StatusModel
      */
     public function createIntegrationCompany(mixed $rootValue, array $request): ModelsIntegrationsCompany
     {
@@ -96,5 +91,36 @@ class IntegrationsMutation
         );
 
         return $integrationCompany->delete();
+    }
+
+    public function integrationCompanyIsActive(mixed $root, array $request): bool
+    {
+        $integrationCompany = ModelsIntegrationsCompany::getById((int) $request['input']['id']);
+
+        CompaniesRepository::userAssociatedToCompany(
+            $integrationCompany->company,
+            auth()->user()
+        );
+
+        return $integrationCompany->isActive((bool) $request['input']['is_active']);
+    }
+
+    public function integrationWorkflowRetry(mixed $root, array $request): bool
+    {
+        $integrationWorkflow = EntityIntegrationHistory::getById((int) $request['id'], app(Apps::class));
+
+        CompaniesRepository::userAssociatedToCompany(
+            $integrationWorkflow->integrationCompany->company,
+            auth()->user()
+        );
+
+        $subject = $integrationWorkflow->entity()->first();
+
+        $subject->fireWorkflow(
+            $integrationWorkflow->rules->type->name,
+            true
+        );
+
+        return true;
     }
 }

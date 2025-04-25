@@ -45,7 +45,6 @@ class PdfGenerator
      * Generate a PDF using the Puppeteer API.
      *
      * @param array $data The payload to send to Puppeteer.
-     * @param string|null $fileName Optional file name for the generated PDF.
      * @return string|null The storage path of the generated PDF or null on failure.
      */
     protected static function generatePdf(array $data): ?string

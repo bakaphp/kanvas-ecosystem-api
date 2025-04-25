@@ -14,18 +14,14 @@ use Kanvas\Inventory\Importer\Events\ProductImportEvent;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
+use Override;
+use Throwable;
 
 use function Sentry\captureException;
 
-use Throwable;
-
 class ProductImporterJob extends AbstractImporterJob
 {
-    /**
-     * handle.
-     *
-     * @return void
-     */
+    #[Override]
     public function handle()
     {
         config(['laravel-model-caching.disabled' => true]);
@@ -114,6 +110,7 @@ class ProductImporterJob extends AbstractImporterJob
         );
     }
 
+    #[Override]
     protected function notificationStatus(
         int $totalItems,
         int $totalProcessSuccessfully,

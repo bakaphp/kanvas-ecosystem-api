@@ -7,11 +7,23 @@ type Category {
     slug: String!
     code: String
     position: Int
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     is_published: Boolean!
     companies: Company!
     weight: Int
     users: User!
     total_products: Int! @method(name: "getTotalProducts")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    children: [Category!] @hasMany(type: PAGINATOR)
+    products: [Product!] @belongsToMany(relation: "products", type: PAGINATOR)
 }
 
 input CategoryInput {
@@ -46,9 +58,21 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@update"
         )
+    updateCategoryTranslations(
+        id: ID!
+        input: TranslationInput!
+        code: String!
+    ): Category!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@updateCategoryTranslation"
+        )
     deleteCategory(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@delete"
+        )
+    uploadFileToCategory(id: ID!, file: Upload!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\CategoryMediaMutation@attachFileToCategory"
         )
 }
 
@@ -65,6 +89,7 @@ extend type Query @guard {
                     "uuid"
                     "is_published"
                     "position"
+                    "id"
                 ]
             )
         orderBy: _

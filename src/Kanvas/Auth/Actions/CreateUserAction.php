@@ -23,7 +23,6 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Enums\StatusEnums;
-use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserNotificationService;
@@ -34,10 +33,8 @@ class CreateUserAction
 {
     protected Apps $app;
     protected bool $runWorkflow = true;
+    protected bool $extraValidation = false;
 
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected RegisterInput $data,
         ?Apps $app = null
@@ -45,10 +42,6 @@ class CreateUserAction
         $this->app = $app ?? app(Apps::class);
     }
 
-    /**
-     * Invoke function.
-     * @psalm-suppress MixedArgument
-     */
     public function execute(): Users
     {
         $newUser = false;
@@ -79,7 +72,7 @@ class CreateUserAction
             $this->assignUserRole($user);
         }
 
-        if (! $company) {
+        if ($company === null) {
             $company = $this->createCompany($user);
         }
 
@@ -118,6 +111,49 @@ class CreateUserAction
         );
 
         // This is the second time that we need get user data without an exception.
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+    }
+
+    protected function validateNames(): void
+    {
+        $validator = Validator::make(
+            [
+                'firstname' => $this->data->firstname,
+                'lastname' => $this->data->lastname,
+            ],
+            [
+                'firstname' => 'required|different:lastname',
+                'lastname' => 'required|different:firstname',
+            ],
+            [
+                'firstname.different' => 'Registration information appears to be invalid.',
+                'lastname.different' => 'Registration information appears to be invalid.',
+            ]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+    }
+
+    protected function validatePhoneNumber(): void
+    {
+        $totalDigits = $this->app->get('register_user_phone_number_digits') ?? 10;
+
+        $validator = Validator::make(
+            [
+                'phone_number' => $this->data->phone_number,
+            ],
+            [
+                'phone_number' => ['nullable', 'numeric', 'digits_between:1,' . $totalDigits],
+            ],
+            [
+                'phone_number.digits_between' => 'Invalid phone number.',
+            ]
+        );
+
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
@@ -243,5 +279,10 @@ class CreateUserAction
     public function disableWorkflow(): void
     {
         $this->runWorkflow = false;
+    }
+
+    public function enableExtraValidation(): void
+    {
+        $this->extraValidation = true;
     }
 }

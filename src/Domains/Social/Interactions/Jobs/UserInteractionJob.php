@@ -48,7 +48,7 @@ class UserInteractionJob implements ShouldQueue
         if ($this->entity instanceof $this->app) {
             $pageNumber = 1; // Replace with the page number you want (starting from 1)
             $userMessages = UserMessage::getFirstMessageFromPage($this->user, $this->app, $pageNumber);
-            $this->entity = $userMessages ? $userMessages->message : $this->entity;
+            $this->entity = $userMessages && $userMessages->message !== null ? $userMessages->message : $this->entity;
         }
 
         $interaction = (new CreateInteraction(
@@ -74,8 +74,13 @@ class UserInteractionJob implements ShouldQueue
         );
 
         //generate ser feed
-        $generateUserFeed = $this->app->get('social-generate-user-feed-after-interaction') ?? true;
-        if ($generateUserFeed) {
+        //$this->generateForYouFeed();
+    }
+
+    protected function generateForYouFeed(): void
+    {
+        $generateUserFeed = $this->app->get('social-generate-user-feed-after-interaction') ?? false;
+        if ((bool) $generateUserFeed) {
             GenerateUserMessageJob::dispatch(
                 $this->app,
                 $this->user->getCurrentCompany(),

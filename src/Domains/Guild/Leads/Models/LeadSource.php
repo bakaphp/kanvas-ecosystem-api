@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Models\BaseModel;
 
@@ -11,6 +12,7 @@ use Kanvas\Guild\Models\BaseModel;
  * Class LeadSource.
  *
  * @property int $id
+ * @property string $uuid
  * @property int $apps_id
  * @property int $companies_id
  * @property string $name
@@ -23,6 +25,8 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class LeadSource extends BaseModel
 {
+    use UuidTrait;
+
     protected $table = 'leads_sources';
     protected $guarded = [];
 

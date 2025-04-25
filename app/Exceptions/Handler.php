@@ -44,7 +44,6 @@ class Handler extends ExceptionHandler
     /**
      * Render an exception into an HTTP response.
      *
-     * @param mixed $request
      */
     public function render($request, Throwable $exception): JsonResponse
     {
@@ -53,7 +52,6 @@ class Handler extends ExceptionHandler
                 'message' => 'A server error has occurred. We are looking into it',
             ], 503);
         }
-
         return parent::render($request, $exception);
     }
 

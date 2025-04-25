@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Inventory\Products\Models\Products;
 
 class SystemModuleSeeder extends Seeder
 {
@@ -208,6 +209,24 @@ class SystemModuleSeeder extends Seeder
                 'show' => '0',
                 'use_elastic' => '0',
                 'browse_fields' => '[{"name":"name","title":"Name","sortField":"name","filterable":true,"searchable":true},{"name":"email","title":"Email","sortField":"email","filterable":true,"searchable":true},{"name":"phone","title":"Phone","sortField":"phone","filterable":true,"searchable":true},{"name":"status","title":"Status","sortField":"status","filterable":true,"searchable":true},{"name":"created_at","title":"Created At","sortField":"created_at","filterable":true,"searchable":true}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0',
+            ],
+            [
+                'name' => Products::class,
+                'slug' => 'products',
+                'model_name' => Products::class,
+                'uuid' => (string) Str::uuid(),
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '0',
+                'use_elastic' => '0',
+                'browse_fields' => '[]',
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => null,
                 'is_deleted' => '0',

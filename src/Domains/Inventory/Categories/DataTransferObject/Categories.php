@@ -24,7 +24,7 @@ class Categories extends Data
         public CompanyInterface $company,
         public UserInterface $user,
         public string $name,
-        public int $parent_id = 0,
+        public ?int $parent_id = null,
         public int|string $position = 0,
         public bool $is_published = true,
         public int $weight = 0,
@@ -36,9 +36,6 @@ class Categories extends Data
     /**
      * fromArray.
      *
-     * @param  array $request
-     *
-     * @return self
      */
     public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {
@@ -47,7 +44,7 @@ class Categories extends Data
             isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
             $user,
             $request['name'],
-            $request['parent_id'] ?? 0,
+            $request['parent_id'] ?? null,
             $request['position'] ?? 0,
             $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
             $request['weight'] ?? 0,

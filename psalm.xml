@@ -32,7 +32,17 @@
         <InternalMethod errorLevel="info" />
         <InternalProperty errorLevel="info" />
         <InternalClass errorLevel="info" />
-
+        <RiskyCast errorLevel="suppress" />
+        <MixedMethodCall errorLevel="suppress" />
+        <MixedArgument errorLevel="suppress" />
+        <MixedPropertyFetch errorLevel="suppress" />
+        <UndefinedMagicMethod errorLevel="suppress" />
+        <UndefinedThisPropertyFetch errorLevel="suppress" />
+        <MixedReturnStatement errorLevel="suppress" />
+        <UndefinedMagicPropertyFetch errorLevel="suppress" />
+        <MixedAssignment errorLevel="suppress" />
+        <InvalidArrayOffset errorLevel="suppress" />
+        <MixedArrayOffset errorLevel="suppress" />
         <MissingClosureReturnType errorLevel="info" />
         <MissingReturnType errorLevel="info" />
         <MissingPropertyType errorLevel="info" />

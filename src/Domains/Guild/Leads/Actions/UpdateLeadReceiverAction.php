@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Actions;
 
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
-use Kanvas\Guild\Leads\DataTransferObject\LeadsReceiver;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver as ModelsLeadReceiver;
 
 class UpdateLeadReceiverAction
@@ -31,7 +29,7 @@ class UpdateLeadReceiverAction
             'source_name' => $this->leadReceiverDto->source,
             'leads_sources_id' => $this->leadReceiverDto->lead_sources_id,
             'lead_types_id' => $this->leadReceiverDto->lead_types_id,
-            'template' => $this->leadReceiver->template,
+            'template' => $this->leadReceiverDto->template,
         ]);
         return $this->leadReceiver;
     }

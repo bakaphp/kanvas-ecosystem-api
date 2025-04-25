@@ -51,6 +51,7 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 use Kanvas\Users\Observers\UsersAssociatedCompaniesObserver;
 use Kanvas\Users\Observers\UsersObserver;
+use Override;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -70,6 +71,7 @@ class EventServiceProvider extends ServiceProvider
      *
      * @return void
      */
+    #[Override]
     public function boot()
     {
         Users::observe(UsersObserver::class);
@@ -84,11 +86,11 @@ class EventServiceProvider extends ServiceProvider
         Status::observe(StatusObserver::class);
         VariantsWarehouses::observe(VariantsWarehouseObserver::class);
         Channels::observe(ChannelObserver::class);
-        Products::observe(ProductsObserver::class);
+        #Products::observe(ProductsObserver::class);
         ProductsTypes::observe(ProductsTypesObserver::class);
-        Variants::observe(VariantObserver::class);
+        #Variants::observe(VariantObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
-        Attributes::observe(AttributeObserver::class);
+        #Attributes::observe(AttributeObserver::class);
         #UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
         #UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
         ProductsCategories::observe(ProductsCategoriesObserver::class);
@@ -101,6 +103,7 @@ class EventServiceProvider extends ServiceProvider
      *
      * @return bool
      */
+    #[Override]
     public function shouldDiscoverEvents()
     {
         return true;

@@ -5,18 +5,23 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Traits;
 
 use Baka\Enums\StateEnums;
+use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Http\Testing\File;
+use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use RuntimeException;
 
@@ -40,7 +45,7 @@ trait HasFilesystemTrait
      *
      * @throws Exception
      */
-    public function addFileFromUrl(string $url, string $fieldName): bool
+    public function addFileFromUrl(string $url, string $fieldName, ?Apps $app = null): bool
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
@@ -59,7 +64,7 @@ trait HasFilesystemTrait
 
             $extension = $fileInfo['extension'] ?? 'unknown';
             $fileSystem->companies_id = $companyId;
-            $fileSystem->apps_id = app(Apps::class)->getId();
+            $fileSystem->apps_id = $app ? $app->getId() : app(Apps::class)->getId();
             $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
             $fileSystem->path = $fileInfo['dirname'] . '/' . $fileInfo['basename'];
             $fileSystem->url = $url;
@@ -76,18 +81,34 @@ trait HasFilesystemTrait
 
     public function addMultipleFilesFromUrl(array $files): bool
     {
+        $filesystem = new FilesystemServices($this->app ?? app(Apps::class));
+
         foreach ($files as $file) {
             if (! isset($file['url']) || ! isset($file['name'])) {
                 throw new ValidationException('Missing url || name index');
             }
 
-            $this->addFileFromUrl($file['url'], $file['name']);
+            if (isset($file['file']) && $file['file'] instanceof UploadedFile) {
+                // Validate file extension
+                if (! in_array($file['file']->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
+                    throw new Exception('Invalid file format ' . $file->extension());
+                }
+
+                // Attach file to the entity
+                $action = new AttachFilesystemAction(
+                    $filesystem->upload($file['file'], $this->user),
+                    $this
+                );
+                $action->execute($file['file']->getClientOriginalName());
+            } else {
+                $this->addFileFromUrl($file['url'], $file['name']);
+            }
         }
 
         return true;
     }
 
-    public function overWriteFiles(array $files): bool
+    public function overWriteFiles(array $files, ?Apps $app = null): bool
     {
         $existingFiles = $this->getFiles();
         $newFiles = collect($files);
@@ -104,7 +125,7 @@ trait HasFilesystemTrait
 
         // Add or update new files
         foreach ($newFiles as $file) {
-            $this->addFileFromUrl($file['url'], $file['name']);
+            $this->addFileFromUrl($file['url'], $file['name'], $app);
         }
 
         return true;

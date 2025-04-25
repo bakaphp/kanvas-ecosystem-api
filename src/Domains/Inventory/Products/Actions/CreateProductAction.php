@@ -59,7 +59,7 @@ class CreateProductAction
                 'users_id' => $this->user->getId(),
                 'is_published' => $this->productDto->is_published,
                 'published_at' => Carbon::now(),
-                'weight' => $this->productDto->weight,
+                'weight' => $this->productDto->weight ?? 0,
             ];
 
             if ($productType == null) {
@@ -102,7 +102,12 @@ class CreateProductAction
 
             throw $e;
         }
-        $products->searchable();
+
+        if ($products->isPublished()) {
+            $products->searchable();
+        } else {
+            $products->unsearchable();
+        }
 
         if ($this->runWorkflow) {
             $products->fireWorkflow(

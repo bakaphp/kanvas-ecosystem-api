@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Kanvas\Languages\Models\Languages;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
@@ -124,6 +125,65 @@ class ProductsTest extends TestCase
         );
         $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
         // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
+    }
+
+    public function testFilterByNearByLocation(): void
+    {
+        $sku = fake()->time;
+        $data = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => $sku,
+            'attributes' => [
+                [
+                    'name' => 'coordinates',
+                    'value' => [
+                        "lat" => 18.463449,
+                        "long" => -66.117866
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->createProduct($data);
+        unset($data['id']);
+        unset($data['sku']);
+
+        $location = [
+            'lat' => 18.500000,
+            'long' => -66.150000,
+        ];
+        $response = $this->graphQL(
+            "
+            query {
+                products(
+                   nearByLocation: { lat: {$location['lat']}, long: {$location['long']}, radius: 1 }
+                ) {
+                    data {
+                        name
+                        description
+                    }
+                }
+            }"
+        );
+
+        // assert that there's no product is near by location
+        $this->assertEmpty($response->json()['data']['products']['data']);
+
+        $response = $this->graphQL(
+            "query {
+                products(
+                   nearByLocation: { lat: {$location['lat']}, long: {$location['long']}, radius: 5.62 }
+                ) {
+                    data {
+                        name
+                        description
+                    }
+                }
+            }"
+        );
+        // assert that there's one product is near by location
+        $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
     }
     /**
      * test get product.
@@ -309,5 +369,48 @@ class ProductsTest extends TestCase
 
         $this->assertArrayHasKey('errors', $deleteResponse->json());
         $this->assertNull($deleteResponse->json()['data']['deleteVariant']);
+    }
+
+    /**
+     * test update product.
+     */
+    public function testUpdateProductTranslate(): void
+    {
+        $response = $this->createProduct();
+
+        $this->assertArrayHasKey('id', $response['data']['createProduct']);
+        $language = Languages::first();
+        $id = $response->json()['data']['createProduct']['id'];
+
+        $dataUpdate = [
+            'name' => fake()->name . ' en',
+            'description' => fake()->text . ' en'
+        ];
+        $response = $this->graphQL('
+            mutation($dataUpdate: ProductTranslationInput!, $id: ID!, $code: String!) {
+                updateProductTranslations(input: $dataUpdate, id: $id, code: $code)
+                {
+                    id,
+                    name,
+                    description,
+                    translation(languageCode: $code){
+                        name
+                        description
+                        language{
+                            code
+                            language
+                        }
+                    }
+                }
+            }', [
+            'dataUpdate' => $dataUpdate,
+            'id' => $id,
+            'code' => $language->code
+        ]);
+
+        $this->assertEquals(
+            $dataUpdate['name'],
+            $response['data']['updateProductTranslations']['translation']['name']
+        );
     }
 }

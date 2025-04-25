@@ -6,12 +6,11 @@ namespace Kanvas\Connectors\Shopify;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Users\Models\UserCompanyApps;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use PHPShopify\ShopifySDK;
 
 /**
@@ -117,6 +116,14 @@ final class Client
             );
         }
 
+        if ((bool) $app->get('shopify-use-access-token') === true) {
+            return (new ShopifySDK())->config([
+                'ShopUrl' => $shopUrl,
+                'ApiKey' => $clientKey,
+                'AccessToken' => $clientSecret,
+            ]);
+        }
+
         return (new ShopifySDK())->config([
             'ShopUrl' => $shopUrl,
             'ApiKey' => $clientKey,
@@ -127,16 +134,7 @@ final class Client
 
     private static function resolveCompany(AppInterface $app, CompanyInterface $company): CompanyInterface
     {
-        if (! $app->get('USE_B2B_COMPANY_GROUP')) {
-            return $company;
-        }
-
-        $globalCompanyId = $app->get('B2B_GLOBAL_COMPANY');
-        $hasGlobalCompany = UserCompanyApps::where('companies_id', $globalCompanyId)
-            ->where('apps_id', $app->getId())
-            ->first();
-
-        return $hasGlobalCompany ? Companies::getById($globalCompanyId) : $company;
+        return B2BConfigurationService::getConfiguredB2BCompany($app, $company);
     }
 
     private static function cleanupOldInstances(): void

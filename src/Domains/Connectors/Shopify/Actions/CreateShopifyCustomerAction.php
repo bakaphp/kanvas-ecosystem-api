@@ -97,7 +97,7 @@ class CreateShopifyCustomerAction
             'address2' => $address->address_2,
             'city' => $address->city,
             'province' => $address->state,
-            'country' => $address->country ?? 'US',
+            'country' => $address->country?->name ?? '',
             'zip' => $address->zip,
             //'phone' => $this->people->phone,
         ]];

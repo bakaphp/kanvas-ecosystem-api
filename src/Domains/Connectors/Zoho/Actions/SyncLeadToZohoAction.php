@@ -153,7 +153,7 @@ class SyncLeadToZohoAction
                 $zohoData['Sponsor'] = (string) $agent->Sponsor;
             }
 
-            if ($agentInfo) {
+            if ($agentInfo !== null && $agentInfo->users_id > 0) {
                 $lead->users_id = $agentInfo->users_id;
                 $lead->saveOrFail();
             }

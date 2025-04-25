@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
@@ -23,7 +24,6 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
-use Illuminate\Database\Eloquent\Collection;
 
 class MessageManagementMutation
 {
@@ -64,7 +64,13 @@ class MessageManagementMutation
         }
 
         $systemModuleId = $messageData['system_modules_id'] ?? null;
-        $systemModule = $systemModuleId ? SystemModules::getById((int)$systemModuleId, $app) : null;
+
+        if (Str::isUuid($systemModuleId)) {
+            $systemModule = SystemModules::getByUuid($systemModuleId, $app);
+        } else {
+            $systemModule = $systemModuleId ? SystemModules::getById((int)$systemModuleId, $app) : null;
+        }
+
         $messageData['ip_address'] = request()->ip();
         $data = MessageInput::fromArray(
             $messageData,
@@ -80,6 +86,15 @@ class MessageManagementMutation
             $messageData['entity_id'] ?? null
         );
         $message = $action->execute();
+
+        if (! empty($data->files)) {
+            $this->handleFileUpload(
+                model: $message,
+                app: $app,
+                user: $user,
+                files: $data->files
+            );
+        }
 
         if (! key_exists('distribution', $messageData)) {
             return $message;

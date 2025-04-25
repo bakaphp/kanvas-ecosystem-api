@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Bouncer;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
+use Kanvas\AccessControlList\Actions\BulkAllowRoleToPermissionAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -147,22 +148,28 @@ class RolesManagementMutation
     public function createRole(mixed $rootValue, array $request): SilberRole
     {
         $user = auth()->user();
-
+        $input = $request['input'];
         if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not allowed to perform this action');
         }
 
-        if (RolesEnums::isEnumValue($request['name'])) {
+        if (RolesEnums::isEnumValue($input['name'])) {
             throw new ValidationException('You are not allowed to create system roles');
         }
 
         $role = new CreateRoleAction(
-            $request['name'],
-            $request['title'] ?? null
+            $input['name'],
+            $input['title'] ?? null
         );
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
-
+        $permissions = $input['permissions'];
+        (new BulkAllowRoleToPermissionAction(
+            app(Apps::class),
+            $role,
+            $permissions,
+            key_exists('template_id', $input) ? SilberRole::find($input['template_id']) : null
+        ))->execute();
         return KanvasRole::find($role->id);
     }
 
@@ -176,14 +183,23 @@ class RolesManagementMutation
         if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not allowed to perform this action');
         }
+        $input = $request['input'];
 
         $role = new UpdateRoleAction(
             (int) $request['id'],
-            $request['name'] ?? null,
-            $request['title'] ?? null
+            $input['name'] ?? null,
+            $input['title'] ?? null
         );
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
+        Bouncer::disallow($role)->to($role->abilities->pluck('name')->toArray());
+        $permissions = $input['permissions'];
+
+        (new BulkAllowRoleToPermissionAction(
+            app(Apps::class),
+            $role,
+            $permissions
+        ))->execute();
 
         return KanvasRole::find($role->id);
     }

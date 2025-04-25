@@ -8,13 +8,9 @@ use Baka\Support\Str;
 use GuzzleHttp\Client;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Regions\Models\Regions as KanvasRegions;
 
 class InventoryDevToProdExportCommand extends Command
 {
@@ -40,7 +36,6 @@ class InventoryDevToProdExportCommand extends Command
     /**
      * Execute the console command.
      *
-     * @return mixed
      */
     public function handle()
     {

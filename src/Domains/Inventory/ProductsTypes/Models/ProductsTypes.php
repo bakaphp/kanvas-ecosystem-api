@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\ProductsTypes\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
@@ -16,8 +17,8 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
 use Kanvas\Inventory\Products\Models\Products;
-use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
+use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 
 /**
  * Class ProductsTypes.
@@ -39,9 +40,11 @@ class ProductsTypes extends BaseModel
     use ScopesTrait;
     use DatabaseSearchableTrait;
     use CascadeSoftDeletes;
+    use HasTranslationsDefaultFallback;
 
     protected $table = 'products_types';
     protected $guarded = [];
+    public $translatable = ['name', 'description'];
 
     /**
      * Get the user that owns the ProductsTypes.
@@ -71,7 +74,7 @@ class ProductsTypes extends BaseModel
             ProductsTypesAttributes::class,
             'products_types_id',
             'attributes_id'
-        );
+        )->withPivot('is_required');
     }
 
     /**
@@ -105,10 +108,15 @@ class ProductsTypes extends BaseModel
      */
     public function getProductsAttributes(): Collection
     {
-        return $this->attributes()
+        $attribute = $this->attributes()
                             ->where('to_variant', 0)
                             ->where('products_types_attributes.is_deleted', 0)
-                            ->get();
+                            ->get()
+                            ->map(function ($attribute) {
+                                $attribute->is_required = $attribute->pivot->is_required ?? false;
+                                return $attribute;
+                            });
+        return $attribute;
     }
 
     /**

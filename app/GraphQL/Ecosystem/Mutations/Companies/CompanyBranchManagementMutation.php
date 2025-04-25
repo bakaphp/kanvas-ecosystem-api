@@ -29,7 +29,6 @@ class CompanyBranchManagementMutation
     /**
      * createCompaniesBranch
      *
-     * @param  array $req
      */
     public function createCompaniesBranch(mixed $root, array $request): CompaniesBranches
     {
@@ -43,7 +42,6 @@ class CompanyBranchManagementMutation
     /**
      * updateCompanyBranch
      *
-     * @param  array $req
      */
     public function updateCompanyBranch(mixed $root, array $request): CompaniesBranches
     {
@@ -59,7 +57,7 @@ class CompanyBranchManagementMutation
         $user = auth()->user();
         $companyBranch = CompaniesBranches::getById((int) $request['id']);
 
-        $company = $companyBranch->company()->first();
+        $company = $companyBranch->company;
 
         CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $user);
 
@@ -77,7 +75,7 @@ class CompanyBranchManagementMutation
         $user = auth()->user();
         $companyBranch = CompaniesBranches::getById((int) $request['id']);
 
-        $company = $companyBranch->company()->first();
+        $company = $companyBranch->company;
 
         CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $user);
 
@@ -116,7 +114,7 @@ class CompanyBranchManagementMutation
     {
         $user = Users::getById($request['user_id']);
         $branch = CompaniesBranches::getById($request['id']);
-        $company = $branch->company()->get()->first();
+        $company = $branch->company;
 
         CompaniesRepository::userAssociatedToCompany(
             $company,
@@ -137,14 +135,13 @@ class CompanyBranchManagementMutation
     /**
      * remove user from branch.
      *
-     * @param  mixed $rootValue
      * @todo We need to REMOVE the branch key from cache.
      */
     public function removeUserFromBranch($rootValue, array $request): bool
     {
         $user = Users::getById($request['user_id']);
         $branch = CompaniesBranches::getById($request['id']);
-        $company = $branch->company()->get()->first();
+        $company = $branch->company;
 
         if ($company->users_id == $user->getId()) {
             throw new AuthenticationException('You can not remove yourself from the company');

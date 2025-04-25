@@ -82,6 +82,22 @@ class NetSuiteProductService
         throw new Exception('Price not found for the specified criteria.');
     }
 
+    public function getCustomField(InventoryItem $product, string $customFieldScriptId): string
+    {
+        if (! isset($product->customFieldList)) {
+            return '';
+        }
+
+        foreach ($product->customFieldList->customField as $customField) {
+            $scriptId = $customField->scriptId ?? null;
+            if ($scriptId === $customFieldScriptId) {
+                return (string) $customField->value ?? '';
+            }
+        }
+
+        return '';
+    }
+
     /**
      * Search for products by item name.
      */
@@ -157,5 +173,19 @@ class NetSuiteProductService
         }
 
         return $products;
+    }
+
+    public function pullNetsuiteProductsSku(array $barcodeList): array
+    {
+        $productSkus = [];
+
+        foreach ($barcodeList as $index => $barcode) {
+            $product = $this->searchProductByItemNumber($barcode);
+            $product = $this->getProductById($product[0]->internalId);
+            $productSkus[$barcode] = $this->getCustomField($product, "custitem5");
+            echo 'Product ' . $index . ' of ' . count($barcodeList) . ' processed';
+            echo PHP_EOL;
+        }
+        return $productSkus;
     }
 }

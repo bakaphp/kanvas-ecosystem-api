@@ -15,8 +15,6 @@ class SetNotificationSettingAction
     /**
      * __construct.
      *
-     * @param  array $data
-     *
      * @return void
      */
     public function __construct(

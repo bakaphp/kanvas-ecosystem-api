@@ -6,7 +6,6 @@ namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
-use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Apps\Models\Apps;
@@ -21,12 +20,12 @@ use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class AuthManagementMutation
@@ -35,7 +34,6 @@ class AuthManagementMutation
     use AuthTrait;
 
     /**
-     * @param array $args
      *
      * @throws \Exception
      */
@@ -99,7 +97,6 @@ class AuthManagementMutation
     }
 
     /**
-     * @param array $args
      *
      * @throws \Exception
      */
@@ -126,6 +123,7 @@ class AuthManagementMutation
         $branch = AuthenticationService::getAppDefaultAssignCompanyBranch($app);
         $data = RegisterInput::fromArray($request['data'], $branch);
         $user = new RegisterUsersAction($data, $app);
+        $user->enableExtraValidation();
         $request = request();
 
         $registeredUser = $user->execute();
@@ -180,7 +178,6 @@ class AuthManagementMutation
     }
 
     /**
-     * @param array $args
      *
      * @throws \Exception
      */
@@ -191,18 +188,20 @@ class AuthManagementMutation
         ?ResolveInfo $resolveInfo = null
     ): bool {
         $user = new ForgotPasswordService();
+        $app = app(Apps::class);
+        $companyBranch = AuthenticationService::getAppDefaultAssignCompanyBranch($app) ?? app(CompaniesBranches::class);
 
         $registeredUser = $user->forgot($request['data']['email']);
         $tokenResponse = $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
-
         $request = request();
 
         $registeredUser->fireWorkflow(
             WorkflowEnum::REQUEST_FORGOT_PASSWORD->value,
             true,
             [
-                'app' => app(Apps::class),
+                'app' => $app,
                 'profile' => $user,
+                'company' => $companyBranch?->company,
             ]
         );
 

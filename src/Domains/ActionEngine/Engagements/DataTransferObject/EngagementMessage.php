@@ -27,6 +27,13 @@ class EngagementMessage extends Data
         public readonly ?string $hashtagVisited = null,
         public readonly ?string $userUuid = null,
         public readonly ?string $contactUuid = null,
+        #[MapOutputName('checkListId')]
+        public readonly int|string|null $checkListId = 0,
+        #[MapOutputName('preFill')]
+        public readonly ?array $preFill = [],
+        public readonly ?string $via = null,
+        public readonly ?array $product_id = null,
+        public readonly ?string $channel_id = null,
     ) {
     }
 }

@@ -8,9 +8,11 @@ use Kanvas\Connectors\Shopify\Services\ShopifyOrderService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $integrationCompanyId = $this->receiver->configuration['integration_company_id'];
@@ -36,10 +38,11 @@ class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $note = is_array($note) ? json_encode($note) : $note;
+        $notesAttributes = is_array($note) ? $note : [];
+        $note = ! is_array($note) ? $note : '';
         $orderId = $this->extractShopifyId($orderId);
 
-        $order = $shopifyOrderService->addNoteToOrder($orderId, $note);
+        $order = $shopifyOrderService->addNoteToOrder($orderId, $note, $notesAttributes);
 
         return [
             'message' => 'Note added to order ' . $orderId,

@@ -142,7 +142,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     /**
      * Get the mail representation of the notification.
      *
-     * @param  mixed  $notifiable
      */
     public function toMail($notifiable): Mailable
     {
@@ -154,6 +153,12 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $fromName = $fromMail['name'];
 
         $toEmail = $notifiable instanceof AnonymousNotifiable ? $notifiable->routes['mail'] : $notifiable->email;
+
+        if (method_exists($notifiable, 'getAlternativeEmail') && ! empty($notifiable->getAlternativeEmail())) {
+            $alternativeEmail = $notifiable->getAlternativeEmail();
+            $toEmail = [$toEmail, $alternativeEmail];
+        }
+
         $mailMessage = (new KanvasMailable($mailConfig, $this->getEmailContent()))
                 ->from($fromEmail, $fromName)
                 ->to($toEmail);

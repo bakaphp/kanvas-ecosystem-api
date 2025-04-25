@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Kanvas\Languages\Models\Languages;
 use Tests\TestCase;
 
 class AttributesTest extends TestCase
@@ -11,7 +12,6 @@ class AttributesTest extends TestCase
     /**
      * testCreate.
      *
-     * @return void
      */
     public function testCreate(): void
     {
@@ -23,7 +23,6 @@ class AttributesTest extends TestCase
     /**
      * testSearch.
      *
-     * @return void
      */
     public function testSearch(): void
     {
@@ -49,7 +48,6 @@ class AttributesTest extends TestCase
     /**
      * testUpdate.
      *
-     * @return void
      */
     public function testUpdate(): void
     {
@@ -74,10 +72,45 @@ class AttributesTest extends TestCase
         );
     }
 
+    public function testUpdateTranslation(): void
+    {
+        $response = $this->createAttribute();
+        $language = Languages::first();
+        $id = $response['data']['createAttribute']['id'];
+
+        $dataUpdate = [
+            'name' => fake()->name . " es"
+        ];
+
+        $response = $this->graphQL('
+            mutation($dataUpdate: AttributeTranslationInput! $id: ID!, $code: String!) {
+                updateAttributeTranslations(id: $id, input: $dataUpdate, code: $code)
+                {
+                    id
+                    name
+                    translation(languageCode: $code){
+                        name
+                        language{
+                            code
+                            language
+                        }
+                    }
+                }
+            }', [
+                'dataUpdate' => $dataUpdate,
+                'id' => $id,
+                'code' => $language->code
+            ]);
+
+        $this->assertEquals(
+            $dataUpdate['name'],
+            $response['data']['updateAttributeTranslations']['translation']['name']
+        );
+    }
+
     /**
      * testDelete.
      *
-     * @return void
      */
     public function testDelete(): void
     {
@@ -95,7 +128,6 @@ class AttributesTest extends TestCase
     /**
      * testCreateDuplicatedSlug.
      *
-     * @return void
      */
     public function testCreateDuplicatedSlug(): void
     {
@@ -115,7 +147,6 @@ class AttributesTest extends TestCase
     /**
      * testUpdateDuplicatedSlug.
      *
-     * @return void
      */
     public function testUpdateDuplicatedSlug(): void
     {
@@ -149,9 +180,6 @@ class AttributesTest extends TestCase
     /**
      * Helper function createAttribute.
      *
-     * @param string|null $slug
-     *
-     * @return array
      */
     private function createAttribute(?string $slug = null): array
     {

@@ -11,7 +11,6 @@ class DashboardQuery
     /**
      * Get user from the current company.
      *
-     * @param mixed $rootValue
      */
     public function getDashboard($rootValue, array $request): array
     {

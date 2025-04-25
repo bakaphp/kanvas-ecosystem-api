@@ -16,6 +16,7 @@ type IntegrationsCompanies {
     integration: Integrations
     status: Status
     region: Region
+    is_active: Boolean!
     updated_at: DateTime
 }
 
@@ -45,6 +46,9 @@ type WorkflowIntegrationsHistory {
     response: Mixed
     exception: Mixed
     trigger: String
+        @method(
+            name: "getTrigger"
+        )
     created_at: DateTime
 }
 
@@ -58,6 +62,11 @@ input IntegrationsCompaniesInput {
 input IntegrationsReferenceInput {
     id: ID!
     name: String
+}
+
+input IntegrationCompanyActive {
+    id: ID!
+    is_active: Boolean!
 }
 
 extend type Mutation @guard {
@@ -74,6 +83,14 @@ extend type Mutation @guard {
     removeIntegrationCompany(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@removeIntegrationCompany"
+        )
+    integrationCompanyIsActive(input: IntegrationCompanyActive!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@integrationCompanyIsActive"
+        )
+    integrationWorkflowRetry(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@integrationWorkflowRetry"
         )
 }
 
@@ -116,22 +133,17 @@ extend type Query @guard {
         )
     workflowIntegrationsHistory(
         where: _
-            @whereConditions(
-                columnsEnum: WorkFlowIntegrationsHistoryEnumColumn
-            )
+            @whereConditions(columnsEnum: WorkFlowIntegrationsHistoryEnumColumn)
         hasRegion: _
             @whereHasConditions(
-                columns: [
-                    "id",
-                    "name"
-                ]
+                columns: ["id", "name"]
                 handler: "App\\GraphQL\\Workflow\\Builders\\Integrations\\IntegrationsBuilder@getHasRegion"
             )
         orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
     ): [WorkflowIntegrationsHistory!]!
         @paginate(
             model: "Kanvas\\Workflow\\Integrations\\Models\\EntityIntegrationHistory"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "notDeleted", "fromCompany"]
             defaultCount: 25
         )
 }

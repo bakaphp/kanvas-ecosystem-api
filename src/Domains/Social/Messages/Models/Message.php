@@ -6,13 +6,14 @@ namespace Kanvas\Social\Messages\Models;
 
 use Baka\Casts\Json;
 use Baka\Support\Str;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Exception;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -38,8 +39,9 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
+use Override;
+use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  *  Class Message
@@ -58,6 +60,7 @@ use Nevadskiy\Tree\AsTree;
  *  @property int $total_disliked
  *  @property int $total_view
  *  @property int $is_public
+ *  @property int $is_premium
  *  @property int $total_children
  *  @property int $total_saved
  *  @property int $total_shared
@@ -68,7 +71,7 @@ use Nevadskiy\Tree\AsTree;
 class Message extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    use DynamicSearchableTrait;
     use HasFactory;
     use HasTagsTrait;
     use CascadeSoftDeletes;
@@ -77,10 +80,13 @@ class Message extends BaseModel
     use AsTree;
     use CanUseWorkflow;
     use HasLightHouseCache;
-    //use Cachable;
     use HasFilesystemTrait;
+    use QueryCacheable;
 
     protected $table = 'messages';
+    public $cacheFor = null;
+    public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
 
     protected $guarded = [
         'uuid',
@@ -88,8 +94,12 @@ class Message extends BaseModel
 
     protected $casts = [
         'message' => Json::class,
+        'message_types_id' => 'integer',
+        'is_public' => 'integer',
+        'is_deleted' => 'boolean',
     ];
 
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'Message';
@@ -148,7 +158,6 @@ class Message extends BaseModel
             return json_decode($value, true);
         }
 
-        // If all attempts fail, return original value
         return is_array($value) ? $value : [];
     }
 
@@ -163,6 +172,7 @@ class Message extends BaseModel
         return $legacyClassMap::getById($this->appModuleMessage->entity_id);
     }
 
+    #[Override]
     public function user(): BelongsTo
     {
         return $this->belongsTo(
@@ -214,15 +224,25 @@ class Message extends BaseModel
         return config('scout.prefix') . ($customIndex ?? 'message_index');
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
-        if ($this->isDeleted()) {
+        if ($this->isDeleted() || ! $this->isPublic()) {
+            return false;
+        }
+
+        if ($this->app->get('message_disable_searchable')) {
             return false;
         }
 
         $filterByMessageType = $this->app->get('index_message_by_type');
 
         return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
+    }
+
+    public function isPublic(): bool
+    {
+        return (bool) $this->is_public;
     }
 
     public function setPublic(): void
@@ -283,5 +303,207 @@ class Message extends BaseModel
         }
 
         return (bool)$this->is_locked;
+    }
+
+    public function getUniqueId(): string
+    {
+        return (string) $this->verb . '-' . (string) $this->visitor_id;
+    }
+
+    public static function getUserMessageCountInTimeFrame(
+        int $userId,
+        Apps $app,
+        int $hours,
+        ?int $messageTypesId = null,
+        bool $getChildrenCount = false
+    ): int {
+        return self::fromApp($app)
+        ->where('users_id', $userId)
+        ->when($messageTypesId, fn ($query) => $query->where('message_types_id', $messageTypesId))
+        ->where('created_at', '>=', Carbon::now()->subHours($hours))
+        ->when($getChildrenCount, fn ($query) => $query->whereNotNull('parent_id'), fn ($query) => $query->whereNull('parent_id'))
+        ->count();
+    }
+
+    /**
+     * The Typesense schema to be created for the Message model.
+     */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'parent_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'parent_unique_id',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'users_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'message_types_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'message',
+                    'type' => 'object',
+                ],
+                [
+                    'name' => 'message_text',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'reactions_count',
+                    'type' => 'int64',
+                    'sort' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'comments_count',
+                    'type' => 'int64',
+                    'sort' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'total_liked',
+                    'type' => 'int64',
+                    'sort' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'total_disliked',
+                    'type' => 'int64',
+                    'sort' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'total_view',
+                    'type' => 'int64',
+                    'sort' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'total_children',
+                    'type' => 'int64',
+                    'sort' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'total_saved',
+                    'type' => 'int64',
+                    'sort' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'total_shared',
+                    'type' => 'int64',
+                    'sort' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'is_public',
+                    'type' => 'bool',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'is_premium',
+                    'type' => 'bool',
+                    'facet' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'is_locked',
+                    'type' => 'bool',
+                    'facet' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'ip_address',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'user',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'message_type',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'topics',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'channels',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'files',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'tags',
+                    'type' => 'string[]',
+                    'facet' => true,
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'entity',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'updated_at',
+                    'type' => 'int64',
+                    'sort' => true,
+                    'optional' => true,
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,
+        ];
     }
 }

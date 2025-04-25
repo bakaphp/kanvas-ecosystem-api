@@ -151,7 +151,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $personal = $messageData['personal'];
         $housing = $messageData['housing'];
 
-        $creditScoreService = new CreditScoreService($app);
+        $creditScoreService = new CreditScoreService($app, $lead->company);
         $provider = $params['provider'] ?? 'TU'; // Default to 'TU' if not provided
         $provider = Str::replace(',', '|', trim($provider)); // Replace commas with '|' and trim whitespace
 

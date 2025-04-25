@@ -9,16 +9,14 @@ use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status as StatusDto;
 use Kanvas\Inventory\Status\Models\Status as StatusModel;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
+use Kanvas\Languages\DataTransferObject\Translate;
+use Kanvas\Languages\Services\Translation as TranslationService;
 
 class StatusMutation
 {
     /**
      * create.
      *
-     * @param  mixed $rootValue
-     * @param  array $args
-     *
-     * @return StatusModel
      */
     public function create(mixed $rootValue, array $request): StatusModel
     {
@@ -37,10 +35,6 @@ class StatusMutation
     /**
      * update.
      *
-     * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return StatusModel
      */
     public function update(mixed $rootValue, array $request): StatusModel
     {
@@ -55,10 +49,6 @@ class StatusMutation
     /**
      * delete.
      *
-     * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return bool
      */
     public function delete(mixed $rootValue, array $request): bool
     {
@@ -66,5 +56,24 @@ class StatusMutation
         $status = StatusRepository::getById((int) $id, auth()->user()->getCurrentCompany());
 
         return $status->delete();
+    }
+
+    /**
+     * update.
+     */
+    public function updateStatusTranslation(mixed $root, array $req): StatusModel
+    {
+        $company = auth()->user()->getCurrentCompany();
+
+        $status = StatusRepository::getById((int) $req['id'], $company);
+        $statusTranslateDto = Translate::fromMultiple($req['input'], $company);
+
+        $response = TranslationService::updateTranslation(
+            model: $status,
+            dto: $statusTranslateDto,
+            code: $req['code']
+        );
+
+        return $response;
     }
 }

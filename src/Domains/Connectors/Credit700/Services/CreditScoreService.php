@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Credit700\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
@@ -22,20 +23,23 @@ class CreditScoreService
     protected Client $client;
 
     public function __construct(
-        protected AppInterface $app
+        protected AppInterface $app,
+        protected ?CompanyInterface $company = null
     ) {
-        $this->client = new Client($app);
+        $this->client = new Client($app, $company);
     }
 
     public function getCreditScore(CreditApplicant $creditApplication, UserInterface $userRequestingReport, string $bureau = 'TU'): array
     {
         // $this->app->get(ConfigurationEnum::BUREAU_SETTING->value) ?? 'TU';
+        $appOrCompany = $this->company ?? $this->app;
+
         try {
             $bureau = Str::replace('|', ':', $bureau);
             $bureauTypes = explode(':', $bureau);
             $data = [
-                'ACCOUNT' => $this->app->get(ConfigurationEnum::ACCOUNT->value),
-                'PASSWD' => $this->app->get(ConfigurationEnum::PASSWORD->value),
+                'ACCOUNT' => $appOrCompany->get(ConfigurationEnum::ACCOUNT->value),
+                'PASSWD' => $appOrCompany->get(ConfigurationEnum::PASSWORD->value),
                 'PRODUCT' => 'CREDIT',
                 'BUREAU' => $bureau, // Can be XPN, TU, or EFX
                 'PASS' => '2',

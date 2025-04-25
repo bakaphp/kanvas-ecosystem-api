@@ -6,8 +6,8 @@ namespace Kanvas\AccessControlList\Actions;
 
 use Bouncer;
 use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\AccessControlList\Models\Ability;
 use Kanvas\AccessControlList\Models\AbilitiesModules;
+use Kanvas\AccessControlList\Models\Ability;
 use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -29,10 +29,9 @@ class CreateAbilitiesByModule
         $scope = RolesEnums::getScope($this->app);
         Bouncer::scope()->to($scope);
         Bouncer::useAbilityModel(Ability::class);
-
         foreach (ModulesRepositories::getAbilitiesByModule() as $module => $subModule) {
             foreach ($subModule as $model => $abilities) {
-                $systemModule = SystemModulesRepository::getByModelName($model);
+                $systemModule = SystemModulesRepository::getByModelName($model, $this->app);
                 foreach ($abilities as $ability) {
                     $ability = Bouncer::ability()->firstOrCreate([
                         'name' => $ability,

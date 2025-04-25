@@ -6,6 +6,10 @@ type ProductType {
     description: String
     slug: String!
     weight: Int
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
     companies: Company!
     is_published: Boolean
     total_products: Int! @method(name: "getTotalProducts")
@@ -35,6 +39,7 @@ input ProductTypeUpdateInput {
 input ProductTypeAttributesInput {
     id: ID!
     name: String
+    is_required: Boolean
 }
 
 input ProductTypeAttributesAssignInput {
@@ -51,11 +56,22 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@update"
         )
+    updateProductTypeTranslations(
+        id: ID!
+        input: TranslationInput!
+        code: String!
+    ): ProductType!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@updateProductTypeTranslation"
+        )
     deleteProductType(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@delete"
         )
-    assignProductTypeAttribute(id: ID!, input: ProductTypeAttributesAssignInput): ProductType!
+    assignProductTypeAttribute(
+        id: ID!
+        input: ProductTypeAttributesAssignInput
+    ): ProductType!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@assignAttributes"
         )
@@ -78,13 +94,7 @@ extend type Query {
             )
         orderBy: _
             @orderBy(
-                columns: [
-                    "id"
-                    "created_at"
-                    "name"
-                    "weight"
-                    "is_published"
-                ]
+                columns: ["id", "created_at", "name", "weight", "is_published"]
             )
     ): [ProductType!]!
         @paginate(

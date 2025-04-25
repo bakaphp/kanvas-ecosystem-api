@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Enums;
 
 use Baka\Contracts\EnumsInterface;
+use Override;
 
 enum AppSettingsEnums implements EnumsInterface
 {
@@ -39,10 +40,9 @@ enum AppSettingsEnums implements EnumsInterface
     case NOTIFICATION_FROM_USER_ID;
     case USE_LEGACY_ROLES;
     case DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE;
+    case ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME;
 
-    /**
-     * Get value.
-     */
+    #[Override]
     public function getValue(): mixed
     {
         return match ($this) {
@@ -77,6 +77,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::NOTIFICATION_FROM_USER_ID => 'notification_from_user_id',
             self::USE_LEGACY_ROLES => 'app_use_legacy_roles',
             self::DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE => 'default_filesystem_upload_file_size',
+            self::ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME => 'allow_reset_password_with_displayname',
         };
     }
 }

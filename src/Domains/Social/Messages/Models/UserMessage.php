@@ -13,8 +13,10 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use InvalidArgumentException;
 use Kanvas\Social\Messages\Observers\UserMessageObserver;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 
 /**
  *  Class UserMessage
@@ -62,20 +64,73 @@ class UserMessage extends BaseModel
         return $this->hasMany(UserMessageActivity::class, 'user_messages_id');
     }
 
-    public static function getUserFeed(UserInterface $user, AppInterface $app): EloquentBuilder
+    public static function getForYouFeed(UserInterface $user, AppInterface $app): EloquentBuilder
     {
+        $messageTypeId = $app->get('social-user-message-filter-message-type');
+
         return Message::query()
                 ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
                 ->where('user_messages.users_id', $user->getId())
                 ->where('user_messages.apps_id', $app->getId())
-                ->orderBy('user_messages.created_at', 'desc') //for now always order by created_at in the user feed
+                ->where('messages.is_deleted', 0)
+                ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
+                    return $query->where('messages.message_types_id', $messageTypeId);
+                })
+                ->where('messages.users_id', '<>', $user->getId()) //for now we are not showing liked messages
+                #->where('user_messages.is_liked', 0) //for now we are not showing liked messages
+                ->where('user_messages.is_disliked', 0) //for now we are not showing disliked messages
+                ->where('user_messages.is_reported', 0) //for now we are not showing disliked messages
+                #->where('user_messages.is_shared', 0) //for now we are not showing disliked messages
+                ->where('user_messages.is_deleted', 0) //for now we are not showing saved messages
+                ->orderBy('user_messages.created_at', 'asc') //top recommendation , we are now listing last
                 ->select('messages.*');
     }
 
-    public static function getFirstMessageFromPage(UserInterface $user, AppInterface $app, int $pageNumber, int $limit = 25): ?UserMessage
+    /**
+     * get following feed by full query
+     * @throws InvalidArgumentException
+     */
+    public static function getFollowingFeed(UserInterface $user, AppInterface $app): EloquentBuilder
     {
-        $offset = ($pageNumber - 1) * $limit;
+        $userId = $user->getId();
 
+        return Message::query()
+                ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
+                ->join('users_follows', function ($join) use ($userId) {
+                    $join->on('messages.users_id', '=', 'users_follows.entity_id')
+                        ->where('users_follows.users_id', '=', $userId)
+                        ->where('users_follows.entity_namespace', '=', Users::class);
+                })
+                ->where('messages.is_deleted', 0)
+                ->where('user_messages.is_deleted', 0)
+                ->where('messages.users_id', '<>', $userId)
+                ->select('messages.*');
+    }
+
+    /**
+     * Get following feed base on user tables
+     * @throws InvalidArgumentException
+     */
+    public static function getUserMessageFollowingFeed(UserInterface $user, AppInterface $app): EloquentBuilder
+    {
+        return Message::query()
+            ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
+            ->where('user_messages.users_id', $user->getId())
+            ->where('user_messages.apps_id', $app->getId())
+            ->where('user_messages.is_deleted', 0)
+            ->where('user_messages.is_reported', 0)
+            ->where('messages.is_deleted', 0)
+            ->where('messages.is_public', 1)
+            ->select('messages.*');
+    }
+
+    public static function getFirstMessageFromPage(
+        UserInterface $user,
+        AppInterface $app,
+        int $pageNumber,
+        int $limit = 25
+    ): ?UserMessage {
+        $offset = ($pageNumber - 1) * $limit;
         return self::fromApp($app)
             ->where('users_id', $user->getId())
             ->notDeleted()
