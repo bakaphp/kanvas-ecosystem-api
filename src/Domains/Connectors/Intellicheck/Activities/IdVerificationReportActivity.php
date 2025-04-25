@@ -144,8 +144,9 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         People $people,
         array $verificationData
     ): void {
-        $people->firstname = $verificationData['idcheck']['data']['firstName'] ?? $people->first_name;
-        $people->lastname = $verificationData['idcheck']['data']['lastName'] ?? $people->last_name;
+        $people->firstname = $verificationData['idcheck']['data']['firstName'] ?? $people->firstname;
+        $people->middlename = $verificationData['idcheck']['data']['middleName'] ?? $people->middlename;
+        $people->lastname = $verificationData['idcheck']['data']['lastName'] ?? $people->lastname;
         $people->name = $verificationData['idcheck']['data']['firstName'] . ' ' . $verificationData['idcheck']['data']['lastName'];
         $people->dob = isset($verificationData['idcheck']['data']['dateOfBirth'])
             ? Carbon::createFromFormat('m/d/Y', $verificationData['idcheck']['data']['dateOfBirth'])->format('Y-m-d')
