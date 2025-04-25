@@ -223,7 +223,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         if ($isExpired) {
             $flags[] = 'ID is expired';
             $flagGroups[] = 'ID check flag';
-            $flagNotice = true;
+            $flagNotice = true;  // Ensure expired IDs always trigger a flag status
         }
 
         if (strtolower($idCheck['processResult'] ?? '') === 'documentunknown') {
@@ -339,7 +339,8 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         $flaggedGroups = array_unique($flagGroups);
 
         if (empty($failures)) {
-            if (count($flags) >= 3 || $flagNotice) {
+            // Always make sure expired IDs are flagged
+            if ($isExpired || count($flags) >= 3 || $flagNotice) {
                 // Create message using flag groups
                 $flagReasons = [];
                 foreach ($flaggedGroups as $group) {
@@ -366,7 +367,13 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     }
                 }
 
-                $message = "$name ID Verification needs further investigation due to " . implode(', ', $flagReasons) . '. Proceed with caution.';
+                // If expired ID is the only issue, make sure we mention it explicitly
+                if ($isExpired && empty($flagReasons)) {
+                    $message = "$name ID Verification needs further investigation due to expired ID. Proceed with caution.";
+                } else {
+                    $message = "$name ID Verification needs further investigation due to " . implode(', ', $flagReasons) .
+                        ($isExpired ? ' and expired ID' : '') . '. Proceed with caution.';
+                }
                 $status = 'flag';
             } else {
                 $message = "$name passed the ID Verification.";
@@ -374,9 +381,12 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             }
         } else {
             if ($isExpired) {
-                $message = "$name failed the ID Verification due to expired ID" . (! empty($failedGroups) ? ' and detected fraud from ' . implode(', ', $failedGroups) : '') . '. Proceed with caution.';
+                $message = "$name failed the ID Verification due to expired ID" .
+                    (! empty($failedGroups) ? ' and detected fraud from ' . implode(', ', $failedGroups) : '') .
+                    '. Proceed with caution.';
             } else {
-                $message = "$name failed the ID Verification due to detected fraud from " . implode(', ', $failedGroups) . '. Proceed with caution.';
+                $message = "$name failed the ID Verification due to detected fraud from " .
+                    implode(', ', $failedGroups) . '. Proceed with caution.';
             }
             $status = 'fail';
         }
