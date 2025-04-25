@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -152,5 +153,13 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             ? Carbon::createFromFormat('m/d/Y', $verificationData['idcheck']['data']['dateOfBirth'])->format('Y-m-d')
             : $people->dob;
         $people->saveOrFail();
+
+        $people->addAddress(new Address(
+            address: $verificationData['idcheck']['data']['address1'] ?? '',
+            city: $verificationData['idcheck']['data']['city'] ?? '',
+            state: $verificationData['idcheck']['data']['state'] ?? '',
+            country: $verificationData['idcheck']['data']['country'] ?? 'USA',
+            zip: $verificationData['idcheck']['data']['postalCode'] ?? '',
+        ));
     }
 }
