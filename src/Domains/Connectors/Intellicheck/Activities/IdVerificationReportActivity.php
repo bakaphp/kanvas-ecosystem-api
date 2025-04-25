@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intellicheck\Activities;
 
 use Baka\Contracts\AppInterface;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -75,6 +77,12 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         ],
                     ];
 
+                    $people = $entity instanceof People ? $entity : $entity->people;
+                    //update people name
+                    if ($people instanceof People) {
+                        $this->updatePeopleInformation($people, $verificationData);
+                    }
+
                     $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
                     $notification = new Blank(
                         'id-verification-report',
@@ -130,5 +138,18 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                 'trace' => $e->getTraceAsString(),
             ];
         }
+    }
+
+    protected function updatePeopleInformation(
+        People $people,
+        array $verificationData
+    ): void {
+        $people->firstname = $verificationData['idcheck']['data']['firstName'] ?? $people->first_name;
+        $people->lastname = $verificationData['idcheck']['data']['lastName'] ?? $people->last_name;
+        $people->name = $verificationData['idcheck']['data']['firstName'] . ' ' . $verificationData['idcheck']['data']['lastName'];
+        $people->dob = isset($verificationData['idcheck']['data']['dateOfBirth'])
+            ? Carbon::createFromFormat('m/d/Y', $verificationData['idcheck']['data']['dateOfBirth'])->format('Y-m-d')
+            : $people->dob;
+        $people->saveOrFail();
     }
 }
