@@ -16,12 +16,12 @@ class ESimGoService
     ) {
     }
 
-    public function applyEsim($options): array
+    public function applyEsim(array $options): array
     {
         return $this->client->post('/v2.4/esims/apply', $options);
     }
 
-    public function updateSimDetails($options): array
+    public function updateSimDetails(array $options): array
     {
         return $this->client->put('/v2.4/esims', $options);
     }
@@ -35,7 +35,7 @@ class ESimGoService
         return $this->client->get("/v2.4/esims/{$iccid}");
     }
 
-    public function checkStatus($iccid): array
+    public function checkStatus(string $iccid): array
     {
         if (empty($iccid)) {
             throw new ValidationException('ICCID cannot be empty');
@@ -44,7 +44,7 @@ class ESimGoService
         return $this->client->get("/v2.4/esims/{$iccid}");
     }
 
-    public function checkDataStatus($iccid, $bundleName): array
+    public function checkDataStatus(string $iccid, string $bundleName): array
     {
         if (empty($iccid)) {
             throw new ValidationException('ICCID cannot be empty');
@@ -53,12 +53,12 @@ class ESimGoService
         return $this->client->get("/v2.4/esims/{$iccid}/bundles/{$bundleName}");
     }
 
-    public function sendSms($iccid, $message): array
+    public function sendSms(string $iccid, string $message): array
     {
         return $this->client->post("/v2.4/esims/{$iccid}/sms", ['message' => $message]);
     }
 
-    public function checkStatusWithBundle($iccid, $bundleName): array
+    public function checkStatusWithBundle(string $iccid, string $bundleName): array
     {
         $activationData = $this->checkStatus($iccid);
         $dataStatus = $this->checkDataStatus($iccid, $bundleName);

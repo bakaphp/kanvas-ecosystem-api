@@ -19,12 +19,12 @@ class EsimGoOrderService
     }
 
     // Order related functions
-    public function createOrder($options): array
+    public function createOrder(array $options): array
     {
         return $this->client->post('/v2.4/orders', $options);
     }
 
-    public function makeOrder($bundles): array
+    public function makeOrder(array $bundles): array
     {
         // Step 1: Create ESimGo Order
         $order = $this->createOrder([
@@ -69,7 +69,7 @@ class EsimGoOrderService
         ];
     }
 
-    public function rechargeOrder($iccid, $bundleName): array
+    public function rechargeOrder(string $iccid, string $bundleName): array
     {
         // Step 1: Create Order
         $this->createOrder([

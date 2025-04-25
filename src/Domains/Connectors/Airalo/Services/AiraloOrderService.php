@@ -19,7 +19,7 @@ class AiraloOrderService
         $this->client = new Client($app);
     }
 
-    public function makeOrder($bundles): array
+    public function makeOrder(array $bundles): array
     {
         try {
             $order = $this->createOrder([
@@ -63,7 +63,7 @@ class AiraloOrderService
         }
     }
 
-    public function rechargeOrder($iccid, $bundleName): array
+    public function rechargeOrder(string $iccid, string $bundleName): array
     {
         try {
             $rechargeData = $this->client->post('/orders/topups', [
@@ -85,7 +85,7 @@ class AiraloOrderService
         }
     }
 
-    public function createOrder($options): array
+    public function createOrder(array $options): array
     {
         try {
             return $this->client->post('/orders', $options, true);
