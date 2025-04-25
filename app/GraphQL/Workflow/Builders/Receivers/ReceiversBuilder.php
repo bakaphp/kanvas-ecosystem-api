@@ -49,12 +49,23 @@ class ReceiversBuilder
 
         // Apply where conditions - simplified
         if (isset($where['column']) && isset($where['operator']) && isset($where['value'])) {
-            $query->where($where['column'], $where['operator'], $where['value']);
+            if ($where['operator'] === 'IN') {
+                $query->whereIn($where['column'], $where['value']);
+
+                return $query;
+            } else {
+                $query->where($where['column'], $where['operator'], $where['value']);
+            }
         }
 
         if (isset($where['AND']) && is_array($where['AND'])) {
             foreach ($where['AND'] as $condition) {
                 if (isset($condition['column']) && isset($condition['operator']) && isset($condition['value'])) {
+                    if ($condition['operator'] === 'IN') {
+                        $query->whereIn($condition['column'], $condition['value']);
+
+                        continue;
+                    }
                     $query->where($condition['column'], $condition['operator'], $condition['value']);
                 }
             }
