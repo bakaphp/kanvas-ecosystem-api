@@ -30,12 +30,12 @@ class Countries extends BaseModel
         'flag',
     ];
 
-    public function cities()
+    public function cities(): HasMany
     {
         return $this->hasMany(Cities::class, 'countries_id');
     }
 
-    public function states()
+    public function states(): HasMany
     {
         return $this->hasMany(States::class, 'countries_id');
     }
