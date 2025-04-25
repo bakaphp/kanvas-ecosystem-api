@@ -19,7 +19,7 @@ class IdVerificationService
         $ocMatch = false;
 
         // Extract nested data safely with null coalescing
-        $facial = $verificationData['idcheck']['data'] ?? [];
+        $facial = $verificationData['idcheck']['data']['facial']['data'] ?? [];
         $ocrMatch = $verificationData['ocr_match']['data'] ?? [];
         $idCheck = $verificationData['idcheck']['data'] ?? [];
         $ipqsAddress = $verificationData['ipqs']['addressDetails']['data'] ?? [];
@@ -114,96 +114,107 @@ class IdVerificationService
             $flagGroups[] = 'ID check incomplete';
         }
 
-        // BEHAVIOR RISKS - NEW RULE (remove failure conditions, only keep flag)
-        $riskScore = $ipqsAddress['transaction_details']['risk_score'] ?? 0;
-        $results['risk_score'] = $riskScore;
+        // Skip IPQS validation if in showroom mode or IPQS address data is empty
+        $skipIpqsValidation = $isShowRoom || empty($ipqsAddress);
 
-        // CONNECTION RISKS
-        $fraudScore = $ipqsAddress['fraud_score'] ?? 0;
-        $results['fraud_score'] = $fraudScore;
+        if (! $skipIpqsValidation) {
+            // BEHAVIOR RISKS - NEW RULE (remove failure conditions, only keep flag)
+            $riskScore = $ipqsAddress['transaction_details']['risk_score'] ?? 0;
+            $results['risk_score'] = $riskScore;
 
-        // IPQS Fraud Details
-        $fraudChance = $ipqsFraud['fraud_chance'] ?? 0;
-        $results['fraud_chance'] = $fraudChance;
+            // CONNECTION RISKS
+            $fraudScore = $ipqsAddress['fraud_score'] ?? 0;
+            $results['fraud_score'] = $fraudScore;
 
-        // Count scores above thresholds - only consider flagging now
-        $scoresAbove75 = 0;
-        foreach ([$riskScore, $fraudScore, $fraudChance] as $score) {
-            if ($score >= 75) {
-                $scoresAbove75++;
+            // IPQS Fraud Details
+            $fraudChance = $ipqsFraud['fraud_chance'] ?? 0;
+            $results['fraud_chance'] = $fraudChance;
+
+            // Count scores above thresholds - only consider flagging now
+            $scoresAbove75 = 0;
+            foreach ([$riskScore, $fraudScore, $fraudChance] as $score) {
+                if ($score >= 75) {
+                    $scoresAbove75++;
+                }
             }
-        }
 
-        // Add score-based flags (no failures for risk scores now)
-        if ($scoresAbove75 >= 2) {
-            $flags[] = 'Multiple risk scores >= 75';
-            if ($riskScore >= 75) {
-                $flags[] = 'Risk score';
+            // Add score-based flags (no failures for risk scores now)
+            if ($scoresAbove75 >= 2) {
+                $flags[] = 'Multiple risk scores >= 75';
+                if ($riskScore >= 75) {
+                    $flags[] = 'Risk score';
+                }
+                if ($fraudScore >= 75) {
+                    $flags[] = 'Fraud score';
+                }
+                if ($fraudChance >= 75) {
+                    $flags[] = 'Fraud chance';
+                }
+                $flagGroups[] = 'behavior risk';
+                $flagNotice = true;
             }
-            if ($fraudScore >= 75) {
-                $flags[] = 'Fraud score';
+
+            if ($ipqsAddress['transaction_details']['fraudulent_behavior'] ?? false) {
+                $flags[] = 'Fraudulent behavior detected';
+                $flagGroups[] = 'behavior risk';
             }
-            if ($fraudChance >= 75) {
-                $flags[] = 'Fraud chance';
+
+            if ($ipqsAddress['transaction_details']['leaked_user_data'] ?? false) {
+                $flags[] = 'Leaked user data detected';
+                $flagGroups[] = 'behavior risk';
             }
-            $flagGroups[] = 'behavior risk';
-            $flagNotice = true;
-        }
 
-        if ($ipqsAddress['transaction_details']['fraudulent_behavior'] ?? false) {
-            $flags[] = 'Fraudulent behavior detected';
-            $flagGroups[] = 'behavior risk';
-        }
+            if (($ipqsAddress['transaction_details']['name_address_identity_match'] ?? '') === 'Mismatch' ||
+                ($ipqsAddress['transaction_details']['name_address_identity_match'] ?? '') === 'No match') {
+                $flags[] = 'Name and address identity mismatch';
+                $flagGroups[] = 'behavior risk';
+            }
 
-        if ($ipqsAddress['transaction_details']['leaked_user_data'] ?? false) {
-            $flags[] = 'Leaked user data detected';
-            $flagGroups[] = 'behavior risk';
-        }
+            if (strtolower($ipqsAddress['city'] ?? '') !== strtolower($idCheck['city'] ?? '')) {
+                $flags[] = 'City mismatch between IPQS and ID';
+                $flagGroups[] = 'connection risk';
+            }
 
-        if (($ipqsAddress['transaction_details']['name_address_identity_match'] ?? '') === 'Mismatch' ||
-            ($ipqsAddress['transaction_details']['name_address_identity_match'] ?? '') === 'No match') {
-            $flags[] = 'Name and address identity mismatch';
-            $flagGroups[] = 'behavior risk';
-        }
+            if (($ipqsAddress['country_code'] ?? 'US') !== 'US') {
+                $flags[] = 'Country code mismatch';
+                $flagGroups[] = 'connection risk';
+            }
 
-        if (strtolower($ipqsAddress['city'] ?? '') !== strtolower($idCheck['city'] ?? '')) {
-            $flags[] = 'City mismatch between IPQS and ID';
-            $flagGroups[] = 'connection risk';
-        }
+            if ($ipqsAddress['recent_abuse'] ?? false) {
+                $flags[] = 'Recent abuse detected';
+                $flagGroups[] = 'connection risk';
+            }
 
-        if (($ipqsAddress['country_code'] ?? 'US') !== 'US') {
-            $flags[] = 'Country code mismatch';
-            $flagGroups[] = 'connection risk';
-        }
+            if ($ipqsAddress['frequent_abuser'] ?? false) {
+                $flags[] = 'Frequent abuser detected';
+                $flagGroups[] = 'connection risk';
+            }
 
-        if ($ipqsAddress['recent_abuse'] ?? false) {
-            $flags[] = 'Recent abuse detected';
-            $flagGroups[] = 'connection risk';
-        }
+            if ($ipqsAddress['high_risk_attacks'] ?? false) {
+                $flags[] = 'High risk attacks detected';
+                $flagGroups[] = 'connection risk';
+            }
 
-        if ($ipqsAddress['frequent_abuser'] ?? false) {
-            $flags[] = 'Frequent abuser detected';
-            $flagGroups[] = 'connection risk';
-        }
+            if ($ipqsAddress['vpn'] ?? false) {
+                $flags[] = 'VPN detected';
+                $flagGroups[] = 'connection risk';
+            }
 
-        if ($ipqsAddress['high_risk_attacks'] ?? false) {
-            $flags[] = 'High risk attacks detected';
-            $flagGroups[] = 'connection risk';
-        }
+            if ($ipqsAddress['active_vpn'] ?? false) {
+                $flags[] = 'Active VPN detected';
+                $flagGroups[] = 'connection risk';
+            }
 
-        if ($ipqsAddress['vpn'] ?? false) {
-            $flags[] = 'VPN detected';
-            $flagGroups[] = 'connection risk';
-        }
-
-        if ($ipqsAddress['active_vpn'] ?? false) {
-            $flags[] = 'Active VPN detected';
-            $flagGroups[] = 'connection risk';
-        }
-
-        if (($ipqsAddress['abuse_velocity'] ?? '') === 'True') {
-            $flags[] = 'High abuse velocity detected';
-            $flagGroups[] = 'connection risk';
+            if (($ipqsAddress['abuse_velocity'] ?? '') === 'True') {
+                $flags[] = 'High abuse velocity detected';
+                $flagGroups[] = 'connection risk';
+            }
+        } else {
+            // In showroom mode or empty IPQS data, add these values to results but set them to 0
+            $results['risk_score'] = 0;
+            $results['fraud_score'] = 0;
+            $results['fraud_chance'] = 0;
+            $results['risk_factors'] = '';
         }
 
         // Include risk factors in results
