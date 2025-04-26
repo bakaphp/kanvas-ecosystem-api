@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Elead\Actions;
 
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
-use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Entities\Lead as LeadEntity;
+use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\UserConfig;
