@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\Elead\Actions;
 
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Elead\Services\Lead as ServicesLead;
+use Kanvas\Connectors\Elead\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\UserConfig;
@@ -19,15 +19,15 @@ class SyncLeadAction
     ) {
     }
 
-    public function execute(): ServicesLead
+    public function execute(): LeadEntity
     {
         $lead = $this->lead;
-        $eLeadOpportunityData = ServicesLead::convertLeadToOpportunityStructure($lead);
+        $eLeadOpportunityData = LeadEntity::convertLeadToOpportunityStructure($lead);
         $eLeadOpportunityId = (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value);
         //$eLeadCustomerId = (string) $lead->people->get(Flag::CUSTOMER_ID);
 
         if (empty($eLeadOpportunityId)) {
-            $eLeadOpportunity = ServicesLead::create($this->lead->app, $this->lead->company, $eLeadOpportunityData);
+            $eLeadOpportunity = LeadEntity::create($this->lead->app, $this->lead->company, $eLeadOpportunityData);
             $lead->set(CustomFieldEnum::OPPORTUNITY_ID->value, $eLeadOpportunity->id);
 
             if ($lead->owner) {
@@ -39,7 +39,7 @@ class SyncLeadAction
                 }
             }
         } else {
-            $eLeadOpportunity = ServicesLead::getById($this->lead->app, $this->lead->company, $eLeadOpportunityId);
+            $eLeadOpportunity = LeadEntity::getById($this->lead->app, $this->lead->company, $eLeadOpportunityId);
         }
 
         if (isset($eLeadOpportunity->customer) && isset($eLeadOpportunity->customer['id'])) {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Actions;
 
-use Kanvas\Connectors\Elead\Services\Customer;
+use Kanvas\Connectors\Elead\Entities\Customer;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class AddCoBuyerAction

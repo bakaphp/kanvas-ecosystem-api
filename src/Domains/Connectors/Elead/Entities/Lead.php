@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Elead\Services;
+namespace Kanvas\Connectors\Elead\Entities;
 
 use Baka\Contracts\AppInterface;
 use DateTime;

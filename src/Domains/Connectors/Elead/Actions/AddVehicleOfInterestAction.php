@@ -21,7 +21,7 @@ class AddVehicleOfInterestAction
     public function execute(array $message): Vehicle
     {
         $syncLead = new SyncLeadAction($this->lead);
-        $eLead = $syncLead->execute($lead);
+        $eLead = $syncLead->execute($this->lead);
 
         $formData = $message['data']['form'];
         //clean up milage

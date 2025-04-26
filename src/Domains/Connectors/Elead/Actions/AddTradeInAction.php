@@ -20,7 +20,7 @@ class AddTradeInAction
         $eLead = $syncLead->execute();
 
         $formData = $message['data']['form'];
-        $files = $lead->getFiles();
+        $files = $this->lead->getFiles();
         $filesLinks = '';
 
         if (count($files) > 0) {

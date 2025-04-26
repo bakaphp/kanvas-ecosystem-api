@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\Elead\Actions;
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Elead\Services\LeadSource as ServicesLeadSource;
+use Kanvas\Connectors\Elead\Entities\LeadSource as LeadSourceEntity;
 use Kanvas\Guild\Leads\Actions\CreateLeadTypeAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadType;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
@@ -23,7 +23,7 @@ class SyncLeadSourceAction
 
     public function execute(): void
     {
-        foreach (ServicesLeadSource::getAll($this->app, $this->company) as $leadSource) {
+        foreach (LeadSourceEntity::getAll($this->app, $this->company) as $leadSource) {
             $newSource = new CreateLeadSourceAction(
                 new LeadSource(
                     $this->app,

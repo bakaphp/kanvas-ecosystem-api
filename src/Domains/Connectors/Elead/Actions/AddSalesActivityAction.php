@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\Elead\Actions;
 use DateTime;
 use DateTimeZone;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
-use Kanvas\Connectors\Elead\Services\SalesActivities;
+use Kanvas\Connectors\Elead\Entities\SalesActivities;
 
 class AddSalesActivityAction
 {

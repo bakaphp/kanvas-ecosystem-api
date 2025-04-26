@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\Elead\Actions;
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Elead\Services\LeadStatus;
+use Kanvas\Connectors\Elead\Entities\LeadStatus;
 use Kanvas\Guild\Leads\Models\LeadStatus as ModelsLeadStatus;
 
 class SyncLeadStatusAction

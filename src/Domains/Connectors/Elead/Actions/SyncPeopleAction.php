@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Actions;
 
+use Kanvas\Connectors\Elead\Entities\Customer as CustomerEntity;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Elead\Services\Customer as ServicesCustomer;
 use Kanvas\Guild\Customers\Models\People;
 use Throwable;
 
@@ -16,9 +16,9 @@ class SyncPeopleAction
     ) {
     }
 
-    public function execute(): ServicesCustomer
+    public function execute(): CustomerEntity
     {
-        $eLeadCustomerData = ServicesCustomer::convertPeopleToCustomerStructure($this->people);
+        $eLeadCustomerData = CustomerEntity::convertPeopleToCustomerStructure($this->people);
 
         try {
             $peopleCustomField = $this->people->getCustomField(CustomFieldEnum::CUSTOMER_ID->value);
@@ -28,10 +28,10 @@ class SyncPeopleAction
         }
 
         if (empty($eLeadCustomerId)) {
-            $eLeadCustomer = ServicesCustomer::create($this->people->app, $this->people->company, $eLeadCustomerData);
+            $eLeadCustomer = CustomerEntity::create($this->people->app, $this->people->company, $eLeadCustomerData);
             $this->people->set(CustomFieldEnum::CUSTOMER_ID->value, $eLeadCustomer->id);
         } else {
-            $eLeadCustomer = ServicesCustomer::getById($this->people->app, $this->people->company, $eLeadCustomerId);
+            $eLeadCustomer = CustomerEntity::getById($this->people->app, $this->people->company, $eLeadCustomerId);
             $eLeadCustomer->update($eLeadCustomerData);
         }
 

@@ -48,7 +48,7 @@ class AddVehicleAction
                 0,
                 (int) $product['price'],
                 (int) ($product['millage'] ?? 0),
-                (bool) $primary
+                $primary
             );
 
             $eLead->addVehicle($vehicleInfo);
