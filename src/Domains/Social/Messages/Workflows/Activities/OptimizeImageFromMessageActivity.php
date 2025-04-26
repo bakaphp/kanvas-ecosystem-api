@@ -14,6 +14,9 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Workflow\KanvasActivity;
 
+/**
+ * @todo move to promptmine namespace
+ */
 class OptimizeImageFromMessageActivity extends KanvasActivity
 {
     public $tries = 3;
