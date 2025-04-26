@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use DateTime;
 use DateTimeZone;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Elead\Actions\SyncPeopleAction;
 use Kanvas\Connectors\Elead\Client;
 use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
 use Kanvas\Connectors\Elead\DataTransferObject\Vehicle;
@@ -60,8 +61,7 @@ class Lead
         $customerId = $lead->people->get(CustomFieldEnum::CUSTOMER_ID->value);
 
         if (empty($customerId)) {
-            $syncPeople = new SyncPeopleAction($lead->companies);
-            $customerId = $syncPeople->execute($lead->people)->id;
+            $customerId = new SyncPeopleAction($lead->people)->execute()->id;
         }
 
         $date = new DateTime($lead->created_at, new DateTimeZone('America/New_York'));
