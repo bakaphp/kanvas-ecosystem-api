@@ -107,6 +107,7 @@ class IdVerificationService
         } elseif (strtolower($idCheck['processResult'] ?? '') !== 'documentprocessok' && strtolower($idCheck['processResult'] ?? '') !== 'documentunknown') {
             $flags[] = 'ID process result is ' . ($idCheck['processResult'] ?? 'unknown');
             $flagGroups[] = 'ID check incomplete';
+            $flagNotice = true;
         }
 
         if (strtolower($idCheck['stateIssuerMismatch'] ?? '') === 'yes') {
@@ -226,7 +227,7 @@ class IdVerificationService
 
         if (empty($failures)) {
             // Always make sure expired IDs are flagged
-            if ($isExpired || count($flags) >= 3 || $flagNotice) {
+            if ($isExpired || count($flags) >= 2 || $flagNotice) {
                 // Create message using flag groups
                 $flagReasons = [];
                 foreach ($flaggedGroups as $group) {
@@ -266,14 +267,14 @@ class IdVerificationService
                 $status = 'green';
             }
         } else {
-            if ($isExpired) {
-                $message = "$name failed the ID Verification due to expired ID" .
-                    (! empty($failedGroups) ? ' and detected fraud from ' . implode(', ', $failedGroups) : '') .
-                    '. Proceed with caution.';
-            } else {
-                $message = "$name failed the ID Verification due to detected fraud from " .
-                    implode(', ', $failedGroups) . '. Proceed with caution.';
-            }
+            /*   if ($isExpired) {
+                  $message = "$name failed the ID Verification due to expired ID" .
+                      (! empty($failedGroups) ? ' and detected fraud from ' . implode(', ', $failedGroups) : '') .
+                      '. Proceed with caution.';
+              } else { */
+            $message = "$name failed the ID Verification due to detected fraud from " .
+                implode(', ', $failedGroups) . '. Proceed with caution.';
+            //}
             $status = 'fail';
         }
 

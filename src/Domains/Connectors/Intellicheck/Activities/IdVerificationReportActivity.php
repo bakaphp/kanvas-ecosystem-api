@@ -7,10 +7,14 @@ namespace Kanvas\Connectors\Intellicheck\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
+use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\Intellicheck\Services\PeopleService;
+use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -77,12 +81,10 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         ],
                     ];
 
-                    $people = $entity instanceof People ? $entity : $entity->people;
-                    //update people name
-                    if ($people instanceof People) {
-                        PeopleService::updatePeopleInformation($people, $verificationData);
-                    }
                     dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData) {
+                        //since we are running 2 diff version of the api, we need to slow you down to get the last message
+                        sleep(30);
+
                         $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
                         $notification = new Blank(
                             'id-verification-report',
@@ -119,7 +121,25 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                             ]
                         );
 
-                        $entity->addFile($pdfReport, 'id-verification');
+                        if ($entity instanceof Lead) {
+                            $engagement = EngagementRepository::findEngagementForLead(
+                                $entity,
+                                ConfigurationEnum::ID_VERIFICATION->value,
+                                ActionStatusEnum::SUBMITTED->value,
+                            );
+
+                            if ($engagement) {
+                                //update people name
+                                /*                                 if ($engagement->people instanceof People) {
+                                                                    PeopleService::updatePeopleInformation($engagement->people, $verificationData);
+                                                                } */
+
+                                $message = $engagement->message;
+                                $message->addFile($pdfReport, 'id-verification');
+                            }
+                        }
+
+                        //$entity->addFile($pdfReport, 'id-verification');
                     });
 
                     return [
