@@ -58,4 +58,9 @@ class People extends Data
             ->filter(fn ($contact) => $contact->type === 'phone')
             ->toArray();
     }
+
+    public function getName(): string
+    {
+        return $this->firstname . ' ' . $this->lastname;
+    }
 }
