@@ -68,7 +68,7 @@ class WorkflowMutationManagement
                 $entity->fill([
                     'id' => 0,
                     'apps_id' => $app->getId(),
-                    'companies_id' => $company,
+                    'companies_id' => $company->getId(),
                 ]);
             }
         }
@@ -94,7 +94,7 @@ class WorkflowMutationManagement
                 arguments: []
             );
 
-            return $activity->execute($entity, $app, []);
+            return $activity->execute($entity, $app, $params);
         }
         $results = $entity->fireWorkflow($workflowAction, true, $params);
 
