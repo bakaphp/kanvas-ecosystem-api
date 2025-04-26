@@ -18,7 +18,7 @@ use Kanvas\Users\Models\UserConfig;
 
 class Lead extends DataTransferObjectLead
 {
-    public function fromLeadEntity(LeadEntity $lead, UserInterface $user): self
+    public static function fromLeadEntity(LeadEntity $lead, UserInterface $user): self
     {
         $customer = $lead->customer();
 

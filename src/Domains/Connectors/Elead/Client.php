@@ -31,7 +31,7 @@ class Client
         protected AppInterface $app,
         protected Companies $company
     ) {
-        $subscriptionId = $company->getCustomField(CustomFieldEnum::COMPANY->value);
+        $subscriptionId = $company->get(CustomFieldEnum::COMPANY->value);
 
         if (empty($subscriptionId)) {
             throw new RuntimeException('No ELeads configured for this company ' . $company->id);
