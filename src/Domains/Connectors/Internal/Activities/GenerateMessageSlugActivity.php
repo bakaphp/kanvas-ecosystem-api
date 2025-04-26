@@ -9,12 +9,14 @@ use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 /**
  * @todo move to the social domain
  */
 class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    #[Override]
     public function execute(Model $message, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
@@ -29,7 +31,8 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
         $fieldToSlug = $messageData[$slugField] ?? null;
 
         if ($fieldToSlug === null) {
-            return ['No slug field {' . $slugField . ' found in message ' . $message->id];
+            //return ['No slug field {' . $slugField . ' found in message ' . $message->id];
+            $fieldToSlug = $message->id;
         }
 
         $message->slug = Str::simpleSlug($fieldToSlug);
