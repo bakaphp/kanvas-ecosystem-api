@@ -9,9 +9,6 @@ use Spatie\LaravelData\Data;
 
 class Contact extends Data
 {
-    /**
-     * __construct.
-     */
     public function __construct(
         public readonly string $value,
         public readonly int $contacts_types_id,
@@ -20,7 +17,7 @@ class Contact extends Data
     ) {
     }
 
-    public function getType() : string
+    public function getType(): string
     {
         return ContactType::getById($this->contacts_types_id)->name;
     }

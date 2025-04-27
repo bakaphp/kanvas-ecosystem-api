@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Elead\Entities;
 
 use Baka\Contracts\AppInterface;
 use DateTime;
-use DateTimeZone;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\SyncPeopleAction;
 use Kanvas\Connectors\Elead\Client;
