@@ -24,7 +24,13 @@ class LeadTest extends TestCase
         $company = $user->getCurrentCompany();
         $vinClient = $this->getClient($app, $company, $user);
 
-        $people = People::factory()->withAppId($app->getId())->withUserId($user->getId())->withCompanyId($company->getId())->withContacts()->create();
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withUserId($user->getId())
+            ->withCompanyId($company->getId())
+            ->withContacts(canUseFakeInfo: false)
+            ->create();
+
         $lead = Lead::factory()
             ->withUserId($user->getId())
             ->withAppId($app->getId())
@@ -49,7 +55,13 @@ class LeadTest extends TestCase
         $company = $user->getCurrentCompany();
         $vinClient = $this->getClient($app, $company, $user);
 
-        $people = People::factory()->withAppId($app->getId())->withUserId($user->getId())->withCompanyId($company->getId())->withContacts()->create();
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withUserId($user->getId())
+            ->withCompanyId($company->getId())
+            ->withContacts(canUseFakeInfo: false)
+            ->create();
+
         $lead = Lead::factory()
             ->withUserId($user->getId())
             ->withAppId($app->getId())
