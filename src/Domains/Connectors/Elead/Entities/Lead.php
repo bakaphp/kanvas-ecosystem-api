@@ -13,18 +13,18 @@ use Kanvas\Connectors\Elead\Client;
 use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
 use Kanvas\Connectors\Elead\DataTransferObject\Vehicle;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Exceptions\ELeadException;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
-use RuntimeException;
 
 class Lead
 {
-    public string $id;
-    public string $customerId;
-    public string $dateIn;
-    public string $source;
-    public string $status;
-    public string $subStatus;
-    public string $upType;
+    public ?string $id = null;
+    public ?string $customerId = null;
+    public ?string $dateIn = null;
+    public ?string $source = null;
+    public ?string $status = null;
+    public ?string $subStatus = null;
+    public ?string $upType = null;
     public array $soughtVehicles = [];
     public array $tradeIns = [];
     public array $address = [];
@@ -241,8 +241,12 @@ class Lead
             '/sales/v2/elead/opportunities/search-by-customerId/' . $customerId,
         );
 
+        if (isset($response['code']) && $response['message']) {
+            throw new ELeadException($response['message']);
+        }
+
         if (! isset($response['totalItems']) && $response['totalItems'] == 0) {
-            throw new RuntimeException('No Lead Found for this customer ' . $customerId);
+            throw new ELeadException('No Lead Found for this customer ' . $customerId);
         }
 
         $lead = new Lead();
@@ -264,7 +268,7 @@ class Lead
         );
 
         if (! isset($response['totalItems']) && $response['totalItems'] == 0) {
-            throw new RuntimeException('No Lead Found on this date ' . $from);
+            throw new ELeadException('No Lead Found on this date ' . $from);
         }
 
         return $response;
@@ -281,7 +285,7 @@ class Lead
         );
 
         if (! isset($response['totalItems']) && $response['totalItems'] == 0) {
-            throw new RuntimeException('No Lead Found on this date ' . $from);
+            throw new ELeadException('No Lead Found on this date ' . $from);
         }
 
         return $response;

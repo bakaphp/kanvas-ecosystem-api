@@ -11,7 +11,7 @@ use Kanvas\Connectors\Elead\Client;
 
 class SalesActivities
 {
-    public string $activityId;
+    public ?string $activityId = null;
     public ?Companies $company = null;
     public ?AppInterface $app = null;
 

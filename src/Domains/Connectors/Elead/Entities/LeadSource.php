@@ -11,11 +11,11 @@ use Kanvas\Connectors\Elead\Client;
 
 class LeadSource
 {
-    public string $name;
-    public string $upType;
-    public bool $isActive;
-    public bool $requiresSubSource;
-    public bool $hasSubSources;
+    public ?string $name = null;
+    public ?string $upType = null;
+    public ?bool $isActive = null;
+    public ?bool $requiresSubSource = null;
+    public ?bool $hasSubSources = null;
     public array $links = [];
 
     /**

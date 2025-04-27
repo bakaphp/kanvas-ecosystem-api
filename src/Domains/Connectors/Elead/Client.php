@@ -92,10 +92,6 @@ class Client
      */
     public function get(string $path, array $params = []): array
     {
-        if ($this->app->get(ConfigurationEnum::ELEAD_DEV_MODE->value)) {
-            $path = 'cdk-test' . $path;
-        }
-
         $request = $this->setHeaders($this->client);
 
         if (! empty($params)) {
@@ -112,16 +108,11 @@ class Client
      */
     public function post(string $path, array $data, array $headers = []): array
     {
-        if ($this->app->get(ConfigurationEnum::ELEAD_DEV_MODE->value)) {
-            $path = 'cdk-test' . $path;
-        }
-
         $request = $this->setHeaders($this->client);
 
         if (! empty($headers)) {
             $request = $request->withHeaders($headers);
         }
-
         $response = $request->post($path, $data);
 
         return $response->json() ?? [];
@@ -132,10 +123,6 @@ class Client
      */
     public function put(string $path, array $data, array $headers = []): array
     {
-        if ($this->app->get(ConfigurationEnum::ELEAD_DEV_MODE->value)) {
-            $path = 'cdk-test' . $path;
-        }
-
         $request = $this->setHeaders($this->client);
 
         if (! empty($headers)) {
@@ -152,10 +139,6 @@ class Client
      */
     public function delete(string $path): array
     {
-        if ($this->app->get(ConfigurationEnum::ELEAD_DEV_MODE->value)) {
-            $path = 'cdk-test' . $path;
-        }
-
         $request = $this->setHeaders($this->client);
         $response = $request->delete($path);
 

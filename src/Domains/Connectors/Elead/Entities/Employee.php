@@ -11,7 +11,7 @@ use Kanvas\Connectors\Elead\Client;
 
 class Employee
 {
-    public string $id;
+    public ?string $id = null;
     public ?string $firstName = null;
     public ?string $lastName = null;
     public bool $isActive = true;

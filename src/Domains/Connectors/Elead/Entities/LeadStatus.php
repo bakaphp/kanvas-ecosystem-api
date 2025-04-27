@@ -11,7 +11,7 @@ use Kanvas\Connectors\Elead\Client;
 
 class LeadStatus
 {
-    public string $status;
+    public ?string $status = null;
     public array $subStatus = [];
 
     /**

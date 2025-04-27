@@ -10,12 +10,12 @@ use Baka\Validations\Date;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Client;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Exceptions\ELeadException;
 use Kanvas\Guild\Customers\Models\People;
-use RuntimeException;
 
 class Customer
 {
-    public string $id;
+    public ?string $id = null;
     public bool $isBusiness = false;
     public ?string $title = null;
     public ?string $firstName = null;
@@ -89,12 +89,12 @@ class Customer
                 'emailType' => 'Personal',
             ];
 
-            $people->saveEmail($customerData['emails'][0]['address']);
+            $people->addEmail($customerData['emails'][0]['address']);
         }
 
         $phoneCount = 0;
         $phoneExist = [];
-        $peoplePhones = $people->getCellPhone()->count() ? $people->getCellPhone() : $people->getPhones();
+        $peoplePhones = $people->getCellPhones()->count() ? $people->getCellPhones() : $people->getPhones();
         if ($peoplePhones->count()) {
             foreach ($peoplePhones as $phone) {
                 if (! Str::contains($phone->value, '800')
@@ -162,6 +162,10 @@ class Customer
             $data,
         );
 
+        if (isset($response['code']) && $response['message']) {
+            throw new ELeadException($response['message']);
+        }
+
         $newCustomer = new Customer();
         $newCustomer->company = $company;
         $newCustomer->app = $app;
@@ -177,6 +181,10 @@ class Customer
             '/sales/v1/elead/customers/' . $this->id,
             $data,
         );
+
+        if (isset($response['code']) && $response['message']) {
+            throw new ELeadException($response['message']);
+        }
 
         $this->assign($response);
 
@@ -205,7 +213,7 @@ class Customer
     {
         $customerId = $people->get(CustomFieldEnum::CUSTOMER_ID->value);
         if (empty($customerId)) {
-            throw new RuntimeException('This Customer doesn\'t have a reference in ELeads');
+            throw new ELeadException('This Customer doesn\'t have a reference in ELeads');
         }
 
         return self::getById(
