@@ -222,7 +222,7 @@ class AddCreditAppAction
 
         $coBuyer = $coBuyer ? 'true' : 'false';
         $companyId = $this->lead->company->get('integration_store_id') ?? 20260;
-        $url = '/?lDID=' . $lead->get(CustomFieldEnum::LEAD_ID->value) . '&lPID=' . $lead->people->get(CustomFieldEnum::PERSON_ID->value) . '&co_buyer=' . $coBuyer . '&company=' . $companyId;
+        $url = '/?lDID=' . $this->lead->get(CustomFieldEnum::LEAD_ID->value) . '&lPID=' . $this->lead->people->get(CustomFieldEnum::PERSON_ID->value) . '&co_buyer=' . $coBuyer . '&company=' . $companyId;
 
         return [
             'url' => $url,
