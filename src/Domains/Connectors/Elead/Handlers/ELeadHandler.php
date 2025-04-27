@@ -30,4 +30,3 @@ class ELeadHandler extends BaseIntegration
         return ! empty($response['access_token']);
     }
 }
-

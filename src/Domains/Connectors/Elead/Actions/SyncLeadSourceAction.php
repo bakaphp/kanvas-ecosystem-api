@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\Elead\Actions;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Entities\LeadSource as LeadSourceEntity;
+use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\CreateLeadTypeAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadType;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;

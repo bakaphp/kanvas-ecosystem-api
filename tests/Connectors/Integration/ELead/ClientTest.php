@@ -21,7 +21,7 @@ final class ClientTest extends TestCase
         $eleadClient = $this->getClient($app, $company);
 
         $token = $eleadClient->auth();
-        
+
         $this->assertArrayHasKey('access_token', $token);
         $this->assertArrayHasKey('expires_in', $token);
         $this->assertArrayHasKey('token_type', $token);

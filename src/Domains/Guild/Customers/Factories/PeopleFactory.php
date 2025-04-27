@@ -54,7 +54,7 @@ class PeopleFactory extends Factory
     {
         $email = 'noreply+' . fake()->unique()->userName . '@kanvas.dev';
         $phone = '80935' . fake()->randomNumber(5, true);
-        
+
         return $this->afterCreating(function ($person) use ($canUseFakeInfo, $email, $phone) {
             $person->contacts()->createMany([
                 [
