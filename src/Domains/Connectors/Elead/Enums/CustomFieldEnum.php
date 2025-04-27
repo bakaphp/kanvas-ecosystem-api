@@ -10,11 +10,11 @@ enum CustomFieldEnum: string
 {
     case COMPANY = 'ELEADS_SUBSCRIPTION_ID';
     case USER = 'ELEADS_SOLUTION_USER';
-    case CUSTOMER_ID = 'ELEAD_CUSTOMER_ID';
-    case PERSON_ID = 'ELEAD_PERSON_ID';
-    case OPPORTUNITY_ID = 'ELEAD_OPPORTUNITY_ID';
+    case CUSTOMER_ID = 'ELEAD_CUSTOMER_ID'; // api uuid
+    case PERSON_ID = 'ELEAD_PERSON_ID'; //popup id
+    case OPPORTUNITY_ID = 'ELEAD_OPPORTUNITY_ID'; //api uui
     case OPPORTUNITY_POPUP_UUID = 'ELEAD_OPPORTUNITY_POPUP_UUID';
-    case LEAD_ID = 'ELEAD_LEAD_ID';
+    case LEAD_ID = 'ELEAD_LEAD_ID'; //popup id
     case VEHICLE_SOUGHT_ID = 'ELEAD_VEHICLE_SOUGHT_ID';
     case VEHICLE_TRADE_IN_ID = 'ELEAD_VEHICLE_TRADE_IN_ID';
     case LEAD_SOURCE_ID = 'ELEAD_LEAD_SOURCE_ID';
@@ -31,11 +31,11 @@ enum CustomFieldEnum: string
      */
     public static function getUserKey(Companies $company): string
     {
-        return self::USER . '_' . $company->getId();
+        return self::USER->value . '_' . $company->getId();
     }
 
     public static function getUserJobPositionKey(Companies $company): string
     {
-        return self::ELEAD_USER_POSITION_CODE . '_' . $company->getId();
+        return self::ELEAD_USER_POSITION_CODE->value . '_' . $company->getId();
     }
 }

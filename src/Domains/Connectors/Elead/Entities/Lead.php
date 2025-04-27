@@ -64,7 +64,7 @@ class Lead
             $customerId = new SyncPeopleAction($lead->people)->execute()->id;
         }
 
-        $date = new DateTime($lead->created_at, new DateTimeZone('America/New_York'));
+        $date = $lead->created_at->setTimezone('America/New_York');
         $dateFormat = str_replace('-04:00', '.402Z', $date->format('c'));
 
         $opportunityData = [
@@ -77,13 +77,13 @@ class Lead
         ];
 
         if ($lead->owner
-            && $lead->owner->get(CustomFieldEnum::getUserKey($lead->companies))
-            && $lead->owner->get(CustomFieldEnum::getUserJobPositionKey($lead->companies))) {
+            && $lead->owner->get(CustomFieldEnum::getUserKey($lead->company))
+            && $lead->owner->get(CustomFieldEnum::getUserJobPositionKey($lead->company))) {
             $opportunityData['salesTeam'][] = [
-                'id' => $lead->owner->get(CustomFieldEnum::getUserKey($lead->companies)),
+                'id' => $lead->owner->get(CustomFieldEnum::getUserKey($lead->company)),
                 'isPrimary' => true,
                 'isPositionPrimary' => true,
-                'positionCode' => $lead->owner->get(CustomFieldEnum::getUserJobPositionKey($lead->companies)),
+                'positionCode' => $lead->owner->get(CustomFieldEnum::getUserJobPositionKey($lead->company)),
             ];
         }
 
@@ -100,6 +100,10 @@ class Lead
             '/sales/v2/elead/opportunities/',
             $data,
         );
+
+        if (isset($response['code']) && $response['message']) {
+            throw new ELeadException($response['message']);
+        }
 
         $newLead = new Lead();
         $newLead->company = $company;

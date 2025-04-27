@@ -47,15 +47,21 @@ class People extends Data
 
     public function getEmails(): array
     {
-        return collect($this->contacts->toArray())
-            ->filter(fn ($contact) => $contact->type === 'email')
+        return $this->contacts->toCollection()
+            ->filter(function (Contact $contact) {
+                return $contact->getType() === 'email';
+            })
+            ->values()
             ->toArray();
     }
 
     public function getPhones(): array
     {
-        return collect($this->contacts->toArray())
-            ->filter(fn ($contact) => $contact->type === 'phone')
+        return $this->contacts->toCollection()
+            ->filter(function (Contact $contact) {
+                return $contact->getType() === 'phone';
+            })
+            ->values()
             ->toArray();
     }
 

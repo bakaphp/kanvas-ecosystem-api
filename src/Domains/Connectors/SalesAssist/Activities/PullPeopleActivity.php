@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -61,7 +62,7 @@ class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInter
         $phone = $phones[0] ?? null;
 
         $people = People::getByCustomField(
-            CustomFieldEnum::PERSON_ID->value,
+            Str::isUuid($personId) ? CustomFieldEnum::CUSTOMER_ID->value : CustomFieldEnum::PERSON_ID->value,
             $personId,
             $this->company
         );

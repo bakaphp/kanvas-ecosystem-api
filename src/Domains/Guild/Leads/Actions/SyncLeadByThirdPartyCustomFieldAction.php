@@ -29,7 +29,7 @@ class SyncLeadByThirdPartyCustomFieldAction
         $lead = ModelsLead::getByCustomField(
             $customFieldKeys[0],
             $customFieldValues[0],
-            $this->lead->company,
+            $this->lead->branch->company,
         );
 
         $peopleSync = new SyncPeopleByThirdPartyCustomFieldAction($this->lead->people);
@@ -47,9 +47,9 @@ class SyncLeadByThirdPartyCustomFieldAction
         $lead->lastname = $this->lead->people->lastname;
         $lead->email = $this->lead->people->getEmails()[0]['value'] ?? null;
         $lead->description = $this->lead->description;
-        $lead->status_id = $this->lead->status_id;
-        $lead->lead_type_id = $this->lead->type_id;
-        $lead->lead_source_id = $this->lead->source_id;
+        $lead->leads_status_id = $this->lead->status_id;
+        $lead->leads_types_id = $this->lead->type_id;
+        $lead->leads_sources_id = $this->lead->source_id;
         $lead->leads_owner_id = $this->lead->leads_owner_id;
         $lead->title = $this->lead->title;
         $lead->setCustomFields(

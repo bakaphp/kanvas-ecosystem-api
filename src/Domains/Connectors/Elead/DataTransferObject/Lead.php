@@ -49,7 +49,7 @@ class Lead extends DataTransferObjectLead
                     $customer->phones
                 )
             ),
-            'address' => [
+            'address' =>
                 array_map(
                     fn ($address) => [
                         'address' => $address['addressLine1'] ?? '',
@@ -61,10 +61,9 @@ class Lead extends DataTransferObjectLead
                     ],
                     $customer->addresses ?? []
                 ),
-            ],
             'branch' => $lead->company->defaultBranch,
             'custom_fields' => [
-                CustomFieldEnum::CUSTOMER_ID => $customer->id,
+                CustomFieldEnum::CUSTOMER_ID->value => $customer->id,
             ],
         ]);
 
@@ -91,17 +90,17 @@ class Lead extends DataTransferObjectLead
 
         return self::from([
             'app' => $lead->app,
-            'company' => $lead->company,
+            'branch' => $lead->company->defaultBranch,
             'user' => $user,
             'title' => $people->firstname . ' ' . $people->lastname . ' Opp',
             'pipeline_stage_id' => 0,
             'people' => $people,
-            'type_id' => $leadType?->id,
-            'source_id' => $source?->id,
-            'status_id' => $status?->id,
-            'leads_owner_id' => $eLeadOwnerId?->user_id,
+            'type_id' => $leadType?->id ?? 0,
+            'source_id' => $source?->id ?? 0,
+            'status_id' => $status?->id ?? 0,
+            'leads_owner_id' => $eLeadOwnerId?->user_id ?? 0,
             'custom_fields' => [
-                CustomFieldEnum::LEAD_ID => $lead->id,
+                CustomFieldEnum::OPPORTUNITY_ID->value => $lead->id,
             ],
         ]);
     }
