@@ -13,7 +13,7 @@ class LeadSource extends Data
     public function __construct(
         public Apps $app,
         public Companies $company,
-        public int|string $leads_types_id,
+        public int|string|null $leads_types_id,
         public string $name,
         public bool $is_active,
         public ?string $description = null,

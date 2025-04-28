@@ -23,7 +23,12 @@ class PeopleTest extends TestCase
         $company = $user->getCurrentCompany();
         $vinClient = $this->getClient($app, $company, $user);
 
-        $people = People::factory()->withAppId($app->getId())->withUserId($user->getId())->withCompanyId($company->getId())->withContacts()->create();
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withUserId($user->getId())
+            ->withCompanyId($company->getId())
+            ->withContacts(canUseFakeInfo: false)
+            ->create();
 
         $pushPeopleToVin = new PushPeopleAction($people);
         $customer = $pushPeopleToVin->execute();
@@ -41,7 +46,12 @@ class PeopleTest extends TestCase
         $company = $user->getCurrentCompany();
         $vinClient = $this->getClient($app, $company, $user);
 
-        $people = People::factory()->withAppId($app->getId())->withUserId($user->getId())->withCompanyId($company->getId())->withContacts()->create();
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withUserId($user->getId())
+            ->withCompanyId($company->getId())
+            ->withContacts(canUseFakeInfo: false)
+            ->create();
 
         $pushPeopleToVin = new PushPeopleAction($people);
         $customer = $pushPeopleToVin->execute();

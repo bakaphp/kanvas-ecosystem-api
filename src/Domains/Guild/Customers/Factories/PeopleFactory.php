@@ -6,11 +6,13 @@ namespace Kanvas\Guild\Customers\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Kanvas\Guild\Customers\Models\People;
+use Override;
 
 class PeopleFactory extends Factory
 {
     protected $model = People::class;
 
+    #[Override]
     public function definition()
     {
         return [
@@ -48,18 +50,21 @@ class PeopleFactory extends Factory
         });
     }
 
-    public function withContacts()
+    public function withContacts(bool $canUseFakeInfo = true)
     {
-        return $this->afterCreating(function ($person) {
+        $email = 'noreply+' . fake()->unique()->userName . '@kanvas.dev';
+        $phone = '80935' . fake()->randomNumber(5, true);
+
+        return $this->afterCreating(function ($person) use ($canUseFakeInfo, $email, $phone) {
             $person->contacts()->createMany([
                 [
                     'contacts_types_id' => 1,
-                    'value' => fake()->email,
+                    'value' => $canUseFakeInfo ? fake()->email : $email,
                     'weight' => 0,
                 ],
                 [
                     'contacts_types_id' => 2,
-                    'value' => fake()->phoneNumber,
+                    'value' => $canUseFakeInfo ? fake()->phoneNumber : $phone,
                     'weight' => 0,
                 ],
             ]);

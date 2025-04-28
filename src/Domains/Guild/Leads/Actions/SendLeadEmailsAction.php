@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
@@ -36,8 +37,7 @@ class SendLeadEmailsAction
             foreach ($users as $user) {
                 try {
                     $this->sendEmail($user, $userTemplate, $user->email, $data);
-                } catch (\Exception $e) {
-                    print_r([$e->getMessage(), $user]);
+                } catch (Exception $e) {
                     continue;
                 }
             }
