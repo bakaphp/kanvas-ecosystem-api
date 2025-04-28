@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
-use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
@@ -14,7 +14,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
 {
     public function __construct(
         Users $user,
-        Model $entity,
+        Message $entity,
         string $message,
         string $title,
         array $via,
@@ -37,7 +37,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
             'destination_event' => 'NEW_MESSAGE',
         ];
 
-        parent::__construct($message, $data, $via);
+        parent::__construct($entity, $data, $via);
         $this->setType(EmailTemplateEnum::BLANK->value);
         $this->setPushTemplateName(NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value);
         $this->setData($data);
