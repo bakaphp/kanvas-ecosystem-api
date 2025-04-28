@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
+use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -21,7 +22,6 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
-use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -77,7 +77,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 try {
                     // Process image based on the model type
                     if ($isOpenAi) {
-                        $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $entity->message['prompt'], $entity);
+                        $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $entity->message['prompt'], $entity, $params);
                         if ($fileSystemRecord === null) {
                             return [
                                 'result' => false,
@@ -103,6 +103,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         }
                     }
 
+                    // Change to public when the image is processed
+                    $entity->is_public = 0;
+                    $entity->save();
                     // Create nugget message and send notification - common for both methods
                     return $this->finalizeProcessing(
                         $entity,
@@ -196,7 +199,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Process image with OpenAI
      */
-    protected function processImageWithOpenAI(string $imageUrl, string $prompt, Model $entity): ?Filesystem
+    protected function processImageWithOpenAI(string $imageUrl, string $prompt, Model $entity, array $params = []): ?Filesystem
     {
         // Download the image file
         $imageContents = file_get_contents($imageUrl);
@@ -261,6 +264,22 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         @unlink($tempFile);
 
         if (! $response->successful()) {
+            $endViaList = array_map(
+                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                $params['via'] ?? ['database']
+            );
+            $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                user: $entity,
+                message: 'Your image could not be processed because it violated our content policy. Please try again with a different image.',
+                title: 'Error processing image',
+                via: $endViaList,
+                templates: [
+                    'email_template' => $params['email_template'],
+                    'push_template' => $params['push_template'],
+                ],
+            );
+            $entity->user->notify($errorProcessingImageNotification);
+
             throw new Exception('OpenAI API request failed: ' . $response->body());
         }
 
@@ -321,6 +340,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $messageCopy = $entity->message;
         $messageCopy['ai_image'] = $cdnImageUrl;
         $entity->message = $messageCopy;
+        $entity->is_public = 1;
         $entity->save();
 
         $endViaList = array_map(
@@ -328,29 +348,17 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $params['via'] ?? ['database']
         );
 
-        $config = [
-            'email_template' => $params['email_template'] ?? null,
-            'push_template' => $params['push_template'] ?? null,
-            'app' => $entity->app,
-            'company' => $entity->company,
-            'message' => "Your image for {$title} has been processed",
-            'title' => 'Image Processed',
-            'metadata' => $entity->getMessage(),
-            'via' => $endViaList,
-            'message_owner_id' => $entity->user->getId(),
-            'message_id' => $entity->getId(),
-            'parent_message_id' => $entity->getId(),
-            'destination_id' => $entity->getId(),
-            'destination_type' => 'MESSAGE',
-            'destination_event' => 'NEW_MESSAGE',
-        ];
-
         try {
             // Send notification to the user
-            $newMessageNotification = new CustomMessageNotification(
-                $entity,
-                $config,
-                $config['via']
+            $newMessageNotification = new ImageProcessingPushNotification(
+                user: $entity,
+                message: "Your image for {$title} has been processed",
+                title: 'Image Processed',
+                via: $endViaList,
+                templates: [
+                    'email_template' => $params['email_template'],
+                    'push_template' => $params['push_template'],
+                ],
             );
             $entity->user->notify($newMessageNotification);
         } catch (InternalServerErrorException $e) {
@@ -371,7 +379,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             'message_id' => $entity->getId(),
             'nugget_message_id' => $createNuggetMessage->getId(),
             'original_image_url' => $originalImageUrl,
-            'config' => $config,
         ];
 
         // Add processed image URL and request ID if they exist (for fal-ai processing)
@@ -474,10 +481,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         // Check for data.images[0].url format
-        if (isset($resultResponse['data']['images']) &&
+        if (
+            isset($resultResponse['data']['images']) &&
             is_array($resultResponse['data']['images']) &&
             ! empty($resultResponse['data']['images']) &&
-            isset($resultResponse['data']['images'][0]['url'])) {
+            isset($resultResponse['data']['images'][0]['url'])
+        ) {
             return $resultResponse['data']['images'][0]['url'];
         }
 
