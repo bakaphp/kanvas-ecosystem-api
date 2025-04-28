@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use finfo;
-a
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
