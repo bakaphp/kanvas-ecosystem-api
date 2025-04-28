@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Enums;
@@ -14,5 +15,4 @@ enum ShippingCostEnum: string
     case PAYMENT_FEE = 'payment_fee';
     case SERVICE_FEE = 'service_fee';
     case SHIPPING_MARGIN = 'shipping_margin';
-
 }
