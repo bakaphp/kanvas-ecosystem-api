@@ -9,12 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Users\Models\UserConfig;
+use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
-use Kanvas\Souk\Orders\Models\OrderItem;
 
 class LockPremiumPromptsActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -44,7 +43,6 @@ class LockPremiumPromptsActivity extends KanvasActivity implements WorkflowActiv
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($entity) use ($messageData) {
-
                 $sku = $messageData['price']['sku'];
                 $orderItem = OrderItem::where('product_sku', $sku)
                     ->where('apps_id', $entity->app->getId())
