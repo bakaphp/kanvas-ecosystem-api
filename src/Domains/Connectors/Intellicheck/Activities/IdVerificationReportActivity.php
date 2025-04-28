@@ -105,39 +105,39 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         Notification::send($usersToNotify, $notification);
 
                         // Generate PDF
-                        $pdfReport = PdfService::generatePdfFromTemplate(
-                            $app,
-                            $entity->user,
-                            'id-verification-report',
-                            $entity,
-                            [
-                                'message' => $reportData['message'],
-                                'status' => $reportData['status'],
-                                'flags' => $reportData['flags'],
-                                'failures' => $reportData['failures'],
-                                'results' => $reportData['results'],
-                                'isShowRoom' => $isShowRoom,
-                                'verificationData' => $verificationData,
-                            ]
-                        );
+                        /*                $pdfReport = PdfService::generatePdfFromTemplate(
+                                           $app,
+                                           $entity->user,
+                                           'id-verification-report',
+                                           $entity,
+                                           [
+                                               'message' => $reportData['message'],
+                                               'status' => $reportData['status'],
+                                               'flags' => $reportData['flags'],
+                                               'failures' => $reportData['failures'],
+                                               'results' => $reportData['results'],
+                                               'isShowRoom' => $isShowRoom,
+                                               'verificationData' => $verificationData,
+                                           ]
+                                       );
 
-                        if ($entity instanceof Lead) {
-                            $engagement = EngagementRepository::findEngagementForLead(
-                                $entity,
-                                ConfigurationEnum::ID_VERIFICATION->value,
-                                ActionStatusEnum::SUBMITTED->value,
-                            );
+                                       if ($entity instanceof Lead) {
+                                           $engagement = EngagementRepository::findEngagementForLead(
+                                               $entity,
+                                               ConfigurationEnum::ID_VERIFICATION->value,
+                                               ActionStatusEnum::SUBMITTED->value,
+                                           );
 
-                            if ($engagement) {
-                                //update people name
-                                /*                                 if ($engagement->people instanceof People) {
-                                                                    PeopleService::updatePeopleInformation($engagement->people, $verificationData);
-                                                                } */
+                                           if ($engagement) {
+                                               //update people name
+                                               // if ($engagement->people instanceof People) {
+                                               //  PeopleService::updatePeopleInformation($engagement->people, $verificationData);
+                                               //     }
 
-                                $message = $engagement->message;
-                                $message->addFile($pdfReport, 'id-verification');
-                            }
-                        }
+                                               $message = $engagement->message;
+                                               $message->addFile($pdfReport, 'id-verification');
+                                           }
+                                       } */
 
                         //$entity->addFile($pdfReport, 'id-verification');
                     });
