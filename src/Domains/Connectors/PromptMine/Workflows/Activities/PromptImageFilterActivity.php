@@ -20,6 +20,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
