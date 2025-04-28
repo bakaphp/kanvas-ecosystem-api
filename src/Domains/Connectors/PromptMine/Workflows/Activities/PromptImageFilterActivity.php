@@ -263,7 +263,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         @unlink($tempFile);
 
         if (! $response->successful()) {
-
             $entity->is_deleted = 1;
             $entity->save();
             $endViaList = array_map(
