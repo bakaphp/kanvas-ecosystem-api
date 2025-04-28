@@ -269,7 +269,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 $params['via'] ?? ['database']
             );
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
-                user: $entity,
+                user: $entity->user,
                 message: 'Your image could not be processed because it violated our content policy. Please try again with a different image.',
                 title: 'Error processing image',
                 via: $endViaList,
@@ -351,7 +351,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         try {
             // Send notification to the user
             $newMessageNotification = new ImageProcessingPushNotification(
-                user: $entity,
+                user: $entity->user,
                 message: "Your image for {$title} has been processed",
                 title: 'Image Processed',
                 via: $endViaList,
