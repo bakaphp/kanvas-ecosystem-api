@@ -26,23 +26,21 @@ class SendLeadEmailsAction
         $data = [
             ...$payload,
             'lead' => $this->lead,
-            // 'receiver' => $this->lead->receiver()->first(),
         ];
         $leadEmail = $this->lead->people()->first()->emails()->first()?->value;
-        $shouldSend = $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL || $notificationMode === LeadNotificationModeEnum::NOTIFY_ROTATION_USERS;
-        $shouldSendLead = $leadEmail && ($notificationMode === LeadNotificationModeEnum::NOTIFY_LEAD || $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL);
-        
-        if ($shouldSend) {
+        $shouldSendToUser = $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL || $notificationMode === LeadNotificationModeEnum::NOTIFY_AGENTS;
+        $shouldSendToLead = $leadEmail && ($notificationMode === LeadNotificationModeEnum::NOTIFY_LEAD || $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL);
+
+        if ($shouldSendToUser) {
             foreach ($users as $user) {
                 try {
                     $this->sendEmail($user, $userTemplate, $user->email, $data);
                 } catch (\Exception $e) {
-                    print_r([$e->getMessage(), $user]);
                     continue;
                 }
             }
         }
-        if ($shouldSendLead) {
+        if ($shouldSendToLead) {
             $this->sendEmail($this->lead, $leadTemplate, $leadEmail, $data);
         }
     }
