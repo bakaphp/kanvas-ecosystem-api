@@ -115,10 +115,10 @@ class PullPeopleAction
                         )
                         ,
                         'branch' => $this->company->defaultBranch,
-                        'custom_fields' => [
+                        'custom_fields' => array_filter([
                             CustomFieldEnum::CUSTOMER_ID->value => $customer['id'],
                             CustomFieldEnum::PERSON_ID->value => $personId,
-                        ],
+                        ], fn ($value) => $value !== null),
                     ])
                 )->execute();
 
