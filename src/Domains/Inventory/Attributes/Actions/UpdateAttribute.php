@@ -21,7 +21,6 @@ class UpdateAttribute
     /**
      * execute.
      *
-     * @return Attributes
      */
     public function execute(): Attributes
     {
@@ -46,7 +45,6 @@ class UpdateAttribute
             'is_visible' => $this->dto->isVisible,
             'is_searchable' => $this->dto->isSearchable,
             'is_filtrable' => $this->dto->isFiltrable,
-            'is_required' => $this->dto->isRequired,
         ]);
 
         return $this->attribute;

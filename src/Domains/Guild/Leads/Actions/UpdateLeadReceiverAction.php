@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Actions;
 
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
-use Kanvas\Guild\Leads\DataTransferObject\LeadsReceiver;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver as ModelsLeadReceiver;
 
 class UpdateLeadReceiverAction

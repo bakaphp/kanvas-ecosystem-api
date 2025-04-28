@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Queries\Reactions;
 
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Social\Reactions\Repositories\UserReactionRepository;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Illuminate\Database\Eloquent\Collection;
 
 class UserReactionQueries
 {

@@ -6,13 +6,13 @@ namespace App\Console\Commands\Connectors\PromptMine;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Prism\Prism\Prism;
-use Prism\Prism\Enums\Provider;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Prism;
 use Throwable;
 
 class FixPromptDataCommand extends Command
@@ -24,7 +24,10 @@ class FixPromptDataCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:promptmine-fix-prompt-data {app_id} {companies_id} {message_type_id} {child_message_type_id}';
+    protected $signature = 'kanvas:promptmine-fix-prompt-data 
+                        {--app_id= : The app ID (default: 78)} 
+                        {--message_type_id= : The message type ID (default: 588)} 
+                        {--child_message_type_id= : The child message type ID (default: 576)}';
 
     /**
      * The console command description.
@@ -40,26 +43,26 @@ class FixPromptDataCommand extends Command
      */
     public function handle()
     {
-        $app = Apps::getById((int) $this->argument('app_id'));
+        $app = Apps::getById((int) $this->option('app_id'));
         $this->overwriteAppService($app);
-        $messageTypeId = (int) $this->argument('message_type_id');
+        $messageTypeId = (int) $this->option('message_type_id');
         $messageType = MessageType::find($messageTypeId);
-        $childMessageTypeId = (int) $this->argument('child_message_type_id');
+        $childMessageTypeId = (int) $this->option('child_message_type_id');
         $childMessageType = MessageType::find($childMessageTypeId);
-        $companiesId = (int) $this->argument('companies_id');
+        // $companiesId = (int) $this->argument('companies_id');
 
         //Get all messages for the given message type and app
-        $this->SyncPromptData($app, $messageType, $childMessageType, $companiesId);
+        $this->SyncPromptData($app, $messageType, $childMessageType);
     }
 
     /**
      * @todo how to avoid changing legit prompts and nugget data? Use the json validator?
      */
-    private function SyncPromptData(Apps $app, MessageType $messageType, MessageType $childMessageType, int $companiesId): void
+    private function SyncPromptData(Apps $app, MessageType $messageType, MessageType $childMessageType): void
     {
         Message::fromApp($app)
             ->where('message_types_id', $messageType->getId())
-            ->where('companies_id', $companiesId)
+            // ->where('companies_id', $companiesId)
             ->where('is_deleted', 0)
             ->orderBy('id', 'asc')
             ->chunk(100, function ($messages) use ($childMessageType) {
@@ -174,6 +177,7 @@ class FixPromptDataCommand extends Command
 
         $message->message = $messageData;
         $message->save();
+
         $this->info('-Prompt Message ID: ' . $message->getId() . ' updated');
     }
 

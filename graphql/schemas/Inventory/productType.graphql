@@ -39,6 +39,7 @@ input ProductTypeUpdateInput {
 input ProductTypeAttributesInput {
     id: ID!
     name: String
+    is_required: Boolean
 }
 
 input ProductTypeAttributesAssignInput {

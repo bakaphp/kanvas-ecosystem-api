@@ -25,6 +25,7 @@ use Kanvas\Users\Actions\CreateInviteAction;
 use Kanvas\Users\Actions\ProcessAdminInviteAction;
 use Kanvas\Users\Actions\ProcessInviteAction;
 use Kanvas\Users\Actions\RequestDeleteAccountAction as RequestDeleteAction;
+use Kanvas\Users\Actions\SaveUserAppPreferencesAction;
 use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
@@ -80,7 +81,6 @@ class UserManagementMutation
     /**
      * insertInvite.
      *
-     * @param  mixed $rootValue
      */
     public function insertUserInvite($rootValue, array $request): UsersInvite
     {
@@ -111,7 +111,6 @@ class UserManagementMutation
     /**
      * insertAdminInvite.
      *
-     * @param  mixed $rootValue
      */
     public function insertAdminInvite($rootValue, array $request): AdminInvite
     {
@@ -156,7 +155,6 @@ class UserManagementMutation
     /**
      * deleteInvite.
      *
-     * @param  mixed $rootValue
      */
     public function deleteInvite($rootValue, array $request): bool
     {
@@ -173,7 +171,6 @@ class UserManagementMutation
     /**
      * deleteInvite.
      *
-     * @param  mixed $rootValue
      */
     public function deleteAdminInvite($rootValue, array $request): bool
     {
@@ -190,7 +187,6 @@ class UserManagementMutation
     /**
      * processInvite.
      *
-     * @param  mixed $rootValue
      */
     public function getInvite($rootValue, array $request): UsersInvite
     {
@@ -201,7 +197,6 @@ class UserManagementMutation
     /**
      * Process User invite.
      *
-     * @param  mixed $rootValue
      */
     public function process($rootValue, array $request): array
     {
@@ -330,5 +325,20 @@ class UserManagementMutation
             "matching_contacts" => $matchingContacts,
             "nonmatching_contacts" => array_diff_key($contactsEmails, array_flip($matchingContacts))
         ];
+    }
+
+    public function saveUserAppPreferences(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $preferences = $request['preferences'];
+
+        (new SaveUserAppPreferencesAction(
+            user: $user,
+            app: $app,
+            preferences: $preferences
+        ))->execute();
+
+        return true;
     }
 }

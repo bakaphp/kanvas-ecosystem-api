@@ -1,0 +1,29 @@
+version: 8.4
+preset: psr12
+risky: false
+monolithic: true
+
+enabled:
+  - single_space_after_construct
+  - phpdoc_trim_consecutive_blank_line_separation
+  - no_empty_comment
+  - no_superfluous_phpdoc_tags
+  - not_operator_with_successor_space
+  - no_unused_imports
+  - ordered_imports
+
+finder:
+  exclude:
+    - modules
+    - node_modules
+    - nova
+    - nova-components
+    - storage
+    - spark
+    - vendor
+  not-path:
+    - database/seeders/CitiesSeeder.php
+  name: "*.php"
+  not-name:
+    - "*.blade.php"
+    - "_ide_helper.php"

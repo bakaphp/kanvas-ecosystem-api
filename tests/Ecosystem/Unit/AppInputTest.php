@@ -12,7 +12,6 @@ final class AppInputTest extends TestCaseUnit
     /**
      * Test Create AppsPostData Dto.
      *
-     * @return void
      */
     public function testCreateAppsPostDataDto(): void
     {

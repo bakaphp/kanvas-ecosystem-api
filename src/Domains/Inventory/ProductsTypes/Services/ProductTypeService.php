@@ -28,7 +28,8 @@ class ProductTypeService
                 new ProductsTypesAttributesDto(
                     $productsTypes,
                     $attributeObject,
-                    $toVariant
+                    $toVariant,
+                    $attribute['is_required']
                 ));
 
             (new CreateProductTypeAttributeAction($productsAttributesDto, $user))->execute();

@@ -32,7 +32,8 @@ trait HasCustomFields
     public function customFields(): HasMany
     {
         return $this->hasMany(AppsCustomFields::class, 'entity_id', 'id')
-                ->where('model_name', get_class($this))
+                //->where('model_name', get_class($this))
+                ->whereIn('model_name', [get_class($this), SystemModules::getLegacyNamespace(get_class($this))]) //allow legacy
                 ->where('is_deleted', StateEnums::NO->getValue())
                 ->when(isset($this->companies_id), function ($query) {
                     $query->where('companies_id', $this->companies_id);
@@ -285,7 +286,6 @@ trait HasCustomFields
     }
 
     /**
-     * @param array<array-key, array{name: string, data: mixed}> $data
      * @throws ConfigurationException
      */
     public function setAllCustomFields(array $customFields, bool|int $isPublic = false): bool
@@ -381,7 +381,6 @@ trait HasCustomFields
     /**
      * Remove all the custom fields from the entity.
      *
-     * @param  int $id
      */
     public function deleteAllCustomFields(): bool
     {

@@ -17,11 +17,6 @@ trait HasJwtToken
     /**
      * Create a new personal access token for the user.
      *
-     * @param  string  $name
-     * @param  array  $abilities
-     * @param  \DateTimeInterface|null  $expiresAt
-     *
-     * @return NewAccessToken
      */
     public function createToken(
         string $name,

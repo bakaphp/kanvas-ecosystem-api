@@ -10,11 +10,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Models\Integrations;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
-
-use function Laravel\Prompts\info;
-
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
+
+use function Laravel\Prompts\info;
 
 class CreateIntegrationCommand extends Command
 {

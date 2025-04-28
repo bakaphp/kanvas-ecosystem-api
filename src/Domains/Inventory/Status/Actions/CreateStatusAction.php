@@ -26,7 +26,6 @@ class CreateStatusAction
     /**
      * execute.
      *
-     * @return Status
      */
     public function execute(): Status
     {

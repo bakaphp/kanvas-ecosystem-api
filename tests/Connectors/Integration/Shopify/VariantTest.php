@@ -13,7 +13,6 @@ use Kanvas\Inventory\Attributes\DataTransferObject\Attributes;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
-use Kanvas\Inventory\Variants\Services\VariantService;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\TestCase;
 
@@ -79,8 +78,7 @@ final class VariantTest extends TestCase
                 attributeType: null,
                 isVisible: true,
                 isSearchable: true,
-                isFiltrable: true,
-                isRequired: true
+                isFiltrable: true
             ),
             $product->user
         );

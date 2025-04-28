@@ -11,9 +11,6 @@ class Client
     /**
      * getClient.
      *
-     * @param  string $storeUrl
-     *
-     * @return GuzzleClient
      */
     public static function getClient(string $storeUrl): GuzzleClient
     {

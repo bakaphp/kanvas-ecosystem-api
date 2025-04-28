@@ -104,6 +104,10 @@ jobs:
       TEST_RECOMBEE_DATABASE: ${{ secrets.TEST_RECOMBEE_DATABASE }}
       TEST_RECOMBEE_API_KEY: ${{ secrets.TEST_RECOMBEE_API_KEY }}
       TEST_RECOMBEE_REGION: ${{ secrets.TEST_RECOMBEE_REGION }}
+      TEST_ELEAD_API_KEY: ${{ secrets.TEST_ELEAD_API_KEY }}
+      TEST_ELEAD_API_SECRET: ${{ secrets.TEST_ELEAD_API_SECRET }}
+      TEST_ELEAD_DEV_MODE: ${{ secrets.TEST_ELEAD_DEV_MODE }}
+      TEST_ELEAD_SUBSCRIPION_ID: ${{ secrets.TEST_ELEAD_SUBSCRIPION_ID }}
     strategy:
       fail-fast: false
       matrix:

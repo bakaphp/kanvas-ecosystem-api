@@ -456,4 +456,10 @@ class Lead extends BaseModel
 
         return config('scout.prefix') . ($customIndex ?? 'leads');
     }
+
+    public function startShowRoom(): void
+    {
+        $this->set('is_chrono_running', 1);
+        $this->set('chrono_start_date', date('c'));
+    }
 }

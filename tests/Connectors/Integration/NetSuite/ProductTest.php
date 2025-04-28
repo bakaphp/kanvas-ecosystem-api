@@ -7,7 +7,6 @@ namespace Tests\Connectors\Integration\NetSuite;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
-use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
 use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;

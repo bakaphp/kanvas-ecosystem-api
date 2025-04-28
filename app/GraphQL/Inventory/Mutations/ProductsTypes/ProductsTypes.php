@@ -18,10 +18,6 @@ class ProductsTypes
     /**
      * create.
      *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return ProductsTypesModel
      */
     public function create(mixed $root, array $request): ProductsTypesModel
     {
@@ -40,18 +36,18 @@ class ProductsTypes
 
         if (isset($request['products_attributes'])) {
             ProductTypeService::addAttributes(
-                $productType,
-                auth()->user(),
-                $request['products_attributes']
+                productsTypes: $productType,
+                user: auth()->user(),
+                attributes: $request['products_attributes']
             );
         }
 
         if (isset($request['variants_attributes'])) {
             ProductTypeService::addAttributes(
-                $productType,
-                auth()->user(),
-                $request['variants_attributes'],
-                true
+                productsTypes: $productType,
+                user: auth()->user(),
+                attributes: $request['variants_attributes'],
+                toVariant: true
             );
         }
 
@@ -61,10 +57,6 @@ class ProductsTypes
     /**
      * update.
      *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return ProductsTypesModel
      */
     public function update(mixed $root, array $request): ProductsTypesModel
     {
@@ -103,9 +95,6 @@ class ProductsTypes
     /**
      * Assign attributes to products types
      *
-     * @param mixed $root
-     * @param array $request
-     * @return ProductsTypesModel
      */
     public function assignAttributes(mixed $root, array $request): ProductsTypesModel
     {
@@ -127,10 +116,6 @@ class ProductsTypes
     /**
      * delete.
      *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return bool
      */
     public function delete(mixed $root, array $request): bool
     {

@@ -12,10 +12,9 @@ use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use PHPShopify\ShopifySDK;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ShopifyChannelService
 {

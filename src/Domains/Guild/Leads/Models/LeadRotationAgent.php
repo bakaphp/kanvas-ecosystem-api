@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
-use Baka\Traits\KanvasScopesTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Models\BaseModel;

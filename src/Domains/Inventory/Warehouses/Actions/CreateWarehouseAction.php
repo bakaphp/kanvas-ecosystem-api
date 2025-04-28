@@ -6,7 +6,6 @@ namespace Kanvas\Inventory\Warehouses\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
@@ -14,8 +13,6 @@ class CreateWarehouseAction
 {
     /**
      * __construct.
-     *
-     * @param  WarehousesDto $dto
      *
      * @return void
      */
@@ -28,7 +25,6 @@ class CreateWarehouseAction
     /**
      * execute.
      *
-     * @return Warehouses
      */
     public function execute(): Warehouses
     {

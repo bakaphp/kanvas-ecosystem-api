@@ -10,11 +10,13 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Override;
 
 class LeadFactory extends Factory
 {
     protected $model = Lead::class;
 
+    #[Override]
     public function definition()
     {
         $app = app(Apps::class);
@@ -68,6 +70,15 @@ class LeadFactory extends Factory
         return $this->state(function (array $attributes) use ($companyId) {
             return [
                 'companies_id' => $companyId,
+            ];
+        });
+    }
+
+    public function withReceiverId(int $receiverId)
+    {
+        return $this->state(function (array $attributes) use ($receiverId) {
+            return [
+                'leads_receivers_id' => $receiverId,
             ];
         });
     }

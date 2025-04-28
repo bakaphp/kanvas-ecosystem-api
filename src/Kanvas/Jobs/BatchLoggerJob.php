@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Jobs;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Support\Facades\Log;
 
 class BatchLoggerJob implements ShouldQueue

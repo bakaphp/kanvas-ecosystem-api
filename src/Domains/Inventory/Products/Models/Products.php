@@ -101,7 +101,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     protected $is_deleted;
 
-    public $translatable = ['name','description','short_description','html_description','warranty_terms'];
+    public $translatable = ['name', 'description', 'short_description', 'html_description', 'warranty_terms'];
 
     #[Override]
     public function getGraphTypeName(): string
@@ -221,7 +221,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 $query->where('products_variants.is_deleted', 0)
                     ->whereHas('attributes', function (Builder $query) use ($value) {
                         $query->where('products_variants_attributes.value', $value)
-                              ->where('products_variants_attributes.is_deleted', 0);
+                            ->where('products_variants_attributes.is_deleted', 0);
                     });
             });
     }
@@ -268,6 +268,33 @@ class Products extends BaseModel implements EntityIntegrationInterface
         );
 
         return $query;
+    }
+
+    // @TODO: optimize this using another engine
+    public function scopeFilterByNearLocation(Builder $query, array $location): Builder
+    {
+        $EarthRadius = 6371; // km
+
+        return $query
+            ->where('products.is_deleted', 0)
+            ->whereHas('attributes', function ($query) use ($location, $EarthRadius) {
+                $query->whereRaw("JSON_EXTRACT(products_attributes.value, '$.en.lat') IS NOT NULL")
+                    ->whereRaw("JSON_EXTRACT(products_attributes.value, '$.en.long') IS NOT NULL")
+                    ->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6)) != 0")
+                    ->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.long')) AS DECIMAL(10,6)) != 0")
+                    ->selectRaw("(
+                {$EarthRadius} * acos(
+                    least(1, cos(radians(?)) *
+                    cos(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6)))) *
+                    cos(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.long')) AS DECIMAL(10,6))) - radians(?)) +
+                    sin(radians(?)) *
+                    sin(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6))))
+                    )
+                )
+                    ) AS distance", [$location['lat'], $location['long'], $location['lat']])
+                ->having('distance', '<=', $location['radius'])
+                ->orderBy('distance');
+            });
     }
 
     /**
@@ -356,7 +383,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'name' => $category->name,
                     'slug' => $category->slug,
                     'position' => $category->position,
-                  ];
+                ];
             }),
             'variants' => $this->getVariantsData(),
             'status' => [
@@ -591,8 +618,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
     }
 
     /**
-    * The Typesense schema to be created.
-    */
+     * The Typesense schema to be created.
+     */
     public function typesenseCollectionSchema(): array
     {
         return [

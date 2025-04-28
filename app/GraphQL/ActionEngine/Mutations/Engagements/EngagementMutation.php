@@ -337,6 +337,10 @@ class EngagementMutation
             'form_type' => null,     // Default to null if not found
         ];
 
+        if (empty($actionMappings)) {
+            return $result;
+        }
+
         foreach ($actionMappings as $group => $mappings) {
             if (array_key_exists($childSlug, $mappings)) {
                 $result['parent'] = $mappings[$childSlug]['parent'];

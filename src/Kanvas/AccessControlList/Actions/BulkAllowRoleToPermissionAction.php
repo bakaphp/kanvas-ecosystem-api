@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\AccessControlList\Actions;
 
 use Bouncer;
-use Silber\Bouncer\Database\Role as SilberRole;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Silber\Bouncer\Database\Role as SilberRole;
 
 class BulkAllowRoleToPermissionAction
 {

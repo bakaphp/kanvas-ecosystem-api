@@ -11,7 +11,6 @@ class AttributesTypesTest extends TestCase
     /**
      * testCreate.
      *
-     * @return void
      */
     // public function testCreate(): void
     // {
@@ -33,7 +32,6 @@ class AttributesTypesTest extends TestCase
     /**
      * testSearch.
      *
-     * @return void
      */
     public function testSearch(): void
     {
