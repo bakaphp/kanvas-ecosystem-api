@@ -25,10 +25,10 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $isSync = $entity->id === 0;
-        $company = Companies::getById($entity->company_id);
+        $company = Companies::getById($entity->companies_id);
         $this->company = $company;
         $this->app = $app;
-        $peopleId = $params['entity_id'] ?? null;
+        $leadId = $params['entity_id'] ?? null;
         $user = $params['user'] ?? null;
 
         $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
@@ -45,7 +45,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 $user
             )->execute(
                 lead: $entity->id > 0 ? $entity : null,
-                leadId: $peopleId,
+                leadId: (int) $leadId,
             );
         }
 

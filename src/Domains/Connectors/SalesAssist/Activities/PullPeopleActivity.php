@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\PullPeopleAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Actions\PullPeopleAction as ActionsPullPeopleAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -28,7 +29,7 @@ class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInter
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $isSync = $entity->id === 0;
-        $company = Companies::getById($entity->company_id);
+        $company = Companies::getById($entity->companies_id);
         $this->company = $company;
         $this->app = $app;
         $peopleId = $params['entity_id'] ?? null;
@@ -41,6 +42,14 @@ class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInter
 
         if ($isElead) {
             return new PullPeopleAction($app, $company, $user)->execute($params);
+        } elseif ($isVinSolutions) {
+            return new ActionsPullPeopleAction(
+                $app,
+                $company,
+                $user
+            )->execute(
+                email: $params['email'] ?? null,
+            );
         }
 
         return [];
