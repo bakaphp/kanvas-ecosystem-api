@@ -32,7 +32,7 @@ class PullPeopleAction
         $dob = $request['birthday'] ?? null;
         $firstname = $request['firstname'] ?? null;
         $lastname = $request['lastname'] ?? null;
-        $personId = $request['personId'];
+        $personId = $request['personId'] ?? $request['entity_id'] ?? null;
         $phone = $phones[0] ?? null;
 
         $people = People::getByCustomField(
