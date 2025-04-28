@@ -35,7 +35,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
             'destination_event' => 'NEW_MESSAGE',
         ];
 
-        parent::__construct($user, $data);
+        parent::__construct($user, $data, $via);
         $this->setType(EmailTemplateEnum::BLANK->value);
         $this->setPushTemplateName(NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value);
         $this->setData($data);
