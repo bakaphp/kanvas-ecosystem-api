@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -37,6 +38,15 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
         if ($isElead) {
             return new PullLeadAction($app, $company, $user)->execute($params);
+        } elseif ($isVinSolutions) {
+            return new ActionsPullLeadAction(
+                $app,
+                $company,
+                $user
+            )->execute(
+                lead: $entity->id > 0 ? $entity : null,
+                leadId: $peopleId,
+            );
         }
 
         return [];

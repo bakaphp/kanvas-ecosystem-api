@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
-use Kanvas\Connectors\Elead\DataTransferObject\Lead;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 
 class SyncLeadByThirdPartyCustomFieldAction
