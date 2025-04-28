@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use finfo;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
