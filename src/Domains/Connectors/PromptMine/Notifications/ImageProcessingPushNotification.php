@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
+use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
-use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
-use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 
 class ImageProcessingPushNotification extends CustomMessageNotification
 {
