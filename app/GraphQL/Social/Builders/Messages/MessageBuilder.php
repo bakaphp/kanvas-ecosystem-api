@@ -46,6 +46,14 @@ class MessageBuilder
             );
         }
 
+        if ($viewingOneMessage) {
+            $message = Message::fromApp()
+                ->where($args['where']['column'], $args['where']['value'])
+                ->where('is_deleted', 0)
+                ->first();
+            $message->isLocked();
+        }
+
         $query = Message::query();
 
         if (! empty($args['customFilters'])) {
