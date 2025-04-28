@@ -26,7 +26,6 @@ class CreateChannel
     /**
      * execute.
      *
-     * @return Channels
      */
     public function execute(): Channels
     {

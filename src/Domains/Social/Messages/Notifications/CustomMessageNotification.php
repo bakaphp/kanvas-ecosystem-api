@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Notifications;
 
 use Kanvas\Notifications\Notification;
-use Kanvas\Social\Messages\Enums\NotificationTemplateEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
 

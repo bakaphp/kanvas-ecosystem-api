@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Roles\Models;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
 
 /**

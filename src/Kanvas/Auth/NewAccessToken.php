@@ -14,7 +14,6 @@ class NewAccessToken
     /**
      * Constructor.
      *
-     * @param Sessions $sessionToken
      */
     public function __construct(
         protected Sessions $sessionToken

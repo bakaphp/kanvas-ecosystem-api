@@ -23,7 +23,6 @@ class CreateCompanyGroupActions
     /**
      * Invoke function.
      *
-     * @return CompaniesGroups
      */
     public function execute(string $name, int $isDefault): CompaniesGroups
     {

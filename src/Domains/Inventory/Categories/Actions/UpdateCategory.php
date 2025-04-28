@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Categories\Actions;
 
+use Baka\Support\Str;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Models\Categories;
-use Baka\Support\Str;
 
 class UpdateCategory extends CreateCategory
 {

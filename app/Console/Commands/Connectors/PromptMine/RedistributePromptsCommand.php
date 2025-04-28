@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\PromptMine;
 
-use Illuminate\Console\Command;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Tags\Models\Tag;
 use Google\Service\Sheets;
-use Illuminate\Support\Facades\Log;
-use Kanvas\Users\Models\UsersAssociatedApps;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 class RedistributePromptsCommand extends Command
 {

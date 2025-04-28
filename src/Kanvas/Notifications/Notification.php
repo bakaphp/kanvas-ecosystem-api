@@ -142,7 +142,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     /**
      * Get the mail representation of the notification.
      *
-     * @param  mixed  $notifiable
      */
     public function toMail($notifiable): Mailable
     {

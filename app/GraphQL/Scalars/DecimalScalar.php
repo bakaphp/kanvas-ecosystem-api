@@ -22,7 +22,6 @@ class DecimalScalar extends ScalarType
     /**
      * Serialize the value for output.
      *
-     * @param mixed $value
      * @throws InvariantViolation
      */
     public function serialize($value): string
@@ -39,7 +38,6 @@ class DecimalScalar extends ScalarType
     /**
      * Parse the value from client input.
      *
-     * @param mixed $value
      * @throws Error
      */
     public function parseValue($value): string
@@ -74,7 +72,6 @@ class DecimalScalar extends ScalarType
     /**
      * Format the number to ensure it has proper decimal precision.
      *
-     * @param mixed $value
      */
     protected function formatDecimal($value): string
     {
@@ -84,7 +81,6 @@ class DecimalScalar extends ScalarType
     /**
      * Ensure the value is numeric.
      *
-     * @param mixed $value
      * @throws Error|InvariantViolation
      */
     private function ensureIsNumeric($value, string $errorMessage): void

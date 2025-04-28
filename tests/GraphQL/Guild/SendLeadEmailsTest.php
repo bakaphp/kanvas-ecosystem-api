@@ -7,7 +7,6 @@ namespace Tests\GraphQL\Guild;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
-use Tests\TestCase;
 use Kanvas\Guild\Leads\Actions\SendLeadEmailsAction;
 use Kanvas\Guild\Leads\Actions\SendRotationEmailsAction;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -16,7 +15,7 @@ use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\Models\LeadRotationAgent;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\LeadSources\Models\LeadSource;
-use Kanvas\Guild\Rotations\Models\RotationUser;
+use Tests\TestCase;
 
 class SendLeadEmailsTest extends TestCase
 {

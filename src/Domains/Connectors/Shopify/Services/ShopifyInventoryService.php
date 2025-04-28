@@ -18,10 +18,9 @@ use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use PHPShopify\ShopifySDK;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ShopifyInventoryService
 {

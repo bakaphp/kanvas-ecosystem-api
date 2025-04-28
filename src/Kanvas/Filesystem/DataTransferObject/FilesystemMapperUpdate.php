@@ -7,7 +7,6 @@ namespace Kanvas\Filesystem\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\SystemModules\Models\SystemModules;
 use Spatie\LaravelData\Data;
 
 class FilesystemMapperUpdate extends Data

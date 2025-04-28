@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Bouncer;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
+use Kanvas\AccessControlList\Actions\BulkAllowRoleToPermissionAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -18,10 +19,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
-use Kanvas\AccessControlList\Actions\DisallowAllAbilitiesAction;
 use Silber\Bouncer\Database\Role as SilberRole;
-use Silber\Bouncer\Database\Ability as SilberAbility;
-use Kanvas\AccessControlList\Actions\BulkAllowRoleToPermissionAction;
 
 class RolesManagementMutation
 {

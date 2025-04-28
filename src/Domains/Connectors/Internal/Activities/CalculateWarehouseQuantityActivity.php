@@ -23,7 +23,7 @@ class CalculateWarehouseQuantityActivity extends KanvasActivity implements Workf
         if (count($order->items) > 0 && $checkExpiredOrders) {
             $variant = $order->items->first(function ($item) {
                 return $item->variant->product?->attributes
-                ->contains(fn ($attribute) =>in_array($attribute->slug, ['capacity', 'slots']) && !empty($attribute->value));
+                ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));
             })->variant;
 
             $product = $variant->product;
@@ -33,7 +33,7 @@ class CalculateWarehouseQuantityActivity extends KanvasActivity implements Workf
             $newSlots = $product->getAttributeByName('slots')?->value;
             $slots = $newSlots ?? $legacySlots;
             $variantWarehouse = $channel?->productVariantWarehouse()->first();
-            
+
             $activeOrders = $this->getActiveOrders($variant->getId(), $app);
             $available = $slots - $activeOrders;
             $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);

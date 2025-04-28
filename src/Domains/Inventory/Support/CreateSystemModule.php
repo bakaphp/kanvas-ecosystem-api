@@ -14,8 +14,8 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
-use Kanvas\Inventory\Variants\Models\VariantsWarehousesPriceHistory;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Kanvas\Inventory\Variants\Models\VariantsWarehousesPriceHistory;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 

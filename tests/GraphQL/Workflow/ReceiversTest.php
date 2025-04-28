@@ -5,19 +5,18 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Workflow;
 
 use Illuminate\Support\Facades\Queue;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Workflow\Models\ReceiverWebhook;
-use Tests\TestCase;
 use Illuminate\Support\Facades\Request;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Tests\TestCase;
 
 class ReceiversTest extends TestCase
 {
     /**
      * testCreate.
      *
-     * @return void
      */
     public function testGetReceiversHistory(): void
     {

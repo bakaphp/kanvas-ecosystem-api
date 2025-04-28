@@ -14,7 +14,6 @@ class WarehouseTest extends TestCase
     /**
      * testCreateWarehouse.
      *
-     * @return void
      */
     public function testCreateWarehouse(): void
     {
@@ -30,7 +29,6 @@ class WarehouseTest extends TestCase
     /**
      * testFindWarehouse.
      *
-     * @return void
      */
     public function testFindWarehouse(): void
     {
@@ -65,7 +63,6 @@ class WarehouseTest extends TestCase
     /**
      * testUpdateWareHouse.
      *
-     * @return void
      */
     public function testUpdateWarehouse(): void
     {

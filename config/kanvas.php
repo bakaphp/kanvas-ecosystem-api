@@ -32,4 +32,9 @@ return [
     'ipinfo' => [
         'token' => env('IPINFO_API_KEY'),
     ],
+    'ratelimit' => [
+        'enabled' => env('API_RATE_LIMIT_ENABLED', true),
+        'max_attempts' => env('API_RATE_LIMIT_MAX_ATTEMPTS', 120),
+        'decay_minutes' => env('API_RATE_LIMIT_DECAY_MINUTES', 1),
+    ],
 ];

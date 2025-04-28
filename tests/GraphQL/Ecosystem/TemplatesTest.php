@@ -4,11 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
-use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Enums\AppEnums;
-use Kanvas\Locations\Models\Countries;
-use Kanvas\Locations\Models\States;
 use Tests\TestCase;
 
 class TemplatesTest extends TestCase

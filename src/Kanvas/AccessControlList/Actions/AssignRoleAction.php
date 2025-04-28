@@ -50,7 +50,7 @@ class AssignRoleAction
                     'user_role' => $this->role->id,
                 ]);
             }
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             //on signups this record might not exist yet , so we ignore it
             //the assign company will handle it, not great we will refactor in v2
         }

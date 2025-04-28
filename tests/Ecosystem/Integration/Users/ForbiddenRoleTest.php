@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Ecosystem\Integration\Users;
 
-use Tests\TestCase;
-use Kanvas\Auth\DataTransferObject\RegisterInput;
-use Kanvas\Auth\Actions\RegisterUsersAppAction;
-use Kanvas\Auth\Actions\CreateUserAction;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Bouncer;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Auth\Actions\CreateUserAction;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Users\Actions\RemoveCompanyAction;
+use Tests\TestCase;
 
 final class ForbiddenRoleTest extends TestCase
 {

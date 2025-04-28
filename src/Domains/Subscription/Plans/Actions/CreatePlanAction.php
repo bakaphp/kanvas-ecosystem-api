@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Plans\Actions;
 
-use Kanvas\Subscription\Plans\Models\Plan;
 use Kanvas\Subscription\Plans\DataTransferObject\Plan as PlanDto;
+use Kanvas\Subscription\Plans\Models\Plan;
 
 class CreatePlanAction
 {

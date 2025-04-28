@@ -7,12 +7,10 @@ namespace App\Console\Commands\Connectors\ScrapperApi;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
-use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Users\Models\Users;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Connectors\ScrapperApi\Actions\SaveCustomFieldDataAction;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class ScrapperCustomFieldCommand extends Command
 {

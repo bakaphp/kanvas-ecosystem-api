@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
 
-use App\GraphQL\Inventory\Mutations\Warehouses\Warehouse;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as VariantsWarehousesDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class UpdateToWarehouseAction
 {

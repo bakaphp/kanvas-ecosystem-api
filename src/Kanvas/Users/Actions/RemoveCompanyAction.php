@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Actions;
 
+use Kanvas\AccessControlList\Actions\ForbiddenRolesUsersAction;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -12,7 +13,6 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use Kanvas\AccessControlList\Actions\ForbiddenRolesUsersAction;
 
 class RemoveCompanyAction
 {

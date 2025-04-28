@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Contracts\Events\Dispatcher;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
+use Kanvas\Apps\Support\MountedAppProvider;
 use Laravel\Scout\Console\ImportCommand;
-use  Kanvas\Apps\Support\MountedAppProvider;
 
 class KanvasImportCommand extends ImportCommand
 {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\ProductsTypes\DataTransferObject;
 
+use Baka\Enums\StateEnums;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Spatie\LaravelData\Data;
@@ -19,15 +20,13 @@ class ProductsTypesAttributes extends Data
         public ProductsTypes $productsTypes,
         public Attributes $attributes,
         public bool $toVariant = false,
+        public bool $isRequired = false
     ) {
     }
 
     /**
      * fromArray.
      *
-     * @param  array $data
-     *
-     * @return ProductsTypesAttributes
      */
     public static function viaRequest(array $request): self
     {
@@ -35,6 +34,7 @@ class ProductsTypesAttributes extends Data
             $request['product_type'],
             $request['attribute'],
             $request['toVariant'] ?? false,
+            $request['is_required'] ?? (bool) StateEnums::NO->getValue()
         );
     }
 }

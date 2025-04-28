@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\CMLink;
 use Kanvas\Connectors\CMLink\DataTransferObject\CMLink;
 use Kanvas\Connectors\CMLink\Services\CMLinkSetupService;
 use Kanvas\Connectors\Contracts\BaseIntegration;
-use Kanvas\Connectors\CMLink\Client;
 
 class CMLinkHandler extends BaseIntegration
 {

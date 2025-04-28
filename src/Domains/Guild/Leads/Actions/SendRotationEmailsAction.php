@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
-use Kanvas\Guild\Leads\Actions\SendLeadEmailsAction;
 use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
 use Kanvas\Guild\Leads\Enums\LeadNotificationUserModeEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
@@ -25,7 +24,7 @@ class SendRotationEmailsAction
     public function execute(array $payload, string $userFlag = 'user', string|null $defaultEmailTemplate = null)
     {
         $emailTemplate = $this->leadRotation?->config['email_template'] ?? $defaultEmailTemplate;
-        
+
         if ($emailTemplate) {
             $emailReceiverUser = $userFlag === 'user' ? $this->leadReceiver->user : $this->user;
             $notificationMode = isset($this->leadReceiver->rotation->config['notification_mode']) ? LeadNotificationModeEnum::get($this->leadReceiver->rotation->config['notification_mode']) : LeadNotificationModeEnum::NOTIFY_ALL; // leads || agets
@@ -41,7 +40,13 @@ class SendRotationEmailsAction
         }
     }
 
-    protected function sendLeadEmails(string $emailTemplate, array $users, ModelsLead $lead, array $payload, LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL): void
+    protected function sendLeadEmails(
+        string $emailTemplate, 
+        array $users, 
+        ModelsLead $lead, 
+        array $payload, 
+        LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL
+    ): void
     {
         $sendLeadEmailsAction = new SendLeadEmailsAction($lead, $emailTemplate);
         $fieldMaps = $this->mapCustomFields($payload['custom_fields']);

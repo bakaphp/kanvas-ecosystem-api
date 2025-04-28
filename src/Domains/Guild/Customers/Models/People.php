@@ -148,6 +148,23 @@ class People extends BaseModel
     }
 
     /**
+     * @deprecated
+     * @param bool $middleName
+     */
+    public function getFirstAndLastName($middleName = false): array
+    {
+        $name = explode(' ', $this->name);
+        $firstName = $name[0];
+        unset($name[0]);
+
+        return [
+            'firstName' => $this->firstname ?? trim($firstName),
+            'middleName' => $this->middlename ?? null, //if there is no middle name we will return '
+            'lastName' => $this->lastname ?? (isset($name[1]) ? implode(' ', $name) : ''),
+        ];
+    }
+
+    /**
      * @psalm-suppress MixedReturnStatement
      */
     public function getEmails(): Collection
