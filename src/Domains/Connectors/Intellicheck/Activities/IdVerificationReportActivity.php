@@ -9,11 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\Intellicheck\Services\PeopleService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -37,18 +35,13 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             $verificationData = $params;
 
             $isShowRoom = $params['is_showroom'] ?? false;
-            $companyId = $params['company_id'] ?? null;
+
             // Get person name from lead entity
             $name = $entity->title ?? $entity->people->name ?? 'Customer';
 
             // Process data to generate verification results
             $verificationResults = IdVerificationService::processVerificationData($verificationData, $name, $isShowRoom);
-
-            $company = $entity->company ?? ($companyId ? Companies::find($companyId) : null);
-
-            if (! $company) {
-                throw new ModelNotFoundException('Company not found');
-            }
+            $company = $entity->company;
 
             // Generate report HTML using the template
             // $reportHtml = $this->generateIntellicheckReport(
@@ -112,39 +105,39 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         Notification::send($usersToNotify, $notification);
 
                         // Generate PDF
-                        /*   $pdfReport = PdfService::generatePdfFromTemplate(
-                              $app,
-                              $entity->user,
-                              'id-verification-report',
-                              $entity,
-                              [
-                                  'message' => $reportData['message'],
-                                  'status' => $reportData['status'],
-                                  'flags' => $reportData['flags'],
-                                  'failures' => $reportData['failures'],
-                                  'results' => $reportData['results'],
-                                  'isShowRoom' => $isShowRoom,
-                                  'verificationData' => $verificationData,
-                              ]
-                          ); */
+                        $pdfReport = PdfService::generatePdfFromTemplate(
+                            $app,
+                            $entity->user,
+                            'id-verification-report',
+                            $entity,
+                            [
+                                'message' => $reportData['message'],
+                                'status' => $reportData['status'],
+                                'flags' => $reportData['flags'],
+                                'failures' => $reportData['failures'],
+                                'results' => $reportData['results'],
+                                'isShowRoom' => $isShowRoom,
+                                'verificationData' => $verificationData,
+                            ]
+                        );
 
-                        //if ($entity instanceof Lead) {
-                        /*               $engagement = EngagementRepository::findEngagementForLead(
-                                          $entity,
-                                          ConfigurationEnum::ID_VERIFICATION->value,
-                                          ActionStatusEnum::SUBMITTED->value,
-                                      ); */
+                        if ($entity instanceof Lead) {
+                            $engagement = EngagementRepository::findEngagementForLead(
+                                $entity,
+                                ConfigurationEnum::ID_VERIFICATION->value,
+                                ActionStatusEnum::SUBMITTED->value,
+                            );
 
-                        //if ($engagement) {
-                        //update people name
-                        /*                                 if ($engagement->people instanceof People) {
-                                                            PeopleService::updatePeopleInformation($engagement->people, $verificationData);
-                                                        } */
+                            if ($engagement) {
+                                //update people name
+                                /*                                 if ($engagement->people instanceof People) {
+                                                                    PeopleService::updatePeopleInformation($engagement->people, $verificationData);
+                                                                } */
 
-                        /*  $message = $engagement->message;
-                         $message->addFile($pdfReport, 'id-verification'); */
-                        //}
-                        //}
+                                $message = $engagement->message;
+                                $message->addFile($pdfReport, 'id-verification');
+                            }
+                        }
 
                         //$entity->addFile($pdfReport, 'id-verification');
                     });

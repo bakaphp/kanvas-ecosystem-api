@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use finfo;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
@@ -264,6 +263,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         @unlink($tempFile);
 
         if (! $response->successful()) {
+            $entity->is_deleted = 1;
+            $entity->save();
             $endViaList = array_map(
                 [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
                 $params['via'] ?? ['database']

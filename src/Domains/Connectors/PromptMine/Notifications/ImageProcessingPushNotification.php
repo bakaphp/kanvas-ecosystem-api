@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
-use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
@@ -39,9 +38,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
 
         parent::__construct($entity, $data, $via);
         $this->setType(EmailTemplateEnum::BLANK->value);
-        $this->setTemplateName($data['email_template']);
-        $this->setPushTemplateName($data['push_template']);
-        //$this->setPushTemplateName(NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value);
+        $this->setPushTemplateName($templates['push_template']);
         $this->setData($data);
         //$this->setFromUser($user);
         $this->channels = $via;
