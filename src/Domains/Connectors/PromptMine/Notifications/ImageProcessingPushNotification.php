@@ -8,8 +8,9 @@ use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
 use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
+use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 
-class ImageProcessingPushNotification extends Notification
+class ImageProcessingPushNotification extends CustomMessageNotification
 {
     public function __construct(
         Users $user,
@@ -18,7 +19,6 @@ class ImageProcessingPushNotification extends Notification
         array $via,
         array $templates = []
     ) {
-
         $data = [
             'email_template' => $templates['email_template'] ?? null,
             'push_template' => $templates['push_template'] ?? null,

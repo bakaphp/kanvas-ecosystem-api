@@ -22,7 +22,6 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
-use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
