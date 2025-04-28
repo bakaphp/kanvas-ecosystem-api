@@ -117,6 +117,7 @@ class PullPeopleAction
                         'branch' => $this->company->defaultBranch,
                         'custom_fields' => [
                             CustomFieldEnum::CUSTOMER_ID->value => $customer['id'],
+                            CustomFieldEnum::PERSON_ID->value => $personId,
                         ],
                     ])
                 )->execute();
