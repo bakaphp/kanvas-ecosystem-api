@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
@@ -13,8 +14,9 @@ use Kanvas\Users\Models\Users;
 class ImageProcessingPushNotification extends CustomMessageNotification
 {
     public function __construct(
-        Message $message,
-        string $messageText,
+        Users $user,
+        Model $entity,
+        string $message,
         string $title,
         array $via,
         array $templates = []
@@ -22,16 +24,16 @@ class ImageProcessingPushNotification extends CustomMessageNotification
         $data = [
             'email_template' => $templates['email_template'] ?? null,
             'push_template' => $templates['push_template'] ?? null,
-            'app' => $message->app,
-            'company' => $message->company,
-            'message' => $messageText,
+            'app' => $entity->app,
+            'company' => $entity->company,
+            'message' => $message,
             'title' => $title,
-            'metadata' => $message->getMessage(),
+            'metadata' => $entity->getMessage(),
             'via' => $via,
-            'message_owner_id' => $message->user->getId(),
-            'message_id' => $message->getId(),
-            'parent_message_id' => $message->getId(),
-            'destination_id' => $message->getId(),
+            'message_owner_id' => $entity->user->getId(),
+            'message_id' => $entity->getId(),
+            'parent_message_id' => $entity->getId(),
+            'destination_id' => $entity->getId(),
             'destination_type' => 'MESSAGE',
             'destination_event' => 'NEW_MESSAGE',
         ];
