@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\PromptMine\Notifications;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
