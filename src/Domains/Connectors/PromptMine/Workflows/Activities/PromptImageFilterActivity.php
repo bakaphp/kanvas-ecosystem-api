@@ -379,7 +379,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             'message_id' => $entity->getId(),
             'nugget_message_id' => $createNuggetMessage->getId(),
             'original_image_url' => $originalImageUrl,
-            'config' => $config,
         ];
 
         // Add processed image URL and request ID if they exist (for fal-ai processing)
