@@ -71,9 +71,19 @@ class PullPeopleAction
         $country = Countries::getByCode('US');
 
         if ($customers && isset($customers['items'])) {
+            $totalCustomers = count($customers['items']);
             foreach ($customers['items'] as $customer) {
                 if ($customer['rank'] < 0.4) {
                     continue;
+                }
+
+                $customFields = [
+                    CustomFieldEnum::CUSTOMER_ID->value => $customer['id'],
+                    //CustomFieldEnum::PERSON_ID->value => $personId,
+                ];
+
+                if ($totalCustomers === 1 && $personId !== null) {
+                    $customFields[CustomFieldEnum::PERSON_ID->value] = $personId;
                 }
 
                 $people = new SyncPeopleByThirdPartyCustomFieldAction(
@@ -115,10 +125,7 @@ class PullPeopleAction
                         )
                         ,
                         'branch' => $this->company->defaultBranch,
-                        'custom_fields' => array_filter([
-                            CustomFieldEnum::CUSTOMER_ID->value => $customer['id'],
-                            CustomFieldEnum::PERSON_ID->value => $personId,
-                        ], fn ($value) => $value !== null),
+                        'custom_fields' => $customFields,
                     ])
                 )->execute();
 
