@@ -32,9 +32,11 @@ class WorkflowMutationManagement
         $workflowAction = $request['action'];
         $params = array_merge(['app' => app(Apps::class)], $request['params'] ?? [], ['ip' => request()->ip()]);
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
-        $isSync = (bool) ($request['sync'] ?? false);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $isSync = (bool) ($request['params']['sync'] ?? false);
         $canRunSync = $isSync && $app->get('can-run-sync-workflow', false);
+        $params['user'] = $user;
 
         //if we get a slug
         if (! Str::contains($entityClass, '\\')) {
