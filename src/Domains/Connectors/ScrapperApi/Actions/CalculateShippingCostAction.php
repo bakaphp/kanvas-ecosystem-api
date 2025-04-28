@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\ScrapperApi\Enums\ShippingCostEnum;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
-
+use Illuminate\Support\Facades\Log;
 class CalculateShippingCostAction
 {
     public function __construct(
+        protected Apps $app,
         protected Variants $variant,
         protected float $quantity
     ) {
@@ -22,20 +25,20 @@ class CalculateShippingCostAction
         $price = $this->variant->getPriceInfoFromDefaultChannel()->price;
 
         // LoCompro Cost
-        $deliveryCost = 2.50;
-        $courierCost = 1.30;
-        $fuel = 1.02;
-        $customService = 0.15;
-        $airportFee = 0.07;
+        $deliveryCost = (float)($this->app->get(ShippingCostEnum::DELIVERY_COST_LAST_MILE->value) ?? 2.50);
+        $courierCost = (float)($this->app->get(ShippingCostEnum::COURIER_COST->value) ?? 1.30);
+        $fuel = (float)($this->app->get(ShippingCostEnum::FUEL->value) ?? 1.02);
+        $customService = (float)($this->app->get(ShippingCostEnum::CUSTOM_SERVICE->value) ?? 0.15);
+        $airportFee = (float)($this->app->get(ShippingCostEnum::AIRPORT_FEE->value) ?? 0.07);
         $insurance = match (true) {
             $price <= 100 => $price * 0.013,
             $price <= 200 => $price * 0.0160,
-            $price > 300  => $price * 0.30,
+            $price > 300 => $price * 0.30,
         };
-        $localTransfer = 0.00;
-        $paymentFee = $price * 0.029;
-        $serviceFee = 1.90;
-        $shippingMargin = 1;
+        $localTransfer = (float)($this->app->get(ShippingCostEnum::LOCAL_TRANSFER->value) ?? 0.00);
+        $paymentFee = (float)($this->app->get(ShippingCostEnum::PAYMENT_FEE->value) ?? 0.029);
+        $serviceFee = (float)($this->app->get(ShippingCostEnum::SERVICE_FEE->value) ?? 1.90);
+        $shippingMargin = (float)($this->app->get(ShippingCostEnum::SHIPPING_MARGIN->value) ?? 1.20);
 
         // Calculate
         $courierCostWeight = $pounds * $courierCost;
@@ -49,12 +52,11 @@ class CalculateShippingCostAction
         $serviceFeeCost = $pounds * $serviceFee;
         $totalLoCompro = $shippingCost + $otherFee + $serviceFeeCost;
         $paymentFeeCost = (($price + $totalLoCompro) * $paymentFee) + 3;
-
         return [
             'shippingCost' => $shippingCost,
-            'otherFee'     => $otherFee,
-            'serviceFee'   => $serviceFeeCost,
-            'total'        => $totalLoCompro,
+            'otherFee' => $otherFee,
+            'serviceFee' => $serviceFeeCost,
+            'total' => $totalLoCompro,
         ];
     }
 }
