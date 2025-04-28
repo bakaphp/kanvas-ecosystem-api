@@ -37,7 +37,8 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             $isShowRoom = $params['is_showroom'] ?? false;
 
             // Get person name from lead entity
-            $name = $entity->title ?? $entity->people->name ?? 'Customer';
+            $name = IdVerificationService::getName($verificationData);
+            $name = $name === 'Unknown' ? $entity->title : ($entity->people->name ?? 'Customer');
 
             // Process data to generate verification results
             $verificationResults = IdVerificationService::processVerificationData($verificationData, $name, $isShowRoom);
