@@ -28,6 +28,7 @@ class CreateProductTypeAttributeAction
             'products_types_id' => $this->data->productsTypes->getId(),
             'attributes_id' => $this->data->attributes->getId(),
             'to_variant' => $this->data->toVariant,
+            'is_required' => $this->data->isRequired,
         ]);
     }
 }

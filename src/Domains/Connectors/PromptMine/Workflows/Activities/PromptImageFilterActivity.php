@@ -22,6 +22,7 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -381,6 +382,11 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         if ($requestId !== null) {
             $result['request_id'] = $requestId;
         }
+
+        //turn type to prompt
+        $entity->message_types_id = MessageType::fromApp($entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
+        $entity->disableWorkflows();
+        $entity->update();
 
         return $result;
     }
