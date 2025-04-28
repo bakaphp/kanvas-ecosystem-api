@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
 use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
@@ -13,6 +14,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
 {
     public function __construct(
         Users $user,
+        Model $entity,
         string $message,
         string $title,
         array $via,
@@ -25,7 +27,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
             'company' => $user->company,
             'message' => $message,
             'title' => $title,
-            'metadata' => $user->getMessage(),
+            'metadata' => $entity->getMessage(),
             'via' => $via,
             'message_owner_id' => $user->user->getId(),
             'message_id' => $user->getId(),
