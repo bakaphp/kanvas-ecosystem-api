@@ -7,7 +7,6 @@ namespace App\GraphQL\Workflow\Mutations\Workflows;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
@@ -24,9 +23,6 @@ class WorkflowMutationManagement
 {
     public function runWorkflowFromEntity(mixed $rootValue, array $request): mixed
     {
-        Log::info('Running workflow from entity', [
-            'request' => $request,
-        ]);
         /**
          * @todo missing test for this mutation
          */
