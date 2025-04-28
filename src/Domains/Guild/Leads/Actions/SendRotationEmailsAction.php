@@ -41,13 +41,12 @@ class SendRotationEmailsAction
     }
 
     protected function sendLeadEmails(
-        string $emailTemplate, 
-        array $users, 
-        ModelsLead $lead, 
-        array $payload, 
+        string $emailTemplate,
+        array $users,
+        ModelsLead $lead,
+        array $payload,
         LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL
-    ): void
-    {
+    ): void {
         $sendLeadEmailsAction = new SendLeadEmailsAction($lead, $emailTemplate);
         $fieldMaps = $this->mapCustomFields($payload['custom_fields']);
         if (isset($fieldMaps['product_id'])) {
