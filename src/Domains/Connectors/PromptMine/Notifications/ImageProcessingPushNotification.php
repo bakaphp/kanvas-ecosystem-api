@@ -41,7 +41,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
         $this->setType(EmailTemplateEnum::BLANK->value);
         $this->setPushTemplateName($templates['push_template']);
         $this->setData($data);
-        $this->setFromUser($user);
+        //$this->setFromUser($user);
         $this->channels = $via;
     }
 }
