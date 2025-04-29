@@ -7,6 +7,9 @@ namespace Kanvas\Connectors\InAppPurchase\Workflows;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Messages\Actions\CreateAppModuleMessageAction;
@@ -16,11 +19,8 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivity;
-use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\KanvasActivity;
 use Override;
 
 class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -52,7 +52,6 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($order) use ($app) {
-
                 $message = Message::fromApp($app)->where('id', $order->get('message_id'))->first();
                 if (! $message) {
                     return [
@@ -97,7 +96,6 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
                         'exception' => $e->getMessage(),
                     ];
                 }
-                
                 return [
                     'order' => $order->id,
                     'message' => $message->id,
