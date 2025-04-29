@@ -21,8 +21,11 @@ class SendRotationEmailsAction
     ) {
     }
 
-    public function execute(array $payload, string $userFlag = 'user', string|null $defaultEmailTemplate = null): void
-    {
+    public function execute(
+        array $payload,
+        string $userFlag = 'user',
+        string|null $defaultEmailTemplate = null
+    ): void {
         $emailTemplate = $this->leadRotation?->config['email_template'] ?? $defaultEmailTemplate;
 
         if ($emailTemplate !== null) {
@@ -36,7 +39,13 @@ class SendRotationEmailsAction
             ->all()
             : [$emailReceiverUser];
 
-            $this->sendLeadEmails($emailTemplate, $users, $this->lead, $payload, $notificationMode);
+            $this->sendLeadEmails(
+                $emailTemplate,
+                $users,
+                $this->lead,
+                $payload,
+                $notificationMode
+            );
         }
     }
 
