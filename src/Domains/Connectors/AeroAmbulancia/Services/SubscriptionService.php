@@ -8,7 +8,6 @@ use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\DocumentType;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
 use Kanvas\Exceptions\ValidationException;
-use Exception;
 
 class SubscriptionService extends BaseService
 {
@@ -23,18 +22,13 @@ class SubscriptionService extends BaseService
      * @param array $data
      * @param int $subscriptionId
      * @return array
-     * @throws Exception
      */
     public function createNewSubscription(array $data, int $subscriptionId): array
     {
-        try {
-            $this->validateSubscriptionData($data);
-            $data['type'] = SubscriptionType::NEW->value;
+        $this->validateSubscriptionData($data);
+        $data['type'] = SubscriptionType::NEW->value;
 
-            return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
-        } catch (Exception $e) {
-            throw new Exception($e->getMessage());
-        }
+        return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
     }
 
     /**
@@ -43,18 +37,13 @@ class SubscriptionService extends BaseService
      * @param array $data
      * @param int $subscriptionId
      * @return array
-     * @throws Exception
      */
     public function createTopUpSubscription(array $data, int $subscriptionId): array
     {
-        try {
-            $this->validateSubscriptionData($data);
-            $data['type'] = SubscriptionType::TOPUP->value;
+        $this->validateSubscriptionData($data);
+        $data['type'] = SubscriptionType::TOPUP->value;
 
-            return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
-        } catch (Exception $e) {
-            throw new Exception($e->getMessage());
-        }
+        return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
     }
 
     /**
@@ -64,19 +53,14 @@ class SubscriptionService extends BaseService
      * @param int $subscriptionId
      * @param int $relationshipId
      * @return array
-     * @throws Exception
      */
     public function createRelationshipSubscription(array $data, int $subscriptionId, int $relationshipId): array
     {
-        try {
-            $this->validateSubscriptionData($data);
-            $data['type'] = SubscriptionType::NEW->value;
-            $data['relationship'] = $relationshipId;
+        $this->validateSubscriptionData($data);
+        $data['type'] = SubscriptionType::NEW->value;
+        $data['relationship'] = $relationshipId;
 
-            return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
-        } catch (Exception $e) {
-            throw new Exception($e->getMessage());
-        }
+        return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
     }
 
     /**
