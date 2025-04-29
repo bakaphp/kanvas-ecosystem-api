@@ -46,6 +46,7 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Override;
@@ -480,6 +481,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public static function search($query = '', $callback = null)
     {
+        app(Apps::class)->fireWorkflow(WorkflowEnum::SEARCH->value, params:[
+            'search' => $query
+        ]);
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
 
@@ -642,6 +646,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 [
                     'name' => 'files',
                     'type' => 'object[]',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'company',

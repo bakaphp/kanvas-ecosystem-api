@@ -8,33 +8,36 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Users\Models\Users;
 
 use function Sentry\captureException;
 
 class ScrapperSearchActivity extends KanvasActivity
 {
     //public $tries = 3;
-    public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
+    // public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
 
     public function execute(Model $model, AppInterface $app, array $params): array
     {
         try {
             $word = $params['search'];
-            if ($this->checkRecentlySearched($app, $word)) {
-                return [
-                    'error' => 'Already searched this word recently',
-                ];
-            }
-
+            // if ($this->checkRecentlySearched($app, $word)) {
+            //     return [
+            //         'error' => 'Already searched this word recently',
+            //     ];
+            // }
             $action = new ScrapperAction(
                 $app,
-                $params['user'],
-                $params['companyBranch'],
-                $params['region'],
+                Users::getById($params['user']),
+                CompaniesBranches::getById($params['companyBranch']),
+                Regions::getById($params['region']),
                 $params['search']
             );
             $action->execute();
@@ -45,7 +48,6 @@ class ScrapperSearchActivity extends KanvasActivity
             ];
         } catch (Throwable $e) {
             captureException($e);
-
             return [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

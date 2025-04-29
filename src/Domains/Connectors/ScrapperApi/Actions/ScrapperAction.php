@@ -10,7 +10,7 @@ use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Laravel\Octane\Facades\Octane;
-
+use Illuminate\Support\Facades\Log;
 /**
  * Class ScrapperAction.
  */
@@ -54,7 +54,7 @@ class ScrapperAction
             ));
             $classConcurrently[] = fn () => $action->execute();
         }
-        Octane::concurrently($classConcurrently);
+        $resultsOctane = Octane::concurrently($classConcurrently);
         return [
             'scrapperProducts' => $scrapperProducts,
             'importerProducts' => $importerProducts,
