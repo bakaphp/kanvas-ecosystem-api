@@ -61,6 +61,7 @@ class SendRotationEmailsAction
         if (isset($fieldMaps['product_id'])) {
             $payload['product'] = $sendLeadEmailsAction->getProduct($fieldMaps['product_id']);
         }
+        $payload['field_maps'] = $fieldMaps;
         $sendLeadEmailsAction->execute($payload, $users, $notificationMode);
     }
 
