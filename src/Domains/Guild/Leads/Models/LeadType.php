@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
@@ -30,6 +31,11 @@ class LeadType extends BaseModel
 
     protected $table = 'leads_types';
     protected $guarded = [];
+
+    public function leads(): HasMany
+    {
+        return $this->hasMany(Lead::class, 'leads_types_id');
+    }
 
     public function isActive(): bool
     {

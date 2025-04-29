@@ -52,6 +52,8 @@ use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 use Kanvas\Users\Observers\UsersAssociatedCompaniesObserver;
 use Kanvas\Users\Observers\UsersObserver;
 use Override;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Leads\Observers\LeadTypeObserver;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -96,6 +98,7 @@ class EventServiceProvider extends ServiceProvider
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
+        LeadType::observe(LeadTypeObserver::class);
     }
 
     /**
