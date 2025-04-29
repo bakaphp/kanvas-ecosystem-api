@@ -32,12 +32,11 @@ class Client
     /**
      * Ensure we have a valid authentication token
      *
-     * @return void
      * @throws GuzzleException
      */
     protected function ensureAuthenticated(): void
     {
-        if (!$this->token) {
+        if (! $this->token) {
             $this->authenticate();
         }
     }
@@ -45,7 +44,6 @@ class Client
     /**
      * Authenticate with the AeroAmbulancia API
      *
-     * @return array
      * @throws GuzzleException
      */
     protected function authenticate(): array
@@ -66,9 +64,6 @@ class Client
     /**
      * Make a POST request to the API
      *
-     * @param string $endpoint
-     * @param array $data
-     * @return array
      * @throws GuzzleException
      */
     public function post(string $endpoint, array $data): array
@@ -87,8 +82,6 @@ class Client
 
     /**
      * Get the current authentication token
-     *
-     * @return string|null
      */
     public function getToken(): ?string
     {

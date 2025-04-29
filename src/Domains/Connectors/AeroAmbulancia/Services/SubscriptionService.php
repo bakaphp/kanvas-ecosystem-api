@@ -18,10 +18,6 @@ class SubscriptionService extends BaseService
 
     /**
      * Create a new subscription item
-     *
-     * @param array $data
-     * @param int $subscriptionId
-     * @return array
      */
     public function createNewSubscription(array $data, int $subscriptionId): array
     {
@@ -33,10 +29,6 @@ class SubscriptionService extends BaseService
 
     /**
      * Create a top-up subscription item
-     *
-     * @param array $data
-     * @param int $subscriptionId
-     * @return array
      */
     public function createTopUpSubscription(array $data, int $subscriptionId): array
     {
@@ -48,11 +40,6 @@ class SubscriptionService extends BaseService
 
     /**
      * Create a relationship subscription item
-     *
-     * @param array $data
-     * @param int $subscriptionId
-     * @param int $relationshipId
-     * @return array
      */
     public function createRelationshipSubscription(array $data, int $subscriptionId, int $relationshipId): array
     {
@@ -66,8 +53,6 @@ class SubscriptionService extends BaseService
     /**
      * Validate subscription data
      *
-     * @param array $data
-     * @return void
      * @throws ValidationException
      */
     protected function validateSubscriptionData(array $data): void
@@ -88,12 +73,12 @@ class SubscriptionService extends BaseService
         ];
 
         foreach ($requiredFields as $field) {
-            if (!isset($data[$field])) {
+            if (! isset($data[$field])) {
                 throw new ValidationException("Missing required field: {$field}");
             }
         }
 
-        if (!in_array($data['documentType'], [DocumentType::CEDULA->value, DocumentType::PASAPORTE->value])) {
+        if (! in_array($data['documentType'], [DocumentType::CEDULA->value, DocumentType::PASAPORTE->value])) {
             throw new ValidationException('Invalid document type');
         }
     }
