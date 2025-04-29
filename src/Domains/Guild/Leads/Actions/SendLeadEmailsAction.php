@@ -20,8 +20,11 @@ class SendLeadEmailsAction
     ) {
     }
 
-    public function execute(array $payload, array $users, LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL): void
-    {
+    public function execute(
+        array $payload,
+        array $users,
+        LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL
+    ): void {
         $userTemplate = 'user-' . $this->emailTemplate;
         $leadTemplate = 'lead-' . $this->emailTemplate;
         $data = [
@@ -63,8 +66,12 @@ class SendLeadEmailsAction
     /**
     * Send email to user or lead using a custom template
     */
-    protected function sendEmail(Model $entity, string $emailTemplateName, string $email, array $mailData): void
-    {
+    protected function sendEmail(
+        Model $entity,
+        string $emailTemplateName,
+        string $email,
+        array $mailData
+    ): void {
         $notification = new Blank(
             $emailTemplateName,
             $mailData,

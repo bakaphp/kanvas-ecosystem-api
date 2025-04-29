@@ -21,11 +21,11 @@ class SendRotationEmailsAction
     ) {
     }
 
-    public function execute(array $payload, string $userFlag = 'user', string|null $defaultEmailTemplate = null)
+    public function execute(array $payload, string $userFlag = 'user', string|null $defaultEmailTemplate = null): void
     {
         $emailTemplate = $this->leadRotation?->config['email_template'] ?? $defaultEmailTemplate;
 
-        if ($emailTemplate) {
+        if ($emailTemplate !== null) {
             $emailReceiverUser = $userFlag === 'user' ? $this->leadReceiver->user : $this->user;
             $notificationMode = isset($this->leadReceiver->rotation->config['notification_mode']) ? LeadNotificationModeEnum::get($this->leadReceiver->rotation->config['notification_mode']) : LeadNotificationModeEnum::NOTIFY_ALL; // leads || agets
             $notificationUserMode = isset($this->leadReceiver->rotation->config['notification_user_mode']) ? LeadNotificationUserModeEnum::get($this->leadReceiver->rotation->config['notification_user_mode']) : LeadNotificationUserModeEnum::NOTIFY_OWNER;
@@ -61,6 +61,7 @@ class SendRotationEmailsAction
         foreach ($customFields as $customField) {
             $fieldMaps[$customField['name']] = $customField['data'];
         }
+
         return $fieldMaps;
     }
 }
