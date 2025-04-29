@@ -53,6 +53,10 @@ class PremiumPromptFlagActivity extends KanvasActivity implements WorkflowActivi
 
                 $notification->setSubject('New premium prompt request');
                 Notification::send($usersToNotify, $notification);
+
+                return [
+                    'message' => 'Premium prompt flagged - ' . $messageData['title'],
+                ];
             },
             company: $company,
         );
