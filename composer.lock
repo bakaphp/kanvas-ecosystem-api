@@ -2214,16 +2214,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.65.1",
+            "version": "v0.65.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "c4a6a0af6a11f23869b71d0785cdacb1f6f9670a"
+                "reference": "79c1795f80d160b682270d0ad6fb56c4f161ca87"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/c4a6a0af6a11f23869b71d0785cdacb1f6f9670a",
-                "reference": "c4a6a0af6a11f23869b71d0785cdacb1f6f9670a",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/79c1795f80d160b682270d0ad6fb56c4f161ca87",
+                "reference": "79c1795f80d160b682270d0ad6fb56c4f161ca87",
                 "shasum": ""
             },
             "require": {
@@ -2278,7 +2278,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.65.1"
+                "source": "https://github.com/prism-php/prism/tree/v0.65.2"
             },
             "funding": [
                 {
@@ -2286,7 +2286,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-04-27T15:05:56+00:00"
+            "time": "2025-04-29T12:53:11+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -4675,16 +4675,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.10.2",
+            "version": "v12.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "0f123cc857bc177abe4d417448d4f7164f71802a"
+                "reference": "050b2dfeaf6fff9e08e84b355822636492fb45f4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/0f123cc857bc177abe4d417448d4f7164f71802a",
-                "reference": "0f123cc857bc177abe4d417448d4f7164f71802a",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/050b2dfeaf6fff9e08e84b355822636492fb45f4",
+                "reference": "050b2dfeaf6fff9e08e84b355822636492fb45f4",
                 "shasum": ""
             },
             "require": {
@@ -4886,7 +4886,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-04-24T14:11:20+00:00"
+            "time": "2025-04-29T20:18:16+00:00"
         },
         {
             "name": "laravel/octane",
