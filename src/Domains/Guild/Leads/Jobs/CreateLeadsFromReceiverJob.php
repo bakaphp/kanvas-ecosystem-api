@@ -86,13 +86,12 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
 
         $lead = $createLead->execute();
 
-        $sendRotationEmailsAction = new SendRotationEmailsAction(
+        new SendRotationEmailsAction(
             $lead,
             $leadReceiver,
             $leadReceiver->rotation,
             $user
-        );
-        $sendRotationEmailsAction->execute($payload, $userFlag, $emailTemplate);
+        )->execute($payload, $userFlag, $emailTemplate);
 
         $lead->fireWorkflow(
             WorkflowEnum::AFTER_RUNNING_RECEIVER->value,

@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 
 class SendLeadEmailsAction
@@ -82,12 +82,12 @@ class SendLeadEmailsAction
         string $email,
         array $mailData
     ): void {
-        $notification = new Blank(
-            $emailTemplateName,
+        $notification = new NewLeadNotification(
+            $this->lead,
             $mailData,
-            ['mail'],
-            $entity
         );
+        $notification->setTemplateName($emailTemplateName);
+        $notification->channels = ['mail'];
 
         if ($entity instanceof Users) {
             $entity->notify($notification);
