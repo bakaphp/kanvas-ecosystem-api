@@ -82,7 +82,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         ],
                     ];
 
-                    dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData) {
+                    dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData, $name) {
                         //since we are running 2 diff version of the api, we need to slow you down to get the last message
                         sleep(30);
 
@@ -102,7 +102,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                             $entity,
                         );
 
-                        $notification->setSubject('ID Verification Report');
+                        $notification->setSubject($name . ' - ID Verification Report');
                         Notification::send($usersToNotify, $notification);
 
                         // Generate PDF
