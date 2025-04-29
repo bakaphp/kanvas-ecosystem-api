@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\Zoho\Jobs;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class SyncZohoLeadFromReceiverJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $zohoLeadId = $this->webhookRequest->payload['entity_id'] ?? null;
@@ -19,7 +21,7 @@ class SyncZohoLeadFromReceiverJob extends ProcessWebhookJob
             $this->receiver->app
         );
 
-        if (! $zohoLeadId) {
+        if ($zohoLeadId === null) {
             return [
                 'message' => 'Zoho Lead ID not found',
             ];
