@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Models\Users;
 
 class SendLeadEmailsAction
 {
@@ -20,8 +21,11 @@ class SendLeadEmailsAction
     ) {
     }
 
-    public function execute(array $payload, array $users, LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL): void
-    {
+    public function execute(
+        array $payload,
+        array $users,
+        LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL
+    ): void {
         $userTemplate = 'user-' . $this->emailTemplate;
         $leadTemplate = 'lead-' . $this->emailTemplate;
         $data = [
@@ -35,14 +39,26 @@ class SendLeadEmailsAction
         if ($shouldSendToUser) {
             foreach ($users as $user) {
                 try {
-                    $this->sendEmail($user, $userTemplate, $user->email, $data);
-                } catch (Exception) {
+                    $this->sendEmail(
+                        $user,
+                        $userTemplate,
+                        $user->email,
+                        $data
+                    );
+                } catch (Exception $e) {
+                    report($e);
+
                     continue;
                 }
             }
         }
         if ($shouldSendToLead) {
-            $this->sendEmail($this->lead, $leadTemplate, $leadEmail, $data);
+            $this->sendEmail(
+                $this->lead,
+                $leadTemplate,
+                $leadEmail,
+                $data
+            );
         }
     }
 
@@ -60,17 +76,23 @@ class SendLeadEmailsAction
         ];
     }
 
-    /**
-    * Send email to user or lead using a custom template
-    */
-    protected function sendEmail(Model $entity, string $emailTemplateName, string $email, array $mailData): void
-    {
+    protected function sendEmail(
+        Model $entity,
+        string $emailTemplateName,
+        string $email,
+        array $mailData
+    ): void {
         $notification = new Blank(
             $emailTemplateName,
             $mailData,
             ['mail'],
             $entity
         );
-        Notification::route('mail', $email)->notify($notification);
+
+        if ($entity instanceof Users) {
+            $entity->notify($notification);
+        } else {
+            Notification::route('mail', $email)->notify($notification);
+        }
     }
 }
