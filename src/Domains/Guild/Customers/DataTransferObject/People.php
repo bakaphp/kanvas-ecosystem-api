@@ -44,4 +44,29 @@ class People extends Data
         public readonly ?string $created_at = null
     ) {
     }
+
+    public function getEmails(): array
+    {
+        return $this->contacts->toCollection()
+            ->filter(function (Contact $contact) {
+                return $contact->getType() === 'email';
+            })
+            ->values()
+            ->toArray();
+    }
+
+    public function getPhones(): array
+    {
+        return $this->contacts->toCollection()
+            ->filter(function (Contact $contact) {
+                return $contact->getType() === 'phone';
+            })
+            ->values()
+            ->toArray();
+    }
+
+    public function getName(): string
+    {
+        return $this->firstname . ' ' . $this->lastname;
+    }
 }

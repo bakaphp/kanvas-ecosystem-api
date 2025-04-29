@@ -6,6 +6,11 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Elead\Actions\PullLeadAction;
+use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
+use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -19,16 +24,31 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
      */
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $isSync = $entity->id === 0;
+        $company = Companies::getById($entity->companies_id);
+        $this->company = $company;
+        $this->app = $app;
         $leadId = $params['entity_id'] ?? null;
+        $user = $params['user'] ?? null;
 
-        $lead = $entity;
-        if ($lead === null) {
-            return [
-                'result' => false,
-                'message' => 'Lead not found with id ' . $leadId,
-            ];
+        $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
+        $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
+
+        //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
+
+        if ($isElead) {
+            return new PullLeadAction($app, $company, $user)->execute($params);
+        } elseif ($isVinSolutions) {
+            return new ActionsPullLeadAction(
+                $app,
+                $company,
+                $user
+            )->execute(
+                lead: $entity->id > 0 ? $entity : null,
+                leadId: (int) $leadId,
+            );
         }
 
-        return $lead->toArray();
+        return [];
     }
 }

@@ -12,11 +12,8 @@ use Kanvas\Guild\Enums\AppEnum;
 use Kanvas\Guild\Leads\Actions\ConvertJsonTemplateToLeadStructureAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
-use Kanvas\Guild\Leads\Actions\SendLeadEmailsAction;
+use Kanvas\Guild\Leads\Actions\SendRotationEmailsAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
-use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
-use Kanvas\Guild\Leads\Enums\LeadNotificationUserModeEnum;
-use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -76,7 +73,6 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             $leadOwner = $leadReceiver->rotation->getAgent();
             $payload['leads_owner_id'] = $leadOwner->getId();
             $user = $leadOwner;
-            $emailTemplate = $leadReceiver->rotation->config['email_template'] ?? $emailTemplate;
         }
 
         $createLead = new CreateLeadAction(
@@ -90,20 +86,8 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
 
         $lead = $createLead->execute();
 
-        if ($emailTemplate) {
-            $emailReceiverUser = $userFlag === 'user' ? $leadReceiver->user : $user;
-            $notificationMode = isset($leadReceiver->rotation->config['notification_mode']) ? LeadNotificationModeEnum::get($leadReceiver->rotation->config['notification_mode']) : LeadNotificationModeEnum::NOTIFY_ALL;
-            $notificationUserMode = isset($leadReceiver->rotation->config['notification_user_mode']) ? LeadNotificationUserModeEnum::get($leadReceiver->rotation->config['notification_user_mode']) : LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS;
-            $users = $notificationUserMode === LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS && $leadReceiver->rotation?->agents?->count() > 0
-            ? collect([$emailReceiverUser])
-            ->merge($leadReceiver->rotation->agents?->pluck('users') ?? [])
-            ->flatten()
-            ->all()
-            : [$emailReceiverUser];
-
-            $payload['fieldMaps'] = $this->mapCustomFields($payload['custom_fields']);
-            $this->sendLeadEmails($emailTemplate, $users, $lead, $payload, $notificationMode);
-        }
+        $sendRotationEmailsAction = new SendRotationEmailsAction($lead, $leadReceiver, $leadReceiver->rotation, $user);
+        $sendRotationEmailsAction->execute($payload, $userFlag, $emailTemplate);
 
         $lead->fireWorkflow(
             WorkflowEnum::AFTER_RUNNING_RECEIVER->value,
@@ -179,20 +163,5 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         }
 
         return $finalJson;
-    }
-
-    protected function sendLeadEmails(string $emailTemplate, array $users, ModelsLead $lead, array $payload, LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL): void
-    {
-        $sendLeadEmailsAction = new SendLeadEmailsAction($lead, $emailTemplate);
-        $sendLeadEmailsAction->execute($payload, $users, $notificationMode);
-    }
-
-    protected function mapCustomFields(array $customFields): array
-    {
-        $fieldMaps = [];
-        foreach ($customFields as $customField) {
-            $fieldMaps[$customField['name']] = $customField['data'];
-        }
-        return $fieldMaps;
     }
 }

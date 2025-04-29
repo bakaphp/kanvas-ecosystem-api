@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Customers\Models;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\NoAppRelationshipTrait;
 use Kanvas\Guild\Models\BaseModel;
+use Override;
 
 /**
  * Class ContactTypes.
@@ -24,12 +25,13 @@ class ContactType extends BaseModel
     protected $table = 'contacts_types';
     protected $guarded = [];
 
+    #[Override]
     public static function getByName(string $name, ?AppInterface $app = null): self
     {
         return self::firstOrCreate([
             'name' => $name,
             'companies_id' => 0,
-            'users_id' => 1
+            'users_id' => 1,
         ]);
     }
 }
