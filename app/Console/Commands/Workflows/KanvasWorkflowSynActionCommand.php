@@ -35,7 +35,7 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
-use Kanvas\Connectors\PromptMine\Workflows\Activities\LockPremiumPromptsActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
@@ -162,7 +162,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PullLeadActivity::class,
             PullPeopleActivity::class,
             CalculateWarehouseQuantityActivity::class,
-            LockPremiumPromptsActivity::class,
+            PremiumPromptFlagActivity::class,
         ];
 
         $createdActions = [];

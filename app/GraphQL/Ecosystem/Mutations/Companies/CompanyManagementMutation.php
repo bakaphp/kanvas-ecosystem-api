@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
+use Kanvas\Companies\Actions\DeactivateUserAction;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Jobs\DeleteCompanyJob;
@@ -253,12 +254,14 @@ class CompanyManagementMutation
                         ->delete();
 
                     // Assuming getAppId() is a method you have available to get the app's ID
-                    $appId = app(Apps::class)->getId();
+                    $app = app(Apps::class);
 
                     // Delete associated apps
                     UsersAssociatedApps::where($baseConditions)
-                        ->where('apps_id', '=', $appId)
+                        ->where('apps_id', '=', $app->getId())
                         ->delete();
+
+                    (new DeactivateUserAction($user, $app))->execute();
                 }
             });
 

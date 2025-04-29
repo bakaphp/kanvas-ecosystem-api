@@ -55,6 +55,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($entity) use ($messageFiles, $params, $imageFilter, $isOpenAi) {
+                $entity->setPrivate();
+
                 if (empty($this->apiUrl)) {
                     return [
                         'result' => false,
@@ -103,9 +105,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         }
                     }
 
-                    // Change to public when the image is processed
-                    $entity->is_public = 0;
-                    $entity->save();
                     // Create nugget message and send notification - common for both methods
                     return $this->finalizeProcessing(
                         $entity,
@@ -264,8 +263,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         @unlink($tempFile);
 
         if (! $response->successful()) {
-            $entity->is_deleted = 1;
-            $entity->save();
             $endViaList = array_map(
                 [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
                 $params['via'] ?? ['database']
@@ -282,6 +279,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 ],
             );
             $entity->user->notify($errorProcessingImageNotification);
+            $entity->delete();
 
             throw new Exception('OpenAI API request failed: ' . $response->body());
         }
