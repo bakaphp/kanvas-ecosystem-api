@@ -8,14 +8,13 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Facades\Log;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
-use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Users\Models\Users;
 
 use function Sentry\captureException;
 
