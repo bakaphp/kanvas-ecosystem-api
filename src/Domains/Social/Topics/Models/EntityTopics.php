@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Topics\Models;
 
-use Kanvas\Social\Models\BaseModel;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
 /**

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Actions;
 
-use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Models\Companies;
 
@@ -21,7 +20,6 @@ class CreateCompaniesAction
     /**
      * Invoke function.
      *
-     * @param CompaniesPostData $data
      */
     public function execute(): Companies
     {

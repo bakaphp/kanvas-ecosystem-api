@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Jobs;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\DeleteCompaniesAction;
 use Kanvas\Users\Models\Users;
-use Kanvas\Apps\Models\Apps;
-use Illuminate\Support\Facades\Auth;
-use Baka\Traits\KanvasJobsTrait;
 
 class DeleteCompanyJob implements ShouldQueue
 {

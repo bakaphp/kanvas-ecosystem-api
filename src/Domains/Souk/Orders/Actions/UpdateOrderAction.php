@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
-use Spatie\LaravelData\DataCollection;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Spatie\LaravelData\DataCollection;
 
 class UpdateOrderAction
 {

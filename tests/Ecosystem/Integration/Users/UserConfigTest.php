@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Ecosystem\Integration\Users;
 
-use Tests\TestCase;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Actions\SaveUserAppPreferencesAction;
+use Tests\TestCase;
 
 final class UserConfigTest extends TestCase
 {
     /**
      * Test Create AppsPostData Dto.
      *
-     * @return void
      */
     public function testSaveUserAppPreferences(): void
     {

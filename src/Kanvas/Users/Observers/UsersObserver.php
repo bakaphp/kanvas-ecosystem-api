@@ -21,7 +21,6 @@ class UsersObserver
     /**
      * Handle the Apps "saving" event.
      *
-     * @param  Apps $app
      */
     public function creating(Users $user): void
     {

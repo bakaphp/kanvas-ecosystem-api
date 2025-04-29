@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "46b9340b6277d4f63b49e86a87827ffa",
+    "content-hash": "a7970371189e5bd7c8d1f08ffcd222d1",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.342.30",
+            "version": "3.342.34",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "eaa4f64784fdf8e66b511df18de43c43fbeb4f63"
+                "reference": "dfb7a1677143f7245289c7ad7e7915dbeab05c89"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/eaa4f64784fdf8e66b511df18de43c43fbeb4f63",
-                "reference": "eaa4f64784fdf8e66b511df18de43c43fbeb4f63",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/dfb7a1677143f7245289c7ad7e7915dbeab05c89",
+                "reference": "dfb7a1677143f7245289c7ad7e7915dbeab05c89",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.30"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.342.34"
             },
-            "time": "2025-04-18T18:05:51+00:00"
+            "time": "2025-04-24T18:07:33+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -2214,16 +2214,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.59.0",
+            "version": "v0.65.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "356f0ddbe02b9559ca141359377cad4046d7e5f3"
+                "reference": "c4a6a0af6a11f23869b71d0785cdacb1f6f9670a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/356f0ddbe02b9559ca141359377cad4046d7e5f3",
-                "reference": "356f0ddbe02b9559ca141359377cad4046d7e5f3",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/c4a6a0af6a11f23869b71d0785cdacb1f6f9670a",
+                "reference": "c4a6a0af6a11f23869b71d0785cdacb1f6f9670a",
                 "shasum": ""
             },
             "require": {
@@ -2258,6 +2258,9 @@
                 }
             },
             "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
                 "psr-4": {
                     "Prism\\Prism\\": "src/"
                 }
@@ -2275,7 +2278,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.59.0"
+                "source": "https://github.com/prism-php/prism/tree/v0.65.1"
             },
             "funding": [
                 {
@@ -2283,7 +2286,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-04-10T18:21:01+00:00"
+            "time": "2025-04-27T15:05:56+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -4672,16 +4675,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.10.1",
+            "version": "v12.10.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "3264999c3123f55b7651c275efb6942034c47eda"
+                "reference": "0f123cc857bc177abe4d417448d4f7164f71802a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/3264999c3123f55b7651c275efb6942034c47eda",
-                "reference": "3264999c3123f55b7651c275efb6942034c47eda",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/0f123cc857bc177abe4d417448d4f7164f71802a",
+                "reference": "0f123cc857bc177abe4d417448d4f7164f71802a",
                 "shasum": ""
             },
             "require": {
@@ -4883,7 +4886,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-04-23T14:49:24+00:00"
+            "time": "2025-04-24T14:11:20+00:00"
         },
         {
             "name": "laravel/octane",
@@ -16236,16 +16239,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.12",
+            "version": "2.1.13",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "96dde49e967c0c22812bcfa7bda4ff82c09f3b0c"
+                "reference": "e55e03e6d4ac49cd1240907e5b08e5cd378572a9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/96dde49e967c0c22812bcfa7bda4ff82c09f3b0c",
-                "reference": "96dde49e967c0c22812bcfa7bda4ff82c09f3b0c",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/e55e03e6d4ac49cd1240907e5b08e5cd378572a9",
+                "reference": "e55e03e6d4ac49cd1240907e5b08e5cd378572a9",
                 "shasum": ""
             },
             "require": {
@@ -16290,7 +16293,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-04-16T13:19:18+00:00"
+            "time": "2025-04-27T12:28:25+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

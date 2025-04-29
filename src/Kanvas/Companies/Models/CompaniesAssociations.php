@@ -27,7 +27,6 @@ class CompaniesAssociations extends BaseModel
     /**
      * CompaniesGroups relationship.
      *
-     * @return BelongsTo
      */
     public function companiesGroups(): BelongsTo
     {
@@ -37,7 +36,6 @@ class CompaniesAssociations extends BaseModel
     /**
      * Companies relationship.
      *
-     * @return BelongsTo
      */
     public function companies(): BelongsTo
     {

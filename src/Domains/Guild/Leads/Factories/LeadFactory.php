@@ -10,11 +10,13 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Override;
 
 class LeadFactory extends Factory
 {
     protected $model = Lead::class;
 
+    #[Override]
     public function definition()
     {
         $app = app(Apps::class);

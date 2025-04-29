@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
@@ -26,23 +27,21 @@ class SendLeadEmailsAction
         $data = [
             ...$payload,
             'lead' => $this->lead,
-            // 'receiver' => $this->lead->receiver()->first(),
         ];
         $leadEmail = $this->lead->people()->first()->emails()->first()?->value;
-        $shouldSend = $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL || $notificationMode === LeadNotificationModeEnum::NOTIFY_ROTATION_USERS;
-        $shouldSendLead = $leadEmail && ($notificationMode === LeadNotificationModeEnum::NOTIFY_LEAD || $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL);
-        
-        if ($shouldSend) {
+        $shouldSendToUser = $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL || $notificationMode === LeadNotificationModeEnum::NOTIFY_AGENTS;
+        $shouldSendToLead = $leadEmail && ($notificationMode === LeadNotificationModeEnum::NOTIFY_LEAD || $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL);
+
+        if ($shouldSendToUser) {
             foreach ($users as $user) {
                 try {
                     $this->sendEmail($user, $userTemplate, $user->email, $data);
-                } catch (\Exception $e) {
-                    print_r([$e->getMessage(), $user]);
+                } catch (Exception) {
                     continue;
                 }
             }
         }
-        if ($shouldSendLead) {
+        if ($shouldSendToLead) {
             $this->sendEmail($this->lead, $leadTemplate, $leadEmail, $data);
         }
     }
@@ -52,10 +51,11 @@ class SendLeadEmailsAction
         $product = Products::where('id', $productId)->with(['variants', 'variants.warehouses'])->first();
         $variant = $product->variants->first();
         $warehouse = $variant->warehouses->first();
+        $defaultChannel = $variant->channels->first();
 
         return (object) [
             'name' => $product->name,
-            'price' => $variant->getPrice($warehouse),
+            'price' => $variant->getPrice($warehouse, $defaultChannel),
             'quantity' => $variant->quantity,
         ];
     }
@@ -71,7 +71,6 @@ class SendLeadEmailsAction
             ['mail'],
             $entity
         );
-        // $notification->setSubject($emailSubject);
-        Notification::route('mail', $email)->notifyNow($notification);
+        Notification::route('mail', $email)->notify($notification);
     }
 }

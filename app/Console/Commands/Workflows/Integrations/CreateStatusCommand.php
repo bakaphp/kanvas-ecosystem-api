@@ -11,11 +11,10 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
-
-use function Laravel\Prompts\info;
-
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
+
+use function Laravel\Prompts\info;
 
 class CreateStatusCommand extends Command
 {

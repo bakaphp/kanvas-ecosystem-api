@@ -8,8 +8,6 @@ use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ServerException;
 
-use function Sentry\captureException;
-
 class TranslateToSpanishAction
 {
     public static function execute(string $text): ?string

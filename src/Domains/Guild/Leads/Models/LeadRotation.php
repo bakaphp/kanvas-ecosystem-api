@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Casts\Json;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -27,6 +28,10 @@ class LeadRotation extends BaseModel
 {
     protected $table = 'leads_rotations';
     protected $guarded = [];
+
+    protected $casts = [
+        'config' => Json::class,
+    ];
 
     public function agents(): HasMany
     {

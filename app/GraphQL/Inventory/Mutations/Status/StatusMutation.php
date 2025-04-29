@@ -7,7 +7,6 @@ namespace App\GraphQL\Inventory\Mutations\Status;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status as StatusDto;
-use Kanvas\Inventory\Status\DataTransferObject\Translate as StatusTranslateDto;
 use Kanvas\Inventory\Status\Models\Status as StatusModel;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Languages\DataTransferObject\Translate;
@@ -18,10 +17,6 @@ class StatusMutation
     /**
      * create.
      *
-     * @param  mixed $rootValue
-     * @param  array $args
-     *
-     * @return StatusModel
      */
     public function create(mixed $rootValue, array $request): StatusModel
     {
@@ -40,10 +35,6 @@ class StatusMutation
     /**
      * update.
      *
-     * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return StatusModel
      */
     public function update(mixed $rootValue, array $request): StatusModel
     {
@@ -58,10 +49,6 @@ class StatusMutation
     /**
      * delete.
      *
-     * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return bool
      */
     public function delete(mixed $rootValue, array $request): bool
     {

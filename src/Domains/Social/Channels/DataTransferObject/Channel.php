@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Channels\DataTransferObject;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\Data;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Apps\Models\Apps;
 
 class Channel extends Data
 {

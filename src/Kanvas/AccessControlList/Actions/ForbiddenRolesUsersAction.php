@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Actions;
 
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Users\Models\Users;
-use Kanvas\Enums\AppEnums;
-use Kanvas\Apps\Models\Apps;
 use Bouncer;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Users\Models\Users;
 
 class ForbiddenRolesUsersAction
 {

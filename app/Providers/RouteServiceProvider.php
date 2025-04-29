@@ -43,7 +43,13 @@ class RouteServiceProvider extends ServiceProvider
     protected function configureRateLimiting()
     {
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            $user = $request->user();
+            $userId = $user !== null ? $user->id : null;
+
+            return Limit::perMinutes(
+                config('kanvas.ratelimit.decay_minutes'),
+                config('kanvas.ratelimit.max_attempts')
+            )->by($userId !== null ? $userId : $request->ip());
         });
     }
 

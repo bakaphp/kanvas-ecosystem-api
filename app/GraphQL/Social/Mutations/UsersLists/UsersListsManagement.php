@@ -6,7 +6,6 @@ namespace App\GraphQL\Social\Mutations\UsersLists;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\UsersLists\Actions\CreateUserListAction;
 use Kanvas\Social\UsersLists\DataTransferObject\UserList;

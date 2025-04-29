@@ -11,9 +11,11 @@ use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class CreateParticipantFromMeetingZoomJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $payload = $this->webhookRequest->payload['payload'];

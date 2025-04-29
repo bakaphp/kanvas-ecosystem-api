@@ -286,7 +286,6 @@ trait HasCustomFields
     }
 
     /**
-     * @param array<array-key, array{name: string, data: mixed}> $data
      * @throws ConfigurationException
      */
     public function setAllCustomFields(array $customFields, bool|int $isPublic = false): bool
@@ -382,7 +381,6 @@ trait HasCustomFields
     /**
      * Remove all the custom fields from the entity.
      *
-     * @param  int $id
      */
     public function deleteAllCustomFields(): bool
     {

@@ -14,7 +14,6 @@ class EntityInteractionsTest extends TestCase
     /**
      * testSave.
      *
-     * @return void
      */
     public function testLikeEntity(): void
     {
@@ -40,7 +39,6 @@ class EntityInteractionsTest extends TestCase
     /**
      * testSave.
      *
-     * @return void
      */
     public function testUnLikeEntity(): void
     {
@@ -66,7 +64,6 @@ class EntityInteractionsTest extends TestCase
     /**
      * testSave.
      *
-     * @return void
      */
     public function testDisLikeEntity(): void
     {
@@ -92,7 +89,6 @@ class EntityInteractionsTest extends TestCase
     /**
      * testSave.
      *
-     * @return void
      */
     public function testGetInteractionByEntity(): void
     {
@@ -128,7 +124,6 @@ class EntityInteractionsTest extends TestCase
     /**
      * testSave.
      *
-     * @return void
      */
     public function testGetAllEntityInteractions(): void
     {

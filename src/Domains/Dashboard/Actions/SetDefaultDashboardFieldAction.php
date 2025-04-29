@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Dashboard\Actions;
 
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Dashboard\Repositories\DashboardRepositories;
 use Kanvas\Dashboard\Enums\DashboardEnum;
+use Kanvas\Dashboard\Repositories\DashboardRepositories;
 
 class SetDefaultDashboardFieldAction
 {

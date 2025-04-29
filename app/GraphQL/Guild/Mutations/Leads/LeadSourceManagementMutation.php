@@ -28,7 +28,7 @@ class LeadSourceManagementMutation
 
         $leadSource = LeadSourceModel::getByUuidFromCompanyApp(
             $request['id'],
-            company:CompaniesRepository::getByUuid($input['companies_id']),
+            company: CompaniesRepository::getByUuid($input['companies_id']),
             app: app(Apps::class)
         );
         $leadSource->update([
@@ -54,7 +54,7 @@ class LeadSourceManagementMutation
         $input['app'] = app(Apps::class);
         $input['company'] = CompaniesRepository::getByUuid($input['companies_id'], app: app(Apps::class), user: auth()->user());
         CompaniesRepository::userAssociatedToCompany($input['company'], auth()->user());
-        $leadType = LeadType::getByUuidFromCompanyApp($input['leads_types_id'], company:$input['company'], app: app(Apps::class));
+        $leadType = LeadType::getByUuidFromCompanyApp($input['leads_types_id'], company: $input['company'], app: app(Apps::class));
         $input['leads_types_id'] = $leadType->getId();
 
         return $input;

@@ -23,7 +23,7 @@ class LeadTypeManagementMutation
 
         $leadType = LeadType::from($data);
 
-        return (new CreateLeadTypeAction($leadType))->create();
+        return (new CreateLeadTypeAction($leadType))->execute();
     }
 
     public function update(mixed $root, array $req): LeadTypeModel

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Stripe;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Users\Models\Users;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Services\StripePriceService;
 use Kanvas\Subscription\Importer\Actions\PriceImporterAction;
 use Kanvas\Subscription\Importer\DataTransferObjects\PriceImporter;
-use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
-use Illuminate\Support\Facades\DB;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 final class ImportPriceFromStripeActivityTest extends TestCase

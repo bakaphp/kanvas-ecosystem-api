@@ -52,7 +52,6 @@ class SystemModulesData extends Data
      *
      * @param array $data Settings data array
      *
-     * @return self
      */
     public static function fromArray(array $data): self
     {

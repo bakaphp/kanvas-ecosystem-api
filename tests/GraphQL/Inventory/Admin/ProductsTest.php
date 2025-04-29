@@ -22,7 +22,7 @@ class ProductsTest extends TestCase
         //cant figure out why the user doesn\'t exist for the key
         try {
             $app->keys()->firstOrFail()->user()->firstOrFail();
-        } catch(ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             $user = auth()->user();
             $app->keys()->firstOrFail()->updateOrFail([
                 'users_id' => $user->getId(),

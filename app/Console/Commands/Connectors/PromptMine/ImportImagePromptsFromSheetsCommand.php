@@ -4,16 +4,12 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\PromptMine;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Str;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Tags\Models\Tag;
-use Kanvas\Users\Models\Users;
-use Illuminate\Support\Facades\DB;
 use Google\Service\Sheets;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use PDO;
 
 class ImportImagePromptsFromSheetsCommand extends Command
 {

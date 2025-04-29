@@ -11,7 +11,6 @@ class ChannelTest extends TestCase
     /**
      * testCreateChannel.
      *
-     * @return void
      */
     public function testCreateChannel(): void
     {
@@ -35,7 +34,6 @@ class ChannelTest extends TestCase
     /**
      * testGetChannels.
      *
-     * @return void
      */
     public function testGetChannels(): void
     {
@@ -56,7 +54,6 @@ class ChannelTest extends TestCase
     /**
      * testUpdateChannel.
      *
-     * @return void
      */
     public function testUpdateChannel(): void
     {
@@ -107,7 +104,6 @@ class ChannelTest extends TestCase
     /**
      * testDeleteChannel.
      *
-     * @return void
      */
     public function testDeleteChannel(): void
     {
@@ -153,7 +149,6 @@ class ChannelTest extends TestCase
     /**
      * testUnpublishProducts.
      *
-     * @return void
      */
     public function testUnpublishProductsFromChannel(): void
     {

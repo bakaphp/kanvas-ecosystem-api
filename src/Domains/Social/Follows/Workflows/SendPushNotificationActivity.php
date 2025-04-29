@@ -27,6 +27,18 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
     {
         $this->overwriteAppService($app);
 
+        if (! $entity->is_public) {
+            return [
+                'result' => false,
+                'message' => 'Entity is not public',
+                'data' => $params,
+                'entity' => [
+                    get_class($entity),
+                    $entity->getId(),
+                ],
+            ];
+        }
+
         $user = Users::getById($entity->users_id);
         $notificationType = NotificationTypesRepository::getByName($params['notification_name'], $app);
         $toUsersArray = $params['toUsers'] ?? [];
