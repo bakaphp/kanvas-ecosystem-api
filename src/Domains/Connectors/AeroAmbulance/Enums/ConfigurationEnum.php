@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Domains\Connectors\AeroAmbulancia\Enums;
+namespace Kanvas\Connectors\AeroAmbulance\Enums;
 
 enum ConfigurationEnum: string
 {
