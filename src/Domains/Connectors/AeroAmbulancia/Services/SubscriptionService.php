@@ -8,6 +8,7 @@ use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\DocumentType;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 
 class SubscriptionService extends BaseService
 {
@@ -19,9 +20,9 @@ class SubscriptionService extends BaseService
     /**
      * Create a new subscription item
      */
-    public function createNewSubscription(array $data, int $subscriptionId): array
+    public function createNewSubscription(ModelsOrder $order, int $subscriptionId, array $subscriptionData): array
     {
-        $this->validateSubscriptionData($data);
+        $data = $this->prepareSubscriptionData($order, $subscriptionData);
         $data['type'] = SubscriptionType::NEW->value;
 
         return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
@@ -30,9 +31,9 @@ class SubscriptionService extends BaseService
     /**
      * Create a top-up subscription item
      */
-    public function createTopUpSubscription(array $data, int $subscriptionId): array
+    public function createTopUpSubscription(ModelsOrder $order, int $subscriptionId, array $subscriptionData): array
     {
-        $this->validateSubscriptionData($data);
+        $data = $this->prepareSubscriptionData($order, $subscriptionData);
         $data['type'] = SubscriptionType::TOPUP->value;
 
         return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
@@ -41,13 +42,36 @@ class SubscriptionService extends BaseService
     /**
      * Create a relationship subscription item
      */
-    public function createRelationshipSubscription(array $data, int $subscriptionId, int $relationshipId): array
+    public function createRelationshipSubscription(ModelsOrder $order, int $subscriptionId, int $relationshipId, array $subscriptionData): array
     {
-        $this->validateSubscriptionData($data);
+        $data = $this->prepareSubscriptionData($order, $subscriptionData);
         $data['type'] = SubscriptionType::NEW->value;
         $data['relationship'] = $relationshipId;
 
         return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
+    }
+
+    /**
+     * Prepare subscription data from order and subscription data
+     */
+    protected function prepareSubscriptionData(ModelsOrder $order, array $subscriptionData): array
+    {
+        $this->validateSubscriptionData($subscriptionData);
+
+        return [
+            'documentType' => $subscriptionData['documentType'],
+            'documentNumber' => $subscriptionData['documentNumber'],
+            'firstName' => $order->user->firstname,
+            'lastName' => $order->user->lastname,
+            'email' => $order->user->email,
+            'phoneNumber' => $order->user->phone,
+            'sex' => $subscriptionData['sex'],
+            'birthdate' => $subscriptionData['birthdate'],
+            'activationDate' => $subscriptionData['activationDate'],
+            'expirationDate' => $subscriptionData['expirationDate'],
+            'acquiredPlan' => $subscriptionData['acquiredPlan'],
+            'preferredLanguage' => $subscriptionData['preferredLanguage']
+        ];
     }
 
     /**
@@ -60,10 +84,6 @@ class SubscriptionService extends BaseService
         $requiredFields = [
             'documentType',
             'documentNumber',
-            'firstName',
-            'lastName',
-            'email',
-            'phoneNumber',
             'sex',
             'birthdate',
             'activationDate',
