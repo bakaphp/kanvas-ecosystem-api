@@ -52,7 +52,7 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: function ($order) use ($app) {
+            integrationOperation: function ($order) use ($app, $warning) {
                 $message = Message::fromApp($app)->where('id', $order->get('message_id'))->first();
                 if (! $message) {
                     return [
