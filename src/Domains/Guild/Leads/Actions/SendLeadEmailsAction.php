@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
@@ -11,6 +12,8 @@ use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 
 class SendLeadEmailsAction
@@ -87,6 +90,15 @@ class SendLeadEmailsAction
             $mailData,
         );
         $notification->setTemplateName($emailTemplateName);
+        $notification->setType(NotificationTypes::firstOrCreate([
+            'apps_id' => $this->lead->app,
+            'key' => get_class($this->lead),
+            'name' => Str::simpleSlug(get_class($this->lead)),
+            'system_modules_id' => SystemModulesRepository::getByModelName(get_class($this->lead), $this->app)->getId(),
+            'is_deleted' => 0,
+        ], [
+            'template' => $emailTemplateName,
+        ]));
         $notification->channels = ['mail'];
 
         if ($entity instanceof Users) {
