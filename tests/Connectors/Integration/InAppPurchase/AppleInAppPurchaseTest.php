@@ -9,6 +9,7 @@ use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromAppleReceiptAction;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
+use Kanvas\Connectors\Internal\Handlers\InternalHandler;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
 use Kanvas\Inventory\Support\Setup;
@@ -19,6 +20,12 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
+use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
+use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
 
@@ -144,6 +151,26 @@ final class AppleInAppPurchaseTest extends TestCase
         );
 
         $order = $createOrderFromReceipt->execute($receipt);
+
+        $integration = Integrations::firstOrCreate([
+            'apps_id' => $app->getId(),
+            'name' => IntegrationsEnum::INTERNAL->value,
+            'config' => [],
+            'handler' => InternalHandler::class,
+        ]);
+
+        $integrationDto = new IntegrationsCompany(
+            integration: $integration,
+            region: $region,
+            company: $company,
+            config: [],
+            app: $app
+        );
+
+        $status = Status::where('slug', StatusEnum::ACTIVE->value)
+        ->where('apps_id', 0)
+        ->first();
+        new CreateIntegrationCompanyAction($integrationDto, $user, $status)->execute();
 
         $activity = new LinkMessageToOrderActivity(
             0,
