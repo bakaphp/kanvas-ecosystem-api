@@ -192,7 +192,7 @@ class FixPromptDataCommand extends Command
         $parentMessageData = is_array($parentMessage->message) ? $parentMessage->message : json_decode($parentMessage->message, true);
         $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
 
-        if ($parentMessage->is_deleted) {
+        if ($parentMessage->is_deleted && ! isset($parentMessageData['prompt'])) {
             $message->is_deleted = 1;
             $message->is_public = 0;
             $message->save();
