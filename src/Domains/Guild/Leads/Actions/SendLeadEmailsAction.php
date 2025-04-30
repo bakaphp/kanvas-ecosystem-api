@@ -98,7 +98,7 @@ class SendLeadEmailsAction
             'is_deleted' => 0,
         ], [
             'template' => $emailTemplateName,
-        ]));
+        ])->name);
         $notification->channels = ['mail'];
 
         if ($entity instanceof Users) {
