@@ -54,7 +54,7 @@ class ScrapperAction
             ));
             $classConcurrently[] = fn () => $action->execute();
         }
-        $resultsOctane = Octane::concurrently($classConcurrently,60000);
+        $resultsOctane = Octane::concurrently($classConcurrently, 60000);
         return [
             'scrapperProducts' => $scrapperProducts,
             'importerProducts' => $importerProducts,
