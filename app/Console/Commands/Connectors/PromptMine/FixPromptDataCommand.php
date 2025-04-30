@@ -71,7 +71,6 @@ class FixPromptDataCommand extends Command
             ->chunk(100, function ($messages) use ($childMessageType, $imageGenerationMessageType) {
                 foreach ($messages as $message) {
                     try {
-
                         if ($message->message_types_id !== $imageGenerationMessageType->getId()) {
                             $this->fixPromptData($message);
                         }
