@@ -198,6 +198,12 @@ class FixPromptDataCommand extends Command
             $message->save();
             $this->info('Parent message is deleted, setting child message as deleted and not public');
             return;
+        } else {
+            $message->is_deleted = 0;
+            $message->is_public = 1;
+            $message->save();
+            $this->info('Parent message is not deleted, restoring child message as not deleted and public');
+            return;
         }
 
         if (! isset($messageData['id'])) {
