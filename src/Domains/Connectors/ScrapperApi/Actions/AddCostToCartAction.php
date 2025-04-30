@@ -38,6 +38,8 @@ class AddCostToCartAction
                 'Shipping Cost' => $fee->sum('shippingCost'),
                 'Other Fees' => $fee->sum('otherFee'),
                 'Service Fee' => $fee->sum('serviceFee'),
+                'Last Mile' => 0,
+                'Custom Tax' => 0
             ],
         ]);
         $this->cart->condition([$condition]);
