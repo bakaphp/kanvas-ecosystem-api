@@ -284,6 +284,14 @@ class FixPromptDataCommand extends Command
     private function createNuggetMessage(Message $parentMessage, MessageType $childMessageType): void
     {
         $messageData = is_array($parentMessage->message) ? $parentMessage->message : json_decode($parentMessage->message, true);
+        if (! isset($messageData['prompt'])) {
+            $parentMessage->is_deleted = 1;
+            $parentMessage->is_public = 0;
+            $parentMessage->save();
+            $this->info('Parent Message has no a prompt, setting as deleted and not public, no child created');
+            return;
+        }
+
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt($messageData['prompt'])
