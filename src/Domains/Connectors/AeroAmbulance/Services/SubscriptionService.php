@@ -2,18 +2,24 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Domains\Connectors\AeroAmbulancia\Services;
+namespace Kanvas\Connectors\AeroAmbulancia\Services;
 
-use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
-use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\DocumentType;
-use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
+use Baka\Contracts\AppInterface;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\AeroAmbulance\Client;
+use Kanvas\Connectors\AeroAmbulance\Enums\DocumentTypeEnum;
+use Kanvas\Connectors\AeroAmbulance\Enums\SubscriptionTypeEnum;
 use Kanvas\Exceptions\ValidationException;
 
-class SubscriptionService extends BaseService
+class SubscriptionService
 {
-    public function __construct(Client $client)
-    {
-        parent::__construct($client);
+    protected Client $client;
+
+    public function __construct(
+        protected AppInterface $app,
+        protected Companies $company
+    ) {
+        $this->client = new Client($app, $company);
     }
 
     /**
@@ -22,7 +28,7 @@ class SubscriptionService extends BaseService
     public function createNewSubscription(array $data, int $subscriptionId): array
     {
         $this->validateSubscriptionData($data);
-        $data['type'] = SubscriptionType::NEW->value;
+        $data['type'] = SubscriptionTypeEnum::NEW->value;
 
         return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
     }
@@ -33,7 +39,7 @@ class SubscriptionService extends BaseService
     public function createTopUpSubscription(array $data, int $subscriptionId): array
     {
         $this->validateSubscriptionData($data);
-        $data['type'] = SubscriptionType::TOPUP->value;
+        $data['type'] = SubscriptionTypeEnum::TOPUP->value;
 
         return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
     }
@@ -44,7 +50,7 @@ class SubscriptionService extends BaseService
     public function createRelationshipSubscription(array $data, int $subscriptionId, int $relationshipId): array
     {
         $this->validateSubscriptionData($data);
-        $data['type'] = SubscriptionType::NEW->value;
+        $data['type'] = SubscriptionTypeEnum::NEW->value;
         $data['relationship'] = $relationshipId;
 
         return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
@@ -69,7 +75,7 @@ class SubscriptionService extends BaseService
             'activationDate',
             'expirationDate',
             'acquiredPlan',
-            'preferredLanguage'
+            'preferredLanguage',
         ];
 
         foreach ($requiredFields as $field) {
@@ -78,7 +84,7 @@ class SubscriptionService extends BaseService
             }
         }
 
-        if (! in_array($data['documentType'], [DocumentType::CEDULA->value, DocumentType::PASAPORTE->value])) {
+        if (! in_array($data['documentType'], [DocumentTypeEnum::CEDULA->value, DocumentTypeEnum::PASAPORTE->value])) {
             throw new ValidationException('Invalid document type');
         }
     }

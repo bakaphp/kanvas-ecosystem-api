@@ -1,10 +1,13 @@
 <?php
 
-namespace Kanvas\Domains\Connectors\AeroAmbulancia;
+namespace Kanvas\Connectors\AeroAmbulance;
 
+use Baka\Contracts\AppInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\GuzzleException;
-use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\ConfigurationEnum;
+use InvalidArgumentException;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\AeroAmbulance\Enums\ConfigurationEnum;
 
 class Client
 {
@@ -14,11 +17,17 @@ class Client
     protected string $email;
     protected string $password;
 
-    public function __construct()
-    {
-        $this->baseUrl = config(ConfigurationEnum::BASE_URL->value);
-        $this->email = config(ConfigurationEnum::EMAIL->value);
-        $this->password = config(ConfigurationEnum::PASSWORD->value);
+    public function __construct(
+        protected AppInterface $app,
+        protected Companies $company
+    ) {
+        $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? '';
+        $this->email = $this->app->get(ConfigurationEnum::EMAIL->value) ?? '';
+        $this->password = $this->app->get(ConfigurationEnum::PASSWORD->value) ?? '';
+
+        if (empty($this->baseUrl) || empty($this->email) || empty($this->password)) {
+            throw new InvalidArgumentException('Missing required configuration for AeroAmbulancia API');
+        }
 
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUrl,
@@ -36,7 +45,7 @@ class Client
      */
     protected function ensureAuthenticated(): void
     {
-        if (! $this->token) {
+        if ($this->token === null) {
             $this->authenticate();
         }
     }
