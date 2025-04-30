@@ -91,10 +91,10 @@ class SendLeadEmailsAction
         );
         $notification->setTemplateName($emailTemplateName);
         $notification->setType(NotificationTypes::firstOrCreate([
-            'apps_id' => $this->lead->app,
-            'key' => get_class($this->lead),
-            'name' => Str::simpleSlug(get_class($this->lead)),
-            'system_modules_id' => SystemModulesRepository::getByModelName(get_class($this->lead), $this->app)->getId(),
+            'apps_id' => $this->lead->app->getId(),
+            'key' => $this->lead::class,
+            'name' => Str::simpleSlug($this->lead::class),
+            'system_modules_id' => SystemModulesRepository::getByModelName($this->lead::class, $this->lead->app)->getId(),
             'is_deleted' => 0,
         ], [
             'template' => $emailTemplateName,
