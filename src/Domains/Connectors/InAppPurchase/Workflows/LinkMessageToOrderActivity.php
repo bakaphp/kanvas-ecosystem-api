@@ -26,6 +26,7 @@ use Override;
 class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 3;
+
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params): array
     {
@@ -50,7 +51,7 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
         return $this->executeIntegration(
             entity: $order,
             app: $app,
-            integration: IntegrationsEnum::PROMPT_MINE,
+            integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($order) use ($app) {
                 $message = Message::fromApp($app)->where('id', $order->get('message_id'))->first();
                 if (! $message) {
@@ -96,6 +97,7 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
                         'exception' => $e->getMessage(),
                     ];
                 }
+
                 return [
                     'order' => $order->id,
                     'message' => $message->id,
