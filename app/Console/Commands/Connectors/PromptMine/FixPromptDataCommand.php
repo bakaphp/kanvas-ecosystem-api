@@ -27,7 +27,9 @@ class FixPromptDataCommand extends Command
     protected $signature = 'kanvas:promptmine-fix-prompt-data 
                         {--app_id= : The app ID (default: 78)} 
                         {--message_type_id= : The message type ID (default: 588)} 
-                        {--child_message_type_id= : The child message type ID (default: 576)}';
+                        {--child_message_type_id= : The child message type ID (default: 576)}
+                        {--image_generation_message_type_id= : The child message type ID (default: 623)}
+                        ';
 
     /**
      * The console command description.
@@ -49,26 +51,29 @@ class FixPromptDataCommand extends Command
         $messageType = MessageType::find($messageTypeId);
         $childMessageTypeId = (int) $this->option('child_message_type_id');
         $childMessageType = MessageType::find($childMessageTypeId);
+        $imageGenerationMessageTypeId = (int) $this->option('child_message_type_id');
+        $imageGenerationMessageType = MessageType::find($imageGenerationMessageTypeId);
         // $companiesId = (int) $this->argument('companies_id');
 
         //Get all messages for the given message type and app
-        $this->SyncPromptData($app, $messageType, $childMessageType);
+        $this->SyncPromptData($app, $messageType, $childMessageType, $imageGenerationMessageType);
     }
 
     /**
      * @todo how to avoid changing legit prompts and nugget data? Use the json validator?
      */
-    private function SyncPromptData(Apps $app, MessageType $messageType, MessageType $childMessageType): void
+    private function SyncPromptData(Apps $app, MessageType $messageType, MessageType $childMessageType, MessageType $imageGenerationMessageType): void
     {
         Message::fromApp($app)
-            ->where('message_types_id', $messageType->getId())
-            // ->where('companies_id', $companiesId)
+            ->whereIn('message_types_id', [$messageType->getId(), $imageGenerationMessageType->getId()])
             ->where('is_deleted', 0)
             ->orderBy('id', 'asc')
-            ->chunk(100, function ($messages) use ($childMessageType) {
+            ->chunk(100, function ($messages) use ($childMessageType, $imageGenerationMessageType) {
                 foreach ($messages as $message) {
                     try {
-                        $this->fixPromptData($message);
+                        if ($message->message_types_id !== $imageGenerationMessageType->getId()) {
+                            $this->fixPromptData($message);
+                        }
 
                         if (count($message->children) == 0) {
                             //Generate child messages if it doesn't exist
@@ -279,6 +284,14 @@ class FixPromptDataCommand extends Command
     private function createNuggetMessage(Message $parentMessage, MessageType $childMessageType): void
     {
         $messageData = is_array($parentMessage->message) ? $parentMessage->message : json_decode($parentMessage->message, true);
+        if (! isset($messageData['prompt'])) {
+            $parentMessage->is_deleted = 1;
+            $parentMessage->is_public = 0;
+            $parentMessage->save();
+            $this->info('Parent Message has no a prompt, setting as deleted and not public, no child created');
+            return;
+        }
+
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt($messageData['prompt'])
