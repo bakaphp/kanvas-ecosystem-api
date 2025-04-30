@@ -12,6 +12,8 @@ class InternalHandler extends BaseIntegration
     #[Override]
     public function setup(): bool
     {
-        return ! empty($response['internal_key']);
+        $internalKey = $this->data['internal_key'] ?? null;
+
+        return $internalKey !== null && $internalKey !== '';
     }
 }
