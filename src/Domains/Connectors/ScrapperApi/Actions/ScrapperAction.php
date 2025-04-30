@@ -10,7 +10,7 @@ use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Laravel\Octane\Facades\Octane;
-use Illuminate\Support\Facades\Log;
+
 /**
  * Class ScrapperAction.
  */
