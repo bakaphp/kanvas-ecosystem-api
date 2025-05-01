@@ -11,6 +11,7 @@ use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
 use Kanvas\Models\BaseModel;
+use Override;
 
 /**
  * Class CompaniesAddress.
@@ -35,6 +36,7 @@ class CompaniesAddress extends BaseModel
     protected $table = 'companies_address';
     protected $guarded = [];
 
+    #[Override]
     public function company(): BelongsTo
     {
         return $this->belongsTo(

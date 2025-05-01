@@ -317,8 +317,6 @@ type CompanyAddress {
     cities: Cities @belongsTo(relation: "city")
 }
 
-
-
 extend type Mutation @guard {
     createCompany(input: CompanyInput): Company!
         @field(
@@ -381,7 +379,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@addAddressToCompany"
         )
-    updateCompanyAddress(id: ID!, address_id: ID!, input: AddressInput): CompanyAddress!
+    updateCompanyAddress(
+        id: ID!
+        address_id: ID!
+        input: AddressInput
+    ): CompanyAddress!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updateCompanyAddress"
         )

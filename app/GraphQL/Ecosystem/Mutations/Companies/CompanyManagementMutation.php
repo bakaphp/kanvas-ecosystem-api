@@ -284,13 +284,13 @@ class CompanyManagementMutation
         $company->hasCompanyPermission(auth()->user());
 
         $addressData = [
-            "companies_id" => $company->getId(),
+            'companies_id' => $company->getId(),
             'address' => $addressInput['address'],
-            'address_2' => $addressInput['address_2'] ?? "",
-            'city' => $addressInput['city'] ?? "",
-            'county' => $addressInput['county'] ?? "",
-            'state' => $addressInput['state'] ?? "",
-            'zip' => $addressInput['zip'] ?? "",
+            'address_2' => $addressInput['address_2'] ?? '',
+            'city' => $addressInput['city'] ?? '',
+            'county' => $addressInput['county'] ?? '',
+            'state' => $addressInput['state'] ?? '',
+            'zip' => $addressInput['zip'] ?? '',
             'city_id' => $addressInput['city_id'] ?? 0,
             'state_id' => $addressInput['state_id'] ?? 0,
             'countries_id' => $addressInput['country_id'] ?? 0,
