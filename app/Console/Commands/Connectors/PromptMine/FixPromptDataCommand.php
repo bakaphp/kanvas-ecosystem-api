@@ -69,7 +69,6 @@ class FixPromptDataCommand extends Command
             ->chunk(100, function ($messages) use ($app, $childMessageType) {
                 foreach ($messages as $message) {
                     try {
-
                         $this->info('--Checking Parent Prompt Message Schema of ID: ' . $message->getId());
                         $this->fixPromptData($message);
                         // Need to check children manually
