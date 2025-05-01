@@ -19,7 +19,7 @@ class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterf
      */
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
-        if (!$entity instanceof Order) {
+        if (! $entity instanceof Order) {
             throw new \InvalidArgumentException('Entity must be an Order');
         }
 
@@ -41,7 +41,7 @@ class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterf
     protected function getActivityData(Order $order, array $params): array
     {
         $people = $order->people;
-        if (!$people instanceof People) {
+        if (! $people instanceof People) {
             throw new \InvalidArgumentException('Order must have a valid people record');
         }
 
@@ -51,7 +51,7 @@ class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterf
         }
 
         $subscriptionId = $order->getMetadata('subscription_id') ?? $params['subscription_id'] ?? null;
-        if (!$subscriptionId) {
+        if (! $subscriptionId) {
             throw new \InvalidArgumentException('Subscription ID is required');
         }
 
