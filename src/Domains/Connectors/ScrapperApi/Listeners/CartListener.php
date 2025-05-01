@@ -9,7 +9,7 @@ use Kanvas\Connectors\ScrapperApi\Actions\AddCostToCartAction;
 
 class CartListener
 {
-    public function handle($item)
+    public function handle(array $item): void
     {
         $app = app(Apps::class);
         $cart = app('cart')->session($item['session_key']);

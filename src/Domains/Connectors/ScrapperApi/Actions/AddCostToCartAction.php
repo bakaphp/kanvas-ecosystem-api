@@ -19,7 +19,7 @@ class AddCostToCartAction
     ) {
     }
 
-    public function execute()
+    public function execute(): void
     {
         if (! $this->app->get(ShippingCostEnum::LOCOMPRO_COST->value)) {
             return;
