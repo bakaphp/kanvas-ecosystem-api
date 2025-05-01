@@ -104,6 +104,15 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public $translatable = ['name', 'description', 'short_description', 'html_description', 'warranty_terms'];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::updating(function ($model) {
+            $model->users_id = $model->getOriginal('users_id');
+        });
+    }
+
     #[Override]
     public function getGraphTypeName(): string
     {
