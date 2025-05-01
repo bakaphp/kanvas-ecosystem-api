@@ -22,7 +22,7 @@ class AddCostToCartAction
     {
         $fees = array_map(function ($item) {
             $variant = Variants::getById($item['id']);
-            $calc = (new CalculateShippingCostAction($this->app, $variant, (float) $this->item['item']['quantity']))->execute();
+            $calc = (new CalculateShippingCostAction($this->app, $variant, (float) $item['quantity']))->execute();
 
             return $calc;
         }, $this->cart->getContent()->toArray());

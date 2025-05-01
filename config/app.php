@@ -193,7 +193,6 @@ return [
         Typesense\LaravelTypesense\TypesenseServiceProvider::class,
         App\Providers\SearchServiceProvider::class,
         App\Providers\CartServiceProvider::class,
-        Kanvas\Souk\Cart\Providers\CartEventsServiceProvider::class,
     ],
 
     /*
