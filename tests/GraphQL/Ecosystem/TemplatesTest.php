@@ -223,7 +223,7 @@ class TemplatesTest extends TestCase
                 ],
             ]
         );
-        dump($response->json());
+
         $id = $response->json('data.createTemplate.id');
         $this->graphQL(/** @lang GraphQL */ '
             mutation deleteTemplate($id: ID!) {

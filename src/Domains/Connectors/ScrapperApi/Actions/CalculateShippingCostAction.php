@@ -52,6 +52,7 @@ class CalculateShippingCostAction
         $serviceFeeCost = $pounds * $serviceFee;
         $totalLoCompro = $shippingCost + $otherFee + $serviceFeeCost;
         $paymentFeeCost = (($price + $totalLoCompro) * $paymentFee) + 3;
+
         return [
             'shippingCost' => $shippingCost,
             'otherFee' => $otherFee,

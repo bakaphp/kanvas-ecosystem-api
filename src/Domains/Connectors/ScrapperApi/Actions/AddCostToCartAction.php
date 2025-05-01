@@ -18,14 +18,19 @@ class AddCostToCartAction
     ) {
     }
 
-    public function execute()
+    public function execute(): void
     {
         $fees = array_map(function ($item) {
             $variant = Variants::getById($item['id']);
-            $calc = (new CalculateShippingCostAction($this->app, $variant, (float) $this->item['item']['quantity']))->execute();
+            $calc = new CalculateShippingCostAction(
+                $this->app,
+                $variant,
+                (float) $this->item['item']['quantity']
+            )->execute();
 
             return $calc;
         }, $this->cart->getContent()->toArray());
+
         $fee = collect($fees);
         $total = $fee->sum('total');
         $this->cart->removeCartCondition('Shipping');
@@ -39,7 +44,7 @@ class AddCostToCartAction
                 'Other Fees' => $fee->sum('otherFee'),
                 'Service Fee' => $fee->sum('serviceFee'),
                 'Last Mile' => 0,
-                'Custom Tax' => 0
+                'Custom Tax' => 0,
             ],
         ]);
         $this->cart->condition([$condition]);

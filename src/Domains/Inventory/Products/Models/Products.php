@@ -481,10 +481,16 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public static function search($query = '', $callback = null)
     {
-        app(Apps::class)->fireWorkflow(event: WorkflowEnum::SEARCH->value, params: [
-            'search' => $query
-        ]);
-        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $app = app(Apps::class);
+
+        $app->fireWorkflow(
+            event: WorkflowEnum::SEARCH->value,
+            params: [
+                'search' => $query,
+            ]
+        );
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
         if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
