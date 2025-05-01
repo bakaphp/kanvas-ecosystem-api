@@ -8,7 +8,8 @@ type Template {
     parent_template_id: Int
     parent_template: Template @belongsTo(relation: "parentTemplate")
     template: Mixed!
-    template_variables: [TemplateVariables!]@hasMany(relation: "templateVariables")
+    template_variables: [TemplateVariables!]
+        @hasMany(relation: "templateVariables")
     created_at: String
     updated_at: String
     is_deleted: Int
@@ -41,11 +42,11 @@ input TemplateVariableInput {
 extend type Mutation @guard {
     createTemplate(input: TemplateInput!): Template!
         @field(
-            resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@createOrUpdate"
+            resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@create"
         )
-    updateTemplate(input: TemplateInput!): Template!
+    updateTemplate(id: ID!, input: TemplateInput!): Template!
         @field(
-            resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@createOrUpdate"
+            resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@update"
         )
     deleteTemplate(id: ID!): Boolean
         @field(
@@ -57,18 +58,12 @@ extend type Query @guard {
     templates(
         where: _
             @whereConditions(
-                columns: [
-                    "id"
-                    "users_id"
-                    "companies_id"
-                    "apps_id"
-                    "name"
-                ]
+                columns: ["id", "users_id", "companies_id", "apps_id", "name"]
             )
         orderBy: _ @orderBy(columns: ["id"], direction: "DESC")
     ): [Template!]!
         @paginate(
             model: "Kanvas\\Templates\\Models\\Templates"
-            scopes: ["fromApp","notDeleted"]
+            scopes: ["fromApp", "notDeleted"]
         )
 }

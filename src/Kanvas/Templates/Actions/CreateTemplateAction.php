@@ -10,19 +10,15 @@ use Kanvas\Templates\Models\Templates;
 
 class CreateTemplateAction
 {
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected TemplateInput $template
     ) {
     }
 
-    /**
-     * Invoke function.
-     */
-    public function execute(?Templates $parent = null, bool $overwrite = true): Templates
-    {
+    public function execute(
+        ?Templates $parent = null,
+        bool $overwrite = true
+    ): Templates {
         $query = [
             'apps_id' => $this->template->app->getKey(),
             'companies_id' => $this->template->company ? $this->template->company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue(),
