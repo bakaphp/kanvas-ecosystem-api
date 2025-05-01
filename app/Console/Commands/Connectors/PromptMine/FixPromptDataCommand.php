@@ -69,7 +69,6 @@ class FixPromptDataCommand extends Command
             ->chunk(100, function ($messages) use ($app, $childMessageType) {
                 foreach ($messages as $message) {
                     try {
-
                         $this->info('--Checking Parent Prompt Message Schema of ID: ' . $message->getId());
                         $this->fixPromptData($message);
                         // Need to check children manually
@@ -84,6 +83,7 @@ class FixPromptDataCommand extends Command
                                 $this->info('--Creating Child Nugget Message');
                                 $this->createNuggetMessage($message, $childMessageType);
                                 $this->info('--Child Nugget Message ID: ' . $message->getId() . ' created');
+
                                 continue;
                             } catch (\Throwable $e) {
                                 $this->error('Error creating nugget message ID: ' . $message->getId() . ' - ' . $e->getMessage());
@@ -130,20 +130,21 @@ class FixPromptDataCommand extends Command
             $message->is_public = 0;
             $message->saveOrFail();
             $this->info('Message is not a prompt, setting as deleted and not public');
+
             return;
         }
 
         if (! isset($messageData['ai_model'])) {
             $messageData['ai_model'] = [
-                "name" => "GPT-4o",
-                "key" => "openai",
-                "value" => "gpt-4o",
-                'icon' => "https://cdn.promptmine.ai/OpenAILogo.png",
+                'name' => 'GPT-4o',
+                'key' => 'openai',
+                'value' => 'gpt-4o',
+                'icon' => 'https://cdn.promptmine.ai/OpenAILogo.png',
                 'payment' => [
                     'price' => 0,
                     'is_locked' => false,
-                    'free_regeneration' => false
-                ]
+                    'free_regeneration' => false,
+                ],
             ];
             $this->info('Added AI model to message data');
         }
@@ -172,7 +173,7 @@ class FixPromptDataCommand extends Command
             $messageData['payment'] = [
                 'price' => 0,
                 'is_locked' => false,
-                'free_regeneration' => false
+                'free_regeneration' => false,
             ];
             $this->info('Added payment to message data');
         }
@@ -209,12 +210,14 @@ class FixPromptDataCommand extends Command
             $message->is_public = 0;
             $message->saveOrFail();
             $this->info('Parent message is deleted, setting child message as deleted and not public');
+
             return;
         } else {
             $message->is_deleted = 0;
             $message->is_public = 1;
             $message->saveOrFail();
             $this->info('Parent message is not deleted, restoring child message as not deleted and public');
+
             return;
         }
 
@@ -307,6 +310,7 @@ class FixPromptDataCommand extends Command
             $parentMessage->is_public = 0;
             $parentMessage->save();
             $this->info('Parent Message has no a prompt, setting as deleted and not public, no child created');
+
             return;
         }
 
@@ -325,16 +329,16 @@ class FixPromptDataCommand extends Command
             'message_types_id' => $childMessageType->getId(),
             'message' => json_encode([
                 'title' => $messageData['title'],
-                "type" => "text-format",
-                "nugget" => $responseText,
+                'type' => 'text-format',
+                'nugget' => $responseText,
             ]),
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         DB::connection('social')->table('messages')
             ->where('id', $nuggetId)
-            ->update(['path' => $parentMessage->getId() . "." . $nuggetId]);
+            ->update(['path' => $parentMessage->getId() . '.' . $nuggetId]);
 
         foreach ($parentMessage->tags as $tag) {
             DB::connection('social')->table('tags_entities')->insert([

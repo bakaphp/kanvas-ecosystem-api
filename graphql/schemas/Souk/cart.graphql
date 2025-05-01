@@ -4,6 +4,7 @@ type Cart {
     discounts: [CartDiscount!]!
     total_discount: Money!
     total: Money!
+    shipping: CartShipping
 }
 
 type CartDiscount {
@@ -21,12 +22,20 @@ type CartItem {
     attributes: Mixed
 }
 
+type CartShipping {
+    name: String!
+    value: String
+    attributes: Mixed
+}
+
+
 input CartItemInput {
     quantity: Int!
     variant_id: ID!
     channel_id: ID
     attributes: Mixed
 }
+
 
 extend type Mutation @guardByKanvasIdentifier {
     addToCart(items: [CartItemInput!]!): [CartItem!]!
