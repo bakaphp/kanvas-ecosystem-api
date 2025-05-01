@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Listeners;
+
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ScrapperApi\Actions\AddCostToCartAction;
 
