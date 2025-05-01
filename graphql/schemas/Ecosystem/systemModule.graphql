@@ -5,6 +5,7 @@ type SystemModule {
     slug: String!
     model_name: String!
     browse_fields: Mixed
+    fields: Mixed
     app: App! @belongsTo 
     parent: SystemModule @belongsTo
     menu_order: Int
@@ -38,5 +39,24 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\SystemModules\\Models\\SystemModules"
             scopes: ["filterByApp"]
+        )
+    globalSystemModels(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "slug"
+                    "parents_id"
+                    "created_at"
+                    "updated_at"
+                    "is_deleted"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [SystemModule!]!
+        @paginate(
+            model: "Kanvas\\SystemModules\\Models\\SystemModules"
+            scopes: ["fromPublicApp"]
         )
 }
