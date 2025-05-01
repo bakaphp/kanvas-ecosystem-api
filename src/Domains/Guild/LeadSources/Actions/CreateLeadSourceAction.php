@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\LeadSources\Actions;
 
-use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Guild\Leads\Models\LeadSource as LeadSourceModel;
+use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 
 class CreateLeadSourceAction
 {

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Guild\Models\BaseModel;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Kanvas\Guild\Leads\Observers\LeadSourceObserver;
+use Kanvas\Guild\Models\BaseModel;
 
 /**
  * Class LeadSource.
