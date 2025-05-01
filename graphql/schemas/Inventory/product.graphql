@@ -62,6 +62,7 @@ type EntityExport {
 type ProductTranslation {
     name: String
     description: String
+    html_description: String
     language: LanguageDisplay!
 }
 
@@ -216,6 +217,7 @@ extend type Query @guard {
                     "products_types_id"
                     "companies_id"
                     "name"
+                    "description"
                     "slug"
                     "code"
                     "uuid"
