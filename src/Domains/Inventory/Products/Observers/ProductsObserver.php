@@ -25,4 +25,11 @@ class ProductsObserver
 
         $product->clearLightHouseCache(withKanvasConfiguration: false);
     }
+
+    public function updating(Products $product)
+    {
+        if ($product->isDirty('users_id')) {
+            $product->users_id = $product->getOriginal('users_id');
+        }
+    }
 }
