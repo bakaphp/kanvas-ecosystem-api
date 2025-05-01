@@ -18,7 +18,8 @@ use Override;
  *
  * @property int $id
  * @property int $companies_id
- * @property string $name
+ * @property string $fullname
+ * @property string $phone
  * @property string $address
  * @property string $address_2
  * @property string $city
@@ -35,6 +36,10 @@ class CompaniesAddress extends BaseModel
 
     protected $table = 'companies_address';
     protected $guarded = [];
+
+    protected $casts = [
+        'is_default' => 'boolean',
+    ];
 
     #[Override]
     public function company(): BelongsTo

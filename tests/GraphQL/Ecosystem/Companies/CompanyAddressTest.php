@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Companies;
 
+use Kanvas\Companies\Models\CompaniesAddress;
 use Tests\TestCase;
 
 class CompanyAddressTest extends TestCase
@@ -25,6 +26,8 @@ class CompanyAddressTest extends TestCase
     public function addressInputData(): array
     {
         return [
+            'fullname' => fake()->name(),
+            'phone' => fake()->phoneNumber(),
             'address' => fake()->address(),
             'city' => fake()->city(),
             'state' => fake()->state(),
@@ -34,6 +37,26 @@ class CompanyAddressTest extends TestCase
             'state_id' => 1,
             'is_default' => true,
         ];
+    }
+
+    public function addAddress($companyId, $input)
+    {
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation addAddressToCompany($id: ID!, $input: CompanyAddressInput!) {
+                addAddressToCompany(id: $id, input: $input) {
+                    id
+                    address
+                }
+
+            }',
+            [
+                'id' => $companyId,
+                'input' => $input,
+            ]
+        );
+
+        return $response->json('data.addAddressToCompany');
     }
 
     public function testAddUserToCompany(): void
@@ -56,18 +79,9 @@ class CompanyAddressTest extends TestCase
 
         $company = $response->json('data.createCompany');
 
-        $response = $this->graphQL( /** @lang GraphQL */
-            '
-            mutation addAddressToCompany($id: ID!, $input: AddressInput!) {
-                addAddressToCompany(id: $id, input: $input)
+        $response = $this->addAddress($company['id'], $this->addressInputData());
 
-            }',
-            [
-                'id' => $company['id'],
-                'input' => $this->addressInputData(),
-            ]
-        )
-        ->assertSuccessful();
+        $this->assertNotNull($response);
     }
 
     public function testGetCompanyAddresses()
@@ -87,17 +101,7 @@ class CompanyAddressTest extends TestCase
 
         $company = $response->json('data.createCompany');
 
-        $response = $this->graphQL( /** @lang GraphQL */
-            '
-            mutation addAddressToCompany($id: ID!, $input: AddressInput!) {
-                addAddressToCompany(id: $id, input: $input)
-
-            }',
-            [
-                'id' => $company['id'],
-                'input' => $this->addressInputData(),
-            ]
-        );
+        $address = $this->addAddress($company['id'], $this->addressInputData());
 
         $response = $this->graphQL( /** @lang GraphQL */
             '
@@ -162,22 +166,7 @@ class CompanyAddressTest extends TestCase
 
         $company = $response->json('data.createCompany');
 
-        $response = $this->graphQL( /** @lang GraphQL */
-            '
-            mutation addAddressToCompany($id: ID!, $input: AddressInput!) {
-                addAddressToCompany(id: $id, input: $input) {
-                    id
-                }
-
-            }',
-            [
-                'id' => $company['id'],
-                'input' => $this->addressInputData(),
-            ]
-        )
-        ->assertSuccessful();
-
-        $address = $response->json('data.addAddressToCompany');
+        $address = $this->addAddress($company['id'], $this->addressInputData());
 
         $response = $this->graphQL( /** @lang GraphQL */
             '
@@ -191,6 +180,84 @@ class CompanyAddressTest extends TestCase
             ]
         )
         ->assertSuccessful();
+    }
+
+    public function testAddAddressToCompanyWithIsDefault(): void
+    {
+        $companyData = $this->companyInputData();
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation createCompany($input: CompanyInput!) {
+                createCompany(input: $input)
+                {
+                    id
+                }
+            }',
+            [
+                'input' => $companyData,
+            ]
+        );
+
+        $company = $response->json('data.createCompany');
+
+        $addressData1 = $this->addAddress($company['id'], [
+            ...$this->addressInputData(),
+            'is_default' => true,
+        ]);
+
+        $firstAddress = CompaniesAddress::find($addressData1['id']);
+        $isFirstAddressDefault = $firstAddress->is_default;
+
+        $addressData2 = $this->addAddress($company['id'], [
+            ...$this->addressInputData(),
+            'is_default' => true,
+        ]);
+
+        $secondAddress = CompaniesAddress::find($addressData2['id']);
+
+        $this->assertTrue((bool) $isFirstAddressDefault);
+        $this->assertTrue((bool) $secondAddress->is_default);
+        $this->assertFalse((bool) $firstAddress->refresh()->is_default);
+    }
+
+    public function testAddAddressToCompanyKeepOldDefault(): void
+    {
+        $companyData = $this->companyInputData();
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation createCompany($input: CompanyInput!) {
+                createCompany(input: $input)
+                {
+                    id
+                }
+            }',
+            [
+                'input' => $companyData,
+            ]
+        );
+
+        $company = $response->json('data.createCompany');
+
+        $addressData1 = $this->addAddress($company['id'], [
+            ...$this->addressInputData(),
+            'is_default' => true,
+        ]);
+
+        $firstAddress = CompaniesAddress::find($addressData1['id']);
+        $isFirstAddressDefault = $firstAddress->is_default;
+
+        $addressData2 = $this->addAddress($company['id'], [
+            ...$this->addressInputData(),
+            'is_default' => false,
+        ]);
+
+        $secondAddress = CompaniesAddress::find($addressData2['id']);
+
+        $this->assertTrue((bool) $isFirstAddressDefault);
+        $this->assertFalse((bool) $secondAddress->is_default);
+        $this->assertTrue((bool) $firstAddress->refresh()->is_default);
     }
 
     public function testUpdateAddressFromCompany(): void
@@ -212,34 +279,30 @@ class CompanyAddressTest extends TestCase
 
         $company = $response->json('data.createCompany');
 
+        $addressData = $this->addAddress($company['id'], $this->addressInputData());
+        $address = CompaniesAddress::find($addressData['id']);
+
+
         $response = $this->graphQL( /** @lang GraphQL */
             '
-            mutation addAddressToCompany($id: ID!, $input: AddressInput!) {
-                addAddressToCompany(id: $id, input: $input) {
+            mutation updateCompanyAddress($id: ID!, $address_id: ID!, $input: CompanyAddressInput!) {
+                updateCompanyAddress(id: $id, address_id: $address_id, input: $input) {
                     id
                 }
 
             }',
             [
                 'id' => $company['id'],
-                'input' => $this->addressInputData(),
+                'address_id' => $addressData['id'],
+                'input' => [
+                    "fullname" => "John Doe",
+                    "phone" => "1234567890",
+                    "address" => $addressData['address'],
+                ],
             ]
         );
 
-        $address = $response->json('data.addAddressToCompany');
-
-        $response = $this->graphQL( /** @lang GraphQL */
-            '
-            mutation updateAddressFromCompany($id: ID!, $address_id: ID!, $input: AddressInput!) {
-                updateAddressFromCompany(id: $id, address_id: $address_id, input: $input)
-
-            }',
-            [
-                'id' => $company['id'],
-                'address_id' => $address['id'],
-                'input' => $this->addressInputData(),
-            ]
-        )
-        ->assertSuccessful();
+        $this->assertEquals("John Doe", $address->refresh()->fullname);
+        $this->assertEquals("1234567890", $address->refresh()->phone);
     }
 }

@@ -284,6 +284,8 @@ class CompanyManagementMutation
         $company->hasCompanyPermission(auth()->user());
 
         $addressData = [
+            'fullname' => $addressInput['fullname'] ?? '',
+            'phone' => $addressInput['phone'] ?? '',
             'companies_id' => $company->getId(),
             'address' => $addressInput['address'],
             'address_2' => $addressInput['address_2'] ?? '',
@@ -297,7 +299,7 @@ class CompanyManagementMutation
             'is_default' => $addressInput['is_default'] ?? false,
         ];
 
-        if ($addressInput['is_default']) {
+        if (isset($addressInput['is_default']) && $addressInput['is_default']) {
             $company->addresses()->update(['is_default' => false]);
         }
 
@@ -310,17 +312,19 @@ class CompanyManagementMutation
     {
         $company = Companies::getById($request['id']);
         $address = CompaniesAddress::getById($request['address_id']);
+        $addressInput = $request['input'];
 
         CompaniesRepository::userAssociatedToCompany(
             $company,
             auth()->user()
         );
 
-        if (! $address->is_default && $request['is_default']) {
+
+        if (! $address->is_default && isset($addressInput['is_default']) && $addressInput['is_default']) {
             $company->addresses()->update(['is_default' => false]);
         }
 
-        $address->update($request['input']);
+        $address->update($addressInput);
 
         return $address;
     }

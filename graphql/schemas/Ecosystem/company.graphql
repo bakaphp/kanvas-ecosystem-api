@@ -302,8 +302,26 @@ extend type Query @guard {
         )
 }
 
+input CompanyAddressInput {
+    fullname: String
+    phone: String
+    address: String!
+    address_2: String
+    city: String
+    county: String
+    city_id: ID
+    state: String
+    state_id: ID
+    zip: String
+    country: String
+    country_id: ID
+    is_default: Boolean
+}
+
 type CompanyAddress {
     id: ID!
+    fullname: String
+    phone: String
     address: String
     address_2: String
     city: String
@@ -375,14 +393,14 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@removeUserFromCompany"
         )
-    addAddressToCompany(id: ID!, input: AddressInput): CompanyAddress!
+    addAddressToCompany(id: ID!, input: CompanyAddressInput): CompanyAddress!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@addAddressToCompany"
         )
     updateCompanyAddress(
         id: ID!
         address_id: ID!
-        input: AddressInput
+        input: CompanyAddressInput
     ): CompanyAddress!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updateCompanyAddress"

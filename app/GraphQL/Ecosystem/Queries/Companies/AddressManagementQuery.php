@@ -22,6 +22,8 @@ class AddressManagementQuery
         return CompaniesAddress::select(
             'companies_address.id', // User ID
             'companies_address.is_default',
+            'companies_address.fullname',
+            'companies_address.phone',
             'companies_address.address',
             'companies_address.address_2',
             'companies_address.city',
