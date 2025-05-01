@@ -62,6 +62,7 @@ type EntityExport {
 type ProductTranslation {
     name: String
     description: String
+    html_description: String
     language: LanguageDisplay!
 }
 
