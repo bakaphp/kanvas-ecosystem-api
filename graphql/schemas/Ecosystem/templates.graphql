@@ -58,7 +58,14 @@ extend type Query @guard {
     templates(
         where: _
             @whereConditions(
-                columns: ["id", "users_id", "companies_id", "name", "subject", "is_system"]
+                columns: [
+                    "id"
+                    "users_id"
+                    "companies_id"
+                    "name"
+                    "subject"
+                    "is_system"
+                ]
             )
         orderBy: _ @orderBy(columns: ["id"], direction: "DESC")
     ): [Template!]!
