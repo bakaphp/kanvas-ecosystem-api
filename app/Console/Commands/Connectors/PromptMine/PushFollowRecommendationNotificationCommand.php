@@ -7,13 +7,11 @@ namespace App\Console\Commands\Connectors\PromptMine;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\PromptMine\Jobs\SendMonthlyMessageCountJob;
 use Kanvas\Connectors\PromptMine\Notifications\FollowsRecommendationsPushNotication;
-use Kanvas\Connectors\PromptMine\Repositories\MessagesRepository;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Users\Models\UsersAssociatedApps;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Users\Models\UsersAssociatedApps;
+
 
 class PushFollowRecommendationNotificationCommand extends Command
 {
