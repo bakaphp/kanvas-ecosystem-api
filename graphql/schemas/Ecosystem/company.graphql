@@ -192,6 +192,12 @@ enum CompanyOrderColumn {
     CREATED_AT @enum(value: "companies.created_at")
     UPDATED_AT @enum(value: "companies.updated_at")
 }
+
+enum CompanyAddressColumn {
+    ID @enum(value: "companies_address.id")
+    IS_DEFAULT @enum(value: "companies_address.is_default")
+}
+
 type Dashboard {
     name: String!
     fields: JSON!
@@ -281,11 +287,37 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettingQuery@getAllSettings"
         )
 
+    companyAddresses(
+        where: _ @whereConditions(columnsEnum: CompanyAddressColumn)
+        orderBy: _ @orderBy(columnsEnum: CompanyAddressColumn)
+    ): [CompanyAddress!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\AddressManagementQuery@getAllCompanyAddress"
+            defaultCount: 25
+        )
+
     dashboard: Dashboard!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\DashboardQuery@getDashboard"
         )
 }
+
+type CompanyAddress {
+    id: ID!
+    address: String
+    address_2: String
+    city: String
+    county: String
+    state: String
+    zip: String
+    country: Country
+    is_default: Boolean!
+    countries: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: Cities @belongsTo(relation: "city")
+}
+
+
 
 extend type Mutation @guard {
     createCompany(input: CompanyInput): Company!
@@ -344,5 +376,17 @@ extend type Mutation @guard {
     removeUserFromCompany(id: ID!, user_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@removeUserFromCompany"
+        )
+    addAddressToCompany(id: ID!, input: AddressInput): CompanyAddress!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@addAddressToCompany"
+        )
+    updateCompanyAddress(id: ID!, address_id: ID!, input: AddressInput): CompanyAddress!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updateCompanyAddress"
+        )
+    removeAddressFromCompany(id: ID!, address_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@removeAddressFromCompany"
         )
 }
