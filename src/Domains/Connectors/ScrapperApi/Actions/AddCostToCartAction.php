@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\ScrapperApi\Actions;
 use Joelwmale\Cart\Cart;
 use Joelwmale\Cart\CartCondition;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\ScrapperApi\Enums\ShippingCostEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class AddCostToCartAction
@@ -20,13 +21,12 @@ class AddCostToCartAction
 
     public function execute(): void
     {
+        if (! $this->app->get(ShippingCostEnum::LOCOMPRO_COST->value)) {
+            return;
+        }
         $fees = array_map(function ($item) {
             $variant = Variants::getById($item['id']);
-            $calc = new CalculateShippingCostAction(
-                $this->app,
-                $variant,
-                (float) $this->item['item']['quantity']
-            )->execute();
+            $calc = (new CalculateShippingCostAction($this->app, $variant, (float) $item['quantity']))->execute();
 
             return $calc;
         }, $this->cart->getContent()->toArray());

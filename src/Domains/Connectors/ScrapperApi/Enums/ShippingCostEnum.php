@@ -15,4 +15,5 @@ enum ShippingCostEnum: string
     case PAYMENT_FEE = 'payment_fee';
     case SERVICE_FEE = 'service_fee';
     case SHIPPING_MARGIN = 'shipping_margin';
+    case LOCOMPRO_COST = 'locompro_cost';
 }

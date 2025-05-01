@@ -23,7 +23,6 @@ class CalculateShippingCostAction
         $pounds = $this->variant->getAttributeByName(ConfigurationEnum::WEIGHT_UNIT->value)->value / 453.59237;
         $pounds = $pounds * $this->quantity;
         $price = $this->variant->getPriceInfoFromDefaultChannel()->price;
-
         // LoCompro Cost
         $deliveryCost = (float)($this->app->get(ShippingCostEnum::DELIVERY_COST_LAST_MILE->value) ?? 2.50);
         $courierCost = (float)($this->app->get(ShippingCostEnum::COURIER_COST->value) ?? 1.30);
