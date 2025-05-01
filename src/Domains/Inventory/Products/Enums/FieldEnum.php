@@ -20,9 +20,8 @@ enum FieldEnum: string
     case FILES = 'files';
     case PRICE = 'price';
     case WEIGHT = 'weight';
-    case BARCODE = 'weight';
-    case SERIAL_NUMBER = 'weight';
-    case SERIAL_NUMBER = 'weight';
+    case BARCODE = 'barcode';
+    case SERIAL_NUMBER = 'serial_numer';
 
     public static function labels(): array
     {
