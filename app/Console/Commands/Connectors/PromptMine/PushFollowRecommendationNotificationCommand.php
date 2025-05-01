@@ -12,7 +12,6 @@ use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
-
 class PushFollowRecommendationNotificationCommand extends Command
 {
     use KanvasJobsTrait;
