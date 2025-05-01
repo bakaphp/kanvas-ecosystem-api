@@ -7,10 +7,10 @@ namespace Kanvas\Domains\Connectors\AeroAmbulancia\Services;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\DocumentType;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 
-class SubscriptionService extends BaseService
+class AeroAmbulanciaSubscriptionService extends BaseService
 {
     public function __construct(Client $client)
     {
@@ -20,9 +20,9 @@ class SubscriptionService extends BaseService
     /**
      * Create a new subscription item
      */
-    public function createNewSubscription(ModelsOrder $order, int $subscriptionId, array $subscriptionData): array
+    public function createNewSubscription(People $people, int $subscriptionId, array $subscriptionData): array
     {
-        $data = $this->prepareSubscriptionData($order, $subscriptionData);
+        $data = $this->prepareSubscriptionData($people, $subscriptionData);
         $data['type'] = SubscriptionType::NEW->value;
 
         return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
@@ -31,9 +31,9 @@ class SubscriptionService extends BaseService
     /**
      * Create a top-up subscription item
      */
-    public function createTopUpSubscription(ModelsOrder $order, int $subscriptionId, array $subscriptionData): array
+    public function createTopUpSubscription(People $people, int $subscriptionId, array $subscriptionData): array
     {
-        $data = $this->prepareSubscriptionData($order, $subscriptionData);
+        $data = $this->prepareSubscriptionData($people, $subscriptionData);
         $data['type'] = SubscriptionType::TOPUP->value;
 
         return $this->client->post("/subscriptions/{$subscriptionId}/subscription-items", $data);
@@ -42,9 +42,9 @@ class SubscriptionService extends BaseService
     /**
      * Create a relationship subscription item
      */
-    public function createRelationshipSubscription(ModelsOrder $order, int $subscriptionId, int $relationshipId, array $subscriptionData): array
+    public function createRelationshipSubscription(People $people, int $subscriptionId, int $relationshipId, array $subscriptionData): array
     {
-        $data = $this->prepareSubscriptionData($order, $subscriptionData);
+        $data = $this->prepareSubscriptionData($people, $subscriptionData);
         $data['type'] = SubscriptionType::NEW->value;
         $data['relationship'] = $relationshipId;
 
@@ -52,19 +52,19 @@ class SubscriptionService extends BaseService
     }
 
     /**
-     * Prepare subscription data from order and subscription data
+     * Prepare subscription data from people and subscription data
      */
-    protected function prepareSubscriptionData(ModelsOrder $order, array $subscriptionData): array
+    protected function prepareSubscriptionData(People $people, array $subscriptionData): array
     {
         $this->validateSubscriptionData($subscriptionData);
 
         return [
             'documentType' => $subscriptionData['documentType'],
             'documentNumber' => $subscriptionData['documentNumber'],
-            'firstName' => $order->user->firstname,
-            'lastName' => $order->user->lastname,
-            'email' => $order->user->email,
-            'phoneNumber' => $order->user->phone,
+            'firstName' => $people->firstname,
+            'lastName' => $people->lastname,
+            'email' => $people->email,
+            'phoneNumber' => $people->phone,
             'sex' => $subscriptionData['sex'],
             'birthdate' => $subscriptionData['birthdate'],
             'activationDate' => $subscriptionData['activationDate'],
