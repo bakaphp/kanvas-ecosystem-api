@@ -147,6 +147,16 @@ class FixPromptDataCommand extends Command
                 ],
             ];
             $this->info('Added AI model to message data');
+        } else {
+            if ($messageData['ai_model']['isDefault']) {
+                unset($messageData['ai_model']['isDefault']);
+                $this->info('Removed isDefault from message data');
+            }
+
+            if ($messageData['ai_model']['isNew']) {
+                unset($messageData['ai_model']['isNew']);
+                $this->info('Removed isNew from message data');
+            }
         }
 
         if (! isset($messageData['type'])) {
