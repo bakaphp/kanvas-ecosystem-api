@@ -14,12 +14,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterface
 {
-    public function __construct(
-        protected Client $client,
-        protected AeroAmbulanciaSubscriptionService $subscriptionService
-    ) {
-    }
-
     /**
      * Execute the activity
      */
@@ -31,7 +25,10 @@ class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterf
 
         $data = $this->getActivityData($entity, $params);
 
-        return $this->subscriptionService->createNewSubscription(
+        $client = new Client($app, $entity->company);
+        $subscriptionService = new AeroAmbulanciaSubscriptionService($client);
+
+        return $subscriptionService->createNewSubscription(
             $data['people'],
             $data['subscription_id'],
             $data['subscription_data']
@@ -64,4 +61,4 @@ class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterf
             'subscription_data' => $subscriptionData
         ];
     }
-} 
+}
