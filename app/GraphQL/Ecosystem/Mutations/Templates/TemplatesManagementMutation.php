@@ -63,6 +63,7 @@ class TemplatesManagementMutation
 
     public function update(mixed $root, array $request): Templates
     {
+        $id = $request['id'];
         $request = $request['input'];
         if (! auth()->user()->isAdmin()) {
             throw new AuthorizationException('Only admin can create or update templates, please contact your admin');
@@ -72,7 +73,7 @@ class TemplatesManagementMutation
         $user = auth()->user();
 
         $template = Templates::getById(
-            $request['id'],
+            $id,
             $app,
         );
 
@@ -120,6 +121,7 @@ class TemplatesManagementMutation
         if (! auth()->user()->isAdmin()) {
             throw new AuthorizationException('Only admin can create or update templates, please contact your admin');
         }
+
         $app = app((Apps::class));
         $template = Templates::fromApp($app)
             //->fromCompany(auth()->user()->getCurrentCompany())
