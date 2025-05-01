@@ -14,6 +14,8 @@ type FilesystemMapper {
 
 input FilesystemMapperInput {
     name: String!
+    description: String
+    has_header: Boolean
     system_module_id: ID!
     file_header: Mixed!
     mapping: Mixed!
