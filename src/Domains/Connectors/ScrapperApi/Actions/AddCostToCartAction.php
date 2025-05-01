@@ -30,6 +30,7 @@ class AddCostToCartAction
 
             return $calc;
         }, $this->cart->getContent()->toArray());
+
         $fee = collect($fees);
         $total = $fee->sum('total');
         $this->cart->removeCartCondition('Shipping');

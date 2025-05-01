@@ -26,14 +26,13 @@ class PullLeadAction
 
     public function execute(array $request): array
     {
-        $phones = $request['phones'] ?? [];
-        $emails = $request['emails'] ?? [];
-        $email = $emails[0] ?? null;
+        $phone = $request['phone']['cell'] ?? $request['phone']['home'] ?? $request['phone']['work'] ?? null;
+        //$emails = $request['emails'] ?? [];
+        $email = $request['email'] ?? null;
         $dob = $request['birthday'] ?? null;
         $firstname = $request['firstname'] ?? null;
         $lastname = $request['lastname'] ?? null;
-        $personId = $request['personId'];
-        $phone = $phones[0] ?? null;
+        $personId = $request['personId'] ?? $request['entity_id'] ?? null;
 
         $people = People::getByCustomField(
             CustomFieldEnum::PERSON_ID->value,

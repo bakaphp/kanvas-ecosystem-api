@@ -18,11 +18,11 @@ class CartService
     {
         $cartItems = array_map(function ($item) {
             return [
-                'id'         => $item['id'],
-                'name'       => $item['name'],
-                'price'      => $item['price'],
-                'variant'    => Variants::getById($item['id']),
-                'quantity'   => $item['quantity'],
+                'id' => $item['id'],
+                'name' => $item['name'],
+                'price' => $item['price'],
+                'variant' => Variants::getById($item['id']),
+                'quantity' => $item['quantity'],
                 'attributes' => $item['attributes'],
             ];
         }, $this->cart->getContent()->toArray());
@@ -32,9 +32,9 @@ class CartService
             $totalDiscount += $this->cart->getCalculatedValueForCondition($discount['name']);
 
             return [
-                'code'   => $discount['name'],
+                'code' => $discount['name'],
                 'amount' => $discount['value'],
-                'total'  => $this->cart->getCalculatedValueForCondition($discount['name']),
+                'total' => $this->cart->getCalculatedValueForCondition($discount['name']),
             ];
         }, $this->cart->getConditions(true));
 
@@ -43,16 +43,16 @@ class CartService
          */
         $shipping = $this->cart->getCondition('Shipping');
         $response = [
-            'id'             => 'default',
-            'items'          => $cartItems, //$this->cart->getContent()->toArray(),
-            'discounts'      => $discounts,
+            'id' => 'default',
+            'items' => $cartItems, //$this->cart->getContent()->toArray(),
+            'discounts' => $discounts,
             'total_discount' => $totalDiscount,
-            'total'          => $this->cart->getTotal(),
+            'total' => $this->cart->getTotal(),
         ];
         if ($shipping) {
             $response['shipping'] = [
-                'name'       => $shipping->getName(),
-                'value'      => $shipping->getValue(),
+                'name' => $shipping->getName(),
+                'value' => $shipping->getValue(),
                 'attributes' => $shipping->getAttributes(),
             ];
         }

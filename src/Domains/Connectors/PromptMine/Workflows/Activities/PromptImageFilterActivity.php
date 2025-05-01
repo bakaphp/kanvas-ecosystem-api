@@ -55,6 +55,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($entity) use ($messageFiles, $params, $imageFilter, $isOpenAi) {
+                $entity->setPrivate();
+
                 if (empty($this->apiUrl)) {
                     return [
                         'result' => false,
@@ -103,9 +105,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         }
                     }
 
-                    // Change to public when the image is processed
-                    $entity->is_public = 0;
-                    $entity->save();
                     // Create nugget message and send notification - common for both methods
                     return $this->finalizeProcessing(
                         $entity,
@@ -269,7 +268,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 $params['via'] ?? ['database']
             );
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
-                user: $entity,
+                user: $entity->user,
+                entity: $entity,
                 message: 'Your image could not be processed because it violated our content policy. Please try again with a different image.',
                 title: 'Error processing image',
                 via: $endViaList,
@@ -279,6 +279,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 ],
             );
             $entity->user->notify($errorProcessingImageNotification);
+            $entity->delete();
 
             throw new Exception('OpenAI API request failed: ' . $response->body());
         }
@@ -351,7 +352,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         try {
             // Send notification to the user
             $newMessageNotification = new ImageProcessingPushNotification(
-                user: $entity,
+                user: $entity->user,
+                entity: $entity,
                 message: "Your image for {$title} has been processed",
                 title: 'Image Processed',
                 via: $endViaList,

@@ -26,14 +26,14 @@ class PullPeopleAction
 
     public function execute(array $request): array
     {
-        $phones = $request['phones'] ?? [];
-        $emails = $request['emails'] ?? [];
-        $email = $emails[0] ?? null;
+        $phone = $request['phone']['cell'] ?? $request['phone']['home'] ?? $request['phone']['work'] ?? null;
+        //$emails = $request['emails'] ?? [];
+        $email = $request['email'] ?? null;
         $dob = $request['birthday'] ?? null;
         $firstname = $request['firstname'] ?? null;
         $lastname = $request['lastname'] ?? null;
-        $personId = $request['personId'];
-        $phone = $phones[0] ?? null;
+        $personId = $request['personId'] ?? $request['entity_id'] ?? null;
+        //$phone = $phones[0] ?? null;
 
         $people = People::getByCustomField(
             CustomFieldEnum::PERSON_ID->value,
@@ -71,9 +71,19 @@ class PullPeopleAction
         $country = Countries::getByCode('US');
 
         if ($customers && isset($customers['items'])) {
+            $totalCustomers = count($customers['items']);
             foreach ($customers['items'] as $customer) {
                 if ($customer['rank'] < 0.4) {
                     continue;
+                }
+
+                $customFields = [
+                    CustomFieldEnum::CUSTOMER_ID->value => $customer['id'],
+                    //CustomFieldEnum::PERSON_ID->value => $personId,
+                ];
+
+                if ($totalCustomers === 1 && $personId !== null) {
+                    $customFields[CustomFieldEnum::PERSON_ID->value] = $personId;
                 }
 
                 $people = new SyncPeopleByThirdPartyCustomFieldAction(
@@ -115,10 +125,7 @@ class PullPeopleAction
                         )
                         ,
                         'branch' => $this->company->defaultBranch,
-                        'custom_fields' => array_filter([
-                            CustomFieldEnum::CUSTOMER_ID->value => $customer['id'],
-                            CustomFieldEnum::PERSON_ID->value => $personId,
-                        ], fn ($value) => $value !== null),
+                        'custom_fields' => $customFields,
                     ])
                 )->execute();
 

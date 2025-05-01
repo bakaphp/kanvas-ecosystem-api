@@ -6,6 +6,35 @@ namespace Kanvas\Connectors\Intellicheck\Services;
 
 class IdVerificationService
 {
+    public static function getName(array $verificationData): string
+    {
+        // Try to get name from idcheck data first
+        $idCheckData = $verificationData['idcheck']['data'] ?? [];
+
+        if (! empty($idCheckData['firstName']) || ! empty($idCheckData['lastName'])) {
+            $firstName = $idCheckData['firstName'] ?? '';
+            $middleName = ! empty($idCheckData['middleName']) ? " {$idCheckData['middleName']}" : '';
+            $lastName = $idCheckData['lastName'] ?? '';
+
+            return trim("$firstName$middleName $lastName");
+        }
+
+        // Fallback to OCR data if idcheck name is not available
+        $ocrData = $verificationData['OCR']['data'] ?? [];
+
+        if (! empty($ocrData['fullName'])) {
+            return $ocrData['fullName'];
+        } elseif (! empty($ocrData['firstName']) || ! empty($ocrData['lastName'])) {
+            $firstName = $ocrData['firstName'] ?? '';
+            $lastName = $ocrData['lastName'] ?? '';
+
+            return trim("$firstName $lastName");
+        }
+
+        // Return Unknown if no name found in either source
+        return 'Unknown';
+    }
+
     public static function processVerificationData(
         array $verificationData,
         string $name,

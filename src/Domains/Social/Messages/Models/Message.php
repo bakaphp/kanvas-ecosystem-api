@@ -284,6 +284,18 @@ class Message extends BaseModel
         $this->saveOrFail();
     }
 
+    public function setPremium(): void
+    {
+        $this->is_premium = 1;
+        $this->saveOrFail();
+    }
+
+    public function setNotPremium(): void
+    {
+        $this->is_premium = 0;
+        $this->saveOrFail();
+    }
+
     public function isLocked(): bool
     {
         //For now lets make sure all that all messages not linked with orders are unlocked.

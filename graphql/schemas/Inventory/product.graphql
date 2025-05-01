@@ -216,6 +216,7 @@ extend type Query @guard {
                     "products_types_id"
                     "companies_id"
                     "name"
+                    "description"
                     "slug"
                     "code"
                     "uuid"

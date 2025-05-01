@@ -49,10 +49,12 @@ class FixPromptDataCommand extends Command
         $messageType = MessageType::find($messageTypeId);
         $childMessageTypeId = (int) $this->option('child_message_type_id');
         $childMessageType = MessageType::find($childMessageTypeId);
+        $imageGenerationMessageTypeId = (int) $this->option('child_message_type_id');
+        $imageGenerationMessageType = MessageType::find($imageGenerationMessageTypeId);
         // $companiesId = (int) $this->argument('companies_id');
 
         //Get all messages for the given message type and app
-        $this->SyncPromptData($app, $messageType, $childMessageType);
+        $this->SyncPromptData($app, $messageType, $childMessageType, $imageGenerationMessageType);
     }
 
     /**
@@ -62,23 +64,34 @@ class FixPromptDataCommand extends Command
     {
         Message::fromApp($app)
             ->where('message_types_id', $messageType->getId())
-            // ->where('companies_id', $companiesId)
             ->where('is_deleted', 0)
             ->orderBy('id', 'asc')
-            ->chunk(100, function ($messages) use ($childMessageType) {
+            ->chunk(100, function ($messages) use ($app, $childMessageType) {
                 foreach ($messages as $message) {
                     try {
+                        $this->info('--Checking Parent Prompt Message Schema of ID: ' . $message->getId());
                         $this->fixPromptData($message);
+                        // Need to check children manually
+                        $children = Message::fromApp($app)
+                            ->where('parent_id', $message->getId())
+                            ->withTrashed()
+                            ->get();
 
-                        if (count($message->children) == 0) {
-                            //Generate child messages if it doesn't exist
-                            $this->createNuggetMessage($message, $childMessageType);
-                            $this->info('--Child Nugget Message ID: ' . $message->getId() . ' created');
-                            continue;
+                        if (count($children) == 0) {
+                            try {
+                                //Generate child messages if it doesn't exist
+                                $this->info('--Creating Child Nugget Message');
+                                $this->createNuggetMessage($message, $childMessageType);
+                                $this->info('--Child Nugget Message ID: ' . $message->getId() . ' created');
+
+                                continue;
+                            } catch (\Throwable $e) {
+                                $this->error('Error creating nugget message ID: ' . $message->getId() . ' - ' . $e->getMessage());
+                            }
                         }
 
                         //Need to get just the first child message
-                        foreach ($message->children as $childMessage) {
+                        foreach ($children as $childMessage) {
                             // $validateMessageSchema = new MessageSchemaValidator($childMessage, $childMessageType, true);
                             // $this->info('--Checking Child Nugget Message Schema of ID: ' . $childMessage->getId());
                             // if ($validateMessageSchema->validate()) {
@@ -86,9 +99,13 @@ class FixPromptDataCommand extends Command
                             //     continue;
                             // }
 
-                            $this->info('--Fixing Child Nugget Message Schema');
-                            $this->fixNuggetData($childMessage);
-                            $this->info('--Child Nugget Message ID: ' . $childMessage->getId() . ' updated');
+                            try {
+                                $this->info('--Fixing Child Nugget Message Schema ' . $childMessage->getId());
+                                $this->fixNuggetData($childMessage);
+                                $this->info('--Child Nugget Message ID: ' . $childMessage->getId() . ' updated');
+                            } catch (\Throwable $e) {
+                                $this->error('Error updating nugget message ID: ' . $message->getId() . ' - ' . $e->getMessage());
+                            }
                         }
                     } catch (Throwable $e) {
                         $this->error('Error updating message ID: ' . $message->getId() . ' - ' . $e->getMessage());
@@ -111,22 +128,23 @@ class FixPromptDataCommand extends Command
         if (! isset($messageData['prompt'])) {
             $message->is_deleted = 1;
             $message->is_public = 0;
-            $message->save();
+            $message->saveOrFail();
             $this->info('Message is not a prompt, setting as deleted and not public');
+
             return;
         }
 
         if (! isset($messageData['ai_model'])) {
             $messageData['ai_model'] = [
-                "name" => "GPT-4o",
-                "key" => "openai",
-                "value" => "gpt-4o",
-                'icon' => "https://cdn.promptmine.ai/OpenAILogo.png",
+                'name' => 'GPT-4o',
+                'key' => 'openai',
+                'value' => 'gpt-4o',
+                'icon' => 'https://cdn.promptmine.ai/OpenAILogo.png',
                 'payment' => [
                     'price' => 0,
                     'is_locked' => false,
-                    'free_regeneration' => false
-                ]
+                    'free_regeneration' => false,
+                ],
             ];
             $this->info('Added AI model to message data');
         }
@@ -155,7 +173,7 @@ class FixPromptDataCommand extends Command
             $messageData['payment'] = [
                 'price' => 0,
                 'is_locked' => false,
-                'free_regeneration' => false
+                'free_regeneration' => false,
             ];
             $this->info('Added payment to message data');
         }
@@ -176,7 +194,7 @@ class FixPromptDataCommand extends Command
         }
 
         $message->message = $messageData;
-        $message->save();
+        $message->saveOrFail();
 
         $this->info('-Prompt Message ID: ' . $message->getId() . ' updated');
     }
@@ -187,11 +205,19 @@ class FixPromptDataCommand extends Command
         $parentMessageData = is_array($parentMessage->message) ? $parentMessage->message : json_decode($parentMessage->message, true);
         $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
 
-        if ($parentMessage->is_deleted) {
+        if ($parentMessage->is_deleted && ! isset($parentMessageData['prompt'])) {
             $message->is_deleted = 1;
             $message->is_public = 0;
-            $message->save();
+            $message->saveOrFail();
             $this->info('Parent message is deleted, setting child message as deleted and not public');
+
+            return;
+        } else {
+            $message->is_deleted = 0;
+            $message->is_public = 1;
+            $message->saveOrFail();
+            $this->info('Parent message is not deleted, restoring child message as not deleted and public');
+
             return;
         }
 
@@ -273,12 +299,21 @@ class FixPromptDataCommand extends Command
         }
 
         $message->message = $messageData;
-        $message->save();
+        $message->saveOrFail();
     }
 
     private function createNuggetMessage(Message $parentMessage, MessageType $childMessageType): void
     {
         $messageData = is_array($parentMessage->message) ? $parentMessage->message : json_decode($parentMessage->message, true);
+        if (! isset($messageData['prompt'])) {
+            $parentMessage->is_deleted = 1;
+            $parentMessage->is_public = 0;
+            $parentMessage->save();
+            $this->info('Parent Message has no a prompt, setting as deleted and not public, no child created');
+
+            return;
+        }
+
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt($messageData['prompt'])
@@ -292,20 +327,20 @@ class FixPromptDataCommand extends Command
             'companies_id' => $parentMessage->companies_id,
             'users_id' => $parentMessage->users_id,
             'message_types_id' => $childMessageType->getId(),
-            'message' => [
+            'message' => json_encode([
                 'title' => $messageData['title'],
-                "type" => "text-format",
-                "nugget" => $responseText,
-            ],
+                'type' => 'text-format',
+                'nugget' => $responseText,
+            ]),
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         DB::connection('social')->table('messages')
             ->where('id', $nuggetId)
-            ->update(['path' => $parentMessage->getId() . "." . $nuggetId]);
+            ->update(['path' => $parentMessage->getId() . '.' . $nuggetId]);
 
-        foreach ($parentMessage->tags() as $tag) {
+        foreach ($parentMessage->tags as $tag) {
             DB::connection('social')->table('tags_entities')->insert([
                 'entity_id' => $nuggetId,
                 'tags_id' => $tag->getId(),
@@ -321,7 +356,7 @@ class FixPromptDataCommand extends Command
 
         //Update total children on parent message
         $parentMessage->total_children++;
-        $parentMessage->save();
+        $parentMessage->saveOrFail();
 
         $this->info('Created nugget message with ID: ' . $nuggetId);
     }
