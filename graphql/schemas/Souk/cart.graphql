@@ -28,14 +28,12 @@ type CartShipping {
     attributes: Mixed
 }
 
-
 input CartItemInput {
     quantity: Int!
     variant_id: ID!
     channel_id: ID
     attributes: Mixed
 }
-
 
 extend type Mutation @guardByKanvasIdentifier {
     addToCart(items: [CartItemInput!]!): [CartItem!]!
