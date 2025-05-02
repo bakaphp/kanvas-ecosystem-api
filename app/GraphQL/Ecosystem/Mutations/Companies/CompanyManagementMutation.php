@@ -284,6 +284,8 @@ class CompanyManagementMutation
         $company->hasCompanyPermission(auth()->user());
 
         $addressData = [
+            'fullname' => $addressInput['fullname'] ?? '',
+            'phone' => $addressInput['phone'] ?? '',
             'companies_id' => $company->getId(),
             'address' => $addressInput['address'],
             'address_2' => $addressInput['address_2'] ?? '',
@@ -297,7 +299,7 @@ class CompanyManagementMutation
             'is_default' => $addressInput['is_default'] ?? false,
         ];
 
-        if ($addressInput['is_default']) {
+        if (isset($addressInput['is_default']) && $addressInput['is_default']) {
             $company->addresses()->update(['is_default' => false]);
         }
 
@@ -310,17 +312,33 @@ class CompanyManagementMutation
     {
         $company = Companies::getById($request['id']);
         $address = CompaniesAddress::getById($request['address_id']);
+        $addressInput = $request['input'];
 
         CompaniesRepository::userAssociatedToCompany(
             $company,
             auth()->user()
         );
 
-        if (! $address->is_default && $request['is_default']) {
+
+        if (! $address->is_default && isset($addressInput['is_default']) && $addressInput['is_default']) {
             $company->addresses()->update(['is_default' => false]);
         }
 
-        $address->update($request['input']);
+        $address->update([
+            'fullname' => $addressInput['fullname'] ?? $address->fullname,
+            'phone' => $addressInput['phone'] ?? $address->phone,
+            'companies_id' => $company->getId(),
+            'address' => $addressInput['address'] ?? $address->address,
+            'address_2' => $addressInput['address_2'] ?? $address->address_2,
+            'city' => $addressInput['city'] ?? $address->city,
+            'county' => $addressInput['county'] ?? $address->county,
+            'state' => $addressInput['state'] ?? $address->state,
+            'zip' => $addressInput['zip'] ?? $address->zip,
+            'city_id' => $addressInput['city_id'] ?? $address->city_id,
+            'state_id' => $addressInput['state_id'] ?? $address->state_id,
+            'countries_id' => $addressInput['country_id'] ?? $address->countries_id,
+            'is_default' => $addressInput['is_default'] ?? $address->is_default,
+        ]);
 
         return $address;
     }
