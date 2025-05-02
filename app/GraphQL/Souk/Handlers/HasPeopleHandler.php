@@ -4,9 +4,8 @@ namespace App\GraphQL\Souk\Handlers;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Customers\Models\People;
-use Nuwave\Lighthouse\WhereConditions\WhereConditionsHandler;
 
-final class HasPeopleHandler extends WhereConditionsHandler
+final class HasPeopleHandler extends HasAddressHandler
 {
     /**
      * @param  array<string, mixed>  $whereConditions
