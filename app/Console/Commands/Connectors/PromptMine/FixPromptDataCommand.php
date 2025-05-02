@@ -63,26 +63,43 @@ class FixPromptDataCommand extends Command
     private function SyncPromptData(Apps $app, MessageType $messageType, MessageType $childMessageType): void
     {
         Message::fromApp($app)
-            ->where('message_types_id', $messageType->getId())
+            ->whereIn('message_types_id', [$messageType->getId(), $childMessageType->getId()])
             ->where('is_deleted', 0)
             ->orderBy('id', 'asc')
-            ->chunk(100, function ($messages) use ($app, $childMessageType) {
+            ->chunk(100, function ($messages) use ($app, $messageType, $childMessageType) {
                 foreach ($messages as $message) {
                     try {
-                        $this->info('--Checking Parent Prompt Message Schema of ID: ' . $message->getId());
-                        $this->fixPromptData($message);
+                        $this->info('Checking message ID: ' . $message->getId());
+                        if ($message->message_types_id == $messageType->getId()) {
+                            $this->info('-Checking Parent Prompt Message Schema of ID: ' . $message->getId());
+                            $this->fixPromptData($message);
+                        } elseif ($message->message_types_id == $childMessageType->getId() && $message->parent_id == NULL) {
+                            $this->info('-Deleting Child Nugget Message without parent with ID: ' . $message->getId());
+                            $message->is_deleted = 1;
+                            $message->is_public = 0;
+                            $message->saveOrFail();
+                            $this->info('-Child Nugget Message without parent with ID: ' . $message->getId() . ' deleted');
+                            continue;
+                        }
+
+                        if ($message->message_types_id == $childMessageType->getId()) {
+                            // Only prompt messages can  go to the next steps.
+                            $this->info('-Skipping Child Nugget Message with ID: ' . $message->getId() . 'next steps are for prompt messages');
+                            continue;
+                        }   
+                       
                         // Need to check children manually
                         $children = Message::fromApp($app)
                             ->where('parent_id', $message->getId())
                             ->withTrashed()
                             ->get();
 
-                        if (count($children) == 0) {
+                        $this->info('-Parent Message count of children: ' . count($children));
+                        if (count($children) == 0 && $message->message_types_id == $messageType->getId()) {
                             try {
                                 //Generate child messages if it doesn't exist
                                 $this->info('--Creating Child Nugget Message');
                                 $this->createNuggetMessage($message, $childMessageType);
-                                $this->info('--Child Nugget Message ID: ' . $message->getId() . ' created');
                                 continue;
                             } catch (\Throwable $e) {
                                 $this->error('Error creating nugget message ID: ' . $message->getId() . ' - ' . $e->getMessage());
@@ -146,12 +163,12 @@ class FixPromptDataCommand extends Command
             ];
             $this->info('Added AI model to message data');
         } else {
-            if ($messageData['ai_model']['isDefault']) {
+            if (array_key_exists('isDefault', $messageData['ai_model'])) {
                 unset($messageData['ai_model']['isDefault']);
                 $this->info('Removed isDefault from message data');
             }
 
-            if ($messageData['ai_model']['isNew']) {
+            if (array_key_exists('isNew', $messageData['ai_model'])) {
                 unset($messageData['ai_model']['isNew']);
                 $this->info('Removed isNew from message data');
             }
@@ -201,7 +218,7 @@ class FixPromptDataCommand extends Command
             $this->info('Removed is_assistant from message data');
         }
 
-        $message->message = $messageData;
+        $message->message = (array)$messageData;
         $message->saveOrFail();
 
         $this->info('-Prompt Message ID: ' . $message->getId() . ' updated');
@@ -224,7 +241,6 @@ class FixPromptDataCommand extends Command
             $message->is_public = 1;
             $message->saveOrFail();
             $this->info('Parent message is not deleted, restoring child message as not deleted and public');
-            return;
         }
 
         if (! isset($messageData['id'])) {
@@ -279,11 +295,6 @@ class FixPromptDataCommand extends Command
             $this->info('Removed description from message data');
         }
 
-        if (isset($messageData['created_at'])) {
-            unset($messageData['created_at']);
-            $this->info('Removed created_at from message data');
-        }
-
         if (isset($messageData['updated_at'])) {
             unset($messageData['updated_at']);
             $this->info('Removed updated_at from message data');
@@ -304,7 +315,7 @@ class FixPromptDataCommand extends Command
             $this->info('Removed description from message data');
         }
 
-        $message->message = $messageData;
+        $message->message = (array)$messageData;
         $message->saveOrFail();
     }
 
@@ -337,8 +348,8 @@ class FixPromptDataCommand extends Command
                 "type" => "text-format",
                 "nugget" => $responseText,
             ]),
-            'created_at' => now(),
-            'updated_at' => now()
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s')
         ]);
 
         DB::connection('social')->table('messages')
@@ -364,5 +375,6 @@ class FixPromptDataCommand extends Command
         $parentMessage->saveOrFail();
 
         $this->info('Created nugget message with ID: ' . $nuggetId);
+        $this->info('--Child Nugget Message ID: ' . $nuggetId . ' created');
     }
 }
