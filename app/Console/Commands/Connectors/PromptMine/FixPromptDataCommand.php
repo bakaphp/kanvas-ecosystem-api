@@ -85,10 +85,8 @@ class FixPromptDataCommand extends Command
                         if ($message->message_types_id == $childMessageType->getId()) {
                             // Only prompt messages can  go to the next steps.
                             $this->info('-Skipping Child Nugget Message with ID: ' . $message->getId() . 'next steps are for prompt messages');
-
                             continue;
                         }
-
                         // Need to check children manually
                         $children = Message::fromApp($app)
                             ->where('parent_id', $message->getId())
@@ -219,6 +217,11 @@ class FixPromptDataCommand extends Command
         if (isset($messageData['is_assistant'])) {
             unset($messageData['is_assistant']);
             $this->info('Removed is_assistant from message data');
+        }
+
+        if (isset($messageData['ai_image'])) {
+            unset($messageData['ai_image']);
+            $this->info('Removed ai_image from message data');
         }
 
         $message->message = (array)$messageData;

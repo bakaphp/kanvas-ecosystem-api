@@ -40,6 +40,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
+
+        sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 5);
         $messageFiles = $entity->getFiles();
         $this->app = $app;
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
