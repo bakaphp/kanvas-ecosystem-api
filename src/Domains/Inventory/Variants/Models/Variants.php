@@ -377,7 +377,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     {
         $variant = [
             'objectID' => $this->uuid,
-            'id' => (int)$this->id,
+            'id' => (string)$this->id,
             'products_id' => $this->products_id,
             'name' => $this->name,
             'files' => $this->getFiles()->take(5)->map(function ($files) {
@@ -618,7 +618,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                 ],
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'products_id',

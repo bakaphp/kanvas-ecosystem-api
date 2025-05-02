@@ -278,6 +278,13 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     'push_template' => $params['push_template'],
                 ],
             );
+
+            //send to the user profile when it fails
+            $errorProcessingImageNotification->setData([
+                'destination_id' => $entity->getId(),
+                'destination_type' => 'USER',
+                'destination_event' => 'FOLLOWING',
+            ]);
             $entity->user->notify($errorProcessingImageNotification);
             $entity->delete();
 
@@ -325,7 +332,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         array $params = [],
         ?string $requestId = null
     ): array {
-        $title = $entity->message['title'] ?? 'your prompt';
+        $title = $entity->message['title'] ?? 'New Process Image';
 
         // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
