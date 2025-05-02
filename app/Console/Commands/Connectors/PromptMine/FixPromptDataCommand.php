@@ -291,7 +291,7 @@ class FixPromptDataCommand extends Command
                 }
             }
         }
-        
+
         if (isset($messageData['nugget']) && $messageData['type'] === 'image-format') {
             unset($messageData['nugget']);
             $this->info('Removed nugget from message data on image format');
