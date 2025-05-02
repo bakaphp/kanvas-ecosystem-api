@@ -73,20 +73,22 @@ class FixPromptDataCommand extends Command
                         if ($message->message_types_id == $messageType->getId()) {
                             $this->info('-Checking Parent Prompt Message Schema of ID: ' . $message->getId());
                             $this->fixPromptData($message);
-                        } elseif ($message->message_types_id == $childMessageType->getId() && $message->parent_id == NULL) {
+                        } elseif ($message->message_types_id == $childMessageType->getId() && $message->parent_id == null) {
                             $this->info('-Deleting Child Nugget Message without parent with ID: ' . $message->getId());
                             $message->is_deleted = 1;
                             $message->is_public = 0;
                             $message->saveOrFail();
                             $this->info('-Child Nugget Message without parent with ID: ' . $message->getId() . ' deleted');
+
                             continue;
                         }
                         if ($message->message_types_id == $childMessageType->getId()) {
                             // Only prompt messages can  go to the next steps.
                             $this->info('-Skipping Child Nugget Message with ID: ' . $message->getId() . 'next steps are for prompt messages');
+
                             continue;
                         }
-                       
+
                         // Need to check children manually
                         $children = Message::fromApp($app)
                             ->where('parent_id', $message->getId())
@@ -99,6 +101,7 @@ class FixPromptDataCommand extends Command
                                 //Generate child messages if it doesn't exist
                                 $this->info('--Creating Child Nugget Message');
                                 $this->createNuggetMessage($message, $childMessageType);
+
                                 continue;
                             } catch (\Throwable $e) {
                                 $this->error('Error creating nugget message ID: ' . $message->getId() . ' - ' . $e->getMessage());
@@ -351,7 +354,7 @@ class FixPromptDataCommand extends Command
                 'nugget' => $responseText,
             ]),
             'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s')
+            'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
         DB::connection('social')->table('messages')
