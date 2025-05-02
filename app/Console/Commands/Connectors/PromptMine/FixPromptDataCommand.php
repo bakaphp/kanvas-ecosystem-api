@@ -85,7 +85,7 @@ class FixPromptDataCommand extends Command
                             // Only prompt messages can  go to the next steps.
                             $this->info('-Skipping Child Nugget Message with ID: ' . $message->getId() . 'next steps are for prompt messages');
                             continue;
-                        }   
+                        }
                        
                         // Need to check children manually
                         $children = Message::fromApp($app)
