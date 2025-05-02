@@ -6,6 +6,7 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Souk\Orders\Actions\ProcessOrderItemAction;
 
 class ImportOrderCsvMutation
@@ -15,7 +16,7 @@ class ImportOrderCsvMutation
         $user = auth()->user();
         $currentUserCompany = $user->getCurrentCompany();
         $app = app(Apps::class);
-        $cart = app('cart')->session($user->getId());
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
 
         try {
             $processOrderItemAction = new ProcessOrderItemAction($app, $user, $currentUserCompany);

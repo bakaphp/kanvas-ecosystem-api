@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
@@ -33,5 +36,11 @@ class AppServiceProvider extends ServiceProvider
     {
         Sanctum::usePersonalAccessTokenModel(Sessions::class);
         Cashier::useCustomerModel(AppsStripeCustomer::class);
+
+        RateLimiter::for('graphql', function (Request $request) {
+            $userId = $request->user()?->id;
+
+            return Limit::perMinute(config('kanvas.ratelimit.max_attempts'))->by($userId !== null ? $userId : $request->ip());
+        });
     }
 }

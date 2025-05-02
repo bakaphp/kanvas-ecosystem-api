@@ -34,7 +34,7 @@ return [
             // \App\Http\Middleware\KanvasAppKey::class,
             //  \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Nuwave\Lighthouse\Http\Middleware\AcceptJson::class,
-
+            'throttle:graphql',
             // Logs every incoming GraphQL query.
             // \Nuwave\Lighthouse\Support\Http\Middleware\LogGraphQLQueries::class,
         ],

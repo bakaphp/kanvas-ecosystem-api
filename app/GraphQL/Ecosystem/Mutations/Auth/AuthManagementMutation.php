@@ -34,7 +34,6 @@ class AuthManagementMutation
     use AuthTrait;
 
     /**
-     * @param array $args
      *
      * @throws \Exception
      */
@@ -98,7 +97,6 @@ class AuthManagementMutation
     }
 
     /**
-     * @param array $args
      *
      * @throws \Exception
      */
@@ -180,7 +178,6 @@ class AuthManagementMutation
     }
 
     /**
-     * @param array $args
      *
      * @throws \Exception
      */

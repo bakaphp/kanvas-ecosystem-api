@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Actions;
 
 use Illuminate\Http\Request;
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 

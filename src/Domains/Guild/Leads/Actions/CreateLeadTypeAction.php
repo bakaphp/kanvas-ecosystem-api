@@ -14,7 +14,7 @@ class CreateLeadTypeAction
     ) {
     }
 
-    public function create(): LeadType
+    public function execute(): LeadType
     {
         $leadType = new LeadType();
         $leadType->apps_id = $this->leadTypeDto->apps->getId();

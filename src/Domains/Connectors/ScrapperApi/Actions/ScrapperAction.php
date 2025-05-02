@@ -5,28 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
 use Baka\Contracts\AppInterface;
-use Baka\Support\Str;
-use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
-use Kanvas\Connectors\ScrapperApi\Events\ProductScrapperEvent;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
-use Kanvas\Connectors\ScrapperApi\Services\ProductService;
-use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
-use Kanvas\Connectors\Shopify\Client;
-use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
-use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
-use PHPShopify\Exception\CurlException;
 use Laravel\Octane\Facades\Octane;
-
-use function Sentry\captureException;
-
-use Throwable;
 
 /**
  * Class ScrapperAction.
@@ -71,7 +54,7 @@ class ScrapperAction
             ));
             $classConcurrently[] = fn () => $action->execute();
         }
-        Octane::concurrently($classConcurrently);
+        $resultsOctane = Octane::concurrently($classConcurrently, 60000);
         return [
             'scrapperProducts' => $scrapperProducts,
             'importerProducts' => $importerProducts,

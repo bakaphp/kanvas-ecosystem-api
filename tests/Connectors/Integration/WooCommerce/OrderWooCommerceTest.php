@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\WooCommerce;
 
-use Kanvas\Connectors\WooCommerce\Actions\CreateProductAction;
-use Tests\TestCase;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
-use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
-use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Connectors\WooCommerce\Actions\CreateOrderAction;
+use Kanvas\Connectors\WooCommerce\Actions\CreateProductAction;
+use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
+use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
 use Kanvas\Souk\Orders\Models\Order;
+use Tests\TestCase;
 
 class OrderWooCommerceTest extends TestCase
 {

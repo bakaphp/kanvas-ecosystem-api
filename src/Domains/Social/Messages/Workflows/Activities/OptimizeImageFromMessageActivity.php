@@ -14,6 +14,9 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Workflow\KanvasActivity;
 
+/**
+ * @todo move to promptmine namespace
+ */
 class OptimizeImageFromMessageActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -22,7 +25,8 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $messageContent = ! is_array($message->message) ? json_decode($message->message, true) : $message->message;
+        //$messageContent = ! is_array($message->message) ? json_decode($message->message, true) : $message->message;
+        $messageContent = $message->message;
 
         if (! isset($messageContent['image']) && ! isset($messageContent['ai_image'])) {
             return [
@@ -88,7 +92,8 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
             // Update child messages too
 
             foreach ($message->children as $childMessage) {
-                $childMessageArray = is_array($childMessage->message) ? $childMessage->message : json_decode($childMessage->message, true);
+                //$childMessageArray = is_array($childMessage->message) ? $childMessage->message : json_decode($childMessage->message, true);
+                $childMessageArray = $childMessage->message;
                 if (! is_array($childMessageArray) || ! array_key_exists('image', $childMessageArray)) {
                     continue;
                 }
@@ -98,14 +103,16 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     $tempChildMessageArray['title'] = $imageTitle;
                 }
 
-                $childMessage->message = json_encode($tempChildMessageArray);
+                //$childMessage->message = json_encode($tempChildMessageArray);
+                $childMessage->message = $tempChildMessageArray;
                 $childMessage->addTag('image', $app, $defaultUser, $defaultCompany);
                 $childMessage->saveOrFail();
             }
         } elseif ($message->parent_id && isset($messageContent['image'])) {
             $tempMessageArray = $messageContent;
             $tempMessageArray['image'] = $fileSystemRecord->url;
-            $message->message = json_encode($tempMessageArray);
+            //$message->message = json_encode($tempMessageArray);
+            $message->message = $tempMessageArray;
             $message->addTag('image', $app, $defaultUser, $defaultCompany);
             $message->saveOrFail();
         } else {

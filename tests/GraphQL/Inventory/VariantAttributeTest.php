@@ -14,7 +14,6 @@ class VariantAttributeTest extends TestCase
     /**
      * testAddAttributeToVariant.
      *
-     * @return void
      */
     public function testAddAttributeToVariant(): void
     {
@@ -144,7 +143,6 @@ class VariantAttributeTest extends TestCase
     /**
      * testRemoveAttributeFromVariant.
      *
-     * @return void
      */
     public function testRemoveAttributeFromVariant(): void
     {

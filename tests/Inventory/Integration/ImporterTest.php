@@ -6,7 +6,6 @@ namespace Tests\Inventory\Integration;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
-use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;

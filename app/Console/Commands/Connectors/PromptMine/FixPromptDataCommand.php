@@ -145,20 +145,21 @@ class FixPromptDataCommand extends Command
             $message->is_public = 0;
             $message->saveOrFail();
             $this->info('Message is not a prompt, setting as deleted and not public');
+
             return;
         }
 
         if (! isset($messageData['ai_model'])) {
             $messageData['ai_model'] = [
-                "name" => "GPT-4o",
-                "key" => "openai",
-                "value" => "gpt-4o",
-                'icon' => "https://cdn.promptmine.ai/OpenAILogo.png",
+                'name' => 'GPT-4o',
+                'key' => 'openai',
+                'value' => 'gpt-4o',
+                'icon' => 'https://cdn.promptmine.ai/OpenAILogo.png',
                 'payment' => [
                     'price' => 0,
                     'is_locked' => false,
-                    'free_regeneration' => false
-                ]
+                    'free_regeneration' => false,
+                ],
             ];
             $this->info('Added AI model to message data');
         } else {
@@ -197,7 +198,7 @@ class FixPromptDataCommand extends Command
             $messageData['payment'] = [
                 'price' => 0,
                 'is_locked' => false,
-                'free_regeneration' => false
+                'free_regeneration' => false,
             ];
             $this->info('Added payment to message data');
         }
@@ -234,6 +235,7 @@ class FixPromptDataCommand extends Command
             $message->is_public = 0;
             $message->saveOrFail();
             $this->info('Parent message is deleted, setting child message as deleted and not public');
+
             return;
         } else {
             $message->is_deleted = 0;
@@ -326,6 +328,7 @@ class FixPromptDataCommand extends Command
             $parentMessage->is_public = 0;
             $parentMessage->save();
             $this->info('Parent Message has no a prompt, setting as deleted and not public, no child created');
+
             return;
         }
 
@@ -344,8 +347,8 @@ class FixPromptDataCommand extends Command
             'message_types_id' => $childMessageType->getId(),
             'message' => json_encode([
                 'title' => $messageData['title'],
-                "type" => "text-format",
-                "nugget" => $responseText,
+                'type' => 'text-format',
+                'nugget' => $responseText,
             ]),
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s')
@@ -353,7 +356,7 @@ class FixPromptDataCommand extends Command
 
         DB::connection('social')->table('messages')
             ->where('id', $nuggetId)
-            ->update(['path' => $parentMessage->getId() . "." . $nuggetId]);
+            ->update(['path' => $parentMessage->getId() . '.' . $nuggetId]);
 
         foreach ($parentMessage->tags as $tag) {
             DB::connection('social')->table('tags_entities')->insert([

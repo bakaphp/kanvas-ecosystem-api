@@ -20,6 +20,7 @@ use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
+use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
@@ -34,6 +35,7 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
@@ -159,6 +161,8 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncExternalWooCommerceUserWebhookJob::class,
             PullLeadActivity::class,
             PullPeopleActivity::class,
+            CalculateWarehouseQuantityActivity::class,
+            PremiumPromptFlagActivity::class,
         ];
 
         $createdActions = [];

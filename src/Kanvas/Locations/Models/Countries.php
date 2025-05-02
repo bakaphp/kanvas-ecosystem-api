@@ -22,11 +22,6 @@ class Countries extends BaseModel
 {
     use Cachable;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'countries';
 
     protected $fillable = [
@@ -35,31 +30,28 @@ class Countries extends BaseModel
         'flag',
     ];
 
-    /**
-     * Cities relationship.
-     *
-     * @return hasMany
-     */
-    public function cities()
+    public function cities(): HasMany
     {
         return $this->hasMany(Cities::class, 'countries_id');
     }
 
-    /**
-     * States relationship.
-     *
-     * @return hasMany
-     */
-    public function states()
+    public function states(): HasMany
     {
         return $this->hasMany(States::class, 'countries_id');
     }
 
-    /**
-     * Users relationship.
-     */
     public function users(): HasMany
     {
         return $this->hasMany(Users::class, 'country_id');
+    }
+
+    public static function getByCode(string $code): Countries
+    {
+        return self::query()->where('code', strtolower($code))->firstOrFail();
+    }
+
+    public function getFlagUrl(): string
+    {
+        return 'https://flagcdn.com/w320/' . strtolower($this->code) . '.png';
     }
 }

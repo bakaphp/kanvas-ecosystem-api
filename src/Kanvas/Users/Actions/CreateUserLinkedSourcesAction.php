@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Models\Sources;
 
 class CreateUserLinkedSourcesAction
 {

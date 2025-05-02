@@ -7,19 +7,19 @@ namespace Tests\GraphQL\Guild;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
-use Tests\TestCase;
 use Kanvas\Guild\Leads\Actions\SendLeadEmailsAction;
+use Kanvas\Guild\Leads\Actions\SendRotationEmailsAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\Models\LeadRotationAgent;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\LeadSources\Models\LeadSource;
-use Kanvas\Guild\Rotations\Models\RotationUser;
+use Tests\TestCase;
 
 class SendLeadEmailsTest extends TestCase
 {
-    public function testSendLeadEmails(): void
+    public function testSendLeadEmailsFromReceiverConfig(): void
     {
         Notification::fake();
         $user = auth()->user();
@@ -57,7 +57,7 @@ class SendLeadEmailsTest extends TestCase
         Notification::assertCount(2);
     }
 
-    public function testSendRotationUsersEmails(): void
+    public function testSendLeadEmailsFromRotationConfig(): void
     {
         Notification::fake();
         $user = auth()->user();
@@ -71,6 +71,11 @@ class SendLeadEmailsTest extends TestCase
             'name' => 'Lead Rotation',
             'hits' => 1,
             'leads_rotations_email' => '',
+            'config' => [
+                'email_template' => 'new-lead',
+                'notification_mode' => 'notify_all',
+                'notification_user_mode' => 'notify_rotation_users',
+            ]
         ]);
 
         LeadRotationAgent::create([
@@ -88,6 +93,7 @@ class SendLeadEmailsTest extends TestCase
             'is_active' => true,
             'uuid' => Str::uuid(),
         ]);
+
         $leadSource = LeadSource::create([
             'apps_id' => $app->getId(),
             'companies_id' => $company->getId(),
@@ -113,7 +119,7 @@ class SendLeadEmailsTest extends TestCase
 
         $lead = Lead::factory()->withReceiverId($leadReceiver->getId())->create();
 
-        $sendLeadEmailsAction = new SendLeadEmailsAction($lead, 'new-lead');
+        $sendRotationEmailsAction = new SendRotationEmailsAction($lead, $leadReceiver, $leadRotation, $user);
         $payload = [
             "title" => $title,
             "people" => [
@@ -126,10 +132,6 @@ class SendLeadEmailsTest extends TestCase
             ],
             "custom_fields" => [
                 [
-                    "data" => "218062",
-                    "name" => "product_id"
-                ],
-                [
                     "data" => "7",
                     "name" => "share_left"
                 ]
@@ -137,12 +139,7 @@ class SendLeadEmailsTest extends TestCase
             "pipeline_stage_id" => 0
         ];
 
-        $users = collect([$user])
-            ->merge($leadRotation->agents?->pluck('users') ?? [])
-            ->flatten()
-            ->all();
-
-        $sendLeadEmailsAction->execute($payload, $users);
-        Notification::assertCount(3);
+        $sendRotationEmailsAction->execute($payload, 'user');
+        Notification::assertCount(2);
     }
 }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
-use Bouncer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,13 +12,11 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 abstract class ProcessWebhookJob implements ShouldQueue
 {

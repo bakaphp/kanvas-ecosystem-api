@@ -47,7 +47,6 @@ class ConvertJsonTemplateToLeadStructureAction
      *
      * get the value of one
      *
-     * @return mixed
      */
     protected function findInArrayByDotNotation(string $key, array $array)
     {

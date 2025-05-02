@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model as EloquentModel;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Traits\KanvasScopesTrait;
 use Baka\Traits\SoftDeletesTrait;
-use Kanvas\Apps\Models\Apps;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
 
 class BaseModel extends EloquentModel
 {

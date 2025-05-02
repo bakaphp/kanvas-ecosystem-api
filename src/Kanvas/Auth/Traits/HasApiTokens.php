@@ -26,8 +26,6 @@ trait HasApiTokens
     /**
      * Determine if the current API token has a given scope.
      *
-     * @param  string  $ability
-     *
      * @return bool
      */
     public function tokenCan(string $ability)

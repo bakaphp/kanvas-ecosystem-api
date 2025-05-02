@@ -21,9 +21,6 @@ class EntityIntegrationHistoryService
     /**
      * Return the integrations history based on integration and/or region
      *
-     * @param Integrations $integration
-     * @param Regions|null $region
-     * @return array
      */
     public function getByIntegration(Integrations $integration, ?Regions $region = null): array
     {

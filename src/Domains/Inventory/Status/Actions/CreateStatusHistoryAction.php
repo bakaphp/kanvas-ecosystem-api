@@ -24,7 +24,6 @@ class CreateStatusHistoryAction
     /**
      * execute.
      *
-     * @return VariantWarehouseStatusHistory
      */
     public function execute(): VariantWarehouseStatusHistory
     {

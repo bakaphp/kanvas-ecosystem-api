@@ -18,13 +18,26 @@ class CreateLeadSourceAction
 
     public function execute(): LeadSourceModel
     {
-        return LeadSourceModel::firstOrCreate([
+        $attributes = [
             'companies_id' => $this->leadSource->company->getId(),
-            'apps_id' => $this->leadSource->app->getId(),
             'name' => $this->leadSource->name,
-            'description' => $this->leadSource->description,
-            'is_active' => $this->leadSource->is_active,
-            'leads_types_id' => $this->leadSource->leads_types_id,
-        ]);
+        ];
+
+        // If description is not null, include it in the search criteria
+        if ($this->leadSource->description !== null) {
+            $attributes['description'] = $this->leadSource->description;
+        }
+
+        return LeadSourceModel::updateOrCreate(
+            $attributes,
+            [
+                'companies_id' => $this->leadSource->company->getId(),
+                'apps_id' => $this->leadSource->app->getId(),
+                'name' => $this->leadSource->name,
+                'description' => $this->leadSource->description,
+                'is_active' => $this->leadSource->is_active,
+                'leads_types_id' => $this->leadSource->leads_types_id,
+            ]
+        );
     }
 }

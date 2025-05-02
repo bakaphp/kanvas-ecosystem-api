@@ -49,17 +49,27 @@ class ReceiversBuilder
 
         // Apply where conditions - simplified
         if (isset($where['column']) && isset($where['operator']) && isset($where['value'])) {
-            $query->where($where['column'], $where['operator'], $where['value']);
+            if (strtolower($where['operator']) === 'in') {
+                $query->whereIn($where['column'], $where['value']);
+
+                return $query;
+            } else {
+                $query->where($where['column'], $where['operator'], $where['value']);
+            }
         }
 
         if (isset($where['AND']) && is_array($where['AND'])) {
             foreach ($where['AND'] as $condition) {
                 if (isset($condition['column']) && isset($condition['operator']) && isset($condition['value'])) {
+                    if (strtolower($condition['operator']) === 'in') {
+                        $query->whereIn($condition['column'], $condition['value']);
+
+                        continue;
+                    }
                     $query->where($condition['column'], $condition['operator'], $condition['value']);
                 }
             }
         }
-
         // Select columns based on query type
         if ($isQueryingById) {
             $query->select([
@@ -88,7 +98,6 @@ class ReceiversBuilder
                 }
             }
         }
-
         return $query;
     }
 

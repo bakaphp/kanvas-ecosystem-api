@@ -42,9 +42,12 @@ class RecombeeUserRecommendationService
     ): array {
         $recommendationOptions = [
             'rotationRate' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_RATE->value ?? '0.2'),
-            // Uncomment when ready to use configuration
-            // 'rotationTime' => $this->config->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value, 7200.0),
+            'rotationTime' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value, 7200.0),
         ];
+
+        if ($this->app->get('recombee-user-content-preferences-boosters')) {
+            $recommendationOptions['booster'] = $this->getUserSpecificBoosters($user);
+        }
 
         try {
             if ($recommId !== null) {
@@ -109,5 +112,26 @@ class RecombeeUserRecommendationService
         );
 
         return $recommendation;
+    }
+
+    public function getUserSpecificBoosters(UserInterface $user): string
+    {
+        $booster = '';
+        // Get the booster queries from the app settings
+        // The format should be: ['preference' => 'booster']
+        // booster being the booster rule
+        // 1.0 is the default value for the booster, so we need to replace it with the booster rule
+        $recombeeUserContentPreferences = $this->app->get('recombee-user-content-preferences-boosters');
+        foreach ($recombeeUserContentPreferences as $preference => $boosterRule) {
+            if ($user->get($preference)) {
+                if (str_contains($booster, '1.0')) {
+                    $booster = str_replace('1.0', '(' . addslashes($boosterRule) . ')', $booster);
+                    continue;
+                }
+                $booster .= addslashes($boosterRule);
+            }
+        }
+
+        return $booster;
     }
 }

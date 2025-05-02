@@ -19,7 +19,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -47,6 +46,7 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Override;
@@ -271,10 +271,11 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $query;
     }
 
+    // @TODO: optimize this using another engine
     public function scopeFilterByNearLocation(Builder $query, array $location): Builder
     {
         $EarthRadius = 6371; // km
-        
+
         return $query
             ->where('products.is_deleted', 0)
             ->whereHas('attributes', function ($query) use ($location, $EarthRadius) {
@@ -295,7 +296,6 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 ->having('distance', '<=', $location['radius'])
                 ->orderBy('distance');
             });
-
     }
 
     /**
@@ -481,7 +481,16 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public static function search($query = '', $callback = null)
     {
-        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $app = app(Apps::class);
+
+        $app->fireWorkflow(
+            event: WorkflowEnum::SEARCH->value,
+            params: [
+                'search' => $query,
+            ]
+        );
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
         if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
@@ -614,8 +623,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
         $limit = $this->app->get(ConfigurationEnum::PRODUCT_VARIANTS_SEARCH_LIMIT->value) ?? 200;
 
         return $this->variants->count() > $limit
-            ? $this->variants->take($limit)->map(fn($variant) => $variant->toSearchableArraySummary())
-            : $this->variants->map(fn($variant) => $variant->toSearchableArray());
+            ? $this->variants->take($limit)->map(fn ($variant) => $variant->toSearchableArraySummary())
+            : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
     }
 
     /**
@@ -643,6 +652,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 [
                     'name' => 'files',
                     'type' => 'object[]',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'company',

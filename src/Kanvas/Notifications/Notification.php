@@ -27,6 +27,7 @@ use Kanvas\Notifications\Traits\NotificationRenderTrait;
 use Kanvas\Notifications\Traits\NotificationStorageTrait;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use Override;
 
 class Notification extends LaravelNotification implements EmailInterfaces, ShouldQueue
 {
@@ -142,7 +143,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     /**
      * Get the mail representation of the notification.
      *
-     * @param  mixed  $notifiable
      */
     public function toMail($notifiable): Mailable
     {
@@ -190,6 +190,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     /**
      * Get the notification type
      */
+    #[Override]
     public function getType(): NotificationTypes
     {
         if ($this->type !== null) {

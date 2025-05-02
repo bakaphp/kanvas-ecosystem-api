@@ -7,13 +7,13 @@ namespace Kanvas\Connectors\WooCommerce\Webhooks;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Override;
 
 class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob

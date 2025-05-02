@@ -6,6 +6,7 @@ namespace App\Console\Commands\Connectors\PromptMine;
 
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
@@ -156,55 +157,54 @@ class PromptCreatorAgentCommand extends Command
     protected function generateViralPrompt(string $agentPersonality): ?array
     {
         $promptEngineering = <<<PROMPT
-**Role**:  
-You are a world-class prompt engineer specializing in creating viral, high-engagement AI prompts. Your prompts are shared widely because they:  
-1. **Solve urgent problems** with razor-sharp specificity.  
-2. **Leverage trends** (tech, culture, seasonal events).  
-3. **Elicit "wow" outputs** (surprising, emotional, or hyper-useful).  
-4. **Encourage sharing** via customization hooks.  
-
-### **Daily Task**  
-Generate **1 viral-worthy prompt** based on the creator's personality described below:
-
-Creator Bio:
-"$agentPersonality"
-
-#### **Step 1: Trend Injection**  
-- Consider these high-engagement categories:
-  - Career/Professional Development
-  - Productivity Tools
-  - Personal Growth/Self-Improvement
-  - Education/Homework
-  - Life Advice/Mental Health
-
-#### **Step 2: Craft the Prompt**  
-**A. Title Formula (Pick One)**  
-- **"How to [X] Like a [Y] in [Time]"** *(e.g., "Negotiate Like a Shark Tank Investor in 5 Mins")*  
-- **"The [Adjective] [Metaphor] for [Problem]"** *(e.g., "The 'Silent Killer' Prompt for Procrastination")*  
-- **"Never [Pain Point] Again: [Solution]"** *(e.g., "Never Write a Boring Email Again: The 3-Line Hook Method")*  
-**Titles MUST be 3-7 words in length**
-
-**B. Prompt Structure**  
-1. **Role**: "You are a [authority figure, e.g., 'NYT bestselling author']."  
-2. **Goal**: "Generate [specific output]."  
-3. **Constraints**: "Use [framework/tone/length]."  
-4. **CTA**: Include a clear section for user input.
-5.  New lines must be separated with \n
-
-#### **Step 3: Quality Check**  
-- **Surprise Test**: Would this output make someone screenshot it?  
-- **Action Test**: Can it be used immediately?  
-- **Share Trigger**: Does it invite customization?
-
-### **Final Output Format**  
-Return ONLY a **true JSON object**, avoiding markdown:
-```json  
-{  
-  "title": "The '[Hook]' Prompt: [Benefit]",  
-  "prompt": "[Structured prompt with Role, Goal, Constraints, CTA]",  
-  "target_LLM": "GPT-4o/Claude/Mixtral"  
-}  
-```
+    Role: You are a world-class prompt engineer specializing in creating viral, high-engagement, ONE-SHOT AI prompts. Your prompts are self-contained and require no follow-up. Your prompts are shared widely because they:
+    1. Solve urgent problems with razor-sharp specificity.
+    2. Leverage emerging trends (tech, culture, seasonal events) within relevant categories.
+    3. Elicit "stop the scroll" outputs (surprising, emotional, hyper-useful, or uniquely insightful).
+    4. Encourage sharing via clear customization hooks.
+    
+    ### Daily Task
+    Generate 1 self-contained, viral-worthy prompt based on the creator's personality described below:
+    Creator Bio: "$agentPersonality"
+    
+    #### Step 1: Trend Injection
+    - Consider these high-engagement categories and look for emerging trends within them:
+        - Career/Professional Development (e.g., AI upskilling, remote work strategies)
+        - Productivity Tools (e.g., AI assistants for specific tasks)
+        - Personal Growth/Self-Improvement (e.g., building resilience in the digital age)
+        - Education/Homework (e.g., AI for personalized learning)
+        - Life Advice/Mental Health (e.g., managing digital overload)
+    - Aim to combine trends from different categories in novel ways.
+    
+    #### Step 2: Craft the Prompt
+    A. Title Formula (Pick One - prioritize positive framing and action):
+        - "How to [Action Verb] [Benefit] Like a [Relatable Figure] in [Short Timeframe]"
+        - "The [Intriguing Adjective] [Compelling Metaphor] for [Specific Problem]"
+        - "[Benefit] in [Timeframe]: The [Adjective] Method for [Target Audience]"
+        - Consider starting words like: Unlock, Discover, Master, Secret to, Effortlessly, Quickly. Titles MUST be 3-7 words.
+    
+    B. Prompt Structure
+    1. Role: "You are a [highly credible authority figure relevant to the topic]."
+    2. Goal: "Generate [very specific and actionable output]."
+    3. Constraints: "Use a [specific framework/tone - e.g., concise, empathetic, step-by-step]/Keep it under [word/character limit]." (Provide short examples if helpful)
+    4. CTA: "To make this your own, [instruction for customization - e.g., 'replace [X] with your specific situation,' and include an example that will make for a fascinating, captivating use case for people to read in the ouput."
+    5. New lines must be separated with \n
+    
+    #### Step 3: Quality Check
+    - Stop the Scroll Test: Would this output immediately grab attention and elicit a strong reaction?
+    - Action Test: Can a user immediately understand and act upon the prompt?
+    - Share Trigger: Does it clearly invite and facilitate customization and sharing?
+    - Uniqueness Check: Does this prompt offer a fresh angle or novel application?
+    
+    ### Final Output Format
+    Return ONLY a true JSON object, avoiding markdown:
+    ```json
+    {
+      "title": "The '[Compelling Hook]' Prompt: [Key Benefit]",
+      "prompt": "[Structured prompt with Role, Goal, Constraints, CTA]",
+      "target_LLM": "GPT-4o/Claude/Mixtral"
+    } 
+    ```
 PROMPT;
 
         try {
@@ -230,7 +230,7 @@ PROMPT;
             }
 
             return $promptData;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->error('Exception generating viral prompt: ' . $e->getMessage());
 
             return null;
@@ -247,7 +247,7 @@ PROMPT;
     3. Provide comprehensive content that fully addresses the prompt
     4. Do NOT include phrases like "let me know if you need more" or "is there anything else"
     5. Do NOT frame this as the beginning of a conversation
-    6. Maintain a length between 300-2000 characters (not including title)
+    6. Maintain a length up to 3000 characters (not including title)
     7. New lines must be separated with \n
     8. Replace any variables or placeholders with realistic examples
     
@@ -275,6 +275,9 @@ PROMPT;
        - 1 actionable template/code snippet
        - Customization reminder
     4. Validate no follow-up needed
+    5. Maintain a length up to 3000 characters (not including title)
+
+    This is the prompt to execute: $prompt
     
     Output Requirements:
     {
@@ -308,7 +311,7 @@ ADVANCEPROMPT;
             }
 
             return $promptData;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->error('Exception generating viral prompt: ' . $e->getMessage());
 
             return null;
@@ -364,12 +367,6 @@ ADVANCEPROMPT;
 
     /**
      * Post a message with the generated prompt
-     *
-     * @param string $token Authentication token
-     * @param string $title The title of the prompt
-     * @param string $content The content of the prompt
-     * @param array $agent The agent data
-     * @return int|null The message ID if successful, null otherwise
      */
     protected function postMessage(string $token, array $messageContent, string $verb, bool $isPublic = true): ?int
     {

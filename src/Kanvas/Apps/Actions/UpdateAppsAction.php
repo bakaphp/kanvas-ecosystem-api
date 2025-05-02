@@ -15,7 +15,6 @@ class UpdateAppsAction
     /**
      * Construct function.
      *
-     * @param AppInput $data
      */
     public function __construct(
         protected AppInput $data,
@@ -26,9 +25,6 @@ class UpdateAppsAction
     /**
      * Invoke function.
      *
-     * @param string $id
-     *
-     * @return Apps
      */
     public function execute(string $id): Apps
     {
