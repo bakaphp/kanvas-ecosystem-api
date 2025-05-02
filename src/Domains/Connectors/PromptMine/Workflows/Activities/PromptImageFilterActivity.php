@@ -278,6 +278,13 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     'push_template' => $params['push_template'],
                 ],
             );
+
+            //send to the user profile when it fails
+            $errorProcessingImageNotification->setData([
+                'destination_id' => $entity->getId(),
+                'destination_type' => 'USER',
+                'destination_event' => 'FOLLOWING',
+            ]);
             $entity->user->notify($errorProcessingImageNotification);
             $entity->delete();
 
