@@ -40,7 +40,7 @@ class MessageReportNotificationActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: function ($message, $app) use ($reportMessageId) {
+            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($reportMessageId) {
                 $message = Message::getById($reportMessageId, $app);
 
                 $messageInteractionService = new MessageInteractionService($message);

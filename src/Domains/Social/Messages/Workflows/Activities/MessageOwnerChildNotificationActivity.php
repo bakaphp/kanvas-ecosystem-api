@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Notifications\NewMessageNotification;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class MessageOwnerChildNotificationActivity extends KanvasActivity
@@ -23,89 +24,102 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
         $emailTemplate = $params['email_template'] ?? null;
         $pushTemplate = $params['push_template'] ?? null;
 
-        if (empty($message->parent_id)) {
-            return [
-                'result' => false,
-                'message_id' => $message->getId(),
-                'message' => 'Only child messages can send notification to its parent owner',
-            ];
-        }
+        return $this->executeIntegration(
+            entity: $message,
+            app: $app,
+            integration: IntegrationsEnum::INTERNAL,
+            additionalParams: $params,
+            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use (
+                $emailTemplate,
+                $pushTemplate,
+                $params
+            ) {
+                if (empty($message->parent_id)) {
+                    return [
+                        'result' => false,
+                        'message_id' => $message->getId(),
+                        'message' => 'Only child messages can send notification to its parent owner',
+                    ];
+                }
 
-        $notificationMessage = $params['message'] ?? 'New message from %s';
-        $notificationTitle = $params['title'] ?? 'New message';
-        $subject = $params['subject'] ?? 'New message from %s';
-        $viaList = $params['via'] ?? ['database'];
+                $notificationMessage = $params['message'] ?? 'New message from %s';
+                $notificationTitle = $params['title'] ?? 'New message';
+                $subject = $params['subject'] ?? 'New message from %s';
+                $viaList = $params['via'] ?? ['database'];
 
-        // Map notification channels
-        $endViaList = array_map(
-            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-            $viaList
+                // Map notification channels
+                $endViaList = array_map(
+                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                    $viaList
+                );
+
+                $metaData = $message->getMessage();
+                $keysToUnset = ['ai_nugged', 'nugget'];
+                foreach ($keysToUnset as $key) {
+                    unset($metaData[$key]); // @todo move this to a customization
+                }
+
+                $keysToClear = ['prompt', 'image'];
+                foreach ($keysToClear as $key) {
+                    if (isset($metaData[$key])) {
+                        $metaData[$key] = ''; // @todo move this to a customization
+                    }
+                }
+
+                $config = [
+                    'email_template' => $emailTemplate,
+                    'push_template' => $pushTemplate,
+                    'app' => $app,
+                    'company' => $message->company,
+                    'message' => sprintf($notificationMessage, $message->user->displayname),
+                    'title' => $notificationTitle,
+                    'metadata' => $metaData,
+                    'subject' => sprintf($subject, $message->user->displayname),
+                    'via' => $endViaList,
+                    'fromUser' => $message->user,
+                    'message_owner_id' => $message->user->getId(),
+                    'from_user_id' => $message->user->getId(),
+                    'message_id' => $message->getId(),
+                    'parent_message_id' => $message->parent ? $message->parent->getId() : $message->getId(),
+                    'destination_id' => $message->getId(),
+                    'destination_type' => $params['destination_type'] ?? 'MESSAGE',
+                    'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
+                ];
+
+                if ($message->parent->users_id == $message->users_id) {
+                    return [
+                        'result' => false,
+                        'message_id' => $message->getId(),
+                        'message' => 'Message owner is the same as the parent owner',
+                    ];
+                }
+
+                try {
+                    $newMessageNotification = new NewMessageNotification(
+                        $message,
+                        $config,
+                        $config['via']
+                    );
+                    $newMessageNotification->setFromUser($message->user);
+
+                    $message->parent->user->notify($newMessageNotification);
+                } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                    return [
+                        'result' => false,
+                        'message_id' => $message->getId(),
+                        'message' => 'Error in notification to user',
+                        'exception' => $e,
+                    ];
+                }
+
+                return [
+                    'result' => true,
+                    'message' => 'New message notification sent to message owner',
+                    'data' => $config,
+                    'message_id' => $message->getId(),
+                ];
+            },
+            company: $message->company,
         );
-
-        $metaData = $message->getMessage();
-        $keysToUnset = ['ai_nugged', 'nugget'];
-        foreach ($keysToUnset as $key) {
-            unset($metaData[$key]); // @todo move this to a customization
-        }
-
-        $keysToClear = ['prompt', 'image'];
-        foreach ($keysToClear as $key) {
-            if (isset($metaData[$key])) {
-                $metaData[$key] = ''; // @todo move this to a customization
-            }
-        }
-
-        $config = [
-            'email_template' => $emailTemplate,
-            'push_template' => $pushTemplate,
-            'app' => $app,
-            'company' => $message->company,
-            'message' => sprintf($notificationMessage, $message->user->displayname),
-            'title' => $notificationTitle,
-            'metadata' => $metaData,
-            'subject' => sprintf($subject, $message->user->displayname),
-            'via' => $endViaList,
-            'fromUser' => $message->user,
-            'message_owner_id' => $message->user->getId(),
-            'from_user_id' => $message->user->getId(),
-            'message_id' => $message->getId(),
-            'parent_message_id' => $message->parent ? $message->parent->getId() : $message->getId(),
-            'destination_id' => $message->getId(),
-            'destination_type' => $params['destination_type'] ?? 'MESSAGE',
-            'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
-        ];
-
-        if ($message->parent->users_id == $message->users_id) {
-            return [
-                'result' => false,
-                'message_id' => $message->getId(),
-                'message' => 'Message owner is the same as the parent owner',
-            ];
-        }
-
-        try {
-            $newMessageNotification = new NewMessageNotification(
-                $message,
-                $config,
-                $config['via']
-            );
-            $newMessageNotification->setFromUser($message->user);
-
-            $message->parent->user->notify($newMessageNotification);
-        } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
-            return [
-                'result' => false,
-                'message_id' => $message->getId(),
-                'message' => 'Error in notification to user',
-                'exception' => $e,
-            ];
-        }
-
-        return [
-            'result' => true,
-            'message' => 'New message notification sent to message owner',
-            'data' => $config,
-            'message_id' => $message->getId(),
-        ];
     }
 }
