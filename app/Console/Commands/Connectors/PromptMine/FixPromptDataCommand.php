@@ -73,7 +73,6 @@ class FixPromptDataCommand extends Command
                         if ($message->message_types_id == $messageType->getId()) {
                             $this->info('-Checking Parent Prompt Message Schema of ID: ' . $message->getId());
                             $this->fixPromptData($message);
-
                         } elseif ($message->message_types_id == $childMessageType->getId() && $message->parent_id == NULL) {
                             $this->info('-Deleting Child Nugget Message without parent with ID: ' . $message->getId());
                             $message->is_deleted = 1;
