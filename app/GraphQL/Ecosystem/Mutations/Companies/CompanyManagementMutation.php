@@ -324,7 +324,21 @@ class CompanyManagementMutation
             $company->addresses()->update(['is_default' => false]);
         }
 
-        $address->update($addressInput);
+        $address->update([
+            'fullname' => $addressInput['fullname'] ?? $address->fullname,
+            'phone' => $addressInput['phone'] ?? $address->phone,
+            'companies_id' => $company->getId(),
+            'address' => $addressInput['address'] ?? $address->address,
+            'address_2' => $addressInput['address_2'] ?? $address->address_2,
+            'city' => $addressInput['city'] ?? $address->city,
+            'county' => $addressInput['county'] ?? $address->county,
+            'state' => $addressInput['state'] ?? $address->state,
+            'zip' => $addressInput['zip'] ?? $address->zip,
+            'city_id' => $addressInput['city_id'] ?? $address->city_id,
+            'state_id' => $addressInput['state_id'] ?? $address->state_id,
+            'countries_id' => $addressInput['country_id'] ?? $address->countries_id,
+            'is_default' => $addressInput['is_default'] ?? $address->is_default,
+        ]);
 
         return $address;
     }
