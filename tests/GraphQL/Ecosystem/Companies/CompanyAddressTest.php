@@ -298,6 +298,13 @@ class CompanyAddressTest extends TestCase
                     "fullname" => "John Doe",
                     "phone" => "1234567890",
                     "address" => $addressData['address'],
+                    'country_id' => 55,
+                    'state_id' => 1,
+                    'city_id' => 1,
+                    'zip' => '1234567890',
+                    'address_2' => '1234567890',
+                    'city' => '1234567890',
+                    'state' => '1234567890',
                 ],
             ]
         );
