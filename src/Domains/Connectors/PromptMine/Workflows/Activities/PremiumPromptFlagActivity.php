@@ -21,6 +21,8 @@ class PremiumPromptFlagActivity extends KanvasActivity implements WorkflowActivi
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
+
         $messageData = $entity->message;
         $company = $entity->company;
 
