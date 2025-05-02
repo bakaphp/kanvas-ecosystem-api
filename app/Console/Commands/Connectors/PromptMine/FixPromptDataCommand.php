@@ -81,7 +81,6 @@ class FixPromptDataCommand extends Command
                             $this->info('-Child Nugget Message without parent with ID: ' . $message->getId() . ' deleted');
                             continue;
                         }
-
                         if ($message->message_types_id == $childMessageType->getId()) {
                             // Only prompt messages can  go to the next steps.
                             $this->info('-Skipping Child Nugget Message with ID: ' . $message->getId() . 'next steps are for prompt messages');
