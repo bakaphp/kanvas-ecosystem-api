@@ -16,6 +16,8 @@ class DistributeMessageActivity extends KanvasActivity implements WorkflowActivi
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
+
         DistributeMessagesToUsersJob::dispatch($entity, $app, $params);
 
         return [
