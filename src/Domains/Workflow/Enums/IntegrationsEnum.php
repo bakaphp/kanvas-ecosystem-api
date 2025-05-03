@@ -13,4 +13,5 @@ enum IntegrationsEnum: string
     case INTELLICHECK = 'intellicheck';
     case PROMPT_MINE = 'prompt_mine';
     case INTERNAL = 'internal';
+    case APOLLO = 'apollo';
 }
