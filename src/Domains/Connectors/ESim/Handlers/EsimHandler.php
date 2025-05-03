@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Esim\Handlers;
+namespace Kanvas\Connectors\ESim\Handlers;
 
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Override;
 
-class EsimHandler extends BaseIntegration
+class ESimHandler extends BaseIntegration
 {
     #[Override]
     public function setup(): bool
