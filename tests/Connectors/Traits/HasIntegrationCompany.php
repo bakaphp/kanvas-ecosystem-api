@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Connectors\Traits;
 
 use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Support\Setup;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -22,7 +22,7 @@ trait HasIntegrationCompany
         AppInterface $app,
         IntegrationsEnum $integrationEnum,
         string $handler,
-        CompanyInterface $company,
+        Companies $company,
         UserInterface $user
     ): void {
         $integration = Integrations::firstOrCreate([
@@ -32,11 +32,18 @@ trait HasIntegrationCompany
             'handler' => $handler,
         ]);
 
+        $company->associateUser(
+            $user,
+            true,
+            $company->defaultBranch
+        );
+
         new Setup(
             app: $app,
             user: $user,
             company: $company
         )->run();
+
         $region = Regions::getDefault($company, $app);
         $integrationDto = new IntegrationsCompany(
             integration: $integration,
