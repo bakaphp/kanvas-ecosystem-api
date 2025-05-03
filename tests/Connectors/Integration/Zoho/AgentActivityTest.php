@@ -20,7 +20,7 @@ use Tests\TestCase;
 final class AgentActivityTest extends TestCase
 {
     use HasIntegrationCompany;
-    
+
     public function testLeadCreationWorkflow(): void
     {
         $lead = Lead::first();
@@ -36,7 +36,7 @@ final class AgentActivityTest extends TestCase
         $app->set(CustomFieldEnum::CLIENT_SECRET->value, getenv('TEST_ZOHO_CLIENT_SECRET'));
         $app->set(CustomFieldEnum::REFRESH_TOKEN->value, getenv('TEST_ZOHO_CLIENT_REFRESH_TOKEN'));
         $company->set(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value, 1);
-       
+
         $this->setIntegration(
             $app,
             IntegrationsEnum::ZOHO,
