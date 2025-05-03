@@ -21,7 +21,7 @@ use Tests\TestCase;
 final class LeadTest extends TestCase
 {
     use HasIntegrationCompany;
-    
+
     public function testDownloadAllLeads(): void
     {
         $company = Companies::first();
