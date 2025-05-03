@@ -54,7 +54,58 @@ class FixPromptDataCommand extends Command
         // $companiesId = (int) $this->argument('companies_id');
 
         //Get all messages for the given message type and app
-        $this->SyncPromptData($app, $messageType, $childMessageType, $imageGenerationMessageType);
+        //$this->SyncPromptData($app, $messageType, $childMessageType, $imageGenerationMessageType);
+        //$this->fixNuggetsImages($app, $messageType, $childMessageType);
+    }
+
+    private function fixNuggetsImages(Apps $app, MessageType $messageType, MessageType $childMessageType): void
+    {
+        $badImages = DB::connection('social')
+                    ->select('SELECT *
+                            FROM messages 
+                            WHERE apps_id = ' . $app->getId() . "
+                            AND JSON_EXTRACT(message, '$.image') NOT LIKE '%s3.amazonaws.com%' 
+                            ORDER BY id DESC");
+
+        foreach ($badImages as $badImage) {
+            $oldMessage = DB::connection('social')
+                            ->select('SELECT *
+                                    FROM messages_backup 
+                                    WHERE apps_id = ' . $app->getId() . '
+                                    and message_types_id = ' . $messageType->getId() . "
+                                    AND id = {$badImage->id}
+                                    ORDER BY id DESC");
+
+            $oldMessageParent = DB::connection('social')
+                            ->select('SELECT *
+                                    FROM messages_backup 
+                                    WHERE apps_id = ' . $app->getId() . " 
+                                    AND id = {$oldMessage[0]->parent_id}
+                                    ORDER BY id DESC");
+
+            $oldMessageData = json_decode($oldMessageParent[0]->message, true);
+
+            if (! empty($oldMessageData)) {
+                $oldMessageDataImage = $oldMessageData['ai_image']['image'] ?? null;
+
+                if ($oldMessageDataImage === null) {
+                    echo 'No image found in old message data -' . $oldMessageParent[0]->id . "\n";
+
+                    continue;
+                }
+
+                $badImageObject = Message::getById($badImage->id);
+                $newImageData = $badImageObject->message;
+                $newImageData['image'] = $oldMessageDataImage;
+                $badImageObject->disableWorkflows();
+                $badImageObject->message = $newImageData;
+                $badImageObject->update();
+
+                echo 'Image updated for message ID: ' . $badImage->id . "\n";
+            } else {
+                echo 'No old message data found for message ID: ' . $badImage->id . "\n";
+            }
+        }
     }
 
     /**
@@ -85,6 +136,7 @@ class FixPromptDataCommand extends Command
                         if ($message->message_types_id == $childMessageType->getId()) {
                             // Only prompt messages can  go to the next steps.
                             $this->info('-Skipping Child Nugget Message with ID: ' . $message->getId() . 'next steps are for prompt messages');
+
                             continue;
                         }
                         // Need to check children manually
