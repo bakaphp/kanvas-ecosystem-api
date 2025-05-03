@@ -11,6 +11,7 @@ use Kanvas\Connectors\Recombee\Services\RecombeeInteractionService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
@@ -25,16 +26,6 @@ class PushUserInteractionToEventActivity extends KanvasActivity implements Workf
     {
         $this->overwriteAppService($app);
 
-        try {
-            $interactionEntity = $userInteraction->entityData();
-        } catch (ModelNotFoundException $e) {
-            return [
-                'result' => false,
-                'message' => 'Entity not found',
-                'user_interaction' => $userInteraction->toArray(),
-            ];
-        }
-
         $companyBranchId = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
         $globalAppCompany = CompaniesBranches::where('id', $companyBranchId)->first();
 
@@ -47,27 +38,45 @@ class PushUserInteractionToEventActivity extends KanvasActivity implements Workf
             ];
         }
 
-        $recombeeIndex = new RecombeeInteractionService($app);
+        return $this->executeIntegration(
+            entity: $userInteraction,
+            app: $app,
+            integration: IntegrationsEnum::RECOMBEE,
+            integrationOperation: function ($userInteraction, $app, $integrationCompany, $additionalParams) use ($params) {
+                try {
+                    $interactionEntity = $userInteraction->entityData();
+                } catch (ModelNotFoundException $e) {
+                    return [
+                        'result' => false,
+                        'message' => 'Entity not found',
+                        'user_interaction' => $userInteraction->toArray(),
+                    ];
+                }
 
-        try {
-            $result = $recombeeIndex->addUserInteraction($userInteraction);
-        } catch (Throwable $e) {
-            return [
-                'result' => false,
-                'message' => $e->getMessage(),
-                'user_interaction_id' => $userInteraction->id,
-                'entity_id' => $userInteraction->entity_id,
-                'entity_namespace' => $userInteraction->entity_namespace,
-            ];
-        }
+                $recombeeIndex = new RecombeeInteractionService($app);
 
-        //re-generate the home feed
+                try {
+                    $result = $recombeeIndex->addUserInteraction($userInteraction);
+                } catch (Throwable $e) {
+                    return [
+                        'result' => false,
+                        'message' => $e->getMessage(),
+                        'user_interaction_id' => $userInteraction->id,
+                        'entity_id' => $userInteraction->entity_id,
+                        'entity_namespace' => $userInteraction->entity_namespace,
+                    ];
+                }
 
-        return [
-            'result' => $result,
-            'user_interaction_id' => $userInteraction->id,
-            'entity_id' => $userInteraction->entity_id,
-            'entity_namespace' => $userInteraction->entity_namespace,
-        ];
+                //re-generate the home feed
+
+                return [
+                    'result' => $result,
+                    'user_interaction_id' => $userInteraction->id,
+                    'entity_id' => $userInteraction->entity_id,
+                    'entity_namespace' => $userInteraction->entity_namespace,
+                ];
+            },
+            company: $company,
+        );
     }
 }
