@@ -8,10 +8,14 @@
 [![static analysis](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml)
 [![CI](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml)
 
-Originating from our agency background, we've catered to clients with unique requirements. Over time, we realized we were repeatedly solving the same challenges: whether it was crafting a full-fledged solution, integrating with existing systems, enhancing inventory connectivity, offering agent portals for CRM expansion, introducing social interactions to headless sites, or establishing workflows for seamless system integration.
+Kanvas was born out of years spent building complex backend systems for modern commerce. As an agency, we kept running into the same problems — slow integrations, disconnected systems, repetitive workflows, and custom logic that had to be rebuilt for every project.
+
+We realized there was a better way.
 
 ## **Enter Kanvas Niche.**
-Born from the need to streamline these repetitive tasks, Kanvas Niche offers a suite of headless modules tailored to accelerate the development of headless applications. We've encapsulated our years of experience into these modules, addressing the common hurdles we face daily in app development.
+Kanvas is your operational engine — a modular backend designed to unify your systems, automate your workflows, and power the next generation of commerce applications.
+
+Kanvas gives you APIs, workflows, and agent-ready infrastructure — so you can launch faster, integrate better, and scale smarter.
 
 ## **What Kanvas Niche Offers:**
 - **Ecosystem**: Dive into authentication and teams (or multi-tenant) management.
@@ -20,19 +24,21 @@ Born from the need to streamline these repetitive tasks, Kanvas Niche offers a s
 - **CRM**: Navigate through leads, deals, and pipelines with ease.
 - **Workflow**: Seamlessly connect your app with other systems.
 
-## **Why Kanvas Niche?**
-Kanvas Niche isn't here to replace your existing backend-as-a-service or development framework. Think of us as your development partner, complementing your tools by offering specialized modules for challenges you'd otherwise tackle from scratch.
+## **Built to Extend, Not Replace**
+Kanvas isn’t trying to be your monolithic platform. It connects the stack you already use — NetSuite, Shopify, Salesforce, custom apps — and becomes your operational layer in the middle.
 
-Our name, "Niche", reflects our mission: providing specialized solutions for prevalent challenges. By integrating Kanvas Niche into your workspace, you can expedite the development of headless apps, ensuring quicker delivery and dependable performance without overhauling your existing backend.
+Unlike typical low-code automation tools, Kanvas is designed to be part of your core product architecture. Built with Laravel + GraphQL, it supports scalable APIs and deep system integrations.
 
-Todo:
-- [x] Ecosystem
-- [x] Inventory (in progress)
-- [x] CRM (in progress)
-- [x] Social (in progress)
-- [x] Workflow
-- [x] Action Engine
-- [x] GraphQL Documentation (in progress)
+## **Use Kanvas to Launch**
+🛍️ Marketplaces – With built-in vendor, product, and order logic
+
+🚘 Dealer platforms – CRM, inventory, and lead routing included
+
+🧩 Product bundlers – Dynamic SKUs + inventory syncing
+
+🏪 B2B commerce portals – Multi-user pricing, approvals, and logic
+
+📱 B2C apps – Headless APIs to power custom frontends
 
 ## Prerequisites
 
