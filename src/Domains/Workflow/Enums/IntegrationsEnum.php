@@ -19,4 +19,5 @@ enum IntegrationsEnum: string
     case NETSUITE = 'netsuite';
     case OFFERLOGIX = 'offerlogix';
     case RECOMBEE = 'recombee';
+    case ZOHO = 'zoho';
 }

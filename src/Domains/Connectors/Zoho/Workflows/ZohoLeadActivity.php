@@ -11,6 +11,7 @@ use Kanvas\Connectors\Zoho\Actions\SyncLeadToZohoAction;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -20,6 +21,7 @@ use Override;
 class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     //public $tries = 5;
+    public $tries = 3;
 
     /**
      * @param Lead $lead
@@ -32,14 +34,22 @@ class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         //$zohoData = $zohoLead->toArray();
         //$company = Companies::getById($lead->companies_id);
 
-        $syncLeadWithZoho = new SyncLeadToZohoAction($app, $lead);
-        $zohoLead = $syncLeadWithZoho->execute();
+        return $this->executeIntegration(
+            entity: $lead,
+            app: $app,
+            integration: IntegrationsEnum::ZOHO,
+            integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
+                $syncLeadWithZoho = new SyncLeadToZohoAction($app, $lead);
+                $zohoLead = $syncLeadWithZoho->execute();
 
-        return [
-            'zohoLeadId' => $lead->getId(),
-            'zohoRequest' => $zohoLead,
-            'leadId' => $lead->getId(),
-            'status' => $lead->status()->first()->name,
-        ];
+                return [
+                    'zohoLeadId' => $lead->getId(),
+                    'zohoRequest' => $zohoLead,
+                    'leadId' => $lead->getId(),
+                    'status' => $lead->status()->first()->name,
+                ];
+            },
+            company: $lead->company,
+        );
     }
 }
