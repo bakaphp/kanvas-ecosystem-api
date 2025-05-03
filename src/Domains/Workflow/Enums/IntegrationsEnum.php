@@ -20,4 +20,5 @@ enum IntegrationsEnum: string
     case OFFERLOGIX = 'offerlogix';
     case RECOMBEE = 'recombee';
     case ZOHO = 'zoho';
+    case ESIM_SOLUTION = 'esim_solution';
 }
