@@ -7,6 +7,7 @@ namespace Tests\Connectors\Traits;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Inventory\Support\Setup;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
@@ -31,6 +32,11 @@ trait HasIntegrationCompany
             'handler' => $handler,
         ]);
 
+        new Setup(
+            app: $app,
+            user: $user,
+            company: $company
+        )->run();
         $region = Regions::getDefault($company, $app);
         $integrationDto = new IntegrationsCompany(
             integration: $integration,
