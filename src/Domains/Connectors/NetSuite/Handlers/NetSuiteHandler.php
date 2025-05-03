@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\NetSuite\Handlers;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite as NetSuiteDto;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
+use Override;
 
 class NetSuiteHandler extends BaseIntegration
 {
+    #[Override]
     public function setup(): bool
     {
         $netSuiteDto = new NetSuiteDto(

@@ -15,4 +15,10 @@ enum IntegrationsEnum: string
     case INTERNAL = 'internal';
     case APOLLO = 'apollo';
     case CREDIT700 = '700_credit';
+    case IPLUS = 'iplus';
+    case NETSUITE = 'netsuite';
+    case OFFERLOGIX = 'offerlogix';
+    case RECOMBEE = 'recombee';
+    case ZOHO = 'zoho';
+    case ESIM_SOLUTION = 'esim_solution';
 }
