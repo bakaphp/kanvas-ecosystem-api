@@ -9,6 +9,7 @@ use Kanvas\Connectors\Recombee\Client;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Override;
+use Recombee\RecommApi\Client as RecommApiClient;
 
 class RecombeeHandler extends BaseIntegration
 {
@@ -32,6 +33,6 @@ class RecombeeHandler extends BaseIntegration
             $database,
             $apiKey,
             $region
-        )->getClient() instanceof Client;
+        )->getClient() instanceof RecommApiClient;
     }
 }
