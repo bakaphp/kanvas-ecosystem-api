@@ -14,4 +14,5 @@ enum IntegrationsEnum: string
     case PROMPT_MINE = 'prompt_mine';
     case INTERNAL = 'internal';
     case APOLLO = 'apollo';
+    case CREDIT700 = '700_credit';
 }
