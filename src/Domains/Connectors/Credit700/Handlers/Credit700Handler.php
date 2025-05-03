@@ -17,13 +17,19 @@ class Credit700Handler extends BaseIntegration
     {
         $clientId = $this->data['client_id'] ?? null;
         $clientSecret = $this->data['client_secret'] ?? null;
+        $account = $this->data['account'] ?? null;
+        $password = $this->data['password'] ?? null;
+        $digitalJacketDomain = $this->data['digital_jacket_domain'] ?? null;
 
-        if (empty($clientId) || empty($clientSecret)) {
+        if (empty($clientId) || empty($clientSecret) || empty($account) || empty($password)) {
             throw new ValidationException('700Credit credentials are not set for ' . $this->app->name);
         }
 
         $this->app->set(ConfigurationEnum::CLIENT_ID->value, $clientId);
         $this->app->set(ConfigurationEnum::CLIENT_SECRET->value, $clientSecret);
+        $this->app->set(ConfigurationEnum::ACCOUNT->value, $account);
+        $this->app->set(ConfigurationEnum::PASSWORD->value, $password);
+        $this->app->set(ConfigurationEnum::DIGITAL_JACKET_DOMAIN->value, $digitalJacketDomain);
 
         $client = new Client(
             app: $this->app,
