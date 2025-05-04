@@ -17,7 +17,7 @@ class NewOrderNotification extends Notification
         array $data,
     ) {
         parent::__construct($order, $data);
-        $this->setType(EnumsEmailTemplateEnum::BLANK->value);
+        //$this->setType(EnumsEmailTemplateEnum::BLANK->value);
         $this->setTemplateName(EmailTemplateEnum::NEW_ORDER->value);
         $this->setData($data);
 
