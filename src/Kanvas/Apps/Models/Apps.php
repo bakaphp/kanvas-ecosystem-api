@@ -250,6 +250,11 @@ class Apps extends BaseModel implements AppInterface
         return $company;
     }
 
+    public function setAppCompany(Companies $company): void
+    {
+        $this->set(AppSettingsEnums::KANVAS_APP_MAIN_COMPANY_ID->getValue(), $company->getKey());
+    }
+
     /**
      * Create user profile for the app
      * @psalm-suppress MixedReturnStatement

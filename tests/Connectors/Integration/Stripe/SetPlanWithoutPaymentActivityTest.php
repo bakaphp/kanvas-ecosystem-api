@@ -40,6 +40,8 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
             $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
         }
 
+        $this->appModel->setAppCompany($this->company);
+
         $this->setIntegration(
             $this->appModel,
             IntegrationsEnum::STRIPE,
