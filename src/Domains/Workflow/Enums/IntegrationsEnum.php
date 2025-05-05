@@ -21,4 +21,5 @@ enum IntegrationsEnum: string
     case RECOMBEE = 'recombee';
     case ZOHO = 'zoho';
     case ESIM_SOLUTION = 'esim_solution';
+    case STRIPE = 'stripe';
 }
