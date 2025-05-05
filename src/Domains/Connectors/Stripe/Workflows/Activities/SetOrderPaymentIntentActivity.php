@@ -34,10 +34,14 @@ class SetOrderPaymentIntentActivity extends KanvasActivity
                 $clientSecret = $order->metadata['paymentIntent'] ?? null;
 
                 if (empty($clientSecret)) {
-                    throw new ValidationException('No payment intent found');
+                    throw new ValidationException('Payment intent not found in order metadata');
                 }
 
-                $paymentIntentId = explode('_secret_', $clientSecret)[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
+                if (! is_array($clientSecret)) {
+                    throw new ValidationException('Invalid payment intent format: expected array, got ' . gettype($clientSecret));
+                }
+
+                $paymentIntentId = explode('_secret_', $clientSecret['id'])[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
 
                 $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
 
@@ -62,7 +66,7 @@ class SetOrderPaymentIntentActivity extends KanvasActivity
     }
 
     /**
-     * @todo move to middleware
+     * @todo move to middleware'
      */
     public function validateStripe(Apps $app)
     {
