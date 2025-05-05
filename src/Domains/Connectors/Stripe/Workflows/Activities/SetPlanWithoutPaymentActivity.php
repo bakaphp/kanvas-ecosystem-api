@@ -30,7 +30,7 @@ class SetPlanWithoutPaymentActivity extends KanvasActivity
     public function execute(Users $user, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
-        $company = $params['company'] ?? $user->getCurrentCompany();
+        $company = $params['company'] ?? $app->getAppCompany();
 
         return $this->executeIntegration(
             entity: $user,
