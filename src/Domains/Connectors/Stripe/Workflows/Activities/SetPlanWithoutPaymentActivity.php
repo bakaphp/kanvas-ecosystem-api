@@ -36,7 +36,7 @@ class SetPlanWithoutPaymentActivity extends KanvasActivity
             entity: $user,
             app: $app,
             integration: IntegrationsEnum::STRIPE,
-            integrationOperation: function ($user, $app, $company, $additionalParams) use ($params) {
+            integrationOperation: function ($user, $app, $integrationCompany, $additionalParams) use ($company, $params) {
                 $this->validateStripe($app);
                 $response = [];
                 $companyStripeAccount = $company->getStripeAccount($app);
