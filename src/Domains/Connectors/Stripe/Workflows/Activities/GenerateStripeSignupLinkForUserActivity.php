@@ -24,7 +24,7 @@ class GenerateStripeSignupLinkForUserActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $company = $params['company'] ?? null;
+        $company = $params['company'] ?? $app->getAppCompany();
 
         if (empty($company)) {
             return $this->errorResponse('Company is required');
