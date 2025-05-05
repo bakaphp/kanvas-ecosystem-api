@@ -61,6 +61,7 @@ use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Webhooks\StripePaymentIntentWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
+use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
@@ -165,6 +166,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PullPeopleActivity::class,
             CalculateWarehouseQuantityActivity::class,
             PremiumPromptFlagActivity::class,
+            SetOrderPaymentIntentActivity::class,
         ];
 
         $createdActions = [];

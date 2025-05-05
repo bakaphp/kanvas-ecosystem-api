@@ -16,7 +16,7 @@ class GenerateWhoToFollowRecommendationsAction
 {
     public function __construct(
         protected AppInterface $app,
-        protected CompanyInterface $company
+        protected ?CompanyInterface $company = null
     ) {
     }
 

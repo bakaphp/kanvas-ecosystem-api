@@ -57,7 +57,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity) use ($messageFiles, $params, $imageFilter, $isOpenAi) {
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageFiles, $params, $imageFilter, $isOpenAi) {
                 $entity->setPrivate();
 
                 if (empty($this->apiUrl)) {

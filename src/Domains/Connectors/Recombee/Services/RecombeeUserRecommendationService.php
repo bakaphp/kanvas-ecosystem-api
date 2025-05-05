@@ -67,6 +67,13 @@ class RecombeeUserRecommendationService
         );
     }
 
+    public function getUserToUserRecommendationPagination(string $recommId, int $limit): array
+    {
+        return $this->client->send(
+            new RecommendNextItems($recommId, $limit)
+        );
+    }
+
     public function getUserRecommendation(
         UserInterface $user,
         int $count = 100,
@@ -101,6 +108,13 @@ class RecombeeUserRecommendationService
             'scenario' => $scenario,
             'cascadeCreate' => true,
         ], $additionalOptions);
+
+        if ($user->get(CustomFieldEnum::USER_WHO_TO_FOLLOW_RECOMM_ID->value)) {
+            return $this->getUserToUserRecommendationPagination(
+                (string) $user->get(CustomFieldEnum::USER_WHO_TO_FOLLOW_RECOMM_ID->value),
+                $count
+            );
+        }
 
         $recommendation = $this->client->send(
             new RecommendUsersToUser((string) $user->getId(), $count, $options)

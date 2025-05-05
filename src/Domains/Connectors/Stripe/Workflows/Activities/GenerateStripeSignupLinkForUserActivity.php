@@ -9,6 +9,8 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Stripe\Account;
 use Stripe\AccountLink;
@@ -18,38 +20,52 @@ class GenerateStripeSignupLinkForUserActivity extends KanvasActivity
 {
     //public $tries = 5;
 
-    public function execute(UserInterface $user, Apps $app, array $params): array
+    public function execute(Users $user, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
 
-        $stripeApiKey = $app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value);
-        if (empty($stripeApiKey)) {
-            return $this->errorResponse('Stripe is not configured for this app');
+        $company = $params['company'] ?? $app->getAppCompany();
+
+        if (empty($company)) {
+            return $this->errorResponse('Company is required');
         }
 
-        if (empty($params['ip'])) {
-            return $this->errorResponse('IP address is required');
-        }
+        return $this->executeIntegration(
+            entity: $user,
+            app: $app,
+            integration: IntegrationsEnum::STRIPE,
+            integrationOperation: function ($user, $app, $integrationCompany, $additionalParams) use ($params) {
+                $stripeApiKey = $app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value);
+                if (empty($stripeApiKey)) {
+                    return $this->errorResponse('Stripe is not configured for this app');
+                }
 
-        Stripe::setApiKey($stripeApiKey);
+                if (empty($params['ip'])) {
+                    return $this->errorResponse('IP address is required');
+                }
 
-        $stripeUserId = $user->get(ConfigurationEnum::STRIPE_USER_ID->value);
-        if (empty($stripeUserId)) {
-            $stripeUserId = $this->createStripeAccount($user, $params['ip']);
-        }
+                Stripe::setApiKey($stripeApiKey);
 
-        $stripeAccount = Account::retrieve($stripeUserId);
+                $stripeUserId = $user->get(ConfigurationEnum::STRIPE_USER_ID->value);
+                if (empty($stripeUserId)) {
+                    $stripeUserId = $this->createStripeAccount($user, $params['ip']);
+                }
 
-        if (! empty($stripeAccount->charges_enabled)) {
-            $user->set(ConfigurationEnum::STRIPE_ACCOUNT_CONNECTED->value, 1, true);
-            $user->set(ConfigurationEnum::STRIPE_ACCOUNT_EMAIL->value, $stripeAccount->email);
+                $stripeAccount = Account::retrieve($stripeUserId);
 
-            return $this->successResponse('Stripe account already connected');
-        }
+                if (! empty($stripeAccount->charges_enabled)) {
+                    $user->set(ConfigurationEnum::STRIPE_ACCOUNT_CONNECTED->value, 1, true);
+                    $user->set(ConfigurationEnum::STRIPE_ACCOUNT_EMAIL->value, $stripeAccount->email);
 
-        $accountLink = $this->createAccountLink($user, $app);
+                    return $this->successResponse('Stripe account already connected');
+                }
 
-        return $this->successResponse('Stripe account link generated', ['url' => $accountLink->url]);
+                $accountLink = $this->createAccountLink($user, $app);
+
+                return $this->successResponse('Stripe account link generated', ['url' => $accountLink->url]);
+            },
+            company: $company,
+        );
     }
 
     private function createStripeAccount(UserInterface $user, string $ip): string
