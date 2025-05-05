@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Customers\Models\Address;
 use Nuwave\Lighthouse\WhereConditions\WhereConditionsHandler;
 
-final class HasAddressHandler extends WhereConditionsHandler
+class HasAddressHandler extends WhereConditionsHandler
 {
     /**
      * @param  array<string, mixed>  $whereConditions
