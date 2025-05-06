@@ -25,6 +25,7 @@ use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -373,6 +374,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 ],
             );
             $entity->user->notify($newMessageNotification);
+
+            $createNuggetMessage->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->app,
+                ]
+            );
         } catch (InternalServerErrorException $e) {
             report($e);
 

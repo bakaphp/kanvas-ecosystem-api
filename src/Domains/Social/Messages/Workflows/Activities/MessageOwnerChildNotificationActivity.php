@@ -24,6 +24,12 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
         $emailTemplate = $params['email_template'] ?? null;
         $pushTemplate = $params['push_template'] ?? null;
 
+        try {
+            $company = $app->getAppCompany();
+        } catch (ModelNotFoundException $e) {
+            $company = $message->company;
+        }
+
         return $this->executeIntegration(
             entity: $message,
             app: $app,
@@ -119,7 +125,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
                     'message_id' => $message->getId(),
                 ];
             },
-            company: $message->company,
+            company: $company,
         );
     }
 }
