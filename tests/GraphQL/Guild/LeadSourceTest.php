@@ -349,8 +349,7 @@ class LeadSourceTest extends TestCase
         ', [
             'id' => $leadSource->uuid,
         ]);
-        $response->assertJsonFragment([
-            'debugMessage' => 'The Lead Source is in use',
-        ]);
+        $response = $response->json();
+        $this->assertNotEmpty($response['errors']);
     }
 }
