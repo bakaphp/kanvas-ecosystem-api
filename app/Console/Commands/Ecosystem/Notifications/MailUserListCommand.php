@@ -18,6 +18,7 @@ class MailUserListCommand extends Command
 {
     use KanvasJobsTrait;
 
+    protected ?Apps $app = null;
     /**
      * The name and signature of the console command.
      *
@@ -43,6 +44,7 @@ class MailUserListCommand extends Command
     public function handle()
     {
         $app = Apps::getById((int) $this->argument('apps_id'));
+        $this->app = $app;
         $this->overwriteAppService($app);
         $emailTemplateName = $this->argument('email_template_name');
         $emailSubject = $this->argument('subject');
@@ -122,7 +124,7 @@ class MailUserListCommand extends Command
             $emailTemplateName,
             ['user' => $user],
             ['mail'],
-            $user
+            $this->app //it has to be a model
         );
 
         $notification->setSubject($emailSubject);
