@@ -14,7 +14,9 @@ use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
+use Kanvas\Guild\Leads\Observers\LeadTypeObserver;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Attributes\Observers\AttributeObserver;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
@@ -52,8 +54,6 @@ use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 use Kanvas\Users\Observers\UsersAssociatedCompaniesObserver;
 use Kanvas\Users\Observers\UsersObserver;
 use Override;
-use Kanvas\Guild\Leads\Models\LeadType;
-use Kanvas\Guild\Leads\Observers\LeadTypeObserver;
 
 class EventServiceProvider extends ServiceProvider
 {
