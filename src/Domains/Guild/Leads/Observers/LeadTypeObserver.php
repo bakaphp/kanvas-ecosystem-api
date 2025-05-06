@@ -12,7 +12,7 @@ class LeadTypeObserver
     public function deleting(LeadType $leadType): void
     {
         if ($leadType->leads->count()) {
-            throw new Exception("You can't delete this lead type , because are in use");
+            throw new Exception("You can’t delete this lead type because it is currently in use.");
         }
     }
 }
