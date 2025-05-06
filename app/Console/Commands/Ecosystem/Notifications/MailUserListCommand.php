@@ -122,12 +122,18 @@ class MailUserListCommand extends Command
     {
         $notification = new Blank(
             $emailTemplateName,
-            ['user' => $user],
+            [
+                'user' => $user,
+                'name' => $user->firstname,
+            ],
             ['mail'],
             $this->app //it has to be a model
         );
 
         $notification->setSubject($emailSubject);
         Notification::route('mail', $user->email)->notify($notification);
+        //add a sleep
+
+        usleep(500000); // 0.1 seconds
     }
 }
