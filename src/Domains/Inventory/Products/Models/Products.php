@@ -634,7 +634,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public function setTotalVariants(): void
     {
-        $this->set('total_variants', $this->variants->count());
+        $this->set('total_variants', Variants::where('products_id', $this->getId())->count());
     }
 
     /**
