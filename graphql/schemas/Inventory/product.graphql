@@ -14,6 +14,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     warranty_terms: String
     upc: String
     system_module: SystemModule! @method(name: "getSystemModule")
+    total_variants: Int @method(name: "getTotalVariants")
     status: Status
     files: [Filesystem!]!
         @cacheRedis
