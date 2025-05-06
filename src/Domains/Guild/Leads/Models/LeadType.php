@@ -8,7 +8,8 @@ use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Models\BaseModel;
-
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Kanvas\Guild\Leads\Observers\LeadTypeObserver;
 /**
  * Class LeadType.
  *
@@ -24,6 +25,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $updated_at
  * @property int $is_deleted
  */
+#[ObservedBy([LeadTypeObserver::class])]
 class LeadType extends BaseModel
 {
     use NoAppRelationshipTrait;

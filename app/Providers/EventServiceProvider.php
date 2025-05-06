@@ -108,7 +108,6 @@ class EventServiceProvider extends ServiceProvider
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
-        LeadType::observe(LeadTypeObserver::class);
     }
 
     /**
