@@ -238,8 +238,12 @@ class OAuthIntegrationController extends BaseController
     /**
      * Configure Shopify SDK
      */
-    private function configureShopifySDK(Apps $app, string $shopDomain, ReceiverWebhook $receiver,  ?string $redirectUrl = null): array
-    {
+    private function configureShopifySDK(
+        Apps $app,
+        string $shopDomain,
+        ReceiverWebhook $receiver,
+        ?string $redirectUrl = null
+    ): array {
         if (! Str::startsWith($shopDomain, ['http://', 'https://'])) {
             $shopDomain = 'https://' . $shopDomain;
         }
