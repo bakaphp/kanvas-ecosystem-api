@@ -61,6 +61,7 @@ class RecombeeIndexService
             'image' => 'string',
             'categories' => 'set',
             'type' => 'string',
+            'is_regenerated_image' => 'boolean',
         ];
         $existingProperties = $this->client->send(new ListItemProperties());
         $existingPropertyNames = array_column($existingProperties, 'name');
@@ -139,6 +140,7 @@ class RecombeeIndexService
                 'image' => $messageData['ai_image']['image'] ?? null,
                 'categories' => $message->tags->pluck('name')->toArray(),
                 'type' => $messageData['type'] ?? null,
+                'is_regenerated_image' => isset($messageData['ai_image']) ?? false , // This way we know the image was regerenated by AI
             ],
             ['cascadeCreate' => true]
         );
