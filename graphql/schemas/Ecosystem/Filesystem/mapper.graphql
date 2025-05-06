@@ -50,6 +50,10 @@ type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@create"
         )
+    createImportMapper(input: FilesystemMapperInput!): FilesystemMapper!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@createMapper"
+        )
     updateFilesystemMapper(
         input: UpdateFilesystemImportInput!
     ): FilesystemMapper!
