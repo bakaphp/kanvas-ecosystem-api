@@ -18,15 +18,6 @@ class ProductsObserver
         $product->setTotalVariants();
     }
 
-    public function created(Products $product): void
-    {
-        if ($product->productsTypes()->exists()) {
-            $product->productsTypes->setTotalProducts();
-        }
-
-        $product->clearLightHouseCache(withKanvasConfiguration: false);
-    }
-
     public function updating(Products $product)
     {
         if ($product->isDirty('users_id')) {
