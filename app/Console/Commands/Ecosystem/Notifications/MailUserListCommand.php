@@ -14,7 +14,7 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use League\Csv\Reader;
 
-class MailAllAppUsersCommand extends Command
+class MailUserListCommand extends Command
 {
     use KanvasJobsTrait;
 
