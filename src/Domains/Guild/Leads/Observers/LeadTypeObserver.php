@@ -11,7 +11,7 @@ class LeadTypeObserver
 {
     public function deleting(LeadType $leadType): void
     {
-        if (! $leadType->leads->count()) {
+        if ($leadType->leads->count()) {
             throw new Exception("You can't delete this lead type , because are in use");
         }
     }
