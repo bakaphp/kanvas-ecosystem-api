@@ -9,6 +9,7 @@ use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Companies\Observers\CompaniesObserver;
+use Kanvas\Connectors\ScrapperApi\Listeners\CartListener;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
@@ -65,6 +66,15 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         PushNotificationsEvent::class => [
             NotificationsListener::class,
+        ],
+        'LaravelCart.Added' => [
+            CartListener::class,
+        ],
+        'LaravelCart.Updated' => [
+            CartListener::class,
+        ],
+        'LaravelCart.Removed' => [
+            CartListener::class,
         ],
     ];
 

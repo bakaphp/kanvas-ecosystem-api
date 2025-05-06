@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -30,7 +31,7 @@ class OrderManagementMutation
     {
         $user = auth()->user();
         $creditCard = CreditCard::viaRequest($request['input']);
-        $cart = app('cart')->session($user->getId());
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
 
         $order = new DirectOrder(
@@ -56,7 +57,7 @@ class OrderManagementMutation
     public function createFromCart(mixed $root, array $request): array
     {
         $user = auth()->user();
-        $cart = app('cart')->session($user->getId());
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
         $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
 
@@ -145,7 +146,7 @@ class OrderManagementMutation
 
     private function handlePaymentResponse(mixed $response, bool $isSubscription): array
     {
-        $cart = app('cart')->session(auth()->user()->getId());
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
 
         if (empty($response)) {
             return [

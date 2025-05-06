@@ -263,6 +263,7 @@ extend type Query @guard {
                     "user_phone"
                     "status"
                     "fulfillment_status"
+                    "order_number"
                 ]
             )
         hasAddress: _
@@ -282,6 +283,19 @@ extend type Query @guard {
             @whereHasConditions(
                 relation: "items"
                 columns: ["product_name", "product_sku", "variant_id"]
+            )
+        hasPeople: _
+            @whereHasConditions(
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasPeopleHandler"
+                columns: [
+                    "id"
+                    "users_id"
+                    "name"
+                    "firstname"
+                    "middlename"
+                    "lastname"
+                    "dob"
+                ]
             )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "status"])

@@ -17,12 +17,14 @@ use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
 class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     //public $tries = 10;
+    public $tries = 3;
 
     #[Override]
     public function execute(Model $user, AppInterface $app, array $params): array
@@ -33,78 +35,87 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
         }
 
         $company = $params['company'];
-        $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
-        if (! $usesAgentsModule) {
-            return ['No Agent Module'];
-        }
 
-        $zohoService = new ZohoService($app, $company);
-        $newAgentRecord = null;
-        $newAgent = null;
+        return $this->executeIntegration(
+            entity: $user,
+            app: $app,
+            integration: IntegrationsEnum::ZOHO,
+            integrationOperation: function ($user, $app, $company, $additionalParams) use ($params) {
+                $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
+                if (! $usesAgentsModule) {
+                    return ['No Agent Module'];
+                }
 
-        try {
-            $record = $zohoService->getAgentByEmail($user->email);
-        } catch (Exception $e) {
-            $newAgentRecord = $this->createAgent($app, $zohoService, $user, $company);
-            $record = $newAgentRecord['zohoAgent'];
-            $newAgent = $newAgentRecord['agent'];
-        }
+                $zohoService = new ZohoService($app, $company);
+                $newAgentRecord = null;
+                $newAgent = null;
 
-        $owner = $record->Owner;
-        $name = ($record->Name ?? $record->Vendor_Name) ?? $newAgent->name;
+                try {
+                    $record = $zohoService->getAgentByEmail($user->email);
+                } catch (Exception $e) {
+                    $newAgentRecord = $this->createAgent($app, $zohoService, $user, $company);
+                    $record = $newAgentRecord['zohoAgent'];
+                    $newAgent = $newAgentRecord['agent'];
+                }
 
-        if (empty($record->Member_Number) && $newAgent == null) {
-            return [
-                'error' => 'Error Member Number not found',
-                'record' => $record,
-                'newAgent' => $newAgent,
-            ];
-        }
+                $owner = $record->Owner;
+                $name = ($record->Name ?? $record->Vendor_Name) ?? $newAgent->name;
 
-        $memberNumber = $record->Member_Number ?? $newAgent->member_id;
-        $zohoId = $record->id;
-        $ownerAgent = null;
+                if (empty($record->Member_Number) && $newAgent == null) {
+                    return [
+                        'error' => 'Error Member Number not found',
+                        'record' => $record,
+                        'newAgent' => $newAgent,
+                    ];
+                }
 
-        try {
-            $ownerUser = Users::getByEmail($owner['email']);
-            $ownerAgent = Agent::where('users_id', $ownerUser->getId())->fromCompany($company)->firstOrFail();
-        } catch (Exception $e) {
-        }
+                $memberNumber = $record->Member_Number ?? $newAgent->member_id;
+                $zohoId = $record->id;
+                $ownerAgent = null;
 
-        $agentUpdateData = [
-            'name' => $name,
-            'users_linked_source_id' => $zohoId,
-            'member_id' => $memberNumber,
-        ];
+                try {
+                    $ownerUser = Users::getByEmail($owner['email']);
+                    $ownerAgent = Agent::where('users_id', $ownerUser->getId())->fromCompany($company)->firstOrFail();
+                } catch (Exception $e) {
+                }
 
-        $companyDefaultOwnerMemberId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_MEMBER_NUMBER->value) ?? 1001;
+                $agentUpdateData = [
+                    'name' => $name,
+                    'users_linked_source_id' => $zohoId,
+                    'member_id' => $memberNumber,
+                ];
 
-        //if the owner is the company default owner, set it
-        if ($ownerAgent && $newAgentRecord && $newAgentRecord['member_id'] == $companyDefaultOwnerMemberId) {
-            $agentUpdateData['owner_id'] = $ownerAgent->member_id;
-        }
+                $companyDefaultOwnerMemberId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_MEMBER_NUMBER->value) ?? 1001;
 
-        if ($owner) {
-            $agentUpdateData['owner_linked_source_id'] = $owner['id'];
-        }
+                //if the owner is the company default owner, set it
+                if ($ownerAgent && $newAgentRecord && $newAgentRecord['member_id'] == $companyDefaultOwnerMemberId) {
+                    $agentUpdateData['owner_id'] = $ownerAgent->member_id;
+                }
 
-        Agent::updateOrCreate([
-            'users_id' => $user->getId(),
-            'companies_id' => $company->getId(),
-        ], $agentUpdateData);
-        $user->set('member_number_' . $company->getId(), $memberNumber);
+                if ($owner) {
+                    $agentUpdateData['owner_linked_source_id'] = $owner['id'];
+                }
 
-        if ($company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value)) {
-            $user->set('landing_page', $company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value), true);
-        }
+                Agent::updateOrCreate([
+                    'users_id' => $user->getId(),
+                    'companies_id' => $company->getId(),
+                ], $agentUpdateData);
+                $user->set('member_number_' . $company->getId(), $memberNumber);
 
-        return [
-            'member_id' => $memberNumber,
-            'zohoId' => $zohoId,
-            'users_id' => $user->getId(),
-            'companies_id' => $company->getId(),
-            //'newAgentRecord' => $newAgentRecord ?? [],
-        ];
+                if ($company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value)) {
+                    $user->set('landing_page', $company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value), true);
+                }
+
+                return [
+                    'member_id' => $memberNumber,
+                    'zohoId' => $zohoId,
+                    'users_id' => $user->getId(),
+                    'companies_id' => $company->getId(),
+                    //'newAgentRecord' => $newAgentRecord ?? [],
+                ];
+            },
+            company: $company,
+        );
     }
 
     /**

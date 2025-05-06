@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Traits;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
@@ -38,7 +39,10 @@ trait HasMutationUploadFiles
         array $files,
         ?array $params = []
     ): Model {
-        $filesystem = new FilesystemServices($app);
+        $filesystem = new FilesystemServices(
+            $app,
+            isset($model->company) && $model->company instanceof CompanyInterface ? $model->company : null
+        );
 
         foreach ($files as $file) {
             // Validate file extension

@@ -4,6 +4,7 @@ type Cart {
     discounts: [CartDiscount!]!
     total_discount: Money!
     total: Money!
+    shipping: CartShipping
 }
 
 type CartDiscount {
@@ -18,6 +19,12 @@ type CartItem {
     variant: Variant!
     price: Money!
     quantity: Int!
+    attributes: Mixed
+}
+
+type CartShipping {
+    name: String!
+    value: String
     attributes: Mixed
 }
 

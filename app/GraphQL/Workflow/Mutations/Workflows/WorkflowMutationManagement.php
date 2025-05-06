@@ -32,9 +32,11 @@ class WorkflowMutationManagement
         $workflowAction = $request['action'];
         $params = array_merge(['app' => app(Apps::class)], $request['params'] ?? [], ['ip' => request()->ip()]);
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
-        $isSync = (bool) ($request['sync'] ?? false);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $isSync = (bool) ($request['params']['sync'] ?? false);
         $canRunSync = $isSync && $app->get('can-run-sync-workflow', false);
+        $params['user'] = $user;
 
         //if we get a slug
         if (! Str::contains($entityClass, '\\')) {
@@ -68,7 +70,7 @@ class WorkflowMutationManagement
                 $entity->fill([
                     'id' => 0,
                     'apps_id' => $app->getId(),
-                    'companies_id' => $company,
+                    'companies_id' => $company->getId(),
                 ]);
             }
         }
@@ -76,7 +78,8 @@ class WorkflowMutationManagement
         /**
          * @todo this is a stupid hack, but we will handle this for now until we figure out a better way
          */
-        if (in_array(SystemModules::getSlugBySystemModuleNameSpace($entityClass), ['lead', 'people']) && $canRunSync) {
+        $caRunPullAndPush = in_array(SystemModules::getSlugBySystemModuleNameSpace($entityClass), ['lead', 'people']) && $canRunSync && in_array($workflowAction, [WorkflowEnum::PULL->value, WorkflowEnum::PUSH->value]);
+        if ($caRunPullAndPush) {
             $pullActivity = match (SystemModules::getSlugBySystemModuleNameSpace($entityClass)) {
                 'lead' => PullLeadActivity::class,
                 'people' => PullPeopleActivity::class,
@@ -94,7 +97,7 @@ class WorkflowMutationManagement
                 arguments: []
             );
 
-            return $activity->execute($entity, $app, []);
+            return $activity->execute($entity, $app, $params);
         }
         $results = $entity->fireWorkflow($workflowAction, true, $params);
 

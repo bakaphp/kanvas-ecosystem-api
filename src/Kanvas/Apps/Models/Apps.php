@@ -18,7 +18,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
@@ -213,6 +215,44 @@ class Apps extends BaseModel implements AppInterface
     public function defaultCurrency(): string
     {
         return $this->get('currency');
+    }
+
+    /**
+     * Returns the default company for this application based on configuration.
+     *
+     * This function handles two possible application scenarios:
+     * 1. Single company application: All users are assigned to one main company
+     * 2. Multi-company application: The default company handles all integrations
+     * 3. multi-company app with multi company integration where this method is not needed
+     *
+     * @return Companies The default company entity for this application
+     * @throws ModelNotFoundException If no default company is configured
+     */
+    public function getAppCompany(): Companies
+    {
+        $defaultBranchId = $this->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+        $defaultCompanyId = $this->get(AppSettingsEnums::KANVAS_APP_MAIN_COMPANY_ID->getValue());
+        $company = null;
+
+        if ($defaultBranchId) {
+            $branch = CompaniesBranches::getById($defaultBranchId);
+            $company = $branch?->company;
+        }
+
+        if (empty($company)) {
+            $company = Companies::getById($defaultCompanyId);
+        }
+
+        if (! $company) {
+            throw new ModelNotFoundException('No default company configured for this application');
+        }
+
+        return $company;
+    }
+
+    public function setAppCompany(Companies $company): void
+    {
+        $this->set(AppSettingsEnums::KANVAS_APP_MAIN_COMPANY_ID->getValue(), $company->getKey());
     }
 
     /**
