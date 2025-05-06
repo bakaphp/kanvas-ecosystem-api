@@ -46,8 +46,8 @@ class OAuthIntegrationController extends BaseController
         $shopDomain .= '.myshopify.com';
 
         // Configure the Shopify SDK with redirect URL
-        $redirectUrl = $app->get('shopify-redirect-url');
-        $this->configureShopifySDK($app, $shopDomain, $redirectUrl);
+        $redirectUrl = $receiver->company->get('shopify-redirect-url') ?? $app->get('shopify-redirect-url');
+        $this->configureShopifySDK($app, $shopDomain, $receiver, $redirectUrl);
 
         // Generate a nonce for security
         $webhookRequest = (new ProcessWebhookAttemptAction($receiver, $request))->execute();
@@ -124,7 +124,7 @@ class OAuthIntegrationController extends BaseController
         $receiverCall = ReceiverWebhookCall::where('uuid', $nonce)->notDeleted()->first();
 
         // Configure the Shopify SDK
-        $this->configureShopifySDK($app, $shop);
+        $this->configureShopifySDK($app, $shop, $receiver);
 
         try {
             // Get the access token
@@ -135,7 +135,7 @@ class OAuthIntegrationController extends BaseController
             }
 
             // Initialize the SDK with the access token
-            $config = $this->configureShopifySDK($app, $shop);
+            $config = $this->configureShopifySDK($app, $shop, $receiver);
             $config['AccessToken'] = $accessToken;
             $shopify = new ShopifySDK($config);
 
@@ -238,16 +238,23 @@ class OAuthIntegrationController extends BaseController
     /**
      * Configure Shopify SDK
      */
-    private function configureShopifySDK(Apps $app, string $shopDomain, ?string $redirectUrl = null): array
-    {
+    private function configureShopifySDK(
+        Apps $app,
+        string $shopDomain,
+        ReceiverWebhook $receiver,
+        ?string $redirectUrl = null
+    ): array {
         if (! Str::startsWith($shopDomain, ['http://', 'https://'])) {
             $shopDomain = 'https://' . $shopDomain;
         }
 
+        $apiKey = $receiver->company->get('shopify-api-key') ?? $app->get('shopify-api-key');
+        $apiSecret = $receiver->company->get('shopify-api-secret') ?? $app->get('shopify-api-secret');
+
         $config = [
-            'ApiKey' => $app->get('shopify-api-key'),
-            'ApiSecret' => $app->get('shopify-api-secret'),
-            'SharedSecret' => $app->get('shopify-api-secret'),
+            'ApiKey' => $apiKey,
+            'ApiSecret' => $apiSecret,
+            'SharedSecret' => $apiSecret,
             'ShopUrl' => $shopDomain,
             'ApiVersion' => $app->get('shopify-api-version') ?? '2025-01',
         ];
