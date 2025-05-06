@@ -18,11 +18,11 @@ class FilesystemMapper extends Data
         public UserInterface $user,
         public SystemModules $systemModule,
         public string $name,
-        public ?string $description,
         public array $header,
         public array $mapping,
         public array $configuration = [],
-        public bool $is_default = false
+        public bool $is_default = false,
+        public ?string $description = null,
     ) {
     }
 
@@ -42,7 +42,7 @@ class FilesystemMapper extends Data
             description: $data['description'] ?? null,
             header: $data['header'] ?? $data['file_header'],
             mapping: $data['mapping'],
-            configuration: json_decode(json_encode($data['configuration']), true),
+            configuration: isset($data['configuration']) ? json_decode(json_encode($data['configuration']), true) : [],
             is_default: $data['is_default'] ?? false
         );
     }
