@@ -19,7 +19,7 @@ class ShopifyCompanyConfigWebhookJob extends ProcessWebhookJob
             throw new InvalidArgumentException("Invalid Shopify domain: {$shopDomain}");
         }
 
-        $shopDomainConfig = $this->webhookRequest->app->get($shopDomain);
+        $shopDomainConfig = $this->receiver->app->get($shopDomain);
 
         return ! empty($shopDomainConfig) ? [
             'message' => 'Shopify domain configuration found',
