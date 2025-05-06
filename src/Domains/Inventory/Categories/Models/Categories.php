@@ -5,20 +5,22 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Categories\Models;
 
 use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Categories\Observers\CategoryObserver;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Models\ProductsCategories;
 use Kanvas\Inventory\Traits\ScopesTrait;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Nevadskiy\Tree\AsTree;
+use Override;
 
+#[ObservedBy(CategoryObserver::class)]
 class Categories extends BaseModel
 {
     use UuidTrait;
@@ -26,6 +28,7 @@ class Categories extends BaseModel
     use ScopesTrait;
     use DatabaseSearchableTrait;
     use HasTranslationsDefaultFallback;
+    use HasLightHouseCache;
     use AsTree;
 
     protected $table = 'categories';
@@ -33,21 +36,10 @@ class Categories extends BaseModel
 
     public $translatable = ['name'];
 
-    /**
-     *
-     */
-    public function apps(): BelongsTo
+    #[Override]
+    public function getGraphTypeName(): string
     {
-        return $this->belongsTo(Apps::class, 'apps_id', 'id');
-    }
-
-    /**
-     * companies.
-     *
-     */
-    public function companies(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id', 'id');
+        return 'Category';
     }
 
     public function productsCategories(): HasMany
@@ -62,19 +54,18 @@ class Categories extends BaseModel
 
     /**
      * Get the total amount of products of a product type.
-     *
      */
     public function getTotalProducts(): int
     {
         if (! $totalProducts = $this->get('total_products')) {
             return (int) $this->setTotalProducts();
         }
+
         return (int) $totalProducts;
     }
 
     /**
      * Set the total amount of products of a product categories.
-     *
      */
     public function setTotalProducts(): int
     {
