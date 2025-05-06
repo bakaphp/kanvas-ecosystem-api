@@ -6,10 +6,11 @@ namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Guild\Models\BaseModel;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Leads\Observers\LeadTypeObserver;
+use Kanvas\Guild\Models\BaseModel;
+
 /**
  * Class LeadType.
  *
