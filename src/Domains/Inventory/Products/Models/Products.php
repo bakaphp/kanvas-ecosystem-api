@@ -627,6 +627,16 @@ class Products extends BaseModel implements EntityIntegrationInterface
             : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
     }
 
+    public function getTotalVariants(): int
+    {
+        return (int) ($this->get('total_variants') ?? 0);
+    }
+
+    public function setTotalVariants(): void
+    {
+        $this->set('total_variants', $this->variants->count());
+    }
+
     /**
      * The Typesense schema to be created.
      */
