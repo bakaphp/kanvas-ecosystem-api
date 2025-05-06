@@ -7,6 +7,7 @@ namespace Kanvas\Social\Messages\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use finfo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
@@ -25,6 +26,12 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
+
+        try {
+            $company = $app->getAppCompany();
+        } catch (ModelNotFoundException $e) {
+            $company = $message->company;
+        }
 
         return $this->executeIntegration(
             entity: $message,
@@ -135,7 +142,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     'message_id' => $message->getId(),
                 ];
             },
-            company: $message->company,
+            company: $company,
         );
     }
 }
