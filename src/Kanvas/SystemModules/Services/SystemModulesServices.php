@@ -16,10 +16,9 @@ class SystemModulesServices
                 $requiredFields[] = $field;
             }
         }
-    
         $missing = array_diff($requiredFields, $mapperFields);
-    
-        if (!empty($missing)) {
+
+        if (! empty($missing)) {
             throw ValidationException::withMessages([
                 'fields' => ['Missing required fields: ' . implode(', ', $missing)],
             ]);
