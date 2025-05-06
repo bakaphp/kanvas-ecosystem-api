@@ -19,11 +19,10 @@ class RoleAbilitiesQuery
             $company,
             (int)$query['userId']
         )->getAbilities();
-
+        
         $mapAbilities = $abilities->map(function ($ability) {
             return $ability->name;
         });
-
         return $mapAbilities->all();
     }
 

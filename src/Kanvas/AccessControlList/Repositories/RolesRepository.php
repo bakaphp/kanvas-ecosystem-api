@@ -110,7 +110,6 @@ class RolesRepository
                 ];
                 continue;
             }
-            Log::debug("Ability", $ability);
             $found = false;
             foreach ($modules[$permission['name']]['systemModules'] as $key => $systemModules) {
                 if ($systemModules['name'] == $systemModule) {

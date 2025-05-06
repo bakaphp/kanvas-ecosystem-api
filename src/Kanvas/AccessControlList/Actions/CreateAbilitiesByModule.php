@@ -47,6 +47,7 @@ class CreateAbilitiesByModule
                             'apps_id' => $this->app->getId(),
                         ]
                     );
+                    
                 }
             }
         }
