@@ -23,7 +23,7 @@ class ShopifyCompanyConfigWebhookJob extends ProcessWebhookJob
 
         return ! empty($shopDomainConfig) ? [
             'message' => 'Shopify domain configuration found',
-            'config' => $shopDomain,
+            'config' => $shopDomainConfig,
         ] : [
             'message' => 'No Shopify domain configuration found',
             'config' => null,
