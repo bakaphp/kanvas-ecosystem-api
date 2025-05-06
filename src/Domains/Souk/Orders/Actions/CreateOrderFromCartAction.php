@@ -45,7 +45,7 @@ class CreateOrderFromCartAction
         if ($this->billingAddress !== null) {
             $billing = $this->people->addAddress(new Address(
                 address: $this->billingAddress->address,
-                address_2: null,
+                address_2: $this->billingAddress->address2,
                 city: $this->billingAddress->city,
                 state: $this->billingAddress->state,
                 country: $this->billingAddress->country,
@@ -57,7 +57,7 @@ class CreateOrderFromCartAction
         if ($this->shippingAddress !== null) {
             $shipping = $this->people->addAddress(new Address(
                 address: $this->shippingAddress->address,
-                address_2: null,
+                address_2: $this->shippingAddress->address_2,
                 city: $this->shippingAddress->city,
                 state: $this->shippingAddress->state,
                 country: $this->shippingAddress->country,
