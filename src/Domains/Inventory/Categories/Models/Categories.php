@@ -9,8 +9,11 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Categories\Observers\CategoryObserver;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
@@ -40,6 +43,16 @@ class Categories extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'Category';
+    }
+
+    public function apps(): BelongsTo
+    {
+        return $this->belongsTo(Apps::class, 'apps_id', 'id');
+    }
+
+    public function companies(): BelongsTo
+    {
+        return $this->belongsTo(Companies::class, 'companies_id', 'id');
     }
 
     public function productsCategories(): HasMany
