@@ -12,6 +12,7 @@ return new class () extends Migration {
     {
         Schema::table('system_modules', function (Blueprint $table) {
             $table->text('fields')->after('browse_fields')->nullable();
+            $table->string('description')->after('name')->nullable();
         });
     }
 
