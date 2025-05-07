@@ -27,6 +27,7 @@ class TemplateInput extends Data
         public bool $isSystem = false,
         public ?Companies $company = null,
         public ?Users $user = null,
+        public ?int $parentTemplateId = null,
     ) {
     }
 }

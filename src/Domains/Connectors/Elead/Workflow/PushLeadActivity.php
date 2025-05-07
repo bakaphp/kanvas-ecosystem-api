@@ -17,6 +17,8 @@ class PushLeadActivity extends KanvasActivity
 
     public function execute(Lead $lead, Apps $app, array $params): array
     {
+        $this->overwriteAppService($app);
+
         if (! $lead->company->get(CustomFieldEnum::COMPANY->value)) {
             return [
                 'error' => 'Company not found in Elead',

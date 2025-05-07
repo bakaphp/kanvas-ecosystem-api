@@ -16,10 +16,13 @@ class CheckMessageContentActivity extends KanvasActivity implements WorkflowActi
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
+
         if ((new CheckMessageContentAction($entity->message, $app))->execute()) {
             $entity->is_public = 0;
             $entity->set('is_nsfw', 1);
             $entity->save();
+
             return [
                 'message' => 'Message content is not allowed, message has been set to private',
                 'is_public' => false,

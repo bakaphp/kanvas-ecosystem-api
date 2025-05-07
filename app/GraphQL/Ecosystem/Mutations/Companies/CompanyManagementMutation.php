@@ -10,10 +10,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
+use Kanvas\Companies\Actions\DeactivateUserAction;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Jobs\DeleteCompanyJob;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesAddress;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
@@ -253,12 +255,14 @@ class CompanyManagementMutation
                         ->delete();
 
                     // Assuming getAppId() is a method you have available to get the app's ID
-                    $appId = app(Apps::class)->getId();
+                    $app = app(Apps::class);
 
                     // Delete associated apps
                     UsersAssociatedApps::where($baseConditions)
-                        ->where('apps_id', '=', $appId)
+                        ->where('apps_id', '=', $app->getId())
                         ->delete();
+
+                    (new DeactivateUserAction($user, $app))->execute();
                 }
             });
 
@@ -266,5 +270,91 @@ class CompanyManagementMutation
         }
 
         return false;
+    }
+
+    public function addAddressToCompany($rootValue, array $request): CompaniesAddress
+    {
+        $company = Companies::getById($request['id']);
+        $addressInput = $request['input'];
+        CompaniesRepository::userAssociatedToCompany(
+            $company,
+            auth()->user()
+        );
+
+        $company->hasCompanyPermission(auth()->user());
+
+        $addressData = [
+            'fullname' => $addressInput['fullname'] ?? '',
+            'phone' => $addressInput['phone'] ?? '',
+            'companies_id' => $company->getId(),
+            'address' => $addressInput['address'],
+            'address_2' => $addressInput['address_2'] ?? '',
+            'city' => $addressInput['city'] ?? '',
+            'county' => $addressInput['county'] ?? '',
+            'state' => $addressInput['state'] ?? '',
+            'zip' => $addressInput['zip'] ?? '',
+            'city_id' => $addressInput['city_id'] ?? 0,
+            'state_id' => $addressInput['state_id'] ?? 0,
+            'countries_id' => $addressInput['country_id'] ?? 0,
+            'is_default' => $addressInput['is_default'] ?? false,
+        ];
+
+        if (isset($addressInput['is_default']) && $addressInput['is_default']) {
+            $company->addresses()->update(['is_default' => false]);
+        }
+
+        $address = $company->addresses()->create($addressData);
+
+        return $address;
+    }
+
+    public function updateCompanyAddress($rootValue, array $request): CompaniesAddress
+    {
+        $company = Companies::getById($request['id']);
+        $address = CompaniesAddress::getById($request['address_id']);
+        $addressInput = $request['input'];
+
+        CompaniesRepository::userAssociatedToCompany(
+            $company,
+            auth()->user()
+        );
+
+
+        if (! $address->is_default && isset($addressInput['is_default']) && $addressInput['is_default']) {
+            $company->addresses()->update(['is_default' => false]);
+        }
+
+        $address->update([
+            'fullname' => $addressInput['fullname'] ?? $address->fullname,
+            'phone' => $addressInput['phone'] ?? $address->phone,
+            'companies_id' => $company->getId(),
+            'address' => $addressInput['address'] ?? $address->address,
+            'address_2' => $addressInput['address_2'] ?? $address->address_2,
+            'city' => $addressInput['city'] ?? $address->city,
+            'county' => $addressInput['county'] ?? $address->county,
+            'state' => $addressInput['state'] ?? $address->state,
+            'zip' => $addressInput['zip'] ?? $address->zip,
+            'city_id' => $addressInput['city_id'] ?? $address->city_id,
+            'state_id' => $addressInput['state_id'] ?? $address->state_id,
+            'countries_id' => $addressInput['country_id'] ?? $address->countries_id,
+            'is_default' => $addressInput['is_default'] ?? $address->is_default,
+        ]);
+
+        return $address;
+    }
+
+    public function removeAddressFromCompany($rootValue, array $request): bool
+    {
+        $company = Companies::getById($request['id']);
+
+        CompaniesRepository::userAssociatedToCompany(
+            $company,
+            auth()->user()
+        );
+
+        $address = CompaniesAddress::getById($request['address_id']);
+        $address->delete();
+
+        return true;
     }
 }

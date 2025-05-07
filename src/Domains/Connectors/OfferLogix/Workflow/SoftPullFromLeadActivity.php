@@ -18,146 +18,157 @@ use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class SoftPullFromLeadActivity extends KanvasActivity
 {
     public function execute(Lead $lead, Apps $app, array $params): array
     {
-        $people = $lead->people;
-        $results = [];
-        $receiver = $lead->receiver;
+        $this->overwriteAppService($app);
 
-        if ($receiver->source_name !== ConfigurationEnum::ACTION_VERB->value) {
-            return [
-                'message' => 'This receiver is not a Soft Pull - ' . $receiver->source_name,
-                'lead_id' => $lead->getId(),
-                'receiver_id' => $receiver->getId(),
-            ];
-        }
+        return $this->executeIntegration(
+            entity: $lead,
+            app: $app,
+            integration: IntegrationsEnum::OFFERLOGIX,
+            integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
+                $people = $lead->people;
+                $results = [];
+                $receiver = $lead->receiver;
 
-        $address = $people?->address->first();
-        $pdfTemplate = $params['template_pdf'] ?? 'soft-pull-pdf-v2';
-        $pdfFileName = $params['pdf_file_name'] ?? 'soft_pull_pdf.pdf';
-        $generatePdf = $params['generate_pdf'] ?? false;
+                if ($receiver->source_name !== ConfigurationEnum::ACTION_VERB->value) {
+                    return [
+                        'message' => 'This receiver is not a Soft Pull - ' . $receiver->source_name,
+                        'lead_id' => $lead->getId(),
+                        'receiver_id' => $receiver->getId(),
+                    ];
+                }
 
-        if (! $address) {
-            return [
-                'message' => 'Address is required',
-                'lead_id' => $lead->getId(),
-                'receiver_id' => $receiver->getId(),
-            ];
-        }
+                $address = $people?->address->first();
+                $pdfTemplate = $params['template_pdf'] ?? 'soft-pull-pdf-v2';
+                $pdfFileName = $params['pdf_file_name'] ?? 'soft_pull_pdf.pdf';
+                $generatePdf = $params['generate_pdf'] ?? false;
 
-        $softPull = SoftPull::from(
-            $people,
-            [
-                'last_4_digits_of_ssn' => $people->get('last_4_digits_of_ssn') ?? '',
-                'city' => $address->city,
-                'state' => $address->state,
-            ]
-        );
+                if (! $address) {
+                    return [
+                        'message' => 'Address is required',
+                        'lead_id' => $lead->getId(),
+                        'receiver_id' => $receiver->getId(),
+                    ];
+                }
 
-        if (empty($softPull->last_4_digits_of_ssn)) {
-            return [
-                'message' => 'Last 4 digits of SSN is required',
-                'lead_id' => $lead->getId(),
-            ];
-        }
-
-        $softPullAction = new SoftPullAction($lead, $people);
-        $results = $softPullAction->execute($softPull);
-
-        //if result is a url
-        if (filter_var($results, FILTER_VALIDATE_URL)) {
-            $filesystem = new Filesystem();
-            $filesystem->fill([
-                'name' => 'soft_pull',
-                'companies_id' => $lead->companies_id,
-                'apps_id' => $lead->apps_id,
-                'users_id' => $lead->users_id,
-                'path' => pathinfo($results, PATHINFO_DIRNAME),
-                'url' => $results,
-                'file_type' => 'pdf',
-                'size' => '0',
-            ]);
-            $filesystem->saveOrFail();
-
-            $parentMessage = $this->createMessage(
-                [
-                    'sent soft pull',
-                ],
-                $lead,
-                $app,
-                $lead->user,
-                $lead->company
-            );
-
-            $childMessage = $this->createMessage(
-                [
+                $softPull = SoftPull::from(
+                    $people,
                     [
-                        'label' => 'First Name',
-                        'value' => $people->firstname,
-                    ],
-                    [
-                        'label' => 'Middle Name',
-                        'value' => $people->middlename,
-                    ],
-                    [
-                        'label' => 'Last Name',
-                        'value' => $people->lastname,
-                    ],
-                    [
-                        'label' => 'Mobile',
-                        'value' => $softPull->mobile,
-                    ],
-                    [
-                        'label' => 'State',
-                        'value' => $address->state,
-                    ],
-                    [
-                        'label' => 'City',
-                        'value' => $address->city,
-                    ],
-                    [
-                        'label' => 'Birthday',
-                        'value' => $people->dob,
-                    ],
-                    [
-                        'label' => 'Last 4 Digits of SSN',
-                        'value' => $softPull->last_4_digits_of_ssn,
-                    ],
-                ],
-                $lead,
-                $app,
-                $lead->user,
-                $lead->company,
-                $parentMessage->getId()
-            );
-
-            $childMessage->addFile($filesystem, 'soft_pull');
-
-            //createPdf
-            if ($generatePdf) {
-                $pdfService = PdfService::generatePdfFromTemplate(
-                    $app,
-                    $lead->user,
-                    $pdfTemplate ?? 'soft-pull-pdf-v2', //template name laravel
-                    $childMessage,
-                    [
-                        'lead' => $lead,
+                        'last_4_digits_of_ssn' => $people->get('last_4_digits_of_ssn') ?? '',
+                        'city' => $address->city,
+                        'state' => $address->state,
                     ]
                 );
 
-                $childMessage->addFile($pdfService, $pdfFileName ?? 'soft_pull_pdf.pdf');
-            }
-        }
+                if (empty($softPull->last_4_digits_of_ssn)) {
+                    return [
+                        'message' => 'Last 4 digits of SSN is required',
+                        'lead_id' => $lead->getId(),
+                    ];
+                }
 
-        return [
-            'message' => 'Soft Pull executed from lead',
-            'lead_id' => $lead->getId(),
-            'results' => $results,
-        ];
+                $softPullAction = new SoftPullAction($lead, $people);
+                $results = $softPullAction->execute($softPull);
+
+                //if result is a url
+                if (filter_var($results, FILTER_VALIDATE_URL)) {
+                    $filesystem = new Filesystem();
+                    $filesystem->fill([
+                        'name' => 'soft_pull',
+                        'companies_id' => $lead->companies_id,
+                        'apps_id' => $lead->apps_id,
+                        'users_id' => $lead->users_id,
+                        'path' => pathinfo($results, PATHINFO_DIRNAME),
+                        'url' => $results,
+                        'file_type' => 'pdf',
+                        'size' => '0',
+                    ]);
+                    $filesystem->saveOrFail();
+
+                    $parentMessage = $this->createMessage(
+                        [
+                            'sent soft pull',
+                        ],
+                        $lead,
+                        $app,
+                        $lead->user,
+                        $lead->company
+                    );
+
+                    $childMessage = $this->createMessage(
+                        [
+                            [
+                                'label' => 'First Name',
+                                'value' => $people->firstname,
+                            ],
+                            [
+                                'label' => 'Middle Name',
+                                'value' => $people->middlename,
+                            ],
+                            [
+                                'label' => 'Last Name',
+                                'value' => $people->lastname,
+                            ],
+                            [
+                                'label' => 'Mobile',
+                                'value' => $softPull->mobile,
+                            ],
+                            [
+                                'label' => 'State',
+                                'value' => $address->state,
+                            ],
+                            [
+                                'label' => 'City',
+                                'value' => $address->city,
+                            ],
+                            [
+                                'label' => 'Birthday',
+                                'value' => $people->dob,
+                            ],
+                            [
+                                'label' => 'Last 4 Digits of SSN',
+                                'value' => $softPull->last_4_digits_of_ssn,
+                            ],
+                        ],
+                        $lead,
+                        $app,
+                        $lead->user,
+                        $lead->company,
+                        $parentMessage->getId()
+                    );
+
+                    $childMessage->addFile($filesystem, 'soft_pull');
+
+                    //createPdf
+                    if ($generatePdf) {
+                        $pdfService = PdfService::generatePdfFromTemplate(
+                            $app,
+                            $lead->user,
+                            $pdfTemplate ?? 'soft-pull-pdf-v2', //template name laravel
+                            $childMessage,
+                            [
+                                'lead' => $lead,
+                            ]
+                        );
+
+                        $childMessage->addFile($pdfService, $pdfFileName ?? 'soft_pull_pdf.pdf');
+                    }
+                }
+
+                return [
+                    'message' => 'Soft Pull executed from lead',
+                    'lead_id' => $lead->getId(),
+                    'results' => $results,
+                ];
+            },
+            company: $lead->company,
+        );
     }
 
     /**

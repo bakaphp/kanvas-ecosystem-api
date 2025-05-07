@@ -29,7 +29,7 @@ class ProductTypeService
                     $productsTypes,
                     $attributeObject,
                     $toVariant,
-                    $attribute['is_required']
+                    isset($attribute['is_required']) ? (bool) $attribute['is_required'] : false,
                 ));
 
             (new CreateProductTypeAttributeAction($productsAttributesDto, $user))->execute();

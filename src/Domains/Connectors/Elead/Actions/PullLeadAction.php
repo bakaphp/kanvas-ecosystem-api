@@ -14,6 +14,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Locations\Models\Countries;
+use Throwable;
 
 class PullLeadAction
 {
@@ -26,14 +27,13 @@ class PullLeadAction
 
     public function execute(array $request): array
     {
-        $phones = $request['phones'] ?? [];
-        $emails = $request['emails'] ?? [];
-        $email = $emails[0] ?? null;
+        $phone = $request['phone']['cell'] ?? $request['phone']['home'] ?? $request['phone']['work'] ?? null;
+        //$emails = $request['emails'] ?? [];
+        $email = $request['email'] ?? null;
         $dob = $request['birthday'] ?? null;
         $firstname = $request['firstname'] ?? null;
         $lastname = $request['lastname'] ?? null;
-        $personId = $request['personId'];
-        $phone = $phones[0] ?? null;
+        $personId = $request['personId'] ?? $request['entity_id'] ?? null;
 
         $people = People::getByCustomField(
             CustomFieldEnum::PERSON_ID->value,
@@ -76,14 +76,19 @@ class PullLeadAction
                     continue;
                 }
 
-                $eLead = Lead::getByCustomerId($this->app, $this->company, $customer['id']);
-                $eLead->customerId = $customer['id'];
+                try {
+                    $eLead = Lead::getByCustomerId($this->app, $this->company, $customer['id']);
+                    $eLead->customerId = $customer['id'];
 
-                $lead = new SyncLeadByThirdPartyCustomFieldAction(
-                    DataTransferObjectLead::fromLeadEntity($eLead, $this->user)
-                )->execute();
+                    $lead = new SyncLeadByThirdPartyCustomFieldAction(
+                        DataTransferObjectLead::fromLeadEntity($eLead, $this->user)
+                    )->execute();
 
-                $results[] = $lead;
+                    $results[] = $lead;
+                } catch (Throwable $th) {
+                    //ignore the error
+                    continue;
+                }
             }
         }
 

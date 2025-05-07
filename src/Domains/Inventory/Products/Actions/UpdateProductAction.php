@@ -42,7 +42,7 @@ class UpdateProductAction
                     'products_types_id' => $productType,
                     'name' => $this->productDto->name,
                     'slug' => $this->productDto->slug ?? $this->product->slug,
-                    'description' => $this->productDto->description ?? $this->product->description,
+                    'description' => $this->productDto->getDescription() ?? $this->product->description,
                     'short_description' => $this->productDto->short_description ?? $this->product->short_description,
                     'html_description' => $this->productDto->html_description ?? $this->product->html_description,
                     'warranty_terms' => $this->productDto->warranty_terms ?? $this->product->warranty_terms,

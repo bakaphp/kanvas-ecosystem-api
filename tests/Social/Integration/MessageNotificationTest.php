@@ -5,12 +5,20 @@ declare(strict_types=1);
 namespace Tests\Social\Integration;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Internal\Handlers\InternalHandler;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\Support\Setup;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
+use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
+use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
 
@@ -20,6 +28,8 @@ class MessageNotificationTest extends TestCase
     {
         $app = app(Apps::class);
         $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
         $data = [
             'description' => 'As the 2024',
             'title' => 'What You Need to Know',
@@ -66,6 +76,28 @@ class MessageNotificationTest extends TestCase
             $user->getCurrentCompany()
         );
         $socialSetup->run();
+
+        $region = Regions::fromApp($app)->fromCompany($company)->first();
+
+        $integration = Integrations::firstOrCreate([
+            'apps_id' => $app->getId(),
+            'name' => IntegrationsEnum::INTERNAL->value,
+            'config' => [],
+            'handler' => InternalHandler::class,
+        ]);
+
+        $integrationDto = new IntegrationsCompany(
+            integration: $integration,
+            region: $region,
+            company: $company,
+            config: [],
+            app: $app
+        );
+
+        $status = Status::where('slug', StatusEnum::ACTIVE->value)
+        ->where('apps_id', 0)
+        ->first();
+        new CreateIntegrationCompanyAction($integrationDto, $user, $status)->execute();
 
         $activity = new SendMessageNotificationToFollowersActivity(
             0,

@@ -46,6 +46,7 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Override;
@@ -480,7 +481,16 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public static function search($query = '', $callback = null)
     {
-        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $app = app(Apps::class);
+
+        $app->fireWorkflow(
+            event: WorkflowEnum::SEARCH->value,
+            params: [
+                'search' => $query,
+            ]
+        );
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
         if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
@@ -617,6 +627,16 @@ class Products extends BaseModel implements EntityIntegrationInterface
             : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
     }
 
+    public function getTotalVariants(): int
+    {
+        return (int) ($this->get('total_variants') ?? 0);
+    }
+
+    public function setTotalVariants(): void
+    {
+        $this->set('total_variants', Variants::where('products_id', $this->getId())->count());
+    }
+
     /**
      * The Typesense schema to be created.
      */
@@ -642,6 +662,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 [
                     'name' => 'files',
                     'type' => 'object[]',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'company',

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Actions;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Auth\Services\AuthenticationService;
 use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
@@ -61,9 +60,7 @@ class UpdateCompaniesAction
 
     public function deactivateUser(Users $user, Apps $app): bool
     {
-        $userAssociate = UsersRepository::belongsToThisApp($user, $app);
-        AuthenticationService::logoutFromAllDevices($userAssociate->user, $app);
-        return $userAssociate->deActive();
+        return (new DeactivateUserAction($user, $app))->execute();
     }
 
     public function activateUser(Users $user, Apps $app): bool

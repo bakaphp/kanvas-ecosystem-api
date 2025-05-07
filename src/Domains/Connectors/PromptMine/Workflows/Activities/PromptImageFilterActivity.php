@@ -25,6 +25,7 @@ use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -40,6 +41,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
+
+        sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 5);
         $messageFiles = $entity->getFiles();
         $this->app = $app;
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
@@ -54,7 +58,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity) use ($messageFiles, $params, $imageFilter, $isOpenAi) {
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageFiles, $params, $imageFilter, $isOpenAi) {
+                $entity->setPrivate();
+
                 if (empty($this->apiUrl)) {
                     return [
                         'result' => false,
@@ -103,9 +109,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         }
                     }
 
-                    // Change to public when the image is processed
-                    $entity->is_public = 0;
-                    $entity->save();
                     // Create nugget message and send notification - common for both methods
                     return $this->finalizeProcessing(
                         $entity,
@@ -270,6 +273,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             );
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
+                entity: $entity,
                 message: 'Your image could not be processed because it violated our content policy. Please try again with a different image.',
                 title: 'Error processing image',
                 via: $endViaList,
@@ -278,7 +282,15 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     'push_template' => $params['push_template'],
                 ],
             );
+
+            //send to the user profile when it fails
+            $errorProcessingImageNotification->setData([
+                'destination_id' => $entity->getId(),
+                'destination_type' => 'USER',
+                'destination_event' => 'FOLLOWING',
+            ]);
             $entity->user->notify($errorProcessingImageNotification);
+            $entity->delete();
 
             throw new Exception('OpenAI API request failed: ' . $response->body());
         }
@@ -324,7 +336,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         array $params = [],
         ?string $requestId = null
     ): array {
-        $title = $entity->message['title'] ?? 'your prompt';
+        $title = $entity->message['title'] ?? $entity->message['prompt'];
 
         // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
@@ -352,6 +364,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             // Send notification to the user
             $newMessageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
+                entity: $entity,
                 message: "Your image for {$title} has been processed",
                 title: 'Image Processed',
                 via: $endViaList,
@@ -361,6 +374,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 ],
             );
             $entity->user->notify($newMessageNotification);
+
+            $createNuggetMessage->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->app,
+                ]
+            );
         } catch (InternalServerErrorException $e) {
             report($e);
 

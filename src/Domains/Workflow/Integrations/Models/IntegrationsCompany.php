@@ -67,10 +67,14 @@ class IntegrationsCompany extends BaseModel
      *
      * @param Status $status Current status of the integration company
      * @param string $name name of the integration
-     * @param Region $region The region of the company integration
+     * @param Regions $region The region of the company integration
      */
-    public static function getByIntegration(Companies $company, Status $status, string $name, Regions $region): ?IntegrationsCompany
-    {
+    public static function getByIntegration(
+        Companies $company,
+        Status $status,
+        string $name,
+        Regions $region
+    ): ?IntegrationsCompany {
         $integration = Integrations::where('name', $name)->firstOrFail();
 
         return IntegrationsCompany::fromCompany($company)

@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Products\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Kanvas\Apps\Models\Apps;
@@ -78,5 +79,23 @@ class Product extends Data
             $request['slug'] ?? null,
             $request['weight'] ?? null
         );
+    }
+
+    public function getDescription(): ?string
+    {
+        if (empty($this->description) && ! empty($this->html_description)) {
+            $html = $this->html_description;
+            $html = str_replace(['</p>', '</div>', '<br>', '<br />'], "\n", $html);
+
+            $plainText = Str::of($html)
+                ->stripTags()
+                ->replaceMatches('/\n\s+\n/', "\n\n") // Normalize whitespace between paragraphs
+                ->replaceMatches('/[\r\n]{3,}/', "\n\n") // Limit consecutive line breaks
+                ->trim();
+
+            $this->description = (string) $plainText;
+        }
+
+        return $this->description;
     }
 }

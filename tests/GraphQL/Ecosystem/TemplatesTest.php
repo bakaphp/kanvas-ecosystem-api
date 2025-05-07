@@ -41,25 +41,24 @@ class TemplatesTest extends TestCase
                 'template_variables' => [
                 [
                     'key' => $contentName,
-                    'value' => $contentValue
-                ]
+                    'value' => $contentValue,
                 ],
-                'template' => $template
-            ]
+                ],
+                'template' => $template,
+            ],
         ]
         )->assertJson([
             'data' => [
                 'createTemplate' => [
-
                     'name' => $name,
                     'template' => $template,
                     'is_system' => false,
                     'template_variables' => [
                         [
                             'name' => $contentName,
-                            'value' => $contentValue
-                        ]
-                    ]
+                            'value' => $contentValue,
+                        ],
+                    ],
                 ],
             ],
         ]);
@@ -76,8 +75,57 @@ class TemplatesTest extends TestCase
         $template = "<p>{$contentName}/p>";
 
         $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation updateTemplate($input: TemplateInput!) {
+            mutation createTemplate($input: TemplateInput!) {
+                createTemplate(
+            input: $input
+        ){
+            name
+            id
+            template
+            is_system
+            template_variables {
+            name
+            value
+        }
+            }
+        }
+        ',
+            [
+            'input' => [
+                'name' => $name,
+                'parent_template_id' => 0,
+                'is_system' => false,
+                'template_variables' => [
+                [
+                    'key' => $contentName,
+                    'value' => $contentValue,
+                ],
+                ],
+                'template' => $template,
+            ],
+        ]
+        )->assertJson([
+            'data' => [
+                'createTemplate' => [
+                    'name' => $name,
+                    'template' => $template,
+                    'is_system' => false,
+                    'template_variables' => [
+                        [
+                            'name' => $contentName,
+                            'value' => $contentValue,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $id = $response->json('data.createTemplate.id');
+
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation updateTemplate($id: ID!, $input: TemplateInput!) {
                 updateTemplate(
+            id: $id
             input: $input
         ){
             name
@@ -90,30 +138,30 @@ class TemplatesTest extends TestCase
         }
         ',
             [
+            'id' => $id,
             'input' => [
                 'name' => $name,
                 'parent_template_id' => 0,
                 'template_variables' => [
                 [
                     'key' => $contentName,
-                    'value' => $contentValue
-                ]
+                    'value' => $contentValue,
                 ],
-                'template' => $template
-            ]
+                ],
+                'template' => $template,
+            ],
         ]
         )->assertJson([
             'data' => [
                 'updateTemplate' => [
-
                     'name' => $name,
                     'template' => $template,
                     'template_variables' => [
                         [
                             'name' => $contentName,
-                            'value' => $contentValue
-                        ]
-                    ]
+                            'value' => $contentValue,
+                        ],
+                    ],
                 ],
             ],
         ]);
@@ -168,14 +216,14 @@ class TemplatesTest extends TestCase
                     'template_variables' => [
                         [
                             'key' => $contentName,
-                            'value' => $contentValue
-                        ]
+                            'value' => $contentValue,
+                        ],
                     ],
-                    'template' => $template
-                ]
+                    'template' => $template,
+                ],
             ]
         );
-        dump($response->json());
+
         $id = $response->json('data.createTemplate.id');
         $this->graphQL(/** @lang GraphQL */ '
             mutation deleteTemplate($id: ID!) {
@@ -184,7 +232,7 @@ class TemplatesTest extends TestCase
                 )
             }',
             [
-                'id' => $id
+                'id' => $id,
             ]
         )->assertJson([
             'data' => [
