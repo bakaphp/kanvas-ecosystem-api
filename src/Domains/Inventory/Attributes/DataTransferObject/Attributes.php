@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
@@ -34,11 +35,26 @@ class Attributes extends Data
     public static function fromMultiple(array $request, UserInterface $user, AppInterface $app): self
     {
         try {
-            $attributeType = isset($request['attribute_type']['id']) ? AttributesTypesRepository::getById((int) $request['attribute_type']['id'], $user->getCurrentCompany(), $app) : null;
+            $attributeTypeId = $request['attribute_type']['id'] ?? null;
+
+            if (empty($attributeTypeId)) {
+                $attributeType = null;
+            } else {
+                $attributeType = AttributesTypesRepository::getById(
+                    (int) $attributeTypeId,
+                    $user->getCurrentCompany(),
+                    $app
+                );
+            }
         } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
-            $attributeType = AttributesTypesModel::where('id', $request['attribute_type']['id'])->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-                ->where('apps_id', AppEnums::LEGACY_APP_ID->getValue())
-                ->firstOrFail();
+            try {
+                $attributeType = AttributesTypesModel::where('id', $attributeTypeId)
+                    ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+                    ->where('apps_id', AppEnums::LEGACY_APP_ID->getValue())
+                    ->firstOrFail();
+            } catch (Exception $e) {
+                throw new Exception("Attribute type {$attributeTypeId} not found in any company context", 0, $e);
+            }
         }
 
         return new self(
