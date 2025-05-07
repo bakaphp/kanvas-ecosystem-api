@@ -42,7 +42,7 @@ class FilesystemMapper extends Data
             description: $data['description'] ?? null,
             header: $data['header'] ?? $data['file_header'],
             mapping: $data['mapping'],
-            configuration: isset($data['configuration']) ? json_decode(json_encode($data['configuration']), true) : [],
+            configuration: json_decode(json_encode($data['configuration'] ?? []), true),
             is_default: $data['is_default'] ?? false
         );
     }
