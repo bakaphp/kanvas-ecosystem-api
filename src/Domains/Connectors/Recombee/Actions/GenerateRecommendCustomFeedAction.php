@@ -9,10 +9,8 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\UserMessage;
 
 class GenerateRecommendCustomFeedAction
 {
