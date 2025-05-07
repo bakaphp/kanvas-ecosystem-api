@@ -61,7 +61,7 @@ class CreateEsimOrderAction
         }
 
         $this->esimData = $this->customerService->getEsimInfo($this->availableVariant->sku);
-        $qrCodeBase64 = $this->generateQrCode($this->esimData['data']['downloadUrl']);
+        $qrCodeBase64 = self::generateQrCode($this->esimData['data']['downloadUrl']);
 
         return $this->createESimObject($qrCodeBase64);
     }
@@ -168,7 +168,7 @@ class CreateEsimOrderAction
         $orderItem->setPrivate();
     }
 
-    protected function generateQrCode(string $downloadUrl): string
+    public static function generateQrCode(string $downloadUrl): string
     {
         $writer = new Writer(
             new ImageRenderer(

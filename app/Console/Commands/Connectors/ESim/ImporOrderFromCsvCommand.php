@@ -31,6 +31,17 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use League\Csv\Reader;
 use Spatie\LaravelData\DataCollection;
+use Kanvas\Connectors\ESim\DataTransferObject\ESim;
+use Kanvas\Connectors\CMLink\Actions\CreateEsimOrderAction;
+use Kanvas\Connectors\ESim\DataTransferObject\ESimStatus;
+use Kanvas\Connectors\ESim\Support\FileSizeConverter;
+use Kanvas\Connectors\CMLink\Enums\PlanTypeEnum;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 
 class ImporOrderFromCsvCommand extends Command
 {
@@ -136,7 +147,8 @@ class ImporOrderFromCsvCommand extends Command
             try {
                 $user = UsersRepository::getByEmail($order['email']);
             } catch (Exception $e) {
-                continue;
+                $user = $this->user;
+                // continue;
             }
             $dto = OrderDTO::from([
                 'app' => $this->app,
@@ -159,6 +171,60 @@ class ImporOrderFromCsvCommand extends Command
             $action->disableWorkflow();
             $kanvasOrder = $action->execute();
             $kanvasOrder->set(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value, $order['order_reference']);
+            $esim = Esim::from([
+                'lpaCode' => $order['lpa_code'],
+                'iccid' => $order['region'],
+                'status' => $order['activation_status'],
+                'quantity' => $items->count(),
+                'pricePerUnit' => $items->first()->price,
+                'type' => 'bundle',
+                'plan' => $dto->items->first()->sku,
+                'smdpAddress' => $order['smdp_address'],
+                'matchingId' => $order['matching_id'],
+                'firstInstalledDateTime' => strtotime($order['date_from']),
+                'orderReference' => $kanvasOrder->getId(),
+                'qrCode' => CreateEsimOrderAction::generateQrCode($order['lpa_code']),
+                'esimStatus' => ESimStatus::from([
+                    'id' => $order['activation'],
+                    'callTypeGroup' => 'data',
+                    'initialQuantity' => FileSizeConverter::toBytes($items->first()->sku),
+                    'remainingQuantity' => FileSizeConverter::toBytes($items->first()->sku),
+                    'assignmentDateTime' => $order['date_from'],
+                    'assignmentReference' => $order['lpa_code'],
+                    'bundleState' => json_decode($order['activation'])->status,
+                    'unlimited' => $kanvasOrder->items()->first()->variant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
+                ]),
+                'label' => $order['label']
+             ]);
+            $response = [
+                'success' => true,
+                'data' => $esim->toArray(),
+                'esim_status' => $esim->esimStatus->toArray(),
+                'order_id' => $kanvasOrder->id,
+                'order' => $kanvasOrder->toArray()
+            ];
+            $messageType = (new CreateMessageTypeAction(
+                new MessageTypeInput(
+                    $app->getId(),
+                    0,
+                    'esim',
+                    'esim',
+                )
+            ))->execute();
+            $createMessage = new CreateMessageAction(
+                new MessageInput(
+                    $app,
+                    $kanvasOrder->company,
+                    $kanvasOrder->user,
+                    $messageType,
+                    $response
+                ),
+                SystemModulesRepository::getByModelName(Order::class, $app),
+                $kanvasOrder->getId()
+            );
+
+            $message = $createMessage->execute();
+
             $this->info("Order created: {$kanvasOrder->order_number}\n");
         }
     }
