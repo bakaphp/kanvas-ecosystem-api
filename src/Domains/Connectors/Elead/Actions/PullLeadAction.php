@@ -14,6 +14,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Locations\Models\Countries;
+use Throwable;
 
 class PullLeadAction
 {
@@ -75,14 +76,19 @@ class PullLeadAction
                     continue;
                 }
 
-                $eLead = Lead::getByCustomerId($this->app, $this->company, $customer['id']);
-                $eLead->customerId = $customer['id'];
+                try {
+                    $eLead = Lead::getByCustomerId($this->app, $this->company, $customer['id']);
+                    $eLead->customerId = $customer['id'];
 
-                $lead = new SyncLeadByThirdPartyCustomFieldAction(
-                    DataTransferObjectLead::fromLeadEntity($eLead, $this->user)
-                )->execute();
+                    $lead = new SyncLeadByThirdPartyCustomFieldAction(
+                        DataTransferObjectLead::fromLeadEntity($eLead, $this->user)
+                    )->execute();
 
-                $results[] = $lead;
+                    $results[] = $lead;
+                } catch (Throwable $th) {
+                    //ignore the error
+                    continue;
+                }
             }
         }
 
