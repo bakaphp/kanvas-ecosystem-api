@@ -341,7 +341,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@createCompany"
         )
         @canDo(
-            permission: "create companies"
+            permission: "create-companies"
             model: "Kanvas\\Companies\\Models\\Companies"
         )
     updateCompany(id: ID!, input: CompanyInput): Company!
@@ -349,7 +349,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updateCompany"
         )
         @canDo(
-            permission: "edit companies"
+            permission: "edit-companies"
             model: "Kanvas\\Companies\\Models\\Companies"
         )
     updateCompanyPhotoProfile(file: Upload!, id: ID!): Company!
@@ -358,7 +358,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updatePhotoProfile"
         )
         @canDo(
-            permission: "edit companies"
+            permission: "edit-companies"
             model: "Kanvas\\Companies\\Models\\Companies"
         )
     uploadFileToCompany(id: ID!, file: Upload!): Company!
@@ -370,7 +370,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@deleteCompany"
         )
         @canDo(
-            permission: "delete companies"
+            permission: "delete-companies"
             model: "Kanvas\\Companies\\Models\\Companies"
         )
     createCompanyBranch(input: CompanyBranchInput): CompanyBranch!
