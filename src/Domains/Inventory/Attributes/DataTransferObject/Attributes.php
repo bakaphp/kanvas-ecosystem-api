@@ -8,9 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Inventory\Attributes\Models\AttributesTypes as AttributesTypesModel;
 use Kanvas\Inventory\Attributes\Repositories\AttributesTypesRepository;
 use Spatie\LaravelData\Data;
@@ -34,8 +35,8 @@ class Attributes extends Data
     {
         try {
             $attributeType = isset($request['attribute_type']['id']) ? AttributesTypesRepository::getById((int) $request['attribute_type']['id'], $user->getCurrentCompany(), $app) : null;
-        } catch (Exception $e) {
-            $attributeType = AttributesTypesModel::where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+        } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
+            $attributeType = AttributesTypesModel::where('id', $request['attribute_type']['id'])->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->where('apps_id', AppEnums::LEGACY_APP_ID->getValue())
                 ->firstOrFail();
         }
