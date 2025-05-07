@@ -8,7 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Apps\Models\Apps;
+use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\AttributesTypes as AttributesTypesModel;
 use Kanvas\Inventory\Attributes\Repositories\AttributesTypesRepository;
@@ -29,18 +29,32 @@ class Attributes extends Data
     ) {
     }
 
-    public static function viaRequest(array $request, UserInterface $user, AppInterface $app): self
+    public static function fromMultiple(array $request, UserInterface $user, AppInterface $app): self
     {
+        try {
+            $attributeType = isset($request['attribute_type']['id']) ? AttributesTypesRepository::getById((int) $request['attribute_type']['id'], $user->getCurrentCompany(), $app) : null;
+        } catch (Exception $e) {
+            $attributeType = AttributesTypesModel::query()->where('companies_id', 0)->where('apps_id', 0)->firstOrFail();
+        }
+
         return new self(
             isset($request['company_id']) ? Companies::getById($request['company_id']) : $user->getCurrentCompany(),
-            app(Apps::class),
-            auth()->user(),
+            $app,
+            $user,
             $request['name'],
             $request['slug'] ?? Str::slug($request['name']),
-            isset($request['attribute_type']['id']) ? AttributesTypesRepository::getById((int) $request['attribute_type']['id'], $user->getCurrentCompany()) : null,
+            $attributeType,
             $request['is_visible'] ?? false,
             $request['is_searchable'] ?? false,
             $request['is_filtrable'] ?? false,
         );
+    }
+
+    /**
+     * @deprecated v2
+     */
+    public static function viaRequest(array $request, UserInterface $user, AppInterface $app): self
+    {
+        return self::fromMultiple($request, $user, $app);
     }
 }
