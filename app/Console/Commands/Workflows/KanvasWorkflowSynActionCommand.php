@@ -66,6 +66,7 @@ use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
+use Kanvas\Domains\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
@@ -146,6 +147,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ShopifyOrderNotesWebhookJob::class,
             PullUserInformationActivity::class,
             GenerateMessageTagsWithAiActivity::class,
+            CreateAeroAmbulanciaSubscriptionActivity::class,
             PushUserInteractionToEventActivity::class,
             PushMessageToItemActivity::class,
             DistributeMessageActivity::class,

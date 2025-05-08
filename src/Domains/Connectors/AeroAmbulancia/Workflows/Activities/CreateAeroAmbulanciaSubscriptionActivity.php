@@ -11,6 +11,7 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Exceptions\ValidationException;
 
 class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterface
 {
@@ -20,7 +21,7 @@ class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterf
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         if (! $entity instanceof Order) {
-            throw new \InvalidArgumentException('Entity must be an Order');
+            throw new ValidationException('Entity must be an Order');
         }
 
         $data = $this->getActivityData($entity, $params);
@@ -30,7 +31,6 @@ class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterf
 
         return $subscriptionService->createNewSubscription(
             $data['people'],
-            $data['subscription_id'],
             $data['subscription_data']
         );
     }
@@ -42,23 +42,23 @@ class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterf
     {
         $people = $order->people;
         if (! $people instanceof People) {
-            throw new \InvalidArgumentException('Order must have a valid people record');
+            throw new ValidationException('Order must have a valid people record');
         }
 
-        $subscriptionData = $order->getMetadata('subscription_data') ?? $params['subscription_data'] ?? [];
-        if (empty($subscriptionData)) {
-            throw new \InvalidArgumentException('Subscription data is required');
+        $beneficiaries = $order->getMetadata('beneficiaries') ?? $params['beneficiaries'] ?? [];
+        if (empty($beneficiaries)) {
+            throw new ValidationException('Beneficiaries data is required in order metadata');
         }
 
-        $subscriptionId = $order->getMetadata('subscription_id') ?? $params['subscription_id'] ?? null;
-        if (! $subscriptionId) {
-            throw new \InvalidArgumentException('Subscription ID is required');
+        if (! isset($beneficiaries['holder'])) {
+            throw new ValidationException('Holder data is required in beneficiaries metadata');
         }
 
         return [
             'people' => $people,
-            'subscription_id' => (int) $subscriptionId,
-            'subscription_data' => $subscriptionData
+            'subscription_data' => [
+                'beneficiaries' => $beneficiaries
+            ]
         ];
     }
 }
