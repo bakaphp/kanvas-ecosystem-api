@@ -38,7 +38,7 @@ class CreateUserActivity extends KanvasActivity
             entity: $user,
             app: $app,
             integration: IntegrationsEnum::SHOPIFY,
-            integrationOperation: function ($app) use ($user, $company, $defaultRegion, $params) {
+            integrationOperation: function ($app) use ($user, $integrationCompany, $defaultRegion, $params) use ($company) {
                 if (! $defaultRegion) {
                     return [
                         'status' => 'error',
