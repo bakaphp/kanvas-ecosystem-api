@@ -21,7 +21,7 @@ type User {
     user_active: Boolean!
     timezone: String
     abilities: Mixed! @method(name: "getAbilitiesList")
-    roles: Mixed! @method(name: "getRoles")
+    roles: Mixed! @method(name: "getRolesToArray")
     mainRole: String!
     welcome: Boolean! @method(name: "getAppWelcome")
     created_at: DateTime
