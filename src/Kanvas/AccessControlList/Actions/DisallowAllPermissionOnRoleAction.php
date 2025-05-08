@@ -1,11 +1,14 @@
 <?php
-declare(strict_types=1);
-namespace Kanvas\AccessControlList\Actions;
-use Silber\Bouncer\Database\Role as SilberRole;
-use Kanvas\AccessControlList\Models\Role;
-use Bouncer;
-class DisallowAllPermissionOnRoleAction {
 
+declare(strict_types=1);
+
+namespace Kanvas\AccessControlList\Actions;
+
+use Bouncer;
+use Silber\Bouncer\Database\Role as SilberRole;
+
+class DisallowAllPermissionOnRoleAction
+{
     public function __construct(
         protected SilberRole $role
     ) {
