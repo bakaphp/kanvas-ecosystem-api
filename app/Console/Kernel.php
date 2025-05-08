@@ -14,6 +14,8 @@ use Override;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
 use Spatie\Health\Commands\ScheduleCheckHeartbeatCommand;
+use App\Console\Commands\Connectors\PromptMine\SendPushMonthlyPromptCountCommand;
+use App\Console\Commands\Connectors\PromptMine\SendPushPromptOfTheWeekCommand;
 
 class Kernel extends ConsoleKernel
 {
@@ -31,6 +33,8 @@ class Kernel extends ConsoleKernel
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
+        $schedule->command(SendPushMonthlyPromptCountCommand::class, [env('PROMPTMINE_APP_ID', '13'), env('PROMPTMINE_PROMPT_MESSAGE_TYPE', '572')])->lastOfMonth('23:59');
+        $schedule->command(SendPushPromptOfTheWeekCommand::class,[env('PROMPTMINE_APP_ID', '13'), env('PROMPTMINE_PROMPT_MESSAGE_TYPE', '572')])->weeklyOn(3, '13:00');
         #$schedule->command(ScoutMessageReindexCommand::class, [env('MESSAGE_REINDEX_SCOUT_APP_ID', '13'), env('MESSAGE_REINDEX_SCOUT_MESSAGE_TYPES_ID', '572')])->everyTenMinutes();
         #$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron
         #$schedule->command(ImportPromptsFromDocsCommand::class)->weeklyOn(1, '00:00');
