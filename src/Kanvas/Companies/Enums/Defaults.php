@@ -6,6 +6,7 @@ namespace Kanvas\Companies\Enums;
 
 use Baka\Contracts\EnumsInterface;
 use Kanvas\Enums\AppEnums;
+use Override;
 
 enum Defaults implements EnumsInterface
 {
@@ -17,6 +18,7 @@ enum Defaults implements EnumsInterface
     case SEARCHABLE_INDEX;
     case ALLOW_DUPLICATE_CONTACTS;
 
+    #[Override]
     public function getValue(): mixed
     {
         $appDefaults = AppEnums::GLOBAL_COMPANY_ID;

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ba38b96d787e7d6e1cdc41ea02ea555a",
+    "content-hash": "0da232f5f42de348c8280634549eac2f",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.343.7",
+            "version": "3.343.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "da15c4ac4d19a10212dd10c6fe37dc293c2ce798"
+                "reference": "3746aca8cbed5f46beba850e0a480ef58e71b197"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/da15c4ac4d19a10212dd10c6fe37dc293c2ce798",
-                "reference": "da15c4ac4d19a10212dd10c6fe37dc293c2ce798",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/3746aca8cbed5f46beba850e0a480ef58e71b197",
+                "reference": "3746aca8cbed5f46beba850e0a480ef58e71b197",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.343.7"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.343.6"
             },
-            "time": "2025-05-08T18:07:19+00:00"
+            "time": "2025-05-07T18:10:08+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -6595,16 +6595,16 @@
         },
         {
             "name": "mll-lab/laravel-graphiql",
-            "version": "v3.3.3",
+            "version": "v4.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mll-lab/laravel-graphiql.git",
-                "reference": "d1605697fd7a9081d961315386864b9fb2d352f1"
+                "reference": "2ebe7c4405b58028c93d3a08623f3b162a90012d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/d1605697fd7a9081d961315386864b9fb2d352f1",
-                "reference": "d1605697fd7a9081d961315386864b9fb2d352f1",
+                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/2ebe7c4405b58028c93d3a08623f3b162a90012d",
+                "reference": "2ebe7c4405b58028c93d3a08623f3b162a90012d",
                 "shasum": ""
             },
             "require": {
@@ -6655,9 +6655,9 @@
             ],
             "support": {
                 "issues": "https://github.com/mll-lab/laravel-graphiql/issues",
-                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v3.3.3"
+                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v4.0.1"
             },
-            "time": "2025-05-06T07:56:13+00:00"
+            "time": "2025-05-07T16:45:31+00:00"
         },
         {
             "name": "moneyphp/money",

@@ -31,6 +31,7 @@ type Order {
     checkout_token: String
     currency: String
     metadata: Mixed
+    reference: String
     private_metadata: Mixed
     is_deleted: Boolean!
     created_at: String!
@@ -138,6 +139,7 @@ input OrderCartInput {
     shipping_address: AddressInput
     items: [OrderLineItemInput]
     metadata: Mixed
+    reference: String
 }
 
 input UpdateOrderInput {
@@ -264,6 +266,7 @@ extend type Query @guard {
                     "status"
                     "fulfillment_status"
                     "order_number"
+                    "reference"
                 ]
             )
         hasAddress: _

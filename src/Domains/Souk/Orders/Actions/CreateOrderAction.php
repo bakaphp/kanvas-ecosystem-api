@@ -77,6 +77,7 @@ class CreateOrderAction
             $order->metadata = $this->orderData->metadata;
             $order->payment_gateway_names = $this->orderData->paymentGatewayName;
             $order->language_code = $this->orderData->languageCode;
+            $order->reference = $this->orderData->reference;
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);
@@ -106,18 +107,18 @@ class CreateOrderAction
                     /**
                      * @todo move to workflow
                      */
-                    /*  UserRoleNotificationService::notify(
-                         RolesEnums::ADMIN->value,
-                         new NewOrderStoreOwnerNotification(
-                             $order,
-                             [
-                                 'app' => $this->orderData->app,
-                                 'company' => $this->orderData->company,
-                             ]
-                         ),
-                         $this->orderData->app
-                     ); */
-                } catch (ModelNotFoundException $e) {
+                    UserRoleNotificationService::notify(
+                        RolesEnums::OWNER->value,
+                        new NewOrderStoreOwnerNotification(
+                            $order,
+                            [
+                                   'app' => $this->orderData->app,
+                                   'company' => $this->orderData->company,
+                               ]
+                        ),
+                        $this->orderData->app
+                    );
+                } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
                     // Handle admin notification failure
                 }
             });
