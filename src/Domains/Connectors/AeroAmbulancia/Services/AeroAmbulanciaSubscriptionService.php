@@ -6,8 +6,8 @@ namespace Kanvas\Domains\Connectors\AeroAmbulancia\Services;
 
 use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Models\People;
 
 class AeroAmbulanciaSubscriptionService extends BaseService
 {
@@ -21,7 +21,6 @@ class AeroAmbulanciaSubscriptionService extends BaseService
      *
      * @param People $people The people record from the order
      * @param array $subscriptionData The subscription data from the order metadata
-     * @return array
      * @throws ValidationException
      */
     public function createNewSubscription(People $people, array $subscriptionData): array
@@ -31,11 +30,11 @@ class AeroAmbulanciaSubscriptionService extends BaseService
         }
 
         $beneficiaries = $subscriptionData['beneficiaries'];
-        
+
         // Create holder subscription
         $holderData = $this->prepareBeneficiaryData($people, $beneficiaries['holder']);
         $holderData['type'] = SubscriptionType::NEW->value;
-        
+
         $response = $this->client->post("/subscriptions/44219/subscription-items", $holderData);
 
         // Create dependents subscriptions if they exist

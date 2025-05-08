@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Domains\Connectors\AeroAmbulancia\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Services\AeroAmbulanciaSubscriptionService;
-use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
-use Illuminate\Database\Eloquent\Model;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 
 class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterface
 {
