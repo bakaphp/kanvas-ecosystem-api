@@ -6,12 +6,12 @@ namespace Kanvas\AccessControlList\Actions;
 
 use Bouncer;
 use Kanvas\AccessControlList\Enums\RolesEnums;
-use Silber\Bouncer\Database\Role as SilberRole;
 use Kanvas\AccessControlList\Templates\AdminRoleTemplate;
 use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Kanvas\AccessControlList\Templates\OwnerRoleTemplate;
 use Kanvas\AccessControlList\Templates\UsersRoleTemplate;
 use Kanvas\Apps\Models\Apps;
+use Silber\Bouncer\Database\Role as SilberRole;
 
 class CreateRolesByTemplatesAction
 {
