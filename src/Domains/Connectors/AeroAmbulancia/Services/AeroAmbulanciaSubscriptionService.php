@@ -8,6 +8,8 @@ use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
+use Carbon\Carbon;
+use Kanvas\Inventory\Variants\Models\Variants;
 
 class AeroAmbulanciaSubscriptionService extends BaseService
 {
@@ -58,6 +60,18 @@ class AeroAmbulanciaSubscriptionService extends BaseService
     {
         $this->validateBeneficiaryData($beneficiaryData);
 
+        // Get the subscription variant to get the days
+        $subscriptionVariant = Variants::find($beneficiaryData['ambulanceVariantId']);
+        if (!$subscriptionVariant) {
+            throw new ValidationException('Invalid ambulanceVariantId: ' . $beneficiaryData['ambulanceVariantId']);
+        }
+
+        $days = (int) $subscriptionVariant->getAttributeBySlug('duration')?->value ?? 30; // Default to 30 days if not specified
+
+        // Calculate expiration date based on activation date
+        $activationDate = Carbon::createFromFormat('d-m-Y', $beneficiaryData['activationDate']);
+        $expirationDate = $activationDate->addDays($days)->format('Y-m-d H:i:s');
+
         return [
             'documentType' => $beneficiaryData['documentType'],
             'documentNumber' => $beneficiaryData['documentNumber'],
@@ -68,7 +82,7 @@ class AeroAmbulanciaSubscriptionService extends BaseService
             'sex' => $beneficiaryData['gender'],
             'birthdate' => $beneficiaryData['birthDate'],
             'activationDate' => $beneficiaryData['activationDate'],
-            'expirationDate' => $beneficiaryData['expirationDate'] ?? null,
+            'expirationDate' => $expirationDate,
             'acquiredPlan' => $beneficiaryData['ambulanceVariantId'],
             'preferredLanguage' => $beneficiaryData['preferredLanguage'] ?? 'es'
         ];
