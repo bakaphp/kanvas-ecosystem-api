@@ -46,7 +46,7 @@ class CreateRolesByTemplatesAction
                     if ($savedRole) {
                         (new DisallowAllPermissionOnRoleAction($savedRole))->execute();
                     }
-                    // Bouncer::allow($role)->to($value, $key);
+                    Bouncer::allow($role)->to($value, $key);
                 }
             }
         }
