@@ -62,7 +62,7 @@ class AeroAmbulanciaSubscriptionService extends BaseService
 
         // Get the subscription variant to get the days
         $subscriptionVariant = Variants::find($beneficiaryData['ambulanceVariantId']);
-        if (!$subscriptionVariant) {
+        if (! $subscriptionVariant) {
             throw new ValidationException('Invalid ambulanceVariantId: ' . $beneficiaryData['ambulanceVariantId']);
         }
 
