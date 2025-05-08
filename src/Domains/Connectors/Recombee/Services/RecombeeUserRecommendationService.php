@@ -43,6 +43,7 @@ class RecombeeUserRecommendationService
         $recommendationOptions = [
             'rotationRate' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_RATE->value ?? '0.2'),
             'rotationTime' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value, 7200.0),
+            'minRelevance' => $this->app->get(ConfigurationEnum::RECOMBEE_MIN_RELEVANCE->value ?? 'low'),
         ];
 
         if ($this->app->get('recombee-user-content-preferences-boosters')) {
