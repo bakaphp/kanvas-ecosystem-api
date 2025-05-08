@@ -23,7 +23,6 @@ class RoleAbilitiesQuery
         $mapAbilities = $abilities->map(function ($ability) {
             return $ability->name;
         });
-
         return $mapAbilities->all();
     }
 

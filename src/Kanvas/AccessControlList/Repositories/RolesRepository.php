@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Bouncer;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
@@ -110,7 +109,6 @@ class RolesRepository
                 ];
                 continue;
             }
-            Log::debug("Ability", $ability);
             $found = false;
             foreach ($modules[$permission['name']]['systemModules'] as $key => $systemModules) {
                 if ($systemModules['name'] == $systemModule) {

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Actions\BulkAllowRoleToPermissionAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
+use Kanvas\AccessControlList\Actions\DisallowAllPermissionOnRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role as KanvasRole;
@@ -192,7 +193,9 @@ class RolesManagementMutation
         );
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
-        Bouncer::disallow($role)->to($role->abilities->pluck('name')->toArray());
+        (new DisallowAllPermissionOnRoleAction(
+            $role
+        ))->execute();
         $permissions = $input['permissions'];
 
         (new BulkAllowRoleToPermissionAction(
@@ -201,7 +204,7 @@ class RolesManagementMutation
             $permissions
         ))->execute();
 
-        return KanvasRole::find($role->id);
+        return SilberRole::find($role->id);
     }
 
     public function deleteRole(mixed $rootValue, array $request): bool

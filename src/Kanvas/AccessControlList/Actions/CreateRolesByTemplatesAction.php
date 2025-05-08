@@ -11,6 +11,7 @@ use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Kanvas\AccessControlList\Templates\OwnerRoleTemplate;
 use Kanvas\AccessControlList\Templates\UsersRoleTemplate;
 use Kanvas\Apps\Models\Apps;
+use Silber\Bouncer\Database\Role as SilberRole;
 
 class CreateRolesByTemplatesAction
 {
@@ -40,6 +41,10 @@ class CreateRolesByTemplatesAction
                 foreach ($permissions as $value) {
                     if (in_array($value, $denied)) {
                         continue;
+                    }
+                    $savedRole = SilberRole::where('name', $role)->first();
+                    if ($savedRole) {
+                        (new DisallowAllPermissionOnRoleAction($savedRole))->execute();
                     }
                     Bouncer::allow($role)->to($value, $key);
                 }

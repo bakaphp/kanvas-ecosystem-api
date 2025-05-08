@@ -6,10 +6,10 @@ namespace Kanvas\AccessControlList\Actions;
 
 use Illuminate\Support\Facades\Validator;
 use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
+use Silber\Bouncer\Database\Role as SilberRole;
 
 class UpdateRoleAction
 {
@@ -30,7 +30,7 @@ class UpdateRoleAction
     /**
      * execute.
      */
-    public function execute(?Companies $company = null): Role
+    public function execute(?Companies $company = null): SilberRole
     {
         if ($this->name) {
             $validator = Validator::make(
@@ -47,7 +47,7 @@ class UpdateRoleAction
             }
         }
 
-        $role = Role::find($this->id);
+        $role = SilberRole::find($this->id);
         $role->update([
             'name' => $this->name ?? $role->name,
             'title' => $this->title ?? ($role->title ?? $role->name),
