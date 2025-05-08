@@ -390,6 +390,7 @@ extend type Query @guard {
                     "total_disliked"
                 ]
             )
+        scenario: String!
     ): [Message!]!
         @paginate(
             defaultCount: 25
