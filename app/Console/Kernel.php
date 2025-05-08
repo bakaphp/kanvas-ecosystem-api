@@ -2,10 +2,9 @@
 
 namespace App\Console;
 
-use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
+use App\Console\Commands\Connectors\PromptMine\SendPushMonthlyPromptCountCommand;
+use App\Console\Commands\Connectors\PromptMine\SendPushPromptOfTheWeekCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
-use App\Console\Commands\ImportPromptsFromDocsCommand;
-use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
 use Illuminate\Console\Scheduling\Schedule;
@@ -14,8 +13,6 @@ use Override;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
 use Spatie\Health\Commands\ScheduleCheckHeartbeatCommand;
-use App\Console\Commands\Connectors\PromptMine\SendPushMonthlyPromptCountCommand;
-use App\Console\Commands\Connectors\PromptMine\SendPushPromptOfTheWeekCommand;
 
 class Kernel extends ConsoleKernel
 {
