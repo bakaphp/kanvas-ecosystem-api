@@ -77,6 +77,15 @@ trait ActivityIntegrationTrait
         $company = $company ?? $entity->company;
         $region = $region ?? Regions::getDefault($company ?? $entity->company, $app);
 
+        if (! $region) {
+            return [
+                'error' => 'No region configured for this company',
+                'integration' => $integration->value,
+                'company' => $company?->getId() ?? 'no company',
+                'entity_id' => $entity->getId(),
+            ];
+        }
+
         $integrationCompany = $this->getIntegrationCompany(
             $integration,
             $region,
