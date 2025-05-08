@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Models;
 
+use Baka\Contracts\KanvasModelInterface;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Traits\KanvasScopesTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Support\Facades\Schema;
-use Baka\Contracts\KanvasModelInterface;
 use Kanvas\Traits\SoftDeletes;
 use Kanvas\Users\Models\Users;
 
