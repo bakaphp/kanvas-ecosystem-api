@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Domains\Connectors\AeroAmbulancia\Services;
 
+use Carbon\Carbon;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
-use Carbon\Carbon;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class AeroAmbulanciaSubscriptionService extends BaseService
