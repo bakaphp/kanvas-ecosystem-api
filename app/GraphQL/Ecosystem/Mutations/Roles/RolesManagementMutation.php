@@ -20,7 +20,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Silber\Bouncer\Database\Role as SilberRole;
-
+use Kanvas\AccessControlList\Actions\DisallowAllPermissionOnRoleAction;
 class RolesManagementMutation
 {
     /**
@@ -192,7 +192,9 @@ class RolesManagementMutation
         );
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
-        Bouncer::disallow($role)->to($role->abilities->pluck('name')->toArray());
+        (new DisallowAllPermissionOnRoleAction(
+            $role
+        ))->execute();
         $permissions = $input['permissions'];
 
         (new BulkAllowRoleToPermissionAction(
@@ -201,7 +203,7 @@ class RolesManagementMutation
             $permissions
         ))->execute();
 
-        return KanvasRole::find($role->id);
+        return SilberRole::find($role->id);
     }
 
     public function deleteRole(mixed $rootValue, array $request): bool

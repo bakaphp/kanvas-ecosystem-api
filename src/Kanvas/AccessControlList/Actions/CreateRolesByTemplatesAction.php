@@ -6,6 +6,7 @@ namespace Kanvas\AccessControlList\Actions;
 
 use Bouncer;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Silber\Bouncer\Database\Role as SilberRole;
 use Kanvas\AccessControlList\Templates\AdminRoleTemplate;
 use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Kanvas\AccessControlList\Templates\OwnerRoleTemplate;
@@ -41,7 +42,11 @@ class CreateRolesByTemplatesAction
                     if (in_array($value, $denied)) {
                         continue;
                     }
-                    Bouncer::allow($role)->to($value, $key);
+                    $savedRole = SilberRole::where('name', $role)->first();
+                    if ($savedRole) {
+                        (new DisallowAllPermissionOnRoleAction($savedRole))->execute();
+                    }
+                    // Bouncer::allow($role)->to($value, $key);
                 }
             }
         }

@@ -6,6 +6,7 @@ namespace Kanvas\Users\Models;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Contracts\KanvasModelInterface;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HashTableTrait;
@@ -117,7 +118,7 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property int    $user_recover_code
  * @property int    $is_deleted
  */
-class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable
+class Users extends Authenticatable implements KanvasModelInterface, UserInterface, ContractsAuthenticatable
 {
     use HashTableTrait;
     use Notifiable;
@@ -839,6 +840,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted() && $this->isActive() && $this->banned == 0;
+    }
+
+    public function isEntityOwner(Users $users): bool
+    {
+        return $this->getId() === $users->getId();
     }
 
     public function toSearchableArray(): array

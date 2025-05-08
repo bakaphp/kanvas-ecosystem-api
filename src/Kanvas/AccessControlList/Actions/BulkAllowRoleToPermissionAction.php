@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Silber\Bouncer\Database\Role as SilberRole;
 
+// Class for copy role from $template to new $role
 class BulkAllowRoleToPermissionAction
 {
     public function __construct(
