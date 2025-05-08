@@ -318,7 +318,7 @@ class Order extends BaseModel
     #[Override]
     public function shouldBeSearchable(): bool
     {
-        return false;
+        return true;
     }
 
     public function getOrderNumber(): int
