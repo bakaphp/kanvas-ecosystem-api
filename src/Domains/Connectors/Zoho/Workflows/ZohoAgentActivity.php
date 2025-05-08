@@ -40,7 +40,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
             entity: $user,
             app: $app,
             integration: IntegrationsEnum::ZOHO,
-            integrationOperation: function ($user, $app, $company, $additionalParams) use ($params) {
+            integrationOperation: function ($user, $app, $integrationCompany, $additionalParams) use ($params, $company) {
                 $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
                 if (! $usesAgentsModule) {
                     return ['No Agent Module'];
