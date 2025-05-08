@@ -77,6 +77,7 @@ class CreateOrderAction
             $order->metadata = $this->orderData->metadata;
             $order->payment_gateway_names = $this->orderData->paymentGatewayName;
             $order->language_code = $this->orderData->languageCode;
+            $order->reference = $this->orderData->reference;
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);
