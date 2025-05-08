@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Exception;
+use Kanvas\Social\Messages\Models\AppModuleMessage;
+use Kanvas\Souk\Orders\Models\Order;
 
 class CheckNuggetGenerationCountAction
 {
@@ -18,7 +20,16 @@ class CheckNuggetGenerationCountAction
     public function execute(): bool
     {
         $freeGenerationCountCustomField = $this->message->user->getId() . '-nugget-free-generation-count';
-        if ($this->message->get($freeGenerationCountCustomField) > $this->message->app->get('nugget-free-generation-limit')) {
+        $messageOrder = AppModuleMessage::fromApp($this->message->app->getId())
+            ->where('message_id', $this->message->getId())
+            ->where('apps_id', $this->message->app->getId())
+            ->where('companies_id', $this->message->company->getId())
+            ->where('system_modules', Order::class)
+            ->where('is_deleted', 0)
+            ->first();
+        // $messageOrder = AppModuleMessage::find(121530);
+
+        if ($this->message->get($freeGenerationCountCustomField) > $this->message->app->get('nugget-free-generation-limit') && ! $messageOrder->entity->isCompleted()) {
             throw new Exception('You have reached the limit of nuggets you can generate for free');
         }
 
