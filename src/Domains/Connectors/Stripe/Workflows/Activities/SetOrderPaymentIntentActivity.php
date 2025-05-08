@@ -26,7 +26,7 @@ class SetOrderPaymentIntentActivity extends KanvasActivity
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::STRIPE,
-            integrationOperation: function ($order, $app, $company, $additionalParams) use ($params) {
+            integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 $this->validateStripe($app);
 
                 $stripe = new StripeClient($order->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
