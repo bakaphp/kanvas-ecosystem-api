@@ -191,18 +191,20 @@ class ESimService
 
     /**
      * Get detailed financial transactions for a contract.
+     *
+     * Using explicit nullable type with PHP 8 syntax for parameters
      */
-    public function getFinancialDetails(int $contractId, int $fromTimestamp = null, int $toTimestamp = null): array
+    public function getFinancialDetails(int $contractId, ?int $fromTimestamp = null, ?int $toTimestamp = null): array
     {
         $params = [
             'id_contract_inst' => $contractId,
         ];
 
-        if ($fromTimestamp) {
+        if ($fromTimestamp !== null) {
             $params['dt_from'] = $fromTimestamp;
         }
 
-        if ($toTimestamp) {
+        if ($toTimestamp !== null) {
             $params['dt_to'] = $toTimestamp;
         }
 
