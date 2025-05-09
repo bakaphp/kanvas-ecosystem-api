@@ -136,7 +136,7 @@ class RecombeeIndexService
                 'updated_at' => (int) strtotime($message->updated_at->toDateTimeString()),
                 'is_premium' => $message->is_premium,
                 'ai_model' => $messageData['ai_model']['name'] ?? null,
-                'image' => $messageData['ai_image']['image'] ?? null,
+                'image' => $messageData['ai_image']['image'] ?? $messageData['ai_image'] ?? null,
                 'categories' => $message->tags->pluck('name')->toArray(),
                 'type' => $messageData['type'] ?? null,
             ],
