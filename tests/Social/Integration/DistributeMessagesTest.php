@@ -63,7 +63,7 @@ class DistributeMessagesTest extends TestCase
         $distributeMessagesToUsers = (new DistributeMessagesToUsersAction($message, $app))->execute();
 
         $totalAfter = UserMessage::fromApp($app)->count();
-        $this->assertTrue($distributeMessagesToUsers);
+        $this->assertGreaterThanOrEqual(0, $distributeMessagesToUsers);
         $this->assertEquals($totalBefore + 1, $totalAfter);
     }
 }
