@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Domains\Connectors\AeroAmbulancia\Services;
 
 use Carbon\Carbon;
+
+use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Enums\MessageTypeEnum;
-use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 
 class AeroAmbulanciaSubscriptionService extends BaseService
 {
@@ -68,7 +67,7 @@ class AeroAmbulanciaSubscriptionService extends BaseService
         if (isset($subscriptionData['order'])) {
             $order = $subscriptionData['order'];
             $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
-            
+
             if ($messageId) {
                 $message = Message::getById($messageId);
                 $messageData = $message->message;
@@ -154,4 +153,3 @@ class AeroAmbulanciaSubscriptionService extends BaseService
         }
     }
 }
-
