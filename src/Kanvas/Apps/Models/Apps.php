@@ -29,6 +29,7 @@ use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 
 /**
  * Apps Model.
@@ -68,9 +69,7 @@ class Apps extends BaseModel implements AppInterface
      */
     protected $guarded = [];
 
-    /**
-     * Boot function from Laravel.
-     */
+    #[Override]
     protected static function boot()
     {
         parent::boot();
@@ -79,6 +78,7 @@ class Apps extends BaseModel implements AppInterface
         });
     }
 
+    #[Override]
     public static function getByUuid(string $uuid, ?AppInterface $app = null): self
     {
         try {
@@ -228,6 +228,7 @@ class Apps extends BaseModel implements AppInterface
      * @return Companies The default company entity for this application
      * @throws ModelNotFoundException If no default company is configured
      */
+    #[Override]
     public function getAppCompany(): Companies
     {
         $defaultBranchId = $this->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
