@@ -13,12 +13,13 @@ use Kanvas\Connectors\VentaMobile\Client;
 use Kanvas\Connectors\VentaMobile\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VentaMobile\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VentaMobile\Enums\PlanTypeEnum;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Regions\Models\Regions;
 
-class VentaMobileProductService
+class ProductService
 {
     protected Client $client;
 
@@ -72,6 +73,46 @@ class VentaMobileProductService
     }
 
     /**
+     * Get SIM card types.
+     */
+    public function getSimCardTypes(): array
+    {
+        return $this->client->get('/get/dictionary', [
+            'dict' => 'simType',
+        ]);
+    }
+
+    /**
+     * Get available offers.
+     */
+    public function getOffers(): array
+    {
+        return $this->client->get('/get/dictionary', [
+            'dict' => 'offer',
+        ]);
+    }
+
+    /**
+     * Get period length types.
+     */
+    public function getPeriodLengthTypes(): array
+    {
+        return $this->client->get('/get/dictionary', [
+            'dict' => 'period_length_type',
+        ]);
+    }
+
+    /**
+     * Get blocking reasons.
+     */
+    public function getBlockingReasons(): array
+    {
+        return $this->client->get('/get/dictionary', [
+            'dict' => 'blocking_reason',
+        ]);
+    }
+
+    /**
      * Map VentaMobile products to Kanvas import format.
      */
     public function mapProductsToImport(): array
@@ -80,11 +121,18 @@ class VentaMobileProductService
         $tariffPlans = $this->getAllTariffPlans();
         $extensions = $this->getAllExtensions();
         $tariffPackets = $this->getAllTariffPackets();
+        $simTypes = $this->getSimCardTypes();
 
         // Create a map of tariff plan IDs to names
         $tariffPlanMap = [];
         foreach ($tariffPlans as $plan) {
             $tariffPlanMap[$plan['ID']] = $plan['name'];
+        }
+
+        // Create a map of SIM types
+        $simTypeMap = [];
+        foreach ($simTypes as $simType) {
+            $simTypeMap[$simType['ID']] = $simType['name'];
         }
 
         // Create a map of extensions with detailed info
@@ -112,6 +160,8 @@ class VentaMobileProductService
                     'data_unit' => $extension['V_UNIT'] ?? 'Byte',
                     'validity_days' => $extension['N_PERIODS_COUNT'] ?? 0,
                     'balance_id' => $extension['ID_BALANCE'] ?? null,
+                    'period_length_type' => $extension['N_PERIOD_LENGTH'] ?? 0,
+                    'compatible_sim_types' => $this->getCompatibleSimTypesForTariffPlan($tariffPlanId, $simTypeMap),
                 ];
             }
         }
@@ -141,12 +191,25 @@ class VentaMobileProductService
             // Determine variant type - basic is default
             $variantType = PlanTypeEnum::BASIC->value;
 
+            // Set default prices - in a real implementation, you would have a pricing strategy
+            $price = 10.00;
+            $originalPrice = 15.00;
+
+            // For data plans with larger data amounts, increase the price proportionally
+            if (isset($details['data_amount'])) {
+                $gbAmount = ($details['data_amount'] / 1073741824); // Convert to GB
+                if ($gbAmount >= 1) {
+                    $price = round(10.00 * $gbAmount, 2);
+                    $originalPrice = round($price * 1.3, 2); // 30% markup for original price
+                }
+            }
+
             // Prepare the variant
             $variant = $this->getVariant(
                 $name . ' - ' . $dataAmount . ' for ' . $validityDays . ' days',
                 'VENTA-EXT-' . $id,
-                10.00, // Default price - replace with actual pricing logic
-                15.00, // Default original price - replace with actual pricing logic
+                $price,
+                $originalPrice,
                 $this->mapVariantAttributes($extension, $details),
                 $variantType,
                 $extension,
@@ -155,21 +218,24 @@ class VentaMobileProductService
 
             // Create or append to the product group
             if (! isset($groupedProducts[$baseName])) {
+                // Get logo URL (placeholder - would need to be retrieved from your CMS or config)
+                $logoUrl = $this->getLogoUrlForRegion($region);
+
                 $groupedProducts[$baseName] = [
                     'name' => $baseName,
                     'description' => 'VentaMobile eSIM data plans for ' . $region,
                     'slug' => Str::slug($baseName),
                     'sku' => 'VENTA-REGION-' . Str::slug($region),
                     'regionId' => $this->region->id,
-                    'price' => 10.00, // Default price - replace with actual pricing logic
-                    'discountPrice' => 15.00, // Default original price - replace with actual pricing logic
+                    'price' => $price,
+                    'discountPrice' => $originalPrice,
                     'quantity' => 1,
                     'isPublished' => true,
                     'status' => 1,
                     'files' => [
                         [
                             'name' => 'logo.jpg',
-                            'url' => 'https://ventamobile.net/logo.jpg', // Replace with actual logo URL
+                            'url' => $logoUrl,
                         ],
                     ],
                     'source' => CustomFieldEnum::VENTAMOBILE_SOURCE_ID->value,
@@ -178,6 +244,10 @@ class VentaMobileProductService
                         [
                             'name' => CustomFieldEnum::VENTAMOBILE_PRODUCT_ID->value,
                             'data' => $id,
+                        ],
+                        [
+                            'name' => 'tariff_plan_id',
+                            'data' => $details['tariff_plan_id'] ?? null,
                         ],
                     ],
                     'categories' => [
@@ -191,6 +261,12 @@ class VentaMobileProductService
                             'code' => crc32('esim'),
                             'is_published' => true,
                             'position' => 1,
+                        ],
+                        [
+                            'name' => strtolower($region),
+                            'code' => crc32(strtolower($region)),
+                            'is_published' => true,
+                            'position' => 2,
                         ],
                     ],
                     'productType' => [
@@ -245,6 +321,24 @@ class VentaMobileProductService
                 'sku' => $sku,
                 'is_new' => true,
             ],
+            'customFields' => [
+                [
+                    'name' => 'extension_id',
+                    'data' => $extension['ID'],
+                ],
+                [
+                    'name' => 'data_amount_bytes',
+                    'data' => $details['data_amount'] ?? 0,
+                ],
+                [
+                    'name' => 'validity_days',
+                    'data' => $details['validity_days'] ?? 0,
+                ],
+                [
+                    'name' => 'tariff_plan_id',
+                    'data' => $details['tariff_plan_id'] ?? null,
+                ],
+            ],
         ];
     }
 
@@ -255,15 +349,17 @@ class VentaMobileProductService
     {
         $region = $this->extractRegionFromName($extension['name']);
         $dataAmount = $this->formatDataSize($details['data_amount'] ?? 0);
+        $validityDays = $details['validity_days'] ?? 0;
+        $compatibleSimTypes = $details['compatible_sim_types'] ?? ['eSIM'];
 
-        return [
+        $attributes = [
             [
                 'name' => 'esim_bundle_type',
                 'value' => $extension['ID'],
             ],
             [
                 'name' => 'esim_days',
-                'value' => $details['validity_days'] ?? 0,
+                'value' => $validityDays,
             ],
             [
                 'name' => 'Variant Type',
@@ -271,7 +367,7 @@ class VentaMobileProductService
             ],
             [
                 'name' => 'Variant Duration',
-                'value' => $details['validity_days'] ?? 0,
+                'value' => $validityDays,
             ],
             [
                 'name' => 'Variant Network',
@@ -297,7 +393,25 @@ class VentaMobileProductService
                 'name' => 'Region',
                 'value' => $region,
             ],
+            [
+                'name' => 'Compatible SIM Types',
+                'value' => implode(', ', $compatibleSimTypes),
+            ],
+            [
+                'name' => 'Can Delete Extension',
+                'value' => 'Only if unused', // Based on documentation section 14
+            ],
+            [
+                'name' => 'tariff_plan_id',
+                'value' => $details['tariff_plan_id'] ?? null,
+            ],
+            [
+                'name' => 'Period Type',
+                'value' => $details['period_length_type'] ?? 0,
+            ],
         ];
+
+        return $attributes;
     }
 
     /**
@@ -313,6 +427,18 @@ class VentaMobileProductService
             [
                 'name' => 'max_unlimited_days',
                 'value' => $details['validity_days'] ?? 0,
+            ],
+            [
+                'name' => 'provider_description',
+                'value' => 'VentaMobile is a Latvian operator offering mobile communication services, roaming and traffic transit.',
+            ],
+            [
+                'name' => 'activation_method',
+                'value' => 'API',
+            ],
+            [
+                'name' => 'extension_purchase_explanation',
+                'value' => 'An extension can be deleted only if there have been no consumptions for it.',
             ],
         ];
 
@@ -400,5 +526,94 @@ class VentaMobileProductService
 
         // Query the database to find matching countries by code
         return Countries::whereIn('code', $codes)->pluck($returnField)->toArray();
+    }
+
+    /**
+     * Get logo URL for a region.
+     * This is a placeholder method - in a real implementation, you would retrieve logos from your CMS or config.
+     */
+    protected function getLogoUrlForRegion(string $region): string
+    {
+        // Default logo URL - in a real implementation, you would have region-specific logos
+        $defaultLogo = 'https://ventamobile.net/logo.jpg';
+
+        // Region-specific logos mapping
+        $logoMap = [
+            'Dominican Republic' => 'https://ventamobile.net/logos/dominican_republic.jpg',
+            'Europe' => 'https://ventamobile.net/logos/europe.jpg',
+            'America' => 'https://ventamobile.net/logos/america.jpg',
+            'Asia' => 'https://ventamobile.net/logos/asia.jpg',
+            'Africa' => 'https://ventamobile.net/logos/africa.jpg',
+            'Oceania' => 'https://ventamobile.net/logos/oceania.jpg',
+        ];
+
+        // Return region-specific logo if available, otherwise default
+        foreach ($logoMap as $regionName => $logo) {
+            if (stripos($region, $regionName) !== false) {
+                return $logo;
+            }
+        }
+
+        return $defaultLogo;
+    }
+
+    /**
+     * Get compatible SIM types for a tariff plan.
+     * This is a placeholder method - in a real implementation, you would have this mapping in your database or config.
+     */
+    protected function getCompatibleSimTypesForTariffPlan(int $tariffPlanId, array $simTypeMap): array
+    {
+        // Example mapping of tariff plans to compatible SIM types
+        // In a real implementation, this would be based on actual compatibility data
+        $compatibilityMap = [
+            4026 => [5, 7], // Assume SIM type IDs 5 and 7 are compatible with tariff plan 4026
+            4040 => [5], // Assume SIM type ID 5 is compatible with tariff plan 4040
+        ];
+
+        // Default to all SIM types if no specific mapping exists
+        $compatibleIds = $compatibilityMap[$tariffPlanId] ?? array_keys($simTypeMap);
+
+        // Map IDs to names
+        $compatibleTypes = [];
+        foreach ($compatibleIds as $id) {
+            if (isset($simTypeMap[$id])) {
+                $compatibleTypes[] = $simTypeMap[$id];
+            }
+        }
+
+        return ! empty($compatibleTypes) ? $compatibleTypes : ['eSIM']; // Default to eSIM if no mapping found
+    }
+
+    /**
+     * Get detailed information about a specific extension (data plan).
+     */
+    public function getExtensionDetails(int $extensionId): array
+    {
+        $extensions = $this->client->get('/get/dictionary', [
+            'dict' => 'extension',
+            'name' => (string) $extensionId,
+        ]);
+
+        if (empty($extensions)) {
+            throw new ValidationException("Extension ID {$extensionId} not found");
+        }
+
+        return $extensions[0];
+    }
+
+    /**
+     * Get all available tariffs for a specific tariff plan.
+     */
+    public function getTariffsForPlan(int $tariffPlanId, ?string $operatorType = 'internet'): array
+    {
+        $params = [
+            'ID_TARIFF_PLAN' => $tariffPlanId,
+        ];
+
+        if ($operatorType !== null) {
+            $params['V_OPERATOR_TYPE'] = $operatorType;
+        }
+
+        return $this->client->get('/get/tariff', $params);
     }
 }
