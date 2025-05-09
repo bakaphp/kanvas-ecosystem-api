@@ -26,7 +26,6 @@ use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -376,13 +375,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             );
             $entity->user->notify($newMessageNotification);
 
-            /* $entity->fireWorkflow(
-                WorkflowEnum::CREATED->value,
-                true,
-                [
-                    'app' => $this->app,
-                ]
-            ); */
             $totalDelivery = new DistributeMessagesToUsersAction($entity, $this->app)->execute();
         } catch (InternalServerErrorException $e) {
             report($e);
@@ -416,7 +408,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
         //turn type to prompt
         $entity->message_types_id = MessageType::fromApp($entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
-        $entity->disableWorkflows();
+        //$entity->disableWorkflows();
         $entity->update();
 
         return $result;
