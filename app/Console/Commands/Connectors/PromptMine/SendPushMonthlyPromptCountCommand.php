@@ -9,9 +9,9 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Jobs\SendMonthlyMessageCountJob;
 use Kanvas\Connectors\PromptMine\Repositories\MessagesRepository;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 
 class SendPushMonthlyPromptCountCommand extends Command
 {
@@ -45,9 +45,9 @@ class SendPushMonthlyPromptCountCommand extends Command
 
         $messageType = MessageType::getById($messageTypeId);
         $endViaList = array_map(
-                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                $params['via'] ?? ['database']
-            );
+            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+            $params['via'] ?? ['database']
+        );
 
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)

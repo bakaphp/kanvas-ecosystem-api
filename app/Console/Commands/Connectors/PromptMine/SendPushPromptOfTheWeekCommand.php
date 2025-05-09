@@ -8,9 +8,10 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Jobs\SendMessageOfTheWeekJob;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
+
 
 class SendPushPromptOfTheWeekCommand extends Command
 {
@@ -44,9 +45,9 @@ class SendPushPromptOfTheWeekCommand extends Command
 
         $messageType = MessageType::getById($messageTypeId);
         $endViaList = array_map(
-                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                $params['via'] ?? ['database']
-            );
+            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+            $params['via'] ?? ['database']
+        );
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)
