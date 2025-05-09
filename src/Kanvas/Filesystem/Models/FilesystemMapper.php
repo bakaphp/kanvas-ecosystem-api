@@ -46,6 +46,7 @@ class FilesystemMapper extends BaseModel
         'companies_branches_id',
         'system_modules_id',
         'name',
+        'description',
         'file_header',
         'mapping',
         'is_default',

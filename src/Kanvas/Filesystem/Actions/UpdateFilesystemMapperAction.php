@@ -19,6 +19,7 @@ class UpdateFilesystemMapperAction
     {
         $this->filesystemMapper->update([
             'name' => $this->filesystemMapping->name,
+            'description' => $this->filesystemMapping->description,
             'header' => $this->filesystemMapping->header,
             'mapping' => $this->filesystemMapping->mapping,
             'configuration' => $this->filesystemMapping->configuration,

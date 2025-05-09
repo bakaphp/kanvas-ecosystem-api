@@ -3,6 +3,7 @@ type FilesystemMapper {
     users: User!
     company: Company!
     name: String!
+    description: String
     file_header: Mixed!
     mapping: Mixed!
     configuration: Mixed
@@ -40,6 +41,7 @@ type FileSystemImport {
 input UpdateFilesystemImportInput {
     mapper_id: ID!
     name: String!
+    description: String
     file_header: Mixed!
     mapping: Mixed!
     configuration: Mixed

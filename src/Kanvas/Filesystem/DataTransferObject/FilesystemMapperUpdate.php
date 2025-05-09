@@ -19,7 +19,8 @@ class FilesystemMapperUpdate extends Data
         public array $header,
         public array $mapping,
         public ?string $configuration = null,
-        public bool $is_default = false
+        public bool $is_default = false,
+        public ?string $description = null
     ) {
     }
 
@@ -37,7 +38,8 @@ class FilesystemMapperUpdate extends Data
             $data['header'] ?? $data['file_header'],
             $data['mapping'],
             $data['configuration'] ?? null,
-            $data['is_default'] ?? false
+            $data['is_default'] ?? false,
+            $data['description'] ?? null,
         );
     }
 }
