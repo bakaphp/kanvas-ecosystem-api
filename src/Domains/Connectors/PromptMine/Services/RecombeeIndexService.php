@@ -116,14 +116,14 @@ class RecombeeIndexService
     {
         $messageData = $message->message;
 
-        if (empty($messageData['title']) || empty($messageData['prompt'])) {
+        if (empty($messageData['prompt'])) {
             throw new InvalidArgumentException('Message data is missing required fields.');
         }
 
         $request = new SetItemValues(
             $message->getId(),
             [
-                'title' => $messageData['title'],
+                'title' => $messageData['title'] ?? $messageData['prompt'],
                 'description' => $messageData['prompt'],
                 'users_id' => $message->users_id,
                 'message_type' => $message->messageType->name,
