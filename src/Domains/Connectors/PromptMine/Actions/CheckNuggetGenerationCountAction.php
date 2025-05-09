@@ -4,18 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Actions;
 
-use Illuminate\Support\Facades\DB;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Exception;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 
 class CheckNuggetGenerationCountAction
 {
     public function __construct(
         private Message $message,
-    ) {}
+    ) {
+    }
 
     public function execute(): bool
     {
