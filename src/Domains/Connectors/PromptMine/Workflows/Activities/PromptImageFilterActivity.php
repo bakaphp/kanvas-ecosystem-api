@@ -375,7 +375,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             );
             $entity->user->notify($newMessageNotification);
 
-            $createNuggetMessage->fireWorkflow(
+            $entity->fireWorkflow(
                 WorkflowEnum::CREATED->value,
                 true,
                 [
