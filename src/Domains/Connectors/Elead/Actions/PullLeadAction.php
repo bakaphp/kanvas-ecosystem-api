@@ -14,6 +14,7 @@ use Kanvas\Connectors\Elead\Entities\Lead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Locations\Models\Countries;
 use Throwable;
 
@@ -26,7 +27,7 @@ class PullLeadAction
     ) {
     }
 
-    public function execute(array $request): array
+    public function execute(array $request, ?ModelsLead $lead = null): array
     {
         $phone = $request['phone']['cell'] ?? $request['phone']['home'] ?? $request['phone']['work'] ?? null;
         //$emails = $request['emails'] ?? [];
@@ -34,20 +35,44 @@ class PullLeadAction
         $dob = $request['birthday'] ?? null;
         $firstname = $request['firstname'] ?? null;
         $lastname = $request['lastname'] ?? null;
-        $personId = $request['personId'] ?? $request['entity_id'] ?? null;
+        //$personId = $request['personId'] ?? $request['entity_id'] ?? null;
+        $entityId = $request['entity_id'] ?? null;
         // Check specifically in the provider array for is_active
         $filterActive = isset($request['is_active']);
         $isActiveValue = (int)($request['is_active'] ?? 0);
         //$filterOnlyActive = $filterActive && $isActiveValue === 1;
 
-        $people = People::getByCustomField(
-            CustomFieldEnum::PERSON_ID->value,
-            $personId,
-            $this->company
-        );
+        /*   $people = People::getByCustomField(
+              CustomFieldEnum::PERSON_ID->value,
+              $personId,
+              $this->company
+          );
 
-        if ($people !== null) {
-            return [$people];
+          if ($people !== null) {
+              return [$people];
+          } */
+
+        if ($entityId !== null && $lead !== null) {
+            $lead->set(
+                CustomFieldEnum::LEAD_ID->value,
+                $entityId
+            );
+
+            return [
+                'id' => $lead->id,
+                'uuid' => $lead->uuid,
+                'people_id' => $lead->people->id,
+                'firstname' => $lead->people->firstname,
+                'middlename' => $lead->people->middlename,
+                'lastname' => $lead->people->lastname,
+                'email' => $lead->people?->getEmails()->first()?->value,
+                'phone' => $lead->people?->getPhones()->first()?->value,
+                'status' => $lead->status()?->first()?->name ?? '',
+                'lead_type' => $lead->type?->name,
+                'owner' => $lead->owner?->name ,
+                'owner_id' => $lead->leads_owner_id,
+                'custom_fields' => $lead->getAllCustomFields(),
+            ];
         }
 
         $eLeadCustomer = new Customer();
