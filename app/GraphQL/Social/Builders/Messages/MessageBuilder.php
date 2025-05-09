@@ -13,6 +13,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Recombee\Actions\GenerateRecommendCustomFeedAction;
 use Kanvas\Connectors\Recombee\Actions\GenerateRecommendForYourFeedAction;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Social\Enums\AppEnum;
@@ -145,6 +146,38 @@ class MessageBuilder
             $currentPage,
             $args['first'] ?? 15,
             $scenario->value
+        );
+    }
+
+    public function getCustomFeed(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): LengthAwarePaginator {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        unset($args['orderBy']);
+        $currentPage = (int) ($args['page'] ?? 1);
+        //generate home-view interaction
+        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 2) {
+            UserInteractionJob::dispatch(
+                $app,
+                $user,
+                $app,
+                InteractionEnum::VIEW_HOME_PAGE->getValue()
+            );
+        }
+
+        $recombeeUserRecommendationService = new GenerateRecommendCustomFeedAction($app, $company);
+
+        return $recombeeUserRecommendationService->execute(
+            $user,
+            $currentPage,
+            $args['first'] ?? 15,
+            $args['scenario'] ?? ConfigurationEnum::FOR_YOU_SCENARIO->value
         );
     }
 

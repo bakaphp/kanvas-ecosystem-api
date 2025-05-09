@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Observers;
 
+use Kanvas\Connectors\PromptMine\Actions\CheckNuggetGenerationCountAction;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
@@ -23,6 +24,14 @@ class MessageObserver
         if ($message->app->get('validate-message-schema')) {
             $checkJson = new MessageSchemaValidator($message, $message->messageType);
             $checkJson->validate();
+        }
+
+        if ($message->app->get('check-free-generation-count')) {
+            (new CheckNuggetGenerationCountAction($message))->execute();
+        }
+
+        if ($message->app->get('free-generation')) {
+            $message->increment('total_children');
         }
     }
 
