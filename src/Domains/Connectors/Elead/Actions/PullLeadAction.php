@@ -52,6 +52,12 @@ class PullLeadAction
               return [$people];
           } */
 
+        $lead = $entityId !== null && $lead === null ? ModelsLead::getByCustomField(
+            CustomFieldEnum::LEAD_ID->value,
+            $entityId,
+            $this->company
+        ) : $lead;
+
         if ($entityId !== null && $lead !== null) {
             $lead->set(
                 CustomFieldEnum::LEAD_ID->value,
@@ -59,6 +65,7 @@ class PullLeadAction
             );
 
             return [
+                [
                 'id' => $lead->id,
                 'uuid' => $lead->uuid,
                 'people_id' => $lead->people->id,
@@ -72,7 +79,8 @@ class PullLeadAction
                 'owner' => $lead->owner?->name ,
                 'owner_id' => $lead->leads_owner_id,
                 'custom_fields' => $lead->getAllCustomFields(),
-            ];
+            ],
+        ];
         }
 
         $eLeadCustomer = new Customer();
