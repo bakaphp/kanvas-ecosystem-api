@@ -29,13 +29,11 @@ class DistributeMessagesToUsersAction
         $followersBuilder->chunk(100, function ($followers) use (&$totalDelivered) {
             foreach ($followers as $follower) {
                 // Create user message using the dedicated action
-                $createUserMessageAction = new CreateUserMessageAction(
+                new CreateUserMessageAction(
                     $this->message,
                     $follower,
                     $this->params['activity'] ?? []
-                );
-
-                $createUserMessageAction->execute();
+                )->execute();
                 $totalDelivered++;
             }
         });
