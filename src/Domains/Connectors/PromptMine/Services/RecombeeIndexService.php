@@ -120,6 +120,12 @@ class RecombeeIndexService
             throw new InvalidArgumentException('Message data is missing required fields.');
         }
 
+        $imageUrl = $messageData['ai_image']['image'] ?? $messageData['ai_image'] ?? null;
+
+        if ($messageData['type'] === 'image-format' && empty($imageUrl)) {
+            $imageUrl = $message->children->first()->message['image'] ?? null;
+        }
+
         $request = new SetItemValues(
             $message->getId(),
             [
@@ -136,7 +142,7 @@ class RecombeeIndexService
                 'updated_at' => (int) strtotime($message->updated_at->toDateTimeString()),
                 'is_premium' => $message->is_premium,
                 'ai_model' => $messageData['ai_model']['name'] ?? null,
-                'image' => $messageData['ai_image']['image'] ?? $messageData['ai_image'] ?? null,
+                'image' => $imageUrl,
                 'categories' => $message->tags->pluck('name')->toArray(),
                 'type' => $messageData['type'] ?? null,
             ],
