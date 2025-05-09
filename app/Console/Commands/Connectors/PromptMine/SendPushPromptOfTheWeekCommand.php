@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Jobs\SendMessageOfTheWeekJob;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 
 class SendPushPromptOfTheWeekCommand extends Command
 {
@@ -42,15 +43,18 @@ class SendPushPromptOfTheWeekCommand extends Command
         $messageTypeId = (int) $this->argument('message_type_id');
 
         $messageType = MessageType::getById($messageTypeId);
-
+        $endViaList = array_map(
+                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                $params['via'] ?? ['database']
+            );
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)
-            ->chunk(100, function ($users) use ($app, $messageType) {
-                foreach ($users as $user) {
-                    (new SendMessageOfTheWeekJob($app, $user, $messageType, [
-                        'via' => 'push',
-                    ]))::dispatch();
+            ->chunk(100, function ($usersAssocApps) use ($app, $messageType, $endViaList) {
+                foreach ($usersAssocApps as $usersAssocApp) {
+                    $this->info('Sending message of the week to user: ' . $usersAssocApp->user->getId());
+                    SendMessageOfTheWeekJob::dispatch($app, $usersAssocApp->user, $messageType, $endViaList);
+                    $this->info('Message of the week sent to user: ' . $usersAssocApp->user->getId());
                 }
             });
 

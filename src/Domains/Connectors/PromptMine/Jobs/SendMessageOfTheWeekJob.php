@@ -48,9 +48,8 @@ class SendMessageOfTheWeekJob implements ShouldQueue
                 'title' => 'Prompt of the Week',
                 'message' => "$messageOfTheWeek->message['title'] — Try it now and keep the momentum going."
             ],
-            $this->config['via']
+            $this->config
         );
-
         $this->user->notify($messageOfTheWeek);
     }
 }
