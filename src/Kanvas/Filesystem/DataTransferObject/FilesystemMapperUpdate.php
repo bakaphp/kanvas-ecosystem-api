@@ -18,7 +18,7 @@ class FilesystemMapperUpdate extends Data
         public string $name,
         public array $header,
         public array $mapping,
-        public ?string $configuration = null,
+        public array $configuration = [],
         public bool $is_default = false,
         public ?string $description = null
     ) {
@@ -37,7 +37,7 @@ class FilesystemMapperUpdate extends Data
             $data['name'],
             $data['header'] ?? $data['file_header'],
             $data['mapping'],
-            $data['configuration'] ?? null,
+            json_decode(json_encode($data['configuration'] ?? []), true),
             $data['is_default'] ?? false,
             $data['description'] ?? null,
         );
