@@ -69,9 +69,7 @@ class Apps extends BaseModel implements AppInterface
      */
     protected $guarded = [];
 
-    /**
-     * Boot function from Laravel.
-     */
+    #[Override]
     protected static function boot()
     {
         parent::boot();
@@ -80,6 +78,7 @@ class Apps extends BaseModel implements AppInterface
         });
     }
 
+    #[Override]
     public static function getByUuid(string $uuid, ?AppInterface $app = null): self
     {
         try {
