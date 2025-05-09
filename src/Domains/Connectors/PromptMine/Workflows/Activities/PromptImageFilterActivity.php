@@ -22,6 +22,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -337,7 +338,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ?string $requestId = null
     ): array {
         $title = $entity->message['title'] ?? $entity->message['prompt'];
-
+        $totalDelivery = 0;
         // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
         $createNuggetMessage = (new CreateNuggetMessageAction(
@@ -375,13 +376,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             );
             $entity->user->notify($newMessageNotification);
 
-            $entity->fireWorkflow(
+            /* $entity->fireWorkflow(
                 WorkflowEnum::CREATED->value,
                 true,
                 [
                     'app' => $this->app,
                 ]
-            );
+            ); */
+            $totalDelivery = new DistributeMessagesToUsersAction($entity, $this->app)->execute();
         } catch (InternalServerErrorException $e) {
             report($e);
 
@@ -394,6 +396,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
         $result = [
             'message' => 'Image processed successfully',
+            'total_delivery' => $totalDelivery,
             'result' => true,
             'user_id' => $entity->user->getId(),
             'message_data' => $entity->message,
