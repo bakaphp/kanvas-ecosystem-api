@@ -47,7 +47,7 @@ class SendMonthlyMessageCountJob implements ShouldQueue
                 'title' => "You created $this->monthtlyCount prompts this month!",
                 'message' => "Amazing work! Keep the streak going. Unlock even more creative ideas.",
             ],
-            $this->config['via']
+            $this->config
         );
         $this->user->notify($monthlyCountNotification);
     }
