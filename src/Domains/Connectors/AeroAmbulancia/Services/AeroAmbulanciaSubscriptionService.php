@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Domains\Connectors\AeroAmbulancia\Services;
 
 use Carbon\Carbon;
-
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
 use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
