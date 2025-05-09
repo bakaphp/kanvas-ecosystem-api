@@ -12,7 +12,6 @@ use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
-
 class SendPushPromptOfTheWeekCommand extends Command
 {
     use KanvasJobsTrait;
