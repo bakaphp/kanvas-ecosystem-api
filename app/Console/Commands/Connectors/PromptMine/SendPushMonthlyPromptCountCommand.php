@@ -55,10 +55,10 @@ class SendPushMonthlyPromptCountCommand extends Command
             ->chunk(100, function ($usersAssocApps) use ($app, $messageType, $endViaList) {
                 foreach ($usersAssocApps as $usersAssocApp) {
                     $monthtlyCount = MessagesRepository::getcurrentMonthCreationCount($app, $usersAssocApp->user, $messageType);
-                    $this->info("User {$usersAssocApp->user->get('id')} has $monthtlyCount messages this month.");
-                    $this->info("Sending push notification to user {$usersAssocApp->user->get('id')}");
+                    $this->info("User {$usersAssocApp->user->getId()} has $monthtlyCount messages this month.");
+                    $this->info("Sending push notification to user {$usersAssocApp->user->getId()}");
                     SendMonthlyMessageCountJob::dispatch($app, $usersAssocApp->user, $monthtlyCount, $messageType, $endViaList);
-                    $this->info("Push notification sent to user {$usersAssocApp->user->get('id')}");
+                    $this->info("Push notification sent to user {$usersAssocApp->user->getId()}");
                 }
             });
 
