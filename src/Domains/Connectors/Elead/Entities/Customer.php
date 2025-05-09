@@ -223,9 +223,6 @@ class Customer
         );
     }
 
-    /**
-     * Get owned vehicles.
-     */
     public function getOwnedVehicles(): array
     {
         $client = new Client($this->app, $this->company);
@@ -236,10 +233,7 @@ class Customer
         return $response;
     }
 
-    /**
-     * Get owned vehicles.
-     */
-    public function search(array $criteria, int $page = 1): array
+    public function search(array $criteria, int $page = 1, int $limit = 25): array
     {
         $phone = $criteria['phoneNumber'] ?? '';
         $email = $criteria['emailAddress'] ?? '';
@@ -258,7 +252,7 @@ class Customer
 
         $client = new Client($this->app, $this->company);
         $response = $client->post(
-            '/sales/v1/elead/customers/search?pageSize=25&page=' . $page,
+            '/sales/v1/elead/customers/search?pageSize=' . $limit . '&page=' . $page,
             $searchCriteria
         );
 

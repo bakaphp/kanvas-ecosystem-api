@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Recombee\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -24,6 +25,12 @@ class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivi
     public function execute(Model $message, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
+
+        try {
+            $company = $app->getAppCompany();
+        } catch (ModelNotFoundException $e) {
+            $company = $message->company;
+        }
 
         return $this->executeIntegration(
             entity: $message,
@@ -61,7 +68,7 @@ class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivi
                     'slug' => $message->slug ?? $message->uuid,
                 ];
             },
-            company: $message->company,
+            company: $company
         );
     }
 }

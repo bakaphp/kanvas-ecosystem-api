@@ -40,7 +40,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
             entity: $user,
             app: $app,
             integration: IntegrationsEnum::ZOHO,
-            integrationOperation: function ($user, $app, $company, $additionalParams) use ($params) {
+            integrationOperation: function ($user, $app, $integrationCompany, $additionalParams) use ($params, $company) {
                 $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
                 if (! $usesAgentsModule) {
                     return ['No Agent Module'];
@@ -57,7 +57,6 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
                     $record = $newAgentRecord['zohoAgent'];
                     $newAgent = $newAgentRecord['agent'];
                 }
-
                 $owner = $record->Owner;
                 $name = ($record->Name ?? $record->Vendor_Name) ?? $newAgent->name;
 
@@ -98,6 +97,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
 
                 Agent::updateOrCreate([
                     'users_id' => $user->getId(),
+                    'apps_id' => $app->getId(),
                     'companies_id' => $company->getId(),
                 ], $agentUpdateData);
                 $user->set('member_number_' . $company->getId(), $memberNumber);

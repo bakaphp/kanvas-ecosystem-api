@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\SystemModules\Models;
 
+use Baka\Casts\Json;
 use Baka\Support\Str;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
@@ -55,6 +56,7 @@ class SystemModules extends BaseModel
 
     protected $casts = [
         'browse_fields' => 'array',
+        'fields' => Json::class
     ];
 
     protected $fillable = [

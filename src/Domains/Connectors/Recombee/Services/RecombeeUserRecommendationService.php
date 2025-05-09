@@ -43,7 +43,12 @@ class RecombeeUserRecommendationService
         $recommendationOptions = [
             'rotationRate' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_RATE->value ?? '0.2'),
             'rotationTime' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value, 7200.0),
+            'minRelevance' => $this->app->get(ConfigurationEnum::RECOMBEE_MIN_RELEVANCE->value ?? 'low'),
         ];
+
+        if ($scenario !== 'for-you-feed') {
+            unset($recommendationOptions['minRelevance']);
+        }
 
         if ($this->app->get('recombee-user-content-preferences-boosters')) {
             $recommendationOptions['booster'] = $this->getUserSpecificBoosters($user);
@@ -140,6 +145,7 @@ class RecombeeUserRecommendationService
             if ($user->get($preference)) {
                 if (str_contains($booster, '1.0')) {
                     $booster = str_replace('1.0', '(' . addslashes($boosterRule) . ')', $booster);
+
                     continue;
                 }
                 $booster .= addslashes($boosterRule);

@@ -46,7 +46,7 @@ class CreateOrderFromCartAction
         if ($this->billingAddress !== null) {
             $billing = $this->people->addAddress(new Address(
                 address: $this->billingAddress->address,
-                address_2: null,
+                address_2: $this->billingAddress->address2,
                 city: $this->billingAddress->city,
                 state: $this->billingAddress->state,
                 country: $this->billingAddress->country,
@@ -58,7 +58,7 @@ class CreateOrderFromCartAction
         if ($this->shippingAddress !== null) {
             $shipping = $this->people->addAddress(new Address(
                 address: $this->shippingAddress->address,
-                address_2: null,
+                address_2: $this->shippingAddress->address_2,
                 city: $this->shippingAddress->city,
                 state: $this->shippingAddress->state,
                 country: $this->shippingAddress->country,
@@ -121,7 +121,7 @@ class CreateOrderFromCartAction
         );
 
         $order = (new CreateOrderAction($order))->execute();
-        B2BConfigurationService::sendNotificationToUsers(app(Apps::class), $this->company, 'admin-new-order', $order->user);
+        B2BConfigurationService::sendNotificationToUsers($order->app, $this->company, 'admin-new-order', $order->user, $order->toArray());
 
         $this->cart->clear();
 
