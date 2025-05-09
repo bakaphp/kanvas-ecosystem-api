@@ -51,8 +51,13 @@ class B2BConfigurationService
         return false;
     }
 
-    public static function sendNotificationToUsers(AppInterface $app, Companies $company, string $templateName, Users $user, array $data = [])
-    {
+    public static function sendNotificationToUsers(
+        AppInterface $app,
+        Companies $company,
+        string $templateName,
+        Users $user,
+        array $data = []
+    ): void {
         if ($b2bCompany = B2BConfigurationService::getConfiguredB2BCompany($app, $company)) {
             $notification = new Notification(
                 $user,

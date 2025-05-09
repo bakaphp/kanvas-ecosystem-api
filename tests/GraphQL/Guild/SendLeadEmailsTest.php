@@ -36,11 +36,11 @@ class SendLeadEmailsTest extends TestCase
             "title" => $title,
             "people" => [
                 "contacts" => [
-                    ["value" => "jesusant.guerrero@gmail.com", "weight" => 0, "contacts_types_id" => 1],
-                    ["value" => "8292097833", "weight" => 0, "contacts_types_id" => 2]
+                    ["value" => "jdoe@example.com", "weight" => 0, "contacts_types_id" => 1],
+                    ["value" => "82912345678", "weight" => 0, "contacts_types_id" => 2]
                 ],
-                "lastname" => "Guerrero",
-                "firstname" => "Jesus",
+                "lastname" => "Doe",
+                "firstname" => "John",
             ],
             "custom_fields" => [
                 [
@@ -128,11 +128,11 @@ class SendLeadEmailsTest extends TestCase
             "title" => $title,
             "people" => [
                 "contacts" => [
-                    ["value" => "jesusant.guerrero@gmail.com", "weight" => 0, "contacts_types_id" => 1],
-                    ["value" => "8292097833", "weight" => 0, "contacts_types_id" => 2]
+                    ["value" => "jdoe@example.com", "weight" => 0, "contacts_types_id" => 1],
+                    ["value" => "8292001222", "weight" => 0, "contacts_types_id" => 2]
                 ],
-                "lastname" => "Guerrero",
-                "firstname" => "Jesus",
+                "lastname" => "Doe",
+                "firstname" => "John",
             ],
             "custom_fields" => [
                 [
@@ -216,7 +216,7 @@ class SendLeadEmailsTest extends TestCase
             "people" => [
                 "contacts" => [
                     ["value" => "jesusant.guerrero@gmail.com", "weight" => 0, "contacts_types_id" => 1],
-                    ["value" => "8292097833", "weight" => 0, "contacts_types_id" => 2]
+                    ["value" => "82912345678", "weight" => 0, "contacts_types_id" => 2]
                 ],
                 "lastname" => "Guerrero",
                 "firstname" => "Jesus",
