@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersInviteRepository;
@@ -55,6 +56,8 @@ class ProcessInviteAction
                 app(Apps::class),
                 StateEnums::YES->getValue(),
             );
+
+            B2BConfigurationService::sendNotificationToUsers(app(Apps::class), $company, 'admin-new-user', $user);
 
             $invite->softDelete();
             DB::commit();
