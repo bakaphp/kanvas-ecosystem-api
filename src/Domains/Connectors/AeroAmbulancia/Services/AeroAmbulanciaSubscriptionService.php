@@ -10,6 +10,10 @@ use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Enums\MessageTypeEnum;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 
 class AeroAmbulanciaSubscriptionService extends BaseService
 {
@@ -32,25 +36,52 @@ class AeroAmbulanciaSubscriptionService extends BaseService
         }
 
         $beneficiaries = $subscriptionData['beneficiaries'];
+        $subscriptionResponses = [];
 
         // Create holder subscription
         $holderData = $this->prepareBeneficiaryData($people, $beneficiaries['holder']);
         $holderData['type'] = SubscriptionType::NEW->value;
 
-        $response = $this->client->post("/subscriptions/44219/subscription-items", $holderData);
+        $holderResponse = $this->client->post("/subscriptions/44219/subscription-items", $holderData);
+        $subscriptionResponses['holder'] = [
+            'data' => $holderData,
+            'subscriptionItemId' => $holderResponse['id'] ?? null
+        ];
 
         // Create dependents subscriptions if they exist
         if (isset($beneficiaries['dependents']) && ! empty($beneficiaries['dependents'])) {
+            $subscriptionResponses['dependents'] = [];
             foreach ($beneficiaries['dependents'] as $dependent) {
                 $dependentData = $this->prepareBeneficiaryData($people, $dependent);
                 $dependentData['type'] = SubscriptionType::NEW->value;
                 $dependentData['relationship'] = $dependent['holderRelationship'];
 
-                $this->client->post("/subscriptions/44219/subscription-items", $dependentData);
+                $dependentResponse = $this->client->post("/subscriptions/44219/subscription-items", $dependentData);
+                $subscriptionResponses['dependents'][] = [
+                    'data' => $dependentData,
+                    'subscriptionItemId' => $dependentResponse['id'] ?? null
+                ];
             }
         }
 
-        return $response;
+        // Update the message with AeroAmbulancia data
+        if (isset($subscriptionData['order'])) {
+            $order = $subscriptionData['order'];
+            $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
+            
+            if ($messageId) {
+                $message = Message::getById($messageId);
+                $messageData = $message->message;
+                $messageData['aeroAmbulanciaData'] = $subscriptionResponses;
+                $message->message = $messageData;
+                $message->saveOrFail();
+            }
+            // Update order metadata as well
+            $order->metadata = array_merge(($order->metadata ?? []), ['aeroAmbulanciaData' => $subscriptionResponses]);
+            $order->saveOrFail();
+        }
+
+        return $subscriptionResponses;
     }
 
     /**
@@ -123,3 +154,4 @@ class AeroAmbulanciaSubscriptionService extends BaseService
         }
     }
 }
+
