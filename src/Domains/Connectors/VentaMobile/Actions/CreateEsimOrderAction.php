@@ -123,7 +123,7 @@ class CreateEsimOrderAction
             } else {
                 // Activate with default values
                 $this->activationResult = $this->eSimService->activateExtension(
-                    $this->serviceId,
+                    (int) $this->serviceId,
                     $this->extensionId
                 );
             }
@@ -144,7 +144,7 @@ class CreateEsimOrderAction
         $this->availableVariant->reduceQuantityInWarehouse($this->warehouse, 1);
         $this->iccid = $this->availableVariant->sku;
         $this->imsi = $this->availableVariant->getAttributeBySlug('imsi')?->value;
-        $this->lpaCode = $this->availableVariant->getAttributeBySlug('lpa_code')?->value;
+        $this->lpaCode = $this->availableVariant->getAttributeBySlug('lpa')?->value;
 
         // Add this variant to the order so we have a history of the ICCID
         $this->addVariantToOrder($this->availableVariant);
@@ -168,8 +168,8 @@ class CreateEsimOrderAction
             // Create subscriber
             $subscriberResult = $this->subscriberService->createCompleteSubscriber(
                 (int) $offerId,
-                $this->imsi,
-                $this->msisdn
+                (string) $this->imsi,
+                (string) $this->msisdn
             );
 
             if (! isset($subscriberResult['id_service_inst'])) {
@@ -204,7 +204,7 @@ class CreateEsimOrderAction
         } else {
             // Activate with default values
             $this->activationResult = $this->eSimService->activateExtension(
-                $this->serviceId,
+                (int) $this->serviceId,
                 $this->extensionId
             );
         }
@@ -331,7 +331,7 @@ class CreateEsimOrderAction
             1, // Quantity
             (float) ($this->order->allItems()->first()->price ?? 0),
             'bundle',
-            $this->orderVariant->sku,
+            (string) $this->extensionId,
             $this->availableVariant->getAttributeBySlug(AttributeEnum::SMDP_ADDRESS->value)?->value,
             $this->msisdn, // Use MSISDN as activation code
             $timestampEst,
