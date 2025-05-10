@@ -6,5 +6,5 @@ namespace Kanvas\Connectors\ESim\Enums;
 
 enum AttributeEnum: string
 {
-    case SMDP_ADDRESS = 'smdp_address';
+    case SMDP_ADDRESS = 'sm-dp-address';
 }
