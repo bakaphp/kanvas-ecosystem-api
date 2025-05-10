@@ -123,7 +123,7 @@ class CreateEsimOrderAction
             } else {
                 // Activate with default values
                 $this->activationResult = $this->eSimService->activateExtension(
-                    $this->serviceId,
+                    (int) $this->serviceId,
                     $this->extensionId
                 );
             }
@@ -168,8 +168,8 @@ class CreateEsimOrderAction
             // Create subscriber
             $subscriberResult = $this->subscriberService->createCompleteSubscriber(
                 (int) $offerId,
-                $this->imsi,
-                $this->msisdn
+                (string) $this->imsi,
+                (string) $this->msisdn
             );
 
             if (! isset($subscriberResult['id_service_inst'])) {
@@ -204,7 +204,7 @@ class CreateEsimOrderAction
         } else {
             // Activate with default values
             $this->activationResult = $this->eSimService->activateExtension(
-                $this->serviceId,
+                (int) $this->serviceId,
                 $this->extensionId
             );
         }
