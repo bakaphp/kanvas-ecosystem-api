@@ -180,7 +180,7 @@ class SyncEsimWithProviderCommand extends Command
     {
         $firstInstallTimestamp = $iccidStatus['firstInstalledDateTime'] ?? null;
         $installDate = $firstInstallTimestamp
-            ? (new DateTime())->setTimestamp($firstInstallTimestamp / 1000)
+            ? (new DateTime())->setTimestamp((int) ($firstInstallTimestamp / 1000))
             : null;
 
         return [
@@ -365,12 +365,12 @@ class SyncEsimWithProviderCommand extends Command
         $esimStatusArray = $esimStatus->toArray();
         // Check and send notifications if needed
         $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
+
         return $esimStatusArray;
     }
 
     /**
      * Check if notifications should be sent for a specific ESim and send them if needed
-     *
      */
     private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isValidState): void
     {
@@ -442,7 +442,6 @@ class SyncEsimWithProviderCommand extends Command
 
     /**
      * Check if unlimited plan is about to expire and send notification
-     *
      */
     private function checkUnlimitedPlanExpiration(array $esimStatus, Users $notifyUser, Message $message): void
     {
@@ -465,7 +464,6 @@ class SyncEsimWithProviderCommand extends Command
 
     /**
      * Check if unlimited plan is about to expire and send notification
-     *
      */
     private function checkUnlimitedPlanUsage(array $esimStatus, Users $notifyUser, Message $message, array $dataNotification): void
     {

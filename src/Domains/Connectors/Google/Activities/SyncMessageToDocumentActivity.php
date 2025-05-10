@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Google\Actions\SyncMessageToDocumentAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class SyncMessageToDocumentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    #[Override]
     public function execute(Model $message, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

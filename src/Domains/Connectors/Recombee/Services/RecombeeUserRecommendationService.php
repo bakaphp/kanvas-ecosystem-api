@@ -43,7 +43,12 @@ class RecombeeUserRecommendationService
         $recommendationOptions = [
             'rotationRate' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_RATE->value ?? '0.2'),
             'rotationTime' => $this->app->get(ConfigurationEnum::RECOMBEE_ROTATION_TIME->value, 7200.0),
+            'minRelevance' => $this->app->get(ConfigurationEnum::RECOMBEE_MIN_RELEVANCE->value ?? 'low'),
         ];
+
+        if ($scenario !== 'for-you-feed') {
+            unset($recommendationOptions['minRelevance']);
+        }
 
         if ($this->app->get('recombee-user-content-preferences-boosters')) {
             $recommendationOptions['booster'] = $this->getUserSpecificBoosters($user);
@@ -61,6 +66,13 @@ class RecombeeUserRecommendationService
     }
 
     public function getUserForYouFeedPagination(UserInterface $user, string $recommId, int $limit): array
+    {
+        return $this->client->send(
+            new RecommendNextItems($recommId, $limit)
+        );
+    }
+
+    public function getUserToUserRecommendationPagination(string $recommId, int $limit): array
     {
         return $this->client->send(
             new RecommendNextItems($recommId, $limit)
@@ -102,6 +114,13 @@ class RecombeeUserRecommendationService
             'cascadeCreate' => true,
         ], $additionalOptions);
 
+        if ($user->get(CustomFieldEnum::USER_WHO_TO_FOLLOW_RECOMM_ID->value)) {
+            return $this->getUserToUserRecommendationPagination(
+                (string) $user->get(CustomFieldEnum::USER_WHO_TO_FOLLOW_RECOMM_ID->value),
+                $count
+            );
+        }
+
         $recommendation = $this->client->send(
             new RecommendUsersToUser((string) $user->getId(), $count, $options)
         );
@@ -126,6 +145,7 @@ class RecombeeUserRecommendationService
             if ($user->get($preference)) {
                 if (str_contains($booster, '1.0')) {
                     $booster = str_replace('1.0', '(' . addslashes($boosterRule) . ')', $booster);
+
                     continue;
                 }
                 $booster .= addslashes($boosterRule);

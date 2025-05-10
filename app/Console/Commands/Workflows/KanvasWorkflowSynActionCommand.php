@@ -48,6 +48,7 @@ use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
+use Kanvas\Connectors\Shopify\Jobs\ShopifyCompanyConfigWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ShopifyOrderNotesWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateShopifyDraftOrderActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateUserActivity;
@@ -60,6 +61,7 @@ use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Webhooks\StripePaymentIntentWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
+use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
@@ -144,6 +146,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SwitchZohoLeadOwnerReceiverJob::class,
             OptimizeImageFromMessageActivity::class,
             ShopifyOrderNotesWebhookJob::class,
+            ShopifyCompanyConfigWebhookJob::class,
             PullUserInformationActivity::class,
             GenerateMessageTagsWithAiActivity::class,
             PushUserInteractionToEventActivity::class,
@@ -163,6 +166,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PullPeopleActivity::class,
             CalculateWarehouseQuantityActivity::class,
             PremiumPromptFlagActivity::class,
+            SetOrderPaymentIntentActivity::class,
         ];
 
         $createdActions = [];

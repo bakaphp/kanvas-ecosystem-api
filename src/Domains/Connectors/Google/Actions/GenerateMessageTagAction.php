@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Google\Actions;
 use Kanvas\Connectors\Google\Services\GeminiTagService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class GenerateMessageTagAction
 {
@@ -46,6 +47,11 @@ class GenerateMessageTagAction
         if (! empty($tags)) {
             $this->message->addTags(
                 $tags
+            );
+            $this->message->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true,
+                ['app' => $this->message->app]
             );
         }
 

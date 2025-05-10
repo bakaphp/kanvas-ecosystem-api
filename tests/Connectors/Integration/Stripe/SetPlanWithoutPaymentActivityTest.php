@@ -9,14 +9,19 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Stripe\Handlers\StripeHandler;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Subscription\Plans\Models\Plan;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
 final class SetPlanWithoutPaymentActivityTest extends TestCase
 {
+    use HasIntegrationCompany;
+
     protected Companies $company;
     protected Apps $appModel;
     protected SetPlanWithoutPaymentActivity $activity;
@@ -34,6 +39,16 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
         if (empty($this->appModel->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
             $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
         }
+
+        $this->appModel->setAppCompany($this->company);
+
+        $this->setIntegration(
+            $this->appModel,
+            IntegrationsEnum::STRIPE,
+            StripeHandler::class,
+            $this->company,
+            $this->user
+        );
 
         $this->seedAppPlansPrices();
         $this->activity = new SetPlanWithoutPaymentActivity(

@@ -14,6 +14,7 @@ use Kanvas\Connectors\OfferLogix\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 /**
@@ -23,80 +24,90 @@ class SoftPullActivity extends KanvasActivity
 {
     public function execute(Message $entity, Apps $app, array $params): array
     {
-        $message = EngagementMessage::from($entity->message);
-        $lead = $entity->entity();
+        $this->overwriteAppService($app);
 
-        if (! $lead instanceof Lead) {
-            return [
-                'message' => 'Lead not found',
-                'entity' => $entity,
-            ];
-        }
+        return $this->executeIntegration(
+            entity: $entity,
+            app: $app,
+            integration: IntegrationsEnum::OFFERLOGIX,
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($params) {
+                $message = EngagementMessage::from($entity->message);
+                $lead = $entity->entity();
 
-        $people = $lead->people;
-        $results = [];
+                if (! $lead instanceof Lead) {
+                    return [
+                        'message' => 'Lead not found',
+                        'entity' => $entity,
+                    ];
+                }
 
-        if ($message->verb !== ConfigurationEnum::ACTION_VERB->value && $message->status === ActionStatusEnum::SUBMITTED->value) {
-            return [
-                'message' => 'Not a Soft Pull and not submitted',
-            ];
-        }
+                $people = $lead->people;
+                $results = [];
 
-        $engagement = Engagement::getByMessageId($entity->getId());
-        $parentEngagement = $engagement->parent();
-        $people = $parentEngagement->people ?? $people;
+                if ($message->verb !== ConfigurationEnum::ACTION_VERB->value && $message->status === ActionStatusEnum::SUBMITTED->value) {
+                    return [
+                        'message' => 'Not a Soft Pull and not submitted',
+                    ];
+                }
 
-        $softPull = SoftPull::fromMessage($people, $message->toArray());
+                $engagement = Engagement::getByMessageId($entity->getId());
+                $parentEngagement = $engagement->parent();
+                $people = $parentEngagement->people ?? $people;
 
-        if (empty($softPull->last_4_digits_of_ssn)) {
-            return [
-                'message' => 'Last 4 digits of SSN is required',
-                'entity' => $entity,
-            ];
-        }
+                $softPull = SoftPull::fromMessage($people, $message->toArray());
 
-        $people->dob = $softPull->dob;
-        $people->name = $softPull->getName();
-        $people->firstname = $softPull->first_name;
-        $people->lastname = $softPull->last_name;
-        $people->middlename = $softPull->middle_name;
-        $people->saveOrFail();
+                if (empty($softPull->last_4_digits_of_ssn)) {
+                    return [
+                        'message' => 'Last 4 digits of SSN is required',
+                        'entity' => $entity,
+                    ];
+                }
 
-        if (! empty($softPull->mobile)) {
-            $people->addPhone($softPull->mobile);
-        }
+                $people->dob = $softPull->dob;
+                $people->name = $softPull->getName();
+                $people->firstname = $softPull->first_name;
+                $people->lastname = $softPull->last_name;
+                $people->middlename = $softPull->middle_name;
+                $people->saveOrFail();
 
-        $softPullAction = new SoftPullAction($lead, $people);
-        $results = $softPullAction->execute($softPull);
+                if (! empty($softPull->mobile)) {
+                    $people->addPhone($softPull->mobile);
+                }
 
-        //if result is a url
-        if (filter_var($results, FILTER_VALIDATE_URL)) {
-            $filesystem = new Filesystem();
-            $filesystem->fill([
-                'name' => 'soft_pull',
-                'companies_id' => $entity->companies_id,
-                'apps_id' => $entity->apps_id,
-                'users_id' => $entity->users_id,
-                'path' => pathinfo($results, PATHINFO_DIRNAME),
-                'url' => $results,
-                'file_type' => 'pdf',
-                'size' => '0',
-            ]);
-            $filesystem->saveOrFail();
+                $softPullAction = new SoftPullAction($lead, $people);
+                $results = $softPullAction->execute($softPull);
 
-            $entity->addFile($filesystem, 'soft_pull');
+                //if result is a url
+                if (filter_var($results, FILTER_VALIDATE_URL)) {
+                    $filesystem = new Filesystem();
+                    $filesystem->fill([
+                        'name' => 'soft_pull',
+                        'companies_id' => $entity->companies_id,
+                        'apps_id' => $entity->apps_id,
+                        'users_id' => $entity->users_id,
+                        'path' => pathinfo($results, PATHINFO_DIRNAME),
+                        'url' => $results,
+                        'file_type' => 'pdf',
+                        'size' => '0',
+                    ]);
+                    $filesystem->saveOrFail();
 
-            if ($entity->parent) {
-                $parentMessage = $entity->parent;
-                $parentMessage->setMessage('link', $results);
-                $parentMessage->saveOrFail();
-            }
-        }
+                    $entity->addFile($filesystem, 'soft_pull');
 
-        return [
-            'message' => 'Soft Pull executed from message',
-            'entity' => $entity,
-            'results' => $results,
-        ];
+                    if ($entity->parent) {
+                        $parentMessage = $entity->parent;
+                        $parentMessage->setMessage('link', $results);
+                        $parentMessage->saveOrFail();
+                    }
+                }
+
+                return [
+                    'message' => 'Soft Pull executed from message',
+                    'entity' => $entity,
+                    'results' => $results,
+                ];
+            },
+            company: $entity->company,
+        );
     }
 }

@@ -6,8 +6,13 @@ namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Notification;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Services\MessageInteractionService;
+use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class MessageReportNotificationActivity extends KanvasActivity
@@ -32,19 +37,48 @@ class MessageReportNotificationActivity extends KanvasActivity
             ];
         }
 
-        $message = Message::getById($reportMessageId, $app);
+        try {
+            $company = $app->getAppCompany();
+        } catch (ModelNotFoundException $e) {
+            $company = $message->company;
+        }
 
-        $messageInteractionService = new MessageInteractionService($message);
-        $messageInteractionService->report($message->user);
+        return $this->executeIntegration(
+            entity: $message,
+            app: $app,
+            integration: IntegrationsEnum::INTERNAL,
+            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($reportMessageId) {
+                $message = Message::getById($reportMessageId, $app);
 
-        //@todo add total reports to the message
-        $message->total_disliked += 1;
-        $message->update();
+                $messageInteractionService = new MessageInteractionService($message);
+                $messageInteractionService->report($message->user);
 
-        return [
-            'result' => true,
-            'message' => 'New report from ' . $message->user->getName(),
-            'message_id' => $message->getId(),
-        ];
+                //@todo add total reports to the message
+                $message->total_disliked += 1;
+                $message->update();
+
+                $messageData = $message->message;
+                $usersToNotify = UsersRepository::findUsersByArray($app->get('owner_notification'), $app);
+                $notification = new Blank(
+                    'flagged-message',
+                    [
+                        'message' => 'New Report',
+                        'messageData' => $messageData,
+                    ],
+                    ['mail'],
+                    $message,
+                );
+
+                $notification->setSubject('New report from ' . $message->user->displayname);
+                Notification::send($usersToNotify, $notification);
+
+                return [
+                    'result' => true,
+                    'message' => 'New report from ' . $message->user->getName(),
+                    'message_id' => $message->getId(),
+                ];
+            },
+            company: $company
+        );
     }
 }

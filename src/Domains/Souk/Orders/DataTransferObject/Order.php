@@ -52,6 +52,7 @@ class Order extends Data
         public readonly ?string $shippedDate = null,
         public readonly ?string $languageCode = null,
         public readonly array $paymentGatewayName = [],
+        public readonly ?string $reference = null,
     ) {
         $this->items = is_array($items) ? $this->getOrderItems($items) : $items;
     }

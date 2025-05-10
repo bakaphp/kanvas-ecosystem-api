@@ -8,16 +8,21 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Handlers\ZohoHandler;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadActivity;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
 final class LeadActivityTest extends TestCase
 {
+    use HasIntegrationCompany;
+
     public function testLeadCreationWorkflow(): void
     {
         //use factory
@@ -28,11 +33,20 @@ final class LeadActivityTest extends TestCase
         $lead->del('ZOHO_LEAD_ID');
         $company = $lead->company()->firstOrFail();
         $app = app(Apps::class);
+        $user = Auth::user();
 
         $app->set(FlagEnum::APP_GLOBAL_ZOHO->value, 1);
         $app->set(CustomFieldEnum::CLIENT_ID->value, getenv('TEST_ZOHO_CLIENT_ID'));
         $app->set(CustomFieldEnum::CLIENT_SECRET->value, getenv('TEST_ZOHO_CLIENT_SECRET'));
         $app->set(CustomFieldEnum::REFRESH_TOKEN->value, getenv('TEST_ZOHO_CLIENT_REFRESH_TOKEN'));
+
+        $this->setIntegration(
+            $app,
+            IntegrationsEnum::ZOHO,
+            ZohoHandler::class,
+            $company,
+            $user
+        );
 
         $activity = new ZohoLeadActivity(
             0,
@@ -43,7 +57,6 @@ final class LeadActivityTest extends TestCase
 
         $file = UploadedFile::fake()->createWithContent('test.txt', 'test');
         $filesystem = new FilesystemServices(app(Apps::class));
-        $user = Auth::user();
 
         $lead->addFile(
             $filesystem->upload($file, $user),

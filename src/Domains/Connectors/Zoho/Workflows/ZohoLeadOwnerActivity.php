@@ -8,11 +8,12 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class ZohoLeadOwnerActivity extends KanvasActivity
 {
-    //public $tries = 10;
+    public $tries = 3;
 
     public function execute(
         string $zohoLeadId,
@@ -22,35 +23,43 @@ class ZohoLeadOwnerActivity extends KanvasActivity
     ): array {
         $this->overwriteAppService($app);
 
-        if (! $receiver->rotation()->exists()) {
-            return ['Rotation not found'];
-        }
-        $agent = $receiver->rotation()->first()->getAgent();
+        return $this->executeIntegration(
+            entity: $receiver,
+            app: $app,
+            integration: IntegrationsEnum::ZOHO,
+            integrationOperation: function ($receiver, $app, $integrationCompany, $additionalParams) use ($zohoLeadId) {
+                if (! $receiver->rotation()->exists()) {
+                    return ['Rotation not found'];
+                }
+                $agent = $receiver->rotation()->first()->getAgent();
 
-        $company = $receiver->company()->firstOrFail();
-        $agentOwner = Agent::fromCompany($company)->where('users_id', $agent->getId())->first();
+                $company = $receiver->company()->firstOrFail();
+                $agentOwner = Agent::fromCompany($company)->where('users_id', $agent->getId())->first();
 
-        if (! $agentOwner) {
-            return ['Agent not found'];
-        }
+                if (! $agentOwner) {
+                    return ['Agent not found'];
+                }
 
-        $ownerZohoId = $agentOwner->users_linked_source_id;
+                $ownerZohoId = $agentOwner->users_linked_source_id;
 
-        $zohoCrm = Client::getInstance($app, $company);
+                $zohoCrm = Client::getInstance($app, $company);
 
-        $zohoData = [
-            'Owner' => $ownerZohoId,
-            'Sales Rep' => $agentOwner->name,
-        ];
+                $zohoData = [
+                    'Owner' => $ownerZohoId,
+                    'Sales Rep' => $agentOwner->name,
+                ];
 
-        $zohoLead = $zohoCrm->leads->update(
-            $zohoLeadId,
-            $zohoData
+                $zohoLead = $zohoCrm->leads->update(
+                    $zohoLeadId,
+                    $zohoData
+                );
+
+                return [
+                    'message' => 'Owner updated successfully',
+                    'lead' => $zohoLead->toArray(),
+                ];
+            },
+            company: $receiver->company,
         );
-
-        return [
-            'message' => 'Owner updated successfully',
-            'lead' => $zohoLead->toArray(),
-        ];
     }
 }

@@ -1032,4 +1032,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'enable_nested_fields' => true,
         ];
     }
+
+    public function getRolesToArray(): array
+    {
+        return $this->getRoles()->toArray();
+    }
 }
