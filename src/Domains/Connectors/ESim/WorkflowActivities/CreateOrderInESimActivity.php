@@ -15,6 +15,7 @@ use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Connectors\Stripe\Services\StripeCustomerService;
+use Kanvas\Connectors\VentaMobile\Actions\CreateEsimOrderAction as ActionsCreateEsimOrderAction;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -80,6 +81,20 @@ class CreateOrderInESimActivity extends KanvasActivity
                      */
                     if ($providerValue == strtolower(ProviderEnum::CMLINK->value)) {
                         $esim = (new CreateEsimOrderAction($order))->execute();
+
+                        $woocommerceResponse = $fromMobile ? $this->sendOrderToCommerce($order, $esim, $providerValue) : ['web order' => true];
+
+                        $response = [
+                            'success' => true,
+                            'data' => [
+                                ...array_diff_key($esim->toArray(), ['esim_status' => '']),
+                                'plan_origin' => $esim->plan,
+                            ],
+                            'esim_status' => $esim->esimStatus->toArray(),
+                            'woocommerce_response' => $woocommerceResponse,
+                        ];
+                    } elseif ($providerValue == strtolower(ProviderEnum::VENTA_MOBILE->value)) {
+                        $esim = (new ActionsCreateEsimOrderAction($order))->execute();
 
                         $woocommerceResponse = $fromMobile ? $this->sendOrderToCommerce($order, $esim, $providerValue) : ['web order' => true];
 
