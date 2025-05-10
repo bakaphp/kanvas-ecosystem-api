@@ -37,7 +37,11 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
 
         if ($isElead) {
-            return new PullLeadAction($app, $company, $user)->execute($params);
+            return new PullLeadAction(
+                $app,
+                $company,
+                $user
+            )->execute($params, $entity->id > 0 ? $entity : null);
         } elseif ($isVinSolutions) {
             return new ActionsPullLeadAction(
                 $app,

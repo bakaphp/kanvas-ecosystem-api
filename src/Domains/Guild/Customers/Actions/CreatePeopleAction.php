@@ -38,7 +38,7 @@ class CreatePeopleAction
     public function execute(): People
     {
         $company = $this->peopleData->branch->company()->firstOrFail();
-        $allowDuplicateContacts = $company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false;
+        $allowDuplicateContacts = (bool) ($company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false);
 
         if (! $allowDuplicateContacts) {
             $this->checkIfPeopleExist($company);

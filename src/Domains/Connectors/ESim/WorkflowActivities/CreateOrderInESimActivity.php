@@ -15,6 +15,7 @@ use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Connectors\Stripe\Services\StripeCustomerService;
+use Kanvas\Connectors\VentaMobile\Actions\CreateEsimOrderAction as ActionsCreateEsimOrderAction;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -78,11 +79,22 @@ class CreateOrderInESimActivity extends KanvasActivity
                     /**
                      * @todo move this to a factory
                      */
-                    if ($providerValue == strtolower(ProviderEnum::CMLINK->value)) {
-                        $esim = (new CreateEsimOrderAction($order))->execute();
+                    if ($providerValue == strtolower(ProviderEnum::CMLINK->value) ||
+                        $providerValue == strtolower(ProviderEnum::VENTA_MOBILE->value)) {
+                        // Determine which action class to use based on provider
+                        $actionClass = $providerValue == strtolower(ProviderEnum::CMLINK->value)
+                            ? CreateEsimOrderAction::class
+                            : ActionsCreateEsimOrderAction::class;
 
-                        $woocommerceResponse = $fromMobile ? $this->sendOrderToCommerce($order, $esim, $providerValue) : ['web order' => true];
+                        // Execute the appropriate action
+                        $esim = (new $actionClass($order))->execute();
 
+                        // Process WooCommerce integration if needed
+                        $woocommerceResponse = $fromMobile
+                            ? $this->sendOrderToCommerce($order, $esim, $providerValue)
+                            : ['web order' => true];
+
+                        // Format the response
                         $response = [
                             'success' => true,
                             'data' => [
@@ -93,6 +105,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                             'woocommerce_response' => $woocommerceResponse,
                         ];
                     } else {
+                        // Handle non-eSIM orders
                         $createOrder = new OrderService($order);
                         $response = $createOrder->createOrder();
                     }

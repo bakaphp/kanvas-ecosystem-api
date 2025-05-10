@@ -69,6 +69,7 @@ use Spatie\LaravelData\DataCollection;
  * @property string|null $shipped_date
  * @property string|null $payment_gateway_names
  * @property bool $is_deleted
+ * @property string|null $reference
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
@@ -318,7 +319,7 @@ class Order extends BaseModel
     #[Override]
     public function shouldBeSearchable(): bool
     {
-        return false;
+        return true;
     }
 
     public function getOrderNumber(): int

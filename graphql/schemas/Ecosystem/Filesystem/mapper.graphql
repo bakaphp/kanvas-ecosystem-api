@@ -3,6 +3,7 @@ type FilesystemMapper {
     users: User!
     company: Company!
     name: String!
+    description: String
     file_header: Mixed!
     mapping: Mixed!
     configuration: Mixed
@@ -14,6 +15,8 @@ type FilesystemMapper {
 
 input FilesystemMapperInput {
     name: String!
+    description: String
+    has_header: Boolean
     system_module_id: ID!
     file_header: Mixed!
     mapping: Mixed!
@@ -38,6 +41,7 @@ type FileSystemImport {
 input UpdateFilesystemImportInput {
     mapper_id: ID!
     name: String!
+    description: String
     file_header: Mixed!
     mapping: Mixed!
     configuration: Mixed
@@ -47,6 +51,10 @@ type Mutation @guard {
     createFilesystemMapper(input: FilesystemMapperInput!): FilesystemMapper!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@create"
+        )
+    createImportMapper(input: FilesystemMapperInput!): FilesystemMapper!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@createMapper"
         )
     updateFilesystemMapper(
         input: UpdateFilesystemImportInput!

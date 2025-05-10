@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Jobs\SendMonthlyMessageCountJob;
 use Kanvas\Connectors\PromptMine\Repositories\MessagesRepository;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
@@ -43,16 +44,21 @@ class SendPushMonthlyPromptCountCommand extends Command
         $messageTypeId = (int) $this->argument('message_type_id');
 
         $messageType = MessageType::getById($messageTypeId);
+        $endViaList = array_map(
+            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+            $params['via'] ?? ['database']
+        );
 
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)
-            ->chunk(100, function ($users) use ($app, $messageType) {
-                foreach ($users as $user) {
-                    $monthtlyCount = MessagesRepository::getcurrentMonthCreationCount($app, $user, $messageType);
-                    (new SendMonthlyMessageCountJob($app, $user, $monthtlyCount, $messageType, [
-                        'via' => 'push',
-                    ]))::dispatch();
+            ->chunk(100, function ($usersAssocApps) use ($app, $messageType, $endViaList) {
+                foreach ($usersAssocApps as $usersAssocApp) {
+                    $monthtlyCount = MessagesRepository::getcurrentMonthCreationCount($app, $usersAssocApp->user, $messageType);
+                    $this->info("User {$usersAssocApp->user->get('id')} has $monthtlyCount messages this month.");
+                    $this->info("Sending push notification to user {$usersAssocApp->user->get('id')}");
+                    SendMonthlyMessageCountJob::dispatch($app, $usersAssocApp->user, $monthtlyCount, $messageType, $endViaList);
+                    $this->info("Push notification sent to user {$usersAssocApp->user->get('id')}");
                 }
             });
 

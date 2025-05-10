@@ -116,6 +116,7 @@ class CreateOrderFromCartAction
             checkoutToken: '',
             paymentGatewayName: ['manual'],
             languageCode: null,
+            reference: $this->request['input']['reference'] ?? '',
         );
 
         $order = (new CreateOrderAction($order))->execute();

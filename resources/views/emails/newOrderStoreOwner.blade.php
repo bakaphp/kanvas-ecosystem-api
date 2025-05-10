@@ -5,11 +5,15 @@
         </p>
 
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            A new order (Order Number: <strong>{{ $entity->order_number }}</strong>) has been placed in your store.
+            A new order has just been placed in your store 🎉
         </p>
 
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Here are the details of the order:
+            Order Number: <strong>{{ $entity->order_number }}</strong>
+        </p>
+
+        <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+            Here's a summary of the order details:
         </p>
     </td>
 </tr>
@@ -48,22 +52,46 @@
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
             Tax: <strong>{{ number_format($entity->getTotalTaxAmount(), 2) }} {{ $entity->currency }}</strong>
         </p>
-        <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Total: <strong>{{ number_format($entity->getTotalAmount(), 2) }} {{ $entity->currency }}</strong>
+        <p style="color: #000; font-size: 14px; font-weight: bold; margin: 0;">
+            Total: {{ number_format($entity->getTotalAmount(), 2) }} {{ $entity->currency }}
         </p>
     </td>
 </tr>
 
 <tr>
+    <td style="padding-top: 30px;">
+        <p style="color: #9b9b9b; font-size: 14px; font-weight: bold; margin: 0;">
+            Customer Information:
+        </p>
+        <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+            Name: <strong>{{ $entity->user->firstname }} {{ $entity->user->lastname }}</strong><br>
+            Email: <strong>{{ $entity->getEmail() }}</strong><br>
+            Phone: <strong>{{ $entity->getPhone() }}</strong>
+        </p>
+    </td>
+</tr>
+
+@php
+    $address = $entity->people->address()->first();
+@endphp
+
+@if ($address)
+<tr>
+    <td style="padding-top: 20px;">
+        <p style="color: #9b9b9b; font-size: 14px; font-weight: bold; margin: 0;">Shipping Address:</p>
+        <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+            {{ $address->address }}{{ $address->address_2 ? ', ' . $address->address_2 : '' }}<br>
+            {{ $address->city }}, {{ $address->state }} {{ $address->zip }}<br>
+            {{ $address->country?->name }}
+        </p>
+    </td>
+</tr>
+@endif
+
+<tr>
     <td style="padding-top: 20px;">
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Customer Name: <strong>{{ $entity->user->firstname }} {{ $entity->user->lastname }}</strong>
-        </p>
-        <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Email: <strong>{{ $entity->getEmail() }}</strong>
-        </p>
-        <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Phone: <strong>{{ $entity->getPhone() }}</strong>
+            Estimated delivery date: <strong>{{ $entity->created_at->addDays(7)->format('d/m/Y') }}</strong>
         </p>
     </td>
 </tr>
