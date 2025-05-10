@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Domains\Connectors\AeroAmbulancia;
+namespace Kanvas\Connectors\AeroAmbulancia;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\GuzzleException;
+use Kanvas\Connectors\AeroAmbulancia\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
 class Client
@@ -22,9 +23,9 @@ class Client
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        $this->baseUrl = $this->app->get('AEROAMBULANCIA_API_BASE_URL');
-        $this->email = $this->app->get('AEROAMBULANCIA_EMAIL');
-        $this->password = $this->app->get('AEROAMBULANCIA_PASSWORD');
+        $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
+        $this->email = $this->app->get(ConfigurationEnum::EMAIL->value);
+        $this->password = $this->app->get(ConfigurationEnum::PASSWORD->value);
 
         if (empty($this->baseUrl) || empty($this->email) || empty($this->password)) {
             throw new ValidationException('AeroAmbulancia configuration is missing');
@@ -56,7 +57,7 @@ class Client
      *
      * @throws GuzzleException
      */
-    protected function authenticate(): array
+    public function authenticate(): array
     {
         $response = $this->client->post('/auth/login', [
             'json' => [

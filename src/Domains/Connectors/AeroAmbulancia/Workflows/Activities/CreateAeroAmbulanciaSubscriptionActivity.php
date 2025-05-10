@@ -2,36 +2,35 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Domains\Connectors\AeroAmbulancia\Workflows\Activities;
+namespace Kanvas\Connectors\AeroAmbulancia\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
-use Illuminate\Database\Eloquent\Model;
-use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
-use Kanvas\Domains\Connectors\AeroAmbulancia\Services\AeroAmbulanciaSubscriptionService;
+use Kanvas\Connectors\AeroAmbulancia\Services\AeroAmbulanciaSubscriptionService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\KanvasActivity;
 
-class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterface
+class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
 {
-    /**
-     * Execute the activity
-     */
-    public function execute(Model $entity, AppInterface $app, array $params): array
+    public function execute(Order $order, AppInterface $app, array $params): array
     {
-        if (! $entity instanceof Order) {
-            throw new ValidationException('Entity must be an Order');
-        }
+        return $this->executeIntegration(
+            entity: $order,
+            app: $app,
+            integration: IntegrationsEnum::AERO_AMBULANCIA,
+            integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
+                $data = $this->getActivityData($order, $params);
 
-        $data = $this->getActivityData($entity, $params);
+                $subscriptionService = new AeroAmbulanciaSubscriptionService($app, $order->company);
 
-        $client = new Client($app, $entity->company);
-        $subscriptionService = new AeroAmbulanciaSubscriptionService($client);
-
-        return $subscriptionService->createNewSubscription(
-            $data['people'],
-            $data['subscription_data']
+                return $subscriptionService->createNewSubscription(
+                    $data['people'],
+                    $data['subscription_data']
+                );
+            },
+            company: $order->company,
         );
     }
 
@@ -57,8 +56,8 @@ class CreateAeroAmbulanciaSubscriptionActivity implements WorkflowActivityInterf
         return [
             'people' => $people,
             'subscription_data' => [
-                'beneficiaries' => $beneficiaries
-            ]
+                'beneficiaries' => $beneficiaries,
+            ],
         ];
     }
 }
