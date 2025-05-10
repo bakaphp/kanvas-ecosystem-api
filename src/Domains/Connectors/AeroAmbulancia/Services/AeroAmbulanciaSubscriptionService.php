@@ -2,22 +2,29 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Domains\Connectors\AeroAmbulancia\Services;
+namespace Kanvas\Connectors\AeroAmbulancia\Services;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Carbon\Carbon;
+use Kanvas\Connectors\AeroAmbulancia\Client;
+use Kanvas\Connectors\AeroAmbulancia\Enums\ConfigurationEnum;
+use Kanvas\Connectors\AeroAmbulancia\Enums\SubscriptionType;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
-use Kanvas\Domains\Connectors\AeroAmbulancia\Client;
-use Kanvas\Domains\Connectors\AeroAmbulancia\Enums\SubscriptionType;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Models\Message;
 
-class AeroAmbulanciaSubscriptionService extends BaseService
+class AeroAmbulanciaSubscriptionService
 {
-    public function __construct(Client $client)
-    {
-        parent::__construct($client);
+    protected Client $client;
+
+    public function __construct(
+        protected AppInterface $app,
+        protected CompanyInterface $company
+    ) {
+        $this->client = new Client($app, $company);
     }
 
     /**
@@ -39,11 +46,12 @@ class AeroAmbulanciaSubscriptionService extends BaseService
         // Create holder subscription
         $holderData = $this->prepareBeneficiaryData($people, $beneficiaries['holder']);
         $holderData['type'] = SubscriptionType::NEW->value;
+        $subscriptionId = $this->app->get(ConfigurationEnum::SUBSCRIPTION_ID->value) ?? 44219;
 
-        $holderResponse = $this->client->post("/subscriptions/44219/subscription-items", $holderData);
+        $holderResponse = $this->client->post('/subscriptions/' . $subscriptionId . '/subscription-items', $holderData);
         $subscriptionResponses['holder'] = [
             'data' => $holderData,
-            'subscriptionItemId' => $holderResponse['id'] ?? null
+            'subscriptionItemId' => $holderResponse['id'] ?? null,
         ];
 
         // Create dependents subscriptions if they exist
@@ -54,10 +62,10 @@ class AeroAmbulanciaSubscriptionService extends BaseService
                 $dependentData['type'] = SubscriptionType::NEW->value;
                 $dependentData['relationship'] = $dependent['holderRelationship'];
 
-                $dependentResponse = $this->client->post("/subscriptions/44219/subscription-items", $dependentData);
+                $dependentResponse = $this->client->post('/subscriptions/' . $subscriptionId . '/subscription-items', $dependentData);
                 $subscriptionResponses['dependents'][] = [
                     'data' => $dependentData,
-                    'subscriptionItemId' => $dependentResponse['id'] ?? null
+                    'subscriptionItemId' => $dependentResponse['id'] ?? null,
                 ];
             }
         }
@@ -113,7 +121,7 @@ class AeroAmbulanciaSubscriptionService extends BaseService
             'activationDate' => $beneficiaryData['activationDate'],
             'expirationDate' => $expirationDate,
             'acquiredPlan' => $beneficiaryData['ambulanceVariantId'],
-            'preferredLanguage' => $beneficiaryData['preferredLanguage'] ?? 'es'
+            'preferredLanguage' => $beneficiaryData['preferredLanguage'] ?? 'es',
         ];
     }
 
@@ -132,7 +140,7 @@ class AeroAmbulanciaSubscriptionService extends BaseService
             'gender',
             'birthDate',
             'activationDate',
-            'ambulanceVariantId'
+            'ambulanceVariantId',
         ];
 
         foreach ($requiredFields as $field) {

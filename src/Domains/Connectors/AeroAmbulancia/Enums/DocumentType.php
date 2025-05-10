@@ -1,9 +1,9 @@
 <?php
 
-namespace Kanvas\Domains\Connectors\AeroAmbulancia\Enums;
+namespace Kanvas\Connectors\AeroAmbulancia\Enums;
 
 enum DocumentType: int
 {
-    case CEDULA = 1;
-    case PASAPORTE = 2;
+    case ID = 1;
+    case PASSPORT = 2;
 }

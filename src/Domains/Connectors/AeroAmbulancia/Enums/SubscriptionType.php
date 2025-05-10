@@ -1,6 +1,6 @@
 <?php
 
-namespace Kanvas\Domains\Connectors\AeroAmbulancia\Enums;
+namespace Kanvas\Connectors\AeroAmbulancia\Enums;
 
 enum SubscriptionType: string
 {
