@@ -22,7 +22,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
-use Kanvas\Souk\Services\B2BConfigurationService;
+use Kanvas\Users\Actions\SendUserNotificationAction;
 use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromCartAction
@@ -121,7 +121,7 @@ class CreateOrderFromCartAction
         );
 
         $order = (new CreateOrderAction($order))->execute();
-        B2BConfigurationService::sendNotificationToUsers($order->app, $this->company, 'admin-new-order', $order->user, $order->toArray());
+        new SendUserNotificationAction($order->app, $this->company, $order->user)->execute('admin-new-order', $order->toArray());
 
         $this->cart->clear();
 

@@ -6,17 +6,9 @@ namespace Kanvas\Souk\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Baka\Support\Str;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
-use Kanvas\Notifications\Models\NotificationTypes;
-use Kanvas\Notifications\Notification;
 use Kanvas\Souk\Enums\ConfigurationEnum;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\UserCompanyApps;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Services\UserRoleNotificationService;
 
 class B2BConfigurationService
 {
@@ -49,37 +41,5 @@ class B2BConfigurationService
         }
 
         return false;
-    }
-
-    public static function sendNotificationToUsers(
-        AppInterface $app,
-        Companies $company,
-        string $templateName,
-        Users $user,
-        array $data = []
-    ): void {
-        if ($b2bCompany = B2BConfigurationService::getConfiguredB2BCompany($app, $company)) {
-            $notification = new Notification(
-                $user,
-                $company->toArray(),
-            );
-            $notification->setTemplateName($templateName);
-            $notification->setData($data);
-            $notification->setType(NotificationTypes::firstOrCreate([
-                'apps_id' => $app->getId(),
-                'key' => $b2bCompany::class,
-                'name' => Str::simpleSlug($b2bCompany::class),
-                'system_modules_id' => SystemModulesRepository::getByModelName($b2bCompany::class, $app)->getId(),
-                'is_deleted' => 0,
-            ], [
-                'template' => $templateName,
-            ])->name);
-            $notification->channels = [NotificationChannelEnum::DATABASE->value, NotificationChannelEnum::MAIL->value];
-            UserRoleNotificationService::notify(
-                RolesEnums::OWNER->value,
-                $notification,
-                $app
-            );
-        }
     }
 }
