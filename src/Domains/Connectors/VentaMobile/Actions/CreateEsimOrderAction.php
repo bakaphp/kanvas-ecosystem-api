@@ -38,11 +38,11 @@ class CreateEsimOrderAction
     protected ?array $esimData = null;
     protected ?array $orderMetaData = null;
     protected Warehouses $warehouse;
-    protected ?string $iccid = null;
-    protected ?string $msisdn = null;
-    protected ?string $imsi = null;
-    protected ?int $serviceId = null;
-    protected ?int $contractId = null;
+    protected string|int|null $iccid = null;
+    protected string|int|null $msisdn = null;
+    protected string|int|null $imsi = null;
+    protected string|int|null $serviceId = null;
+    protected string|int|null $contractId = null;
     protected ?array $activationResult = null;
     protected ?array $balanceInfo = null;
     protected ?string $lpaCode = null;
