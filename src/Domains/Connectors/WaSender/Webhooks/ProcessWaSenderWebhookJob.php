@@ -19,7 +19,6 @@ use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Spatie\LaravelData\DataCollection;
@@ -67,9 +66,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
             default => $this->handleUnknownEvent($payload),
         };
-
-        // Fire workflow after processing webhook
-        $this->fireAfterWebhookWorkflow($eventType, $result);
 
         return [
             'message' => 'WaSender webhook processed successfully',
@@ -852,21 +848,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             'reason' => 'Unknown event type',
             'type' => $payload['type'] ?? 'unknown',
         ];
-    }
-
-    /**
-     * Fire a workflow after processing the webhook
-     */
-    protected function fireAfterWebhookWorkflow(string $eventType, array $result): void
-    {
-        $this->receiver->fireWorkflow(
-            WorkflowEnum::AFTER_RUNNING_RECEIVER->value,
-            true,
-            [
-                'event_type' => $eventType,
-                'result' => $result,
-            ]
-        );
     }
 
     /**
