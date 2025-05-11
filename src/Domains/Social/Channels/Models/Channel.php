@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Channels\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -33,6 +34,10 @@ class Channel extends BaseModel
     protected $table = 'channels';
 
     protected $guarded = [];
+
+    protected $casts = [
+        'metadata' => Json::class,
+    ];
 
     public function users(): BelongsToMany
     {

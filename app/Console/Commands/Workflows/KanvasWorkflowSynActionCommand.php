@@ -66,6 +66,7 @@ use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
+use Kanvas\Connectors\WaSender\Jobs\ProcessWaSenderWebhookJob;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
@@ -169,6 +170,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CalculateWarehouseQuantityActivity::class,
             PremiumPromptFlagActivity::class,
             SetOrderPaymentIntentActivity::class,
+            ProcessWaSenderWebhookJob::class,
         ];
 
         $createdActions = [];

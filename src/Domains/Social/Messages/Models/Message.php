@@ -53,7 +53,8 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
  *  @property int $companies_id
  *  @property int $users_id
  *  @property int $message_types_id
- *  @property string $message
+ *  @property string|array $message
+ *  @property string $slug
  *  @property int $reactions_count
  *  @property int $comments_count
  *  @property int $total_liked
