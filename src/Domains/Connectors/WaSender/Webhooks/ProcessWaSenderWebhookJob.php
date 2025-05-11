@@ -21,7 +21,6 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -37,7 +36,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         // Verify webhook signature if available
         $signature = $headers['x-webhook-signature'] ?? null;
         if ($signature) {
-          //  $this->verifySignature($signature);
+            //  $this->verifySignature($signature);
         }
 
         // Get event type from payload
