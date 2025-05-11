@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\VentaMobile\Handlers;
+namespace Kanvas\Connectors\WaSender\Handlers;
 
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\WaSender\Client;
