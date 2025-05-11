@@ -13,6 +13,8 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  *  class Channels.
@@ -30,6 +32,7 @@ use Kanvas\Users\Models\Users;
 class Channel extends BaseModel
 {
     use UuidTrait;
+    use CanUseWorkflow;
 
     protected $table = 'channels';
 
@@ -75,5 +78,12 @@ class Channel extends BaseModel
         // Update last_message_id regardless
         $this->last_message_id = $message->id;
         $this->saveOrFail();
+
+        $this->fireWorkflow(WorkflowEnum::UPDATED->value, true, [
+            'message' => $message,
+            'user' => $user,
+            'app' => $message->app,
+            'company' => $message->company,
+        ]);
     }
 }
