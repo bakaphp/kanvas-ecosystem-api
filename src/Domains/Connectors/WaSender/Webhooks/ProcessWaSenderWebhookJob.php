@@ -1049,23 +1049,23 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     protected function getMessageType(array $messageContent): string
     {
         if (isset($messageContent['conversation'])) {
-            return 'was-text';
+            return 'whatsapp-text';
         } elseif (isset($messageContent['imageMessage'])) {
-            return 'was-image';
+            return 'whatsapp-image';
         } elseif (isset($messageContent['videoMessage'])) {
-            return 'was-video';
+            return 'whatsapp-video';
         } elseif (isset($messageContent['documentMessage'])) {
-            return 'was-document';
+            return 'whatsapp-document';
         } elseif (isset($messageContent['audioMessage'])) {
-            return 'was-audio';
+            return 'whatsapp-audio';
         } elseif (isset($messageContent['stickerMessage'])) {
-            return 'was-sticker';
+            return 'whatsapp-sticker';
         } elseif (isset($messageContent['contactMessage'])) {
-            return 'was-contact';
+            return 'whatsapp-contact';
         } elseif (isset($messageContent['locationMessage'])) {
-            return 'was-location';
+            return 'whatsapp-location';
         } else {
-            return 'was-unknown';
+            return 'whatsapp-unknown';
         }
     }
 
