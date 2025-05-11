@@ -31,6 +31,7 @@ class Agent extends BaseModel
 
     protected $casts = [
         'config' => Json::class,
+        'role' => Json::class,
         'is_active' => 'boolean',
     ];
 

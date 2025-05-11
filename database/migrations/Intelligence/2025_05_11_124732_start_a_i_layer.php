@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class () extends Migration {
@@ -13,72 +14,76 @@ return new class () extends Migration {
         Schema::create('agent_types', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique()->index();
-            $table->unsignedBigInteger('app_id')->index();
+            $table->unsignedBigInteger('apps_id')->index();
             $table->string('name')->index();
-            $table->string('description');
-            $table->json('config');
+            $table->string('description')->nullable();
+            $table->json('config')->nullable();
             $table->longText('role');
             $table->boolean('is_active')->default(1)->index();
             $table->boolean('is_published')->default(0)->index();
             $table->boolean('is_multi_agent')->default(0)->index();
             $table->json('multi_agent_list');
-            $table->timestamps();
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
 
             // Indexes
-            $table->index(['name', 'app_id', 'is_deleted'], 'idx_agent_types_search');
+            $table->index(['name', 'apps_id', 'is_deleted'], 'idx_agent_types_search');
         });
 
         Schema::create('communication_channels', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique()->index();
-            $table->unsignedBigInteger('app_id')->index();
+            $table->unsignedBigInteger('apps_id')->index();
             $table->string('name')->index();
-            $table->text('description');
+            $table->text('description')->nullable();
             $table->string('handler');
-            $table->json('config');
+            $table->json('config')->nullable();
             $table->boolean('is_active')->default(1)->index();
             $table->boolean('is_published')->default(0)->index();
-            $table->timestamps();
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
 
             // Indexes
-            $table->index(['name', 'app_id', 'is_deleted'], 'idx_communication_channels_search');
+            $table->index(['name', 'apps_id', 'is_deleted'], 'idx_communication_channels_search');
         });
 
         Schema::create('agent_models', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique()->index();
-            $table->unsignedBigInteger('app_id')->index();
+            $table->unsignedBigInteger('apps_id')->index();
             $table->string('name')->index();
-            $table->json('config');
+            $table->json('config')->nullable();
             $table->boolean('is_active')->default(1)->index();
             $table->boolean('is_published')->default(0)->index();
-            $table->timestamps();
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
 
             // Indexes
-            $table->index(['name', 'app_id', 'is_deleted'], 'idx_agent_models_search');
+            $table->index(['name', 'apps_id', 'is_deleted'], 'idx_agent_models_search');
         });
 
         Schema::create('agents', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique()->index();
-            $table->unsignedBigInteger('app_id')->index();
-            $table->unsignedBigInteger('company_id')->index();
+            $table->unsignedBigInteger('apps_id')->index();
+            $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('agent_type_id')->index();
             $table->unsignedBigInteger('user_id')->index();
-            $table->longText('description');
-            $table->json('config');
-            $table->unsignedBigInteger('company_task_list_id')->index();
+            $table->longText('description')->nullable();
+            $table->json('config')->nullable();
+            $table->unsignedBigInteger('company_task_list_id')->index()->nullable();
             $table->longText('role');
-            $table->unsignedBigInteger('agent_model_id')->index();
+            $table->unsignedBigInteger('agent_model_id')->index()->nullable();
             $table->boolean('is_active')->default(1)->index();
-            $table->timestamps();
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
 
             // Indexes
-            $table->index(['app_id', 'company_id', 'is_deleted'], 'idx_agents_company');
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'idx_agents_company');
             $table->index(['user_id', 'is_active', 'is_deleted'], 'idx_agents_user_active');
 
             // Foreign keys
@@ -90,19 +95,20 @@ return new class () extends Migration {
             $table->id();
             $table->uuid('uuid')->unique()->index();
             $table->unsignedBigInteger('agent_id')->index();
-            $table->unsignedBigInteger('company_id')->index();
-            $table->unsignedBigInteger('app_id')->index();
+            $table->unsignedBigInteger('companies_id')->index();
+            $table->unsignedBigInteger('apps_id')->index();
             $table->unsignedBigInteger('company_task_engagement_item_id')->index()->nullable();
             $table->unsignedBigInteger('message_id')->nullable();
             $table->string('entity_namespace');
             $table->unsignedBigInteger('entity_id');
             $table->longText('context');
-            $table->json('config');
-            $table->json('external_reference');
-            $table->json('input');
-            $table->json('output');
+            $table->json('config')->nullable();
+            $table->json('external_reference')->nullable();
+            $table->json('input')->nullable();
+            $table->json('output')->nullable();
             $table->json('error')->nullable();
-            $table->timestamps();
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
 
             // Indexes
@@ -116,9 +122,10 @@ return new class () extends Migration {
             $table->id();
             $table->unsignedBigInteger('agent_id')->index();
             $table->unsignedBigInteger('communication_channel_id')->index();
-            $table->string('entry_point');
-            $table->json('config');
-            $table->timestamps();
+            $table->string('entry_point')->nullable();
+            $table->json('config')->nullable();
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
 
             // Unique constraint
@@ -133,10 +140,10 @@ return new class () extends Migration {
             $table->id();
             $table->unsignedBigInteger('agent_id')->index();
             $table->string('version', 50)->index();
-            $table->json('config');
-            $table->text('changes');
+            $table->json('config')->nullable();
+            $table->text('changes')->nullable();
             $table->unsignedBigInteger('created_by')->index();
-            $table->timestamp('created_at');
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->boolean('is_active')->default(0);
             $table->boolean('is_deleted')->default(0)->index();
 
@@ -151,9 +158,10 @@ return new class () extends Migration {
             $table->id();
             $table->unsignedBigInteger('agent_history_id')->index();
             $table->unsignedBigInteger('user_id')->index();
-            $table->integer('rating');
-            $table->text('feedback_text');
-            $table->timestamps();
+            $table->integer('rating')->index()->default(0);
+            $table->text('feedback_text')->nullable();
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
 
             // Unique constraint
@@ -168,10 +176,11 @@ return new class () extends Migration {
             $table->unsignedBigInteger('agent_id')->index();
             $table->unsignedBigInteger('agent_history_id')->index();
             $table->string('metric_type', 100)->index();
-            $table->float('value');
+            $table->float('value')->index()->default(0);
             $table->timestamp('period_start')->index();
             $table->timestamp('period_end');
-            $table->timestamps();
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
 
             // Indexes

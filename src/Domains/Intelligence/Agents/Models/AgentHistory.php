@@ -17,8 +17,8 @@ class AgentHistory extends BaseModel
     protected $fillable = [
         'uuid',
         'agent_id',
-        'company_id',
-        'app_id',
+        'companies_id',
+        'apps_id',
         'company_task_engagement_item_id',
         'message_id',
         'entity_namespace',
