@@ -169,11 +169,11 @@ class Client
             $data = json_decode($body, true);
 
             // Make sure we got a valid response
-            if (! is_array($data) || ($data['success'] ?? false) !== true) {
+            if (! is_array($data) || ! isset($data['status'])) {
                 throw new ValidationException('Invalid response from Wasender API');
             }
 
-            return true;
+            return $data['status'] === 'connected';
         } catch (GuzzleException $e) {
             throw new ValidationException(
                 'Failed to connect to Wasender API: ' . $e->getMessage(),

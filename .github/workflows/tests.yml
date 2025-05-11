@@ -108,6 +108,8 @@ jobs:
       TEST_ELEAD_API_SECRET: ${{ secrets.TEST_ELEAD_API_SECRET }}
       TEST_ELEAD_DEV_MODE: ${{ secrets.TEST_ELEAD_DEV_MODE }}
       TEST_ELEAD_SUBSCRIPION_ID: ${{ secrets.TEST_ELEAD_SUBSCRIPION_ID }}
+      TEST_WAS_SENDER_BASE_URL: ${{ secrets.TEST_WAS_SENDER_BASE_URL }}
+      TEST_WAS_SENDER_API_KEY: ${{ secrets.TEST_WAS_SENDER_API_KEY }}
     strategy:
       fail-fast: false
       matrix:

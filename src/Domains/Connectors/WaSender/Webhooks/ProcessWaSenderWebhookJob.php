@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\WaSender\Jobs;
+namespace Kanvas\Connectors\WaSender\Webhooks;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -843,11 +843,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
      */
     protected function handleUnknownEvent(array $payload): array
     {
-        Log::warning('Unknown WaSender webhook event', [
-            'type' => $payload['type'] ?? 'unknown',
-            'timestamp' => $payload['timestamp'] ?? time(),
-        ]);
-
         return [
             'processed' => false,
             'reason' => 'Unknown event type',
