@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Webhooks;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
@@ -881,44 +882,50 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     }
 
     /**
-        * Get an existing channel or create a new one (for any conversation type)
-        */
+     * Get an existing channel or create a new one (for any conversation type)
+     * with database transaction locking to prevent race conditions
+     */
     protected function getOrCreateChannel(string $jid, ?string $name = null): Channel
     {
         $slug = $this->createChannelSlug($jid);
 
-        $channel = Channel::where('slug', $slug)
-            ->where('companies_id', $this->receiver->company->getId())
-            ->where('apps_id', $this->receiver->app->getId())
-            ->first();
+        // Use a database transaction with locking
+        return DB::transaction(function () use ($slug, $jid, $name) {
+            // Attempt to find the channel with a lock for update
+            $channel = Channel::where('slug', $slug)
+                ->where('companies_id', $this->receiver->company->getId())
+                ->where('apps_id', $this->receiver->app->getId())
+                ->lockForUpdate()  // This applies a database-level lock
+                ->first();
 
-        if (! $channel) {
-            $channel = new Channel();
+            if (! $channel) {
+                $channel = new Channel();
 
-            // Set different names and descriptions based on channel type
-            if ($this->isGroupJid($jid)) {
-                $channel->name = $name ?? $this->extractGroupName($jid);
-                $channel->description = 'WhatsApp Group: ' . $jid;
-            } elseif ($this->isChannelJid($jid)) {
-                $channel->name = $name ?? 'WhatsApp Channel: ' . str_replace('@newsletter', '', $jid);
-                $channel->description = 'WhatsApp Channel: ' . $jid;
-            } else {
-                $channel->name = $name ?? 'WhatsApp Chat: ' . str_replace('@s.whatsapp.net', '', $jid);
-                $channel->description = 'WhatsApp Chat: ' . $jid;
+                // Set different names and descriptions based on channel type
+                if ($this->isGroupJid($jid)) {
+                    $channel->name = $name ?? $this->extractGroupName($jid);
+                    $channel->description = 'WhatsApp Group: ' . $jid;
+                } elseif ($this->isChannelJid($jid)) {
+                    $channel->name = $name ?? 'WhatsApp Channel: ' . str_replace('@newsletter', '', $jid);
+                    $channel->description = 'WhatsApp Channel: ' . $jid;
+                } else {
+                    $channel->name = $name ?? 'WhatsApp Chat: ' . str_replace('@s.whatsapp.net', '', $jid);
+                    $channel->description = 'WhatsApp Chat: ' . $jid;
+                }
+
+                $channel->slug = $slug;
+                $channel->companies_id = $this->receiver->company->getId();
+                $channel->apps_id = $this->receiver->app->getId();
+                //$channel->users_id = $this->receiver->user->getId();
+                //$channel->uuid = Str::uuid()->toString();
+                $channel->save();
+            } elseif ($name && $channel->name !== $name) {
+                $channel->name = $name;
+                $channel->save();
             }
 
-            $channel->slug = $slug;
-            $channel->companies_id = $this->receiver->company->getId();
-            $channel->apps_id = $this->receiver->app->getId();
-            //$channel->users_id = $this->receiver->user->getId();
-            //$channel->uuid = Str::uuid()->toString();
-            $channel->save();
-        } elseif ($name && $channel->name !== $name) {
-            $channel->name = $name;
-            $channel->save();
-        }
-
-        return $channel;
+            return $channel;
+        }, 5); // 5 attempts with exponential backoff
     }
 
     /**
