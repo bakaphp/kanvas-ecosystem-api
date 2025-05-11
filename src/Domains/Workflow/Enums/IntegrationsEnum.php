@@ -24,4 +24,5 @@ enum IntegrationsEnum: string
     case STRIPE = 'stripe';
     case ESIM_VENTA_MOBILE = 'esim_ventamobile';
     case AERO_AMBULANCIA = 'aero_ambulancia';
+    case WASENDER = 'wa_sender';
 }
