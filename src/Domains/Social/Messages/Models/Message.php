@@ -162,6 +162,20 @@ class Message extends BaseModel
         return is_array($value) ? $value : [];
     }
 
+    public function addMessage(array $message): void
+    {
+        $this->message = array_merge($this->getMessage(), $message);
+        $this->saveOrFail();
+    }
+
+    public function addEntity(Model $entity): void
+    {
+        $this->appModuleMessage()->create([
+            'entity_id' => $entity->getId(),
+            'entity_namespace' => get_class($entity),
+        ]);
+    }
+
     public function entity(): ?Model
     {
         if (! $this->appModuleMessage) {

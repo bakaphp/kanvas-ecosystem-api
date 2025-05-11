@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Jobs;
 
-use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
@@ -14,6 +13,7 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -162,7 +162,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
             // If the message is not from the user, process the contact
             if (! $isFromMe) {
-                $this->processContactFromMessage($chatJid, $messageData);
+                $people = $this->processContactFromMessage($chatJid, $messageData);
+            }
+
+            if ($people) {
+                // Associate the message with the contact
+                $message->addEntity($people);
             }
 
             // Add to processed results
@@ -917,7 +922,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     /**
      * Process a contact from a message and create/update People record
      */
-    protected function processContactFromMessage(string $jid, array $messageData): ?object
+    protected function processContactFromMessage(string $jid, array $messageData): ?People
     {
         // Skip processing for group chats or channels
         if ($this->isGroupJid($jid) || $this->isChannelJid($jid)) {
@@ -933,7 +938,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     /**
      * Process a contact and create/update People record
      */
-    protected function processContact(string $jid, ?string $name = null): ?object
+    protected function processContact(string $jid, ?string $name = null): ?People
     {
         // Skip processing for group chats or channels
         if ($this->isGroupJid($jid) || $this->isChannelJid($jid)) {
@@ -980,16 +985,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         );
 
         // Create People record
-        try {
-            $createAction = new CreatePeopleAction($peopleDto);
-            $people = $createAction->execute();
 
-            return $people;
-        } catch (Exception $e) {
-            report($e);
+        $createAction = new CreatePeopleAction($peopleDto);
 
-            return null;
-        }
+        return $createAction->execute();
     }
 
     /**
