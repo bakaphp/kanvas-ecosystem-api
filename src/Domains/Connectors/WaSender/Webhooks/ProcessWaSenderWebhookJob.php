@@ -35,7 +35,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         // Verify webhook signature if available
         $signature = $headers['x-webhook-signature'] ?? null;
         if ($signature) {
-            //  $this->verifySignature($signature);
+            $this->verifySignature($signature);
         }
 
         // Get event type from payload
