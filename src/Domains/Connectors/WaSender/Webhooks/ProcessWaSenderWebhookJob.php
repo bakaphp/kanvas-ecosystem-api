@@ -18,6 +18,8 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
@@ -34,12 +36,13 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
         // Verify webhook signature if available
         $signature = $headers['x-webhook-signature'] ?? null;
+
         if ($signature) {
-            $this->verifySignature($signature);
+            $this->verifySignature(is_array($signature) ? $signature[0] : $signature);
         }
 
         // Get event type from payload
-        $eventType = $payload['type'] ?? 'unknown';
+        $eventType = $payload['event'] ?? 'unknown';
 
         // Process based on event type
         $result = match ($eventType) {
@@ -126,14 +129,14 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $message = $existingMessage;
             } else {
                 // Get the appropriate message type
-                $messageTypeModel = MessageType::where('verb', $messageType)
-                    ->where('apps_id', $this->receiver->app->getId())
-                    ->first();
-
-                if (! $messageTypeModel) {
-                    $messageTypeModel = MessageType::where('apps_id', $this->receiver->app->getId())
-                        ->firstOrFail();
-                }
+                $messageTypeModel = (new CreateMessageTypeAction(
+                    new MessageTypeInput(
+                        $this->receiver->app->getId(),
+                        0,
+                        $messageType,
+                        $messageType,
+                    )
+                ))->execute();
 
                 // Create the message using the action
                 $messageInput = new MessageInput(
@@ -169,6 +172,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 // Associate the message with the contact
                 $message->addEntity($people);
             }
+
+            /**
+             * @todo we need to create users for each user and associate with people
+             */
 
             // Add to processed results
             $processedMessages[] = [
@@ -903,8 +910,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $channel->slug = $slug;
             $channel->companies_id = $this->receiver->company->getId();
             $channel->apps_id = $this->receiver->app->getId();
-            $channel->users_id = $this->receiver->user->getId();
-            $channel->uuid = Str::uuid()->toString();
+            //$channel->users_id = $this->receiver->user->getId();
+            //$channel->uuid = Str::uuid()->toString();
             $channel->save();
         } elseif ($name && $channel->name !== $name) {
             $channel->name = $name;
@@ -949,20 +956,16 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $firstName = $nameParts[0] ?? 'WhatsApp';
         $lastName = $nameParts[1] ?? 'Contact';
 
-        // Create contact data
-        $contactData = new DataCollection(
-            Contact::class,
+        $contactData = [
             [
-                new Contact(
-                    value: $phoneNumber,
-                    contacts_types_id: ContactTypeEnum::CELLPHONE->value,
-                    weight: 100,
-                ),
-            ]
-        );
+                'value' => $phoneNumber,
+                'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+                'weight' => 100,
+            ],
+        ];
 
         // Create address data (empty collection)
-        $addressData = new DataCollection(Address::class, []);
+        //$addressData = new DataCollection(Address::class, []);
 
         // Create People DTO
         $peopleDto = new PeopleDTO(
@@ -970,8 +973,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             branch: $this->receiver->company->defaultBranch,
             user: $this->receiver->user,
             firstname: $firstName,
-            contacts: $contactData,
-            address: $addressData,
+            contacts: Contact::collect($contactData, DataCollection::class),
+            address: Address::collect([], DataCollection::class),
             lastname: $lastName,
             custom_fields: [
                 'whatsapp_jid' => $jid,
@@ -979,6 +982,9 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             tags: ['whatsapp', 'wa-contact']
         );
 
+        Log::info('Processing contact', [
+          $peopleDto->toArray(),
+        ]);
         // Create People record
 
         $createAction = new CreatePeopleAction($peopleDto);

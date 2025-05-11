@@ -172,7 +172,10 @@ class Message extends BaseModel
     {
         $this->appModuleMessage()->create([
             'entity_id' => $entity->getId(),
-            'entity_namespace' => get_class($entity),
+            'apps_id' => $this->apps_id,
+            'message_types_id' => $this->message_types_id,
+            'companies_id' => $this->companies_id,
+            'system_modules' => get_class($entity),
         ]);
     }
 
