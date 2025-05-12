@@ -14,11 +14,7 @@ input CreateUserInput {
 }
 
 extend type Mutation @guardByAppKey {
-    appCreateUser(data: CreateUserInput!): User! 
-        @canDo(
-            model: "Kanvas\\Users\\Models\\Users",
-            permission: "create users"
-        )
+    appCreateUser(data: CreateUserInput!): User!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@createUser"
         )
