@@ -17,13 +17,13 @@ class CRMAgent extends BaseAgent
         return [
              Tool::make(
                  'get_current_time',
-                 'Retrieve the current time from the system.',
+                 'Retrieve the current date and time of today.',
              )->setCallable(fn () => [
                 'time' => date('Y-m-d H:i:s'),
             ]),
              Tool::make(
                  'get_customer_information',
-                 'Retrieve basic customer profile information.',
+                 'Retrieve customer information. This is the information of the customer you are currently talking to. IT will have name , middlename, other records',
              )->setCallable(function () {
                  // Ensure entity is a People instance
 
@@ -46,7 +46,7 @@ class CRMAgent extends BaseAgent
 
              Tool::make(
                  'get_customer_contact_info',
-                 'Retrieve customer contact information including emails, phones, and addresses.',
+                 'Retrieve customer contact information including emails, phones, and addresses. This is the information of the customer you are currently talking to.',
              )->setCallable(function () {
                  /** @var People $customer */
                  $customer = $this->entity;
@@ -97,7 +97,7 @@ class CRMAgent extends BaseAgent
 
              Tool::make(
                  'get_customer_likes',
-                 'Retrieve items and content the customer has liked or disliked.',
+                 'Retrieve items and content the customer has liked or disliked. This is the information of the customer you are currently talking to.',
              )->setCallable(function () {
                  /** @var People $customer */
                  $customer = $this->entity;
@@ -151,7 +151,7 @@ class CRMAgent extends BaseAgent
 
              Tool::make(
                  'get_customer_organizations',
-                 'Retrieve organizations associated with the customer.',
+                 'Retrieve organizations associated with the customer. This is the information of the customer you are currently talking to.',
              )->setCallable(function () {
                  /** @var People $customer */
                  $customer = $this->entity;
@@ -177,7 +177,7 @@ class CRMAgent extends BaseAgent
 
              Tool::make(
                  'get_customer_tags',
-                 'Retrieve tags associated with the customer.',
+                 'Retrieve tags associated with the customer. This is the information of the customer you are currently talking to.',
              )->setCallable(function () {
                  /** @var People $customer */
                  $customer = $this->entity;
@@ -193,7 +193,7 @@ class CRMAgent extends BaseAgent
 
              Tool::make(
                  'get_customer_leads',
-                 'Retrieve comprehensive information about the customer\'s leads.',
+                 'Retrieve comprehensive information about the customer\'s leads. This is the information of the customer you are currently talking to.',
              )->setCallable(function () {
                  /** @var People $customer */
                  $customer = $this->entity;
@@ -276,7 +276,7 @@ class CRMAgent extends BaseAgent
 
              Tool::make(
                  'get_customer_custom_fields',
-                 'Retrieve all custom fields for the customer and their leads.',
+                 'Retrieve all custom fields for the customer and their leads. This is the information of the customer you are currently talking to.',
              )->setCallable(function () {
                  /** @var People $customer */
                  $customer = $this->entity;
@@ -352,7 +352,7 @@ class CRMAgent extends BaseAgent
 
              Tool::make(
                  'get_all_customer_info',
-                 'Retrieve all available customer information in a comprehensive format.',
+                 'Retrieve all available customer information in a comprehensive format. This is the information of the customer you are currently talking to.',
              )->setCallable(function () {
                  /** @var People $customer */
                  $customer = $this->entity;

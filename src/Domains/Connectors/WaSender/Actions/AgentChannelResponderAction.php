@@ -31,7 +31,7 @@ class AgentChannelResponderAction
             throw new ValidationException('No entity found');
         }
 
-        $crmAgent = CRMAgent::make();
+        $crmAgent = new CRMAgent();
         $crmAgent->setConfiguration(
             $this->agent,
             $this->message->entity()
@@ -55,11 +55,19 @@ class AgentChannelResponderAction
     }
 
     /**
-     * Extract plain text from a response that might contain JSON in code blocks
+     * Extract plain text from a response that might contain JSON with a response field
      */
     protected function extractTextFromResponse(string $response): string
     {
-        // Check if the response has markdown code blocks with JSON
+        // First try: direct JSON parsing if the entire response is JSON
+        if (Str::isJson($response)) {
+            $data = json_decode($response, true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($data['response'])) {
+                return $data['response'];
+            }
+        }
+
+        // Second try: Check if response has markdown code blocks with JSON
         if (preg_match('/```(?:json)?\s*(\{.*\})\s*```/s', $response, $matches)) {
             $jsonString = $matches[1];
             $data = json_decode($jsonString, true);
@@ -69,17 +77,27 @@ class AgentChannelResponderAction
             }
         }
 
-        // Alternative: strip markdown code block formatting and try to parse
-        $cleanedResponse = preg_replace('/```(?:json)?\s*(.*)\s*```/s', '$1', $response);
+        // Third try: Handle JSON without code blocks or with malformed blocks
+        // Find anything that looks like a JSON object
+        if (preg_match('/\{.*"response"\s*:\s*"(.*?)"\s*(?:,.*?)?\}/s', $response, $matches)) {
+            // This handles cases where we have: {"response": "text"} anywhere in the string
+            return str_replace('\n', "\n", $matches[1]); // Handle escaped newlines
+        }
 
-        if (Str::isJson($cleanedResponse)) {
-            $data = json_decode($cleanedResponse, true);
-            if (isset($data['response'])) {
+        // Fourth try: Look for a JSON string anywhere in the response
+        if (preg_match('/\{.*\}/s', $response, $matches)) {
+            $possibleJson = $matches[0];
+            $data = json_decode($possibleJson, true);
+
+            if (json_last_error() === JSON_ERROR_NONE && isset($data['response'])) {
                 return $data['response'];
             }
         }
 
-        // If all else fails, just strip markdown formatting and return
+        // Fifth try: Strip markdown code block formatting and try to parse
+        $cleanedResponse = preg_replace('/```(?:json)?\s*(.*)\s*```/s', '$1', $response);
+
+        // Last resort: return the original response with markdown formatting removed
         return preg_replace('/```(?:json)?\s*(.*)\s*```/s', '$1', $response);
     }
 }
