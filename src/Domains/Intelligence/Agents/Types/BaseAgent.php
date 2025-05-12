@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Types;
 
-use Dom\Entity;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -12,7 +11,6 @@ use Kanvas\Intelligence\Agents\ChatHistory\RedisAgentChatHistory;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\FileChatHistory;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\Anthropic\Anthropic;
 use NeuronAI\Providers\Gemini\Gemini;
@@ -154,6 +152,12 @@ class BaseAgent extends RAG
     protected function tools(): array
     {
         return [
+            Tool::make(
+                'get_current_time',
+                'Retrieve the current time from the system.',
+            )->setCallable(fn () => [
+                'time' => date('Y-m-d H:i:s'),
+            ]),
             Tool::make(
                 'get_user_workout',
                 'Retrieve the user workout status from the database.',

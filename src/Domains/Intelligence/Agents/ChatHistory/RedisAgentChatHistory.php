@@ -14,14 +14,7 @@ use NeuronAI\Chat\Messages\Message;
 
 class RedisAgentChatHistory extends AbstractChatHistory
 {
-    /**
-     * Redis key prefix for agent chat histories
-     */
     protected const REDIS_PREFIX = 'agent_chat_history:';
-
-    /**
-     * Redis expiration time in seconds (default: 24 hours)
-     */
     protected const REDIS_EXPIRATION = 86400;
     protected string $entityNamespace;
     protected int|string $entityId;
@@ -32,15 +25,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
      */
     protected bool $isDirty = false;
 
-    /**
-     * Create a new RedisAgentChatHistory instance
-     *
-     * @param Agent $agent The agent instance
-     * @param string $entityNamespace The entity namespace
-     * @param int $entityId The entity ID
-     * @param string|null $externalReferenceId Optional external reference ID
-     * @param int $contextWindow Maximum token length for context window
-     */
     public function __construct(
         protected Agent $agent,
         protected Model $entity,
@@ -57,9 +41,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
         $this->init();
     }
 
-    /**
-     * Initialize the chat history from Redis or database
-     */
     protected function init(): void
     {
         // First try to load from Redis for speed
@@ -110,17 +91,11 @@ class RedisAgentChatHistory extends AbstractChatHistory
         }
     }
 
-    /**
-     * Generate the Redis key for this chat history
-     */
     protected function getRedisKey(): string
     {
         return self::REDIS_PREFIX . $this->agent->id . ':' . $this->entityNamespace . ':' . $this->entityId;
     }
 
-    /**
-     * Update the Redis cache with the current history
-     */
     protected function updateRedis(): void
     {
         $redisKey = $this->getRedisKey();
@@ -131,9 +106,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
         );
     }
 
-    /**
-     * Store a message in the history
-     */
     protected function storeMessage(Message $message): ChatHistoryInterface
     {
         // Mark history as dirty so we know to save to database
@@ -148,9 +120,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
         return $this;
     }
 
-    /**
-     * Save a message to the database
-     */
     protected function saveToDatabase(Message $message): void
     {
         // Determine if this is a user or assistant message
@@ -176,9 +145,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
         ]);
     }
 
-    /**
-     * Get the current context as a string
-     */
     protected function getContext(): string
     {
         $contextMessages = array_slice($this->history, -5);
@@ -227,17 +193,11 @@ class RedisAgentChatHistory extends AbstractChatHistory
         return $this;
     }
 
-    /**
-     * Get all messages in the history
-     */
     public function getAll(): array
     {
         return $this->history;
     }
 
-    /**
-     * Synchronize history to ensure all changes are saved
-     */
     public function sync(): void
     {
         if ($this->isDirty) {
@@ -246,9 +206,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
         }
     }
 
-    /**
-     * Destructor ensures any pending changes are saved
-     */
     public function __destruct()
     {
         $this->sync();
