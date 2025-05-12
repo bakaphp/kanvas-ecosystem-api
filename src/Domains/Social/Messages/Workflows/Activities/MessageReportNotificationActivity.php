@@ -74,7 +74,7 @@ class MessageReportNotificationActivity extends KanvasActivity
 
                 return [
                     'result' => true,
-                    'message' => 'New report from ' . $message->user->getName(),
+                    'message' => 'New report from ' . $message->user->displayname,
                     'message_id' => $message->getId(),
                 ];
             },
