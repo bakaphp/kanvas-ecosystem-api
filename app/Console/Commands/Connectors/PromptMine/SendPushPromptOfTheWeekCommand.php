@@ -45,7 +45,7 @@ class SendPushPromptOfTheWeekCommand extends Command
         $messageType = MessageType::getById($messageTypeId);
         $config = [
             'via' => [
-                NotificationChannelEnum::PUSH->value,
+                NotificationChannelEnum::getNotificationChannelBySlug('push'),
             ],
         ];
         UsersAssociatedApps::fromApp($app)
