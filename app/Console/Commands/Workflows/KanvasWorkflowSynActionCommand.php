@@ -67,6 +67,7 @@ use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
+use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
@@ -171,6 +172,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PremiumPromptFlagActivity::class,
             SetOrderPaymentIntentActivity::class,
             ProcessWaSenderWebhookJob::class,
+            AgentChannelResponderActivity::class,
         ];
 
         $createdActions = [];
