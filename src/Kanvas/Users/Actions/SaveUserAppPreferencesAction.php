@@ -28,7 +28,6 @@ class SaveUserAppPreferencesAction
             }
             $savedAppPreferences[$setting] = $this->preferences[$setting];
         }
-        
         $this->user->set('user_app_' . $this->app->getId() . '_preferences', $savedAppPreferences, true);
     }
 }
