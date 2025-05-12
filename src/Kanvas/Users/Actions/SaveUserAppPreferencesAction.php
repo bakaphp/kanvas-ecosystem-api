@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UserConfig;
+use Kanvas\Users\Models\Users;
 
 class SaveUserAppPreferencesAction
 {
