@@ -50,11 +50,10 @@ class IndexProductJob implements ShouldQueue
                     $product->variants()->first()->slug
                 );
                 $action->execute();
-            }catch (\Exception $e) {
+            } catch (\Exception $e) {
                 logger()->error('Error processing product: ' . $product->id . ' - ' . $e->getMessage());
                 $product->delete();
             }
-            
         }
     }
 }
