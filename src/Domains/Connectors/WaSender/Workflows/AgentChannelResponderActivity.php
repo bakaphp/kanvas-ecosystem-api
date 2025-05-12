@@ -20,7 +20,7 @@ class AgentChannelResponderActivity extends KanvasActivity
         $this->overwriteAppService($app);
 
         $message = $params['message'] ?? null;
-        $user = $params['user'] ?? null;
+        $user = $params['user'] ?? null; //@todo fix this get the user from the message
         //$fromMe = $params['from_me'] ?? null;
 
         $agentId = $params['agent_id'] ?? null;
@@ -31,7 +31,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::WASENDER,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $agentId, $runOnChannel) {
-                if (empty($message) || empty($user)) {
+                if (empty($message)) {
                     return [
                         'message' => 'Message or user not found',
                         'entity' => null,
