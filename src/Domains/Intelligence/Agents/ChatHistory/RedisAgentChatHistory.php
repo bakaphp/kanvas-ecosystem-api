@@ -29,7 +29,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
         protected Agent $agent,
         protected Model $entity,
         ?string $externalReferenceId = null,
-        int $contextWindow = 50000
+        int $contextWindow = 500000
     ) {
         parent::__construct($contextWindow);
 
