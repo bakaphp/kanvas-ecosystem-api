@@ -12,7 +12,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class MessageObserver
 {
-    public function creating(Message $message)
+    public function creating(Message $message): void
     {
         if ($message->app->get('message-image-type')) {
             (new CheckMessagePostLimitAction(
