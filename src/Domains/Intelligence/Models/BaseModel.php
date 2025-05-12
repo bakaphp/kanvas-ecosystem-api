@@ -33,5 +33,14 @@ class BaseModel extends EloquentModel
         'is_deleted' => 0,
     ];
 
+    /**
+     * Prevent laravel from cast is_deleted as date using carbon.
+     */
+    protected $casts = [
+        'is_deleted' => 'boolean',
+    ];
+
+    public const DELETED_AT = 'is_deleted';
+
     protected $connection = 'intelligence';
 }
