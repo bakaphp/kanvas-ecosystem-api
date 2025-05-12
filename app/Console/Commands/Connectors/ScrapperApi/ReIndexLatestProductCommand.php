@@ -21,7 +21,7 @@ class ReIndexLatestProductCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:products-scrapper {app_id} {userId} {branch_id} {region_id} {limit?}';
+    protected $signature = 'kanvas:products-scrapper {app_id} {userId} {branch_id} {region_id} {limit?} {order?}';
 
     /**
      * The console command description.
@@ -42,12 +42,14 @@ class ReIndexLatestProductCommand extends Command
         $regions = Regions::getById((int) $this->argument('region_id'));
         $user = Users::getById((int) $this->argument('userId'));
         $limit = $this->argument('limit') ?? 2000;
+        $order = $this->argument('order') ?? 'desc';
         IndexProductJob::dispatch(
             $app,
             $branch,
             $regions,
             $user,
-            $limit
+            $limit,
+            $order
         );
     }
 }
