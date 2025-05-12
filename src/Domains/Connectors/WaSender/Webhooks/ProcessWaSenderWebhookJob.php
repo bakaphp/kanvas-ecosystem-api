@@ -169,7 +169,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $people = $this->processContactFromMessage($chatJid, $messageData);
             }
 
-            if ($people) {
+            if (isset($people) && $people instanceof People) {
                 // Associate the message with the contact
                 $message->addEntity($people);
             }
