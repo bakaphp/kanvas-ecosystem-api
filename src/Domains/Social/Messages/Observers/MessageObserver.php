@@ -27,7 +27,7 @@ class MessageObserver
         }
 
         if ($message->app->get('check-free-generation-count')) {
-            (new CheckNuggetGenerationCountAction($message))->execute();
+            //(new CheckNuggetGenerationCountAction($message))->execute();
         }
     }
 
