@@ -29,10 +29,6 @@ class MessageObserver
         if ($message->app->get('check-free-generation-count')) {
             (new CheckNuggetGenerationCountAction($message))->execute();
         }
-
-        if ($message->app->get('free-generation')) {
-            $message->increment('total_children');
-        }
     }
 
     public function created(Message $message): void
