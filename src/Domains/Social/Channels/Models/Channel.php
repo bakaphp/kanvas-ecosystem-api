@@ -64,8 +64,7 @@ class Channel extends BaseModel
 
     public function addMessage(
         Message $message,
-        ?UserInterface $user = null,
-        bool $fromMe = false
+        ?UserInterface $user = null
     ): void {
         $exists = $this->messages()
                 ->wherePivot('messages_id', $message->id)
@@ -87,7 +86,6 @@ class Channel extends BaseModel
             'user' => $user,
             'app' => $message->app,
             'company' => $message->company,
-            'from_me' => $fromMe,
         ]);
     }
 }

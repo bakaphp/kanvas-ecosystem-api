@@ -397,7 +397,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $text = $this->extractMessageText($messageContent, $messageType);
         $chatJid = $key['remoteJid'] ?? null;
         $messageId = $key['id'] ?? Str::uuid()->toString();
-        $isFromMe = $key['fromMe'] ?? false;
+        //$isFromMe = $key['fromMe'] ?? false;
         $user = $this->receiver->user;
 
         // Create message slug
@@ -453,7 +453,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         }
 
         // Associate message with channel
-        $channel->addMessage($message, $user, $isFromMe);
+        $channel->addMessage($message, $user);
 
         return [
             'message_id' => $message->getId(),
