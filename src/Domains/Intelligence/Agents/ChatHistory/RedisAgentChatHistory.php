@@ -45,14 +45,15 @@ class RedisAgentChatHistory extends AbstractChatHistory
     {
         // First try to load from Redis for speed
         $redisKey = $this->getRedisKey();
+        //Redis::del($redisKey);
         $cachedHistory = Redis::get($redisKey);
 
-        if ($cachedHistory) {
-            $messages = json_decode($cachedHistory, true);
-            $this->history = $this->unserializeMessages($messages);
+        /*  if ($cachedHistory) {
+             $messages = json_decode($cachedHistory, true);
+             $this->history = $this->unserializeMessages($messages);
 
-            return;
-        }
+             return;
+         } */
 
         // If not in Redis, try to load from database
         $history = AgentHistory::where('agent_id', $this->agent->id)
