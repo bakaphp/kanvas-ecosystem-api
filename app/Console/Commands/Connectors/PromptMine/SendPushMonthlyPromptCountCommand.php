@@ -44,20 +44,18 @@ class SendPushMonthlyPromptCountCommand extends Command
         $messageTypeId = (int) $this->argument('message_type_id');
 
         $messageType = MessageType::getById($messageTypeId);
-        $config = [
-            'via' => [
-                NotificationChannelEnum::getNotificationChannelBySlug('push'),
-            ],
+        $via = [
+            NotificationChannelEnum::getNotificationChannelBySlug('push'),
         ];
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)
-            ->chunk(100, function ($usersAssocApps) use ($app, $messageType, $config) {
+            ->chunk(100, function ($usersAssocApps) use ($app, $messageType, $via) {
                 foreach ($usersAssocApps as $usersAssocApp) {
                     $monthtlyCount = MessagesRepository::getcurrentMonthCreationCount($app, $usersAssocApp->user, $messageType);
                     $this->info("User {$usersAssocApp->user->getId()} has $monthtlyCount messages this month.");
                     $this->info("Sending push notification to user {$usersAssocApp->user->getId()}");
-                    SendMonthlyMessageCountJob::dispatch($app, $usersAssocApp->user, $monthtlyCount, $messageType, $config);
+                    SendMonthlyMessageCountJob::dispatch($app, $usersAssocApp->user, $monthtlyCount, $messageType, $via);
                     $this->info("Push notification sent to user {$usersAssocApp->user->getId()}");
                 }
             });
