@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Users\Models\UserConfig;
 use Kanvas\Users\Models\Users;
 
 class SaveUserAppPreferencesAction
@@ -29,16 +28,7 @@ class SaveUserAppPreferencesAction
             }
             $savedAppPreferences[$setting] = $this->preferences[$setting];
         }
-
-        UserConfig::updateOrCreate(
-            [
-                'users_id' => $this->user->getId(),
-                'name' => 'user_app_' . $this->app->getId() . '_preferences',
-            ],
-            [
-                'value' => $savedAppPreferences,
-                'is_public' => 1,
-            ],
-        );
+        
+        $this->user->set('user_app_' . $this->app->getId() . '_preferences', $savedAppPreferences, true);
     }
 }
