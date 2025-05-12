@@ -86,7 +86,6 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
 
         $lead = $createLead->execute();
 
-
         if ($user) {
             new SendRotationEmailsAction(
                 $lead,

@@ -9,10 +9,12 @@ use Kanvas\Guild\Leads\Enums\LeadNotificationUserModeEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadRotation;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Users\Models\Users;
 
 class SendRotationEmailsAction
 {
+    private mixed $channels = ['mail'];
     public function __construct(
         private ModelsLead $lead,
         private LeadReceiver $leadReceiver,
@@ -39,6 +41,10 @@ class SendRotationEmailsAction
             ->all()
             : [$emailReceiverUser];
 
+            if (isset($this->leadRotation?->config['notification_channels']) && $this->leadRotation->config['notification_channels'] === 'database') {
+                $this->channels = [...$this->channels,  NotificationChannelEnum::getNotificationChannelBySlug('database'),];
+            }
+
             $this->sendLeadEmails(
                 $emailTemplate,
                 $users,
@@ -56,13 +62,14 @@ class SendRotationEmailsAction
         array $payload,
         LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL
     ): void {
-        $sendLeadEmailsAction = new SendLeadEmailsAction($lead, $emailTemplate);
+        $sendLeadEmailsAction = new SendLeadEmailsAction($lead, $emailTemplate, $this->channels);
         $fieldMaps = $this->mapCustomFields($payload['custom_fields']);
         if (isset($fieldMaps['product_id'])) {
             $payload['product'] = $sendLeadEmailsAction->getProduct($fieldMaps['product_id']);
         }
         $payload['field_maps'] = $fieldMaps;
-        $sendLeadEmailsAction->execute($payload, $users, $notificationMode);
+
+        $sendLeadEmailsAction->execute($payload, $users, $notificationMode, $this->channels);
     }
 
     protected function mapCustomFields(array $customFields): array
