@@ -28,6 +28,7 @@
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
         "imdhemy/laravel-purchases": "^1.14",
+        "inspector-apm/neuron-ai": "^1.9",
         "joelwmale/laravel-cart": "^1.2",
         "knplabs/knp-snappy": "^1.5",
         "laravel-workflow/laravel-workflow": "^1.0.24",
@@ -102,6 +103,7 @@
             "Kanvas\\Dashboard\\": "src/Domains/Dashboard",
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
             "Kanvas\\Event\\": "src/Domains/Event",
+            "Kanvas\\Intelligence\\": "src/Domains/Intelligence",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -135,7 +137,8 @@
             "php artisan migrate --path database/migrations/ActionEngine/ --database action_engine",
             "php artisan migrate --path database/migrations/Subscription/ --database mysql",
             "php artisan migrate --path database/migrations/Event/ --database event",
-            "php artisan migrate --path database/migrations/Workflow/ --database workflow"
+            "php artisan migrate --path database/migrations/Workflow/ --database workflow",
+            "php artisan migrate --path database/migrations/Intelligence/ --database intelligence"
         ],
         "migrate-kanvas": [
             "php artisan migrate"
@@ -166,6 +169,9 @@
         ],
         "migrate-events": [
             "php artisan migrate --path database/migrations/Event/ --database event"
+        ],
+        "migrate-intelligence": [
+            "php artisan migrate --path database/migrations/Intelligence/ --database intelligence"
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
