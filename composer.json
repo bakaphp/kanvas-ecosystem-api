@@ -28,6 +28,7 @@
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
         "imdhemy/laravel-purchases": "^1.14",
+        "inspector-apm/inspector-php": "^3.12",
         "inspector-apm/neuron-ai": "^1.9",
         "joelwmale/laravel-cart": "^1.2",
         "knplabs/knp-snappy": "^1.5",

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\WaSender\Actions;
 
 use Baka\Support\Str;
+use Inspector\Configuration;
+use Inspector\Inspector;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -12,6 +14,7 @@ use Kanvas\Intelligence\Agents\Types\CRMAgent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Observability\AgentMonitoring;
 
 class AgentChannelResponderAction
 {
@@ -31,11 +34,23 @@ class AgentChannelResponderAction
             throw new ValidationException('No entity found');
         }
 
+        $useInspector = $this->message->app->get('inspector-key') !== null;
+
         $crmAgent = new CRMAgent();
+
         $crmAgent->setConfiguration(
             $this->agent,
             $this->message->entity()
         );
+
+        if ($useInspector) {
+            $inspector = new Inspector(
+                new Configuration($this->message->app->get('inspector-key'))
+            );
+            $crmAgent->observe(
+                new AgentMonitoring($inspector)
+            );
+        }
 
         $question = $crmAgent->chat(new UserMessage($messageConversation));
         $responseContent = $question->getContent();
