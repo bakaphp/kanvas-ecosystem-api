@@ -29,7 +29,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
         protected Apps $app,
         protected Users $user,
         protected MessageType $messageType,
-        protected array $config,
+        protected array $via,
     ) {
     }
 
@@ -51,7 +51,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
                 'title' => 'Prompt of the Week',
                 'message' => "$messageOfTheWeek->message['title'] — Try it now and keep the momentum going."
             ],
-            $this->config
+            $this->via
         );
         $this->user->notify($messageOfTheWeek);
     }
