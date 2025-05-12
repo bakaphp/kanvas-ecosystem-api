@@ -14,7 +14,8 @@ class SaveUserAppPreferencesAction
         private Users $user,
         private Apps $app,
         private array $preferences = [],
-    ) {}
+    ) {
+    }
 
     public function execute(): void
     {
