@@ -35,14 +35,16 @@ class MessagesRepository
         return array_values(array_unique($userPostsTags));
     }
 
-    public static function getMostPopularMesssageByTotalLikes(Apps $app, MessageType $messageType): Message
+    public static function getMostPopularMesssageByTotalLikes(Apps $app, MessageType $messageType): Message| null
     {
-        return Message::query()
+        $popularMessage = Message::query()
             ->where('apps_id', $app->getId())
             ->where('message_types_id', $messageType->getId())
             ->whereRaw('YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)')
             ->orderBy('total_liked', 'DESC')
             ->limit(1)
             ->first();
+
+        return $popularMessage ?? null;
     }
 }
