@@ -20,10 +20,10 @@ class CheckNuggetGenerationCountAction
     {
         $freeGenerationCountCustomField = $this->message->user->getId() . '-nugget-free-generation-count';
         $messageOrder = AppModuleMessage::fromApp($this->message->app->getId())
-            ->where('message_id', $this->message->getId())
             ->where('apps_id', $this->message->app->getId())
             ->where('companies_id', $this->message->company->getId())
             ->where('system_modules', Order::class)
+            ->where('entity_id', $this->message->getId())
             ->where('is_deleted', 0)
             ->first();
         // $messageOrder = AppModuleMessage::find(121530);
