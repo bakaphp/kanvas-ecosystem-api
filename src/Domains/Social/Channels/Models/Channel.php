@@ -62,8 +62,10 @@ class Channel extends BaseModel
                 ->withTimestamps();
     }
 
-    public function addMessage(Message $message, ?UserInterface $user = null): void
-    {
+    public function addMessage(
+        Message $message,
+        ?UserInterface $user = null
+    ): void {
         $exists = $this->messages()
                 ->wherePivot('messages_id', $message->id)
                 ->exists();
