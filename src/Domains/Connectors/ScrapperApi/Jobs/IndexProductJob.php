@@ -28,25 +28,33 @@ class IndexProductJob implements ShouldQueue
         public CompaniesBranches $branch,
         public Regions $region,
         public Users $user,
-        public int $limit = 2000
+        public int $limit = 2000,
+        public string $order = 'desc'
     ) {
     }
 
     public function handle()
     {
         $products = Products::where('apps_id', $this->app->getId())
-            ->orderBy('id', 'desc')
+            ->orderBy('id', $this->order)
             ->limit($this->limit)
             ->get();
         foreach ($products as $product) {
-            $action = new ScrapperAction(
-                $this->app,
-                $this->user,
-                $this->branch,
-                $this->region,
-                $product->variants()->first()->slug
-            );
-            $action->execute();
+            logger()->info('Processing product: ' . $product->id);
+            try {
+                $action = new ScrapperAction(
+                    $this->app,
+                    $this->user,
+                    $this->branch,
+                    $this->region,
+                    $product->variants()->first()->slug
+                );
+                $action->execute();
+            }catch (\Exception $e) {
+                logger()->error('Error processing product: ' . $product->id . ' - ' . $e->getMessage());
+                $product->delete();
+            }
+            
         }
     }
 }
