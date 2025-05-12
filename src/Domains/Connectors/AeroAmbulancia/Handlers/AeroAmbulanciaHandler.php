@@ -26,9 +26,6 @@ class AeroAmbulanciaHandler extends BaseIntegration
         }
 
         // Save the configuration
-        $this->app->set(ConfigurationEnum::BASE_URL->value, $this->data['base_url']);
-        $this->app->set(ConfigurationEnum::EMAIL->value, $this->data['email']);
-        $this->app->set(ConfigurationEnum::PASSWORD->value, $this->data['password']);
 
         return true;
     }
@@ -38,6 +35,10 @@ class AeroAmbulanciaHandler extends BaseIntegration
         if (empty($baseUrl) || empty($username) || empty($password)) {
             throw new ValidationException('All VentaMobile configuration fields are required');
         }
+
+        $this->app->set(ConfigurationEnum::BASE_URL->value, $this->data['base_url']);
+        $this->app->set(ConfigurationEnum::EMAIL->value, $this->data['email']);
+        $this->app->set(ConfigurationEnum::PASSWORD->value, (string) $this->data['password']);
 
         $client = new Client($this->app, $this->company);
 
