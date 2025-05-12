@@ -27,14 +27,14 @@ class AgentChannelResponderAction
         $messageConversation = $this->message->message['raw_data']['message']['conversation'] ?? null;
         $channelId = Str::replace('@s.whatsapp.net', '', $this->message->message['chat_jid']);
 
-        if ($this->message->entity === null) {
+        if ($this->message->entity() === null) {
             throw new ValidationException('No entity found');
         }
 
         $crmAgent = CRMAgent::make();
         $crmAgent->setConfiguration(
             $this->agent,
-            $this->message->entity
+            $this->message->entity()
         );
 
         $question = $crmAgent->chat(new UserMessage($messageConversation));
