@@ -61,7 +61,7 @@ class PushFollowRecommendationNotificationCommand extends Command
                     $dynamicMessage = str_replace('@username', $randomRecommendedUser->displayname, $notificationMessages[array_rand($notificationMessages)]);
                     $followsRecommendationsNotification = new FollowsRecommendationsPushNotication(
                         $user,
-                         "Follow Recommendation",
+                        "Follow Recommendation",
                         $dynamicMessage,
                         $via,
                         [
