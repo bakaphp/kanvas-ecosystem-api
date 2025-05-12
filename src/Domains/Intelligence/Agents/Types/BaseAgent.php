@@ -50,7 +50,7 @@ class BaseAgent extends RAG
         // return an AI provider (Anthropic, OpenAI, Gemini, Ollama, etc.)
         return new Gemini(
             key: $this->app->get(ConfigurationEnum::GEMINI_KEY->value),
-            model: $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.0-flash',
+            model: $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.0-flash-lite',
         );
     }
 
