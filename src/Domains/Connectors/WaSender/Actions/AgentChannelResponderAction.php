@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\WaSender\Actions;
 use Baka\Support\Str;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Types\BaseAgent;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\CRMAgent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -18,7 +18,7 @@ class AgentChannelResponderAction
     public function __construct(
         protected Channel $channel,
         protected Message $message,
-        protected BaseAgent $agent
+        protected Agent $agent
     ) {
     }
 
@@ -32,7 +32,10 @@ class AgentChannelResponderAction
         }
 
         $crmAgent = CRMAgent::make();
-        $crmAgent->setConfiguration($this->agent, $this->message->entity);
+        $crmAgent->setConfiguration(
+            $this->agent,
+            $this->message->entity
+        );
 
         $question = $crmAgent->chat(new UserMessage($messageConversation));
         $response = $question->getContent();
