@@ -14,7 +14,7 @@ use NeuronAI\Chat\Messages\Message;
 
 class RedisAgentChatHistory extends AbstractChatHistory
 {
-    protected const REDIS_PREFIX = 'agent_chat_history:';
+    protected const REDIS_PREFIX = 'agent_chat_history_v2:';
     protected const REDIS_EXPIRATION = 86400;
     protected string $entityNamespace;
     protected int|string $entityId;
@@ -29,7 +29,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
         protected Agent $agent,
         protected Model $entity,
         ?string $externalReferenceId = null,
-        int $contextWindow = 500000000000
+        int $contextWindow = 16000
     ) {
         parent::__construct($contextWindow);
 
@@ -48,12 +48,12 @@ class RedisAgentChatHistory extends AbstractChatHistory
         //Redis::del($redisKey);
         $cachedHistory = Redis::get($redisKey);
 
-        /*  if ($cachedHistory) {
-             $messages = json_decode($cachedHistory, true);
-             $this->history = $this->unserializeMessages($messages);
+        if ($cachedHistory) {
+            $messages = json_decode($cachedHistory, true);
+            $this->history = $this->unserializeMessages($messages);
 
-             return;
-         } */
+            return;
+        }
 
         // If not in Redis, try to load from database
         $history = AgentHistory::where('agent_id', $this->agent->id)

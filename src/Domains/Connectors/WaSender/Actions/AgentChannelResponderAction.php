@@ -7,11 +7,11 @@ namespace Kanvas\Connectors\WaSender\Actions;
 use Baka\Support\Str;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Messages\UserMessage;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\CRMAgent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
-use NeuronAI\Chat\Messages\UserMessage;
 
 class AgentChannelResponderAction
 {
@@ -41,7 +41,7 @@ class AgentChannelResponderAction
         $responseContent = $question->getContent();
 
         // Extract text from response that might be formatted with markdown code blocks
-        $responseText = $this->extractTextFromResponse($responseContent);
+        //$responseText = $this->extractTextFromResponse($responseContent);
 
         $whatsAppMessageService = new MessageService(
             $this->message->app,
@@ -50,7 +50,7 @@ class AgentChannelResponderAction
 
         return $whatsAppMessageService->sendTextMessage(
             $channelId,
-            $responseText
+            $responseContent
         );
     }
 

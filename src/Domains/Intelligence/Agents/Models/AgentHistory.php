@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,6 +14,7 @@ use Kanvas\Intelligence\Models\BaseModel;
 class AgentHistory extends BaseModel
 {
     use UuidTrait;
+    use SoftDeletesTrait;
 
     protected $fillable = [
         'uuid',
