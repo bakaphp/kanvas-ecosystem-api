@@ -586,9 +586,9 @@ class SyncEsimWithProviderCommand extends Command
         $activationDate = $orderCreationDate ? Carbon::parse($orderCreationDate)->format('Y-m-d H:i:s') : '';
 
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
-        $planDays = $variant->getAttributeBySlug('esim-days')?->value ?? 0;
+        $planDays = $variant->getAttributeBySlug('esim-days')?->value ?? $variant->getAttributeBySlug('esim_days')?->value ?? 0;
         $expirationDate = $activationDate && $planDays > 0
-            ? Carbon::parse($activationDate)->addDays($planDays)->format('Y-m-d H:i:s')
+            ? Carbon::parse($activationDate)->addDays((int) $planDays)->format('Y-m-d H:i:s')
             : '';
 
         $status = 'unknown';
