@@ -60,6 +60,7 @@ class AeroAmbulanciaSubscriptionService
             foreach ($beneficiaries['dependents'] as $dependent) {
                 $dependentData = $this->prepareBeneficiaryData($people, $dependent);
                 $dependentData['type'] = SubscriptionType::NEW->value;
+                $dependentData['status'] = 'active';
                 $dependentData['relationship'] = $dependent['holderRelationship'];
 
                 $dependentResponse = $this->client->post('/subscriptions/' . $subscriptionId . '/subscription-items', $dependentData);
@@ -109,13 +110,15 @@ class AeroAmbulanciaSubscriptionService
         $activationDate = Carbon::createFromFormat('d-m-Y', $beneficiaryData['activationDate']);
         $expirationDate = $activationDate->addDays($days)->format('Y-m-d H:i:s');
 
+        $typeId = ['passport' => 2, 'id' => 1];
+
         return [
-            'documentType' => $beneficiaryData['documentType'],
+            'documentType' => $typeId[$beneficiaryData['documentType']],
             'documentNumber' => $beneficiaryData['documentNumber'],
             'firstName' => $beneficiaryData['firstname'],
             'lastName' => $beneficiaryData['lastname'],
             'email' => $people->getEmails()->first()?->value,
-            'phoneNumber' => $people->getPhones()->first()?->value,
+            'phoneNumber' => $people->getPhones()->first()?->value ?? '8090000000',
             'sex' => $beneficiaryData['gender'],
             'birthdate' => $beneficiaryData['birthDate'],
             'activationDate' => $beneficiaryData['activationDate'],
