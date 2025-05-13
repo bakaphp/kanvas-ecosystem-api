@@ -73,20 +73,34 @@ class CartManagementMutation
          * @todo for the love of god move this to a specific module
          */
         if (! empty($discountCodes) && $app->get('temp-use-discount-codes')) {
-            if (strtolower($discountCodes[0]) !== 'app15') {
+            if (strtolower($discountCodes[0]) !== 'aeroambupromoq2') {
                 throw new ModelNotFoundException('Discount code not found');
             }
 
-            $tenPercentOff = new CartCondition([
-              'name' => 'APP15',
-              'type' => 'discount',
-              'target' => 'subtotal',
-              'value' => '-15%',
-              'minimum' => 1,
-              'order' => 1,
-            ]);
+            $discountVariantId = $app->get('temp-discount-variant-id') ?? [];
+            $discountVariant = null;
+            foreach ($cart->getContent() as $item) {
+                if (in_array($item->id, $discountVariantId)) {
+                    $discountVariant = $item;
 
-            $cart->condition($tenPercentOff);
+                    break;
+                }
+            }
+
+            if ($discountVariant !== null) {
+                $itemPrice = $app->get('temp-discount-variant-price') ?? '1.00';
+
+                $tenPercentOff = new CartCondition([
+                  'name' => 'aeroambupromoq2',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-' . $itemPrice,
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($tenPercentOff);
+            }
         }
 
         $cartService = new CartService($cart);

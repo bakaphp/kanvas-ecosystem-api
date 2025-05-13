@@ -23,7 +23,7 @@ class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 $data = $this->getActivityData($order, $params);
 
-                $subscriptionService = new AeroAmbulanciaSubscriptionService($app, $order->company);
+                $subscriptionService = new AeroAmbulanciaSubscriptionService($app, $order);
 
                 return $subscriptionService->createNewSubscription(
                     $data['people'],
