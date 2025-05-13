@@ -32,8 +32,6 @@ type User {
     apps: [App!]! @HasManyThrough
     photo: Filesystem @method(name: "getPhoto")
     social: UserSocialInfo @method(name: "getSocialInfo")
-    is_following: Boolean
-        @field(resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@isFollowing")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
