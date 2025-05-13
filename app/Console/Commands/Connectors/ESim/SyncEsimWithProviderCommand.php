@@ -21,13 +21,13 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Connectors\VentaMobile\Services\ESimService as VentaMobileESimService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
-use Kanvas\Connectors\VentaMobile\Services\ESimService as VentaMobileESimService;
 
 class SyncEsimWithProviderCommand extends Command
 {
@@ -184,7 +184,7 @@ class SyncEsimWithProviderCommand extends Command
                 }
                 $serviceInfo = $serviceInfoArr[0];
                 $serviceId = $serviceInfo['services_info']['id_service_inst'] ?? null;
-                if (!$serviceId) {
+                if (! $serviceId) {
                     return null;
                 }
                 $balance = $ventaMobileService->getServiceBalance($serviceId);
@@ -591,7 +591,7 @@ class SyncEsimWithProviderCommand extends Command
         $totalBytesData = FileSizeConverter::toBytes($totalData);
         $remainingData = $totalBytesData;
 
-        if (!empty($balance)) {
+        if (! empty($balance)) {
             foreach ($balance as $bal) {
                 if (isset($bal['id_balance_type']) && $bal['id_balance_type'] == 1) {
                     $remainingData = (float)$bal['value'];
