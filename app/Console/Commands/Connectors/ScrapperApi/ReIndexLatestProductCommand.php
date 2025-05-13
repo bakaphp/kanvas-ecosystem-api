@@ -8,7 +8,9 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Connectors\ScrapperApi\Jobs\IndexProductJob;
+use Kanvas\Connectors\ScrapperApi\Actions\ScrapperProcessorAction;
+use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 
@@ -32,7 +34,6 @@ class ReIndexLatestProductCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -43,13 +44,36 @@ class ReIndexLatestProductCommand extends Command
         $user = Users::getById((int) $this->argument('userId'));
         $limit = $this->argument('limit') ?? 2000;
         $order = $this->argument('order') ?? 'desc';
-        IndexProductJob::dispatch(
-            $app,
-            $branch,
-            $regions,
-            $user,
-            $limit,
-            $order
-        );
+        $products = Products::where('apps_id', $app->getId())
+            ->orderBy('id', $order)
+            ->limit($limit)
+            ->get();
+        foreach ($products as $product) {
+            $this->info('Processing product: ' . $product->id);
+            foreach ($product->variants as $variant) {
+                $this->info('Variant: ' . $variant->id);
+                try {
+                    $repository = new ScrapperRepository($app);
+                    $productScrapped = $repository->getByAsin($variant->sku);
+                    $productScrapped['asin'] = $variant->sku;
+
+                    $productScrapped['price'] = str_replace('$', '', $productScrapped['pricing']);
+                    $productScrapped['image'] = $productScrapped['images'][0];
+
+                    $action = (new ScrapperProcessorAction(
+                        $app,
+                        $user,
+                        $branch,
+                        $regions,
+                        [$productScrapped],
+                        null
+                    ));
+                    $action->execute();
+                } catch (\Exception $e) {
+                    $this->error('Error processing variant: ' . $variant->id . ' - ' . $e->getMessage());
+                    $variant->delete();
+                }
+            }
+        }
     }
 }
