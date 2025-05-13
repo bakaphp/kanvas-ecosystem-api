@@ -11,6 +11,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
 {
@@ -21,14 +22,23 @@ class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::AERO_AMBULANCIA,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
-                $data = $this->getActivityData($order, $params);
+                try {
+                    $data = $this->getActivityData($order, $params);
 
-                $subscriptionService = new AeroAmbulanciaSubscriptionService($app, $order);
+                    $subscriptionService = new AeroAmbulanciaSubscriptionService($app, $order);
 
-                return $subscriptionService->createNewSubscription(
-                    $data['people'],
-                    $data['subscription_data']
-                );
+                    return $subscriptionService->createNewSubscription(
+                        $data['people'],
+                        $data['subscription_data']
+                    );
+                } catch (Throwable $e) {
+                    report($e);
+
+                    return [
+                        'status' => false,
+                        'message' => $e->getMessage(),
+                    ];
+                }
             },
             company: $order->company,
         );
