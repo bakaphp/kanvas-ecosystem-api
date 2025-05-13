@@ -594,7 +594,7 @@ class SyncEsimWithProviderCommand extends Command
         $status = 'unknown';
         if ($expirationDate) {
             $expiration = Carbon::parse($expirationDate);
-            $status = $expiration->isFuture() ? 'active' : 'expired';
+            $status = $expiration->isFuture() ? 'enabled' : 'expired';
         }
 
         $phoneNumber = $serviceInfo['services_info']['msisdn'] ?? null;
