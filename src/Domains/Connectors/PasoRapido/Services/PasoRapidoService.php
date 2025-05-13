@@ -32,11 +32,10 @@ class PasoRapidoService
      */
     public function verifyCustomer(string $tag): VerifyCustomerResponse
     {
-        $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . "?referencia=" . $tag, []);
+        $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
 
         return VerifyCustomerResponse::fromArray($response);
     }
-
 
     public function confirmPayment(PaymentConfirmData $data)
     {
@@ -46,8 +45,8 @@ class PasoRapidoService
                 'transaccionBanco' => $data->bankTransaction,
                 'valorPagado' => $data->amount,
                 'creditoFiscal' => $data->fiscalCredit,
-                'rnc_Cedula' => $data->dni
-            ]
+                'rnc_Cedula' => $data->dni,
+            ],
         ]);
 
         return PaymentConfirmResponse::fromArray($response);
@@ -55,17 +54,15 @@ class PasoRapidoService
 
     public function verifyPayment(string $transactionNumber)
     {
-        $response = $this->client->post(ConfigurationEnum::VERIFY_PAYMENT_PATH->value . "?numeroTransaccion=" . $transactionNumber, []);
+        $response = $this->client->post(ConfigurationEnum::VERIFY_PAYMENT_PATH->value . '?numeroTransaccion=' . $transactionNumber, []);
 
         return VerifyPaymentResponse::fromArray($response);
     }
 
     public function cancelPayment(string $transactionNumber)
     {
-        $response = $this->client->post(ConfigurationEnum::CANCEL_PAYMENT_PATH->value . "?numeroTransaccion=" . $transactionNumber, []);
+        $response = $this->client->post(ConfigurationEnum::CANCEL_PAYMENT_PATH->value . '?numeroTransaccion=' . $transactionNumber, []);
 
         return CancelPaymentResponse::fromArray($response);
     }
-
-
 }
