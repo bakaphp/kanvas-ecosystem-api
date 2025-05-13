@@ -613,14 +613,24 @@ class SyncEsimWithProviderCommand extends Command
             $status = $expiration->isFuture() ? 'active' : 'expired';
         }
 
-        return [
-            'installed_date' => $installedDateFormatted,
-            'expiration_date' => $expirationDateFormatted,
-            'phone_number' => $phoneNumber,
-            'initialQuantity' => $totalBytesData,
-            'remainingQuantity' => $remainingData,
-            'unlimited' => false,
-            'esimStatus' => $status,
-        ];
+        $esimStatus = new ESimStatus(
+            id: $serviceInfo['services_info']['id_service_inst'] ?? null,
+            callTypeGroup: 'data',
+            initialQuantity: $totalBytesData,
+            remainingQuantity: $remainingData,
+            assignmentDateTime: $installedDateFormatted,
+            assignmentReference: $serviceInfo['services_info']['id_service_inst'] ?? null,
+            bundleState: $status,
+            unlimited: false,
+            expirationDate: $expirationDateFormatted,
+            imei: $message->message['data']['imei_number'] ?? null,
+            esimStatus: $status,
+            message: $serviceInfo['services_info']['description'] ?? null,
+            installedDate: $installedDateFormatted,
+            activationDate: $installedDateFormatted,
+            spentMessage: null,
+        );
+
+        return $esimStatus->toArray();
     }
 }
