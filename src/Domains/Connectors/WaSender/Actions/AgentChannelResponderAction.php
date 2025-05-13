@@ -69,16 +69,26 @@ class AgentChannelResponderAction
         );
     }
 
-    /**
-     * Extract plain text from a response that might contain JSON with a response field
-     */
     protected function extractTextFromResponse(string $response): string
     {
         // First try: direct JSON parsing if the entire response is JSON
         if (Str::isJson($response)) {
             $data = json_decode($response, true);
-            if (json_last_error() === JSON_ERROR_NONE && isset($data['response'])) {
-                return $data['response'];
+            if (json_last_error() === JSON_ERROR_NONE) {
+                // If there's a specific 'response' field, return it directly
+                if (isset($data['response'])) {
+                    return $data['response'];
+                }
+
+                // Otherwise, join all string values with line breaks
+                $result = '';
+                foreach ($data as $key => $value) {
+                    if (is_string($value)) {
+                        $result .= $value . "\n\n";
+                    }
+                }
+
+                return trim($result); // Remove trailing newlines
             }
         }
 
@@ -87,8 +97,21 @@ class AgentChannelResponderAction
             $jsonString = $matches[1];
             $data = json_decode($jsonString, true);
 
-            if (json_last_error() === JSON_ERROR_NONE && isset($data['response'])) {
-                return $data['response'];
+            if (json_last_error() === JSON_ERROR_NONE) {
+                // If there's a specific 'response' field, return it
+                if (isset($data['response'])) {
+                    return $data['response'];
+                }
+
+                // Otherwise, join all string values with line breaks
+                $result = '';
+                foreach ($data as $key => $value) {
+                    if (is_string($value)) {
+                        $result .= $value . "\n\n";
+                    }
+                }
+
+                return trim($result); // Remove trailing newlines
             }
         }
 
@@ -104,13 +127,45 @@ class AgentChannelResponderAction
             $possibleJson = $matches[0];
             $data = json_decode($possibleJson, true);
 
-            if (json_last_error() === JSON_ERROR_NONE && isset($data['response'])) {
-                return $data['response'];
+            if (json_last_error() === JSON_ERROR_NONE) {
+                // If there's a specific 'response' field, return it
+                if (isset($data['response'])) {
+                    return $data['response'];
+                }
+
+                // Otherwise, join all string values with line breaks
+                $result = '';
+                foreach ($data as $key => $value) {
+                    if (is_string($value)) {
+                        $result .= $value . "\n\n";
+                    }
+                }
+
+                return trim($result); // Remove trailing newlines
             }
         }
 
         // Fifth try: Strip markdown code block formatting and try to parse
         $cleanedResponse = preg_replace('/```(?:json)?\s*(.*)\s*```/s', '$1', $response);
+        if (Str::isJson($cleanedResponse)) {
+            $data = json_decode($cleanedResponse, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                // If there's a specific 'response' field, return it
+                if (isset($data['response'])) {
+                    return $data['response'];
+                }
+
+                // Otherwise, join all string values with line breaks
+                $result = '';
+                foreach ($data as $key => $value) {
+                    if (is_string($value)) {
+                        $result .= $value . "\n\n";
+                    }
+                }
+
+                return trim($result); // Remove trailing newlines
+            }
+        }
 
         // Last resort: return the original response with markdown formatting removed
         return preg_replace('/```(?:json)?\s*(.*)\s*```/s', '$1', $response);
