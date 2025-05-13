@@ -622,6 +622,7 @@ class SyncEsimWithProviderCommand extends Command
             assignmentReference: $serviceInfo['services_info']['id_service_inst'] ?? null,
             bundleState: $status,
             unlimited: false,
+            phoneNumber: $phoneNumber,
             expirationDate: $expirationDateFormatted,
             imei: $message->message['data']['imei_number'] ?? null,
             esimStatus: $status,
