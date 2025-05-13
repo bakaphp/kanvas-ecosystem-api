@@ -55,12 +55,7 @@ class ScrapperProcessorAction
                 }
                 $originalName = $product['name'];
                 $mappedProduct = $service->mapProduct($product);
-                if (isset($product['customization_options'])) {
-                    $mappedProduct['variants'] = $service->mapVariant($product);
-                } else {
-                    $mappedProduct['variants'] = $mappedProduct;
-                }
-
+                $mappedProduct['variants'] = [$mappedProduct];
                 try {
                     $product = (
                         new ProductImporterAction(
@@ -72,6 +67,7 @@ class ScrapperProcessorAction
                             true
                         )
                     )->execute();
+                    $product->searchable();
                 } catch (\Exception $e) {
                     Log::error($e->getMessage());
                     Log::debug($e->getTraceAsString());
