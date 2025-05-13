@@ -602,13 +602,10 @@ class SyncEsimWithProviderCommand extends Command
 
         // Format dates and determine status
         $status = 'unknown';
-        $expirationDateFormatted = null;
-        $installedDateFormatted = null;
-        if ($installedDate) {
-            $installedDateFormatted = Carbon::parse($installedDate)->format('Y-m-d H:i:s');
-        }
+        $installedDateFormatted = $installedDate ? Carbon::parse($installedDate)->format('Y-m-d H:i:s') : '';
+        $expirationDateFormatted = $expirationDate ? Carbon::parse($expirationDate)->format('Y-m-d H:i:s') : '';
+
         if ($expirationDate) {
-            $expirationDateFormatted = Carbon::parse($expirationDate)->format('Y-m-d H:i:s');
             $expiration = Carbon::parse($expirationDate);
             $status = $expiration->isFuture() ? 'active' : 'expired';
         }
