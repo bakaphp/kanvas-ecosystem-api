@@ -32,12 +32,13 @@ class ProductService
         $amazonPrice = $product['price'];
         $price = $this->calcDiscountPrice($product);
         $name = Str::limit($product['name'], 255);
+        /*
         $category = (new CreateCategoriesAction(
             $this->channels->app,
             $this->users,
             $this->channels->company,
             $product['product_category']
-        ))->execute();
+        ))->execute();*/
         $product = [
             'name' => TranslateToSpanishAction::execute($name) ?? $name,
             'description' => TranslateToSpanishAction::execute($this->getDescription($product)) ?? $this->getDescription($product),
@@ -51,9 +52,7 @@ class ProductService
             'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
             'isPublished' => true,
             'categories' => [
-                [
-                    'slug' => $category->slug,
-                ],
+    
             ],
             'warehouses' => [
                 [
