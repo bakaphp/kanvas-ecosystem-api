@@ -19,7 +19,7 @@ class Client
     protected string $secret;
     protected GuzzleClient $client;
 
-    const SANDBOX_URL = 'https://prueba.pasorapido.gob.do';
+    public const SANDBOX_URL = 'https://prueba.pasorapido.gob.do';
 
     public function __construct(
         protected AppInterface $app,
@@ -29,7 +29,6 @@ class Client
         $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? self::SANDBOX_URL;
         $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value) ?? $config['client_id'];
         $this->secret = $this->app->get(ConfigurationEnum::SECRET->value) ?? $config['secret'];
-
 
         if (empty($this->clientId) || empty($this->secret)) {
             throw new ValidationException('Paso Rapido configuration is missing');
@@ -46,16 +45,18 @@ class Client
         ]);
     }
 
-    public function getAccessToken() {
+    public function getAccessToken(): string
+    {
         $client = new GuzzleClient();
         $result = $client->post(self::SANDBOX_URL . ConfigurationEnum::AUTHORIZATION_PATH->value, [
-            "json" => [
+            'json' => [
                 'username' => $this->clientId,
                 'password' => $this->secret,
-            ]
+            ],
         ]);
 
         $body = json_decode($result->getBody()->getContents());
+
         return $body;
     }
 
