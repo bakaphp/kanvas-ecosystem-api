@@ -582,8 +582,21 @@ class SyncEsimWithProviderCommand extends Command
 
     private function formatVentaMobileResponse(Message $message, array $serviceInfo, array $balance): array
     {
-        $installedDate = $serviceInfo['services_info']['dt_start'] ?? null;
-        $expirationDate = $serviceInfo['services_info']['dt_stop'] ?? null;
+        $orderCreationDate = $message->appModuleMessage->entity->created_at ?? null;
+        $activationDate = $orderCreationDate ? Carbon::parse($orderCreationDate)->format('Y-m-d H:i:s') : '';
+
+        $variant = $message->appModuleMessage->entity->items()->first()->variant;
+        $planDays = $variant->getAttributeBySlug('esim-days')?->value ?? 0;
+        $expirationDate = $activationDate && $planDays > 0
+            ? Carbon::parse($activationDate)->addDays($planDays)->format('Y-m-d H:i:s')
+            : '';
+
+        $status = 'unknown';
+        if ($expirationDate) {
+            $expiration = Carbon::parse($expirationDate);
+            $status = $expiration->isFuture() ? 'active' : 'expired';
+        }
+
         $phoneNumber = $serviceInfo['services_info']['msisdn'] ?? null;
         $variant = $message->appModuleMessage->entity->items()->first()->variant;
 
@@ -600,32 +613,22 @@ class SyncEsimWithProviderCommand extends Command
             }
         }
 
-        // Format dates and determine status
-        $status = 'unknown';
-        $installedDateFormatted = $installedDate ? Carbon::parse($installedDate)->format('Y-m-d H:i:s') : '';
-        $expirationDateFormatted = $expirationDate ? Carbon::parse($expirationDate)->format('Y-m-d H:i:s') : '';
-
-        if ($expirationDate) {
-            $expiration = Carbon::parse($expirationDate);
-            $status = $expiration->isFuture() ? 'active' : 'expired';
-        }
-
         $esimStatus = new ESimStatus(
             id: (string) ($serviceInfo['services_info']['id_service_inst'] ?? ''),
             callTypeGroup: 'data',
             initialQuantity: $totalBytesData,
             remainingQuantity: $remainingData,
-            assignmentDateTime: $installedDateFormatted,
+            assignmentDateTime: $activationDate,
             assignmentReference: (string) ($serviceInfo['services_info']['id_service_inst'] ?? ''),
             bundleState: $status,
             unlimited: false,
             phoneNumber: $phoneNumber,
-            expirationDate: $expirationDateFormatted,
+            expirationDate: $expirationDate,
             imei: $message->message['data']['imei_number'] ?? null,
             esimStatus: $status,
             message: $serviceInfo['services_info']['description'] ?? null,
-            installedDate: $installedDateFormatted,
-            activationDate: $installedDateFormatted,
+            installedDate: $activationDate,
+            activationDate: $activationDate,
             spentMessage: null,
         );
 
