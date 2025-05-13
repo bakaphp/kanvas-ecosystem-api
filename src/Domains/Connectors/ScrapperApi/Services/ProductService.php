@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\ScrapperApi\Services;
 
 use Illuminate\Support\Str;
 use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
-use Kanvas\Connectors\ScrapperApi\Actions\CreateCategoriesAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
