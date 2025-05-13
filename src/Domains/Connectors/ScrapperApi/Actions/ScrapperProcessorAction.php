@@ -72,6 +72,7 @@ class ScrapperProcessorAction
                             true
                         )
                     )->execute();
+                    $product->searchable();
                 } catch (\Exception $e) {
                     Log::error($e->getMessage());
                     Log::debug($e->getTraceAsString());
