@@ -114,20 +114,8 @@ class RecombeeUserRecommendationService
             'cascadeCreate' => true,
         ], $additionalOptions);
 
-        if ($user->get(CustomFieldEnum::USER_WHO_TO_FOLLOW_RECOMM_ID->value)) {
-            return $this->getUserToUserRecommendationPagination(
-                (string) $user->get(CustomFieldEnum::USER_WHO_TO_FOLLOW_RECOMM_ID->value),
-                $count
-            );
-        }
-
         $recommendation = $this->client->send(
             new RecommendUsersToUser((string) $user->getId(), $count, $options)
-        );
-
-        $user->set(
-            CustomFieldEnum::USER_WHO_TO_FOLLOW_RECOMM_ID->value,
-            (string) $recommendation['recommId']
         );
 
         return $recommendation;
