@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Users\Models\Users;
@@ -34,16 +33,8 @@ class GenerateWhoToFollowRecommendationsAction
             ->filter()
             ->toArray();
 
-        return Users::whereIn('users.id', $entityIds)
-            ->whereNotExists(function ($query) use ($user, $socialConnection) {
-                $query->select(DB::raw(1))
-                    ->from($socialConnection . '.users_follows')
-                    ->where('users_follows.apps_id', $this->app->getId())
-                    ->where('users_follows.is_deleted', 0)
-                    ->where('users_follows.users_id', $user->id)
-                    ->where('users_follows.entity_namespace', Users::class)
-                    ->whereRaw('users_follows.entity_id = users.id');
-            })
-            ->select('users.*');
+        return Users::query()
+                ->whereIn('id', $entityIds)
+                ->where('is_deleted', 0);
     }
 }
