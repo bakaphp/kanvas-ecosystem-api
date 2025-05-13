@@ -27,6 +27,7 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
+use Kanvas\Connectors\VentaMobile\Services\ESimService as VentaMobileESimService;
 
 class SyncEsimWithProviderCommand extends Command
 {
@@ -64,13 +65,15 @@ class SyncEsimWithProviderCommand extends Command
         $eSimService = new ESimService($app);
         $easyActivationOrderService = new OrderService($app);
         $cmLinkCustomerService = new CustomerService($app, $company);
+        $ventaMobileService = new VentaMobileESimService($app, $company);
 
         foreach ($messages as $message) {
             $this->processMessage(
                 $message,
                 $eSimService,
                 $easyActivationOrderService,
-                $cmLinkCustomerService
+                $cmLinkCustomerService,
+                $ventaMobileService
             );
         }
     }
@@ -79,7 +82,8 @@ class SyncEsimWithProviderCommand extends Command
         Message $message,
         ESimService $eSimService,
         OrderService $easyActivationOrderService,
-        CustomerService $cmLinkCustomerService
+        CustomerService $cmLinkCustomerService,
+        VentaMobileESimService $ventaMobileService
     ): void {
         $iccid = $message->message['data']['iccid'] ?? null;
         $bundle = $message->message['data']['plan'] ?? null;
@@ -123,7 +127,8 @@ class SyncEsimWithProviderCommand extends Command
                 $bundle,
                 $eSimService,
                 $easyActivationOrderService,
-                $cmLinkCustomerService
+                $cmLinkCustomerService,
+                $ventaMobileService
             );
             if (empty($response)) {
                 return;
@@ -142,7 +147,8 @@ class SyncEsimWithProviderCommand extends Command
         ?string $bundle,
         ESimService $eSimService,
         OrderService $easyActivationOrderService,
-        CustomerService $cmLinkCustomerService
+        CustomerService $cmLinkCustomerService,
+        VentaMobileESimService $ventaMobileService
     ): ?array {
         switch ($network) {
             case strtolower(ProviderEnum::E_SIM_GO->value):
@@ -170,6 +176,19 @@ class SyncEsimWithProviderCommand extends Command
                     $cmLinkCustomerService->getEsimInfo($iccid)['data'],
                     $cmLinkCustomerService,
                 );
+
+            case strtolower(ProviderEnum::VENTA_MOBILE->value):
+                $serviceInfoArr = $ventaMobileService->getServiceByIccid($iccid);
+                if (empty($serviceInfoArr)) {
+                    return null;
+                }
+                $serviceInfo = $serviceInfoArr[0];
+                $serviceId = $serviceInfo['services_info']['id_service_inst'] ?? null;
+                if (!$serviceId) {
+                    return null;
+                }
+                $balance = $ventaMobileService->getServiceBalance($serviceId);
+                return $this->formatVentaMobileResponse($message, $serviceInfo, $balance);
 
             default:
                 return null;
@@ -559,5 +578,49 @@ class SyncEsimWithProviderCommand extends Command
             $message->setPublic();
             $this->info("Message ID: {$message->id} has been set to public.");
         }
+    }
+
+    private function formatVentaMobileResponse(Message $message, array $serviceInfo, array $balance): array
+    {
+        $installedDate = $serviceInfo['services_info']['dt_start'] ?? null;
+        $expirationDate = $serviceInfo['services_info']['dt_stop'] ?? null;
+        $phoneNumber = $serviceInfo['services_info']['msisdn'] ?? null;
+        $variant = $message->appModuleMessage->entity->items()->first()->variant;
+
+        $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
+        $totalBytesData = FileSizeConverter::toBytes($totalData);
+        $remainingData = $totalBytesData;
+
+        if (!empty($balance)) {
+            foreach ($balance as $bal) {
+                if (isset($bal['id_balance_type']) && $bal['id_balance_type'] == 1) {
+                    $remainingData = (float)$bal['value'];
+                    break;
+                }
+            }
+        }
+
+        // Format dates and determine status
+        $status = 'unknown';
+        $expirationDateFormatted = null;
+        $installedDateFormatted = null;
+        if ($installedDate) {
+            $installedDateFormatted = Carbon::parse($installedDate)->format('Y-m-d H:i:s');
+        }
+        if ($expirationDate) {
+            $expirationDateFormatted = Carbon::parse($expirationDate)->format('Y-m-d H:i:s');
+            $expiration = Carbon::parse($expirationDate);
+            $status = $expiration->isFuture() ? 'active' : 'expired';
+        }
+
+        return [
+            'installed_date' => $installedDateFormatted,
+            'expiration_date' => $expirationDateFormatted,
+            'phone_number' => $phoneNumber,
+            'initialQuantity' => $totalBytesData,
+            'remainingQuantity' => $remainingData,
+            'unlimited' => false,
+            'esimStatus' => $status,
+        ];
     }
 }
