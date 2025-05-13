@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.343.8",
+            "version": "3.343.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "9cf2ad840a0dc92929991c3142138182a700d7b1"
+                "reference": "6ca5eb1c60b879cf516e5fadefec87afc6219e74"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/9cf2ad840a0dc92929991c3142138182a700d7b1",
-                "reference": "9cf2ad840a0dc92929991c3142138182a700d7b1",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/6ca5eb1c60b879cf516e5fadefec87afc6219e74",
+                "reference": "6ca5eb1c60b879cf516e5fadefec87afc6219e74",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.343.8"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.343.9"
             },
-            "time": "2025-05-09T18:07:37+00:00"
+            "time": "2025-05-12T18:11:31+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -3323,12 +3323,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/grantholle/laravel-username-generator.git",
-                "reference": "78b13d38aa894a016be12ab9fd8f4b0dcd677857"
+                "reference": "f66771fbe044a6ab33dd422787ef48e2eeef210d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/grantholle/laravel-username-generator/zipball/78b13d38aa894a016be12ab9fd8f4b0dcd677857",
-                "reference": "78b13d38aa894a016be12ab9fd8f4b0dcd677857",
+                "url": "https://api.github.com/repos/grantholle/laravel-username-generator/zipball/f66771fbe044a6ab33dd422787ef48e2eeef210d",
+                "reference": "f66771fbe044a6ab33dd422787ef48e2eeef210d",
                 "shasum": ""
             },
             "require": {
@@ -3388,7 +3388,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-03-03T17:48:21+00:00"
+            "time": "2025-05-12T17:31:11+00:00"
         },
         {
             "name": "grpc/grpc",
@@ -10202,16 +10202,16 @@
         },
         {
             "name": "sentry/sentry",
-            "version": "4.11.0",
+            "version": "4.11.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-php.git",
-                "reference": "ebf67deb9902b6da58a4b3383cbd12fed3f4f555"
+                "reference": "53dc0bcb6a667cac5b760b46f98d5380e63e02ca"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/ebf67deb9902b6da58a4b3383cbd12fed3f4f555",
-                "reference": "ebf67deb9902b6da58a4b3383cbd12fed3f4f555",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/53dc0bcb6a667cac5b760b46f98d5380e63e02ca",
+                "reference": "53dc0bcb6a667cac5b760b46f98d5380e63e02ca",
                 "shasum": ""
             },
             "require": {
@@ -10275,7 +10275,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-php/issues",
-                "source": "https://github.com/getsentry/sentry-php/tree/4.11.0"
+                "source": "https://github.com/getsentry/sentry-php/tree/4.11.1"
             },
             "funding": [
                 {
@@ -10287,7 +10287,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2025-04-14T09:04:23+00:00"
+            "time": "2025-05-12T11:30:33+00:00"
         },
         {
             "name": "sentry/sentry-laravel",
@@ -15354,22 +15354,23 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.6.0",
+            "version": "8.6.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "6b50788637a27d27409cbb6bbf69fada8195888e"
+                "reference": "de0b95f62942758e849a4337f23426e84e36cfe4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/6b50788637a27d27409cbb6bbf69fada8195888e",
-                "reference": "6b50788637a27d27409cbb6bbf69fada8195888e",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/de0b95f62942758e849a4337f23426e84e36cfe4",
+                "reference": "de0b95f62942758e849a4337f23426e84e36cfe4",
                 "shasum": ""
             },
             "require": {
                 "php": ">=7.1.0"
             },
             "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.0",
                 "guzzlehttp/guzzle": "^6.3 || ^7.0",
                 "phpunit/phpunit": ">=7.0 < 10"
             },
@@ -15399,7 +15400,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2025-05-05T10:42:37+00:00"
+            "time": "2025-05-13T09:51:13+00:00"
         },
         {
             "name": "typesense/laravel-scout-typesense-driver",
@@ -18202,6 +18203,6 @@
     "platform": {
         "php": "^8.4"
     },
-    "platform-dev": [],
-    "plugin-api-version": "2.3.0"
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
 }
