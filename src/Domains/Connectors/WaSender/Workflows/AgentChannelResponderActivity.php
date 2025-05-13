@@ -38,7 +38,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                if (in_array($message->message['chat_jid'], $runOnThisChannels)) {
+                if (! in_array($message->message['chat_jid'], $runOnThisChannels)) {
                     return [
                         'message' => 'Agent is not running on this channel',
                         'entity' => null,
