@@ -614,12 +614,12 @@ class SyncEsimWithProviderCommand extends Command
         }
 
         $esimStatus = new ESimStatus(
-            id: $serviceInfo['services_info']['id_service_inst'] ?? null,
+            id: (string) ($serviceInfo['services_info']['id_service_inst'] ?? ''),
             callTypeGroup: 'data',
             initialQuantity: $totalBytesData,
             remainingQuantity: $remainingData,
             assignmentDateTime: $installedDateFormatted,
-            assignmentReference: $serviceInfo['services_info']['id_service_inst'] ?? null,
+            assignmentReference: (string) ($serviceInfo['services_info']['id_service_inst'] ?? ''),
             bundleState: $status,
             unlimited: false,
             phoneNumber: $phoneNumber,
