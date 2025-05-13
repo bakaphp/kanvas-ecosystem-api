@@ -52,7 +52,7 @@ class ProductService
             'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
             'isPublished' => true,
             'categories' => [
-    
+
             ],
             'warehouses' => [
                 [
