@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\Message;
+use Override;
 
 class RedisAgentChatHistory extends AbstractChatHistory
 {
@@ -107,6 +108,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
         );
     }
 
+    #[Override]
     protected function storeMessage(Message $message): ChatHistoryInterface
     {
         // Mark history as dirty so we know to save to database
@@ -162,6 +164,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
     /**
      * Remove the oldest message from the history
      */
+    #[Override]
     public function removeOldestMessage(): ChatHistoryInterface
     {
         // Mark history as dirty
@@ -178,6 +181,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
     /**
      * Clear the chat history
      */
+    #[Override]
     protected function clear(): ChatHistoryInterface
     {
         // Delete from Redis

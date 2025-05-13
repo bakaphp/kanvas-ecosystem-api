@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Types;
 
+use Illuminate\Support\Facades\Log;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use NeuronAI\Tools\Tool;
+use NeuronAI\Tools\ToolProperty;
 use Override;
 
 class CRMAgent extends BaseAgent
@@ -15,427 +21,419 @@ class CRMAgent extends BaseAgent
     protected function tools(): array
     {
         return [
-             Tool::make(
-                 'get_current_time',
-                 'Retrieve the current date and time of today.',
-             )->setCallable(fn () => [
-                'time' => date('Y-m-d H:i:s'),
-            ]),
-             Tool::make(
-                 'get_customer_information',
-                 'Retrieve customer information. This is the information of the customer you are currently talking to. IT will have name , middlename, other records',
-             )->setCallable(function () {
-                 // Ensure entity is a People instance
+            Tool::make(
+                'get_customer_information',
+                'I can retrieve your customer information, profile details, lead status, and product preferences. This allows me to provide personalized assistance by accessing your contact details, history with our company, any open leads or opportunities, and your product interests. When you ask about your account, leads, or preferences, I\'ll check this information to give you accurate answers tailored to your specific situation. I can tell you about your current status, help with ongoing inquiries, and make recommendations based on your previous interactions and preferences.',
+            )->setCallable(function () {
+                /** @var People $customer */
+                $customer = $this->entity;
 
-                 /** @var People $customer */
-                 $customer = $this->entity;
+                // Basic profile information
+                $profile = [
+                    'name' => $customer->getName(),
+                    'first_name' => $customer->firstname,
+                    'middle_name' => $customer->middlename,
+                    'last_name' => $customer->lastname,
+                    'date_of_birth' => $customer->dob?->format('Y-m-d'),
+                    'created_at' => $customer->created_at?->format('Y-m-d H:i:s'),
+                    'custom_fields' => $customer->getAll(),
+                ];
 
-                 // Get all custom fields for the customer
-                 $customFields = $customer->getAll();
+                // Contact information
+                $emails = $customer->getEmails()->map(function ($email) {
+                    return $email->value;
+                })->toArray();
 
-                 return [
-                     'name' => $customer->getName(),
-                     'first_name' => $customer->firstname,
-                     'middle_name' => $customer->middlename,
-                     'last_name' => $customer->lastname,
-                     'date_of_birth' => $customer->dob?->format('Y-m-d'),
-                     'created_at' => $customer->created_at?->format('Y-m-d H:i:s'),
-                     'custom_fields' => $customFields,
-                 ];
-             }),
+                $phones = $customer->getPhones()->map(function ($phone) {
+                    return $phone->value;
+                })->toArray();
 
-             Tool::make(
-                 'get_customer_contact_info',
-                 'Retrieve customer contact information including emails, phones, and addresses. This is the information of the customer you are currently talking to.',
-             )->setCallable(function () {
-                 /** @var People $customer */
-                 $customer = $this->entity;
+                $cellPhones = $customer->getCellPhones()->map(function ($phone) {
+                    return $phone->value;
+                })->toArray();
 
-                 // Get emails
-                 $emails = $customer->getEmails()->map(function ($email) {
-                     return $email->value;
-                 })->toArray();
+                $addresses = $customer->address()->get()->map(function ($address) {
+                    return [
+                        'type' => $address->addressType?->name ?? 'Home',
+                        'full_address' => trim("{$address->address} {$address->address_2}, {$address->city}, {$address->state} {$address->zip}"),
+                        'city' => $address->city,
+                        'state' => $address->state,
+                        'country' => $address->country?->name,
+                    ];
+                })->toArray();
 
-                 // Get phones
-                 $phones = $customer->getPhones()->map(function ($phone) {
-                     return $phone->value;
-                 })->toArray();
+                $profile['contact_info'] = [
+                    'primary_email' => $emails[0] ?? null,
+                    'all_emails' => $emails,
+                    'primary_phone' => $phones[0] ?? null,
+                    'all_phones' => $phones,
+                    'cell_phones' => $cellPhones,
+                    'addresses' => $addresses,
+                    'social_profiles' => [
+                        'google' => $customer->google_contact_id ? true : false,
+                        'facebook' => $customer->facebook_contact_id ? true : false,
+                        'linkedin' => $customer->linkedin_contact_id ? true : false,
+                        'twitter' => $customer->twitter_contact_id ? true : false,
+                        'instagram' => $customer->instagram_contact_id ? true : false,
+                        'apple' => $customer->apple_contact_id ? true : false,
+                    ],
+                ];
 
-                 // Get cell phones
-                 $cellPhones = $customer->getCellPhones()->map(function ($phone) {
-                     return $phone->value;
-                 })->toArray();
+                // Organizations and employment
+                $profile['organizations'] = $customer->organizations()->get()->map(function ($org) {
+                    return $org->name;
+                })->toArray();
 
-                 // Get addresses
-                 $addresses = $customer->address()->get()->map(function ($address) {
-                     return [
-                         'type' => $address->addressType?->name ?? 'Home',
-                         'full_address' => trim("{$address->address} {$address->address_2}, {$address->city}, {$address->state} {$address->zip}"),
-                         'city' => $address->city,
-                         'state' => $address->state,
-                         'country' => $address->country?->name,
-                     ];
-                 })->toArray();
+                $profile['employment_history'] = $customer->employmentHistory()->get()->map(function ($history) {
+                    return [
+                        'organization' => $history->organization,
+                        'position' => $history->position,
+                        'start_date' => $history->start_date,
+                        'end_date' => $history->end_date ?: 'Present',
+                    ];
+                })->toArray();
 
-                 return [
-                     'primary_email' => $emails[0] ?? null,
-                     'all_emails' => $emails,
-                     'primary_phone' => $phones[0] ?? null,
-                     'all_phones' => $phones,
-                     'cell_phones' => $cellPhones,
-                     'addresses' => $addresses,
-                     'social_profiles' => [
-                         'google' => $customer->google_contact_id ? true : false,
-                         'facebook' => $customer->facebook_contact_id ? true : false,
-                         'linkedin' => $customer->linkedin_contact_id ? true : false,
-                         'twitter' => $customer->twitter_contact_id ? true : false,
-                         'instagram' => $customer->instagram_contact_id ? true : false,
-                         'apple' => $customer->apple_contact_id ? true : false,
-                     ],
-                 ];
-             }),
+                // Tags
+                $profile['tags'] = $customer->tags->map(function ($tag) {
+                    return $tag->name;
+                })->toArray();
 
-             Tool::make(
-                 'get_customer_likes',
-                 'Retrieve items and content the customer has liked or disliked. This is the information of the customer you are currently talking to.',
-             )->setCallable(function () {
-                 /** @var People $customer */
-                 $customer = $this->entity;
+                // Product interests and preferences (likes)
+                $likes = $customer->likes(false)->get()->map(function ($interaction) {
+                    $entityName = $this->getEntityName($interaction);
+                    $entityType = $this->getEntityTypeName($interaction);
 
-                 // Get customer likes - simplified to just the names and details
-                 $likes = $customer->likes(false)->get()->map(function ($interaction) {
-                     // Get information about what was liked
-                     $entityName = $this->getEntityName($interaction);
-                     $entityType = $this->getEntityTypeName($interaction);
+                    return [
+                        'item' => $entityName,
+                        'type' => $entityType,
+                        'when' => $interaction->created_at?->format('Y-m-d'),
+                        'notes' => $interaction->notes,
+                    ];
+                })->toArray();
 
-                     return [
-                         'item' => $entityName,
-                         'type' => $entityType,
-                         'when' => $interaction->created_at?->format('Y-m-d'),
-                         'notes' => $interaction->notes,
-                     ];
-                 })->toArray();
+                $dislikes = $customer->dislikes()->get()->map(function ($interaction) {
+                    $entityName = $this->getEntityName($interaction);
+                    $entityType = $this->getEntityTypeName($interaction);
 
-                 // Get customer dislikes
-                 $dislikes = $customer->dislikes()->get()->map(function ($interaction) {
-                     // Get information about what was disliked
-                     $entityName = $this->getEntityName($interaction);
-                     $entityType = $this->getEntityTypeName($interaction);
+                    return [
+                        'item' => $entityName,
+                        'type' => $entityType,
+                        'when' => $interaction->created_at?->format('Y-m-d'),
+                        'notes' => $interaction->notes,
+                    ];
+                })->toArray();
 
-                     return [
-                         'item' => $entityName,
-                         'type' => $entityType,
-                         'when' => $interaction->created_at?->format('Y-m-d'),
-                         'notes' => $interaction->notes,
-                     ];
-                 })->toArray();
+                // Group likes by type for easier understanding
+                $likesByCategory = [];
+                foreach ($likes as $like) {
+                    $type = $like['type'];
+                    if (! isset($likesByCategory[$type])) {
+                        $likesByCategory[$type] = [];
+                    }
+                    $likesByCategory[$type][] = $like['item'];
+                }
 
-                 // Group likes by type for easier understanding
-                 $likesByCategory = [];
-                 foreach ($likes as $like) {
-                     $type = $like['type'];
-                     if (! isset($likesByCategory[$type])) {
-                         $likesByCategory[$type] = [];
-                     }
-                     $likesByCategory[$type][] = $like['item'];
-                 }
+                $profile['preferences'] = [
+                    'likes' => $likes,
+                    'dislikes' => $dislikes,
+                    'likes_by_category' => $likesByCategory,
+                ];
 
-                 return [
-                     'likes' => $likes,
-                     'dislikes' => $dislikes,
-                     'likes_by_category' => $likesByCategory,
-                     'total_likes' => count($likes),
-                     'total_dislikes' => count($dislikes),
-                 ];
-             }),
+                // Lead information
+                $leads = $customer->leads()->get()->map(function ($lead) {
+                    // Get custom fields for this lead
+                    $customFields = $lead->getAll();
 
-             Tool::make(
-                 'get_customer_organizations',
-                 'Retrieve organizations associated with the customer. This is the information of the customer you are currently talking to.',
-             )->setCallable(function () {
-                 /** @var People $customer */
-                 $customer = $this->entity;
+                    // Get tags for this lead
+                    $tags = $lead->tags->map(function ($tag) {
+                        return $tag->name;
+                    })->toArray();
 
-                 $organizations = $customer->organizations()->get()->map(function ($org) {
-                     return $org->name;
-                 })->toArray();
+                    // Map the status code to a human-readable description
+                    $statusInfo = $this->getLeadStatusInfo($lead);
 
-                 $employmentHistory = $customer->employmentHistory()->get()->map(function ($history) {
-                     return [
-                         'organization' => $history->organization,
-                         'position' => $history->position,
-                         'start_date' => $history->start_date,
-                         'end_date' => $history->end_date ?: 'Present',
-                     ];
-                 })->toArray();
+                    return [
+                        'title' => $lead->title,
+                        'description' => $lead->description ?: 'No description provided',
+                        'status' => $statusInfo['label'],
+                        'status_details' => $statusInfo['description'],
+                        'is_active' => $lead->isActive(),
+                        'is_open' => $lead->isOpen(),
+                        'created_at' => $lead->created_at?->format('Y-m-d'),
+                        'source' => $lead->source()->exists() ? $lead->source->name : 'Unknown',
+                        'type' => $lead->type()->exists() ? $lead->type->name : 'General',
+                        'owner' => $lead->owner()->exists() ? $lead->owner->firstname . ' ' . $lead->owner->lastname : 'Unassigned',
+                        'pipeline' => $lead->pipeline()->exists() ? $lead->pipeline->name : null,
+                        'pipeline_stage' => $lead->stage()->exists() ? $lead->stage->name : null,
+                        'custom_fields' => $customFields,
+                        'tags' => $tags,
+                    ];
+                })->toArray();
 
-                 return [
-                     'current_organizations' => $organizations,
-                     'employment_history' => $employmentHistory,
-                 ];
-             }),
+                // Add some useful summary information
+                $leadSummary = [
+                    'total_leads' => count($leads),
+                    'active_leads' => count(array_filter($leads, fn ($lead) => $lead['is_active'])),
+                    'open_leads' => count(array_filter($leads, fn ($lead) => $lead['is_open'])),
+                    'most_recent_lead' => ! empty($leads) ? $leads[0]['title'] : null,
+                    'most_recent_date' => ! empty($leads) ? $leads[0]['created_at'] : null,
+                ];
 
-             Tool::make(
-                 'get_customer_tags',
-                 'Retrieve tags associated with the customer. This is the information of the customer you are currently talking to.',
-             )->setCallable(function () {
-                 /** @var People $customer */
-                 $customer = $this->entity;
+                $profile['leads'] = [
+                    'lead_details' => $leads,
+                    'lead_summary' => $leadSummary,
+                ];
 
-                 $tags = $customer->tags->map(function ($tag) {
-                     return $tag->name;
-                 })->toArray();
+                // Analyze custom fields for important information
+                $importantFields = [];
 
-                 return [
-                     'tags' => $tags,
-                 ];
-             }),
+                // Look for customer preference indicators
+                $preferencesKeywords = ['prefer', 'like', 'favorite', 'interest', 'hobby'];
+                foreach ($customer->getAll() as $key => $value) {
+                    foreach ($preferencesKeywords as $keyword) {
+                        if (stripos($key, $keyword) !== false) {
+                            $importantFields['preferences'][$key] = $value;
+                        }
+                    }
+                }
 
-             Tool::make(
-                 'get_customer_leads',
-                 'Retrieve comprehensive information about the customer\'s leads. This is the information of the customer you are currently talking to.',
-             )->setCallable(function () {
-                 /** @var People $customer */
-                 $customer = $this->entity;
+                // Look for contact schedule indicators
+                $contactKeywords = ['contact', 'call', 'schedule', 'availability', 'preferred time'];
+                foreach ($customer->getAll() as $key => $value) {
+                    foreach ($contactKeywords as $keyword) {
+                        if (stripos($key, $keyword) !== false) {
+                            $importantFields['contact_preferences'][$key] = $value;
+                        }
+                    }
+                }
 
-                 $leads = $customer->leads()->get()->map(function ($lead) {
-                     // Get custom fields for this lead
-                     $customFields = $lead->getAll();
+                // Collect all lead custom fields
+                $allLeadFields = [];
+                foreach ($leads as $lead) {
+                    foreach ($lead['custom_fields'] as $key => $value) {
+                        if (! isset($allLeadFields[$key])) {
+                            $allLeadFields[$key] = [];
+                        }
+                        $allLeadFields[$key][] = $value;
+                    }
+                }
 
-                     // Get tags for this lead
-                     $tags = $lead->tags->map(function ($tag) {
-                         return $tag->name;
-                     })->toArray();
+                // Look for product interest indicators in leads
+                $productKeywords = ['product', 'service', 'purchase', 'buy', 'interested in'];
+                foreach ($allLeadFields as $key => $values) {
+                    foreach ($productKeywords as $keyword) {
+                        if (stripos($key, $keyword) !== false) {
+                            $importantFields['product_interests'][$key] = array_unique($values);
+                        }
+                    }
+                }
 
-                     // Map the status code to a human-readable description
-                     $statusInfo = $this->getLeadStatusInfo($lead);
+                $profile['important_insights'] = $importantFields;
 
-                     return [
-                         'title' => $lead->title,
-                         'description' => $lead->description ?: 'No description provided',
+                return $profile;
+            }),
 
-                         // Status information in readable format
-                         'status' => $statusInfo['label'],
-                         'status_details' => $statusInfo['description'],
-                         'is_active' => $lead->isActive(),
-                         'is_open' => $lead->isOpen(),
+            // Tool for processing customer images
+            Tool::make(
+                'process_customer_image',
+                'Process images sent by the customer, such as product photos, documents, or identification. This tool logs the image for later processing by our team and provides a confirmation message to the customer.',
+            )->addProperty(
+                new ToolProperty(
+                    name: 'image_url',
+                    type: 'string',
+                    description: 'The URL or file path of the image to process',
+                    required: true
+                )
+            )->setCallable(function (string $image_url) {
+                /** @var People $customer */
+                $customer = $this->entity;
 
-                         // Basic lead information
-                         'created_at' => $lead->created_at?->format('Y-m-d'),
-                         'email' => $lead->email,
-                         'phone' => $lead->phone,
+                // Log the image URL for later processing
+                Log::info('Customer Image Received', [
+                    'customer_name' => $customer->getName(),
+                    'image_url' => $image_url,
+                    'received_at' => now()->format('Y-m-d H:i:s'),
+                    'lead_id' => $customer->leads()->latest()->first()?->id,
+                ]);
 
-                         // Related information
-                         'source' => $lead->source()->exists() ? $lead->source->name : 'Unknown',
-                         'type' => $lead->type()->exists() ? $lead->type->name : 'General',
-                         'owner' => $lead->owner()->exists() ? $lead->owner->firstname . ' ' . $lead->owner->lastname : 'Unassigned',
-                         'organization' => $lead->organization()->exists() ? $lead->organization->name : null,
+                // Return a response that will be used by the agent
+                return [
+                    'status' => 'received',
+                    'message' => 'Image has been received and will be processed by our team',
+                    'next_steps' => 'Our team will review the image and update your file accordingly. You will be contacted if we need any additional information.',
+                    'estimated_processing_time' => '24-48 hours',
+                ];
+            }),
 
-                         // Pipeline information
-                         'pipeline' => $lead->pipeline()->exists() ? $lead->pipeline->name : null,
-                         'pipeline_stage' => $lead->stage()->exists() ? $lead->stage->name : null,
+            // Improved tool for retrieving inventory information with limits
+            Tool::make(
+                'get_inventory_information',
+                'Retrieve current inventory information including available products, their details, pricing, and stock availability. This tool provides real-time information about our product inventory that matches the customer\'s preferences or inquiry.',
+            )->addProperty(
+                new ToolProperty(
+                    name: 'search_term',
+                    type: 'string',
+                    description: 'Optional search term to filter inventory (product name, type, category, etc.)',
+                    required: false
+                )
+            )->addProperty(
+                new ToolProperty(
+                    name: 'limit',
+                    type: 'integer',
+                    description: 'Maximum number of products to return (default: 5, max: 20)',
+                    required: false
+                )
+            )->addProperty(
+                new ToolProperty(
+                    name: 'category',
+                    type: 'string',
+                    description: 'Optional category name to filter products',
+                    required: false
+                )
+            )->setCallable(function (?string $search_term = null, ?int $limit = 5, ?string $category = null) {
+                /** @var People $customer */
+                $customer = $this->entity;
 
-                         // Additional data
-                         'is_duplicate' => (bool)$lead->is_duplicate,
-                         'custom_fields' => $customFields,
-                         'tags' => $tags,
-                         'attempts' => $lead->attempts()->count(),
-                     ];
-                 })->toArray();
+                // Enforce limits to prevent token overflow
+                $limit = min(max(1, $limit), 20); // Between 1 and 20
 
-                 // Add some useful summary information
-                 $summary = [
-                     'total_leads' => count($leads),
-                     'active_leads' => count(array_filter($leads, fn ($lead) => $lead['is_active'])),
-                     'open_leads' => count(array_filter($leads, fn ($lead) => $lead['is_open'])),
-                     'most_recent_lead' => ! empty($leads) ? $leads[0]['title'] : null,
-                     'most_recent_date' => ! empty($leads) ? $leads[0]['created_at'] : null,
-                 ];
+                // Get the customer's company and app for filtering
+                $companyId = $customer->companies_id;
+                $app = $this->entity->app;
 
-                 // Get the lead sources
-                 $leadSources = array_unique(array_column($leads, 'source'));
+                // Query for products based on the company and app
+                $productsQuery = Products::where('companies_id', $companyId)
+                    ->where('apps_id', $app->getId())
+                    ->where('is_deleted', 0)
+                    ->where('is_published', 1);
 
-                 // Get the lead types
-                 $leadTypes = array_unique(array_column($leads, 'type'));
+                // Apply search term filter if provided
+                if ($search_term) {
+                    $productsQuery->where(function ($query) use ($search_term) {
+                        $query->where('name', 'like', "%{$search_term}%")
+                            ->orWhere('description', 'like', "%{$search_term}%")
+                            ->orWhere('short_description', 'like', "%{$search_term}%");
+                    });
+                }
 
-                 // Collect all tags from leads
-                 $allTags = [];
-                 foreach ($leads as $lead) {
-                     $allTags = array_merge($allTags, $lead['tags']);
-                 }
-                 $uniqueTags = array_unique($allTags);
+                // Apply category filter if provided
+                if ($category) {
+                    $productsQuery->whereHas('categories', function ($query) use ($category) {
+                        $query->where('name', 'like', "%{$category}%");
+                    });
+                }
 
-                 return [
-                     'leads' => $leads,
-                     'summary' => $summary,
-                     'lead_sources' => $leadSources,
-                     'lead_types' => $leadTypes,
-                     'all_lead_tags' => $uniqueTags,
-                 ];
-             }),
+                // Get only a limited number of products to avoid token overflow
+                $products = $productsQuery->take($limit)->get();
 
-             Tool::make(
-                 'get_customer_custom_fields',
-                 'Retrieve all custom fields for the customer and their leads. This is the information of the customer you are currently talking to.',
-             )->setCallable(function () {
-                 /** @var People $customer */
-                 $customer = $this->entity;
+                // Get default warehouse and channel for pricing information
+                $defaultWarehouse = Warehouses::where('companies_id', $companyId)
+                    ->where('apps_id', $app->getId())
+                    ->where('is_default', 1)
+                    ->where('is_deleted', 0)
+                    ->first();
 
-                 // Get customer custom fields
-                 $customerCustomFields = $customer->getAll();
+                $defaultChannel = Channels::where('companies_id', $companyId)
+                    ->where('apps_id', $app->getId())
+                    ->where('is_default', 1)
+                    ->where('is_deleted', 0)
+                    ->first();
 
-                 // Get custom fields for each lead
-                 $leadCustomFields = [];
-                 $allLeadFields = [];
+                // Prepare inventory data
+                $inventory = [
+                    'total_products_found' => $productsQuery->count(), // Total count without limit
+                    'products_returned' => $products->count(), // Count with limit
+                    'products' => [],
+                ];
 
-                 $leads = $customer->leads()->get();
-                 foreach ($leads as $lead) {
-                     $fields = $lead->getAll();
+                foreach ($products as $product) {
+                    // Get only essential product attributes (limit to 5 most important)
+                    $productAttributes = $product->visibleAttributes();
+                    $attributesData = [];
+                    $attributeCount = 0;
 
-                     if (! empty($fields)) {
-                         $leadCustomFields[] = [
-                             'lead_title' => $lead->title,
-                             'created_at' => $lead->created_at?->format('Y-m-d'),
-                             'custom_fields' => $fields,
-                         ];
+                    foreach ($productAttributes as $attribute) {
+                        if ($attributeCount < 5) { // Limit attributes to 5 per product
+                            $attributesData[$attribute['name']] = $attribute['value'];
+                            $attributeCount++;
+                        }
+                    }
 
-                         // Combine all lead fields for a complete view
-                         foreach ($fields as $key => $value) {
-                             if (! isset($allLeadFields[$key])) {
-                                 $allLeadFields[$key] = [];
-                             }
-                             $allLeadFields[$key][] = $value;
-                         }
-                     }
-                 }
+                    // Get variants information (limit to 3 per product)
+                    $variants = $product->variants->take(3);
+                    $variantsData = [];
 
-                 // Identify any interesting/important custom fields for the agent
-                 $importantFields = [];
+                    foreach ($variants as $variant) {
+                        // Skip deleted or unpublished variants
+                        if ($variant->is_deleted || ! $variant->is_published) {
+                            continue;
+                        }
 
-                 // Look for customer preference indicators
-                 $preferencesKeywords = ['prefer', 'like', 'favorite', 'interest', 'hobby'];
-                 foreach ($customerCustomFields as $key => $value) {
-                     foreach ($preferencesKeywords as $keyword) {
-                         if (stripos($key, $keyword) !== false) {
-                             $importantFields['preferences'][$key] = $value;
-                         }
-                     }
-                 }
+                        // Get only essential variant attributes (limit to 3)
+                        $variantAttributes = $variant->visibleAttributes();
+                        $variantAttributesData = [];
+                        $variantAttributeCount = 0;
 
-                 // Look for contact schedule indicators
-                 $contactKeywords = ['contact', 'call', 'schedule', 'availability', 'preferred time'];
-                 foreach ($customerCustomFields as $key => $value) {
-                     foreach ($contactKeywords as $keyword) {
-                         if (stripos($key, $keyword) !== false) {
-                             $importantFields['contact_preferences'][$key] = $value;
-                         }
-                     }
-                 }
+                        foreach ($variantAttributes as $attribute) {
+                            if ($variantAttributeCount < 3) {
+                                $variantAttributesData[$attribute['name']] = $attribute['value'];
+                                $variantAttributeCount++;
+                            }
+                        }
 
-                 // Look for product interest indicators in leads
-                 $productKeywords = ['product', 'service', 'purchase', 'buy', 'interested in'];
-                 foreach ($allLeadFields as $key => $values) {
-                     foreach ($productKeywords as $keyword) {
-                         if (stripos($key, $keyword) !== false) {
-                             $importantFields['product_interests'][$key] = array_unique($values);
-                         }
-                     }
-                 }
+                        // Get stock availability
+                        $stockQuantity = 0;
+                        $price = 0;
 
-                 return [
-                     'customer_custom_fields' => $customerCustomFields,
-                     'lead_custom_fields' => $leadCustomFields,
-                     'important_fields' => $importantFields,
-                     'all_lead_fields' => $allLeadFields,
-                 ];
-             }),
+                        if ($defaultWarehouse) {
+                            $stockQuantity = $variant->getQuantity($defaultWarehouse);
+                            $price = $variant->getPrice($defaultWarehouse, $defaultChannel);
+                        }
 
-             Tool::make(
-                 'get_all_customer_info',
-                 'Retrieve all available customer information in a comprehensive format. This is the information of the customer you are currently talking to.',
-             )->setCallable(function () {
-                 /** @var People $customer */
-                 $customer = $this->entity;
+                        // Get just 1 image per variant
+                        $images = $variant->getFiles()->take(1)->map(function ($file) {
+                            return [
+                                'url' => $file->url,
+                            ];
+                        })->toArray();
 
-                 // Basic information
-                 $profile = [
-                     'name' => $customer->getName(),
-                     'first_name' => $customer->firstname,
-                     'last_name' => $customer->lastname,
-                     'date_of_birth' => $customer->dob?->format('Y-m-d'),
-                     'created_at' => $customer->created_at?->format('Y-m-d'),
-                 ];
+                        $variantsData[] = [
+                            'id' => $variant->id,
+                            'name' => $variant->name,
+                            'sku' => $variant->sku,
+                            'price' => $price,
+                            'stock_quantity' => $stockQuantity,
+                            'in_stock' => $stockQuantity > 0,
+                            'attributes' => $variantAttributesData,
+                            'images' => $images,
+                        ];
+                    }
 
-                 // Contact information
-                 $emails = $customer->getEmails()->map(function ($email) {
-                     return $email->value;
-                 })->toArray();
+                    // Get just 1 image per product
+                    $images = $product->getFiles()->take(1)->map(function ($file) {
+                        return [
+                            'url' => $file->url,
+                        ];
+                    })->toArray();
 
-                 $phones = $customer->getPhones()->map(function ($phone) {
-                     return $phone->value;
-                 })->toArray();
+                    // Add product to inventory data (only essential information)
+                    $inventory['products'][] = [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'short_description' => $product->short_description,
+                        'attributes' => $attributesData,
+                        'variants' => $variantsData,
+                        'images' => $images,
+                        'product_type' => $product->productType ? $product->productType->name : null,
+                        'categories' => $product->categories->take(3)->map(function ($category) {
+                            return $category->name;
+                        })->toArray(),
+                    ];
+                }
 
-                 $addresses = $customer->address()->get()->map(function ($address) {
-                     return [
-                         'type' => $address->addressType?->name ?? 'Home',
-                         'full_address' => trim("{$address->address} {$address->address_2}, {$address->city}, {$address->state} {$address->zip}"),
-                     ];
-                 })->toArray();
-
-                 $profile['contact_info'] = [
-                     'primary_email' => $emails[0] ?? null,
-                     'all_emails' => $emails,
-                     'primary_phone' => $phones[0] ?? null,
-                     'all_phones' => $phones,
-                     'addresses' => $addresses,
-                 ];
-
-                 // Organizations and employment
-                 $profile['organizations'] = $customer->organizations()->get()->map(function ($org) {
-                     return $org->name;
-                 })->toArray();
-
-                 $profile['employment_history'] = $customer->employmentHistory()->get()->map(function ($history) {
-                     return [
-                         'organization' => $history->organization,
-                         'position' => $history->position,
-                         'start_date' => $history->start_date,
-                         'end_date' => $history->end_date ?: 'Present',
-                     ];
-                 })->toArray();
-
-                 // Tags
-                 $profile['tags'] = $customer->tags->map(function ($tag) {
-                     return $tag->name;
-                 })->toArray();
-
-                 // Custom fields
-                 $profile['custom_fields'] = $customer->getAll();
-
-                 // Likes and preferences
-                 $profile['likes'] = $customer->likes(false)->get()->map(function ($like) {
-                     return [
-                         'item' => $this->getEntityName($like),
-                         'type' => $this->getEntityTypeName($like),
-                     ];
-                 })->toArray();
-
-                 // Lead information
-                 $profile['leads'] = $customer->leads()->get()->map(function ($lead) {
-                     return [
-                         'title' => $lead->title,
-                         'status' => $this->getLeadStatusInfo($lead)['label'],
-                         'created_at' => $lead->created_at?->format('Y-m-d'),
-                         'source' => $lead->source()->exists() ? $lead->source->name : 'Unknown',
-                         'type' => $lead->type()->exists() ? $lead->type->name : 'General',
-                         'custom_fields' => $lead->getAll(),
-                         'is_active' => $lead->isActive(),
-                     ];
-                 })->toArray();
-
-                 return $profile;
-             }),
-         ];
+                return $inventory;
+            }),
+        ];
     }
 
     /**
