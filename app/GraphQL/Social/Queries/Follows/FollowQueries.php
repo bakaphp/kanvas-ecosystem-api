@@ -16,8 +16,7 @@ class FollowQueries
     public function isFollowing(mixed $root, array $request): bool
     {
         $app = app(Apps::class);
-        $userId = empty($requestp['user_id']) ? $root->id : $request['user_id'];
-        $user = UsersRepository::getUserOfAppById((int) $userId, $app);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
         $authedUser = auth()->user();
 
         return $authedUser->isFollowing($user);
