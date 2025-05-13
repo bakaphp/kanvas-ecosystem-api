@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "490a9f65433193a721464295bea6598a",
+    "content-hash": "b67c25e10232d15488ecd20fd0d80a19",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -2214,16 +2214,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.66.0",
+            "version": "v0.67.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "e057c7097571c04b536aba8a7d9c609b63998926"
+                "reference": "d08aa262736de355654c359f240d74421b095bfb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/e057c7097571c04b536aba8a7d9c609b63998926",
-                "reference": "e057c7097571c04b536aba8a7d9c609b63998926",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/d08aa262736de355654c359f240d74421b095bfb",
+                "reference": "d08aa262736de355654c359f240d74421b095bfb",
                 "shasum": ""
             },
             "require": {
@@ -2278,7 +2278,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.66.0"
+                "source": "https://github.com/prism-php/prism/tree/v0.67.0"
             },
             "funding": [
                 {
@@ -2286,7 +2286,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-04T15:55:15+00:00"
+            "time": "2025-05-12T15:31:56+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -4179,16 +4179,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.9.29",
+            "version": "1.9.31",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "d6d24ae98d05478b26b279224a4b01dac2c74595"
+                "reference": "bb60a5bbca8d6634ba6c1e99068aaeebd2431a66"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/d6d24ae98d05478b26b279224a4b01dac2c74595",
-                "reference": "d6d24ae98d05478b26b279224a4b01dac2c74595",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/bb60a5bbca8d6634ba6c1e99068aaeebd2431a66",
+                "reference": "bb60a5bbca8d6634ba6c1e99068aaeebd2431a66",
                 "shasum": ""
             },
             "require": {
@@ -4236,9 +4236,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.9.29"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.9.31"
             },
-            "time": "2025-05-09T08:23:47+00:00"
+            "time": "2025-05-12T17:16:10+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -6707,16 +6707,16 @@
         },
         {
             "name": "mll-lab/laravel-graphiql",
-            "version": "v4.0.1",
+            "version": "v4.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mll-lab/laravel-graphiql.git",
-                "reference": "2ebe7c4405b58028c93d3a08623f3b162a90012d"
+                "reference": "50135ffb1874e41cd6bb59d6334e8639fe579c72"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/2ebe7c4405b58028c93d3a08623f3b162a90012d",
-                "reference": "2ebe7c4405b58028c93d3a08623f3b162a90012d",
+                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/50135ffb1874e41cd6bb59d6334e8639fe579c72",
+                "reference": "50135ffb1874e41cd6bb59d6334e8639fe579c72",
                 "shasum": ""
             },
             "require": {
@@ -6767,9 +6767,9 @@
             ],
             "support": {
                 "issues": "https://github.com/mll-lab/laravel-graphiql/issues",
-                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v4.0.1"
+                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v4.0.2"
             },
-            "time": "2025-05-07T16:45:31+00:00"
+            "time": "2025-05-12T07:21:46+00:00"
         },
         {
             "name": "moneyphp/money",
@@ -18202,6 +18202,6 @@
     "platform": {
         "php": "^8.4"
     },
-    "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "platform-dev": [],
+    "plugin-api-version": "2.3.0"
 }
