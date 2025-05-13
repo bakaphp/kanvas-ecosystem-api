@@ -230,11 +230,6 @@ class CRMAgent extends BaseAgent
 
                 $profile['important_insights'] = $importantFields;
 
-                Log::info('Customer Profile', [
-                  //  'customer_id' => $customer->id,
-                    'profile' => $profile,
-                ]);
-
                 return $profile;
             }),
 
@@ -436,16 +431,6 @@ class CRMAgent extends BaseAgent
                     ];
                 }
 
-                // Log summary information without the full inventory data
-                Log::info('Inventory Information Retrieved', [
-                    'customer_name' => $customer->getName(),
-                    'search_term' => $search_term,
-                    'category' => $category,
-                    'total_products_found' => $inventory['total_products_found'],
-                    'products_returned' => $inventory['products_returned'],
-                ]);
-
-                // Return the limited inventory data
                 return $inventory;
             }),
         ];
