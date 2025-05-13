@@ -23,6 +23,7 @@ class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
             integration: IntegrationsEnum::AERO_AMBULANCIA,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 try {
+                    sleep(30);
                     $data = $this->getActivityData($order, $params);
 
                     $subscriptionService = new AeroAmbulanciaSubscriptionService($app, $order);
