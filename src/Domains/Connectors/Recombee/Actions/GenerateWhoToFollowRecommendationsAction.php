@@ -35,9 +35,9 @@ class GenerateWhoToFollowRecommendationsAction
             ->toArray();
 
         return Users::whereIn('users.id', $entityIds)
-            ->whereNotExists(function ($query) use ($user) {
+            ->whereNotExists(function ($query) use ($user, $socialConnection) {
                 $query->select(DB::raw(1))
-                    ->from('users_follows')
+                    ->from($socialConnection . '.users_follows')
                     ->where('users_follows.apps_id', $this->app->getId())
                     ->where('users_follows.is_deleted', 0)
                     ->where('users_follows.users_id', $user->id)
