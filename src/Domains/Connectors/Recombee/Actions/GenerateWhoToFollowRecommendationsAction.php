@@ -44,7 +44,6 @@ class GenerateWhoToFollowRecommendationsAction
                     ->where('users_follows.entity_namespace', Users::class)
                     ->whereRaw('users_follows.entity_id = users.id');
             })
-            ->select('users.*')
-            ->get();
+            ->select('users.*');
     }
 }
