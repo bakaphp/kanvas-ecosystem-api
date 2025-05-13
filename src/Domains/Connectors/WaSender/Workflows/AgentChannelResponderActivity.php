@@ -24,13 +24,13 @@ class AgentChannelResponderActivity extends KanvasActivity
         //$fromMe = $params['from_me'] ?? null;
 
         $agentId = $params['agent_id'] ?? null;
-        $runOnChannel = $params['channelId'] ?? null;
+        $runOnThisChannels = $params['channelId'] ?? [];
 
         return $this->executeIntegration(
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::WASENDER,
-            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $agentId, $runOnChannel) {
+            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $agentId, $runOnThisChannels) {
                 if (empty($message)) {
                     return [
                         'message' => 'Message or user not found',
@@ -38,7 +38,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                if ($message->message['chat_jid'] !== $runOnChannel) {
+                if (in_array($message->message['chat_jid'], $runOnThisChannels)) {
                     return [
                         'message' => 'Agent is not running on this channel',
                         'entity' => null,
