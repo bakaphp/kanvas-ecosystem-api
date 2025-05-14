@@ -74,7 +74,6 @@ class GenerateRecommendForYourFeedAction
 
         $messageTypeId = $this->app->get('social-user-message-filter-message-type');
         $builder = Message::fromApp($this->app)
-            ->with('children')
             ->whereIn('id', $entityIds)
             ->where('is_public', 1)
             ->where('is_deleted', 0)
