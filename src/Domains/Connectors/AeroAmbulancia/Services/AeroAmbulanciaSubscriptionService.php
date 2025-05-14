@@ -111,7 +111,17 @@ class AeroAmbulanciaSubscriptionService
 
         // Calculate expiration date based on activation date
         $activationDate = Carbon::createFromFormat('d-m-Y', $beneficiaryData['activationDate']);
-        $expirationDate = $activationDate->addDays((int) $days)->format('Y-m-d H:i:s');
+
+        // Double-check expirationDate
+        $expirationDate = $beneficiaryData['expirationDate'] ?? null;
+        if ($expirationDate) {
+            $expirationDate = Carbon::createFromFormat('d-m-Y', $expirationDate);
+        } else {
+            $days = (int) $subscriptionVariant->getAttributeBySlug('variant-duration')?->value ?? 30; // Default to 30 days if not specified
+            $expirationDate = $activationDate->copy()->addDays($days);
+        }
+
+        $expirationDateFormatted = $expirationDate->format('Y-m-d H:i:s');
 
         $typeId = ['passport' => '2', 'id' => '1'];
 
@@ -125,7 +135,7 @@ class AeroAmbulanciaSubscriptionService
             'sex' => $beneficiaryData['gender'],
             'birthdate' => $beneficiaryData['birthDate'],
             'activationDate' => $activationDate->format('Y-m-d H:i:s'),
-            'expirationDate' => $expirationDate,
+            'expirationDate' => $expirationDateFormatted,
             'acquiredPlan' => (int) $acquiredPlan,
             'preferredLanguage' => ucfirst($beneficiaryData['preferredLanguage'] ?? 'es'),
         ];
