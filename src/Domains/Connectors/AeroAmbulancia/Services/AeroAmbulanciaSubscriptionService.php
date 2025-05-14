@@ -121,10 +121,6 @@ class AeroAmbulanciaSubscriptionService
             $expirationDate = $activationDate->copy()->addDays($days);
         }
 
-        if ($expirationDate->lessThanOrEqualTo($activationDate)) {
-            throw new ValidationException('Expiration date must be after activation date.');
-        }
-
         $expirationDateFormatted = $expirationDate->format('Y-m-d H:i:s');
 
         $typeId = ['passport' => '2', 'id' => '1'];
