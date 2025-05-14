@@ -22,6 +22,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
+use Kanvas\Users\Actions\SendUserNotificationAction;
 use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromCartAction
@@ -116,9 +117,11 @@ class CreateOrderFromCartAction
             checkoutToken: '',
             paymentGatewayName: ['manual'],
             languageCode: null,
+            reference: $this->request['input']['reference'] ?? '',
         );
 
         $order = (new CreateOrderAction($order))->execute();
+        new SendUserNotificationAction($order->app, $this->company, $order->user)->execute('admin-new-order', $order->toArray());
 
         $this->cart->clear();
 

@@ -6,6 +6,7 @@ namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
+use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
@@ -65,6 +66,8 @@ use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
+use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
+use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
@@ -149,6 +152,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ShopifyCompanyConfigWebhookJob::class,
             PullUserInformationActivity::class,
             GenerateMessageTagsWithAiActivity::class,
+            CreateAeroAmbulanciaSubscriptionActivity::class,
             PushUserInteractionToEventActivity::class,
             PushMessageToItemActivity::class,
             DistributeMessageActivity::class,
@@ -167,6 +171,8 @@ class KanvasWorkflowSynActionCommand extends Command
             CalculateWarehouseQuantityActivity::class,
             PremiumPromptFlagActivity::class,
             SetOrderPaymentIntentActivity::class,
+            ProcessWaSenderWebhookJob::class,
+            AgentChannelResponderActivity::class,
         ];
 
         $createdActions = [];

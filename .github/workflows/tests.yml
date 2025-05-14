@@ -37,6 +37,9 @@ jobs:
       DB_EVENT_DATABASE: event
       DB_EVENT_USERNAME: root
       DB_EVENT_PASSWORD: password
+      DB_INTELLIGENCE_DATABASE: intelligence
+      DB_INTELLIGENCE_USERNAME: root
+      DB_INTELLIGENCE_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
       APP_KEY: base64:Wm5KmkE4aWFjdFUzU2o3SElYNGc0QlpLcXNWR0hMME0=
       APP_JWT_TOKEN: Wm5KmkE4aWFjdFUzU2o3SElYNGc0QlpLcXNWR0hMME0=4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjYj
@@ -108,6 +111,8 @@ jobs:
       TEST_ELEAD_API_SECRET: ${{ secrets.TEST_ELEAD_API_SECRET }}
       TEST_ELEAD_DEV_MODE: ${{ secrets.TEST_ELEAD_DEV_MODE }}
       TEST_ELEAD_SUBSCRIPION_ID: ${{ secrets.TEST_ELEAD_SUBSCRIPION_ID }}
+      TEST_WAS_SENDER_BASE_URL: ${{ secrets.TEST_WAS_SENDER_BASE_URL }}
+      TEST_WAS_SENDER_API_KEY: ${{ secrets.TEST_WAS_SENDER_API_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -193,6 +198,10 @@ jobs:
       - name: Setup EVENT DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS event;'
+
+      - name: Setup AI DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS intelligence;'
 
       - name: Configure MySQL
         run: |

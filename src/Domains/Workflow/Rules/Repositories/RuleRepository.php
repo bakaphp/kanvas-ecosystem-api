@@ -55,6 +55,7 @@ class RuleRepository
                 ->whereIn('apps_id', [$bind['global_apps_id'], $bind['apps_id']])
                 ->where('is_deleted', 0)
                 ->notDeleted()
+                ->orderBy('weight', 'asc')
                 ->get();
     }
 }

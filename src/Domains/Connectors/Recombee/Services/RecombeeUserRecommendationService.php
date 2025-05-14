@@ -56,7 +56,7 @@ class RecombeeUserRecommendationService
 
         try {
             if ($recommId !== null) {
-                return $this->getUserForYouFeedPagination($user, $recommId, $count);
+                return $this->getItemToUserPagination($recommId, $count);
             }
 
             return $this->getUserRecommendation($user, $count, $scenario, $recommendationOptions);
@@ -65,7 +65,7 @@ class RecombeeUserRecommendationService
         }
     }
 
-    public function getUserForYouFeedPagination(UserInterface $user, string $recommId, int $limit): array
+    public function getItemToUserPagination(string $recommId, int $limit): array
     {
         return $this->client->send(
             new RecommendNextItems($recommId, $limit)
@@ -116,6 +116,37 @@ class RecombeeUserRecommendationService
 
         $recommendation = $this->client->send(
             new RecommendUsersToUser((string) $user->getId(), $count, $options)
+        );
+
+        return $recommendation;
+    }
+
+    public function getUserCustomScenarioRecommendation(
+        UserInterface $user,
+        int $count = 10,
+        string $scenario = 'for-you-feed',
+        array $additionalOptions = []
+    ): array {
+        $options = array_merge([
+            'scenario' => $scenario,
+            'cascadeCreate' => true,
+        ], $additionalOptions);
+        $recommIdName = 'for-you-feed' ? CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID->value : $scenario . '-recomm-id';
+
+        if ($user->get($recommIdName)) {
+            return $this->getItemToUserPagination(
+                (string) $user->get($recommIdName),
+                $count
+            );
+        }
+
+        $recommendation = $this->client->send(
+            new RecommendItemsToUser((string) $user->getId(), $count, $options)
+        );
+
+        $user->set(
+            $recommIdName,
+            (string) $recommendation['recommId']
         );
 
         return $recommendation;

@@ -12,7 +12,6 @@ final class UserConfigTest extends TestCase
 {
     /**
      * Test Create AppsPostData Dto.
-     *
      */
     public function testSaveUserAppPreferences(): void
     {
@@ -29,24 +28,23 @@ final class UserConfigTest extends TestCase
             'preference_3' => 0,
         ];
 
-        $saveUserAppPreferences = new SaveUserAppPreferencesAction(
+        new SaveUserAppPreferencesAction(
             user: $user,
             app: $app,
             preferences: $preferences
-        );
+        )->execute();
 
-        $saveUserAppPreferences->execute();
         $this->assertEquals(
             $preferences['preference_1'],
-            $user->get('preference_1')
+            $user->get('user_app_1_preferences')['preference_1']
         );
         $this->assertEquals(
             $preferences['preference_2'],
-            $user->get('preference_2')
+            $user->get('user_app_1_preferences')['preference_2']
         );
         $this->assertEquals(
             $preferences['preference_3'],
-            $user->get('preference_3')
+            $user->get('user_app_1_preferences')['preference_3']
         );
     }
 }

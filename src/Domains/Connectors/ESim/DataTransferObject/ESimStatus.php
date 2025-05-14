@@ -31,7 +31,7 @@ class ESimStatus extends Data
         public readonly ?string $phoneNumber = null,
         public readonly ?string $imei = null,
         #[MapOutputName('esim_status')]
-        public readonly ?string $esimStatus = null,
+        public readonly ?string $esimStatus = null, //enable if you want it to show @todo move to enums
         public readonly ?string $message = null,
         #[MapOutputName('installed_date')]
         public readonly ?string $installedDate = null,

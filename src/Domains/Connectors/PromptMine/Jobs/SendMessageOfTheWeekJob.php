@@ -29,7 +29,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
         protected Apps $app,
         protected Users $user,
         protected MessageType $messageType,
-        protected array $config,
+        protected array $via,
     ) {
     }
 
@@ -41,6 +41,9 @@ class SendMessageOfTheWeekJob implements ShouldQueue
         $this->overwriteAppService($this->app);
 
         $messageOfTheWeek = MessagesRepository::getMostPopularMesssageByTotalLikes($this->app, $this->messageType);
+        if ($messageOfTheWeek === null) {
+            return;
+        }
         $messageOfTheWeek = new MessageOfTheWeekNotification(
             $this->user,
             [
@@ -48,9 +51,8 @@ class SendMessageOfTheWeekJob implements ShouldQueue
                 'title' => 'Prompt of the Week',
                 'message' => "$messageOfTheWeek->message['title'] — Try it now and keep the momentum going."
             ],
-            $this->config['via']
+            $this->via
         );
-
         $this->user->notify($messageOfTheWeek);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Channels\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +13,8 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  *  class Channels.
@@ -29,10 +32,15 @@ use Kanvas\Users\Models\Users;
 class Channel extends BaseModel
 {
     use UuidTrait;
+    use CanUseWorkflow;
 
     protected $table = 'channels';
 
     protected $guarded = [];
+
+    protected $casts = [
+        'metadata' => Json::class,
+    ];
 
     public function users(): BelongsToMany
     {
@@ -54,8 +62,10 @@ class Channel extends BaseModel
                 ->withTimestamps();
     }
 
-    public function addMessage(Message $message, ?UserInterface $user = null): void
-    {
+    public function addMessage(
+        Message $message,
+        ?UserInterface $user = null
+    ): void {
         $exists = $this->messages()
                 ->wherePivot('messages_id', $message->id)
                 ->exists();
@@ -70,5 +80,12 @@ class Channel extends BaseModel
         // Update last_message_id regardless
         $this->last_message_id = $message->id;
         $this->saveOrFail();
+
+        $this->fireWorkflow(WorkflowEnum::UPDATED->value, true, [
+            'message' => $message,
+            'user' => $user,
+            'app' => $message->app,
+            'company' => $message->company,
+        ]);
     }
 }

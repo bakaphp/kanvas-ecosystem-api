@@ -53,7 +53,6 @@ class WorkflowMutationManagement
         } catch (InvalidArgumentException $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
-
         try {
             /**
              * @todo this look very similar to the system module repository method, so you many need

@@ -53,7 +53,8 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
  *  @property int $companies_id
  *  @property int $users_id
  *  @property int $message_types_id
- *  @property string $message
+ *  @property string|array $message
+ *  @property string $slug
  *  @property int $reactions_count
  *  @property int $comments_count
  *  @property int $total_liked
@@ -159,6 +160,23 @@ class Message extends BaseModel
         }
 
         return is_array($value) ? $value : [];
+    }
+
+    public function addMessage(array $message): void
+    {
+        $this->message = array_merge($this->getMessage(), $message);
+        $this->saveOrFail();
+    }
+
+    public function addEntity(Model $entity): void
+    {
+        $this->appModuleMessage()->create([
+            'entity_id' => $entity->getId(),
+            'apps_id' => $this->apps_id,
+            'message_types_id' => $this->message_types_id,
+            'companies_id' => $this->companies_id,
+            'system_modules' => get_class($entity),
+        ]);
     }
 
     public function entity(): ?Model
