@@ -28,8 +28,14 @@ class AgentChannelResponderAction
 
     public function execute(array $params = []): array
     {
-        $messageConversation = $this->message->message['raw_data']['message']['conversation'] ?? null;
+        //$messageConversation = $this->message->message['raw_data']['message']['conversation'] ?? null;
+        $messageConversation = $this->message->message['raw_data']['message']['conversation'] ??
+                       $this->message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
         $channelId = Str::replace('@s.whatsapp.net', '', $this->message->message['chat_jid']);
+
+        if ($messageConversation === null) {
+            throw new ValidationException('No conversation found');
+        }
 
         if ($this->message->entity() === null) {
             throw new ValidationException('No entity found');
