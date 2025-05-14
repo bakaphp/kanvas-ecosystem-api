@@ -106,12 +106,12 @@ class AeroAmbulanciaSubscriptionService
             throw new ValidationException('Invalid ambulanceVariantId: ' . $beneficiaryData['ambulanceVariantId']);
         }
 
-        $days = (int) $subscriptionVariant->getAttributeBySlug('duration')?->value ?? 30; // Default to 30 days if not specified
+        $days = (int) $subscriptionVariant->getAttributeBySlug('variant-duration')?->value ?? 30; // Default to 30 days if not specified
         $acquiredPlan = $subscriptionVariant->getAttributeBySlug('aero_acquired_plan')?->value ?? 1; // Default to basic plan if not specified
 
         // Calculate expiration date based on activation date
         $activationDate = Carbon::createFromFormat('d-m-Y', $beneficiaryData['activationDate']);
-        $expirationDate = $activationDate->addDays($days)->format('Y-m-d H:i:s');
+        $expirationDate = $activationDate->addDays((int) $days)->format('Y-m-d H:i:s');
 
         $typeId = ['passport' => '2', 'id' => '1'];
 
@@ -124,7 +124,7 @@ class AeroAmbulanciaSubscriptionService
             'phoneNumber' => $people->getPhones()->first()?->value ?? '809732' . sprintf('%04d', random_int(0, 9999)), // Default to a random number if not specified
             'sex' => $beneficiaryData['gender'],
             'birthdate' => $beneficiaryData['birthDate'],
-            'activationDate' => $activationDate->format('Y-m-d'),
+            'activationDate' => $activationDate->format('Y-m-d H:i:s'),
             'expirationDate' => $expirationDate,
             'acquiredPlan' => (int) $acquiredPlan,
             'preferredLanguage' => ucfirst($beneficiaryData['preferredLanguage'] ?? 'es'),
