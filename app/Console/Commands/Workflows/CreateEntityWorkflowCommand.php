@@ -14,14 +14,15 @@ use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
-use RuntimeException;
-use Symfony\Component\Console\Exception\InvalidArgumentException;
 
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\table;
 use function Laravel\Prompts\text;
+
+use RuntimeException;
+use Symfony\Component\Console\Exception\InvalidArgumentException;
 
 class CreateEntityWorkflowCommand extends Command
 {
@@ -51,7 +52,7 @@ class CreateEntityWorkflowCommand extends Command
     {
         $app = Apps::getById($this->argument('app_id'));
 
-        $ruleName = text('What is the name for the workflow?');
+        $ruleName = text('What is the name for the workflow for the App ' . $app->name . '?');
         $description = text('What is the description for the workflow?');
         $ruleType = select(
             label: 'What is the rule type?',
