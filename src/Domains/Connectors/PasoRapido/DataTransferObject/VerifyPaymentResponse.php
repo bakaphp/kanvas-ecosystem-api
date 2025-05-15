@@ -16,15 +16,4 @@ class VerifyPaymentResponse extends Data
         public readonly BillingDetail $billingDetail,
     ) {
     }
-
-    public static function fromArray(array $data): self
-    {
-        return new self(
-            $data['availableToCancel'],
-            $data['exists'],
-            $data['applied'],
-            $data['description'],
-            BillingDetail::fromArray($data['billingDetail']),
-        );
-    }
 }
