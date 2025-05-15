@@ -44,12 +44,12 @@ class UpdateProductAction
                     'slug' => $this->productDto->slug ?? $this->product->slug,
                     'description' => $this->productDto->getDescription() ?? $this->product->description,
                     'short_description' => $this->productDto->short_description ?? $this->product->short_description,
-                    'html_description' => !empty($this->productDto->html_description) 
-                    ? $this->productDto->html_description 
-                    : (!empty($this->product->html_description) 
-                        ? $this->product->html_description 
-                        : (!empty($this->productDto->getDescription()) 
-                            ? $this->productDto->getDescription() 
+                    'html_description' => ! empty($this->productDto->html_description)
+                    ? $this->productDto->html_description
+                    : (! empty($this->product->html_description)
+                        ? $this->product->html_description
+                        : (! empty($this->productDto->getDescription())
+                            ? $this->productDto->getDescription()
                             : $this->product->description)),
                     'warranty_terms' => $this->productDto->warranty_terms ?? $this->product->warranty_terms,
                     'upc' => $this->productDto->upc ?? $this->product->upc,
