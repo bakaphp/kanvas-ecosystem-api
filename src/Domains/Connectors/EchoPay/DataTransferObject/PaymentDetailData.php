@@ -14,5 +14,6 @@ class PaymentDetailData extends Data
         public readonly OrderInformationData $orderInformation,
         public readonly DeviceInformationData $deviceInformation,
         public readonly ConsumerAuthenticationInformationData $consumerAuthenticationInformation
-    ) {}
+    ) {
+    }
 }

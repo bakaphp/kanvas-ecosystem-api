@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\EchoPay\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\EchoPay\Client;
-use Kanvas\Connectors\EchoPay\DataTransferObject\CardData;
+use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenizationData;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsultServiceQueryData;
 use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetailData;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetailData;
@@ -45,7 +45,7 @@ class EchoPayService
         ];
     }
 
-    public function addCard(CardData $data)
+    public function addCard(CardTokenizationData $data)
     {
         $response = $this->client->post(ConfigurationEnum::ADD_CARD_PATH->value, [
             'json' => $data->toArray(),
