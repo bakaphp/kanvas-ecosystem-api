@@ -32,7 +32,7 @@ class GenerateUserMessageFeedCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): void
     {
         $app = Apps::getById($this->argument('app_id'));
         $this->overwriteAppService($app);

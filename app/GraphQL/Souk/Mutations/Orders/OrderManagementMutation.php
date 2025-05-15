@@ -111,9 +111,13 @@ class OrderManagementMutation
         $orderId = (int) $request['id'];
         $orderData = $request['input'];
 
+        if (! $user->isAdmin()) {
+            throw new ValidationException('User is not authorized to delete this order');
+        }
+
         $order = Order::where([
             'apps_id' => $app->getId(),
-            'id' => $orderId
+            'id' => $orderId,
         ])->first();
 
         if ($order->fulfillment_status === 'fulfilled') {
@@ -129,6 +133,33 @@ class OrderManagementMutation
         return [
             'order' => $updateOrder->execute(),
             'message' => 'Order updated successfully',
+        ];
+    }
+
+    public function delete(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $orderId = (int) $request['id'];
+
+        if (! $user->isAdmin()) {
+            throw new ValidationException('User is not authorized to delete this order');
+        }
+
+        $order = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $orderId,
+        ])->first();
+
+        if ($order->fulfillment_status === 'fulfilled') {
+            throw new ValidationException('Order is already fulfilled');
+        }
+
+        $order->delete();
+
+        return [
+            'message' => 'Order deleted successfully',
         ];
     }
 
