@@ -34,10 +34,10 @@ class PasoRapidoService
     {
         $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
 
-        return VerifyCustomerResponse::fromArray($response);
+        return VerifyCustomerResponse::from($response);
     }
 
-    public function confirmPayment(PaymentConfirmData $data)
+    public function confirmPayment(PaymentConfirmData $data): PaymentConfirmResponse
     {
         $response = $this->client->post(ConfigurationEnum::CONFIRM_PAYMENT_PATH->value, [
             'json' => [
@@ -49,20 +49,20 @@ class PasoRapidoService
             ],
         ]);
 
-        return PaymentConfirmResponse::fromArray($response);
+        return PaymentConfirmResponse::from($response);
     }
 
-    public function verifyPayment(string $transactionNumber)
+    public function verifyPayment(string $transactionNumber): VerifyPaymentResponse
     {
         $response = $this->client->post(ConfigurationEnum::VERIFY_PAYMENT_PATH->value . '?numeroTransaccion=' . $transactionNumber, []);
 
-        return VerifyPaymentResponse::fromArray($response);
+        return VerifyPaymentResponse::from($response);
     }
 
-    public function cancelPayment(string $transactionNumber)
+    public function cancelPayment(string $transactionNumber): CancelPaymentResponse
     {
         $response = $this->client->post(ConfigurationEnum::CANCEL_PAYMENT_PATH->value . '?numeroTransaccion=' . $transactionNumber, []);
 
-        return CancelPaymentResponse::fromArray($response);
+        return CancelPaymentResponse::from($response);
     }
 }

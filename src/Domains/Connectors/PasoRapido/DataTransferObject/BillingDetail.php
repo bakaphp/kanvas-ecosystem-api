@@ -15,14 +15,4 @@ class BillingDetail extends Data
         public readonly string $pdf,
     ) {
     }
-
-    public static function fromArray(array $data): self
-    {
-        return new self(
-            $data['rncCedula'],
-            $data['valorFiscal'],
-            $data['comprobante'],
-            $data['pdf'],
-        );
-    }
 }
