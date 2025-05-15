@@ -54,6 +54,7 @@ use Kanvas\Connectors\Shopify\Jobs\ShopifyOrderNotesWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateShopifyDraftOrderActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateUserActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\DeleteVariantFromShopifyActivity;
+use Kanvas\Connectors\Shopify\Workflows\Activities\PushOrderActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanWebhookJob;
@@ -173,6 +174,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SetOrderPaymentIntentActivity::class,
             ProcessWaSenderWebhookJob::class,
             AgentChannelResponderActivity::class,
+            PushOrderActivity::class,
         ];
 
         $createdActions = [];
