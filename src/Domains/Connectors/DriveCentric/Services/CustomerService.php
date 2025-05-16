@@ -48,7 +48,6 @@ class CustomerService
         $response = $client->getClient()->get("{+endpoint}/api/stores/{$storeId}/customers", [
             'email' => $email,
         ]);
-        dd($response->json());
         $customer = $response->json('customers.0');
         return $customer;
     }

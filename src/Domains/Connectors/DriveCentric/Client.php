@@ -20,6 +20,7 @@ class Client
     {
         return Http::withUrlParameters([
             'endpoint' => $this->app->get(ConfigurationEnum::BASE_URL->value),
+            'storeId' => $this->app->get(ConfigurationEnum::STORE_ID->value),
         ]);
     }
 
