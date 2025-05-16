@@ -27,8 +27,8 @@ class Client
     {
         $client = $this->makeClient();
         $response = $client->post('{+endpoint}/api/authentication/token', [
-            'client_id' => $this->app->get(ConfigurationEnum::API_KEY->value),
-            'client_secret' => $this->app->get(ConfigurationEnum::API_SECRET_KEY->value),
+            'clientId' => $this->app->get(ConfigurationEnum::API_KEY->value),
+            'clientSecret' => $this->app->get(ConfigurationEnum::API_SECRET_KEY->value),
         ]);
         return $response->json('idToken');
     }

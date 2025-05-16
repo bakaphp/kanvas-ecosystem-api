@@ -76,12 +76,12 @@ class IntegrationsCompany extends BaseModel
         Regions $region
     ): ?IntegrationsCompany {
         $integration = Integrations::where('name', $name)->firstOrFail();
-
-        return IntegrationsCompany::fromCompany($company)
-                                ->where('integrations_id', $integration->getId())
-                                ->where('status_id', $status->getId())
-                                ->where('region_id', $region->getId())
-                                ->where('is_active', 1)
-                                ->first();
+        $query = IntegrationsCompany::fromCompany($company)
+            ->where('integrations_id', $integration->getId())
+            ->where('status_id', $status->getId())
+            ->where('region_id', $region->getId())
+            ->where('is_active', 1);
+        return $query->first();
+        // ->first();
     }
 }

@@ -31,13 +31,36 @@ class CustomerService
         return $response->json();
     }
 
-    public function getCustomer(string $customerId): array
+    public function getCustomerById(string $customerId): array
     {
         $client = new Client($this->app);
         $storeId = $this->app->get(ConfigurationEnum::STORE_ID->value);
         $response = $client->getClient()->get("{+endpoint}/api/Stores/{$storeId}/Customers/{$customerId}");
         $customer = $response->json('customerInfo');
 
+        return $customer;
+    }
+
+    public function getCustomerByEmail(string $email): array
+    {
+        $client = new Client($this->app);
+        $storeId = $this->app->get(ConfigurationEnum::STORE_ID->value);
+        $response = $client->getClient()->get("{+endpoint}/api/stores/{$storeId}/customers", [
+            'email' => $email,
+        ]);
+        dd($response->json());
+        $customer = $response->json('customers.0');
+        return $customer;
+    }
+
+    public function getCustomerByPhone(string $phone): array
+    {
+        $client = new Client($this->app);
+        $storeId = $this->app->get(ConfigurationEnum::STORE_ID->value);
+        $response = $client->getClient()->get("{+endpoint}/api/stores/{$storeId}/customers", [
+            'phone' => $phone,
+        ]);
+        $customer = $response->json('customers.0');
         return $customer;
     }
 }
