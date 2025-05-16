@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.343.10",
+            "version": "3.343.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "473d632d03a78b19f9f75a2126c5ba8c21f09346"
+                "reference": "d4b21990410d023e9c5303487d3248e8d7c8c2b6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/473d632d03a78b19f9f75a2126c5ba8c21f09346",
-                "reference": "473d632d03a78b19f9f75a2126c5ba8c21f09346",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/d4b21990410d023e9c5303487d3248e8d7c8c2b6",
+                "reference": "d4b21990410d023e9c5303487d3248e8d7c8c2b6",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.343.10"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.343.12"
             },
-            "time": "2025-05-13T18:09:50+00:00"
+            "time": "2025-05-15T18:14:32+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -4179,16 +4179,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.9.32",
+            "version": "1.9.34",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "6fd8f698cb7d719363f4c86a892fc7f588300e68"
+                "reference": "a85e679e51ea16de0bee1f3be3d3d57adc3fa22f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/6fd8f698cb7d719363f4c86a892fc7f588300e68",
-                "reference": "6fd8f698cb7d719363f4c86a892fc7f588300e68",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/a85e679e51ea16de0bee1f3be3d3d57adc3fa22f",
+                "reference": "a85e679e51ea16de0bee1f3be3d3d57adc3fa22f",
                 "shasum": ""
             },
             "require": {
@@ -4236,9 +4236,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.9.32"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.9.34"
             },
-            "time": "2025-05-14T16:38:12+00:00"
+            "time": "2025-05-16T12:51:52+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -7496,16 +7496,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.56.0",
+            "version": "v6.56.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "b6d5ed680cd27fcf3a84540b6d6ceccabcb4bdf7"
+                "reference": "5a80dd283b5f19d7f78b18d14d3854811a9864a4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/b6d5ed680cd27fcf3a84540b6d6ceccabcb4bdf7",
-                "reference": "b6d5ed680cd27fcf3a84540b6d6ceccabcb4bdf7",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/5a80dd283b5f19d7f78b18d14d3854811a9864a4",
+                "reference": "5a80dd283b5f19d7f78b18d14d3854811a9864a4",
                 "shasum": ""
             },
             "require": {
@@ -7623,7 +7623,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2025-05-07T15:03:59+00:00"
+            "time": "2025-05-16T08:14:50+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -16780,16 +16780,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.15",
+            "version": "2.1.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "402d11c1aa40ae2e1c3a512e6a4edb957527b20b"
+                "reference": "b8c1cf533cba0c305d91c6ccd23f3dd0566ba5f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/402d11c1aa40ae2e1c3a512e6a4edb957527b20b",
-                "reference": "402d11c1aa40ae2e1c3a512e6a4edb957527b20b",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/b8c1cf533cba0c305d91c6ccd23f3dd0566ba5f9",
+                "reference": "b8c1cf533cba0c305d91c6ccd23f3dd0566ba5f9",
                 "shasum": ""
             },
             "require": {
@@ -16834,7 +16834,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-14T11:16:08+00:00"
+            "time": "2025-05-16T09:40:10+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -18203,6 +18203,6 @@
     "platform": {
         "php": "^8.4"
     },
-    "platform-dev": [],
-    "plugin-api-version": "2.3.0"
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
 }
