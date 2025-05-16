@@ -27,9 +27,9 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 use Prism\Prism\Prism;
 use Prism\Prism\Enums\Provider;
-use Override;
 
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
 {
