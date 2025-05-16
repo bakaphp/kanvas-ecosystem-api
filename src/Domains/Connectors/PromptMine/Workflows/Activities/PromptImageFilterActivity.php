@@ -338,7 +338,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         array $params = [],
         ?string $requestId = null
     ): array {
-
         // Lets generate a new title using ai if no title is set
         if (empty($entity->message['title']) && $entity->message['prompt']) {
             $response = Prism::text()
