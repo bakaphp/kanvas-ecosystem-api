@@ -27,6 +27,8 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Prism\Prism\Prism;
+use Prism\Prism\Enums\Provider;
 use Override;
 
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -336,7 +338,18 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         array $params = [],
         ?string $requestId = null
     ): array {
-        $title = $entity->message['title'] ?? $entity->message['prompt'];
+
+        // Lets generate a new title using ai if no title is set
+        if (empty($entity->message['title']) && $entity->message['prompt']) {
+            $response = Prism::text()
+                    ->using(Provider::Gemini, 'gemini-2.0-flash')
+                    ->withPrompt("Generate a short title from this prompt: " . $entity->message['prompt'])
+                    ->generate();
+            $responseText = str_replace(['```', 'json'], '', $response->text);
+            $title = $responseText;
+        } else {
+            $title = $entity->message['title'];
+        }
         $totalDelivery = 0;
         // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
