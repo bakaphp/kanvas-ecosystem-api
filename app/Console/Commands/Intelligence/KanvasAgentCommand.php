@@ -6,7 +6,6 @@ namespace App\Console\Commands\Intelligence;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Redis;
 use Inspector\Configuration;
 use Inspector\Inspector;
 use Kanvas\Apps\Models\Apps;
