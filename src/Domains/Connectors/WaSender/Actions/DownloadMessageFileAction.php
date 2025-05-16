@@ -41,7 +41,7 @@ class DownloadMessageFileAction
          decryptWhatsAppMedia($mediaKey, $url, DIR . '/decrypted_image.jpg');  */
         $mediaKey = $this->message->message['raw_data']['message']['imageMessage']['mediaKey'] ?? null;
         $url = $this->message->message['raw_data']['message']['imageMessage']['url'] ?? null;
-        $imageName = $this->message->message['raw_data']['message']['imageMessage']['fileName'] ?? null;
+        $imageName = $this->message->message['raw_data']['message']['message_id'] ?? null;
 
         return $this->processWhatsAppMedia($mediaKey, $url, $imageName);
     }
