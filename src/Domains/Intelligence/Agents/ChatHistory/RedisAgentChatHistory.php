@@ -47,7 +47,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
         // First try to load from Redis for speed
         $redisKey = $this->getRedisKey();
         //Redis::del($redisKey);
-        $cachedHistory = Redis::get($redisKey);
+        $cachedHistory = false; //Redis::get($redisKey); no redis for now
 
         if ($cachedHistory) {
             $messages = json_decode($cachedHistory, true);
