@@ -992,11 +992,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             tags: ['whatsapp', 'wa-contact']
         );
 
-        Log::info('Processing contact', [
-          $peopleDto->toArray(),
-        ]);
-        // Create People record
-
         $createAction = new CreatePeopleAction($peopleDto);
 
         return $createAction->execute();
