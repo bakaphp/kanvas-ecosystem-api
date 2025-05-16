@@ -82,7 +82,7 @@ final class EchoPayTest extends EchoPayBase
         $this->assertArrayHasKey('status', $result);
         $this->assertArrayHasKey('submitTimeUtc', $result);
     }
-    
+
     public function testPayerEnrollment()
     {
         $app = app(Apps::class);
@@ -94,7 +94,7 @@ final class EchoPayTest extends EchoPayBase
         ];
 
         $referenceId = env('TEST_ECHO_PAY_REFERENCE_ID');
-        
+
         $result = $echoPayService->checkPayerEnrollment(
             PaymentDetailData::from([
                 'orderCode' => 'TC50171_3',
@@ -111,10 +111,10 @@ final class EchoPayTest extends EchoPayBase
                 ]),
                 'consumerAuthenticationInformation' => ConsumerAuthenticationInformationData::from([
                     "deviceChannel" => "BROWSER",
-                    "returnUrl" => "http://localhost:3000/return-url.js", 
+                    "returnUrl" => "http://localhost:3000/return-url.js",
                     "referenceId" => $referenceId,
                     "transactionMode" => "eCommerce"
-                   
+
                 ]),
             ]),
             $this->getCardData()->merchant,
@@ -137,7 +137,7 @@ final class EchoPayTest extends EchoPayBase
         $tokenizedCard = [
             "paymentInstrumentId" => env('TEST_ECHO_PAY_PAYMENT_INSTRUMENT_ID'),
         ];
-        
+
         $result = $echoPayService->validatePayerAuthResult(
             $transactionId,
             PaymentDetailData::from([
@@ -157,7 +157,8 @@ final class EchoPayTest extends EchoPayBase
         $this->assertEquals("AUTHENTICATION_SUCCESSFUL", $result['status']);
     }
 
-    public function testPayService() {
+    public function testPayService()
+    {
         $app = app(Apps::class);
         $company = Companies::first();
         $echoPayService = $this->getService($app, $company);
@@ -186,10 +187,10 @@ final class EchoPayTest extends EchoPayBase
                 ]),
                 'consumerAuthenticationInformation' => ConsumerAuthenticationInformationData::from([
                     "deviceChannel" => "BROWSER",
-                    "returnUrl" => "http://localhost:3000/portal/accept-code", 
+                    "returnUrl" => "http://localhost:3000/portal/accept-code",
                     "referenceId" => $referenceId,
                     "transactionMode" => "eCommerce"
-                   
+
                 ]),
             ]),
             ConsumerAuthenticationData::from([
