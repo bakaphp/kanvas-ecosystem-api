@@ -43,7 +43,7 @@ class AgentChannelResponderAction
                 $this->agent,
             )->execute();
 
-            $previousMessage = $this->channel->getPreviousMessage();
+            $previousMessage = $this->channel->getPreviousMessage($this->message);
 
             if ($previousMessage && MessageTypeEnum::isDocumentType($previousMessage->messageType->verb) && $previousMessage->id !== $this->message->id) {
                 //$this->message->associate($previousMessage);
