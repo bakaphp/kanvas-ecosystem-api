@@ -47,7 +47,7 @@ class EchoPayService
         ];
     }
 
-    public function addCard(CardTokenizationData $data)
+    public function addCard(CardTokenizationData $data): array
     {
         $response = $this->client->post(ConfigurationEnum::ADD_CARD_PATH->value, $data->toArray());
 
@@ -59,7 +59,7 @@ class EchoPayService
         ];
     }
 
-    public function setupPayer($orderCode, $paymentInstrumentId, MerchantDetailData $merchant)
+    public function setupPayer(string $orderCode, string $paymentInstrumentId, MerchantDetailData $merchant): array
     {
         $formData = [
             'payment' => [
@@ -92,7 +92,7 @@ class EchoPayService
         ];
     }
 
-    public function checkPayerEnrollment(PaymentDetailData $payment, MerchantDetailData $merchant)
+    public function checkPayerEnrollment(PaymentDetailData $payment, MerchantDetailData $merchant): array
     {
         $formData = [
             "payment" => [
@@ -140,8 +140,11 @@ class EchoPayService
         ];
     }
 
-    public function validatePayerAuthResult(string $transactionId, PaymentDetailData $payment, MerchantDetailData $merchant)
-    {
+    public function validatePayerAuthResult(
+        string $transactionId,
+        PaymentDetailData $payment,
+        MerchantDetailData $merchant
+    ): array {
         $response = $this->client->post(ConfigurationEnum::VALIDATE_PAYER_AUTH_RESULT_PATH->value, [
             "payment" => [
                 "clientReferenceInformation" => [
