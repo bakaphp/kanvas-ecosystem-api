@@ -6,9 +6,10 @@ namespace Kanvas\Connectors\DriveCentric\Workflow;
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\DriveCentric\Actions\PullPeopleAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Kanvas\Connectors\DriveCentric\Actions\PullPeopleAction;
+
 class PullPeopleActivity extends KanvasActivity
 {
     public $tries = 3;

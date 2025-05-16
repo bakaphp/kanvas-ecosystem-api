@@ -19,5 +19,6 @@ class CustomerDriveCentric extends Data
         public ?string $birthdate = null,
         public array $phones = [],
         public array $emails = [],
-    ){}
+    ) {
+    }
 }
