@@ -36,7 +36,7 @@ class PushOrderActivity extends KanvasActivity
                     $warehouse
                 );
 
-                $trackingNumber = $shopifyOrderService->addTrackingToOrder(
+                $trackingNumberResult = $shopifyOrderService->addTrackingToOrder(
                     orderId: $orderId,
                     trackingNumber: $trackingNumber,
                     // status: $status,
@@ -49,7 +49,7 @@ class PushOrderActivity extends KanvasActivity
 
                 return [
                     'status' => 'success',
-                    'tracking_number' => $trackingNumber,
+                    'tracking_number' => $trackingNumberResult,
                     'fulfillment_status' => $fulfillmentStatus,
                     'order_id' => $orderId,
                 ];
