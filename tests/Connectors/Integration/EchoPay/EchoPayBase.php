@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\EchoPay;
 
-
 use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetailData;
 use Kanvas\Connectors\EchoPay\DataTransferObject\CardDetailData;
 use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenizationData;

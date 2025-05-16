@@ -15,7 +15,6 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformationData;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetailData;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponseData;
 
-
 final class EchoPayTest extends EchoPayBase
 {
     public function testConsultService()
