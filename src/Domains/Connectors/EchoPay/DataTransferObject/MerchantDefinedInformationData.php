@@ -14,13 +14,13 @@ use Spatie\LaravelData\Data;
 class MerchantDefinedInformationData extends Data
 {
     public function __construct(
-        public readonly MerchantCategoryEnum $merchantCategory,
-        public readonly string $merchantCardIdentifier,
-        public readonly MerchantPlatformEnum $merchantPlatform,
-        public readonly string $merchantCustomerId,
-        public readonly MerchantTokenizationEnum $merchantTokenization,
-        public readonly MerchantDocumentTypesEnum $merchantDocumentType,
-        public readonly string $merchantDocumentNumber,
+        public readonly MerchantCategoryEnum $category,
+        public readonly string $cardIdentifier,
+        public readonly MerchantPlatformEnum $platform,
+        public readonly string $customerId,
+        public readonly MerchantTokenizationEnum $tokenization,
+        public readonly MerchantDocumentTypesEnum $documentType,
+        public readonly string $documentNumber,
     ) {
     }
 
@@ -29,31 +29,31 @@ class MerchantDefinedInformationData extends Data
         return [
             [
                 'key' => MerchantOptionsEnum::MERCHANT_CATEGORY->value,
-                'value' => $this->merchantCategory,
+                'value' => $this->category->value,
             ],
             [
                 'key' => MerchantOptionsEnum::MERCHANT_CARD_IDENTIFIER->value,
-                'value' => $this->merchantCardIdentifier,
+                'value' => $this->cardIdentifier,
             ],
             [
                 'key' => MerchantOptionsEnum::MERCHANT_PLATFORM->value,
-                'value' => $this->merchantPlatform,
+                'value' => $this->platform->value,
             ],
             [
                 'key' => MerchantOptionsEnum::MERCHANT_CUSTOMER_ID->value,
-                'value' => $this->merchantCustomerId,
+                'value' => $this->customerId,
             ],
             [
                 'key' => MerchantOptionsEnum::MERCHANT_TOKENIZATION->value,
-                'value' => $this->merchantTokenization,
+                'value' => $this->tokenization->value,
             ],
             [
                 'key' => MerchantOptionsEnum::MERCHANT_DOCUMENT_TYPE->value,
-                'value' => $this->merchantDocumentType,
+                'value' => $this->documentType->value,
             ],
             [
                 'key' => MerchantOptionsEnum::MERCHANT_DOCUMENT_NUMBER->value,
-                'value' => $this->merchantDocumentNumber,
+                'value' => $this->documentNumber,
             ],
         ];
     }

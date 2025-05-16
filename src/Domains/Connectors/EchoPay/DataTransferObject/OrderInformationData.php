@@ -11,7 +11,7 @@ class OrderInformationData extends Data
     public function __construct(
         public readonly string $currency,
         public readonly string $totalAmount,
-        public readonly BillingDetailData $billTo,
+        public readonly ?BillingDetailData $billTo,
     ) {
     }
 }

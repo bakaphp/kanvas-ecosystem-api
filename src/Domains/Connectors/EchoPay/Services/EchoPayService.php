@@ -9,8 +9,10 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\EchoPay\Client;
 use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenizationData;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsultServiceQueryData;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthenticationData;
 use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetailData;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetailData;
+use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponseData;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 
 class EchoPayService
@@ -47,9 +49,7 @@ class EchoPayService
 
     public function addCard(CardTokenizationData $data)
     {
-        $response = $this->client->post(ConfigurationEnum::ADD_CARD_PATH->value, [
-            'json' => $data->toArray(),
-        ]);
+        $response = $this->client->post(ConfigurationEnum::ADD_CARD_PATH->value, $data->toArray());
 
         return [
             "cardNumber" => $response['data']['cardNumber'],
@@ -61,21 +61,21 @@ class EchoPayService
 
     public function setupPayer($orderCode, $paymentInstrumentId, MerchantDetailData $merchant)
     {
-        $response = $this->client->post(ConfigurationEnum::SETUP_PAYER_PATH->value, [
-            'json' => [
-                'payment' => [
-                    'clientReferenceInformation' => [
-                        'code' => $orderCode
-                    ],
-                    'paymentInformation' => [
-                        'paymentInstrument' => [
-                            'id' => $paymentInstrumentId
-                        ]
-                    ],
-                    'merchant' => $merchant->toArray()
-                ]
+        $formData = [
+            'payment' => [
+                'clientReferenceInformation' => [
+                    'code' => $orderCode
+                ],
+                'paymentInformation' => [
+                    'paymentInstrument' => [
+                        'id' => $paymentInstrumentId
+                    ]
+                ],
             ],
-        ]);
+            'merchant' => $merchant->toArray()
+        ];
+        print_r($formData);
+        $response = $this->client->post(ConfigurationEnum::SETUP_PAYER_PATH->value, $formData);
 
         return [
             "clientReferenceInformation" => [
@@ -95,44 +95,36 @@ class EchoPayService
 
     public function checkPayerEnrollment(PaymentDetailData $payment, MerchantDetailData $merchant)
     {
-        $response = $this->client->post(ConfigurationEnum::CHECK_PAYER_ENROLLMENT_PATH->value, [
-            'json' => [
-                "payment" => [
-                    "clientReferenceInformation" => [
-                        "code" => $payment->orderCode
-                    ],
-                    "paymentInformation" => [
-                        "paymentInstrument" => [
-                            "id" => $payment->paymentInstrumentId
-                        ]
-                    ],
-                    "orderInformation" => [
-                        "amountDetails" => [
-                            "currency" => $payment->orderInformation->currency,
-                            "totalAmount" => $payment->orderInformation->totalAmount
-                        ],
-                        "billTo" => $payment->orderInformation->billTo->toArray()
-                    ],
-                    "deviceInformation" => $payment->deviceInformation->toArray(),
-                    "consumerAuthenticationInformation" => $payment->consumerAuthenticationInformation->toArray()
+        $formData = [
+            "payment" => [
+                "clientReferenceInformation" => [
+                    "code" => $payment->orderCode
                 ],
-                "merchant" => $merchant->toArray()
-            ]
-        ]);
+                "paymentInformation" => [
+                    "paymentInstrument" => [
+                        "id" => $payment->paymentInstrumentId
+                    ]
+                ],
+                "orderInformation" => [
+                    "amountDetails" => [
+                        "currency" => $payment->orderInformation->currency,
+                        "totalAmount" => $payment->orderInformation->totalAmount
+                    ],
+                    "billTo" => $payment->orderInformation->billTo->toArray()
+                ],
+                "deviceInformation" => $payment->deviceInformation->toArray(),
+                "consumerAuthenticationInformation" => $payment->consumerAuthenticationInformation->toArray()
+            ],
+            "merchant" => $merchant->toArray()
+        ];
+
+        $response = $this->client->post(ConfigurationEnum::CHECK_PAYER_ENROLLMENT_PATH->value, $formData);
 
         return [
             "clientReferenceInformation" => [
                 "code" => $response['data']['clientReferenceInformation']['code']
             ],
-            "consumerAuthenticationInformation" => [
-                "challengeRequired" => $response['data']['consumerAuthenticationInformation']['challengeRequired'],
-                "authenticationTransactionId" => $response['data']['consumerAuthenticationInformation']['authenticationTransactionId'],
-                "strongAuthentication" => [
-                    "OutageExemptionIndicator" => $response['data']['consumerAuthenticationInformation']['strongAuthentication']['OutageExemptionIndicator']
-                ],
-                "accessToken" => $response['data']['consumerAuthenticationInformation']['accessToken'],
-                "token" => $response['data']['consumerAuthenticationInformation']['token']
-            ],
+            "consumerAuthenticationInformation" => ConsumerAuthenticationData::from($response['data']['consumerAuthenticationInformation']),
             "errorInformation" => [
                 "reason" => $response['data']['errorInformation']['reason'],
                 "message" => $response['data']['errorInformation']['message']
@@ -152,138 +144,75 @@ class EchoPayService
     public function validatePayerAuthResult(string $transactionId, PaymentDetailData $payment, MerchantDetailData $merchant)
     {
         $response = $this->client->post(ConfigurationEnum::VALIDATE_PAYER_AUTH_RESULT_PATH->value, [
-            'json' => [
-                "payment" => [
-                    "clientReferenceInformation" => [
-                        "code" => $payment->orderCode
-                    ],
-                    "paymentInformation" => [
-                        "paymentInstrument" => [
-                            "id" => $payment->paymentInstrumentId
-                        ]
-                    ],
-                    "orderInformation" => [
-                        "amountDetails" => [
-                            "currency" => $payment->orderInformation->currency,
-                            "totalAmount" => $payment->orderInformation->totalAmount
-                        ],
-                    ],
-                    "deviceInformation" => $payment->deviceInformation->toArray(),
-                    "consumerAuthenticationInformation" => [
-                        "authenticationTransactionId" => $transactionId
+            "payment" => [
+                "clientReferenceInformation" => [
+                    "code" => $payment->orderCode
+                ],
+                "paymentInformation" => [
+                    "paymentInstrument" => [
+                        "id" => $payment->paymentInstrumentId
                     ]
                 ],
-                "merchant" => $merchant->toArray()
-            ]
-        ]);
-
-
-        return [
-            "clientReferenceInformation" => [
-                "code" => $response['data']['clientReferenceInformation']['code']
-            ],
-            "consumerAuthenticationInformation" => [
-                "indicator" => $response['data']['consumerAuthenticationInformation']['indicator'],
-                "eciRaw" => $response['data']['consumerAuthenticationInformation']['eciRaw'],
-                "authenticationResult" => $response['data']['consumerAuthenticationInformation']['authenticationResult'],
-                "strongAuthentication" => [
-                    "OutageExemptionIndicator" => $response['data']['consumerAuthenticationInformation']['strongAuthentication']['OutageExemptionIndicator']
+                "orderInformation" => [
+                    "amountDetails" => [
+                        "currency" => $payment->orderInformation->currency,
+                        "totalAmount" => $payment->orderInformation->totalAmount
+                    ],
                 ],
-                "authenticationStatusMsg" => $response['data']['consumerAuthenticationInformation']['authenticationStatusMsg'],
-                "effectiveAuthenticationType" => $response['data']['consumerAuthenticationInformation']['effectiveAuthenticationType'],
-                "authorizationPayload" => $response['data']['consumerAuthenticationInformation']['authorizationPayload'],
-                "eci" => $response['data']['consumerAuthenticationInformation']['eci'],
-                "token" => $response['data']['consumerAuthenticationInformation']['token'],
-                "cavv" => $response['data']['consumerAuthenticationInformation']['cavv'],
-                "paresStatus" => $response['data']['consumerAuthenticationInformation']['paresStatus'],
-                "xid" => $response['data']['consumerAuthenticationInformation']['xid'],
-                "directoryServerTransactionId" => $response['data']['consumerAuthenticationInformation']['directoryServerTransactionId'],
-                "threeDSServerTransactionId" => $response['data']['consumerAuthenticationInformation']['threeDSServerTransactionId'],
-                "specificationVersion" => $response['data']['consumerAuthenticationInformation']['specificationVersion'],
-                "acsTransactionId" => $response['data']['consumerAuthenticationInformation']['acsTransactionId']
-            ],
-            "id" => $response['data']['id'],
-            "paymentInformation" => [
-                "card" => [
-                    "bin" => $response['data']['paymentInformation']['card']['bin'],
-                    "type" => $response['data']['paymentInformation']['card']['type']
+                "consumerAuthenticationInformation" => [
+                    "authenticationTransactionId" => $transactionId
                 ]
             ],
+            "merchant" => $merchant->toArray()
+        ]);
+
+        return [
+            "consumerAuthenticationInformation" => ConsumerAuthenticationData::from($response['data']['consumerAuthenticationInformation']),
+            "id" => $response['data']['id'],
             "status" => $response['data']['status'],
-            "submitTimeUtc" => $response['data']['submitTimeUtc']
         ];
     }
 
-    public function payService(PaymentDetailData $payment, $indicator, MerchantDetailData $merchant, $service)
-    {
-        $response = $this->client->post(ConfigurationEnum::PAY_SERVICE_PATH->value, [
-            'json' => [
-                "payment" => [
-                    "clientReferenceInformation" => [
-                        "code" => $payment->orderCode
-                    ],
-                    "processingInformation" => [
-                        "capture" => true,
-                        "commerceIndicator" => $indicator,
-                    ],
-                    "paymentInformation" => [
-                        "paymentInstrument" => [
-                            "id" => $payment->paymentInstrumentId
-                        ]
-                    ],
-                    "orderInformation" => [
-                        "amountDetails" => [
-                            "currency" => $payment->orderInformation->currency,
-                            "totalAmount" => $payment->orderInformation->totalAmount
-                        ],
-                        "billTo" => $payment->orderInformation->billTo->toArray()
-                    ],
-                    "consumerAuthenticationInformation" => [
-                        "accessToken" => $payment->consumerAuthenticationInformation->accessToken,
-                        "deviceDataCollectionUrl" => $payment->consumerAuthenticationInformation->deviceDataCollectionUrl,
-                        "referenceId" => $payment->consumerAuthenticationInformation->referenceId,
-                        "token" => $payment->consumerAuthenticationInformation->token,
-                        "eciRaw" => $payment->consumerAuthenticationInformation->eciRaw,
-                        "paresStatus" => $payment->consumerAuthenticationInformation->paresStatus,
-                        "xid" => $payment->consumerAuthenticationInformation->xid,
-                        "ucafCollectionIndicator" => $payment->consumerAuthenticationInformation->ucafCollectionIndicator,
-                        "ucafAuthenticationData" => $payment->consumerAuthenticationInformation->ucafAuthenticationData,
-                        "strongAuthentication" => [
-                            "outageExemptionIndicator" => $payment->consumerAuthenticationInformation->strongAuthentication->outageExemptionIndicator
-                        ],
-                        "directoryServerTransactionId" => $payment->consumerAuthenticationInformation->directoryServerTransactionId,
-                        "paSpecificationVersion" => $payment->consumerAuthenticationInformation->paSpecificationVersion,
-                        "acsTransactionId" => $payment->consumerAuthenticationInformation->acsTransactionId,
-                        "authenticationTransactionId" => $payment->consumerAuthenticationInformation->authenticationTransactionId
-                    ],
-                    "deviceInformation" => $payment->deviceInformation->toArray(),
-                    "merchantDefinedInformation" => $merchant->toArray()
+    public function payService(
+        PaymentDetailData $payment,
+        ConsumerAuthenticationData $consumerAuthenticationData,
+        MerchantDetailData $merchant,
+        array $service
+    ): PaymentResponseData {
+        $formData = [
+            "payment" => [
+                "clientReferenceInformation" => [
+                    "code" => $payment->orderCode
                 ],
-                "merchant" => $merchant->toArray(),
-                "service" => $service
-            ]
-        ]);
-
-        return [
-            "id" => $response['data']['id'],
-            "merchantId" => $response['data']['merchantId'],
-            "merchantKey" => $response['data']['merchantKey'],
-            "serviceCode" => $response['data']['serviceCode'],
-            "contract" => $response['data']['contract'],
-            "transactionId" => $response['data']['transactionId'],
-            "referenceCode" => $response['data']['referenceCode'],
-            "approvalCode" => $response['data']['approvalCode'],
-            "amount" => $response['data']['amount'],
-            "cardNumber" => $response['data']['cardNumber'],
-            "transactionStatus" => $response['data']['transactionStatus'],
-            "createdAt" => $response['data']['createdAt'],
-            "updatedAt" => $response['data']['updatedAt'],
-            "status" => [
-                "id" => $response['data']['status']['id'],
-                "name" => $response['data']['status']['name'],
-                "description" => $response['data']['status']['description'],
-                "createdAt" => $response['data']['status']['createdAt']
-            ]
+                "processingInformation" => [
+                    "capture" => false,
+                    "commerceIndicator" => $consumerAuthenticationData->indicator,
+                ],
+                "paymentInformation" => [
+                    "paymentInstrument" => [
+                        "id" => $payment->paymentInstrumentId
+                    ]
+                ],
+                "orderInformation" => [
+                    "amountDetails" => [
+                        "currency" => $payment->orderInformation->currency,
+                        "totalAmount" => $payment->orderInformation->totalAmount
+                    ],
+                    "billTo" => $payment->orderInformation->billTo->toArray()
+                ],
+                "consumerAuthenticationInformation" => $consumerAuthenticationData->toArray(),
+                "deviceInformation" => $payment->deviceInformation->toArray(),
+                "merchantDefinedInformation" => $merchant->merchantDefinedInformation->toArray()
+            ],
+            "merchant" => [
+                "id" => $merchant->id,
+                "key" => $merchant->key,
+                "secretKey" => $merchant->secretKey,
+            ],
+            "service" => $service
         ];
+        $response = $this->client->post(ConfigurationEnum::PAY_SERVICE_PATH->value, $formData);
+
+        return PaymentResponseData::from($response['data']);
     }
 }
