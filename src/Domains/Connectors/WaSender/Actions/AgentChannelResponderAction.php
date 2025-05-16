@@ -48,7 +48,9 @@ class AgentChannelResponderAction
             if ($previousMessage && MessageTypeEnum::isDocumentType($previousMessage->messageType->verb) && $previousMessage->id !== $this->message->id) {
                 //$this->message->associate($previousMessage);
                 $previousMessage = $previousMessage->parent ?? $previousMessage;
-                $previousMessage->associate($this->message);
+                $this->message->parent_id = $previousMessage->id;
+                $this->message->disableWorkflows();
+                $this->message->save();
             }
 
             $messageConversation = 'Thanks for the image, I will process it and get back to you shortly.';
