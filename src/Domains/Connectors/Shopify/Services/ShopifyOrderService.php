@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Exception;
 use InvalidArgumentException;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -59,105 +60,6 @@ class ShopifyOrderService
     }
 
     /**
-     * Add tracking information to a Shopify order fulfillment.
-     *
-     * @param int|string $orderId The Shopify order ID
-     * @param string $trackingNumber The tracking number to add
-     * @param string $trackingCompany The shipping carrier/company (optional)
-     * @param string $trackingUrl Custom tracking URL (optional)
-     * @param bool $notifyCustomer Whether to notify customer about tracking (default: false)
-     *
-     * @return array The updated fulfillment response
-     */
-    public function addTrackingToOrder(
-        int|string $orderId,
-        string $trackingNumber,
-        string $trackingCompany = '',
-        string $trackingUrl = '',
-        bool $notifyCustomer = false
-    ): array {
-        // Get the order and its fulfillments
-        $order = $this->shopifySdk->Order($orderId)->get();
-        $fulfillments = $this->shopifySdk->Order($orderId)->Fulfillment()->get();
-
-        // If no fulfillments exist yet, create one first
-        if (empty($fulfillments)) {
-            return $this->createFulfillmentWithTracking(
-                $orderId,
-                $trackingNumber,
-                $trackingCompany,
-                $trackingUrl,
-                $notifyCustomer
-            );
-        }
-
-        // Otherwise, update the most recent fulfillment
-        $fulfillmentId = $fulfillments[0]['id']; // Latest fulfillment
-
-        $payload = [
-            'tracking_number' => $trackingNumber,
-            'notify_customer' => $notifyCustomer,
-        ];
-
-        if (! empty($trackingCompany)) {
-            $payload['tracking_company'] = $trackingCompany;
-        }
-
-        if (! empty($trackingUrl)) {
-            $payload['tracking_url'] = $trackingUrl;
-        }
-
-        return $this->shopifySdk->Order($orderId)->Fulfillment($fulfillmentId)->update($payload);
-    }
-
-    /**
-     * Create a new fulfillment with tracking for an order.
-     * This is a helper method used by addTrackingToOrder when no fulfillments exist.
-     *
-     * @param int|string $orderId The Shopify order ID
-     * @param string $trackingNumber The tracking number to add
-     * @param string $trackingCompany The shipping carrier/company
-     * @param string $trackingUrl Custom tracking URL
-     * @param bool $notifyCustomer Whether to notify customer
-     *
-     * @return array The created fulfillment response
-     */
-    private function createFulfillmentWithTracking(
-        int|string $orderId,
-        string $trackingNumber,
-        string $trackingCompany = '',
-        string $trackingUrl = '',
-        bool $notifyCustomer = false
-    ): array {
-        $order = $this->shopifySdk->Order($orderId)->get();
-
-        // Get line items from order
-        $lineItems = [];
-        foreach ($order['line_items'] as $item) {
-            $lineItems[] = [
-                'id' => $item['id'],
-                'quantity' => $item['quantity'],
-            ];
-        }
-
-        $payload = [
-            'line_items' => $lineItems,
-            'tracking_number' => $trackingNumber,
-            'notify_customer' => $notifyCustomer,
-        ];
-
-        if (! empty($trackingCompany)) {
-            $payload['tracking_company'] = $trackingCompany;
-        }
-
-        if (! empty($trackingUrl)) {
-            $payload['tracking_url'] = $trackingUrl;
-        }
-
-        return $this->shopifySdk->Order($orderId)->Fulfillment()->post($payload);
-    }
-
-    /**
      * Change the fulfillment status of a Shopify order.
      *
      * @param int|string $orderId The Shopify order ID
@@ -181,59 +83,145 @@ class ShopifyOrderService
             );
         }
 
-        // Get existing fulfillments
+        // Get the order details first
+        $order = $this->shopifySdk->Order($orderId)->get();
+
+        // Check for existing fulfillments
         $fulfillments = $this->shopifySdk->Order($orderId)->Fulfillment()->get();
 
         // If no fulfillments exist, we need to create one first
-        if (empty($fulfillments)) {
-            // Create initial fulfillment (this creates with 'pending' status by default)
-            $order = $this->shopifySdk->Order($orderId)->get();
+        // Get the fulfillment orders (this is critical for newer Shopify API)
+        $fulfillmentOrders = $this->shopifySdk->Order($orderId)->FulfillmentOrder()->get();
 
-            // Get line items from order
-            $lineItems = [];
-            foreach ($order['line_items'] as $item) {
-                $lineItems[] = [
-                    'id' => $item['id'],
-                    'quantity' => $item['quantity'],
-                ];
+        if (empty($fulfillmentOrders)) {
+            throw new Exception('No fulfillment orders found for this order');
+        }
+
+        // Process each fulfillment order separately
+        $results = [];
+        foreach ($fulfillmentOrders as $fulfillmentOrder) {
+            // Get the assigned location ID
+            $locationId = $fulfillmentOrder['assigned_location_id'];
+            $fulfillmentOrderId = $fulfillmentOrder['id'];
+
+            // Prepare line items for this fulfillment order
+            $lineItemsByFulfillmentOrder = [];
+            foreach ($fulfillmentOrder['line_items'] as $item) {
+                if ($item['fulfillable_quantity'] > 0) {
+                    $lineItemsByFulfillmentOrder[] = [
+                        'id' => $item['id'],
+                        'quantity' => $item['fulfillable_quantity'],
+                    ];
+                }
             }
 
-            $fulfillment = $this->shopifySdk->Order($orderId)->Fulfillment()->post([
-                'line_items' => $lineItems,
-                'notify_customer' => false, // Don't notify yet
+            // Skip if no fulfillable items
+            if (empty($lineItemsByFulfillmentOrder)) {
+                continue;
+            }
+
+            // Create the fulfillment using the new format
+            $fulfillmentData = [
+                'location_id' => $locationId,
+                'notify_customer' => false, // Don't notify yet, we'll notify when we update status
+                'line_items_by_fulfillment_order' => [
+                    [
+                        'fulfillment_order_id' => $fulfillmentOrderId,
+                        'fulfillment_order_line_items' => $lineItemsByFulfillmentOrder,
+                    ],
+                ],
+            ];
+
+            $this->shopifySdk->Fulfillment()->post($fulfillmentData);
+        }
+
+        // Return results
+        return ! empty($results) ? $results[0] : [];
+    }
+
+    /**
+     * Add tracking information to a Shopify order fulfillment.
+     *
+     * @param int|string $orderId The Shopify order ID
+     * @param string $trackingNumber The tracking number to add
+     * @param string $trackingCompany The shipping carrier/company (optional)
+     * @param string $trackingUrl Custom tracking URL (optional)
+     * @param bool $notifyCustomer Whether to notify customer about tracking (default: false)
+     *
+     * @return array The updated fulfillment response
+     */
+    public function addTrackingToOrder(
+        int|string $orderId,
+        string $trackingNumber,
+        string $trackingCompany = '',
+        string $trackingUrl = '',
+        bool $notifyCustomer = false
+    ): array {
+        // Get the order and check for existing fulfillments
+        $order = $this->shopifySdk->Order($orderId)->get();
+        $fulfillmentOrders = $this->shopifySdk->Order($orderId)->FulfillmentOrder()->get();
+
+        if (empty($fulfillmentOrders)) {
+            throw new Exception('No fulfillment orders found for this order');
+        }
+
+        // Initialize tracking info
+        $trackingInfo = [
+            'number' => $trackingNumber,
+            'company' => $trackingCompany,
+            'url' => $trackingUrl,
+        ];
+
+        // Check if fulfillments exist for this order
+        $existingFulfillments = $this->shopifySdk->Order($orderId)->Fulfillment()->get();
+
+        // If fulfillments already exist, update the tracking info
+        if (! empty($existingFulfillments)) {
+            $fulfillmentId = $existingFulfillments[0]['id']; // Get the most recent fulfillment
+
+            return $this->shopifySdk->Fulfillment($fulfillmentId)->update([
+                'tracking_info' => $trackingInfo,
+                'notify_customer' => $notifyCustomer,
             ]);
-
-            $fulfillmentId = $fulfillment['id'];
-        } else {
-            // Use the most recent fulfillment
-            $fulfillmentId = $fulfillments[0]['id'];
         }
 
-        // Now change the status of the fulfillment
-        // For status changes we need to call specific endpoints based on the status
-        switch ($status) {
-            case 'open':
-                return $this->shopifySdk->Order($orderId)->Fulfillment($fulfillmentId)->open([
-                    'notify_customer' => $notifyCustomer,
-                    'comment' => $comment,
-                ]);
-            case 'cancelled':
-                return $this->shopifySdk->Order($orderId)->Fulfillment($fulfillmentId)->cancel([
-                    'notify_customer' => $notifyCustomer,
-                    'comment' => $comment,
-                ]);
-            case 'success':
-                return $this->shopifySdk->Order($orderId)->Fulfillment($fulfillmentId)->complete([
-                    'notify_customer' => $notifyCustomer,
-                    'comment' => $comment,
-                ]);
-            default:
-                // For other statuses (pending, error, failure), use regular update
-                return $this->shopifySdk->Order($orderId)->Fulfillment($fulfillmentId)->update([
-                    'status' => $status,
-                    'notify_customer' => $notifyCustomer,
-                    'comment' => $comment,
-                ]);
+        // Otherwise, create new fulfillments for each fulfillment order
+        $results = [];
+        foreach ($fulfillmentOrders as $fulfillmentOrder) {
+            $locationId = $fulfillmentOrder['assigned_location_id'];
+            $fulfillmentOrderId = $fulfillmentOrder['id'];
+
+            // Prepare line items for this fulfillment order
+            $lineItemsByFulfillmentOrder = [];
+            foreach ($fulfillmentOrder['line_items'] as $item) {
+                if ($item['fulfillable_quantity'] > 0) {
+                    $lineItemsByFulfillmentOrder[] = [
+                        'id' => $item['id'],
+                        'quantity' => $item['fulfillable_quantity'],
+                    ];
+                }
+            }
+
+            // Skip if no fulfillable items
+            if (empty($lineItemsByFulfillmentOrder)) {
+                continue;
+            }
+
+            // Create the fulfillment with tracking information
+            $results[] = $this->shopifySdk->Fulfillment()->post([
+                'location_id' => $locationId,
+                'tracking_info' => $trackingInfo,
+                'notify_customer' => $notifyCustomer,
+                'line_items_by_fulfillment_order' => [
+                    [
+                        'fulfillment_order_id' => $fulfillmentOrderId,
+                        'fulfillment_order_line_items' => $lineItemsByFulfillmentOrder,
+                    ],
+                ],
+            ]);
         }
+
+        // Return the first result or empty array if no fulfillments were created
+        return ! empty($results) ? $results[0] : [];
     }
 }
