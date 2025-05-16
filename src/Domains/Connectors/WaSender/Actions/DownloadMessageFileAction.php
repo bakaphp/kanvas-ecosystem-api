@@ -43,7 +43,7 @@ class DownloadMessageFileAction
         $url = $this->message->message['raw_data']['message']['imageMessage']['url'] ?? null;
         $imageName = $this->message->message['message_id'] ?? null;
 
-        return $this->processWhatsAppMedia($mediaKey, $url, $imageName);
+        return $this->processWhatsAppMedia($mediaKey, $url, 'image');
     }
 
     protected function base64url_decode($data): string
