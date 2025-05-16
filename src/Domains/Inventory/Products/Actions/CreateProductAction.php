@@ -52,7 +52,7 @@ class CreateProductAction
                 'name' => $this->productDto->name,
                 'description' => $this->productDto->getDescription(),
                 'short_description' => $this->productDto->short_description,
-                'html_description' => $this->productDto->html_description,
+                'html_description' => ! empty($this->productDto->html_description) ? $this->productDto->html_description : $this->productDto->getDescription(),
                 'warranty_terms' => $this->productDto->warranty_terms,
                 'upc' => $this->productDto->upc,
                 'status_id' => $this->productDto->status_id,

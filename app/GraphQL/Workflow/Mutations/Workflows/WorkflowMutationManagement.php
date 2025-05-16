@@ -11,9 +11,11 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
+use Kanvas\Connectors\Shopify\Workflows\Activities\PushOrderActivity;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
@@ -53,6 +55,7 @@ class WorkflowMutationManagement
         } catch (InvalidArgumentException $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
+
         try {
             /**
              * @todo this look very similar to the system module repository method, so you many need
@@ -65,7 +68,12 @@ class WorkflowMutationManagement
             if (! $canRunSync) {
                 throw new ExceptionsModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found");
             } else {
-                $entity = $entityClass === Lead::class ? new Lead() : new People();
+                $entity = match ($entityClass) {
+                    Lead::class => new Lead(),
+                    People::class => new People(),
+                    Order::class => new Order(),
+                    default => throw new ModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found"),
+                };
                 $entity->fill([
                     'id' => 0,
                     'apps_id' => $app->getId(),
@@ -77,11 +85,12 @@ class WorkflowMutationManagement
         /**
          * @todo this is a stupid hack, but we will handle this for now until we figure out a better way
          */
-        $caRunPullAndPush = in_array(SystemModules::getSlugBySystemModuleNameSpace($entityClass), ['lead', 'people']) && $canRunSync && in_array($workflowAction, [WorkflowEnum::PULL->value, WorkflowEnum::PUSH->value]);
+        $caRunPullAndPush = in_array(SystemModules::getSlugBySystemModuleNameSpace($entityClass), ['lead', 'people', 'order']) && $canRunSync && in_array($workflowAction, [WorkflowEnum::PULL->value, WorkflowEnum::PUSH->value]);
         if ($caRunPullAndPush) {
             $pullActivity = match (SystemModules::getSlugBySystemModuleNameSpace($entityClass)) {
                 'lead' => PullLeadActivity::class,
                 'people' => PullPeopleActivity::class,
+                'order' => PushOrderActivity::class,
                 default => null,
             };
 
