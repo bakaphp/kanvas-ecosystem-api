@@ -1,23 +1,24 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\DriveCentric\DataTransferObject;
-use Kanvas\Guild\Customers\DataTransferObject\People as GuildPeople;
+
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Users\Models\Users;
-use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Connectors\DriveCentric\Enums\CustomFieldEnums;
+use Kanvas\Guild\Customers\DataTransferObject\People as GuildPeople;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Users\Models\Users;
+
 class People extends GuildPeople
 {
-
     public static function fromDriveCentric(
         Apps $app,
         Companies $company,
         Users $user,
         array $data
-    ): self
-    {
+    ): self {
         return self::from([
             'app' => $app,
             'company' => $company,
