@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\WaSender\Actions;
 use Baka\Support\Str;
 use Inspector\Configuration;
 use Inspector\Inspector;
+use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
@@ -32,6 +33,18 @@ class AgentChannelResponderAction
         $messageConversation = $this->message->message['raw_data']['message']['conversation'] ??
                        $this->message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
         $channelId = Str::replace('@s.whatsapp.net', '', $this->message->message['chat_jid']);
+
+        $isImageText = MessageTypeEnum::isDocumentType($this->message->messageType->verb);
+
+        if ($isImageText) {
+            $downloadMessageFileAction = new DownloadMessageFileAction(
+                $this->channel,
+                $this->message,
+                $this->agent,
+            )->execute();
+
+            $messageConversation = 'Thanks for the image, I will process it and get back to you shortly.';
+        }
 
         if ($messageConversation === null) {
             throw new ValidationException('No conversation found');
