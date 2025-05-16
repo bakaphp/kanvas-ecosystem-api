@@ -50,7 +50,6 @@ class KanvasAgentCommand extends Command
         $agentId = (int) $this->argument('agent_id');
         $agent = Agent::getById($agentId, $app);
 
-        Redis::del('agent_chat_history_v2:' . $agent->id . ':' . $app->get('namespace') . ':' . $this->argument('entity_id'));
         // Initialize the agent
         $crm = new CRMAgent();
         $inspector = new Inspector(
