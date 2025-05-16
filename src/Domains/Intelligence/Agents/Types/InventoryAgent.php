@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Types;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -14,6 +15,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
@@ -459,6 +461,55 @@ class InventoryAgent extends BaseAgent
                     return [
                         'status' => 'error',
                         'message' => 'Failed to update product: ' . $e->getMessage(),
+                    ];
+                }
+            }),
+            Tool::make(
+                'search_message_by_id',
+                'Search for inventory-related messages by id. This tool allows you to retrieve specific messages based on their unique identifier.',
+            )->addProperty(
+                new ToolProperty(
+                    name: 'message_id',
+                    type: 'string',
+                    description: 'The ID of the message to retrieve',
+                    required: true
+                )
+            )->setCallable(function (string|int $message_id) {
+                // Get the current app and company context
+                $app = $this->app;
+                $companyId = $this->entity->getKey();
+
+                try {
+                    // Search for the message with the provided ID
+                    $message = Message::where('id', $message_id)
+                        ->where('companies_id', $companyId)
+                        ->where('apps_id', $app->getId())
+                        ->first();
+
+                    if (! $message) {
+                        return [
+                            'status' => 'error',
+                            'message' => 'Message not found with ID: ' . $message_id,
+                        ];
+                    }
+
+                    // Return message details
+                    return [
+                        'status' => 'success',
+                        'message' => [
+                            'id' => $message->id,
+                            'data' => $message->message,
+                        ],
+                    ];
+                } catch (Exception $e) {
+                    Log::error('Message Search Failed', [
+                        'message_id' => $message_id,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    return [
+                        'status' => 'error',
+                        'message' => 'Failed to retrieve message: ' . $e->getMessage(),
                     ];
                 }
             }),

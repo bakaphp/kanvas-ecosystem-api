@@ -53,7 +53,7 @@ class AgentChannelResponderAction
                 $this->message->save();
             }
 
-            $messageConversation = 'Thanks for the image, I will process it and get back to you shortly.';
+            $messageConversation = 'Keep record we just processed files under the parent msg .' . ($previousMessage ? $previousMessage->id : $this->message->id) . ' so we can reference it to process later and return the msg id so the I know about it';
         }
 
         if ($messageConversation === null) {
