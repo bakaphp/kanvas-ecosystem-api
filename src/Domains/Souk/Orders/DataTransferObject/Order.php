@@ -13,6 +13,7 @@ use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Regions\Models\Regions as ModelsRegions;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
@@ -53,6 +54,7 @@ class Order extends Data
         public readonly ?string $languageCode = null,
         public readonly array $paymentGatewayName = [],
         public readonly ?string $reference = null,
+        public readonly ?PaymentMethod $paymentMethod = null,
     ) {
         $this->items = is_array($items) ? $this->getOrderItems($items) : $items;
     }
