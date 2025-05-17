@@ -43,6 +43,17 @@ class PullVehicleAction
             ];
         }
 
+        $product = Products::fromCompany($this->company)
+            ->fromApp($this->app)
+            ->where('slug', $this->vehicle->plateNumber)
+            ->first();
+
+        if ($product) {
+            $product->addMultipleFilesFromUrl($formattedImagesUrl);
+
+            return $product;
+        }
+
         $product = new Product(
             app: $this->app,
             company: $this->company,
@@ -57,34 +68,23 @@ class PullVehicleAction
             files: $formattedImagesUrl,
             attributes: [
                 [
-                    'name' => 'Plate Number',
-                    'value' => $this->vehicle->plateNumber,
+              'name' => 'Plate Number',
+              'value' => $this->vehicle->plateNumber,
                 ],
                 [
-                    'name' => 'Make',
-                    'value' => $this->vehicle->make,
+              'name' => 'Make',
+              'value' => $this->vehicle->make,
                 ],
                 [
-                    'name' => 'Model',
-                    'value' => $this->vehicle->model,
+              'name' => 'Model',
+              'value' => $this->vehicle->model,
                 ],
                 [
-                    'name' => 'Color',
-                    'value' => $this->vehicle->color,
+              'name' => 'Color',
+              'value' => $this->vehicle->color,
                 ],
             ],
         );
-
-        $product = Products::fromCompany($this->company)
-            ->fromApp($this->app)
-            ->where('slug', $this->vehicle->plateNumber)
-            ->first();
-
-        if ($product) {
-            $product->addMultipleFilesFromUrl($formattedImagesUrl);
-
-            return $product;
-        }
 
         return new CreateProductAction(
             productDto: $product,
