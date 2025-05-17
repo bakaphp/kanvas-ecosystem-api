@@ -81,6 +81,9 @@ class ProcessVehicleImageActivity extends KanvasActivity
 
     private function notifyFailed(Message $message): void
     {
+        if ($message->get('created_product_failed') || $message->get('created_product')) {
+            return ;
+        }
         $messageService = new MessageService(
             $message->app,
             $message->company
@@ -96,10 +99,15 @@ class ProcessVehicleImageActivity extends KanvasActivity
             $channelId,
             "❌ Sorry, I couldn't identify the vehicle from the images. Please try again with clearer images or send me the vehicle details directly."
         );
+
+        $message->set('created_product_failed', true);
     }
 
     private function notifySuccess(Message $message, Vehicle $vehicle): void
     {
+        if ($message->get('created_product')) {
+            return ;
+        }
         $messageService = new MessageService(
             $message->app,
             $message->company
@@ -123,5 +131,7 @@ class ProcessVehicleImageActivity extends KanvasActivity
             $channelId,
             $success
         );
+
+        $message->set('created_product', true);
     }
 }
