@@ -59,6 +59,14 @@ class ProcessVehicleImageActivity extends KanvasActivity
                     }
                 }
 
+                if ($parentMessage->get('created_product')) {
+                    return [
+                        'product' => null,
+                        'vehicle' => null,
+                        'message' => 'Vehicle already created',
+                    ];
+                }
+
                 $vehicle = $vehicleImageRecognitionService->processVehicleImages($newImagesList);
 
                 if ($vehicle === null) {
