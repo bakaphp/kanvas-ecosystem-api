@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
 
@@ -50,6 +51,11 @@ class AgentChannelResponderAction
                 $this->message->parent_id = $previousMessage->id;
                 $this->message->disableWorkflows();
                 $this->message->save();
+                $this->message->enableWorkflows();
+                $this->message->fireWorkflow(WorkflowEnum::ATTACH_FILE->value, true, [
+                    'app' => $this->message->app,
+                    'company' => $this->message->company,
+                ]);
             }
 
             $messageConversation = 'Keep record we just processed files under the parent message 
