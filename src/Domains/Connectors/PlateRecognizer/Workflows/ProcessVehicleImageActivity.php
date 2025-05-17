@@ -11,6 +11,7 @@ use Kanvas\Connectors\PlateRecognizer\Actions\PullVehicleAction;
 use Kanvas\Connectors\PlateRecognizer\DataTransferObject\Vehicle;
 use Kanvas\Connectors\PlateRecognizer\Services\VehicleRecognitionService;
 use Kanvas\Connectors\WaSender\Services\MessageService;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -35,6 +36,7 @@ class ProcessVehicleImageActivity extends KanvasActivity
                     company: $message->company
                 );
 
+                $message->refresh();
                 $parentMessage = $message->parent ?? $message;
 
                 $newImagesList = [];
@@ -68,7 +70,7 @@ class ProcessVehicleImageActivity extends KanvasActivity
                     vehicle: $vehicle,
                 )->execute($newImagesList);
 
-                $this->notifySuccess($parentMessage, $vehicle);
+                $this->notifySuccess($parentMessage, $vehicle, $product);
 
                 return [
                     'product' => $product,
@@ -103,9 +105,9 @@ class ProcessVehicleImageActivity extends KanvasActivity
         $message->set('created_product_failed', true);
     }
 
-    private function notifySuccess(Message $message, Vehicle $vehicle): void
+    private function notifySuccess(Message $message, Vehicle $vehicle, Products $product): void
     {
-        if ($message->get('created_product')) {
+        if ($message->get('created_product') || $product->get('whatsapp_notification')) {
             return ;
         }
         $messageService = new MessageService(
@@ -133,5 +135,6 @@ class ProcessVehicleImageActivity extends KanvasActivity
         );
 
         $message->set('created_product', true);
+        $product->set('whatsapp_notification', true);
     }
 }
