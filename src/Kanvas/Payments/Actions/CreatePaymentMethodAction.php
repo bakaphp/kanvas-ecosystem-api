@@ -9,7 +9,8 @@ class CreatePaymentMethodAction
 {
     public function __construct(
         protected PaymentMethod $paymentMethod
-    ) {}
+    ) {
+    }
 
     public function execute(): PaymentMethods
     {

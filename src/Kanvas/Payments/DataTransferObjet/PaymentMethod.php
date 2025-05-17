@@ -24,5 +24,6 @@ class PaymentMethod extends Data
         public readonly bool $is_deleted = false,
         public readonly string $processor = "stripe",
         public readonly mixed $metadata = [],
-    ) {}
+    ) {
+    }
 }
