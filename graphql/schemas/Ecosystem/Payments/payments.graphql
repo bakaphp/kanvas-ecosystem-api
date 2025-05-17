@@ -1,0 +1,27 @@
+type PaymentMethod {
+    id: ID!
+    payment_ending_numbers: String, 
+    payment_methods_brand: String,
+    stripe_card_id: String,
+    expiration_date: String
+    instrument_identifier_id: String
+    processor: String
+    metadata: Mixed
+    created_at: String!
+    updated_at: String
+}
+
+input PaymentMethodInput{
+    number: String
+    expiration_date: String
+    brand: String
+    processor: String
+    metadata: Mixed
+}
+
+extend type Mutation @guard {
+    createPaymentMethod(input: PaymentMethodInput!): PaymentMethod!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Payments\\PaymentMethodMutation@createPaymentMethod"
+        )
+}
