@@ -75,13 +75,14 @@ class ProcessVehicleImageActivity extends KanvasActivity
                         version: '1',
                         accountName: $params['accountName'] ?? null
                     );
+                    $vehicleTag = Tag::from($rawTag);
 
-                    if ($rawTag !== null) {
+                    if ($rawTag !== null && $vehicleTag->vehicleIdentificationNumber !== null) {
                         break;
                     }
                 }
 
-                if ($rawTag === null) {
+                if ($rawTag === null || $vehicleTag->vehicleIdentificationNumber === null) {
                     $this->notifyFailed($parentMessage);
 
                     return [
@@ -90,8 +91,6 @@ class ProcessVehicleImageActivity extends KanvasActivity
                     ];
                     //throw new Exception('Vehicle recognition failed.');
                 }
-
-                $vehicleTag = Tag::from($rawTag);
 
                 $product = new PullVehicleFromTagAction(
                     app: $app,

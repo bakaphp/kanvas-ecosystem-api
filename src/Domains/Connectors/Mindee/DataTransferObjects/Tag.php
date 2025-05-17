@@ -25,7 +25,7 @@ class Tag extends Data
     public static function fromArray(array $data): self
     {
         // Extract the prediction data
-        $predictionData = $data['document']['inference']['prediction'] ?? [];
+        $predictionData = $data['document']['inference']['prediction']['fields'] ?? [];
 
         return new self(
             vehicleIdentificationNumber: $predictionData['vehicle_identification_number']['value'] ?? null,
