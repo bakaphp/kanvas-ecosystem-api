@@ -52,7 +52,7 @@ class AgentChannelResponderAction
                 $this->message->disableWorkflows();
                 $this->message->save();
                 $this->message->enableWorkflows();
-                $this->message->fireWorkflow(WorkflowEnum::ATTACH_FILE->value, true, [
+                $this->message->fireWorkflow(WorkflowEnum::DURING_WORKFLOW->value, true, [
                     'app' => $this->message->app,
                     'company' => $this->message->company,
                 ]);
