@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Mindee;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use InvalidArgumentException;
+use Kanvas\Connectors\Mindee\Enums\ConfigurationEnum;
 use Mindee\Client as MindeeClient;
 use Mindee\Input\PredictMethodOptions;
 use Mindee\Product\Generated\GeneratedV1;
@@ -16,12 +17,14 @@ class Client
 {
     protected MindeeClient $client;
     protected string $apiKey;
+    protected string $accountName;
 
     public function __construct(
         protected AppInterface $app,
         protected ?CompanyInterface $company = null
     ) {
-        $apiKey = $app->get('OCR_MINDEE_TOKEN');
+        $apiKey = $app->get(ConfigurationEnum::API_KEY->value);
+        $this->accountName = $app->get(ConfigurationEnum::ACCOUNT_NAME->value);
 
         if (empty($apiKey)) {
             throw new InvalidArgumentException('API key is required for Mindee.');
@@ -43,13 +46,13 @@ class Client
     public function processDocument(
         string $documentType,
         string $filePath,
-        string $accountName = 'kaioken',
-        string $version = '1'
+        string $version = '1',
+        ?string $accountName = null
     ): ?array {
         try {
             // Load a file
             $inputSource = $this->client->sourceFromPath($filePath);
-
+            $accountName = $accountName ?? $this->accountName;
             // If the file is a URL instead of a file path
             if (filter_var($filePath, FILTER_VALIDATE_URL)) {
                 $inputSource = $this->client->sourceFromUrl($filePath);
@@ -91,12 +94,13 @@ class Client
     public function processDocumentFromUrl(
         string $documentType,
         string $fileUrl,
-        string $accountName = 'kaioken',
-        string $version = '1'
+        string $version = '1',
+        ?string $accountName = null
     ): ?array {
         try {
             // Load a file from URL
             $inputSource = $this->client->sourceFromUrl($fileUrl);
+            $accountName = $accountName ?? $this->accountName;
 
             // Create a custom endpoint
             $customEndpoint = $this->client->createEndpoint(

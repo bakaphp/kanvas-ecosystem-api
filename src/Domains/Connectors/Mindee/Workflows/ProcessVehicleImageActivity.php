@@ -70,10 +70,10 @@ class ProcessVehicleImageActivity extends KanvasActivity
 
                 foreach ($newImagesList as $imageUrl) {
                     $rawTag = $mindeeClient->processDocumentFromUrl(
-                        documentType: 'marbete',
+                        documentType: $params['documentType'] ?? 'marbete',
                         fileUrl: $imageUrl,
-                        accountName: 'kaioken',
-                        version: '1'
+                        version: '1',
+                        accountName: $params['accountName'] ?? null
                     );
 
                     if ($rawTag !== null) {
