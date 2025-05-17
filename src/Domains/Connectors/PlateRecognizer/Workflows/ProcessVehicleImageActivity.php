@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\PlateRecognizer\Workflow;
+namespace Kanvas\Connectors\PlateRecognizer\Workflows;
 
 use Baka\Support\Str;
 use Exception;
