@@ -28,9 +28,9 @@ class InventoryAgent extends BaseAgent
         ?Model $entity = null,
         ?string $externalReferenceId = null,
     ): void {
-        if (! $entity instanceof Companies) {
-            throw new InvalidArgumentException('Entity must be an instance of Companies');
-        }
+        /*   if (! $entity instanceof Companies) {
+              throw new InvalidArgumentException('Entity must be an instance of Companies');
+          } */
 
         $this->agent = $agent;
         $this->entity = $entity;
@@ -81,7 +81,7 @@ class InventoryAgent extends BaseAgent
 
                 // Get the current app and company context
                 $app = $this->app;
-                $companyId = $this->entity->getKey();
+                $companyId = $this->entity->companies_id;
 
                 // Initialize query for products
                 $productsQuery = Products::where('companies_id', $companyId)
@@ -260,7 +260,7 @@ class InventoryAgent extends BaseAgent
             )->setCallable(function (string $identifier, string $field, string $value) {
                 // Get the current app and company context
                 $app = $this->app;
-                $companyId = $this->entity->getKey();
+                $companyId = $this->entity->companies_id;
 
                 // Determine if identifier is an ID or SKU
                 $product = null;
@@ -477,7 +477,7 @@ class InventoryAgent extends BaseAgent
             )->setCallable(function (string|int $message_id) {
                 // Get the current app and company context
                 $app = $this->app;
-                $companyId = $this->entity->getKey();
+                $companyId = $this->entity->companies_id;
 
                 try {
                     // Search for the message with the provided ID
