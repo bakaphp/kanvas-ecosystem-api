@@ -52,7 +52,9 @@ class AgentChannelResponderAction
                 $this->message->save();
             }
 
-            $messageConversation = 'Keep record we just processed files under the parent msg .' . ($previousMessage ? $previousMessage->id : $this->message->id) . ' so we can reference it to process later and return the msg id so the I know about it';
+            $messageConversation = 'Keep record we just processed files under the parent message 
+                    .' . ($previousMessage ? $previousMessage->id : $this->message->id) . ' so we can reference it to process 
+                    later and return the msg id so the I know about it';
         }
 
         if ($messageConversation === null) {
@@ -65,10 +67,10 @@ class AgentChannelResponderAction
 
         $useInspector = $this->message->app->get('inspector-key') !== null;
 
-        $crmAgent = new $this->agent->type->handler;
-        //$crmAgent = $this->agent;
+        $currentAgent = new $this->agent->type->handler();
+        //$currentAgent = $this->agent;
 
-        $crmAgent->setConfiguration(
+        $currentAgent->setConfiguration(
             $this->agent,
             $this->message->entity()
         );
@@ -77,12 +79,12 @@ class AgentChannelResponderAction
             $inspector = new Inspector(
                 new Configuration($this->message->app->get('inspector-key'))
             );
-            $crmAgent->observe(
+            $currentAgent->observe(
                 new AgentMonitoring($inspector)
             );
         }
 
-        $question = $crmAgent->chat(new UserMessage($messageConversation));
+        $question = $currentAgent->chat(new UserMessage($messageConversation));
         $responseContent = $question->getContent();
 
         // Extract text from response that might be formatted with markdown code blocks
