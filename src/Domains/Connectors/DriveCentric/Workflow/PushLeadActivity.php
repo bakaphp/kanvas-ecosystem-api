@@ -14,22 +14,22 @@ class PushLeadActivity extends KanvasActivity
 {
     public $tries = 3;
 
-    public function execute(Lead $model, Apps $app, array $params): array
+    public function execute(Lead $lead, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
 
         return $this->executeIntegration(
-            entity: $model,
+            entity: $lead,
             app: $app,
             integration: IntegrationsEnum::DRIVE_CENTRIC,
-            integrationOperation: function ($model, $app, $integrationCompany, $additionalParams) use ($params): array {
-                $pushLead = new PushLeadAction($app)->execute();
+            integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params): array {
+                $pushLead = new PushLeadAction($lead)->execute();
                 return [
                     'message' => 'People pulled successfully',
                     'entity' => $pushLead,
                 ];
             },
-            company: $model->company,
+            company: $lead->company,
         );
     }
 }

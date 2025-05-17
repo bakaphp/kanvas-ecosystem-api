@@ -15,11 +15,12 @@ class LeadService
     ) {
     }
 
-    public function create(LeadDriveCentric $lead): array
+    public function create(array $lead): array
     {
         $client = (new Client($this->app))->getClient();
-        $response = $client->post('{+endpoint}/api/stores/{+storeId}/deal/upsert', $lead->toArray());
-
+        $response = $client->post('{+endpoint}/api/stores/{+storeId}/deal/upsert', [
+            'deal' => $lead
+        ]);
         return $response->json();
     }
 }
