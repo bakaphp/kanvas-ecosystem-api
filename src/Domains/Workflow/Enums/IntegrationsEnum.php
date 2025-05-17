@@ -26,4 +26,5 @@ enum IntegrationsEnum: string
     case AERO_AMBULANCIA = 'aero_ambulancia';
     case WASENDER = 'wa_sender';
     case PLATE_RECOGNIZER = 'plate_recognizer';
+    case MINDEE = 'mindee';
 }
