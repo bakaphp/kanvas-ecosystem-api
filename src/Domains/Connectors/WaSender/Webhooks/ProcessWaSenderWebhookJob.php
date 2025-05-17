@@ -396,6 +396,13 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $messageType = $this->getMessageType($messageContent);
         $text = $this->extractMessageText($messageContent, $messageType);
         $chatJid = $key['remoteJid'] ?? null;
+
+        if ($chatJid === null) {
+            return [
+                'error' => 'Missing chat JID',
+            ];
+        }
+
         $messageId = $key['id'] ?? Str::uuid()->toString();
         //$isFromMe = $key['fromMe'] ?? false;
         $user = $this->receiver->user;
