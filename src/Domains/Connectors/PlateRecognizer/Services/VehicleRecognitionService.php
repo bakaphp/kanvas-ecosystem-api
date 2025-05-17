@@ -35,6 +35,7 @@ class VehicleRecognitionService
 
         // Process each image with Plate Recognizer
         foreach ($imagePaths as $path) {
+            sleep(1); // Throttle requests to avoid hitting API limits
             $plateData = $this->client->recognizePlate($path);
 
             // Skip if no data detected in this image
