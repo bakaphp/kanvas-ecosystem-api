@@ -26,8 +26,8 @@ class Client
         protected array $config = []
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? ConfigurationEnum::SANDBOX_URL->value;
-        $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value) ?? $config['client_id'];
-        $this->secret = $this->app->get(ConfigurationEnum::SECRET->value) ?? $config['secret'];
+        $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value) ?? $config['client_id'] ?? '';
+        $this->secret = $this->app->get(ConfigurationEnum::SECRET->value) ?? $config['secret'] ?? '';
 
         if (empty($this->clientId) || empty($this->secret)) {
             throw new ValidationException('Echo Pay configuration is missing');

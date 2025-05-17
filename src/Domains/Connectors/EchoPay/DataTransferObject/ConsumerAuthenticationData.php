@@ -17,7 +17,7 @@ class ConsumerAuthenticationData extends Data
         public readonly ?string $eci,
         public readonly string $token,
         public readonly ?string $cavv,
-        public readonly string $paresStatus,
+        public readonly ?string $paresStatus,
         public readonly ?string $xid,
         public readonly string $directoryServerTransactionId,
         public readonly string $threeDSServerTransactionId,
