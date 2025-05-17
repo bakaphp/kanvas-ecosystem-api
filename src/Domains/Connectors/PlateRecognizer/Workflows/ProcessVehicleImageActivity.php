@@ -54,7 +54,11 @@ class ProcessVehicleImageActivity extends KanvasActivity
                 if ($vehicle === null) {
                     $this->notifyFailed($message);
 
-                    throw new Exception('Vehicle recognition failed.');
+                    return [
+                        'product' => null,
+                        'vehicle' => null,
+                    ];
+                    //throw new Exception('Vehicle recognition failed.');
                 }
 
                 $product = new PullVehicleAction(
