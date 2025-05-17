@@ -75,6 +75,17 @@ class PullVehicleAction
             ],
         );
 
+        $product = Products::fromCompany($this->company)
+            ->fromApp($this->app)
+            ->where('slug', $this->vehicle->plateNumber)
+            ->first();
+
+        if ($product) {
+            $product->addMultipleFilesFromUrl($formattedImagesUrl);
+
+            return $product;
+        }
+
         return new CreateProductAction(
             productDto: $product,
             user: $this->user
