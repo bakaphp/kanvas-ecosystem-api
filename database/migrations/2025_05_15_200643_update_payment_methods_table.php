@@ -13,7 +13,6 @@ return new class () extends Migration {
     public function up()
     {
         Schema::table('payment_methods_credentials', function (Blueprint $table) {
-            $table->bigInteger('companies_id')->nullable()->index('companies_id')->after('apps_id');
             $table->string('instrument_identifier_id', 64)->nullable()->after('expiration_date');
             $table->string('processor', 64)->nullable()->after('instrument_identifier_id');
             $table->json('metadata')->nullable()->after('processor');
