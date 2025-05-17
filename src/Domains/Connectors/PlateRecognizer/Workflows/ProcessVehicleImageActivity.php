@@ -39,6 +39,14 @@ class ProcessVehicleImageActivity extends KanvasActivity
                 $message->refresh();
                 $parentMessage = $message->parent ?? $message;
 
+                if ($parentMessage->get('created_product')) {
+                    return [
+                        'product' => null,
+                        'vehicle' => null,
+                        'message' => 'Vehicle already created',
+                    ];
+                }
+
                 $newImagesList = [];
 
                 $parentFiles = $parentMessage->getFiles();
@@ -57,14 +65,6 @@ class ProcessVehicleImageActivity extends KanvasActivity
                     foreach ($images as $image) {
                         $newImagesList[] = $image->url;
                     }
-                }
-
-                if ($parentMessage->get('created_product')) {
-                    return [
-                        'product' => null,
-                        'vehicle' => null,
-                        'message' => 'Vehicle already created',
-                    ];
                 }
 
                 $vehicle = $vehicleImageRecognitionService->processVehicleImages($newImagesList);
