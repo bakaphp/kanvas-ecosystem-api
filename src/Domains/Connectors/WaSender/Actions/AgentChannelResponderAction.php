@@ -12,7 +12,6 @@ use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Types\CRMAgent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Chat\Messages\UserMessage;
@@ -66,8 +65,8 @@ class AgentChannelResponderAction
 
         $useInspector = $this->message->app->get('inspector-key') !== null;
 
-        //$crmAgent = new CRMAgent();
-        $crmAgent = $this->agent;
+        $crmAgent = new $this->agent->type->handler;
+        //$crmAgent = $this->agent;
 
         $crmAgent->setConfiguration(
             $this->agent,
