@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\DriveCentric\Workflow;
 
-use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\KanvasActivity;
 use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\KanvasActivity;
+
 class PushLeadActivity extends KanvasActivity
 {
     public $tries = 3;
