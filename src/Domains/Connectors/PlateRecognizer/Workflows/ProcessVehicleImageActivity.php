@@ -39,8 +39,15 @@ class ProcessVehicleImageActivity extends KanvasActivity
                 $message->refresh();
                 $parentMessage = $message->parent ?? $message;
 
-                $parentFiles = $parentMessage->getFiles();
                 $newImagesList = [];
+
+                $parentFiles = $parentMessage->getFiles();
+                if ($parentFiles && $parentFiles->isNotEmpty()) {
+                    foreach ($parentFiles as $file) {
+                        $newImagesList[] = $file->url;
+                    }
+                }
+
                 foreach ($parentMessage->children as $childMessage) {
                     $images = $childMessage->getFiles();
                     if ($images->isEmpty()) {
@@ -52,7 +59,7 @@ class ProcessVehicleImageActivity extends KanvasActivity
                     }
                 }
 
-                $vehicle = $vehicleImageRecognitionService->processVehicleImages(array_merge($newImagesList, $parentFiles?->toArray() ?? []));
+                $vehicle = $vehicleImageRecognitionService->processVehicleImages($newImagesList);
 
                 if ($vehicle === null) {
                     $this->notifyFailed($parentMessage);
