@@ -52,7 +52,7 @@ class ProcessVehicleImageActivity extends KanvasActivity
                 $vehicle = $vehicleImageRecognitionService->processVehicleImages($newImagesList);
 
                 if ($vehicle === null) {
-                    $this->notifyFailed($message);
+                    $this->notifyFailed($parentMessage);
 
                     return [
                         'product' => null,
@@ -68,7 +68,7 @@ class ProcessVehicleImageActivity extends KanvasActivity
                     vehicle: $vehicle,
                 )->execute($newImagesList);
 
-                $this->notifySuccess($message, $vehicle);
+                $this->notifySuccess($parentMessage, $vehicle);
 
                 return [
                     'product' => $product,
