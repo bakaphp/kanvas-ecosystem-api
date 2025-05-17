@@ -49,7 +49,7 @@ class KanvasAgentCommand extends Command
         $agent = Agent::getById($agentId, $app);
 
         // Initialize the agent
-        $crm = new $agent->type->handler;
+        $crm = new $agent->type->handler();
         $inspector = new Inspector(
             new Configuration($app->get('inspector-key'))
         );

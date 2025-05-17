@@ -27,7 +27,6 @@ class ProcessImageTest extends TestCase
         );
 
         $images = [
-          
         ];
 
         $vehicle = $vehicleImageRecognitionService->processVehicleImages($images);
@@ -39,32 +38,31 @@ class ProcessImageTest extends TestCase
         }
     }
  */
-    /* public function testCreateVehicleProductFromImage()
-    {
-        $app = app(Apps::class);
-        $app->set(ConfigurationEnum::API_KEY->value, getenv('TEST_PLATE_RECOGNIZER_API_KEY'));
+    /*  public function testCreateVehicleProductFromImage()
+     {
+         $app = app(Apps::class);
+         $app->set(ConfigurationEnum::API_KEY->value, getenv('TEST_PLATE_RECOGNIZER_API_KEY'));
 
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+         $user = auth()->user();
+         $company = $user->getCurrentCompany();
 
-        $vehicleImageRecognitionService = new VehicleRecognitionService(
-            app: $app,
-            company: $company
-        );
+         $vehicleImageRecognitionService = new VehicleRecognitionService(
+             app: $app,
+             company: $company
+         );
 
-        $images = [
-          
-        ];
+         $images = [
+         ];
 
-        $vehicle = $vehicleImageRecognitionService->processVehicleImages($images);
+         $vehicle = $vehicleImageRecognitionService->processVehicleImages($images);
 
-        $product = new PullVehicleAction(
-            app: $app,
-            company: $company,
-            user: $user,
-            vehicle: $vehicle,
-        )->execute($images);
+         $product = new PullVehicleAction(
+             app: $app,
+             company: $company,
+             user: $user,
+             vehicle: $vehicle,
+         )->execute($images);
 
-        $this->assertInstanceOf(Products::class, $product);
-    } */
+         $this->assertInstanceOf(Products::class, $product);
+     } */
 }
