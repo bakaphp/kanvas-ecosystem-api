@@ -66,7 +66,8 @@ class AgentChannelResponderAction
 
         $useInspector = $this->message->app->get('inspector-key') !== null;
 
-        $crmAgent = new CRMAgent();
+        //$crmAgent = new CRMAgent();
+        $crmAgent = $this->agent;
 
         $crmAgent->setConfiguration(
             $this->agent,
@@ -93,9 +94,13 @@ class AgentChannelResponderAction
             $this->message->company
         );
 
-        return $whatsAppMessageService->sendTextMessage(
-            $channelId,
-            $responseText
-        );
+        return [
+            'message' => $messageConversation,
+            'responseText' => $responseContent,
+            'response' => $whatsAppMessageService->sendTextMessage(
+                $channelId,
+                $responseText,
+            ),
+        ];
     }
 }
