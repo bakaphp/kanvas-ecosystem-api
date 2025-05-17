@@ -496,10 +496,7 @@ class InventoryAgent extends BaseAgent
                     // Return message details
                     return [
                         'status' => 'success',
-                        'message' => [
-                            'id' => $message->id,
-                            'data' => $message->message,
-                        ],
+                        'message' => $message->toArray(),
                     ];
                 } catch (Exception $e) {
                     Log::error('Message Search Failed', [
