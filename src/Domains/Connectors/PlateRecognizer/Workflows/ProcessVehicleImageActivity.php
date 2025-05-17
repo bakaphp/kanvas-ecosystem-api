@@ -26,7 +26,7 @@ class ProcessVehicleImageActivity extends KanvasActivity
         return $this->executeIntegration(
             entity: $message,
             app: $app,
-            integration: IntegrationsEnum::CREDIT700,
+            integration: IntegrationsEnum::PLATE_RECOGNIZER,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($params) {
                 sleep(10);
 
