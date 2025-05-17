@@ -7,7 +7,6 @@ namespace Kanvas\Payments\DataTransferObjet;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
-
 use Spatie\LaravelData\Data;
 
 class PaymentMethod extends Data
@@ -25,6 +24,5 @@ class PaymentMethod extends Data
         public readonly bool $is_deleted = false,
         public readonly string $processor = "stripe",
         public readonly mixed $metadata = [],
-    ) {
-    }
+    ) {}
 }

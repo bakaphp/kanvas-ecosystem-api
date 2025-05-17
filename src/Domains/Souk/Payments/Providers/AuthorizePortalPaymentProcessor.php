@@ -18,7 +18,6 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponseData;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 
-
 class AuthorizeNetPaymentProcessor
 {
     protected Companies $company;
@@ -49,9 +48,7 @@ class AuthorizeNetPaymentProcessor
 
     protected function setupPayerAuthentication(MerchantDetailData $merchantAuthentication, string $paymentInstrumentId): array
     {
-     
         return $this->client->setupPayer($this->refId, $paymentInstrumentId, $merchantAuthentication);
-
     }
 
     protected function setCustomerBillingAddress(Order $orderInput): BillingDetailData
@@ -67,7 +64,6 @@ class AuthorizeNetPaymentProcessor
             postalCode: $this->company->zip,
             administrativeArea: $this->company->state,
         );
-
     }
 
     protected function setupService(): array
@@ -85,8 +81,8 @@ class AuthorizeNetPaymentProcessor
     {
         $merchantAuthentication = $this->setupMerchantAuthentication();
         $payerAuthentication = $this->client->setupPayer(
-            $this->refId, 
-            $orderInput->paymentMethod->stripe_card_id, 
+            $this->refId,
+            $orderInput->paymentMethod->stripe_card_id,
             $merchantAuthentication
         );
 
@@ -116,8 +112,9 @@ class AuthorizeNetPaymentProcessor
                     "referenceId" => $referenceId,
                     "transactionMode" => "eCommerce"
                 ]),
-            ]), 
-            $merchantAuthentication);
+            ]),
+            $merchantAuthentication
+        );
 
         return $enrollmentCheck;
     }
@@ -155,5 +152,4 @@ class AuthorizeNetPaymentProcessor
 
         return $result;
     }
-    
 }

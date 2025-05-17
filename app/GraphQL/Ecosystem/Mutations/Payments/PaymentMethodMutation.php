@@ -54,10 +54,10 @@ class PaymentMethodMutation
             );
             $tokenizedCard = $portalService->addCard($card);
             $paymentMethod = new PaymentMethod(
-                app: $app, 
-                user: $user, 
+                app: $app,
+                user: $user,
                 company: $company,
-                payment_ending_numbers: $tokenizedCard['cardNumber'], 
+                payment_ending_numbers: $tokenizedCard['cardNumber'],
                 payment_methods_brand: $input['brand'],
                 stripe_card_id: $tokenizedCard['paymentInstrumentId'],
                 expiration_date: $input['expiration_date'],
@@ -70,6 +70,5 @@ class PaymentMethodMutation
             $action = new CreatePaymentMethodAction($paymentMethod);
             return $action->execute();
         }
-
     }
 }
