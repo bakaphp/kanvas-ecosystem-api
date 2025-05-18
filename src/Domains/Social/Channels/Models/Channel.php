@@ -82,10 +82,10 @@ class Channel extends BaseModel
         $this->saveOrFail();
 
         $this->fireWorkflow(WorkflowEnum::UPDATED->value, true, [
-            'message' => $message,
-            'user' => $user,
-            'app' => $message->app,
-            'company' => $message->company,
+           'message' => $message,
+           'user' => $user,
+           'app' => $message->app,
+           'company' => $message->company,
         ]);
     }
 
