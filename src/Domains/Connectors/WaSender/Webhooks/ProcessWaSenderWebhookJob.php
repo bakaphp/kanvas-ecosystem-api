@@ -22,6 +22,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Spatie\LaravelData\DataCollection;
@@ -161,11 +162,11 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $message = $createMessageAction->execute();
             }
 
-            // Associate message with channel
-            $channel->addMessage($message);
-
             // If the message is not from the user, process the contact
             if (! $isFromMe) {
+                /**
+                 * @todo we need to create users for each user and associate with people
+                 */
                 $people = $this->processContactFromMessage($chatJid, $messageData);
             }
 
@@ -174,9 +175,18 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $message->addEntity($people);
             }
 
-            /**
-             * @todo we need to create users for each user and associate with people
-             */
+            // Associate message with channel
+            $channel->addMessage($message);
+            $channel->fireWorkflow(
+                WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
+                true,
+                [
+                    'message' => $message,
+                    'user' => $message->user,
+                    'app' => $message->app,
+                    'company' => $message->company,
+                ]
+            );
 
             // Add to processed results
             $processedMessages[] = [
