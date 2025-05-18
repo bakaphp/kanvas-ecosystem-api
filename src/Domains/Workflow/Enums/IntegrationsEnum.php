@@ -27,4 +27,5 @@ enum IntegrationsEnum: string
     case WASENDER = 'wa_sender';
     case PLATE_RECOGNIZER = 'plate_recognizer';
     case MINDEE = 'mindee';
+    case SALESASSIST = 'salesassist';
 }

@@ -45,6 +45,7 @@ use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
+use Kanvas\Connectors\SalesAssist\Activities\ProcessMessageVehicleImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
@@ -179,6 +180,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PushOrderActivity::class,
             ProcessVehicleImageActivity::class,
             WorkflowsProcessVehicleImageActivity::class,
+            ProcessMessageVehicleImageActivity::class,
         ];
 
         $createdActions = [];
