@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\SalesAssist\Workflows;
+namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Support\Str;
 use Exception;
