@@ -12,7 +12,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Types\CRMAgent;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
 
@@ -50,7 +49,7 @@ class KanvasAgentCommand extends Command
         $agent = Agent::getById($agentId, $app);
 
         // Initialize the agent
-        $crm = new CRMAgent();
+        $crm = new $agent->type->handler();
         $inspector = new Inspector(
             new Configuration($app->get('inspector-key'))
         );

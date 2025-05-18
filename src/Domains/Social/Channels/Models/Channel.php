@@ -88,4 +88,29 @@ class Channel extends BaseModel
             'company' => $message->company,
         ]);
     }
+
+    /**
+     * Get the previous message in this channel before the given message.
+     */
+    public function getPreviousMessage(Message $currentMessage): ?Message
+    {
+        // Get the timestamp of the current message
+        $currentMessageTimestamp = $currentMessage->created_at;
+
+        // Find the previous message in this channel
+        return $this->messages()
+            ->wherePivot('channel_id', $this->id)
+            ->where(function ($query) use ($currentMessageTimestamp, $currentMessage) {
+                // Either find messages created before the current one
+                $query->where('messages.created_at', '<', $currentMessageTimestamp)
+                    // Or if they have the same timestamp, find ones with a lower ID
+                    ->orWhere(function ($q) use ($currentMessageTimestamp, $currentMessage) {
+                        $q->where('messages.created_at', '=', $currentMessageTimestamp)
+                          ->where('messages.id', '<', $currentMessage->id);
+                    });
+            })
+            ->orderBy('messages.created_at', 'desc')
+            ->orderBy('messages.id', 'desc')
+            ->first();
+    }
 }
