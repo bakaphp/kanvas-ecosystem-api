@@ -32,6 +32,14 @@ class MessageObserver
         }
     }
 
+    public function saved(Message $message): void
+    {
+        // check if it has a parent, update parent total children
+        if ($message->parent_id) {
+            $message->parent->increment('total_children');
+        }
+    }
+
     public function created(Message $message): void
     {
         /*         $message->fireWorkflow(WorkflowEnum::CREATED->value, true, [
@@ -40,11 +48,6 @@ class MessageObserver
                 ]); */
 
         $message->clearLightHouseCacheJob();
-
-        // check if it has a parent, update parent total children
-        if ($message->parent_id) {
-            $message->parent->increment('total_children');
-        }
     }
 
     public function updated(Message $message): void

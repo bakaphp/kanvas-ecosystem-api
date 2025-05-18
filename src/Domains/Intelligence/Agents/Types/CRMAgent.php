@@ -20,6 +20,7 @@ class CRMAgent extends BaseAgent
     #[Override]
     protected function tools(): array
     {
+        /** @psalm-suppress MixedReturnTypeCoercion */
         return [
             Tool::make(
                 'get_customer_information',

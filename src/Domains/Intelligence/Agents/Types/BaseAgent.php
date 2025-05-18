@@ -22,7 +22,6 @@ use NeuronAI\RAG\VectorStore\PineconeVectorStore;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 use NeuronAI\SystemPrompt;
 use NeuronAI\Tools\Tool;
-use NeuronAI\Tools\ToolProperty;
 use Override;
 
 class BaseAgent extends RAG
@@ -151,6 +150,7 @@ class BaseAgent extends RAG
     #[Override]
     protected function tools(): array
     {
+        /** @psalm-suppress MixedReturnTypeCoercion */
         return [
             Tool::make(
                 'get_current_time',
@@ -158,59 +158,6 @@ class BaseAgent extends RAG
             )->setCallable(fn () => [
                 'time' => date('Y-m-d H:i:s'),
             ]),
-            Tool::make(
-                'get_user_workout',
-                'Retrieve the user workout status from the database.',
-            )->addProperty(
-                new ToolProperty(
-                    name: 'user_id',
-                    type: 'integer',
-                    description: 'The ID of the user.',
-                    required: true
-                )
-            )->setCallable(function (string $user_id) {
-                $userInfo = [
-                    '2' => [
-                        'name' => 'John Doe',
-                        'preferred_workout' => 'leg workouts.',
-                        'workout_status' => 'leagues',
-                        'likes' => ['ice cream', 'anime', 'manga'],
-                    ],
-                ];
-
-                if (isset($userInfo[$user_id])) {
-                    return $userInfo[$user_id];
-                }
-
-                return [
-                    'error' => 'User not found.',
-                ];
-            }),
-            Tool::make(
-                'get_user_likes',
-                'Retrieve the list of things the user likes from the database.'
-            )->addProperty(
-                new ToolProperty(
-                    name: 'user_id',
-                    type: 'integer',
-                    description: 'The ID of the user.',
-                    required: true
-                )
-            )->setCallable(function (string $user_id) {
-                $userLikes = [
-                    '2' => ['ice cream', 'anime', 'manga'],
-                ];
-
-                if (isset($userLikes[$user_id])) {
-                    return [
-                        'likes' => $userLikes[$user_id],
-                    ];
-                }
-
-                return [
-                    'error' => 'User not found or has no likes.',
-                ];
-            }),
         ];
     }
 }

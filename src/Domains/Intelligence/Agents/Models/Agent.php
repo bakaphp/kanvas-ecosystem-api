@@ -35,19 +35,19 @@ class Agent extends BaseModel
         'is_active' => 'boolean',
     ];
 
-    public function agentType(): BelongsTo
+    public function type(): BelongsTo
     {
-        return $this->belongsTo(AgentType::class);
+        return $this->belongsTo(AgentType::class, 'agent_type_id');
     }
 
-    public function agentModel(): BelongsTo
+    public function model(): BelongsTo
     {
-        return $this->belongsTo(AgentModel::class);
+        return $this->belongsTo(AgentModel::class, 'agent_model_id');
     }
 
     public function companyTaskList(): BelongsTo
     {
-        return $this->belongsTo(TaskList::class);
+        return $this->belongsTo(TaskList::class, 'company_task_list_id');
     }
 
     public function histories(): HasMany
