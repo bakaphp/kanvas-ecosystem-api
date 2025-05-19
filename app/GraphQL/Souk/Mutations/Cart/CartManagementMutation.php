@@ -70,36 +70,49 @@ class CartManagementMutation
         $isDevelopment = App::environment('development');
 
         /**
-         * @todo for the love of god move this to a specific module
+         * @todo FOR THE LOVE OF GOD!! MOVE this to a specific module
          */
         if (! empty($discountCodes) && $app->get('temp-use-discount-codes')) {
-            if (strtolower($discountCodes[0]) !== 'aeroambupromoq2') {
+            if (strtolower($discountCodes[0]) !== 'aeroambupromoq2' && strtolower($discountCodes[0]) !== 'simlimitesb2b15kv') {
                 throw new ModelNotFoundException('Discount code not found');
             }
 
-            $discountVariantId = $app->get('temp-discount-variant-id') ?? [];
-            $discountVariant = null;
-            foreach ($cart->getContent() as $item) {
-                if (in_array($item->id, $discountVariantId)) {
-                    $discountVariant = $item;
+            if (strtolower($discountCodes[0]) === 'aeroambupromoq2') {
+                $discountVariantId = $app->get('temp-discount-variant-id') ?? [];
+                $discountVariant = null;
+                foreach ($cart->getContent() as $item) {
+                    if (in_array($item->id, $discountVariantId)) {
+                        $discountVariant = $item;
 
-                    break;
+                        break;
+                    }
                 }
-            }
 
-            if ($discountVariant !== null) {
-                $itemPrice = $app->get('temp-discount-variant-price') ?? '1.00';
+                if ($discountVariant !== null) {
+                    $itemPrice = $app->get('temp-discount-variant-price') ?? '1.00';
 
-                $tenPercentOff = new CartCondition([
-                  'name' => 'aeroambupromoq2',
+                    $tenPercentOff = new CartCondition([
+                      'name' => 'aeroambupromoq2',
+                      'type' => 'discount',
+                      'target' => 'subtotal',
+                      'value' => '-' . $itemPrice,
+                      'minimum' => 1,
+                      'order' => 1,
+                    ]);
+
+                    $cart->condition($tenPercentOff);
+                }
+            } elseif (strtolower($discountCodes[0]) === 'simlimitesb2b15kv') {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'simlimitesb2b15kv',
                   'type' => 'discount',
                   'target' => 'subtotal',
-                  'value' => '-' . $itemPrice,
+                  'value' => '-15%',
                   'minimum' => 1,
                   'order' => 1,
                 ]);
 
-                $cart->condition($tenPercentOff);
+                $cart->condition($fifteenPercentOff);
             }
         }
 

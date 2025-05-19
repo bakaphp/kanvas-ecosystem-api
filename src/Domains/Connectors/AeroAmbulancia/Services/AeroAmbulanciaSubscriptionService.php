@@ -106,12 +106,22 @@ class AeroAmbulanciaSubscriptionService
             throw new ValidationException('Invalid ambulanceVariantId: ' . $beneficiaryData['ambulanceVariantId']);
         }
 
-        $days = (int) $subscriptionVariant->getAttributeBySlug('duration')?->value ?? 30; // Default to 30 days if not specified
+        $days = (int) $subscriptionVariant->getAttributeBySlug('variant-duration')?->value ?? 30; // Default to 30 days if not specified
         $acquiredPlan = $subscriptionVariant->getAttributeBySlug('aero_acquired_plan')?->value ?? 1; // Default to basic plan if not specified
 
         // Calculate expiration date based on activation date
         $activationDate = Carbon::createFromFormat('d-m-Y', $beneficiaryData['activationDate']);
-        $expirationDate = $activationDate->addDays($days)->format('Y-m-d H:i:s');
+
+        // Double-check expirationDate
+        $expirationDate = $beneficiaryData['expirationDate'] ?? null;
+        if ($expirationDate) {
+            $expirationDate = Carbon::createFromFormat('d-m-Y', $expirationDate);
+        } else {
+            $days = (int) $subscriptionVariant->getAttributeBySlug('variant-duration')?->value ?? 30; // Default to 30 days if not specified
+            $expirationDate = $activationDate->copy()->addDays($days);
+        }
+
+        $expirationDateFormatted = $expirationDate->format('Y-m-d H:i:s');
 
         $typeId = ['passport' => '2', 'id' => '1'];
 
@@ -124,8 +134,8 @@ class AeroAmbulanciaSubscriptionService
             'phoneNumber' => $people->getPhones()->first()?->value ?? '809732' . sprintf('%04d', random_int(0, 9999)), // Default to a random number if not specified
             'sex' => $beneficiaryData['gender'],
             'birthdate' => $beneficiaryData['birthDate'],
-            'activationDate' => $activationDate->format('Y-m-d'),
-            'expirationDate' => $expirationDate,
+            'activationDate' => $activationDate->format('Y-m-d H:i:s'),
+            'expirationDate' => $expirationDateFormatted,
             'acquiredPlan' => (int) $acquiredPlan,
             'preferredLanguage' => ucfirst($beneficiaryData['preferredLanguage'] ?? 'es'),
         ];

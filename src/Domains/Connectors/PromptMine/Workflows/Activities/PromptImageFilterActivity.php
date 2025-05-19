@@ -28,6 +28,8 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Prism;
 
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -336,7 +338,18 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         array $params = [],
         ?string $requestId = null
     ): array {
-        $title = $entity->message['title'] ?? $entity->message['prompt'];
+        // Lets generate a new title using ai if no title is set
+        try {
+            if (empty($entity->message['title']) && $entity->message['prompt']) {
+                $title = $this->generateTitleByPrompt($entity->message['prompt']);
+            } else {
+                $title = $entity->message['title'];
+            }
+        } catch (InternalServerErrorException $e) {
+            report($e);
+            $title = $entity->message['prompt'];
+        }
+
         $totalDelivery = 0;
         // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
@@ -507,5 +520,15 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         return null;
+    }
+
+    private function generateTitleByPrompt(string $prompt): string
+    {
+        $response = Prism::text()
+            ->using(Provider::Gemini, 'gemini-2.0-flash')
+            ->withPrompt("Generate a short title from this prompt: " . $prompt)
+            ->generate();
+
+        return str_replace(['```', 'json'], '', $response->text);
     }
 }
