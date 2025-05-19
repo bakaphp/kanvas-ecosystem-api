@@ -341,7 +341,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         // Lets generate a new title using ai if no title is set
         try {
             if (empty($entity->message['title']) && $entity->message['prompt']) {
-                $this->generateTitleByPrompt($entity->message['prompt']);
+                $title = $this->generateTitleByPrompt($entity->message['prompt']);
             } else {
                 $title = $entity->message['title'];
             }
