@@ -24,6 +24,7 @@ use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 use Kanvas\Souk\Services\B2BConfigurationService;
+use Throwable;
 
 class OrderManagementMutation
 {
@@ -48,7 +49,14 @@ class OrderManagementMutation
             ];
         }
 
-        $isSubscription = $cart->getContent()?->first()?->attributes->has('use_subscription');
+        //$isSubscription = $cart->getContent()?->first()?->attributes->has('use_subscription');
+        try {
+            $isSubscription = $cart->getContent()?->first()?->attributes['use_subscription'] ?? false;
+        } catch (Throwable $e) {
+            report($e);
+            $isSubscription = false;
+        }
+
         $response = $this->processPayment($order, $isSubscription);
 
         return $this->handlePaymentResponse($response, $isSubscription);
