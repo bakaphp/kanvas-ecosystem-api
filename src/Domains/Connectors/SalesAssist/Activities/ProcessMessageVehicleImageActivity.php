@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Support\Str;
 use Exception;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mindee\Actions\PullVehicleFromTagAction;
 use Kanvas\Connectors\Mindee\Client as MindeeClient;
@@ -37,50 +38,73 @@ class ProcessMessageVehicleImageActivity extends KanvasActivity
                 $message->refresh();
                 $parentMessage = $message->parent ?? $message;
 
-                if ($parentMessage->get('created_product')) {
+                // Begin a transaction and acquire a lock for this message
+                DB::beginTransaction();
+
+                try {
+                    // Lock the message record to prevent concurrent processing
+                    $lockedMessage = Message::where('id', $parentMessage->id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    // If another process has already created a product for this message
+                    if ($lockedMessage->get('created_product')) {
+                        DB::commit();
+
+                        return [
+                            'product' => null,
+                            'vehicle' => null,
+                            'message' => 'Vehicle already created',
+                        ];
+                    }
+
+                    $newImagesList = $this->collectImagesFromMessages($parentMessage);
+
+                    // Try Mindee client first
+                    $mindeeResult = $this->processMindee($message, $app, $params, $newImagesList);
+
+                    if ($mindeeResult['success']) {
+                        $this->notifyMindeeSuccess($parentMessage, $mindeeResult['tag'], $mindeeResult['product']);
+
+                        DB::commit();
+
+                        return [
+                            'product' => $mindeeResult['product'],
+                            'vehicle' => $mindeeResult['tag'],
+                            'service' => 'mindee',
+                        ];
+                    }
+
+                    // If Mindee fails, try PlateRecognizer
+                    $plateResult = $this->processPlateRecognizer($message, $app, $newImagesList);
+
+                    if ($plateResult['success']) {
+                        $this->notifyPlateSuccess($parentMessage, $plateResult['vehicle'], $plateResult['product']);
+
+                        DB::commit();
+
+                        return [
+                            'product' => $plateResult['product'],
+                            'vehicle' => $plateResult['vehicle'],
+                            'service' => 'platerecognizer',
+                        ];
+                    }
+
+                    // If both services fail
+                    $this->notifyFailed($parentMessage);
+
+                    DB::commit();
+
                     return [
                         'product' => null,
                         'vehicle' => null,
-                        'message' => 'Vehicle already created',
+                        'service' => null,
                     ];
+                } catch (Exception $e) {
+                    DB::rollBack();
+
+                    throw $e;
                 }
-
-                $newImagesList = $this->collectImagesFromMessages($parentMessage);
-
-                // Try Mindee client first
-                $mindeeResult = $this->processMindee($message, $app, $params, $newImagesList);
-
-                if ($mindeeResult['success']) {
-                    $this->notifyMindeeSuccess($parentMessage, $mindeeResult['tag'], $mindeeResult['product']);
-
-                    return [
-                        'product' => $mindeeResult['product'],
-                        'vehicle' => $mindeeResult['tag'],
-                        'service' => 'mindee',
-                    ];
-                }
-
-                // If Mindee fails, try PlateRecognizer
-                $plateResult = $this->processPlateRecognizer($message, $app, $newImagesList);
-
-                if ($plateResult['success']) {
-                    $this->notifyPlateSuccess($parentMessage, $plateResult['vehicle'], $plateResult['product']);
-
-                    return [
-                        'product' => $plateResult['product'],
-                        'vehicle' => $plateResult['vehicle'],
-                        'service' => 'platerecognizer',
-                    ];
-                }
-
-                // If both services fail
-                $this->notifyFailed($parentMessage);
-
-                return [
-                    'product' => null,
-                    'vehicle' => null,
-                    'service' => null,
-                ];
             },
             company: $message->company,
         );
