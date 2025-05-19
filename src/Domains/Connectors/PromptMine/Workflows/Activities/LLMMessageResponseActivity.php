@@ -52,7 +52,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     'total_disliked' => 0,
                     'total_saved' => 0,
                     'total_shared' => 0,
-                    'ip_address' => request()->ip(),
+                    'ip_address' => '127.0.0.1',
                     'parent_id' => $message->id,
                 ];
 
