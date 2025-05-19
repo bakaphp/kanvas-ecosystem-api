@@ -6,14 +6,14 @@ namespace Tests\Connectors\Integration\EchoPay;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\EchoPay\DataTransferObject\ConsultServiceQueryData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthenticationData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthenticationInformationData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\DeviceInformationData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetailData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformationData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetailData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponseData;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsultServiceQuery;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthenticationInformation;
+use Kanvas\Connectors\EchoPay\DataTransferObject\DeviceInformation;
+use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformation;
+use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 
 final class EchoPayTest extends EchoPayBase
 {
@@ -23,7 +23,7 @@ final class EchoPayTest extends EchoPayBase
         $company = Companies::first();
         $echoPayService = $this->getService($app, $company);
 
-        $result = $echoPayService->consultService(ConsultServiceQueryData::from([
+        $result = $echoPayService->consultService(ConsultServiceQuery::from([
             'merchantKey' => '00000000016739100006575',
             'serviceCode' => '0101',
             'contract' => '6537824'
@@ -72,7 +72,7 @@ final class EchoPayTest extends EchoPayBase
         $result = $echoPayService->setupPayer(
             "TC50171_3",
             $tokenizedCard['paymentInstrumentId'],
-            MerchantDetailData::from($this->getMerchantData())
+            MerchantDetail::from($this->getMerchantData())
         );
 
         $this->assertArrayHasKey('clientReferenceInformation', $result);
@@ -95,20 +95,20 @@ final class EchoPayTest extends EchoPayBase
         $referenceId = env('TEST_ECHO_PAY_REFERENCE_ID');
 
         $result = $echoPayService->checkPayerEnrollment(
-            PaymentDetailData::from([
+            PaymentDetail::from([
                 'orderCode' => 'TC50171_3',
                 'paymentInstrumentId' => $tokenizedCard['paymentInstrumentId'],
-                'orderInformation' => OrderInformationData::from([
+                'orderInformation' => OrderInformation::from([
                     'currency' => 'DOP',
                     'totalAmount' => '100',
                     'billTo' => $this->getCardData()->billTo,
                 ]),
-                'deviceInformation' => DeviceInformationData::from([
+                'deviceInformation' => DeviceInformation::from([
                     "httpAcceptContent" => "application/json",
                     "httpBrowserLanguage" => "en_us",
                     "userAgentBrowserValue" => "chrome"
                 ]),
-                'consumerAuthenticationInformation' => ConsumerAuthenticationInformationData::from([
+                'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
                     "deviceChannel" => "BROWSER",
                     "returnUrl" => "http://localhost:3000/return-url.js",
                     "referenceId" => $referenceId,
@@ -139,10 +139,10 @@ final class EchoPayTest extends EchoPayBase
 
         $result = $echoPayService->validatePayerAuthResult(
             $transactionId,
-            PaymentDetailData::from([
+            PaymentDetail::from([
                 'orderCode' => 'TC50171_3',
                 'paymentInstrumentId' => $tokenizedCard['paymentInstrumentId'],
-                'orderInformation' => OrderInformationData::from([
+                'orderInformation' => OrderInformation::from([
                     'currency' => 'DOP',
                     'totalAmount' => '100',
                 ]),
@@ -152,7 +152,7 @@ final class EchoPayTest extends EchoPayBase
 
         $this->assertArrayHasKey('consumerAuthenticationInformation', $result);
         $this->assertArrayHasKey('status', $result);
-        $this->assertInstanceOf(ConsumerAuthenticationData::class, $result['consumerAuthenticationInformation']);
+        $this->assertInstanceOf(ConsumerAuthentication::class, $result['consumerAuthenticationInformation']);
         $this->assertEquals("AUTHENTICATION_SUCCESSFUL", $result['status']);
     }
 
@@ -171,20 +171,20 @@ final class EchoPayTest extends EchoPayBase
         $cardData = $this->getCardData();
 
         $result = $echoPayService->payService(
-            PaymentDetailData::from([
+            PaymentDetail::from([
                 'orderCode' => 'TC50171_3',
                 'paymentInstrumentId' => $tokenizedCard['paymentInstrumentId'],
-                'orderInformation' => OrderInformationData::from([
+                'orderInformation' => OrderInformation::from([
                     'currency' => 'DOP',
                     'totalAmount' => '100',
                     'billTo' => $cardData->billTo,
                 ]),
-                'deviceInformation' => DeviceInformationData::from([
+                'deviceInformation' => DeviceInformation::from([
                     "httpAcceptContent" => "application/json",
                     "httpBrowserLanguage" => "en_us",
                     "userAgentBrowserValue" => "chrome"
                 ]),
-                'consumerAuthenticationInformation' => ConsumerAuthenticationInformationData::from([
+                'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
                     "deviceChannel" => "BROWSER",
                     "returnUrl" => "http://localhost:3000/portal/accept-code",
                     "referenceId" => $referenceId,
@@ -192,7 +192,7 @@ final class EchoPayTest extends EchoPayBase
 
                 ]),
             ]),
-            ConsumerAuthenticationData::from([
+            ConsumerAuthentication::from([
                 "indicator" => "vbv",
                 "eciRaw" => "05",
                 "authenticationResult" => "0",
@@ -220,7 +220,7 @@ final class EchoPayTest extends EchoPayBase
             ]
         );
 
-        $this->assertInstanceOf(PaymentResponseData::class, $result);
+        $this->assertInstanceOf(PaymentResponse::class, $result);
         $this->assertEquals('PAYED', $result->status->name);
     }
 }

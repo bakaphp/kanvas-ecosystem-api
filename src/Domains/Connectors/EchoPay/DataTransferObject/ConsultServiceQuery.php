@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\EchoPay\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 
-class ConsultServiceQueryData extends Data
+class ConsultServiceQuery extends Data
 {
     public function __construct(
         public readonly ?string $merchantKey,

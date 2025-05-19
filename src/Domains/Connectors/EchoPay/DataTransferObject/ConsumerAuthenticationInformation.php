@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\EchoPay\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 
-class ConsumerAuthenticationInformationData extends Data
+class ConsumerAuthenticationInformation extends Data
 {
     public function __construct(
         public readonly string $deviceChannel,

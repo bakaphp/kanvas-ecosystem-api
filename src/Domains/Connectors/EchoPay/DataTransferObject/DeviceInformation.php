@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\EchoPay\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 
-class DeviceInformationData extends Data
+class DeviceInformation extends Data
 {
     public function __construct(
         public readonly string $httpAcceptContent,
