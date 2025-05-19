@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\DriveCentric\Services;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DriveCentric\Client;
-use Kanvas\Connectors\DriveCentric\DataTransferObject\LeadDriveCentric;
 
 class LeadService
 {
@@ -19,8 +18,8 @@ class LeadService
     {
         $client = (new Client($this->app))->getClient();
         $response = $client->post('{+endpoint}/api/stores/{+storeId}/deal/upsert', [
-            'deal' => $lead
+            'deal' => $lead,
         ]);
-        return $response->json();
+        return $response->json()['deal'];
     }
 }

@@ -66,11 +66,11 @@ class PushLeadAction
         $leadIdentifier = array_filter($data['identifiers'], function ($identifier) {
             return $identifier['type'] === 'CrmId';
         });
-        $this->lead->set(CustomFieldEnums::DRIVE_CENTRIC_ID->value, $leadIdentifier['value']);
+        $this->lead->set(CustomFieldEnums::DRIVE_CENTRIC_ID->value, $leadIdentifier[0]['value']);
         $peopleIdentifier = array_filter($data['customers'][0]['identifiers'], function ($identifier) {
             return $identifier['type'] === 'CrmId';
         });
-        $this->lead->people->set(CustomFieldEnums::DRIVE_CENTRIC_ID->value, $peopleIdentifier['value']);
+        $this->lead->people->set(CustomFieldEnums::DRIVE_CENTRIC_ID->value, $peopleIdentifier[0]['value']);
 
         return $data;
     }
