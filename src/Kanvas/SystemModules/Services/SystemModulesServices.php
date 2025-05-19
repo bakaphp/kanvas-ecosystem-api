@@ -16,7 +16,7 @@ class SystemModulesServices
                 $requiredFields[] = $field;
             }
         }
-        $missing = array_diff($requiredFields, $mapperFields);
+        $missing = array_diff($requiredFields, array_keys($mapperFields));
 
         if (! empty($missing)) {
             throw ValidationException::withMessages([

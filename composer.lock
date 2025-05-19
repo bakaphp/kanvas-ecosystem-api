@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "490a9f65433193a721464295bea6598a",
+    "content-hash": "4d8ca2fd3b8c6a6d8a489b7f916aaf4e",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.343.8",
+            "version": "3.343.13",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "9cf2ad840a0dc92929991c3142138182a700d7b1"
+                "reference": "eb50d111a09ef39675358e74801260ac129ee346"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/9cf2ad840a0dc92929991c3142138182a700d7b1",
-                "reference": "9cf2ad840a0dc92929991c3142138182a700d7b1",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/eb50d111a09ef39675358e74801260ac129ee346",
+                "reference": "eb50d111a09ef39675358e74801260ac129ee346",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.343.8"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.343.13"
             },
-            "time": "2025-05-09T18:07:37+00:00"
+            "time": "2025-05-16T18:24:39+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -2214,16 +2214,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.66.0",
+            "version": "v0.67.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "e057c7097571c04b536aba8a7d9c609b63998926"
+                "reference": "d08aa262736de355654c359f240d74421b095bfb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/e057c7097571c04b536aba8a7d9c609b63998926",
-                "reference": "e057c7097571c04b536aba8a7d9c609b63998926",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/d08aa262736de355654c359f240d74421b095bfb",
+                "reference": "d08aa262736de355654c359f240d74421b095bfb",
                 "shasum": ""
             },
             "require": {
@@ -2278,7 +2278,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.66.0"
+                "source": "https://github.com/prism-php/prism/tree/v0.67.0"
             },
             "funding": [
                 {
@@ -2286,7 +2286,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-04T15:55:15+00:00"
+            "time": "2025-05-12T15:31:56+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -3213,16 +3213,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v4.30.2",
+            "version": "v4.31.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "a4c4d8565b40b9f76debc9dfeb221412eacb8ced"
+                "reference": "d59e31ce4bf0e4b48728e90c4d880839edb5be07"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/a4c4d8565b40b9f76debc9dfeb221412eacb8ced",
-                "reference": "a4c4d8565b40b9f76debc9dfeb221412eacb8ced",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/d59e31ce4bf0e4b48728e90c4d880839edb5be07",
+                "reference": "d59e31ce4bf0e4b48728e90c4d880839edb5be07",
                 "shasum": ""
             },
             "require": {
@@ -3251,9 +3251,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.30.2"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.31.0"
             },
-            "time": "2025-03-26T18:01:50+00:00"
+            "time": "2025-05-14T16:17:23+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -3323,12 +3323,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/grantholle/laravel-username-generator.git",
-                "reference": "78b13d38aa894a016be12ab9fd8f4b0dcd677857"
+                "reference": "f66771fbe044a6ab33dd422787ef48e2eeef210d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/grantholle/laravel-username-generator/zipball/78b13d38aa894a016be12ab9fd8f4b0dcd677857",
-                "reference": "78b13d38aa894a016be12ab9fd8f4b0dcd677857",
+                "url": "https://api.github.com/repos/grantholle/laravel-username-generator/zipball/f66771fbe044a6ab33dd422787ef48e2eeef210d",
+                "reference": "f66771fbe044a6ab33dd422787ef48e2eeef210d",
                 "shasum": ""
             },
             "require": {
@@ -3388,7 +3388,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-03-03T17:48:21+00:00"
+            "time": "2025-05-12T17:31:11+00:00"
         },
         {
             "name": "grpc/grpc",
@@ -4179,16 +4179,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.9.29",
+            "version": "1.9.35",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "d6d24ae98d05478b26b279224a4b01dac2c74595"
+                "reference": "610488a3a200d4da53f64774d9e1f5d293079b3a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/d6d24ae98d05478b26b279224a4b01dac2c74595",
-                "reference": "d6d24ae98d05478b26b279224a4b01dac2c74595",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/610488a3a200d4da53f64774d9e1f5d293079b3a",
+                "reference": "610488a3a200d4da53f64774d9e1f5d293079b3a",
                 "shasum": ""
             },
             "require": {
@@ -4236,9 +4236,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.9.29"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.9.35"
             },
-            "time": "2025-05-09T08:23:47+00:00"
+            "time": "2025-05-16T12:59:31+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -4787,16 +4787,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.13.0",
+            "version": "v12.14.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "52b588bcd8efc6d01bc1493d2d67848f8065f269"
+                "reference": "84b142958d1638a7e89de94ce75c2821c601d3d7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/52b588bcd8efc6d01bc1493d2d67848f8065f269",
-                "reference": "52b588bcd8efc6d01bc1493d2d67848f8065f269",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/84b142958d1638a7e89de94ce75c2821c601d3d7",
+                "reference": "84b142958d1638a7e89de94ce75c2821c601d3d7",
                 "shasum": ""
             },
             "require": {
@@ -4998,20 +4998,20 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-05-07T17:29:01+00:00"
+            "time": "2025-05-13T17:50:51+00:00"
         },
         {
             "name": "laravel/octane",
-            "version": "v2.9.1",
+            "version": "v2.9.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/octane.git",
-                "reference": "445002b2551c837d60cda4324259063c356dfb56"
+                "reference": "8278bdb3ae7a9a7380841e18e9cf52d909502647"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/octane/zipball/445002b2551c837d60cda4324259063c356dfb56",
-                "reference": "445002b2551c837d60cda4324259063c356dfb56",
+                "url": "https://api.github.com/repos/laravel/octane/zipball/8278bdb3ae7a9a7380841e18e9cf52d909502647",
+                "reference": "8278bdb3ae7a9a7380841e18e9cf52d909502647",
                 "shasum": ""
             },
             "require": {
@@ -5088,7 +5088,7 @@
                 "issues": "https://github.com/laravel/octane/issues",
                 "source": "https://github.com/laravel/octane"
             },
-            "time": "2025-04-13T21:10:35+00:00"
+            "time": "2025-05-14T14:05:50+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -5215,16 +5215,16 @@
         },
         {
             "name": "laravel/scout",
-            "version": "v10.14.1",
+            "version": "v10.15.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/scout.git",
-                "reference": "6ae3ec83ceacb554f395df9fe15318a14b79bb39"
+                "reference": "102fe09ae1c045c6f9cf1b3a2234e1fadb2198f2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/scout/zipball/6ae3ec83ceacb554f395df9fe15318a14b79bb39",
-                "reference": "6ae3ec83ceacb554f395df9fe15318a14b79bb39",
+                "url": "https://api.github.com/repos/laravel/scout/zipball/102fe09ae1c045c6f9cf1b3a2234e1fadb2198f2",
+                "reference": "102fe09ae1c045c6f9cf1b3a2234e1fadb2198f2",
                 "shasum": ""
             },
             "require": {
@@ -5292,7 +5292,7 @@
                 "issues": "https://github.com/laravel/scout/issues",
                 "source": "https://github.com/laravel/scout"
             },
-            "time": "2025-04-01T14:58:03+00:00"
+            "time": "2025-05-13T13:34:05+00:00"
         },
         {
             "name": "laravel/serializable-closure",
@@ -6645,6 +6645,61 @@
             "time": "2025-02-26T23:42:30+00:00"
         },
         {
+            "name": "mindee/mindee",
+            "version": "v1.21.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mindee/mindee-api-php.git",
+                "reference": "37265d9ce781340c637dc7f73cdff3ca96136b77"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/37265d9ce781340c637dc7f73cdff3ca96136b77",
+                "reference": "37265d9ce781340c637dc7f73cdff3ca96136b77",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-fileinfo": "*",
+                "ext-json": "*",
+                "php": ">=7.4",
+                "setasign/fpdf": "^1.8",
+                "setasign/fpdi": "^2.6",
+                "smalot/pdfparser": "^2.11",
+                "symfony/console": ">=5.4"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.38",
+                "madewithlove/license-checker": "^0.10.0",
+                "phpunit/phpunit": "^9.6",
+                "squizlabs/php_codesniffer": "^3.7"
+            },
+            "suggest": {
+                "ext-imagick": "Required for PDF rasterization and image processing features",
+                "ghostscript/ghostscript": "Required for PDF rasterization features"
+            },
+            "bin": [
+                "mindee",
+                "bin/cli.php"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Mindee\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Mindee Client Library for PHP",
+            "support": {
+                "issues": "https://github.com/mindee/mindee-api-php/issues",
+                "source": "https://github.com/mindee/mindee-api-php/tree/v1.21.0"
+            },
+            "time": "2025-04-23T13:13:15+00:00"
+        },
+        {
             "name": "mll-lab/graphql-php-scalars",
             "version": "v6.4.0",
             "source": {
@@ -6707,16 +6762,16 @@
         },
         {
             "name": "mll-lab/laravel-graphiql",
-            "version": "v4.0.1",
+            "version": "v4.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mll-lab/laravel-graphiql.git",
-                "reference": "2ebe7c4405b58028c93d3a08623f3b162a90012d"
+                "reference": "50135ffb1874e41cd6bb59d6334e8639fe579c72"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/2ebe7c4405b58028c93d3a08623f3b162a90012d",
-                "reference": "2ebe7c4405b58028c93d3a08623f3b162a90012d",
+                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/50135ffb1874e41cd6bb59d6334e8639fe579c72",
+                "reference": "50135ffb1874e41cd6bb59d6334e8639fe579c72",
                 "shasum": ""
             },
             "require": {
@@ -6767,9 +6822,9 @@
             ],
             "support": {
                 "issues": "https://github.com/mll-lab/laravel-graphiql/issues",
-                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v4.0.1"
+                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v4.0.2"
             },
-            "time": "2025-05-07T16:45:31+00:00"
+            "time": "2025-05-12T07:21:46+00:00"
         },
         {
             "name": "moneyphp/money",
@@ -7496,16 +7551,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.56.0",
+            "version": "v6.56.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "b6d5ed680cd27fcf3a84540b6d6ceccabcb4bdf7"
+                "reference": "5a80dd283b5f19d7f78b18d14d3854811a9864a4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/b6d5ed680cd27fcf3a84540b6d6ceccabcb4bdf7",
-                "reference": "b6d5ed680cd27fcf3a84540b6d6ceccabcb4bdf7",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/5a80dd283b5f19d7f78b18d14d3854811a9864a4",
+                "reference": "5a80dd283b5f19d7f78b18d14d3854811a9864a4",
                 "shasum": ""
             },
             "require": {
@@ -7623,7 +7678,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2025-05-07T15:03:59+00:00"
+            "time": "2025-05-16T08:14:50+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -7705,16 +7760,16 @@
         },
         {
             "name": "openai-php/client",
-            "version": "v0.12.0",
+            "version": "v0.13.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/openai-php/client.git",
-                "reference": "87cb05309dc1b3ba96725dfeb66186df83a2d489"
+                "reference": "399229860cea244843753bf1d9c28aee0e74c3a6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/openai-php/client/zipball/87cb05309dc1b3ba96725dfeb66186df83a2d489",
-                "reference": "87cb05309dc1b3ba96725dfeb66186df83a2d489",
+                "url": "https://api.github.com/repos/openai-php/client/zipball/399229860cea244843753bf1d9c28aee0e74c3a6",
+                "reference": "399229860cea244843753bf1d9c28aee0e74c3a6",
                 "shasum": ""
             },
             "require": {
@@ -7776,7 +7831,7 @@
             ],
             "support": {
                 "issues": "https://github.com/openai-php/client/issues",
-                "source": "https://github.com/openai-php/client/tree/v0.12.0"
+                "source": "https://github.com/openai-php/client/tree/v0.13.0"
             },
             "funding": [
                 {
@@ -7792,7 +7847,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-04T13:34:48+00:00"
+            "time": "2025-05-14T21:43:59+00:00"
         },
         {
             "name": "paragonie/constant_time_encoding",
@@ -10202,16 +10257,16 @@
         },
         {
             "name": "sentry/sentry",
-            "version": "4.11.0",
+            "version": "4.11.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-php.git",
-                "reference": "ebf67deb9902b6da58a4b3383cbd12fed3f4f555"
+                "reference": "53dc0bcb6a667cac5b760b46f98d5380e63e02ca"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/ebf67deb9902b6da58a4b3383cbd12fed3f4f555",
-                "reference": "ebf67deb9902b6da58a4b3383cbd12fed3f4f555",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/53dc0bcb6a667cac5b760b46f98d5380e63e02ca",
+                "reference": "53dc0bcb6a667cac5b760b46f98d5380e63e02ca",
                 "shasum": ""
             },
             "require": {
@@ -10275,7 +10330,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-php/issues",
-                "source": "https://github.com/getsentry/sentry-php/tree/4.11.0"
+                "source": "https://github.com/getsentry/sentry-php/tree/4.11.1"
             },
             "funding": [
                 {
@@ -10287,7 +10342,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2025-04-14T09:04:23+00:00"
+            "time": "2025-05-12T11:30:33+00:00"
         },
         {
             "name": "sentry/sentry-laravel",
@@ -10377,6 +10432,124 @@
                 }
             ],
             "time": "2025-02-18T10:09:29+00:00"
+        },
+        {
+            "name": "setasign/fpdf",
+            "version": "1.8.6",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Setasign/FPDF.git",
+                "reference": "0838e0ee4925716fcbbc50ad9e1799b5edfae0a0"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Setasign/FPDF/zipball/0838e0ee4925716fcbbc50ad9e1799b5edfae0a0",
+                "reference": "0838e0ee4925716fcbbc50ad9e1799b5edfae0a0",
+                "shasum": ""
+            },
+            "require": {
+                "ext-gd": "*",
+                "ext-zlib": "*"
+            },
+            "type": "library",
+            "autoload": {
+                "classmap": [
+                    "fpdf.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Olivier Plathey",
+                    "email": "oliver@fpdf.org",
+                    "homepage": "http://fpdf.org/"
+                }
+            ],
+            "description": "FPDF is a PHP class which allows to generate PDF files with pure PHP. F from FPDF stands for Free: you may use it for any kind of usage and modify it to suit your needs.",
+            "homepage": "http://www.fpdf.org",
+            "keywords": [
+                "fpdf",
+                "pdf"
+            ],
+            "support": {
+                "source": "https://github.com/Setasign/FPDF/tree/1.8.6"
+            },
+            "time": "2023-06-26T14:44:25+00:00"
+        },
+        {
+            "name": "setasign/fpdi",
+            "version": "v2.6.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Setasign/FPDI.git",
+                "reference": "67c31f5e50c93c20579ca9e23035d8c540b51941"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Setasign/FPDI/zipball/67c31f5e50c93c20579ca9e23035d8c540b51941",
+                "reference": "67c31f5e50c93c20579ca9e23035d8c540b51941",
+                "shasum": ""
+            },
+            "require": {
+                "ext-zlib": "*",
+                "php": "^7.1 || ^8.0"
+            },
+            "conflict": {
+                "setasign/tfpdf": "<1.31"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^7",
+                "setasign/fpdf": "~1.8.6",
+                "setasign/tfpdf": "~1.33",
+                "squizlabs/php_codesniffer": "^3.5",
+                "tecnickcom/tcpdf": "^6.2"
+            },
+            "suggest": {
+                "setasign/fpdf": "FPDI will extend this class but as it is also possible to use TCPDF or tFPDF as an alternative. There's no fixed dependency configured."
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "setasign\\Fpdi\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jan Slabon",
+                    "email": "jan.slabon@setasign.com",
+                    "homepage": "https://www.setasign.com"
+                },
+                {
+                    "name": "Maximilian Kresse",
+                    "email": "maximilian.kresse@setasign.com",
+                    "homepage": "https://www.setasign.com"
+                }
+            ],
+            "description": "FPDI is a collection of PHP classes facilitating developers to read pages from existing PDF documents and use them as templates in FPDF. Because it is also possible to use FPDI with TCPDF, there are no fixed dependencies defined. Please see suggestions for packages which evaluates the dependencies automatically.",
+            "homepage": "https://www.setasign.com/fpdi",
+            "keywords": [
+                "fpdf",
+                "fpdi",
+                "pdf"
+            ],
+            "support": {
+                "issues": "https://github.com/Setasign/FPDI/issues",
+                "source": "https://github.com/Setasign/FPDI/tree/v2.6.3"
+            },
+            "funding": [
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/setasign/fpdi",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2025-02-05T13:22:35+00:00"
         },
         {
             "name": "shish/safe",
@@ -10678,6 +10851,57 @@
                 "source": "https://github.com/JosephSilber/bouncer/tree/v1.0.3"
             },
             "time": "2025-02-24T22:33:29+00:00"
+        },
+        {
+            "name": "smalot/pdfparser",
+            "version": "v2.12.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/smalot/pdfparser.git",
+                "reference": "8440edbf58c8596074e78ada38dcb0bd041a5948"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/8440edbf58c8596074e78ada38dcb0bd041a5948",
+                "reference": "8440edbf58c8596074e78ada38dcb0bd041a5948",
+                "shasum": ""
+            },
+            "require": {
+                "ext-iconv": "*",
+                "ext-zlib": "*",
+                "php": ">=7.1",
+                "symfony/polyfill-mbstring": "^1.18"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-0": {
+                    "Smalot\\PdfParser\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-3.0"
+            ],
+            "authors": [
+                {
+                    "name": "Sebastien MALOT",
+                    "email": "sebastien@malot.fr"
+                }
+            ],
+            "description": "Pdf parser library. Can read and extract information from pdf file.",
+            "homepage": "https://www.pdfparser.org",
+            "keywords": [
+                "extract",
+                "parse",
+                "parser",
+                "pdf",
+                "text"
+            ],
+            "support": {
+                "issues": "https://github.com/smalot/pdfparser/issues",
+                "source": "https://github.com/smalot/pdfparser/tree/v2.12.0"
+            },
+            "time": "2025-03-31T13:16:09+00:00"
         },
         {
             "name": "spatie/enum",
@@ -15354,22 +15578,23 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.6.0",
+            "version": "8.6.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "6b50788637a27d27409cbb6bbf69fada8195888e"
+                "reference": "de0b95f62942758e849a4337f23426e84e36cfe4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/6b50788637a27d27409cbb6bbf69fada8195888e",
-                "reference": "6b50788637a27d27409cbb6bbf69fada8195888e",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/de0b95f62942758e849a4337f23426e84e36cfe4",
+                "reference": "de0b95f62942758e849a4337f23426e84e36cfe4",
                 "shasum": ""
             },
             "require": {
                 "php": ">=7.1.0"
             },
             "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.0",
                 "guzzlehttp/guzzle": "^6.3 || ^7.0",
                 "phpunit/phpunit": ">=7.0 < 10"
             },
@@ -15399,7 +15624,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2025-05-05T10:42:37+00:00"
+            "time": "2025-05-13T09:51:13+00:00"
         },
         {
             "name": "typesense/laravel-scout-typesense-driver",
@@ -16779,16 +17004,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.14",
+            "version": "2.1.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "8f2e03099cac24ff3b379864d171c5acbfc6b9a2"
+                "reference": "b8c1cf533cba0c305d91c6ccd23f3dd0566ba5f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/8f2e03099cac24ff3b379864d171c5acbfc6b9a2",
-                "reference": "8f2e03099cac24ff3b379864d171c5acbfc6b9a2",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/b8c1cf533cba0c305d91c6ccd23f3dd0566ba5f9",
+                "reference": "b8c1cf533cba0c305d91c6ccd23f3dd0566ba5f9",
                 "shasum": ""
             },
             "require": {
@@ -16833,7 +17058,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-02T15:32:28+00:00"
+            "time": "2025-05-16T09:40:10+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

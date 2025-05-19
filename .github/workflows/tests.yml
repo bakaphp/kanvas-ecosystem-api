@@ -228,7 +228,7 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: php artisan test
+        run: php artisan test --dont-report-useless-tests
 
       - name: Upload artifacts
         uses: actions/upload-artifact@master

@@ -43,17 +43,16 @@ class SendPushPromptOfTheWeekCommand extends Command
         $messageTypeId = (int) $this->argument('message_type_id');
 
         $messageType = MessageType::getById($messageTypeId);
-        $endViaList = array_map(
-            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-            $params['via'] ?? ['database']
-        );
+        $via = [
+            NotificationChannelEnum::getNotificationChannelBySlug('push'),
+        ];
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)
-            ->chunk(100, function ($usersAssocApps) use ($app, $messageType, $endViaList) {
+            ->chunk(100, function ($usersAssocApps) use ($app, $messageType, $via) {
                 foreach ($usersAssocApps as $usersAssocApp) {
                     $this->info('Sending message of the week to user: ' . $usersAssocApp->user->getId());
-                    SendMessageOfTheWeekJob::dispatch($app, $usersAssocApp->user, $messageType, $endViaList);
+                    SendMessageOfTheWeekJob::dispatch($app, $usersAssocApp->user, $messageType, $via);
                     $this->info('Message of the week sent to user: ' . $usersAssocApp->user->getId());
                 }
             });

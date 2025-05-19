@@ -21,6 +21,7 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Connectors\VentaMobile\Services\ESimService as VentaMobileESimService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Templates\Blank;
@@ -64,13 +65,15 @@ class SyncEsimWithProviderCommand extends Command
         $eSimService = new ESimService($app);
         $easyActivationOrderService = new OrderService($app);
         $cmLinkCustomerService = new CustomerService($app, $company);
+        $ventaMobileService = new VentaMobileESimService($app, $company);
 
         foreach ($messages as $message) {
             $this->processMessage(
                 $message,
                 $eSimService,
                 $easyActivationOrderService,
-                $cmLinkCustomerService
+                $cmLinkCustomerService,
+                $ventaMobileService
             );
         }
     }
@@ -79,7 +82,8 @@ class SyncEsimWithProviderCommand extends Command
         Message $message,
         ESimService $eSimService,
         OrderService $easyActivationOrderService,
-        CustomerService $cmLinkCustomerService
+        CustomerService $cmLinkCustomerService,
+        VentaMobileESimService $ventaMobileService
     ): void {
         $iccid = $message->message['data']['iccid'] ?? null;
         $bundle = $message->message['data']['plan'] ?? null;
@@ -123,7 +127,8 @@ class SyncEsimWithProviderCommand extends Command
                 $bundle,
                 $eSimService,
                 $easyActivationOrderService,
-                $cmLinkCustomerService
+                $cmLinkCustomerService,
+                $ventaMobileService
             );
             if (empty($response)) {
                 return;
@@ -142,7 +147,8 @@ class SyncEsimWithProviderCommand extends Command
         ?string $bundle,
         ESimService $eSimService,
         OrderService $easyActivationOrderService,
-        CustomerService $cmLinkCustomerService
+        CustomerService $cmLinkCustomerService,
+        VentaMobileESimService $ventaMobileService
     ): ?array {
         switch ($network) {
             case strtolower(ProviderEnum::E_SIM_GO->value):
@@ -170,6 +176,19 @@ class SyncEsimWithProviderCommand extends Command
                     $cmLinkCustomerService->getEsimInfo($iccid)['data'],
                     $cmLinkCustomerService,
                 );
+
+            case strtolower(ProviderEnum::VENTA_MOBILE->value):
+                $serviceInfoArr = $ventaMobileService->getServiceByIccid($iccid);
+                if (empty($serviceInfoArr)) {
+                    return null;
+                }
+                $serviceInfo = $serviceInfoArr[0];
+                $serviceId = $serviceInfo['services_info']['id_service_inst'] ?? null;
+                if (! $serviceId) {
+                    return null;
+                }
+                $balance = $ventaMobileService->getServiceBalance($serviceId);
+                return $this->formatVentaMobileResponse($message, $serviceInfo, $balance);
 
             default:
                 return null;
@@ -559,5 +578,60 @@ class SyncEsimWithProviderCommand extends Command
             $message->setPublic();
             $this->info("Message ID: {$message->id} has been set to public.");
         }
+    }
+
+    private function formatVentaMobileResponse(Message $message, array $serviceInfo, array $balance): array
+    {
+        $orderCreationDate = $message->appModuleMessage->entity->created_at ?? null;
+        $activationDate = $orderCreationDate ? Carbon::parse($orderCreationDate)->format('Y-m-d H:i:s') : '';
+
+        $variant = $message->appModuleMessage->entity->items()->first()->variant;
+        $planDays = $variant->getAttributeBySlug('esim-days')?->value ?? $variant->getAttributeBySlug('esim_days')?->value ?? 0;
+        $expirationDate = $activationDate && $planDays > 0
+            ? Carbon::parse($activationDate)->addDays((int) $planDays)->format('Y-m-d H:i:s')
+            : '';
+
+        $status = 'unknown';
+        if ($expirationDate) {
+            $expiration = Carbon::parse($expirationDate);
+            $status = $expiration->isFuture() ? 'enable' : 'expired';
+        }
+
+        $phoneNumber = $serviceInfo['services_info']['msisdn'] ?? null;
+        $variant = $message->appModuleMessage->entity->items()->first()->variant;
+
+        $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
+        $totalBytesData = FileSizeConverter::toBytes($totalData);
+        $remainingData = $totalBytesData;
+
+        if (! empty($balance)) {
+            foreach ($balance as $bal) {
+                if (isset($bal['id_balance_type']) && $bal['id_balance_type'] == 1) {
+                    $remainingData = (float)$bal['value'];
+                    break;
+                }
+            }
+        }
+
+        $esimStatus = new ESimStatus(
+            id: (string) ($serviceInfo['services_info']['id_service_inst'] ?? ''),
+            callTypeGroup: 'data',
+            initialQuantity: $totalBytesData,
+            remainingQuantity: $remainingData,
+            assignmentDateTime: $activationDate,
+            assignmentReference: (string) ($serviceInfo['services_info']['id_service_inst'] ?? ''),
+            bundleState: 'active', //$status,
+            unlimited: false,
+            phoneNumber: $phoneNumber,
+            expirationDate: $expirationDate,
+            imei: $message->message['data']['imei_number'] ?? null,
+            esimStatus: $status,
+            message: $serviceInfo['services_info']['description'] ?? null,
+            installedDate: $activationDate,
+            activationDate: $activationDate,
+            spentMessage: null,
+        );
+
+        return $esimStatus->toArray();
     }
 }

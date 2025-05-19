@@ -55,7 +55,7 @@ class FilesystemMapperMutation
                                         ->notDeleted()
                                         ->firstOrFail();
 
-        SystemModulesServices::validateFields($systemModule, $req['file_header']);
+        SystemModulesServices::validateFields($systemModule, $req['mapping']);
 
         $mapperDto = FilesystemMapper::viaRequest(
             $app,

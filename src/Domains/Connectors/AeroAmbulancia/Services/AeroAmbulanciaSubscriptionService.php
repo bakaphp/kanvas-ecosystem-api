@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\AeroAmbulancia\Services;
 
 use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Carbon\Carbon;
 use Kanvas\Connectors\AeroAmbulancia\Client;
 use Kanvas\Connectors\AeroAmbulancia\Enums\ConfigurationEnum;
@@ -15,6 +14,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Souk\Orders\Models\Order;
 
 class AeroAmbulanciaSubscriptionService
 {
@@ -22,9 +22,9 @@ class AeroAmbulanciaSubscriptionService
 
     public function __construct(
         protected AppInterface $app,
-        protected CompanyInterface $company
+        protected Order $order
     ) {
-        $this->client = new Client($app, $company);
+        $this->client = new Client($app, $order->company);
     }
 
     /**
@@ -49,6 +49,7 @@ class AeroAmbulanciaSubscriptionService
         $subscriptionId = $this->app->get(ConfigurationEnum::SUBSCRIPTION_ID->value) ?? 44219;
 
         $holderResponse = $this->client->post('/subscriptions/' . $subscriptionId . '/subscription-items', $holderData);
+        $holderData['status'] = 'active';
         $subscriptionResponses['holder'] = [
             'data' => $holderData,
             'subscriptionItemId' => $holderResponse['id'] ?? null,
@@ -60,9 +61,12 @@ class AeroAmbulanciaSubscriptionService
             foreach ($beneficiaries['dependents'] as $dependent) {
                 $dependentData = $this->prepareBeneficiaryData($people, $dependent);
                 $dependentData['type'] = SubscriptionType::NEW->value;
-                $dependentData['relationship'] = $dependent['holderRelationship'];
+                //$dependentData['status'] = 'active';
+                $dependentData['relationship'] = (int) $dependent['holderRelationship'];
 
                 $dependentResponse = $this->client->post('/subscriptions/' . $subscriptionId . '/subscription-items', $dependentData);
+
+                $dependentData['status'] = 'active';
                 $subscriptionResponses['dependents'][] = [
                     'data' => $dependentData,
                     'subscriptionItemId' => $dependentResponse['id'] ?? null,
@@ -71,21 +75,20 @@ class AeroAmbulanciaSubscriptionService
         }
 
         // Update the message with AeroAmbulancia data
-        if (isset($subscriptionData['order'])) {
-            $order = $subscriptionData['order'];
-            $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
 
-            if ($messageId) {
-                $message = Message::getById($messageId);
-                $messageData = $message->message;
-                $messageData['aeroAmbulanciaData'] = $subscriptionResponses;
-                $message->message = $messageData;
-                $message->saveOrFail();
-            }
-            // Update order metadata as well
-            $order->metadata = array_merge(($order->metadata ?? []), ['aeroAmbulanciaData' => $subscriptionResponses]);
-            $order->saveOrFail();
+        $order = $this->order;
+        $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
+
+        if ($messageId) {
+            $message = Message::getById($messageId);
+            $messageData = $message->message;
+            $messageData['aeroAmbulanciaData'] = $subscriptionResponses;
+            $message->message = $messageData;
+            $message->saveOrFail();
         }
+        // Update order metadata as well
+        $order->metadata = array_merge(($order->metadata ?? []), ['aeroAmbulanciaData' => $subscriptionResponses]);
+        $order->saveOrFail();
 
         return $subscriptionResponses;
     }
@@ -103,25 +106,38 @@ class AeroAmbulanciaSubscriptionService
             throw new ValidationException('Invalid ambulanceVariantId: ' . $beneficiaryData['ambulanceVariantId']);
         }
 
-        $days = (int) $subscriptionVariant->getAttributeBySlug('duration')?->value ?? 30; // Default to 30 days if not specified
+        $days = (int) $subscriptionVariant->getAttributeBySlug('variant-duration')?->value ?? 30; // Default to 30 days if not specified
+        $acquiredPlan = $subscriptionVariant->getAttributeBySlug('aero_acquired_plan')?->value ?? 1; // Default to basic plan if not specified
 
         // Calculate expiration date based on activation date
         $activationDate = Carbon::createFromFormat('d-m-Y', $beneficiaryData['activationDate']);
-        $expirationDate = $activationDate->addDays($days)->format('Y-m-d H:i:s');
+
+        // Double-check expirationDate
+        $expirationDate = $beneficiaryData['expirationDate'] ?? null;
+        if ($expirationDate) {
+            $expirationDate = Carbon::createFromFormat('d-m-Y', $expirationDate);
+        } else {
+            $days = (int) $subscriptionVariant->getAttributeBySlug('variant-duration')?->value ?? 30; // Default to 30 days if not specified
+            $expirationDate = $activationDate->copy()->addDays($days);
+        }
+
+        $expirationDateFormatted = $expirationDate->format('Y-m-d H:i:s');
+
+        $typeId = ['passport' => '2', 'id' => '1'];
 
         return [
-            'documentType' => $beneficiaryData['documentType'],
+            'documentType' => $typeId[$beneficiaryData['documentType']],
             'documentNumber' => $beneficiaryData['documentNumber'],
             'firstName' => $beneficiaryData['firstname'],
             'lastName' => $beneficiaryData['lastname'],
             'email' => $people->getEmails()->first()?->value,
-            'phoneNumber' => $people->getPhones()->first()?->value,
+            'phoneNumber' => $people->getPhones()->first()?->value ?? '809732' . sprintf('%04d', random_int(0, 9999)), // Default to a random number if not specified
             'sex' => $beneficiaryData['gender'],
             'birthdate' => $beneficiaryData['birthDate'],
-            'activationDate' => $beneficiaryData['activationDate'],
-            'expirationDate' => $expirationDate,
-            'acquiredPlan' => $beneficiaryData['ambulanceVariantId'],
-            'preferredLanguage' => $beneficiaryData['preferredLanguage'] ?? 'es',
+            'activationDate' => $activationDate->format('Y-m-d H:i:s'),
+            'expirationDate' => $expirationDateFormatted,
+            'acquiredPlan' => (int) $acquiredPlan,
+            'preferredLanguage' => ucfirst($beneficiaryData['preferredLanguage'] ?? 'es'),
         ];
     }
 

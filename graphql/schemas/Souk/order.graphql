@@ -218,6 +218,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@update"
         )
+    deleteOrder(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@delete"
+        )
     createOrderFromAppleInAppPurchase(
         input: AppleInAppPurchaseReceipt!
     ): Order!

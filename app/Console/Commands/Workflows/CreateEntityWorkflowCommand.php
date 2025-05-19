@@ -51,7 +51,7 @@ class CreateEntityWorkflowCommand extends Command
     {
         $app = Apps::getById($this->argument('app_id'));
 
-        $ruleName = text('What is the name for the workflow?');
+        $ruleName = text('What is the name for the workflow for the App ' . $app->name . '?');
         $description = text('What is the description for the workflow?');
         $ruleType = select(
             label: 'What is the rule type?',

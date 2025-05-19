@@ -331,7 +331,7 @@ class CreateEsimOrderAction
             1, // Quantity
             (float) ($this->order->allItems()->first()->price ?? 0),
             'bundle',
-            (string) $this->extensionId,
+            $this->orderVariant->sku,
             $this->availableVariant->getAttributeBySlug(AttributeEnum::SMDP_ADDRESS->value)?->value,
             $this->msisdn, // Use MSISDN as activation code
             $timestampEst,

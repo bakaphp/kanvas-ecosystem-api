@@ -75,7 +75,7 @@ class Client
 
         $response = $client->sendAsync($request)->wait();
         $data = json_decode($response->getBody()->getContents(), true);
-        $this->token = $data['token'] ?? null;
+        $this->token = $data['accessToken'] ?? null;
 
         return $data;
     }
