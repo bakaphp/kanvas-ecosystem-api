@@ -47,6 +47,10 @@ class CreateProductAction
                 'companies_id' => $this->productDto->company->getId(),
             ];
 
+            // Add a lock to prevent race conditions
+            // First check if the product exists and lock the row if it does
+            $existingProduct = Products::where($search)->lockForUpdate()->first();
+
             $updateData = [
                 'products_types_id' => $productType,
                 'name' => $this->productDto->name,
@@ -65,10 +69,14 @@ class CreateProductAction
             if ($productType == null) {
                 unset($updateData['products_types_id']);
             }
-            $products = Products::updateOrCreate(
-                $search,
-                $updateData
-            );
+
+            // Use the existing product if found, otherwise create a new one
+            if ($existingProduct) {
+                $existingProduct->update($updateData);
+                $products = $existingProduct;
+            } else {
+                $products = Products::create(array_merge($search, $updateData));
+            }
 
             if (! empty($this->productDto->files)) {
                 $products->addMultipleFilesFromUrl($this->productDto->files);
