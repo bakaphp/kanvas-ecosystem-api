@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Tests\Connectors\Integration\DriveCentric;
 
-use Tests\TestCase;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\DriveCentric\Handlers\DriveCentricHandler;
-use Kanvas\Regions\Models\Regions;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;
+use Kanvas\Connectors\DriveCentric\Handlers\DriveCentricHandler;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Regions\Models\Regions;
+use Tests\TestCase;
+
 final class PushLeadTest extends TestCase
 {
     public function testPushLeadAction()
@@ -21,7 +22,7 @@ final class PushLeadTest extends TestCase
             ->withCompanyId(auth()->user()->getCurrentCompany()->getId())
             ->create()
             ->getId();
-                
+
         $region = Regions::create([
             'apps_id' => $app->getId(),
             'companies_id' => auth()->user()->getCurrentCompany()->getId(),
