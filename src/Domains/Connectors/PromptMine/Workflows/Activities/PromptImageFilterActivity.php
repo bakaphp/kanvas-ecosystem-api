@@ -347,7 +347,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             }
         } catch (InternalServerErrorException $e) {
             report($e);
-            $title = 'Filtered Image';
+            $title = $entity->message['prompt'];
         }
 
         $totalDelivery = 0;
