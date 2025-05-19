@@ -38,6 +38,7 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
@@ -181,6 +182,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessVehicleImageActivity::class,
             WorkflowsProcessVehicleImageActivity::class,
             ProcessMessageVehicleImageActivity::class,
+            LLMMessageResponseActivity::class,
         ];
 
         $createdActions = [];
