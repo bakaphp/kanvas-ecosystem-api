@@ -15,16 +15,19 @@ final class PasoRapidoTest extends TestCase
     {
         $app = app(Apps::class);
         $company = Companies::first();
+        $config = [
+            'client_id' => env('TEST_PASO_RAPIDO_CLIENT_ID'),
+            'secret' => env('TEST_PASO_RAPIDO_SECRET'),
+        ];
+
         $pasoRapidoService = new PasoRapidoService(
             app: $app,
             company: $company,
-            config: [
-                'client_id' => getenv('TEST_PASO_RAPIDO_CLIENT_ID'),
-                'secret' => getenv('TEST_PASO_RAPIDO_SECRET'),
-            ]
+            config: $config
         );
 
-        $result = $pasoRapidoService->verifyCustomer('1234567890');
+        $tag = env('TEST_PASO_RAPIDO_TAG');
+        $result = $pasoRapidoService->verifyCustomer($tag);
         print_r($result);
         $this->assertTrue($result);
     }

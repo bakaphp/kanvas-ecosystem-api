@@ -19,18 +19,4 @@ class PaymentConfirmResponse extends Data
         public readonly string $reference
     ) {
     }
-
-    public static function fromArray(array $data): self
-    {
-        return new self(
-            $data['descripcionMensaje'],
-            $data['montoAcreditado'],
-            $data['orden'],
-            $data['tag'],
-            $data['cuenta'],
-            $data['fechaCredito'],
-            InvoiceDetails::fromArray($data['detallesFactura']),
-            $data['referencia']
-        );
-    }
 }

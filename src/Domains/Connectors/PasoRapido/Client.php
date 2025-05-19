@@ -27,8 +27,8 @@ class Client
         protected array $config = []
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? self::SANDBOX_URL;
-        $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value) ?? $config['client_id'];
-        $this->secret = $this->app->get(ConfigurationEnum::SECRET->value) ?? $config['secret'];
+        $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value) ?? $config['client_id'] ?? '';
+        $this->secret = $this->app->get(ConfigurationEnum::SECRET->value) ?? $config['secret'] ?? '';
 
         if (empty($this->clientId) || empty($this->secret)) {
             throw new ValidationException('Paso Rapido configuration is missing');
@@ -57,7 +57,8 @@ class Client
 
         $body = json_decode($result->getBody()->getContents());
 
-        return $body;
+
+        return $body->autorizacion;
     }
 
     /**
