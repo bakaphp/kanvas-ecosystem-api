@@ -10,9 +10,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Notifications\FollowsRecommendationsPushNotication;
 use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use Kanvas\Social\Messages\Repositories\MessagesRepository;
 
 class PushFollowRecommendationNotificationCommand extends Command
 {
