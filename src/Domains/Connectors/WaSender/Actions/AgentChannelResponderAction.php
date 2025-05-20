@@ -43,18 +43,25 @@ class AgentChannelResponderAction
                 $this->agent,
             )->execute();
 
-            $previousMessage = $this->channel->getPreviousMessage($this->message);
+            /*  $previousMessage = $this->channel->getPreviousMessage($this->message);
 
-            if ($previousMessage && MessageTypeEnum::isDocumentType($previousMessage->messageType->verb) && $previousMessage->id !== $this->message->id) {
-                //$this->message->associate($previousMessage);
-                $previousMessage = $previousMessage->parent ?? $previousMessage;
-                $this->message->parent_id = $previousMessage->id;
-                $this->message->disableWorkflows();
-                $this->message->save();
-                $this->message->enableWorkflows();
+             if ($previousMessage && MessageTypeEnum::isDocumentType($previousMessage->messageType->verb) && $previousMessage->id !== $this->message->id) {
+                 //$this->message->associate($previousMessage);
+                 $previousMessage = $previousMessage->parent ?? $previousMessage;
+                 $this->message->parent_id = $previousMessage->id;
+                 $this->message->disableWorkflows();
+                 $this->message->save();
+                 $this->message->enableWorkflows();
+                 $this->message->fireWorkflow(WorkflowEnum::DURING_WORKFLOW->value, true, [
+                     'app' => $this->message->app,
+                     'company' => $this->message->company,
+                 ]);
+             } */
+
+            if ($this->message->parent_id === null || $this->message->parent_id === 0) {
                 $this->message->fireWorkflow(WorkflowEnum::DURING_WORKFLOW->value, true, [
-                    'app' => $this->message->app,
-                    'company' => $this->message->company,
+                   'app' => $this->message->app,
+                   'company' => $this->message->company,
                 ]);
             }
 

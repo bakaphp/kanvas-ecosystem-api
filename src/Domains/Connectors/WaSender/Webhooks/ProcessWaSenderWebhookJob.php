@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\WaSender\Webhooks;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
@@ -29,6 +30,8 @@ use Spatie\LaravelData\DataCollection;
 
 class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 {
+    protected int $timeThresholdInSeconds = 5;
+
     #[Override]
     public function execute(): array
     {
@@ -45,6 +48,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
         // Get event type from payload
         $eventType = $payload['event'] ?? 'unknown';
+        $this->timeThresholdInSeconds = $this->receiver->configuration['time_threshold_in_seconds'] ?? $this->timeThresholdInSeconds;
 
         // Process based on event type
         $result = match ($eventType) {
@@ -110,6 +114,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $messageContent = $messageData['message'] ?? [];
 
             $messageType = $this->getMessageType($messageContent);
+            $isDocument = MessageTypeEnum::isDocumentType($messageType);
             $text = $this->extractMessageText($messageContent, $messageType);
             $chatJid = $key['remoteJid'] ?? null;
             $isFromMe = $key['fromMe'] ?? false;
@@ -162,6 +167,17 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $message = $createMessageAction->execute();
             }
 
+            $previousMessage = $channel->getPreviousMessage($message);
+            $timeThresholdInSeconds = $this->timeThresholdInSeconds;
+
+            if ($previousMessage && $previousMessage->messageType->verb === MessageTypeEnum::IMAGE->value) {
+                $timeDifference = $message->created_at->diffInSeconds($previousMessage->created_at);
+
+                if ($timeDifference < $timeThresholdInSeconds) {
+                    $message->update(['parent_id' => $previousMessage->id]);
+                }
+            }
+
             // If the message is not from the user, process the contact
             if (! $isFromMe) {
                 /**
@@ -177,16 +193,20 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
             // Associate message with channel
             $channel->addMessage($message);
-            $channel->fireWorkflow(
-                WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
-                true,
-                [
-                    'message' => $message,
-                    'user' => $message->user,
-                    'app' => $message->app,
-                    'company' => $message->company,
-                ]
-            );
+
+            // only fire for non-document messages
+            if (! $isDocument) {
+                $channel->fireWorkflow(
+                    WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
+                    true,
+                    [
+                        'message' => $message,
+                        'user' => $message->user,
+                        'app' => $message->app,
+                        'company' => $message->company,
+                    ]
+                );
+            }
 
             // Add to processed results
             $processedMessages[] = [
@@ -213,6 +233,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $data = $payload['data'] ?? [];
 
         $processedUpdates = [];
+        $time = $payload['timestamp'] ?? time();
 
         foreach ($data as $updateData) {
             $key = $updateData['key'] ?? [];
@@ -221,10 +242,13 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $messageId = $key['id'] ?? null;
             $chatJid = $key['remoteJid'] ?? null;
             $status = $update['status'] ?? null;
+            $messageTime = $update['timestamp'] ?? null;
+                $channel = $this->getOrCreateChannel($chatJid);
 
             if ($messageId && $chatJid) {
                 // Find the message
                 $messageSlug = $this->createMessageSlug($messageId, $chatJid);
+
                 $message = Message::where('uuid', $messageSlug)
                     ->where('companies_id', $this->receiver->company->getId())
                     ->where('apps_id', $this->receiver->app->getId())
@@ -245,6 +269,22 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                         'status' => $status,
                     ];
                 }
+            }
+
+            $lastMessage = $channel->getLastMessage();
+            $lastMessageParent = $lastMessage->parent ?? null;
+
+            if ($lastMessageParent && $lastMessageParent->created_at->diffInSeconds($time) < $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
+                $channel->fireWorkflow(
+                    WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
+                    true,
+                    [
+                        'message' => $message,
+                        'user' => $message->user,
+                        'app' => $message->app,
+                        'company' => $message->company,
+                    ]
+                );
             }
         }
 
