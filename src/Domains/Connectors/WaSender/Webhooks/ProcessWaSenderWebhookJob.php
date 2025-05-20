@@ -209,6 +209,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             if (! $isDocument) {
                 $processDocument = false;
                 if ($lastMessageParent !== null) {
+                    $text = $message->message['raw_data']['message']['conversation'] ??
+                       $message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
                     $isLastMessageDocument = MessageTypeEnum::isDocumentType($lastMessageParent->messageType->verb);
                     $processDocument = $isLastMessageDocument && $text !== null && (trim(strtolower($text)) === 'process document' || trim(strtolower($text)) === 'process');
                 }
