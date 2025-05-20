@@ -222,6 +222,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                         'app' => $message->app,
                         'company' => $message->company,
                         'process_document' => $processDocument,
+                        'text' => $text,
                         'lastMessageParentDocument' => $lastMessageParent !== null ? $lastMessageParent : null,
                     ]
                 );
