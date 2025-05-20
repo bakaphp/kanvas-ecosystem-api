@@ -273,31 +273,32 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     ];
                 }
             }
+        }
 
-            $lastMessage = $channel->getLastMessage();
-            $lastMessageParent = $lastMessage->parent ?? null;
+        $lastMessage = $channel->getLastMessage();
+        $lastMessageParent = $lastMessage->parent ?? null;
 
-            // Convert the webhook timestamp from milliseconds to seconds
-            $time = (int) ($payload['timestamp'] ?? time() * 1000) / 1000;
-            // Create a Carbon instance from the timestamp
-            $timeCarbon = Carbon::createFromTimestamp($time);
+        // Convert the webhook timestamp from milliseconds to seconds
+        $time = (int) ($payload['timestamp'] ?? time() * 1000) / 1000;
+        // Create a Carbon instance from the timestamp
+        $timeCarbon = Carbon::createFromTimestamp($time);
 
-            if ($lastMessageParent !== null && $lastMessageParent->created_at->diffInSeconds($timeCarbon) >= $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
-                $channel->fireWorkflow(
-                    WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
-                    true,
-                    [
-                        'message' => $lastMessageParent,
-                        'user' => $lastMessageParent->user,
-                        'app' => $lastMessageParent->app,
-                        'company' => $lastMessageParent->company,
-                    ]
-                );
-            }
+        if ($lastMessageParent !== null && $lastMessageParent->created_at->diffInSeconds($timeCarbon) >= $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
+            $channel->fireWorkflow(
+                WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
+                true,
+                [
+                    'message' => $lastMessageParent,
+                    'user' => $lastMessageParent->user,
+                    'app' => $lastMessageParent->app,
+                    'company' => $lastMessageParent->company,
+                ]
+            );
         }
 
         return [
             'updates' => $processedUpdates,
+            'last_message' => $lastMessage,
         ];
     }
 
