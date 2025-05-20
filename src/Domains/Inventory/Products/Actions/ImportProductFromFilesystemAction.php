@@ -94,7 +94,6 @@ class ImportProductFromFilesystemAction
         $result = [];
 
         foreach ($template as $key => $value) {
-
             $targetKey = ($key === 'variant_name') ? 'name' : $key;
 
             if ($key === 'attributes' && is_array($value)) {
