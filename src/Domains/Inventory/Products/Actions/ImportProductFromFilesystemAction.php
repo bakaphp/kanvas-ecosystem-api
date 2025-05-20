@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
-use Baka\Enums\StateEnums;
-use DateTime;
-use Exception;
+use Baka\Validations\Date;
 use Illuminate\Support\Str;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 use League\Csv\Reader;
 
 class ImportProductFromFilesystemAction
@@ -44,12 +43,24 @@ class ImportProductFromFilesystemAction
             );
 
             $listOfVariants[$variant['handler']][] = $variant;
-
         }
 
         if ($modelName == Products::class) {
             foreach ($listOfVariants as $key => $variants) {
 
+                $productAttributes = [];
+                foreach ($variants as $variant) {
+                    if (isset($variant['attributes']) && is_array($variant['attributes'])) {
+                        foreach ($variant['attributes'] as $attrName => $attrValue) {
+                            if (isset($attrValue['fromProduct']) && $attrValue['fromProduct'] === true) {
+                                $productAttributes[$attrName] = $attrValue;
+                            }
+                        }
+                    }
+                }
+
+                $productTypeId = $this->filesystemImports->filesystemMapper->configuration['product_type_id'];
+                $productType = $productTypeId ? ProductsTypesRepository::getById($productTypeId, $this->filesystemImports->company, $this->filesystemImports->app) : null;
                 $listOfProducts[] = [
                     'name' => $variants[0]['product_name'],
                     'description' => $variants[0]['product_description'] ?? '',
@@ -58,11 +69,15 @@ class ImportProductFromFilesystemAction
                     'status' => $variants[0]['status'],
                     'customFields' => [],
                     'variants' => $variants,
-                    'price' => 0.0
+                    'attributes' => $productAttributes,
+                    'price' => 0.0,
+                    'productType' => $productType ? [
+                        'id' => $productType->id,
+                        'name' => $productType->name,
+                        'weight' => $productType->weight
+                    ] : null
                 ];
-
             }
-
         }
 
         ProductImporterJob::class::dispatch(
@@ -83,87 +98,37 @@ class ImportProductFromFilesystemAction
         foreach ($template as $key => $value) {
 
             $targetKey = ($key === 'variant_name') ? 'name' : $key;
-            // Determinar el valor base según el tipo y prefijos
+
+            if ($key === 'attributes' && is_array($value)) {
+                $result[$targetKey] = $this->mapper($value, $data);
+                continue;
+            }
+
+            if (is_array($value)) {
+                $result[$targetKey] = $this->mapper($value, $data);
+                continue;
+            }
+
             $result[$targetKey] = match (true) {
                 is_string($value) && str_starts_with($value, '_') => substr($value, 1),
-                is_string($value) && str_starts_with($value, 'date_') => $this->createFromFormat($data[substr($value, 5)] ?? ''),
+                is_string($value) && str_starts_with($value, 'date_') => Date::createFromFormat($data[substr($value, 5)] ?? ''),
                 is_string($value) => $data[$value] ?? null,
                 default => $value,
             };
 
-            // Procesamiento específico para archivos y fechas
             if ($targetKey === 'files' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
-                $result[$targetKey] = $this->explodeFileStringBasedOnDelimiter($result[$targetKey]);
-            } elseif (is_string($result[$targetKey]) && $this->isValidDate($result[$targetKey])) {
-                $result[$targetKey] = $this->createFromFormat($result[$targetKey]);
+                $result[$targetKey] = Date::explodeFileStringBasedOnDelimiter($result[$targetKey]);
+            } elseif (is_string($result[$targetKey]) && Date::isValidDate($result[$targetKey])) {
+                $result[$targetKey] = Date::createFromFormat($result[$targetKey]);
             }
         }
 
         return $result;
     }
 
-    protected function isValidDate(string $dateString): bool
-    {
-        $date = DateTime::createFromFormat('Y-m-d H:i:s', $dateString) ?:
-                DateTime::createFromFormat('Y-m-d', $dateString) ?:
-                DateTime::createFromFormat('m/d/Y', $dateString) ?:
-                DateTime::createFromFormat('d/m/Y', $dateString) ?:
-                DateTime::createFromFormat('m/d/y', $dateString) ?:
-                DateTime::createFromFormat('d-m-Y', $dateString) ?:
-                DateTime::createFromFormat('Y-m-d', $dateString) ?:
-                DateTime::createFromFormat('j/n/Y', $dateString);
-
-        return $date !== false;
-    }
-
-    protected function createFromFormat(string $dateString): ?string
-    {
-        $date = DateTime::createFromFormat('Y-m-d H:i:s', $dateString) ?:
-                DateTime::createFromFormat('Y-m-d', $dateString) ?:
-                DateTime::createFromFormat('m/d/Y', $dateString) ?:
-                DateTime::createFromFormat('d/m/Y', $dateString) ?:
-                DateTime::createFromFormat('m/d/y', $dateString) ?:
-                DateTime::createFromFormat('d-m-Y', $dateString) ?:
-                DateTime::createFromFormat('j/n/Y', $dateString);
-
-        if (! $date) {
-            $timestamp = strtotime($dateString);
-            if ($timestamp !== false) {
-                return $timestamp;
-            } else {
-                throw new Exception('Invalid date format');
-            }
-        }
-
-        return $date->format('Y-m-d H:i:s');
-    }
-
-    public function explodeFileStringBasedOnDelimiter(string $value): array
-    {
-        $delimiter = match (true) {
-            Str::contains($value, '|') => '|',
-            Str::contains($value, ',') => ',',
-            Str::contains($value, ';') => ';',
-            default => '|',
-        };
-
-        $fileLinks = explode($delimiter, $value);
-
-        return array_map(function ($fileLink) {
-            $fileLink = trim($fileLink);
-            $cleanedUrl = Str::before($fileLink, '?');
-
-            return [
-                'url' => $fileLink,
-                'name' => basename($cleanedUrl),
-            ];
-        }, $fileLinks);
-    }
-
     private function getFilePath(Filesystem $filesystem): string
     {
         $service = (new FilesystemServices($this->filesystemImports->app));
-
         return $service->getFileLocalPath($filesystem);
     }
 }
