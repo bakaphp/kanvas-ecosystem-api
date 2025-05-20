@@ -74,7 +74,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                     $channel,
                     $message,
                     Agent::getById($agentId, $app)
-                )->execute();
+                )->execute($additionalParams);
             },
             company: $channel->company,
         );

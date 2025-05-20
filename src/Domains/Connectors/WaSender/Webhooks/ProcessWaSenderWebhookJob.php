@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Webhooks;
 
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Kanvas\Connectors\WaSender\Actions\DownloadMessageFileAction;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Exceptions\ValidationException;
@@ -195,9 +195,24 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
             // Associate message with channel
             $channel->addMessage($message);
+            $lastMessage = $channel->getLastMessage();
+            $lastMessageParent = $lastMessage->parent ?? null;
+
+            if ($isDocument) {
+                new DownloadMessageFileAction(
+                    $channel,
+                    $message,
+                )->execute();
+            }
 
             // only fire for non-document messages
             if (! $isDocument) {
+                $processDocument = false;
+                if ($lastMessageParent !== null) {
+                    $isLastMessageDocument = MessageTypeEnum::isDocumentType($lastMessageParent->messageType->verb);
+                    $processDocument = $isLastMessageDocument && (trim($text) === 'process document' || trim($text) === 'process');
+                }
+
                 $channel->fireWorkflow(
                     WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
                     true,
@@ -206,6 +221,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                         'user' => $message->user,
                         'app' => $message->app,
                         'company' => $message->company,
+                        'process_document' => $processDocument,
+                        'lastMessageParentDocument' => $lastMessageParent !== null ? $lastMessageParent : null,
                     ]
                 );
             }
@@ -275,33 +292,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             }
         }
 
-        $lastMessage = $channel->getLastMessage();
-        $lastMessageParent = $lastMessage->parent ?? null;
-
-        // Convert the webhook timestamp from milliseconds to seconds
-        $time = (int) ($payload['timestamp'] ?? time() * 1000) / 1000;
-        // Create a Carbon instance from the timestamp
-        $timeCarbon = Carbon::createFromTimestamp($time);
-        $sendToWorkflow = false;
-
-        if ($lastMessageParent !== null && $lastMessageParent->created_at->diffInSeconds($timeCarbon) >= $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
-            $channel->fireWorkflow(
-                WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
-                true,
-                [
-                    'message' => $lastMessageParent,
-                    'user' => $lastMessageParent->user,
-                    'app' => $lastMessageParent->app,
-                    'company' => $lastMessageParent->company,
-                ]
-            );
-            $sendToWorkflow = true;
-        }
-
         return [
             'updates' => $processedUpdates,
-            'last_message' => $lastMessage,
-            'send_to_workflow' => (int) $sendToWorkflow,
         ];
     }
 
