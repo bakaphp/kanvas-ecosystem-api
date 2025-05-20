@@ -35,7 +35,6 @@ class ImportProductFromFilesystemAction
         $modelName = $this->filesystemImports->filesystemMapper->systemModule->model_name;
 
         foreach ($records as $record) {
-
             $record['extra'] = $this->filesystemImports->extra;
             $variant = $this->mapper(
                 $this->filesystemImports->filesystemMapper->mapping,
@@ -47,7 +46,6 @@ class ImportProductFromFilesystemAction
 
         if ($modelName == Products::class) {
             foreach ($listOfVariants as $key => $variants) {
-
                 $productAttributes = [];
                 foreach ($variants as $variant) {
                     if (isset($variant['attributes']) && is_array($variant['attributes'])) {
