@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Webhooks;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -276,7 +277,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $lastMessage = $channel->getLastMessage();
             $lastMessageParent = $lastMessage->parent ?? null;
 
-            if ($lastMessageParent !== null && $lastMessageParent->created_at->diffInSeconds($time) >= $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
+            // Convert the webhook timestamp from milliseconds to seconds
+            $time = (int) ($payload['timestamp'] ?? time() * 1000) / 1000;
+            // Create a Carbon instance from the timestamp
+            $timeCarbon = Carbon::createFromTimestamp($time);
+
+            if ($lastMessageParent !== null && $lastMessageParent->created_at->diffInSeconds($timeCarbon) >= $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
                 $channel->fireWorkflow(
                     WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
                     true,
