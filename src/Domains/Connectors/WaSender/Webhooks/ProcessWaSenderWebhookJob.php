@@ -274,7 +274,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $lastMessage = $channel->getLastMessage();
             $lastMessageParent = $lastMessage->parent ?? null;
 
-            if ($lastMessageParent !== null && $lastMessageParent->created_at->diffInSeconds($time) < $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
+            if ($lastMessageParent !== null && $lastMessageParent->created_at->diffInSeconds($time) >= $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
                 $channel->fireWorkflow(
                     WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
                     true,
