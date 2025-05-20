@@ -34,32 +34,46 @@ class AgentChannelResponderAction
                        $this->message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
         $channelId = Str::replace('@s.whatsapp.net', '', $this->message->message['chat_jid']);
 
-        $isImageText = MessageTypeEnum::isDocumentType($this->message->messageType->verb);
+        $isImageText = (bool) ($params['process_document'] ?? false); //MessageTypeEnum::isDocumentType($this->message->messageType->verb);
 
-        if ($isImageText) {
-            $downloadMessageFileAction = new DownloadMessageFileAction(
-                $this->channel,
-                $this->message,
-                $this->agent,
-            )->execute();
+        if ($isImageText && $params['lastMessageParentDocument'] instanceof Message) {
+            $lastMessage = $params['lastMessageParentDocument'];
 
-            $previousMessage = $this->channel->getPreviousMessage($this->message);
+            $lastMessage->fireWorkflow(WorkflowEnum::DURING_WORKFLOW->value, true, [
+                  'app' => $this->message->app,
+                  'company' => $this->message->company,
+               ]);
+            /*
+                        $downloadMessageFileAction = new DownloadMessageFileAction(
+                            $this->channel,
+                            $this->message,
+                            $this->agent,
+                        )->execute(); */
 
-            if ($previousMessage && MessageTypeEnum::isDocumentType($previousMessage->messageType->verb) && $previousMessage->id !== $this->message->id) {
-                //$this->message->associate($previousMessage);
-                $previousMessage = $previousMessage->parent ?? $previousMessage;
-                $this->message->parent_id = $previousMessage->id;
-                $this->message->disableWorkflows();
-                $this->message->save();
-                $this->message->enableWorkflows();
+            /*  $previousMessage = $this->channel->getPreviousMessage($this->message);
+
+             if ($previousMessage && MessageTypeEnum::isDocumentType($previousMessage->messageType->verb) && $previousMessage->id !== $this->message->id) {
+                 //$this->message->associate($previousMessage);
+                 $previousMessage = $previousMessage->parent ?? $previousMessage;
+                 $this->message->parent_id = $previousMessage->id;
+                 $this->message->disableWorkflows();
+                 $this->message->save();
+                 $this->message->enableWorkflows();
+                 $this->message->fireWorkflow(WorkflowEnum::DURING_WORKFLOW->value, true, [
+                     'app' => $this->message->app,
+                     'company' => $this->message->company,
+                 ]);
+             } */
+
+            /* if ($this->message->parent_id === null || $this->message->parent_id === 0) {
                 $this->message->fireWorkflow(WorkflowEnum::DURING_WORKFLOW->value, true, [
-                    'app' => $this->message->app,
-                    'company' => $this->message->company,
+                   'app' => $this->message->app,
+                   'company' => $this->message->company,
                 ]);
-            }
+            } */
 
             $messageConversation = 'Keep record we just processed files under the parent message 
-                    .' . ($previousMessage ? $previousMessage->id : $this->message->id) . ' so we can reference it to process 
+                    .' . $lastMessage->id . ' so we can reference it to process 
                     later and return the msg id so the I know about it';
         }
 

@@ -4130,16 +4130,16 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.12.0",
+            "version": "3.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "a9a00d78b1bba249ad02a15f3d25fc85b4157830"
+                "reference": "3b363bca7a9c3a876324f4ca0e5fd6762b60b622"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/a9a00d78b1bba249ad02a15f3d25fc85b4157830",
-                "reference": "a9a00d78b1bba249ad02a15f3d25fc85b4157830",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/3b363bca7a9c3a876324f4ca0e5fd6762b60b622",
+                "reference": "3b363bca7a9c3a876324f4ca0e5fd6762b60b622",
                 "shasum": ""
             },
             "require": {
@@ -4173,22 +4173,22 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.12.0"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.12.1"
             },
-            "time": "2025-03-07T10:14:49+00:00"
+            "time": "2025-05-06T16:25:30+00:00"
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.9.35",
+            "version": "1.9.37",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "610488a3a200d4da53f64774d9e1f5d293079b3a"
+                "reference": "c06a38b9dfa87af1d34a025d8a0b1aeec8af579a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/610488a3a200d4da53f64774d9e1f5d293079b3a",
-                "reference": "610488a3a200d4da53f64774d9e1f5d293079b3a",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/c06a38b9dfa87af1d34a025d8a0b1aeec8af579a",
+                "reference": "c06a38b9dfa87af1d34a025d8a0b1aeec8af579a",
                 "shasum": ""
             },
             "require": {
@@ -4236,9 +4236,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.9.35"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.9.37"
             },
-            "time": "2025-05-16T12:59:31+00:00"
+            "time": "2025-05-19T16:24:46+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -7551,16 +7551,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.56.1",
+            "version": "v6.57.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "5a80dd283b5f19d7f78b18d14d3854811a9864a4"
+                "reference": "7adee8aeec84fc911cf8aef204ae55f66be7fb0c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/5a80dd283b5f19d7f78b18d14d3854811a9864a4",
-                "reference": "5a80dd283b5f19d7f78b18d14d3854811a9864a4",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/7adee8aeec84fc911cf8aef204ae55f66be7fb0c",
+                "reference": "7adee8aeec84fc911cf8aef204ae55f66be7fb0c",
                 "shasum": ""
             },
             "require": {
@@ -7678,7 +7678,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2025-05-16T08:14:50+00:00"
+            "time": "2025-05-19T09:05:42+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -18427,6 +18427,6 @@
     "platform": {
         "php": "^8.4"
     },
-    "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "platform-dev": [],
+    "plugin-api-version": "2.3.0"
 }

@@ -32,6 +32,7 @@ class BulkAllowRoleToPermissionAction
             foreach ($permissions as $permission) {
                 Bouncer::allow($this->role->name)->to($permission->name, $permission->entity_type);
             }
+
             return;
         }
 
@@ -39,8 +40,11 @@ class BulkAllowRoleToPermissionAction
             $modelName = $permission['model_name'];
             $systemModule = SystemModulesRepository::getByModelName($modelName, $this->app);
             foreach ($permission['permission'] as $perm) {
-                $ability = $systemModule->abilities()->where('name', $perm)
-                            ->firstOrFail();
+                if (! $systemModule->abilities()->where('name', $perm)->exists()) {
+                    continue;
+                }
+                /*  $ability = $systemModule->abilities()->where('name', $perm)
+                             ->firstOrFail(); */
                 Bouncer::allow($this->role->name)->to($perm, $modelName);
             }
         }
