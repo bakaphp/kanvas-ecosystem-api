@@ -12,7 +12,7 @@ use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use Kanvas\Users\Repositories\MessagesRepository;
+use Kanvas\Social\Messages\Repositories\MessagesRepository;
 
 class PushFollowRecommendationNotificationCommand extends Command
 {
@@ -50,15 +50,13 @@ class PushFollowRecommendationNotificationCommand extends Command
             "You and @username have similar tastes! See their latest creation."
         ];
 
-        $endViaList = array_map(
-            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-            $params['via'] ?? ['database']
-        );
-
+        $via = [
+            NotificationChannelEnum::getNotificationChannelBySlug('push'),
+        ];
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)
-            ->chunk(100, function ($users) use ($app, $endViaList, $notificationMessages, $messageType) {
+            ->chunk(100, function ($users) use ($app, $via, $notificationMessages, $messageType) {
                 foreach ($users as $user) {
                     $recommendedUser = (new GenerateWhoToFollowRecommendationsAction($app))->execute($user);
                     if ($recommendedUser->isEmpty()) {
@@ -81,9 +79,9 @@ class PushFollowRecommendationNotificationCommand extends Command
                     $dynamicMessage = str_replace('@username', $randomRecommendedUser->displayname, $dynamicMessage);
                     $followsRecommendationsNotification = new FollowsRecommendationsPushNotication(
                         $user,
-                        $dynamicMessage,
                         "Follow Recommendation",
-                        $endViaList,
+                        $dynamicMessage,
+                        $via,
                         [
                             'push_template' => 'push-follow-recommendation',
                         ]

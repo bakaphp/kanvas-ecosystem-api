@@ -22,6 +22,8 @@ class DefaultMessageActivity extends KanvasActivity implements WorkflowActivityI
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
+
         if (! key_exists('customsFields', $params)) {
             throw new Exception('Custom fields are required');
         }

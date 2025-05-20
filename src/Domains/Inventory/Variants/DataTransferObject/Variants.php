@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\DataTransferObject;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
@@ -53,5 +54,23 @@ class Variants extends Data
             $request['weight'] ?? null,
             $request['is_published'] ?? true
         );
+    }
+
+    public function getDescription(): ?string
+    {
+        if (empty($this->description) && ! empty($this->html_description)) {
+            $html = $this->html_description;
+            $html = str_replace(['</p>', '</div>', '<br>', '<br />'], "\n", $html);
+
+            $plainText = Str::of($html)
+                ->stripTags()
+                ->replaceMatches('/\n\s+\n/', "\n\n") // Normalize whitespace between paragraphs
+                ->replaceMatches('/[\r\n]{3,}/', "\n\n") // Limit consecutive line breaks
+                ->trim();
+
+            $this->description = (string) $plainText;
+        }
+
+        return $this->description;
     }
 }

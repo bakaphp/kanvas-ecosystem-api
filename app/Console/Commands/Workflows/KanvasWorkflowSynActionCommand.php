@@ -6,6 +6,7 @@ namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
+use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
@@ -30,11 +31,14 @@ use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportAct
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
+use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
+use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
@@ -42,16 +46,19 @@ use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
+use Kanvas\Connectors\SalesAssist\Activities\ProcessMessageVehicleImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
+use Kanvas\Connectors\Shopify\Jobs\ShopifyCompanyConfigWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ShopifyOrderNotesWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateShopifyDraftOrderActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateUserActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\DeleteVariantFromShopifyActivity;
+use Kanvas\Connectors\Shopify\Workflows\Activities\PushOrderActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanWebhookJob;
@@ -60,9 +67,12 @@ use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Webhooks\StripePaymentIntentWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
+use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
+use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
+use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
@@ -144,8 +154,10 @@ class KanvasWorkflowSynActionCommand extends Command
             SwitchZohoLeadOwnerReceiverJob::class,
             OptimizeImageFromMessageActivity::class,
             ShopifyOrderNotesWebhookJob::class,
+            ShopifyCompanyConfigWebhookJob::class,
             PullUserInformationActivity::class,
             GenerateMessageTagsWithAiActivity::class,
+            CreateAeroAmbulanciaSubscriptionActivity::class,
             PushUserInteractionToEventActivity::class,
             PushMessageToItemActivity::class,
             DistributeMessageActivity::class,
@@ -163,6 +175,14 @@ class KanvasWorkflowSynActionCommand extends Command
             PullPeopleActivity::class,
             CalculateWarehouseQuantityActivity::class,
             PremiumPromptFlagActivity::class,
+            SetOrderPaymentIntentActivity::class,
+            ProcessWaSenderWebhookJob::class,
+            AgentChannelResponderActivity::class,
+            PushOrderActivity::class,
+            ProcessVehicleImageActivity::class,
+            WorkflowsProcessVehicleImageActivity::class,
+            ProcessMessageVehicleImageActivity::class,
+            LLMMessageResponseActivity::class,
         ];
 
         $createdActions = [];

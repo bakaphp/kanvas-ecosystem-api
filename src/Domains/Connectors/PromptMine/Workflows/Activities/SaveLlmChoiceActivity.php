@@ -20,6 +20,8 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
+
         $messageData = ! is_array($entity->message) ? json_decode($entity->message, true) : $entity->message;
 
         $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());

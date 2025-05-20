@@ -23,6 +23,7 @@ use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Spatie\LaravelData\DataCollection;
 
@@ -31,28 +32,37 @@ class ScreeningPeopleActivity extends KanvasActivity
     public function execute(Model $people, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
-        if ($this->hasReachedLimit($people)) {
-            return $this->limitReachedResponse($people);
-        }
 
-        if ($this->hasBeenScreenedRecently($people)) {
-            return $this->alreadyScreenedResponse($people);
-        }
+        return $this->executeIntegration(
+            entity: $people,
+            app: $app,
+            integration: IntegrationsEnum::APOLLO,
+            integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) {
+                if ($this->hasReachedLimit($people)) {
+                    return $this->limitReachedResponse($people);
+                }
 
-        try {
-            $peopleData = (new ScreeningAction($people, $app))->execute();
-        } catch (GuzzleException $e) {
-            return [
-                'status' => 'failed',
-                'message' => $e->getMessage(),
-                'people_id' => $people->id,
-                'data' => [],
-            ];
-        }
+                if ($this->hasBeenScreenedRecently($people)) {
+                    return $this->alreadyScreenedResponse($people);
+                }
 
-        $this->processPeopleData($people, $app, $peopleData);
+                try {
+                    $peopleData = (new ScreeningAction($people, $app))->execute();
+                } catch (GuzzleException $e) {
+                    return [
+                        'status' => 'failed',
+                        'message' => $e->getMessage(),
+                        'people_id' => $people->id,
+                        'data' => [],
+                    ];
+                }
 
-        return $this->successResponse($people, $peopleData);
+                $this->processPeopleData($people, $app, $peopleData);
+
+                return $this->successResponse($people, $peopleData);
+            },
+            company: $people->company,
+        );
     }
 
     private function hasReachedLimit(Model $people): bool

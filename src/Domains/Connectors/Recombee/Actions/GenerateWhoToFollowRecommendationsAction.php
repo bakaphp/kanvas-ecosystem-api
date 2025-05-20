@@ -22,6 +22,7 @@ class GenerateWhoToFollowRecommendationsAction
 
     public function execute(UserInterface $user, int $pageSize = 10, string $scenario = ScenariosEnum::USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS->value): Builder
     {
+        $socialConnection = config('database.connections.social.database');
         $recommendationService = new RecombeeUserRecommendationService($this->app);
 
         $response = $recommendationService->getUserToUserRecommendation($user, $pageSize, $scenario);
@@ -34,6 +35,7 @@ class GenerateWhoToFollowRecommendationsAction
 
         return Users::query()
                 ->whereIn('id', $entityIds)
+                ->where('id', '!=', $user->getId())
                 ->where('is_deleted', 0);
     }
 }
