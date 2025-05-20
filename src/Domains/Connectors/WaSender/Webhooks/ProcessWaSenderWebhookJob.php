@@ -232,9 +232,11 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     protected function handleMessageUpdate(array $payload): array
     {
         $data = $payload['data'] ?? [];
+        $channelId = $payload['data']['key']['remoteJid'] ?? null;
 
         $processedUpdates = [];
         $time = $payload['timestamp'] ?? time();
+        $channel = $this->getOrCreateChannel($channelId);
 
         foreach ($data as $updateData) {
             $key = $updateData['key'] ?? [];
@@ -244,11 +246,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $chatJid = $key['remoteJid'] ?? null;
             $status = $update['status'] ?? null;
             $messageTime = $update['timestamp'] ?? null;
-            $channel = $this->getOrCreateChannel($chatJid);
 
-            if ($messageId && $chatJid) {
+            if ($messageId && $channelId) {
                 // Find the message
-                $messageSlug = $this->createMessageSlug($messageId, $chatJid);
+                $messageSlug = $this->createMessageSlug($messageId, $channelId);
 
                 $message = Message::where('uuid', $messageSlug)
                     ->where('companies_id', $this->receiver->company->getId())
