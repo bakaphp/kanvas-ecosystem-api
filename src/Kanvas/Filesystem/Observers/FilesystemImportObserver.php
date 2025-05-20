@@ -12,6 +12,9 @@ class FilesystemImportObserver implements ShouldQueue
 {
     public function created(FilesystemImports $filesystemImport): void
     {
-        (new ImportDataFromFilesystemAction($filesystemImport))->execute();
+        $className = $filesystemImport->filesystemMapper->systemModule->model_name;
+        $handler = $className::getImportHandler($filesystemImport);
+
+        $handler->execute();
     }
 }
