@@ -62,6 +62,13 @@ class Channel extends BaseModel
                 ->withTimestamps();
     }
 
+    public function getLastMessage(): ?Message
+    {
+        return $this->messages()
+            ->where('messages.id', $this->last_message_id)
+            ->first();
+    }
+
     public function addMessage(
         Message $message,
         ?UserInterface $user = null

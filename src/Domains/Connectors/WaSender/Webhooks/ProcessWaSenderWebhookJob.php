@@ -7,6 +7,8 @@ namespace Kanvas\Connectors\WaSender\Webhooks;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Kanvas\Connectors\WaSender\Actions\DownloadMessageFileAction;
+use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
@@ -29,6 +31,8 @@ use Spatie\LaravelData\DataCollection;
 
 class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 {
+    protected int $timeThresholdInSeconds = 5;
+
     #[Override]
     public function execute(): array
     {
@@ -45,6 +49,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
         // Get event type from payload
         $eventType = $payload['event'] ?? 'unknown';
+        $this->timeThresholdInSeconds = $this->receiver->configuration['time_threshold_in_seconds'] ?? $this->timeThresholdInSeconds;
 
         // Process based on event type
         $result = match ($eventType) {
@@ -110,6 +115,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $messageContent = $messageData['message'] ?? [];
 
             $messageType = $this->getMessageType($messageContent);
+            $isDocument = MessageTypeEnum::isDocumentType($messageType);
             $text = $this->extractMessageText($messageContent, $messageType);
             $chatJid = $key['remoteJid'] ?? null;
             $isFromMe = $key['fromMe'] ?? false;
@@ -126,6 +132,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 ->where('companies_id', $this->receiver->company->getId())
                 ->where('apps_id', $this->receiver->app->getId())
                 ->first();
+            $lastMessage = $channel->getLastMessage();
 
             if ($existingMessage) {
                 $message = $existingMessage;
@@ -162,6 +169,18 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $message = $createMessageAction->execute();
             }
 
+            $previousMessage = $channel->getPreviousMessage($message);
+            $timeThresholdInSeconds = $this->timeThresholdInSeconds;
+
+            if ($previousMessage && $previousMessage->messageType->verb === MessageTypeEnum::IMAGE->value && $message->messageType->verb === MessageTypeEnum::IMAGE->value && $previousMessage->id !== $message->id) {
+                $timeDifference = $message->created_at->diffInSeconds($previousMessage->created_at);
+
+                if ($timeDifference < $timeThresholdInSeconds) {
+                    $previousMessageParent = $previousMessage->parent ?? $previousMessage;
+                    $message->update(['parent_id' => $previousMessageParent->id]);
+                }
+            }
+
             // If the message is not from the user, process the contact
             if (! $isFromMe) {
                 /**
@@ -177,16 +196,39 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
             // Associate message with channel
             $channel->addMessage($message);
-            $channel->fireWorkflow(
-                WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
-                true,
-                [
-                    'message' => $message,
-                    'user' => $message->user,
-                    'app' => $message->app,
-                    'company' => $message->company,
-                ]
-            );
+            $lastMessageParent = $lastMessage->parent ?? null;
+
+            if ($isDocument) {
+                new DownloadMessageFileAction(
+                    $channel,
+                    $message,
+                )->execute();
+            }
+
+            // only fire for non-document messages
+            if (! $isDocument) {
+                $processDocument = false;
+                if ($lastMessageParent !== null) {
+                    $text = $message->message['raw_data']['message']['conversation'] ??
+                       $message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
+                    $isLastMessageDocument = MessageTypeEnum::isDocumentType($lastMessageParent->messageType->verb);
+                    $processDocument = $isLastMessageDocument && $text !== null && (trim(strtolower($text)) === 'process document' || trim(strtolower($text)) === 'process');
+                }
+
+                $channel->fireWorkflow(
+                    WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
+                    true,
+                    [
+                        'message' => $message,
+                        'user' => $message->user,
+                        'app' => $message->app,
+                        'company' => $message->company,
+                        'process_document' => $processDocument,
+                        'text' => $text,
+                        'lastMessageParentDocument' => $lastMessageParent !== null ? $lastMessageParent : null,
+                    ]
+                );
+            }
 
             // Add to processed results
             $processedMessages[] = [
@@ -211,8 +253,11 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     protected function handleMessageUpdate(array $payload): array
     {
         $data = $payload['data'] ?? [];
+        $channelId = $payload['data']['key']['remoteJid'] ?? null;
 
         $processedUpdates = [];
+        $time = $payload['timestamp'] ?? time();
+        $channel = $this->getOrCreateChannel($channelId);
 
         foreach ($data as $updateData) {
             $key = $updateData['key'] ?? [];
@@ -221,10 +266,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $messageId = $key['id'] ?? null;
             $chatJid = $key['remoteJid'] ?? null;
             $status = $update['status'] ?? null;
+            $messageTime = $update['timestamp'] ?? null;
 
-            if ($messageId && $chatJid) {
+            if ($messageId && $channelId) {
                 // Find the message
-                $messageSlug = $this->createMessageSlug($messageId, $chatJid);
+                $messageSlug = $this->createMessageSlug($messageId, $channelId);
+
                 $message = Message::where('uuid', $messageSlug)
                     ->where('companies_id', $this->receiver->company->getId())
                     ->where('apps_id', $this->receiver->app->getId())
@@ -1098,7 +1145,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     protected function extractMessageText(array $messageContent, string $messageType): ?string
     {
         return match ($messageType) {
-            'text' => $messageContent['conversation'] ?? null,
+            'text' => $messageContent['conversation'] ?? $messageContent['extendedTextMessage']['text'] ?? null,
             'image' => $messageContent['imageMessage']['caption'] ?? null,
             'video' => $messageContent['videoMessage']['caption'] ?? null,
             'document' => $messageContent['documentMessage']['caption'] ?? null,

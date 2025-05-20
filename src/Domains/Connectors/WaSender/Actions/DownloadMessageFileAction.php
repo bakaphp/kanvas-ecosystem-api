@@ -21,7 +21,7 @@ class DownloadMessageFileAction
     public function __construct(
         protected Channel $channel,
         protected Message $message,
-        protected Agent $agent
+        protected ?Agent $agent = null,
     ) {
         if (! MessageTypeEnum::isDocumentType($this->message->messageType->verb)) {
             throw new Exception('Invalid message type');
