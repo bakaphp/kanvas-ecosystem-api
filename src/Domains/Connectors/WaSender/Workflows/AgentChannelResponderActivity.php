@@ -30,7 +30,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::WASENDER,
-            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping) {
+            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
                 if (empty($message)) {
                     return [
                         'message' => 'Message or user not found',
@@ -74,7 +74,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                     $channel,
                     $message,
                     Agent::getById($agentId, $app)
-                )->execute($additionalParams);
+                )->execute($params);
             },
             company: $channel->company,
         );

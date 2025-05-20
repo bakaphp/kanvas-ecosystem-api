@@ -34,7 +34,7 @@ class AgentChannelResponderAction
                        $this->message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
         $channelId = Str::replace('@s.whatsapp.net', '', $this->message->message['chat_jid']);
 
-        $isImageText = $params['process_document']; //MessageTypeEnum::isDocumentType($this->message->messageType->verb);
+        $isImageText = (bool) ($params['process_document'] ?? false); //MessageTypeEnum::isDocumentType($this->message->messageType->verb);
 
         if ($isImageText && $params['lastMessageParentDocument'] instanceof Message) {
             $lastMessage = $params['lastMessageParentDocument'];

@@ -132,6 +132,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 ->where('companies_id', $this->receiver->company->getId())
                 ->where('apps_id', $this->receiver->app->getId())
                 ->first();
+            $lastMessage = $channel->getLastMessage();
 
             if ($existingMessage) {
                 $message = $existingMessage;
@@ -195,7 +196,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
             // Associate message with channel
             $channel->addMessage($message);
-            $lastMessage = $channel->getLastMessage();
             $lastMessageParent = $lastMessage->parent ?? null;
 
             if ($isDocument) {
