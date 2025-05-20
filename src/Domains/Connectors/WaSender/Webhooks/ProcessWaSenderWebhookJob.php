@@ -213,7 +213,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                        $message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
                     $isLastMessageDocument = MessageTypeEnum::isDocumentType($lastMessageParent->messageType->verb);
                     $triggerWords = ['process', 'process document', 'dale', 'run'];
-                    $processDocument = $isLastMessageDocument && $text !== null && in_array(trim(strtolower($text)), $triggerWords, true);
+                    $processDocument = $isLastMessageDocument && $text !== null && in_array(trim(strtolower($text)), $triggerWords);
                 }
 
                 $channel->fireWorkflow(
