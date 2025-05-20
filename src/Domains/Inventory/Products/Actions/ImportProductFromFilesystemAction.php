@@ -21,7 +21,7 @@ class ImportProductFromFilesystemAction
     ) {
     }
 
-    public function execute()
+    public function execute(): void
     {
         $path = $this->getFilePath($this->filesystemImports->filesystem);
 
