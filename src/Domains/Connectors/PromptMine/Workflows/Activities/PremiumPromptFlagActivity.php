@@ -38,7 +38,10 @@ class PremiumPromptFlagActivity extends KanvasActivity implements WorkflowActivi
 
         if (! isset($messageData['price']) || ! isset($messageData['price']['sku']) || ! isset($messageData['price']['price'])) {
             return [
+                'result' => false,
+                'message_id' => $entity->getId(),
                 'message' => 'Not a premium prompt request',
+                'messageData' => $messageData,
             ];
         }
 
@@ -67,6 +70,9 @@ class PremiumPromptFlagActivity extends KanvasActivity implements WorkflowActivi
                 Notification::send($usersToNotify, $notification);
 
                 return [
+                    'result' => true,
+                    'message_id' => $entity->getId(),
+                    'messageData' => $messageData,
                     'message' => 'Premium prompt flagged - ' . $messageData['title'],
                 ];
             },
