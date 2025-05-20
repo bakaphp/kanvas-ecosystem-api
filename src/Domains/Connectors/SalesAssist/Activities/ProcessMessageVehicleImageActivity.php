@@ -252,11 +252,8 @@ class ProcessMessageVehicleImageActivity extends KanvasActivity
         $message->set('created_product_failed', true);
     }
 
-    private function notifyMindeeSuccess(Message $message, Tag $tag, Products $product): void
+    private function notifySuccess(Message $message, $entity, Products $product, string $service): void
     {
-        if ($message->get('created_product') || $product->get('whatsapp_notification')) {
-            return;
-        }
         $messageService = new MessageService(
             $message->app,
             $message->company
@@ -268,13 +265,26 @@ class ProcessMessageVehicleImageActivity extends KanvasActivity
             return;
         }
 
+        $isMindee = $service === 'mindee';
         $success = "✅ Vehicle registered successfully!\n\n" .
-               'License Plate: ' . $tag->licensePlateNumber . "\n" .
-               'VIN: ' . ($tag->vehicleIdentificationNumber ?? 'Unknown') . "\n" .
-               'Make: ' . ($tag->make ?? 'Unknown') . "\n" .
-               'Model: ' . ($tag->model ?? 'Unknown') . "\n" .
-               'Color: ' . ($tag->color ?? 'Unknown') . "\n" .
-               'The vehicle has been added to your inventory.';
+            'License Plate: ' . ($isMindee ? $entity->licensePlateNumber : $entity->plateNumber) . "\n" .
+            'VIN: ' . ($isMindee ? ($entity->vehicleIdentificationNumber ?? 'Unknown') : 'N/A') . "\n" .
+            'Make: ' . ($entity->make ?? 'Unknown') . "\n" .
+            'Model: ' . ($entity->model ?? 'Unknown') . "\n" .
+            'Color: ' . ($entity->color ?? 'Unknown') . "\n" .
+            ($isMindee ? '' : 'Type: ' . ($entity->type ?? 'Unknown') . "\n\n") .
+            'The vehicle has been added to your inventory.';
+
+        if ($message->get('created_product') || $product->get('whatsapp_notification')) {
+            $success = "✅ Vehicle already processed successfully!\n\n" .
+                'License Plate: ' . ($isMindee ? $entity->licensePlateNumber : $entity->plateNumber) . "\n" .
+                'VIN: ' . ($isMindee ? ($entity->vehicleIdentificationNumber ?? 'Unknown') : 'N/A') . "\n" .
+                'Make: ' . ($entity->make ?? 'Unknown') . "\n" .
+                'Model: ' . ($entity->model ?? 'Unknown') . "\n" .
+                'Color: ' . ($entity->color ?? 'Unknown') . "\n" .
+                ($isMindee ? '' : 'Type: ' . ($entity->type ?? 'Unknown') . "\n\n") .
+                'The vehicle has been added to your inventory.';
+        }
 
         $messageService->sendTextMessage(
             $channelId,
@@ -285,36 +295,13 @@ class ProcessMessageVehicleImageActivity extends KanvasActivity
         $product->set('whatsapp_notification', true);
     }
 
+    private function notifyMindeeSuccess(Message $message, Tag $tag, Products $product): void
+    {
+        $this->notifySuccess($message, $tag, $product, 'mindee');
+    }
+
     private function notifyPlateSuccess(Message $message, Vehicle $vehicle, Products $product): void
     {
-        if ($message->get('created_product') || $product->get('whatsapp_notification')) {
-            return;
-        }
-        $messageService = new MessageService(
-            $message->app,
-            $message->company
-        );
-
-        $channelId = Str::replace('@s.whatsapp.net', '', $message->message['chat_jid']);
-
-        if ($channelId === null) {
-            return;
-        }
-
-        $success = "✅ Vehicle registered successfully!\n\n" .
-               'License Plate: ' . $vehicle->plateNumber . "\n" .
-               'Make: ' . ($vehicle->make ?? 'Unknown') . "\n" .
-               'Model: ' . ($vehicle->model ?? 'Unknown') . "\n" .
-               'Color: ' . ($vehicle->color ?? 'Unknown') . "\n" .
-               'Type: ' . ($vehicle->type ?? 'Unknown') . "\n\n" .
-               'The vehicle has been added to your inventory.';
-
-        $messageService->sendTextMessage(
-            $channelId,
-            $success
-        );
-
-        $message->set('created_product', true);
-        $product->set('whatsapp_notification', true);
+        $this->notifySuccess($message, $vehicle, $product, 'platerecognizer');
     }
 }
