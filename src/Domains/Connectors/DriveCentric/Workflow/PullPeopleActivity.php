@@ -24,8 +24,8 @@ class PullPeopleActivity extends KanvasActivity
             integration: IntegrationsEnum::DRIVE_CENTRIC,
             integrationOperation: function ($model, $app, $integrationCompany, $additionalParams) use ($params): array {
                 $pullPeople = new PullPeopleAction($app, $model->company, $model->user)->execute(
-                    $params['email'] ?? null,
-                    $params['phone'] ?? null,
+                    $model->getEmails()->first()->value ?? null,
+                    $model->getPhones()->first()->value ?? null,
                 );
 
                 return [
