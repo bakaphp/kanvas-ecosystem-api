@@ -23,7 +23,7 @@ class PushFollowRecommendationNotificationCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:promptmine-send-follow-recommendations-push-notification {app_id} {message_type_id'};
+    protected $signature = 'kanvas:promptmine-send-follow-recommendations-push-notification {app_id} {message_type_id}';
 
     /**
      * The console command description.
@@ -73,7 +73,7 @@ class PushFollowRecommendationNotificationCommand extends Command
                     )->toArray();
                     $randomRecommendedUserTag =  $userMessagesCategories[array_rand($userMessagesCategories)];
                     $dynamicMessage = $notificationMessages[array_rand($notificationMessages)];
-                    
+
                     if (str_contains($dynamicMessage, '[category]')) {
                         $dynamicMessage = str_replace('[category]', $randomRecommendedUserTag, $dynamicMessage);
                     }
