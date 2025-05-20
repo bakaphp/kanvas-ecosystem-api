@@ -243,7 +243,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $chatJid = $key['remoteJid'] ?? null;
             $status = $update['status'] ?? null;
             $messageTime = $update['timestamp'] ?? null;
-                $channel = $this->getOrCreateChannel($chatJid);
+            $channel = $this->getOrCreateChannel($chatJid);
 
             if ($messageId && $chatJid) {
                 // Find the message
@@ -274,15 +274,15 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $lastMessage = $channel->getLastMessage();
             $lastMessageParent = $lastMessage->parent ?? null;
 
-            if ($lastMessageParent && $lastMessageParent->created_at->diffInSeconds($time) < $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
+            if ($lastMessageParent !== null && $lastMessageParent->created_at->diffInSeconds($time) < $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
                 $channel->fireWorkflow(
                     WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
                     true,
                     [
-                        'message' => $message,
-                        'user' => $message->user,
-                        'app' => $message->app,
-                        'company' => $message->company,
+                        'message' => $lastMessageParent,
+                        'user' => $lastMessageParent->user,
+                        'app' => $lastMessageParent->app,
+                        'company' => $lastMessageParent->company,
                     ]
                 );
             }
