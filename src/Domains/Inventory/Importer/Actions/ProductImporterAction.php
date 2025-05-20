@@ -111,7 +111,7 @@ class ProductImporterAction
             }
             //$this->variants();
             // @todo to be removed
-            $this->variantsLocation($this->product);
+            // $this->variantsLocation($this->product);
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
@@ -171,7 +171,7 @@ class ProductImporterAction
                 'user' => $this->user,
                 'name' => $this->importedProduct->productType['name'],
                 'description' => $this->importedProduct->productType['description'] ?? null,
-                'weight' => $this->importedProduct->productType['weight'],
+                'weight' => $this->importedProduct->productType['weight'] ?? null,
             ]);
 
             $productType = (new CreateProductTypeAction($productTypeDto, $this->user))->execute();
