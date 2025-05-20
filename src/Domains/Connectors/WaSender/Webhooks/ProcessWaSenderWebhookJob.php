@@ -282,6 +282,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $time = (int) ($payload['timestamp'] ?? time() * 1000) / 1000;
         // Create a Carbon instance from the timestamp
         $timeCarbon = Carbon::createFromTimestamp($time);
+        $sendToWorkflow = false;
 
         if ($lastMessageParent !== null && $lastMessageParent->created_at->diffInSeconds($timeCarbon) >= $this->timeThresholdInSeconds && $lastMessageParent->messageType->verb === MessageTypeEnum::IMAGE->value) {
             $channel->fireWorkflow(
@@ -294,11 +295,13 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     'company' => $lastMessageParent->company,
                 ]
             );
+            $sendToWorkflow = true;
         }
 
         return [
             'updates' => $processedUpdates,
             'last_message' => $lastMessage,
+            'send_to_workflow' => (int) $sendToWorkflow,
         ];
     }
 
