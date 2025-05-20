@@ -30,7 +30,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) {
-                $prompt = $message->message; //$message->message['prompt'] ?? null;
+                $prompt = $message->message['prompt'] ?? null;
 
                 if (empty($prompt)) {
                     return [
@@ -84,7 +84,8 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     private function generateResponse(Message $message): string
     {
-        $prompt = $message->message; //$message->message['prompt'] ?? null;
+        //$prompt = $message->message; //$message->message['prompt'] ?? null;
+        $prompt = $message->message['prompt'] ?? null;
 
         if (empty($prompt)) {
             return '';
