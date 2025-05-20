@@ -38,7 +38,7 @@ class CreatePeopleAction
     public function execute(): People
     {
         $company = $this->peopleData->branch->company()->firstOrFail();
-        $allowDuplicateContacts = $company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false;
+        $allowDuplicateContacts = (bool) ($company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false);
 
         if (! $allowDuplicateContacts) {
             $this->checkIfPeopleExist($company);
@@ -188,7 +188,7 @@ class CreatePeopleAction
         if ($this->peopleData->contacts->count()) {
             foreach ($this->peopleData->contacts as $contact) {
                 //only check for phone or email
-                if (! in_array($contact->contacts_types_id, [ContactTypeEnum::EMAIL->value, ContactTypeEnum::PHONE->value])) {
+                if (! in_array($contact->contacts_types_id, [ContactTypeEnum::EMAIL->value, ContactTypeEnum::PHONE->value, ContactTypeEnum::CELLPHONE->value])) {
                     continue;
                 }
                 $searchValue = $contact->value;

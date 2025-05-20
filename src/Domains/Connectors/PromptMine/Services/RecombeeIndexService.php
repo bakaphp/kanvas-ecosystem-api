@@ -61,6 +61,7 @@ class RecombeeIndexService
             'image' => 'string',
             'categories' => 'set',
             'type' => 'string',
+            'is_regenerated_image' => 'boolean',
         ];
         $existingProperties = $this->client->send(new ListItemProperties());
         $existingPropertyNames = array_column($existingProperties, 'name');
@@ -116,14 +117,20 @@ class RecombeeIndexService
     {
         $messageData = $message->message;
 
-        if (empty($messageData['title']) || empty($messageData['prompt'])) {
+        if (empty($messageData['prompt'])) {
             throw new InvalidArgumentException('Message data is missing required fields.');
+        }
+
+        $imageUrl = $messageData['ai_image']['image'] ?? $messageData['ai_image'] ?? null;
+
+        if ($messageData['type'] === 'image-format' && empty($imageUrl)) {
+            $imageUrl = $message->children->first()->message['image'] ?? null;
         }
 
         $request = new SetItemValues(
             $message->getId(),
             [
-                'title' => $messageData['title'],
+                'title' => $messageData['title'] ?? $messageData['prompt'],
                 'description' => $messageData['prompt'],
                 'users_id' => $message->users_id,
                 'message_type' => $message->messageType->name,
@@ -136,9 +143,10 @@ class RecombeeIndexService
                 'updated_at' => (int) strtotime($message->updated_at->toDateTimeString()),
                 'is_premium' => $message->is_premium,
                 'ai_model' => $messageData['ai_model']['name'] ?? null,
-                'image' => $messageData['ai_image']['image'] ?? null,
+                'image' => $imageUrl,
                 'categories' => $message->tags->pluck('name')->toArray(),
                 'type' => $messageData['type'] ?? null,
+                'is_regenerated_image' => isset($messageData['ai_image']) ?? false , // This way we know the image was regerenated by AI
             ],
             ['cascadeCreate' => true]
         );

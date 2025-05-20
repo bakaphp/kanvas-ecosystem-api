@@ -4,27 +4,31 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 
 class SendLeadEmailsAction
 {
     public function __construct(
         private Lead $lead,
-        private string $emailTemplate
+        private string $emailTemplate,
+        private mixed $channels = ['mail']
     ) {
     }
 
     public function execute(
         array $payload,
         array $users,
-        LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL
+        LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL,
     ): void {
         $userTemplate = 'user-' . $this->emailTemplate;
         $leadTemplate = 'lead-' . $this->emailTemplate;
@@ -82,12 +86,22 @@ class SendLeadEmailsAction
         string $email,
         array $mailData
     ): void {
-        $notification = new Blank(
-            $emailTemplateName,
+        $notification = new NewLeadNotification(
+            $this->lead,
             $mailData,
-            ['mail'],
-            $entity
         );
+        $notification->setTemplateName($emailTemplateName);
+        $notification->setType(NotificationTypes::firstOrCreate([
+            'apps_id' => $this->lead->app->getId(),
+            'key' => $this->lead::class,
+            'name' => Str::simpleSlug($this->lead::class),
+            'system_modules_id' => SystemModulesRepository::getByModelName($this->lead::class, $this->lead->app)->getId(),
+            'is_deleted' => 0,
+        ], [
+            'template' => $emailTemplateName,
+        ])->name);
+
+        $notification->channels = $this->channels;
 
         if ($entity instanceof Users) {
             $entity->notify($notification);

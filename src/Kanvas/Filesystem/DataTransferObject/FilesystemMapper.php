@@ -20,8 +20,9 @@ class FilesystemMapper extends Data
         public string $name,
         public array $header,
         public array $mapping,
-        public ?string $configuration = null,
-        public bool $is_default = false
+        public array $configuration = [],
+        public bool $is_default = false,
+        public ?string $description = null,
     ) {
     }
 
@@ -33,15 +34,16 @@ class FilesystemMapper extends Data
         array $data
     ): self {
         return new self(
-            $app,
-            $branch,
-            $user,
-            $systemModule,
-            $data['name'],
-            $data['header'] ?? $data['file_header'],
-            $data['mapping'],
-            $data['configuration'] ?? null,
-            $data['is_default'] ?? false
+            app: $app,
+            branch: $branch,
+            user: $user,
+            systemModule: $systemModule,
+            name: $data['name'],
+            description: $data['description'] ?? null,
+            header: $data['header'] ?? $data['file_header'],
+            mapping: $data['mapping'],
+            configuration: json_decode(json_encode($data['configuration'] ?? []), true),
+            is_default: $data['is_default'] ?? false
         );
     }
 }

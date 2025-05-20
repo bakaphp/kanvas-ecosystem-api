@@ -17,6 +17,7 @@ class PushPeopleActivity extends KanvasActivity
 
     public function execute(People $people, Apps $app, array $params): array
     {
+        $this->overwriteAppService($app);
         if (! $people->company->get(CustomFieldEnum::COMPANY->value)) {
             return [
                 'error' => 'Company not found in Elead',

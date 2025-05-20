@@ -38,8 +38,9 @@ class ScrapperProcessorAction
         $this->uuid = $uuid;
     }
 
-    public function execute()
+    public function execute(): array
     {
+        $productList = [];
         $this->overwriteAppService(app: $this->app);
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
         $channels = Channels::getDefault($this->companyBranch->company);
@@ -54,11 +55,7 @@ class ScrapperProcessorAction
                 }
                 $originalName = $product['name'];
                 $mappedProduct = $service->mapProduct($product);
-                if ($product['customization_options']) {
-                    $mappedProduct['variants'] = $service->mapVariant($product);
-                } else {
-                    $mappedProduct['variants'] = $mappedProduct;
-                }
+                $mappedProduct['variants'] = [$mappedProduct];
                 try {
                     $product = (
                         new ProductImporterAction(
@@ -70,6 +67,7 @@ class ScrapperProcessorAction
                             true
                         )
                     )->execute();
+                    $product->searchable();
                 } catch (\Exception $e) {
                     Log::error($e->getMessage());
                     Log::debug($e->getTraceAsString());
@@ -116,8 +114,6 @@ class ScrapperProcessorAction
                         $this->region,
                         $originalName
                     ))->execute();
-
-                    Log::info(message: 'Product synced with Shopify');
                 }
 
                 if ($this->uuid) {
@@ -135,7 +131,10 @@ class ScrapperProcessorAction
 
                 continue;
             }
+            $productList[] = $product;
         }
+
+        return $productList;
     }
 
     public function getMetaFields(Products $product): array

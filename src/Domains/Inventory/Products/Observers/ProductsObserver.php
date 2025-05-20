@@ -15,14 +15,13 @@ class ProductsObserver
         }
 
         $product->clearLightHouseCache(withKanvasConfiguration: false);
+        $product->setTotalVariants();
     }
 
-    public function created(Products $product): void
+    public function updating(Products $product)
     {
-        if ($product->productsTypes()->exists()) {
-            $product->productsTypes->setTotalProducts();
+        if ($product->isDirty('users_id')) {
+            $product->users_id = $product->getOriginal('users_id');
         }
-
-        $product->clearLightHouseCache(withKanvasConfiguration: false);
     }
 }

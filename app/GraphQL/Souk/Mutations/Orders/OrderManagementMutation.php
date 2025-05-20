@@ -24,6 +24,7 @@ use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 use Kanvas\Souk\Services\B2BConfigurationService;
+use Throwable;
 
 class OrderManagementMutation
 {
@@ -48,7 +49,14 @@ class OrderManagementMutation
             ];
         }
 
-        $isSubscription = $cart->getContent()?->first()?->attributes->has('use_subscription');
+        //$isSubscription = $cart->getContent()?->first()?->attributes->has('use_subscription');
+        try {
+            $isSubscription = $cart->getContent()?->first()?->attributes['use_subscription'] ?? false;
+        } catch (Throwable $e) {
+            report($e);
+            $isSubscription = false;
+        }
+
         $response = $this->processPayment($order, $isSubscription);
 
         return $this->handlePaymentResponse($response, $isSubscription);
@@ -111,9 +119,13 @@ class OrderManagementMutation
         $orderId = (int) $request['id'];
         $orderData = $request['input'];
 
+        if (! $user->isAdmin()) {
+            throw new ValidationException('User is not authorized to delete this order');
+        }
+
         $order = Order::where([
             'apps_id' => $app->getId(),
-            'id' => $orderId
+            'id' => $orderId,
         ])->first();
 
         if ($order->fulfillment_status === 'fulfilled') {
@@ -129,6 +141,33 @@ class OrderManagementMutation
         return [
             'order' => $updateOrder->execute(),
             'message' => 'Order updated successfully',
+        ];
+    }
+
+    public function delete(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $orderId = (int) $request['id'];
+
+        if (! $user->isAdmin()) {
+            throw new ValidationException('User is not authorized to delete this order');
+        }
+
+        $order = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $orderId,
+        ])->first();
+
+        if ($order->fulfillment_status === 'fulfilled') {
+            throw new ValidationException('Order is already fulfilled');
+        }
+
+        $order->delete();
+
+        return [
+            'message' => 'Order deleted successfully',
         ];
     }
 

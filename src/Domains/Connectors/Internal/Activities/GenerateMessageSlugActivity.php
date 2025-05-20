@@ -35,7 +35,7 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
             $fieldToSlug = (string) $message->id;
         }
 
-        $message->slug = Str::simpleSlug($fieldToSlug);
+        $message->slug = Str::simpleSlug(Str::limit($fieldToSlug, 190, ''));
         if (method_exists($message, 'disableWorkflows')) {
             $message->disableWorkflows();
         }

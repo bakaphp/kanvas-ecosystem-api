@@ -19,6 +19,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Locations\Models\Countries;
+use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -53,6 +54,7 @@ class People extends BaseModel
     use SocialInteractionsTrait;
     use Notifiable;
     use HasLightHouseCache;
+    use LikableTrait;
 
     protected $table = 'peoples';
     protected $guarded = [];

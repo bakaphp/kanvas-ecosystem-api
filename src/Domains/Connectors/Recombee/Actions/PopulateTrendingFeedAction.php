@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class PopulateTrendingFeedAction
 {
@@ -41,6 +42,7 @@ class PopulateTrendingFeedAction
             try {
                 $message = Message::getById($messageId, $this->app);
                 $message->addTag($trendingSlug, $this->app, $this->user, $this->company);
+                $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
             } catch (Exception $e) {
                 continue;
             }

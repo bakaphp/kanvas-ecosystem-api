@@ -22,6 +22,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
+use Kanvas\Users\Actions\SendUserNotificationAction;
 use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromCartAction
@@ -45,7 +46,7 @@ class CreateOrderFromCartAction
         if ($this->billingAddress !== null) {
             $billing = $this->people->addAddress(new Address(
                 address: $this->billingAddress->address,
-                address_2: null,
+                address_2: $this->billingAddress->address2,
                 city: $this->billingAddress->city,
                 state: $this->billingAddress->state,
                 country: $this->billingAddress->country,
@@ -57,7 +58,7 @@ class CreateOrderFromCartAction
         if ($this->shippingAddress !== null) {
             $shipping = $this->people->addAddress(new Address(
                 address: $this->shippingAddress->address,
-                address_2: null,
+                address_2: $this->shippingAddress->address_2,
                 city: $this->shippingAddress->city,
                 state: $this->shippingAddress->state,
                 country: $this->shippingAddress->country,
@@ -116,9 +117,11 @@ class CreateOrderFromCartAction
             checkoutToken: '',
             paymentGatewayName: ['manual'],
             languageCode: null,
+            reference: $this->request['input']['reference'] ?? '',
         );
 
         $order = (new CreateOrderAction($order))->execute();
+        new SendUserNotificationAction($order->app, $this->company, $order->user)->execute('admin-new-order', $order->toArray());
 
         $this->cart->clear();
 

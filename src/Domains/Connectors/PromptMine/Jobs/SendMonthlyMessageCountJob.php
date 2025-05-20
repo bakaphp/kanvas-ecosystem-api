@@ -29,7 +29,7 @@ class SendMonthlyMessageCountJob implements ShouldQueue
         protected Users $user,
         protected readonly int $monthtlyCount,
         protected MessageType $messageType,
-        protected array $config,
+        protected array $via,
     ) {
     }
 
@@ -47,7 +47,7 @@ class SendMonthlyMessageCountJob implements ShouldQueue
                 'title' => "You created $this->monthtlyCount prompts this month!",
                 'message' => "Amazing work! Keep the streak going. Unlock even more creative ideas.",
             ],
-            $this->config['via']
+            $this->via
         );
         $this->user->notify($monthlyCountNotification);
     }

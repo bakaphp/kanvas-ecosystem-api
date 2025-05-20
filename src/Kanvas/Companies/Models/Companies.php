@@ -112,6 +112,11 @@ class Companies extends BaseModel implements CompanyInterface
         return $this->hasMany(CompaniesBranches::class, 'companies_id');
     }
 
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(CompaniesAddress::class, 'companies_id');
+    }
+
     /**
      * Default Branch.
      * @psalm-suppress MixedReturnStatement

@@ -12,8 +12,8 @@ class FollowsRecommendationsPushNotication extends Notification
 {
     public function __construct(
         Users $entity,
-        string $message,
         string $title,
+        string $message,
         array $via,
         array $templates = []
     ) {

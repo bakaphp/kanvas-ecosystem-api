@@ -18,10 +18,6 @@ use Kanvas\Languages\Models\Languages;
 
 class AttributeMutation
 {
-    /**
-     * create.
-     *
-     */
     public function create(mixed $root, array $req): AttributeModel
     {
         $app = app(Apps::class);
@@ -36,10 +32,6 @@ class AttributeMutation
         return $attributeModel;
     }
 
-    /**
-     * update.
-     *
-     */
     public function update(mixed $root, array $req): AttributeModel
     {
         $app = app(Apps::class);
@@ -51,22 +43,17 @@ class AttributeMutation
             $attribute->defaultValues()->delete();
             (new AddAttributeValue($attribute, $req['input']['values']))->execute();
         }
+
         return $attribute;
     }
 
-    /**
-     * delete.
-     *
-     */
     public function delete(mixed $root, array $req): bool
     {
         $attribute = AttributesRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+
         return $attribute->delete();
     }
 
-    /**
-     * update.
-     */
     public function updateAttributeTranslation(mixed $root, array $req): AttributeModel
     {
         $company = auth()->user()->getCurrentCompany();

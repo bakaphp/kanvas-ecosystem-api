@@ -50,11 +50,9 @@ class PushFollowRecommendationNotificationCommand extends Command
             "You and @username have similar tastes! See their latest creation."
         ];
 
-        $endViaList = array_map(
-            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-            $params['via'] ?? ['database']
-        );
-
+        $via = [
+            NotificationChannelEnum::getNotificationChannelBySlug('push'),
+        ];
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)
@@ -81,9 +79,9 @@ class PushFollowRecommendationNotificationCommand extends Command
                     $dynamicMessage = str_replace('@username', $randomRecommendedUser->displayname, $dynamicMessage);
                     $followsRecommendationsNotification = new FollowsRecommendationsPushNotication(
                         $user,
-                        $dynamicMessage,
                         "Follow Recommendation",
-                        $endViaList,
+                        $dynamicMessage,
+                        $via,
                         [
                             'push_template' => 'push-follow-recommendation',
                         ]
