@@ -174,7 +174,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $timeDifference = $message->created_at->diffInSeconds($previousMessage->created_at);
 
                 if ($timeDifference < $timeThresholdInSeconds) {
-                    $message->update(['parent_id' => $previousMessage->id]);
+                    $previousMessageParent = $previousMessage->parent ?? $previousMessage;
+                    $message->update(['parent_id' => $previousMessageParent->id]);
                 }
             }
 
