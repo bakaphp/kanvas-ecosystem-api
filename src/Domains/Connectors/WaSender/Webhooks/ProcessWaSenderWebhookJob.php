@@ -171,7 +171,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $previousMessage = $channel->getPreviousMessage($message);
             $timeThresholdInSeconds = $this->timeThresholdInSeconds;
 
-            if ($previousMessage && $previousMessage->messageType->verb === MessageTypeEnum::IMAGE->value) {
+            if ($previousMessage && $previousMessage->messageType->verb === MessageTypeEnum::IMAGE->value && $message->messageType->verb === MessageTypeEnum::IMAGE->value && $previousMessage->id !== $message->id) {
                 $timeDifference = $message->created_at->diffInSeconds($previousMessage->created_at);
 
                 if ($timeDifference < $timeThresholdInSeconds) {
@@ -210,7 +210,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $processDocument = false;
                 if ($lastMessageParent !== null) {
                     $isLastMessageDocument = MessageTypeEnum::isDocumentType($lastMessageParent->messageType->verb);
-                    $processDocument = $isLastMessageDocument && (trim($text) === 'process document' || trim($text) === 'process');
+                    $processDocument = $isLastMessageDocument && $text !== null && (trim(strtolower($text)) === 'process document' || trim(strtolower($text)) === 'process');
                 }
 
                 $channel->fireWorkflow(
@@ -1142,7 +1142,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     protected function extractMessageText(array $messageContent, string $messageType): ?string
     {
         return match ($messageType) {
-            'text' => $messageContent['conversation'] ?? null,
+            'text' => $messageContent['conversation'] ?? $messageContent['extendedTextMessage']['text'] ?? null,
             'image' => $messageContent['imageMessage']['caption'] ?? null,
             'video' => $messageContent['videoMessage']['caption'] ?? null,
             'document' => $messageContent['documentMessage']['caption'] ?? null,
