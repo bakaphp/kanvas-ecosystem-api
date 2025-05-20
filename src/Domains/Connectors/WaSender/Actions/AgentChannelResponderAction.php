@@ -66,7 +66,7 @@ class AgentChannelResponderAction
             }
 
             $messageConversation = 'Keep record we just processed files under the parent message 
-                    .' . ($previousMessage ? $previousMessage->id : $this->message->id) . ' so we can reference it to process 
+                    .' . $this->message->id . ' so we can reference it to process 
                     later and return the msg id so the I know about it';
         }
 
