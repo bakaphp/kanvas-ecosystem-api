@@ -225,6 +225,7 @@ extend type Query @guard {
                     "is_published"
                     "rating"
                     "users_id"
+                    "status_id"
                 ]
             )
         hasVariants: _
