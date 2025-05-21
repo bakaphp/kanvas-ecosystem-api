@@ -17,7 +17,7 @@ class FilesystemEntitiesRepository
      * Get a filesystem entity.
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false): FilesystemEntities
+    public static function getByIdAndEntity(int $id, Model $entity, bool $isDeleted = false): FilesystemEntities
     {
         $app = $entity->app ?? app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class);
