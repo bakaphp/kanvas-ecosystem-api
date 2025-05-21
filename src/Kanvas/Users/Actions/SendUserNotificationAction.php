@@ -12,6 +12,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Notification;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
@@ -19,6 +20,9 @@ use Kanvas\Users\Services\UserRoleNotificationService;
 
 use function Sentry\captureException;
 
+/**
+ * @todo move this notification to b2b domain
+ */
 class SendUserNotificationAction
 {
     public function __construct(
@@ -48,7 +52,12 @@ class SendUserNotificationAction
             ], [
                 'template' => $templateName,
             ])->name);
-            $notification->channels = ['mail', 'database'];
+
+            $notification->channels = [];
+            if ($this->app->get(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value)) {
+                $notification->channels = ['mail'];
+            }
+
             try {
                 UserRoleNotificationService::notify(
                     RolesEnums::OWNER->value,

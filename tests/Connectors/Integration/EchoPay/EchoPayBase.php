@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\EchoPay;
 
-use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetailData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\CardDetailData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenizationData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDefinedInformationData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetailData;
+use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\CardDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenization;
+use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDefinedInformation;
+use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\Enums\MerchantCategoryEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantDocumentTypesEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantPlatformEnum;
@@ -55,16 +55,16 @@ class EchoPayBase extends TestCase
         );
     }
 
-    public function getCardData(): CardTokenizationData
+    public function getCardData(): CardTokenization
     {
-        return CardTokenizationData::from([
-            'card' => new CardDetailData(
+        return CardTokenization::from([
+            'card' => new CardDetail(
                 number: $this->cardData()['number'],
                 expirationMonth: $this->cardData()['expirationMonth'],
                 expirationYear: $this->cardData()['expirationYear'],
                 type: $this->cardData()['type'],
             ),
-            'billTo' => new BillingDetailData(
+            'billTo' => new BillingDetail(
                 firstName: "Juan",
                 lastName: "Pérez",
                 address1: "Calle Duarte #45",
@@ -75,11 +75,11 @@ class EchoPayBase extends TestCase
                 email: "juan.perez@example.com",
                 phone: "8095551234"
             ),
-            'merchant' => new MerchantDetailData(
+            'merchant' => new MerchantDetail(
                 id: $this->getMerchantData()['id'],
                 key: $this->getMerchantData()['key'],
                 secretKey: $this->getMerchantData()['secretKey'],
-                merchantDefinedInformation: new MerchantDefinedInformationData(
+                merchantDefinedInformation: new MerchantDefinedInformation(
                     category: MerchantCategoryEnum::RETAIL,
                     cardIdentifier: 'visanetdr_00000000000000',
                     platform: MerchantPlatformEnum::WEB,

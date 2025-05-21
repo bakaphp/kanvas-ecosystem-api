@@ -11,7 +11,7 @@ use Kanvas\Connectors\EchoPay\Enums\MerchantPlatformEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantTokenizationEnum;
 use Spatie\LaravelData\Data;
 
-class MerchantDefinedInformationData extends Data
+class MerchantDefinedInformation extends Data
 {
     public function __construct(
         public readonly MerchantCategoryEnum $category,

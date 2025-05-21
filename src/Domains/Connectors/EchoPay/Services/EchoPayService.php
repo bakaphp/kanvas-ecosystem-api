@@ -7,12 +7,12 @@ namespace Kanvas\Connectors\EchoPay\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\EchoPay\Client;
-use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenizationData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\ConsultServiceQueryData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthenticationData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetailData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetailData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponseData;
+use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenization;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsultServiceQuery;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
+use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 
 class EchoPayService
@@ -27,7 +27,7 @@ class EchoPayService
         $this->client = (new Client($app, $company, $config));
     }
 
-    public function consultService(ConsultServiceQueryData $data): array
+    public function consultService(ConsultServiceQuery $data): array
     {
         $query = http_build_query($data->toArray());
         $response = $this->client->get(ConfigurationEnum::CONSULT_SERVICE_PATH->value . '?' . $query);
@@ -47,7 +47,7 @@ class EchoPayService
         ];
     }
 
-    public function addCard(CardTokenizationData $data): array
+    public function addCard(CardTokenization $data): array
     {
         $response = $this->client->post(ConfigurationEnum::ADD_CARD_PATH->value, $data->toArray());
 
@@ -59,7 +59,7 @@ class EchoPayService
         ];
     }
 
-    public function setupPayer(string $orderCode, string $paymentInstrumentId, MerchantDetailData $merchant): array
+    public function setupPayer(string $orderCode, string $paymentInstrumentId, MerchantDetail $merchant): array
     {
         $formData = [
             'payment' => [
@@ -92,7 +92,7 @@ class EchoPayService
         ];
     }
 
-    public function checkPayerEnrollment(PaymentDetailData $payment, MerchantDetailData $merchant): array
+    public function checkPayerEnrollment(PaymentDetail $payment, MerchantDetail $merchant): array
     {
         $formData = [
             "payment" => [
@@ -123,7 +123,7 @@ class EchoPayService
             "clientReferenceInformation" => [
                 "code" => $response['data']['clientReferenceInformation']['code']
             ],
-            "consumerAuthenticationInformation" => ConsumerAuthenticationData::from($response['data']['consumerAuthenticationInformation']),
+            "consumerAuthenticationInformation" => ConsumerAuthentication::from($response['data']['consumerAuthenticationInformation']),
             "errorInformation" => [
                 "reason" => $response['data']['errorInformation']['reason'],
                 "message" => $response['data']['errorInformation']['message']
@@ -142,8 +142,8 @@ class EchoPayService
 
     public function validatePayerAuthResult(
         string $transactionId,
-        PaymentDetailData $payment,
-        MerchantDetailData $merchant
+        PaymentDetail $payment,
+        MerchantDetail $merchant
     ): array {
         $response = $this->client->post(ConfigurationEnum::VALIDATE_PAYER_AUTH_RESULT_PATH->value, [
             "payment" => [
@@ -169,18 +169,18 @@ class EchoPayService
         ]);
 
         return [
-            "consumerAuthenticationInformation" => ConsumerAuthenticationData::from($response['data']['consumerAuthenticationInformation']),
+            "consumerAuthenticationInformation" => ConsumerAuthentication::from($response['data']['consumerAuthenticationInformation']),
             "id" => $response['data']['id'],
             "status" => $response['data']['status'],
         ];
     }
 
     public function payService(
-        PaymentDetailData $payment,
-        ConsumerAuthenticationData $consumerAuthenticationData,
-        MerchantDetailData $merchant,
+        PaymentDetail $payment,
+        ConsumerAuthentication $consumerAuthenticationData,
+        MerchantDetail $merchant,
         array $service
-    ): PaymentResponseData {
+    ): PaymentResponse {
         $formData = [
             "payment" => [
                 "clientReferenceInformation" => [
@@ -215,6 +215,6 @@ class EchoPayService
         ];
         $response = $this->client->post(ConfigurationEnum::PAY_SERVICE_PATH->value, $formData);
 
-        return PaymentResponseData::from($response['data']);
+        return PaymentResponse::from($response['data']);
     }
 }

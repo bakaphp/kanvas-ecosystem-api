@@ -6,14 +6,14 @@ namespace Kanvas\Connectors\EchoPay\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 
-class PaymentDetailData extends Data
+class PaymentDetail extends Data
 {
     public function __construct(
         public readonly string $orderCode,
         public readonly string $paymentInstrumentId,
-        public readonly OrderInformationData $orderInformation,
-        public readonly ?DeviceInformationData $deviceInformation,
-        public readonly ?ConsumerAuthenticationInformationData $consumerAuthenticationInformation
+        public readonly OrderInformation $orderInformation,
+        public readonly ?DeviceInformation $deviceInformation,
+        public readonly ?ConsumerAuthenticationInformation $consumerAuthenticationInformation
     ) {
     }
 }

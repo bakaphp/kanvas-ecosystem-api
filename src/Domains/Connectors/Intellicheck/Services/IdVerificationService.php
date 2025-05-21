@@ -89,17 +89,41 @@ class IdVerificationService
         ];
 
         $ocrFailedFields = [];
+        $allFieldsFailed = true; // Assume all fields failed initially
         foreach ($ocrMatchFields as $field) {
-            // Check if the field is present and is explicitly false (not null)
-            if (isset($ocrMatch[$field]) && $ocrMatch[$field] === false) {
-                $hasOcrFailure = true;
-                $ocrFailedFields[] = $field;
+            // Check if the field is present
+            if (isset($ocrMatch[$field])) {
+                if ($ocrMatch[$field] === false) {
+                    // Field failed, add to failed fields
+                    $ocrFailedFields[] = $field;
+                } else {
+                    // At least one field passed, so not all fields failed
+                    $allFieldsFailed = false;
+                }
+            } else {
+                // Field is not present, so we can't say all fields failed
+                $allFieldsFailed = false;
             }
         }
 
-        if ($hasOcrFailure) {
+        // Only mark as failure if ALL fields failed (and we have at least one field)
+        if ($allFieldsFailed && ! empty($ocrFailedFields)) {
             $failures[] = 'OCR verification failed: ' . implode(', ', $ocrFailedFields);
             $failureGroups[] = 'OCR mismatch';
+        }
+
+        // Also add flags for any individual OCR field that fails
+        if (! empty($ocrFailedFields)) {
+            // Convert field names to readable format
+            $readableFailedFields = array_map(function ($field) {
+                $readable = str_replace(['is', 'Match'], '', $field);
+
+                return trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
+            }, $ocrFailedFields);
+
+            $flags[] = 'OCR verification issues: ' . implode(', ', $readableFailedFields);
+            $flagGroups[] = 'OCR mismatch';
+            $flagNotice = true; // Ensure it triggers a flag status
         }
 
         // Count total matches for reporting purposes (even though we're using the new rule)

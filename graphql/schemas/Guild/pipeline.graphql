@@ -8,7 +8,7 @@ type LeadPipeline {
     weight: Int!
     stage_count: Int
     lead_count: Int
-    Description: String
+    description: String
     created_at: DateTime!
     updated_at: DateTime
     is_default: Boolean!
@@ -18,14 +18,14 @@ type LeadPipelineStage {
     id: ID!
     pipeline: LeadPipeline! @belongsTo
     name: String!
-    Description: String
+    description: String
     rotting_days: Int!
     weight: Int!
 }
 
 input PipelineInput {
     name: String!
-    Description: String
+    description: String
     slug: String
     weight: Int!
     is_default: Boolean!
@@ -81,12 +81,25 @@ extend type Query @guard {
                 columns: [
                     "id"
                     "companies_id"
+                    "name"
                     "slug"
                     "weight"
                     "is_default"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "weight", "slug", "name", "weight", "is_default"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "weight"
+                    "slug"
+                    "name"
+                    "weight"
+                    "is_default"
+                ]
+            )
     ): [LeadPipeline!]!
         @paginate(
             model: "Kanvas\\Guild\\Pipelines\\Models\\Pipeline"

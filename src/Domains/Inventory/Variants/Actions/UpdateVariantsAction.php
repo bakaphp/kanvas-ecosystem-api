@@ -53,9 +53,15 @@ class UpdateVariantsAction
                 'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
                 'sku' => $this->variantDto->sku,
                 'users_id' => $this->user->getId(),
-                'description' => $this->variantDto->description ?? $this->variant->description,
+                'description' => $this->variantDto->getDescription() ?? $this->variant->description,
                 'short_description' => $this->variantDto->short_description ?? $this->variant->short_description,
-                'html_description' => $this->variantDto->html_description ?? $this->variant->html_description,
+                'html_description' => ! empty($this->variantDto->html_description)
+                    ? $this->variantDto->html_description
+                    : (! empty($this->variant->html_description)
+                        ? $this->variant->html_description
+                        : (! empty($this->variantDto->getDescription())
+                            ? $this->variantDto->getDescription()
+                            : $this->variant->description)),
                 'status_id' => $this->variantDto->status_id ?? $this->variant->status_id,
                 'ean' => $this->variantDto->ean ?? $this->variant->ean,
                 'barcode' => $this->variantDto->barcode ?? $this->variant->barcode,

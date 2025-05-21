@@ -54,6 +54,18 @@ class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
             throw new ValidationException('Holder data is required in beneficiaries metadata');
         }
 
+        $subscriptionVariant = $order->getSubscriptionVariant();
+
+        // Check if the product is from the Dominican Republic
+        $productCountry = $subscriptionVariant->getAttributeBySlug('destination-code')?->value ?? '';
+        if (strtoupper($productCountry) !== 'DO') {
+            return []; // Skip execution if not from the Dominican Republic
+        }
+
+        if (! isset($beneficiaryData['beneficiaries'])) {
+            throw new ValidationException('Beneficiaries data is required in order metadata');
+        }
+
         return [
             'people' => $people,
             'subscription_data' => [
