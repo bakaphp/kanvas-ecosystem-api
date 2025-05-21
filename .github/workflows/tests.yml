@@ -113,6 +113,9 @@ jobs:
       TEST_ELEAD_SUBSCRIPION_ID: ${{ secrets.TEST_ELEAD_SUBSCRIPION_ID }}
       TEST_WAS_SENDER_BASE_URL: ${{ secrets.TEST_WAS_SENDER_BASE_URL }}
       TEST_WAS_SENDER_API_KEY: ${{ secrets.TEST_WAS_SENDER_API_KEY }}
+      TEST_PASO_RAPIDO_CLIENT_ID: ${{ secrets.TEST_PASO_RAPIDO_CLIENT_ID }}
+      TEST_PASO_RAPIDO_SECRET: ${{ secrets.TEST_PASO_RAPIDO_SECRET }}
+      TEST_PASO_RAPIDO_TAG: ${{ secrets.TEST_PASO_RAPIDO_TAG }}
     strategy:
       fail-fast: false
       matrix:
