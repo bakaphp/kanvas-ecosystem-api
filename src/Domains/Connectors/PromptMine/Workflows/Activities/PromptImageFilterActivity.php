@@ -527,7 +527,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
-            ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . 'choose just one title, dont give me suggestions:')
+            ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
             ->generate();
 
         return str_replace(['```', 'json'], '', $response->text);
