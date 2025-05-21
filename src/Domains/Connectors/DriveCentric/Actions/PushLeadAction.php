@@ -60,7 +60,7 @@ class PushLeadAction
             ],
             'stage' => 'Undefined',
         ];
-        $leadService = new LeadService($this->lead->app);
+        $leadService = new LeadService($this->lead->app, $this->lead->company);
 
         $data = $leadService->create($lead);
         $leadIdentifier = array_filter($data['identifiers'], function ($identifier) {

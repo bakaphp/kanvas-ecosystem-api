@@ -16,7 +16,7 @@ class DriveCentricHandler extends BaseIntegration
         $this->app->set(ConfigurationEnum::BASE_URL->value, $this->data['base_url']);
         $this->app->set(ConfigurationEnum::API_KEY->value, $this->data['api_key']);
         $this->app->set(ConfigurationEnum::API_SECRET_KEY->value, $this->data['api_secret_key']);
-        $this->app->set(ConfigurationEnum::STORE_ID->value, $this->data['store_id']);
+        $this->company->set(ConfigurationEnum::STORE_ID->value, $this->data['store_id']);
         return true;
     }
 }

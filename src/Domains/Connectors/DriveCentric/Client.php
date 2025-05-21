@@ -7,12 +7,14 @@ namespace Kanvas\Connectors\DriveCentric;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps; // Import the Http class
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 
 class Client
 {
     public function __construct(
-        protected Apps $app
+        protected Apps $app,
+        protected Companies $company,
     ) {
     }
 
@@ -20,7 +22,7 @@ class Client
     {
         return Http::withUrlParameters([
             'endpoint' => $this->app->get(ConfigurationEnum::BASE_URL->value),
-            'storeId' => $this->app->get(ConfigurationEnum::STORE_ID->value),
+            'storeId' => $this->company->get(ConfigurationEnum::STORE_ID->value),
         ]);
     }
 
@@ -31,6 +33,7 @@ class Client
             'clientId' => $this->app->get(ConfigurationEnum::API_KEY->value),
             'clientSecret' => $this->app->get(ConfigurationEnum::API_SECRET_KEY->value),
         ]);
+
         return $response->json('idToken');
     }
 

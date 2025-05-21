@@ -41,7 +41,10 @@ final class PushLeadTest extends TestCase
             ]
         );
         $handler->setup();
-        $lead = Lead::factory()->withPeopleId($people)->create();
+        $lead = Lead::factory()
+                ->withCompanyId(auth()->user()->getCurrentCompany()->getId())
+                ->withPeopleId($people)
+                ->create();
         $response = new PushLeadAction($lead)->execute();
         $this->assertNotEmpty($response);
     }

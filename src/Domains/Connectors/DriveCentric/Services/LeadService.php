@@ -6,17 +6,20 @@ namespace Kanvas\Connectors\DriveCentric\Services;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DriveCentric\Client;
-
+use Kanvas\Companies\Models\Companies;
 class LeadService
 {
+    public Client $client;
     public function __construct(
         protected Apps $app,
+        protected Companies $companies
     ) {
+        $this->client = new Client($this->app, $this->companies);
     }
 
     public function create(array $lead): array
     {
-        $client = (new Client($this->app))->getClient();
+        $client = $this->client->getClient();
         $response = $client->post('{+endpoint}/api/stores/{+storeId}/deal/upsert', [
             'deal' => $lead,
         ]);
