@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\DriveCentric\Services;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\DriveCentric\Client;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\DriveCentric\Client;
+
 class LeadService
 {
     public Client $client;
