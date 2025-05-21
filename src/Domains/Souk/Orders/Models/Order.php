@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
@@ -23,6 +24,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
+use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 use Spatie\LaravelData\DataCollection;
@@ -125,6 +127,11 @@ class Order extends BaseModel
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
+    }
+
+    public function payments(): MorphMany
+    {
+        return $this->morphMany(Payments::class, 'payable');
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder

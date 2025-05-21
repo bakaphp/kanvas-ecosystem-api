@@ -15,6 +15,7 @@ use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\Souk\Orders\Notifications\NewOrderStoreOwnerNotification;
 use Kanvas\Souk\Orders\Validations\UniqueOrderNumber;
+use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -81,6 +82,10 @@ class CreateOrderAction
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);
+
+            if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {
+                new CreatePaymentAction($order)->execute($order->metadata['data']);
+            }
 
             // Run after commit
             DB::afterCommit(function () use ($order) {

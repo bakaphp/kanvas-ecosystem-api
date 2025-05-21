@@ -76,6 +76,7 @@ type PaymentResult {
 type OrderItemImport {
     variant_id: Int
     quantity: Float
+    price: Float
 }
 
 type ImportOrderCsvResult {
@@ -163,6 +164,7 @@ input DraftOrderInput {
 input OrderLineItemInput {
     variant_id: ID!
     quantity: Float!
+    price: Float
 }
 
 input PaymentInput {
