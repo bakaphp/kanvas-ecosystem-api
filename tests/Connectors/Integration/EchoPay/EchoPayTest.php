@@ -17,6 +17,25 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 
 final class EchoPayTest extends EchoPayBase
 {
+    private function getSetupData($app, $company)
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $echoPayService = $this->getService($app, $company);
+
+        $tokenizedCard = $echoPayService->addCard($this->getCardData());
+
+        $setupResult = $echoPayService->setupPayer(
+            "TC50171_3",
+            $tokenizedCard['paymentInstrumentId'],
+            MerchantDetail::from($this->getMerchantData())
+        );
+
+        return [
+            'tokenizedCard' => $tokenizedCard,
+            'referenceId' => $setupResult['consumerAuthenticationInformation']['referenceId'],
+        ];
+    }
     public function testConsultService()
     {
         $app = app(Apps::class);
@@ -88,11 +107,7 @@ final class EchoPayTest extends EchoPayBase
         $company = Companies::first();
         $echoPayService = $this->getService($app, $company);
 
-        $tokenizedCard = [
-            "paymentInstrumentId" => env('TEST_ECHO_PAY_PAYMENT_INSTRUMENT_ID'),
-        ];
-
-        $referenceId = env('TEST_ECHO_PAY_REFERENCE_ID');
+        ["tokenizedCard" => $tokenizedCard, "referenceId" => $referenceId] = $this->getSetupData($app, $company);
 
         $result = $echoPayService->checkPayerEnrollment(
             PaymentDetail::from([
@@ -133,9 +148,7 @@ final class EchoPayTest extends EchoPayBase
         $echoPayService = $this->getService($app, $company);
 
         $transactionId = env('TEST_ECHO_PAY_TRANSACTION_ID');
-        $tokenizedCard = [
-            "paymentInstrumentId" => env('TEST_ECHO_PAY_PAYMENT_INSTRUMENT_ID'),
-        ];
+        $tokenizedCard = $echoPayService->addCard($this->getCardData());
 
         $result = $echoPayService->validatePayerAuthResult(
             $transactionId,
@@ -162,11 +175,7 @@ final class EchoPayTest extends EchoPayBase
         $company = Companies::first();
         $echoPayService = $this->getService($app, $company);
 
-        $tokenizedCard = [
-            "paymentInstrumentId" => env('TEST_ECHO_PAY_PAYMENT_INSTRUMENT_ID'),
-        ];
-
-        $referenceId = env('TEST_ECHO_PAY_REFERENCE_ID');
+        ["tokenizedCard" => $tokenizedCard, "referenceId" => $referenceId] = $this->getSetupData($app, $company);
 
         $cardData = $this->getCardData();
 
