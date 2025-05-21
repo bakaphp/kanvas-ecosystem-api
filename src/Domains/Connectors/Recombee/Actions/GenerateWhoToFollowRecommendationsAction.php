@@ -35,6 +35,7 @@ class GenerateWhoToFollowRecommendationsAction
 
         return Users::query()
                 ->whereIn('id', $entityIds)
+                ->where('id', '!=', $user->getId())
                 ->where('is_deleted', 0);
     }
 }

@@ -121,6 +121,9 @@ jobs:
       TEST_ECHO_PAY_PAYMENT_INSTRUMENT_ID: ${{ secrets.TEST_ECHO_PAY_PAYMENT_INSTRUMENT_ID }}
       TEST_ECHO_PAY_REFERENCE_ID: ${{ secrets.TEST_ECHO_PAY_REFERENCE_ID }}
       TEST_ECHO_PAY_TRANSACTION_ID: ${{ secrets.TEST_ECHO_PAY_TRANSACTION_ID }}
+      TEST_PASO_RAPIDO_CLIENT_ID: ${{ secrets.TEST_PASO_RAPIDO_CLIENT_ID }}
+      TEST_PASO_RAPIDO_SECRET: ${{ secrets.TEST_PASO_RAPIDO_SECRET }}
+      TEST_PASO_RAPIDO_TAG: ${{ secrets.TEST_PASO_RAPIDO_TAG }}
     strategy:
       fail-fast: false
       matrix:
@@ -232,7 +235,7 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: php artisan test
+        run: php artisan test --dont-report-useless-tests
 
       - name: Upload artifacts
         uses: actions/upload-artifact@master

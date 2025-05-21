@@ -16,6 +16,7 @@ input ImporterProductInput {
     isPublished: Boolean
     warehouses: [Int!]
     source: String
+    status: String
     sourceId: Mixed
     productType: ProductTypeInput
     categories: [CategoryInput!]

@@ -144,13 +144,15 @@ class AuthorizeNetPaymentProcessor
     public function processSubscriptionPayment(DirectOrder $orderInput, int $intervalLength = 30): ANetApiResponseType
     {
         /* Create a merchantAuthenticationType object with authentication details
-       retrieved from the constants file */
+        retrieved from the constants file */
         $merchantAuthentication = $this->setupMerchantAuthentication();
 
-        $variantAttributes = $orderInput->cart->getContent()->first()->attributes;
+        $firstItem = $orderInput->cart->getContent()->first();
+        $variantAttributes = $firstItem->attributes;
+
         // Subscription Type Info
         $subscription = new AnetAPI\ARBSubscriptionType();
-        $subscription->setName($orderInput->cart->getContent()->first()->name);
+        $subscription->setName($firstItem->name);
 
         $interval = new AnetAPI\PaymentScheduleType\IntervalAType();
         $interval->setLength($intervalLength);
@@ -164,7 +166,9 @@ class AuthorizeNetPaymentProcessor
         $paymentSchedule->setTrialOccurrences(1); // Set trial occurrences to 1 for the first payment
 
         $subscription->setPaymentSchedule($paymentSchedule);
-        $subscription->setAmount($variantAttributes->get('subscription_price'));
+
+        // Fix: Using array access instead of get() method
+        $subscription->setAmount($variantAttributes['subscription_price'] ?? 0);
         $subscription->setTrialAmount($orderInput->cart->getTotal());
 
         $creditCard = $this->setCreditCard($orderInput->creditCard);
@@ -191,7 +195,9 @@ class AuthorizeNetPaymentProcessor
         $controller = new AnetController\ARBCreateSubscriptionController($request);
 
         $subscriptionInitialCharge = null;
-        if ($variantAttributes->has('subscription_initial_charge')) {
+
+        // Fix: Using array access and isset() instead of has() method
+        if (isset($variantAttributes['subscription_initial_charge'])) {
             $subscriptionInitialCharge = $this->processCreditCardPayment($orderInput);
         }
 
