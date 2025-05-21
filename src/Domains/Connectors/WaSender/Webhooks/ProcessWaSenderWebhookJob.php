@@ -212,7 +212,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     $text = $message->message['raw_data']['message']['conversation'] ??
                        $message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
                     $isLastMessageDocument = MessageTypeEnum::isDocumentType($lastMessageParent->messageType->verb);
-                    $processDocument = $isLastMessageDocument && $text !== null && (trim(strtolower($text)) === 'process document' || trim(strtolower($text)) === 'process');
+                    $triggerWords = ['process', 'process document', 'dale', 'run'];
+                    $processDocument = $isLastMessageDocument && $text !== null && in_array(trim(strtolower($text)), $triggerWords);
                 }
 
                 $channel->fireWorkflow(

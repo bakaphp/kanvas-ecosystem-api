@@ -112,6 +112,20 @@ class IdVerificationService
             $failureGroups[] = 'OCR mismatch';
         }
 
+        // Also add flags for any individual OCR field that fails
+        if (! empty($ocrFailedFields)) {
+            // Convert field names to readable format
+            $readableFailedFields = array_map(function ($field) {
+                $readable = str_replace(['is', 'Match'], '', $field);
+
+                return trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
+            }, $ocrFailedFields);
+
+            $flags[] = 'OCR verification issues: ' . implode(', ', $readableFailedFields);
+            $flagGroups[] = 'OCR mismatch';
+            $flagNotice = true; // Ensure it triggers a flag status
+        }
+
         // Count total matches for reporting purposes (even though we're using the new rule)
         $ocrRequiredMatches = array_filter([
             $ocrMatch['isDlClassMatch'] ?? false,
