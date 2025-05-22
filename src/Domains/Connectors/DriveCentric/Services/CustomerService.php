@@ -22,8 +22,7 @@ class CustomerService
     public function getCustomers(int $offset = 0, string $start = 'today', ?string $endDate = null): array
     {
         $endDate = $endDate ?? date('Y-m-d');
-        $storeId = $this->app->get(ConfigurationEnum::STORE_ID->value);
-        $response = $this->client->getClient()->get("{+endpoint}/api/Stores/{$storeId}/Customers/List", [
+        $response = $this->client->getClient()->get("{+endpoint}/api/Stores/{+storeId}/Customers/List", [
             'Offset' => $offset,
             'Start' => $start,
             'End' => $endDate,
@@ -34,8 +33,7 @@ class CustomerService
 
     public function getCustomerById(string $customerId): array
     {
-        $storeId = $this->app->get(ConfigurationEnum::STORE_ID->value);
-        $response = $this->client->getClient()->get("{+endpoint}/api/Stores/{$storeId}/Customers/{$customerId}");
+        $response = $this->client->getClient()->get("{+endpoint}/api/Stores/{+storeId}/Customers/{$customerId}");
         $customer = $response->json('customerInfo');
 
         return $customer;
@@ -43,8 +41,7 @@ class CustomerService
 
     public function getCustomerByEmail(string $email): array
     {
-        $storeId = $this->app->get(ConfigurationEnum::STORE_ID->value);
-        $response = $this->client->getClient()->get("{+endpoint}/api/stores/{$storeId}/customers", [
+        $response = $this->client->getClient()->get("{+endpoint}/api/stores/{+storeId}/customers", [
             'email' => $email,
         ]);
         $customer = $response->json('customers.0');
@@ -53,8 +50,7 @@ class CustomerService
 
     public function getCustomerByPhone(string $phone): array
     {
-        $storeId = $this->app->get(ConfigurationEnum::STORE_ID->value);
-        $response = $this->client->getClient()->get("{+endpoint}/api/stores/{$storeId}/customers", [
+        $response = $this->client->getClient()->get("{+endpoint}/api/stores/{+storeId}/customers", [
             'phone' => $phone,
         ]);
         $customer = $response->json('customers.0');
