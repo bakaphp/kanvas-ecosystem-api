@@ -30,7 +30,6 @@ return new class () extends Migration {
             $table->timestamps(); // Includes both `created_at` and `updated_at` columns
             $table->boolean('is_deleted')->default(false)->index();
         });
-
     }
 
     /**

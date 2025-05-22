@@ -3,12 +3,11 @@
 namespace Kanvas\Souk\Payments\Actions;
 
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
-use Kanvas\Souk\Payments\Providers\AuthorizePortalPaymentProcessor;
 
 class CreatePaymentAction
 {
-
     public function __construct(
         protected Order $order,
     ) {
@@ -25,10 +24,9 @@ class CreatePaymentAction
             'users_id' => $this->order->users_id,
             'companies_id' => $this->order->companies_id,
             'currency' => $this->order->currency,
-            'status' => 'verified'
+            'status' => PaymentStatusEnum::PENDING->value
         ];
-    
         $payment = $this->order->payments()->create($formData);
         return $payment;
-    }   
+    }
 }

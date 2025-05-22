@@ -6,12 +6,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Models\BaseModel;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Class Payments
- * 
+ *
  * @property float $amount
  * @property string $payment_date
  * @property string $concept
@@ -60,5 +59,3 @@ class Payments extends BaseModel
         ];
     }
 }
-
-
