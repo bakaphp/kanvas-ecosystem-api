@@ -108,7 +108,7 @@ class CreateEsimOrderAction
 
             // Check if we need to customize the data amount and validity period
             $dataAmount = FileSizeConverter::toBytes($this->orderVariant->getAttributeBySlug('data')?->value);
-            $validityDays = $this->orderVariant->getAttributeBySlug('esim_days')?->value;
+            $validityDays = $this->orderVariant->getAttributeBySlug('esim-days')?->value ?? $this->orderVariant->getAttributeBySlug('esim_days')?->value;
             $periodType = $this->orderVariant->getAttributeBySlug('period-type')?->value ?? 0;
 
             if ($dataAmount > 0 && $validityDays !== null) {
