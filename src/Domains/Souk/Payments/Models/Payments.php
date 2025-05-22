@@ -3,6 +3,7 @@
 namespace Kanvas\Souk\Payments\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Models\Order;
@@ -36,6 +37,11 @@ class Payments extends BaseModel
     public function paymentMethod(): BelongsTo
     {
         return $this->belongsTo(PaymentMethods::class, 'payment_methods_id', 'id');
+    }
+
+    public function paymentLogs(): HasMany
+    {
+        return $this->hasMany(PaymentLogs::class, 'payments_id', 'id');
     }
 
     public function order(): BelongsTo

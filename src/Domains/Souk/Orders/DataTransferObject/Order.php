@@ -46,6 +46,7 @@ class Order extends Data
         public readonly mixed $metadata = null,
         public readonly float $weight = 0.0,
         public readonly ?string $shippingMethod = null,
+        public readonly ?string $orderType = null,
         public readonly ?string $phone = null,
         public readonly ?string $customerNote = null,
         public readonly ?string $fulfillmentStatus = null,

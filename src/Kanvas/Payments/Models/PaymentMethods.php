@@ -9,7 +9,7 @@ use Kanvas\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
- * Class Order
+ * Class PaymentMethods
  *
  * @property int $id
  * @property int $apps_id

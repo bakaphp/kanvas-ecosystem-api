@@ -81,6 +81,10 @@ class CreateOrderAction
             $order->reference = $this->orderData->reference;
             $order->saveOrFail();
 
+            if ($this->orderData->orderType) {  
+                $order->setOrderType($this->orderData->orderType);
+            }
+
             $order->addItems($this->orderData->items);
 
             if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {

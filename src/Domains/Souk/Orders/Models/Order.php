@@ -563,6 +563,20 @@ class Order extends BaseModel
         return config('scout.prefix') . ($customIndex ?? 'orders');
     }
 
+    public function setOrderType(string $orderType): void
+    {
+        $orderType = OrderTypes::firstOrCreate([
+            'apps_id' => $this->apps_id,
+            'name' => $orderType,
+        ], [
+            'apps_id' => $this->apps_id,
+            'name' => $orderType,
+        ]);
+
+        $this->order_types_id = $orderType->id;
+        $this->saveOrFail();
+    }
+
     public function checkPayments()
     {
         if ($this && ($this->payments)) {

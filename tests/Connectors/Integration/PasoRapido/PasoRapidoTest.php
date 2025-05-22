@@ -79,10 +79,7 @@ final class PasoRapidoTest extends TestCase
             ])
         );
 
-
         // $verifiedPayment = $pasoRapidoService->verifyPayment($transactionId);
-    
-
         // $this->assertInstanceOf(VerifyPaymentResponse::class, $verifiedPayment);
         $this->assertInstanceOf(PaymentConfirmResponse::class, $confirmedPayment);
     }

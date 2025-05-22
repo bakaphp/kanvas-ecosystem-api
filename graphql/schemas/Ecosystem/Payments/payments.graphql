@@ -33,4 +33,39 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Payments\\PaymentMutation@makePaymentIntent"
         )
+    makePaymentIntentFromOrder(orderID: ID!): PaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
+        )
+}
+
+extend type Query {
+    paymentMethods(
+        orderBy: PaymentMethodOrderByInput
+        where: PaymentMethodWhereInput
+    ): [PaymentMethod!]!
+        @paginate(
+            defaultCount: 25 
+            model: "Kanvas\\Payments\\Models\\PaymentMethods"
+        )
+    
+    paymentMethod(id: Int!): PaymentMethod 
+        @find(
+            model: "Kanvas\\Payments\\Models\\PaymentMethods"
+        )
+}
+
+input PaymentMethodOrderByInput {
+    column: String!
+    order: SortOrder!
+}
+
+enum SortOrder {
+    ASC
+    DESC
+}
+
+input PaymentMethodWhereInput {
+    users_id: Int
+    # Add other filterable fields here
 }
