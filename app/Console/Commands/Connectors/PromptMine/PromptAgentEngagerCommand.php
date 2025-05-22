@@ -21,6 +21,7 @@ class PromptAgentEngagerCommand extends Command
     protected $description = 'Redistribute prompts from a Google Sheet';
     protected ?string $url = null;
     protected ?string $appId = null;
+    protected ?string $appKey = null;
 
     /**
      * Execute the console command.
@@ -32,6 +33,7 @@ class PromptAgentEngagerCommand extends Command
 
         $this->url = $app->get('graphql-url');
         $this->appId = $app->key;
+        $this->appKey = $app->keys()->first()->client_secret_id;
 
         // Get the current hour and date
         $currentHour = (int) date('G');
@@ -89,9 +91,23 @@ class PromptAgentEngagerCommand extends Command
         $this->info('Agent logged in: ' . $currentAgent['email']);
 
         for ($page = 1; $page <= $totalPagesPerProfile; $page++) {
+            //$forYouFeed = $this->getForYouFeed($token, $page, 15);
             $forYouFeed = $this->getForYouFeed($token, $page, 15);
+            $publicMessages = $this->getPublicMessages($token, $page, 30);
 
-            foreach ($forYouFeed['data'] as $message) {
+            // Simple merge of the data arrays
+            $allMessages = array_merge(
+                $forYouFeed['data'] ?? [],
+                $publicMessages['data'] ?? []
+            );
+
+            foreach ($allMessages as $message) {
+                if (! isset($message['message']['title'])) {
+                    $this->error('Message does not have a title. Skipping.');
+
+                    continue;
+                }
+
                 $content = 'Tittle :' . $message['message']['title'];
                 $messageId = (int) $message['id'];
 
@@ -206,15 +222,15 @@ GQL;
     }
 
     /**
- * Get the "For You" feed messages with pagination
- *
- * @param string $token Authentication token
- * @param int $page Page number for pagination
- * @param int $perPage Number of items per page
- * @param string $sortOrder Sort order (ASC or DESC)
- *
- * @return array Array of messages and pagination information
- */
+    * Get the "For You" feed messages with pagination
+    *
+    * @param string $token Authentication token
+    * @param int $page Page number for pagination
+    * @param int $perPage Number of items per page
+    * @param string $sortOrder Sort order (ASC or DESC)
+    *
+    * @return array Array of messages and pagination information
+    */
     protected function getForYouFeed(
         string $token,
         int $page = 1,
@@ -305,6 +321,93 @@ GQL;
             return $result['data']['forYouMessages'] ?? [];
         } catch (\Exception $e) {
             $this->error('Exception fetching ForYou messages: ' . $e->getMessage());
+
+            return [];
+        }
+    }
+
+    protected function getPublicMessages(
+        string $token,
+        int $page = 1,
+        int $perPage = 30,
+        string $sortOrder = 'DESC',
+        int $messageTypeId = 572
+    ): array {
+        // Build the orderBy clause based on sort order
+        $orderByClause = $sortOrder === 'ASC'
+            ? 'orderBy: { column: CREATED_AT, order: ASC }'
+            : 'orderBy: { column: CREATED_AT, order: DESC }';
+
+        $query = <<<GQL
+query Messages(\$first: Int!, \$page: Int!, \$messageTypeId: Mixed!) {
+    messages(
+        first: \$first,
+        page: \$page,
+        where: {
+            AND: [
+                {
+                    column: MESSAGE_TYPES_ID,
+                    operator: EQ,
+                    value: \$messageTypeId
+                },
+                {
+                    column: IS_PUBLIC,
+                    operator: EQ,
+                    value: 1
+                }
+            ]
+        },
+        $orderByClause
+    ) {
+        data {
+            id
+            message
+            created_at
+        }
+        paginatorInfo {
+            count
+            currentPage
+            firstItem
+            hasMorePages
+            lastItem
+            lastPage
+            perPage
+            total
+        }
+    }
+}
+GQL;
+
+        try {
+            $response = $this->getClient()->post(
+                $this->url,
+                [
+                    'headers' => $this->getHeaders([
+                        'Authorization' => $token,
+                        'X-Kanvas-Key' => $this->appKey,
+                    ]),
+                    'json' => [
+                        'query' => $query,
+                        'variables' => [
+                            'first' => $perPage,
+                            'page' => $page,
+                            'messageTypeId' => $messageTypeId,
+                        ],
+                    ],
+                ]
+            );
+
+            $result = json_decode($response->getBody()->getContents(), true);
+
+            if (isset($result['errors'])) {
+                $this->error('GraphQL Error: ' . json_encode($result['errors']));
+
+                return [];
+            }
+
+            return $result['data']['messages'] ?? [];
+        } catch (\Exception $e) {
+            $this->error('Exception fetching public messages: ' . $e->getMessage());
 
             return [];
         }
