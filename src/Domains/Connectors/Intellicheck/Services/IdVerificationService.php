@@ -169,7 +169,7 @@ class IdVerificationService
         }
 
         // Skip IPQS validation if in showroom mode or IPQS address data is empty
-        $skipIpqsValidation = $isShowRoom || empty($ipqsAddress);
+        $skipIpqsValidation = empty($ipqsAddress);
 
         if (! $skipIpqsValidation) {
             // BEHAVIOR RISKS - NEW RULE (remove failure conditions, only keep flag)
