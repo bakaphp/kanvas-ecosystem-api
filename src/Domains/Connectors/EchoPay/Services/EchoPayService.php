@@ -117,6 +117,7 @@ class EchoPayService
             "merchant" => $merchant->toArray()
         ];
 
+
         $response = $this->client->post(ConfigurationEnum::CHECK_PAYER_ENROLLMENT_PATH->value, $formData);
 
         return [
@@ -124,10 +125,10 @@ class EchoPayService
                 "code" => $response['data']['clientReferenceInformation']['code']
             ],
             "consumerAuthenticationInformation" => ConsumerAuthentication::from($response['data']['consumerAuthenticationInformation']),
-            "errorInformation" => [
+            "errorInformation" => isset($response['data']['errorInformation']) ? [
                 "reason" => $response['data']['errorInformation']['reason'],
                 "message" => $response['data']['errorInformation']['message']
-            ],
+            ] : null,
             "id" => $response['data']['id'],
             "paymentInformation" => [
                 "card" => [

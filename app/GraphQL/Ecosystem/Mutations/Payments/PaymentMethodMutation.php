@@ -6,10 +6,10 @@ namespace App\GraphQL\Ecosystem\Mutations\Payments;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetailData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\CardDetailData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenizationData;
-use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetailData;
+use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\CardDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenization;
+use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Payments\Actions\CreatePaymentMethodAction;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
@@ -28,14 +28,14 @@ class PaymentMethodMutation
         if ($input['processor'] == 'portal') {
             [$year, $month] = explode('-', $input['expiration_date']);
             $portalService = new EchoPayService($app, $company);
-            $card = new CardTokenizationData(
-                card: new CardDetailData(
+            $card = new CardTokenization(
+                card: new CardDetail(
                     number: $input['number'],
                     expirationMonth: $month,
                     expirationYear: $year,
                     type: $input['brand'],
                 ),
-                billTo: new BillingDetailData(
+                billTo: new BillingDetail(
                     firstName: $user->firstname,
                     lastName: $user->lastname,
                     country: $company->country,
@@ -46,7 +46,7 @@ class PaymentMethodMutation
                     postalCode: $company->zip,
                     administrativeArea: $company->state,
                 ),
-                merchant: MerchantDetailData::from([
+                merchant: MerchantDetail::from([
                     'id' => $app->get('ECHO_PAY_MERCHANT_ID'),
                     'key' => $app->get('ECHO_PAY_MERCHANT_KEY'),
                     'secretKey' => $app->get('ECHO_PAY_MERCHANT_SECRET')

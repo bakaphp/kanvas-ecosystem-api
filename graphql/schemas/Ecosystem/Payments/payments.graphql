@@ -19,9 +19,18 @@ input PaymentMethodInput{
     metadata: Mixed
 }
 
+type PaymentIntentResult {
+    paymentIntent: Mixed
+    message: Mixed
+}
+
 extend type Mutation @guard {
     createPaymentMethod(input: PaymentMethodInput!): PaymentMethod!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Payments\\PaymentMethodMutation@createPaymentMethod"
+        )
+    makePaymentIntent(paymentID: ID!): PaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Payments\\PaymentMutation@makePaymentIntent"
         )
 }

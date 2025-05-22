@@ -4,6 +4,7 @@ namespace Kanvas\Souk\Payments\Actions;
 
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Payments\Providers\AuthorizePortalPaymentProcessor;
 
 class CreatePaymentAction
 {
@@ -23,18 +24,11 @@ class CreatePaymentAction
             "payment_methods_id" => $formData['payment_methods_id'] ?? $this->order->payment_method_id,
             'users_id' => $this->order->users_id,
             'companies_id' => $this->order->companies_id,
-            'currency_code' => $this->order->currency,
+            'currency' => $this->order->currency,
             'status' => 'verified'
         ];
     
         $payment = $this->order->payments()->create($formData);
         return $payment;
-    }
-
-    private function processPayment(Payments $payment, bool $isSubscription): mixed
-    {
-        
-    }
-    
-    
+    }   
 }
