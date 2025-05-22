@@ -7,7 +7,9 @@ namespace Kanvas\Connectors\PasoRapido\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\PasoRapido\Client;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\BillingDetail;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\CancelPaymentResponse;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\InvoiceDetails;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyCustomerResponse;
@@ -34,29 +36,64 @@ class PasoRapidoService
     {
         $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
 
-        return VerifyCustomerResponse::from($response);
+        return VerifyCustomerResponse::from([
+            'username' => $response['nombreUsuario'],
+            'lastname' => $response['apellidoUsuario'],
+            'device' => $response['dispositivo'],
+            'message' => $response['descripcionMensaje'],
+            'document' => $response['rnc_Cedula'],
+            'balance' => $response['balance'],
+            'type' => $response['tipoDeReferencia'],
+            'reference' => $response['referencia'],
+            'account' => $response['cuenta'],
+            'status' => $response['estado'],
+        ]);
     }
 
     public function confirmPayment(PaymentConfirmData $data): PaymentConfirmResponse
     {
         $response = $this->client->post(ConfigurationEnum::CONFIRM_PAYMENT_PATH->value, [
-            'json' => [
-                'referencia' => $data->reference,
-                'transaccionBanco' => $data->bankTransaction,
-                'valorPagado' => $data->amount,
-                'creditoFiscal' => $data->fiscalCredit,
-                'rnc_Cedula' => $data->dni,
-            ],
+            'referencia' => $data->reference,
+            'transaccionBanco' => $data->bankTransaction,
+            'valorPagado' => $data->amount,
+            'creditoFiscal' => $data->fiscalCredit,
+            'rnc_Cedula' => $data->dni,
         ]);
 
-        return PaymentConfirmResponse::from($response);
+        return PaymentConfirmResponse::from([
+            'message' => $response['descripcionMensaje'],
+            'amount' => $response['montoAcreditado'],
+            'order' => $response['orden'],
+            'tag' => $response['tag'],
+            'account' => $response['cuenta'],
+            'creditDate' => $response['fechaCredito'],
+            'invoiceDetails' => InvoiceDetails::from([
+                'commercialName' => $response['detallesFactura']['nombreComercial'] ?? '',
+                'document' => $response['detallesFactura']['rncCedula'] ?? '',
+                'fiscalCredit' => $response['detallesFactura']['valorFiscal'] ?? false,
+                'invoice' => $response['detallesFactura']['comprobante'] ?? '',
+                'pdf' => $response['detallesFactura']['pdf'] ?? '',
+                'reference' => $response['detallesFactura']['referencia'] ?? '',
+            ])
+        ]);
     }
 
     public function verifyPayment(string $transactionNumber): VerifyPaymentResponse
     {
-        $response = $this->client->post(ConfigurationEnum::VERIFY_PAYMENT_PATH->value . '?numeroTransaccion=' . $transactionNumber, []);
+        $response = $this->client->get(ConfigurationEnum::VERIFY_PAYMENT_PATH->value . '?numeroTransaccion=' . $transactionNumber, []);
 
-        return VerifyPaymentResponse::from($response);
+        return VerifyPaymentResponse::from([
+            'availableToCancel' => $response['availableToCancel'],
+            'exists' => $response['exists'],
+            'applied' => $response['applied'],
+            'description' => $response['description'],
+            'billingDetail' => BillingDetail::from([
+                'document' => $response['rncCedula'],
+                'fiscalCredit' => $response['valorFiscal'],
+                'invoice' => $response['comprobante'],
+                'pdf' => $response['pdf'],
+            ]),
+        ]);
     }
 
     public function cancelPayment(string $transactionNumber): CancelPaymentResponse
