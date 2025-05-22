@@ -589,7 +589,8 @@ class Order extends BaseModel
     }
 
 
-    public function getPaidAmount() {
+    public function getPaidAmount()
+    {
         return $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
     }
 }

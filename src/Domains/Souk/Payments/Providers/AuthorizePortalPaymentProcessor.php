@@ -6,7 +6,6 @@ namespace Kanvas\Souk\Payments\Providers;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthenticationInformation;
@@ -49,17 +48,17 @@ class AuthorizePortalPaymentProcessor
             'id' => $this->app->get('ECHO_PAY_MERCHANT_ID'),
             'key' => $this->app->get('ECHO_PAY_MERCHANT_KEY'),
             'secretKey' => $this->app->get('ECHO_PAY_MERCHANT_SECRET'),
-            ...($includeDetails 
-            ? ['merchantDefinedInformation' => new MerchantDefinedInformation(
-                category: MerchantCategoryEnum::RETAIL,
-                cardIdentifier: $this->app->get('ECHO_PAY_MERCHANT_IDENTIFIER'),
-                platform: MerchantPlatformEnum::WEB,
-                customerId: "user_" . $this->payment->order->user->id,
-                tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
-                documentType: MerchantDocumentTypesEnum::DNI,
-                documentNumber: $this->app->get('ECHO_PAY_MERCHANT_DOCUMENT_NUMBER'),
-            )] 
-            : [])
+            ...($includeDetails
+                ? ['merchantDefinedInformation' => new MerchantDefinedInformation(
+                    category: MerchantCategoryEnum::RETAIL,
+                    cardIdentifier: $this->app->get('ECHO_PAY_MERCHANT_IDENTIFIER'),
+                    platform: MerchantPlatformEnum::WEB,
+                    customerId: "user_" . $this->payment->order->user->id,
+                    tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
+                    documentType: MerchantDocumentTypesEnum::DNI,
+                    documentNumber: $this->app->get('ECHO_PAY_MERCHANT_DOCUMENT_NUMBER'),
+                )]
+                : [])
         ]);
     }
 
@@ -175,7 +174,6 @@ class AuthorizePortalPaymentProcessor
 
     public function makePaymentIntent(Payments $payment): PaymentResponse | array
     {
-
         if ($payment->status === PaymentStatusEnum::PAID->value) {
             return [
                 'status' => 'success',

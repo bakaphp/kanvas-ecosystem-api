@@ -7,7 +7,6 @@ use Kanvas\Souk\Payments\Providers\AuthorizePortalPaymentProcessor;
 
 class MakePaymentIntentAction
 {
-
     public function __construct(
         protected Payments $payment,
     ) {

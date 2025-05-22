@@ -10,6 +10,4 @@ class PaymentLogs extends BaseModel
 {
     protected $table = 'payment_logs';
     protected $guarded = [];
-    
 }
-

@@ -19,10 +19,10 @@ class ConsumerAuthentication extends Data
         public readonly ?string $cavv,
         public readonly ?string $paresStatus,
         public readonly ?string $xid,
-        public readonly string $directoryServerTransactionId,
-        public readonly string $threeDSServerTransactionId,
-        public readonly string $specificationVersion,
-        public readonly string $acsTransactionId,
+        public readonly ?string $directoryServerTransactionId,
+        public readonly ?string $threeDSServerTransactionId,
+        public readonly ?string $specificationVersion,
+        public readonly ?string $acsTransactionId,
     ) {
     }
 }

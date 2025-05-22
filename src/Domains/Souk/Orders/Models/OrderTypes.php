@@ -17,5 +17,3 @@ class OrderTypes extends BaseModel
         return $this->hasMany(Order::class, 'order_types_id', 'id');
     }
 }
-
-

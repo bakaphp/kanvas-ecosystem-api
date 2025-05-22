@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Payments;
 
-use Kanvas\Apps\Models\Apps;
+suse Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\CardDetail;
@@ -57,7 +57,7 @@ class PaymentMethodMutation
                 app: $app,
                 user: $user,
                 company: $company,
-                payment_ending_numbers: $tokenizedCard['cardNumber'],
+                payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
                 payment_methods_brand: $input['brand'],
                 stripe_card_id: $tokenizedCard['paymentInstrumentId'],
                 expiration_date: $input['expiration_date'],
@@ -70,5 +70,7 @@ class PaymentMethodMutation
             $action = new CreatePaymentMethodAction($paymentMethod);
             return $action->execute();
         }
+
+        throw new Exception('Processor not supported');
     }
 }

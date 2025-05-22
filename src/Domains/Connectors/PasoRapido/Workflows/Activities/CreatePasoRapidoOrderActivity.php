@@ -11,7 +11,7 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 
 class CreatePasoRapidoOrderActivity extends KanvasActivity implements WorkflowActivityInterface
-{   
+{
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params): array
     {
@@ -21,7 +21,7 @@ class CreatePasoRapidoOrderActivity extends KanvasActivity implements WorkflowAc
             //     return $item->variant->product?->attributes
             //     ->contains(fn ($attribute) => in_array($attribute->slug, ['tag']) && ! empty($attribute->value));
             // })->variant;
-    
+
             // $product = $variant->product;
 
             // $tag = $product->getAttributeByName('tag')->value;
