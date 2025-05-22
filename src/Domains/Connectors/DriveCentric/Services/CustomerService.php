@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\DriveCentric\Services;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DriveCentric\Client;
-use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 
 class CustomerService
 {
