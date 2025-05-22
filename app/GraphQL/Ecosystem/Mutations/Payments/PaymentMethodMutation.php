@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Payments;
 
-suse Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\CardDetail;
