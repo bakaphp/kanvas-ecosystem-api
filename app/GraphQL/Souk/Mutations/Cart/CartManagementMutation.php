@@ -113,6 +113,17 @@ class CartManagementMutation
                 ]);
 
                 $cart->condition($fifteenPercentOff);
+            } elseif (strtolower($discountCodes[0]) === 'coiscou') {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'coiscou',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-20',
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($fifteenPercentOff);
             }
         }
 
