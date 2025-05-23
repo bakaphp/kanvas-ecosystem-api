@@ -82,7 +82,6 @@ type PaymentResult {
 type OrderItemImport {
     variant_id: Int
     quantity: Float
-    price: Float
 }
 
 type ImportOrderCsvResult {

@@ -16,6 +16,7 @@ return new class () extends Migration {
             $table->bigIncrements('id');
             $table->bigInteger('apps_id')->index();
             $table->bigInteger('companies_id')->index();
+            $table->uuid('uuid')->index();
             $table->bigInteger('payable_id')->index();
             $table->string('payable_type', 255)->index();
             $table->bigInteger('users_id')->index();

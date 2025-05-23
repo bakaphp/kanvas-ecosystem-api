@@ -1,8 +1,8 @@
 type PaymentMethod {
     id: ID!
-    payment_ending_numbers: String, 
-    payment_methods_brand: String,
-    stripe_card_id: String,
+    payment_ending_numbers: String 
+    payment_methods_brand: String
+    stripe_card_id: String
     expiration_date: String
     instrument_identifier_id: String
     processor: String
@@ -47,6 +47,7 @@ extend type Query {
         @paginate(
             defaultCount: 25 
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
     
     paymentMethod(id: Int!): PaymentMethod 

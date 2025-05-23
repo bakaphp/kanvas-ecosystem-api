@@ -577,7 +577,7 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
-    public function checkPayments()
+    public function checkPayments(): void
     {
         if ($this && ($this->payments)) {
             $totalPaid = $this->getPaidAmount();
@@ -588,8 +588,7 @@ class Order extends BaseModel
         }
     }
 
-
-    public function getPaidAmount()
+    public function getPaidAmount(): float
     {
         return $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
     }

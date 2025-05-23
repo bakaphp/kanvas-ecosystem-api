@@ -2,6 +2,7 @@
 
 namespace Kanvas\Souk\Payments\Models;
 
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Payments\Models\PaymentMethods;
@@ -26,6 +27,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 class Payments extends BaseModel
 {
     use CanUseWorkflow;
+    use UuidTrait;
+
     protected $table = 'payments';
     protected $guarded = [];
 
