@@ -16,7 +16,7 @@ class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
 {
     public function execute(Order $order, AppInterface $app, array $params): array
     {
-        $subscriptionVariant = $order->getSubscriptionVariant();
+        $subscriptionVariant = $order->allItems()->first()->variant;
 
         // Check if the product is from the Dominican Republic first
         $productCountry = $subscriptionVariant->getAttributeBySlug('destination')?->value ?? '';
