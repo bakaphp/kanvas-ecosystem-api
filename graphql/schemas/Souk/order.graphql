@@ -171,7 +171,7 @@ input DraftOrderInput {
 input OrderLineItemInput {
     variant_id: ID!
     quantity: Float!
-    price: Float
+    price: Money
 }
 
 input PaymentInput {
@@ -280,6 +280,7 @@ extend type Query @guard {
                     "fulfillment_status"
                     "order_number"
                     "reference"
+                    "order_types_id"
                 ]
             )
         hasAddress: _

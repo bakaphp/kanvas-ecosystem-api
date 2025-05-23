@@ -29,4 +29,5 @@ enum IntegrationsEnum: string
     case PLATE_RECOGNIZER = 'plate_recognizer';
     case MINDEE = 'mindee';
     case SALESASSIST = 'salesassist';
+    case ECHO_PAY = 'echo_pay';
 }

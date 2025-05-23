@@ -27,15 +27,15 @@ type PaymentIntentResult {
 extend type Mutation @guard {
     createPaymentMethod(input: PaymentMethodInput!): PaymentMethod!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Payments\\PaymentMethodMutation@createPaymentMethod"
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@createPaymentMethod"
         )
     makePaymentIntent(paymentID: ID!): PaymentIntentResult!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Payments\\PaymentMutation@makePaymentIntent"
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntent"
         )
     makePaymentIntentFromOrder(orderID: ID!): PaymentIntentResult!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
         )
 }
 

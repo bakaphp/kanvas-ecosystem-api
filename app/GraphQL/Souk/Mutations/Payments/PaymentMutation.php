@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Ecosystem\Mutations\Payments;
+namespace App\GraphQL\Souk\Mutations\Payments;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;

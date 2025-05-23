@@ -20,8 +20,7 @@ return new class () extends Migration {
             $table->string('payable_type', 255)->index();
             $table->bigInteger('users_id')->index();
             $table->bigInteger('payment_methods_id')->index();
-            $table->date('payment_date');
-            $table->date('document_date');
+            $table->date('payment_date')->index();
             $table->string('payment_method', 255)->nullable();
             $table->string('concept', 255)->nullable();
             $table->decimal('amount', 10, 2)->nullable();

@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Ecosystem\Mutations\Payments;
+namespace App\GraphQL\Souk\Mutations\Payments;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
@@ -25,6 +26,7 @@ class PaymentMethodMutation
         $company = Companies::find($companiesId);
         $input = $request['input'];
         $card = null;
+        // TODO: move this to a provider centry to avoid hardcoding here
         if ($input['processor'] == 'portal') {
             [$year, $month] = explode('-', $input['expiration_date']);
             $portalService = new EchoPayService($app, $company);
