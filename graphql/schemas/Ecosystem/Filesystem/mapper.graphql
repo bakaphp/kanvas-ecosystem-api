@@ -13,6 +13,19 @@ type FilesystemMapper {
     updated_at: DateTime
 }
 
+type FilesystemImportHistory {
+    id: ID!
+    users: User!
+    company: Company!
+    results: Mixed
+    exception: Mixed
+    status: String
+    filesystem: Filesystem
+    filesystem_mapper: FilesystemMapper @belongsTo(relation: "filesystemMapper")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
 input FilesystemMapperInput {
     name: String!
     description: String
@@ -97,6 +110,26 @@ extend type Query @guard {
     ): [FilesystemMapper!]!
         @paginate(
             model: "Kanvas\\Filesystem\\Models\\FilesystemMapper"
+            scopes: ["fromCompany", "notDeleted", "fromApp"]
+            defaultCount: 25
+        )
+
+    filesystemImportHistory(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "filesystem_mapper_id"
+                    "status"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [FilesystemImportHistory!]!
+        @paginate(
+            model: "Kanvas\\Filesystem\\Models\\FilesystemImports"
             scopes: ["fromCompany", "notDeleted", "fromApp"]
             defaultCount: 25
         )
