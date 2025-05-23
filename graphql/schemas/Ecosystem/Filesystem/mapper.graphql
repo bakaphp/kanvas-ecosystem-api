@@ -126,6 +126,7 @@ extend type Query @guard {
                     "status"
                 ]
             )
+        hasSystemModule: _ @whereHasConditions(relation: "filesystemMapper.systemModule", columns: ["id"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [FilesystemImportHistory!]!
         @paginate(
