@@ -48,7 +48,7 @@ class IdVerificationService
         $ocMatch = false;
 
         // Extract nested data safely with null coalescing
-        $facial = $verificationData['idcheck']['data']['facial']['data'] ?? [];
+        $facial = $verificationData['facial']['data'] ?? [];
         $ocrMatch = $verificationData['ocr_match']['data'] ?? [];
         $idCheck = $verificationData['idcheck']['data'] ?? [];
         $ipqsAddress = $verificationData['ipqs']['addressDetails']['data'] ?? [];
