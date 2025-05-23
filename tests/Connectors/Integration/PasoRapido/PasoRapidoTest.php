@@ -67,7 +67,7 @@ final class PasoRapidoTest extends TestCase
             config: $config
         );
         $tag = env('TEST_PASO_RAPIDO_TAG');
-        $transactionId = "7478925724996114704" . rand(100, 999);
+        $transactionId = "747892572499611470" . rand(1000, 9999);
         $customer = $pasoRapidoService->verifyCustomer($tag);
         $confirmedPayment = $pasoRapidoService->confirmPayment(
             PaymentConfirmData::from([
