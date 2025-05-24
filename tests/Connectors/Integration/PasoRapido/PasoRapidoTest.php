@@ -6,6 +6,10 @@ namespace Tests\Connectors\Integration\NetSuite;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyCustomerResponse;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyPaymentResponse;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Tests\TestCase;
 
@@ -34,19 +38,49 @@ final class PasoRapidoTest extends TestCase
         $this->assertInstanceOf(PasoRapidoService::class, $pasoRapidoService);
     }
 
-    // public function testVerifyCustomer()
-    // {
-    //     $app = app(Apps::class);
-    //     $company = Companies::first();
-    //     $config = $this->getPasoRapidoConfig();
+    public function testVerifyCustomer()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $config = $this->getPasoRapidoConfig();
 
-    //     $pasoRapidoService = new PasoRapidoService(
-    //         app: $app,
-    //         company: $company,
-    //         config: $config
-    //     );
+        $pasoRapidoService = new PasoRapidoService(
+            app: $app,
+            company: $company,
+            config: $config
+        );
+        $tag = env('TEST_PASO_RAPIDO_TAG');
+        $result = $pasoRapidoService->verifyCustomer($tag);
+        $this->assertInstanceOf(VerifyCustomerResponse::class, $result);
+        $this->assertEquals($tag, $result->device);
+    }
 
-    //     $result = $pasoRapidoService->verifyCustomer(env('TEST_PASO_RAPIDO_TAG'));
-    //     $this->assertTrue($result);
-    // }
+    public function testConfirmPayment()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $config = $this->getPasoRapidoConfig();
+
+        $pasoRapidoService = new PasoRapidoService(
+            app: $app,
+            company: $company,
+            config: $config
+        );
+        $tag = env('TEST_PASO_RAPIDO_TAG');
+        $transactionId = "747892572499611470" . rand(1000, 9999);
+        $customer = $pasoRapidoService->verifyCustomer($tag);
+        $confirmedPayment = $pasoRapidoService->confirmPayment(
+            PaymentConfirmData::from([
+                'reference' => $tag,
+                'amount' => 100,
+                'fiscalCredit' => false,
+                'bankTransaction' => $transactionId,
+                'dni' => $customer->document,
+            ])
+        );
+
+        // $verifiedPayment = $pasoRapidoService->verifyPayment($transactionId);
+        // $this->assertInstanceOf(VerifyPaymentResponse::class, $verifiedPayment);
+        $this->assertInstanceOf(PaymentConfirmResponse::class, $confirmedPayment);
+    }
 }

@@ -1,0 +1,72 @@
+type PaymentMethod {
+    id: ID!
+    payment_ending_numbers: String 
+    payment_methods_brand: String
+    stripe_card_id: String
+    expiration_date: String
+    instrument_identifier_id: String
+    processor: String
+    metadata: Mixed
+    created_at: String!
+    updated_at: String
+}
+
+input PaymentMethodInput{
+    number: String
+    expiration_date: String
+    brand: String
+    processor: String
+    metadata: Mixed
+}
+
+type PaymentIntentResult {
+    paymentIntent: Mixed
+    message: Mixed
+}
+
+extend type Mutation @guard {
+    createPaymentMethod(input: PaymentMethodInput!): PaymentMethod!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@createPaymentMethod"
+        )
+    makePaymentIntent(paymentID: ID!): PaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntent"
+        )
+    makePaymentIntentFromOrder(orderID: ID!): PaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
+        )
+}
+
+extend type Query {
+    paymentMethods(
+        orderBy: PaymentMethodOrderByInput
+        where: PaymentMethodWhereInput
+    ): [PaymentMethod!]!
+        @paginate(
+            defaultCount: 25 
+            model: "Kanvas\\Payments\\Models\\PaymentMethods"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+        )
+    
+    paymentMethod(id: Int!): PaymentMethod 
+        @find(
+            model: "Kanvas\\Payments\\Models\\PaymentMethods"
+        )
+}
+
+input PaymentMethodOrderByInput {
+    column: String!
+    order: SortOrder!
+}
+
+enum SortOrder {
+    ASC
+    DESC
+}
+
+input PaymentMethodWhereInput {
+    users_id: Int
+    # Add other filterable fields here
+}

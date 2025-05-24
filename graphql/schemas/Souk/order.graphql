@@ -36,6 +36,7 @@ type Order {
     is_deleted: Boolean!
     created_at: String!
     updated_at: String
+    order_type: OrderType
     items: [OrderItem!]
     shipping_address: Address @belongsTo(relation: "shippingAddress")
     custom_fields: [CustomField!]!
@@ -64,6 +65,11 @@ type OrderItem {
     is_deleted: Boolean!
     created_at: String!
     updated_at: String
+}
+
+type OrderType {
+    id: ID!
+    name: String!
 }
 
 type PaymentResult {
@@ -138,6 +144,7 @@ input OrderCartInput {
     billing: OrderBillingInput
     shipping_address: AddressInput
     items: [OrderLineItemInput]
+    order_type: String
     metadata: Mixed
     reference: String
 }
@@ -163,6 +170,7 @@ input DraftOrderInput {
 input OrderLineItemInput {
     variant_id: ID!
     quantity: Float!
+    price: Money
 }
 
 input PaymentInput {
@@ -272,6 +280,7 @@ extend type Query @guard {
                     "fulfillment_status"
                     "order_number"
                     "reference"
+                    "order_types_id"
                 ]
             )
         hasAddress: _
