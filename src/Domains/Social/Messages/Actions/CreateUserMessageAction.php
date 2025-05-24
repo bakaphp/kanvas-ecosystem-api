@@ -56,7 +56,6 @@ class CreateUserMessageAction
                 ],
                 [
                     'is_deleted' => 0,
-                    'deleted_at' => null, // Ensure it's not soft deleted
                 ]
             );
         }
