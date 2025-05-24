@@ -14,6 +14,6 @@ trait PublicAppScopeTrait
      */
     public function scopeFromPublicApp(Builder $query): Builder
     {
-        return $query->orWhere('apps_id', '=', 0);
+        return $query->where('apps_id', '=', 0);
     }
 }

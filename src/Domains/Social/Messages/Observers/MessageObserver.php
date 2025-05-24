@@ -35,7 +35,7 @@ class MessageObserver
     public function saved(Message $message): void
     {
         // check if it has a parent, update parent total children
-        if ($message->parent_id) {
+        if ($message->parent_id && $message->parent) {
             $message->parent->increment('total_children');
         }
     }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4d8ca2fd3b8c6a6d8a489b7f916aaf4e",
+    "content-hash": "a27e79d660f9c39bc1529b32b14fcf2d",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -2214,16 +2214,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.67.0",
+            "version": "v0.68.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "d08aa262736de355654c359f240d74421b095bfb"
+                "reference": "485719d7cd868f0b4458f931f682e7a8134e79ff"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/d08aa262736de355654c359f240d74421b095bfb",
-                "reference": "d08aa262736de355654c359f240d74421b095bfb",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/485719d7cd868f0b4458f931f682e7a8134e79ff",
+                "reference": "485719d7cd868f0b4458f931f682e7a8134e79ff",
                 "shasum": ""
             },
             "require": {
@@ -2278,7 +2278,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.67.0"
+                "source": "https://github.com/prism-php/prism/tree/v0.68.0"
             },
             "funding": [
                 {
@@ -2286,7 +2286,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-12T15:31:56+00:00"
+            "time": "2025-05-21T20:52:44+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -2852,16 +2852,16 @@
         },
         {
             "name": "google/cloud-discoveryengine",
-            "version": "v1.5.0",
+            "version": "v1.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-discoveryengine.git",
-                "reference": "83285af4ac048dc32d1efd9670a9736b9473d4f9"
+                "reference": "4944369c9aa6593c2b27b9e9ba8b38d7e39b6155"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/83285af4ac048dc32d1efd9670a9736b9473d4f9",
-                "reference": "83285af4ac048dc32d1efd9670a9736b9473d4f9",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/4944369c9aa6593c2b27b9e9ba8b38d7e39b6155",
+                "reference": "4944369c9aa6593c2b27b9e9ba8b38d7e39b6155",
                 "shasum": ""
             },
             "require": {
@@ -2895,9 +2895,9 @@
             ],
             "description": "Google Cloud Discovery Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.5.0"
+                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.5.1"
             },
-            "time": "2025-03-31T16:15:35+00:00"
+            "time": "2025-05-20T19:49:54+00:00"
         },
         {
             "name": "google/cloud-recommendations-ai",
@@ -3008,16 +3008,16 @@
         },
         {
             "name": "google/common-protos",
-            "version": "4.12.0",
+            "version": "4.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/common-protos-php.git",
-                "reference": "96f6873c65fb0289fcdb6ac3d5239f9c9e5750b0"
+                "reference": "70c4eb1abab5484a23c17a43b0d455259f5d8c1b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/96f6873c65fb0289fcdb6ac3d5239f9c9e5750b0",
-                "reference": "96f6873c65fb0289fcdb6ac3d5239f9c9e5750b0",
+                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/70c4eb1abab5484a23c17a43b0d455259f5d8c1b",
+                "reference": "70c4eb1abab5484a23c17a43b0d455259f5d8c1b",
                 "shasum": ""
             },
             "require": {
@@ -3061,22 +3061,22 @@
                 "google"
             ],
             "support": {
-                "source": "https://github.com/googleapis/common-protos-php/tree/v4.12.0"
+                "source": "https://github.com/googleapis/common-protos-php/tree/v4.12.1"
             },
-            "time": "2025-04-18T20:49:28+00:00"
+            "time": "2025-05-20T19:49:54+00:00"
         },
         {
             "name": "google/gax",
-            "version": "v1.36.0",
+            "version": "v1.36.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/gax-php.git",
-                "reference": "140599cf5eae2432363ce6198e9fdff851625a7a"
+                "reference": "afdac3bc38a3b17d70668115d7b1a97289ac4d72"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/140599cf5eae2432363ce6198e9fdff851625a7a",
-                "reference": "140599cf5eae2432363ce6198e9fdff851625a7a",
+                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/afdac3bc38a3b17d70668115d7b1a97289ac4d72",
+                "reference": "afdac3bc38a3b17d70668115d7b1a97289ac4d72",
                 "shasum": ""
             },
             "require": {
@@ -3118,9 +3118,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/gax-php/issues",
-                "source": "https://github.com/googleapis/gax-php/tree/v1.36.0"
+                "source": "https://github.com/googleapis/gax-php/tree/v1.36.1"
             },
-            "time": "2024-12-11T02:47:43+00:00"
+            "time": "2025-05-20T19:50:43+00:00"
         },
         {
             "name": "google/grpc-gcp",
@@ -4179,38 +4179,47 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.9.37",
+            "version": "1.10.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "c06a38b9dfa87af1d34a025d8a0b1aeec8af579a"
+                "reference": "91fd76ee0dba9f7fd3908d2ba6a26c35f5117b73"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/c06a38b9dfa87af1d34a025d8a0b1aeec8af579a",
-                "reference": "c06a38b9dfa87af1d34a025d8a0b1aeec8af579a",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/91fd76ee0dba9f7fd3908d2ba6a26c35f5117b73",
+                "reference": "91fd76ee0dba9f7fd3908d2ba6a26c35f5117b73",
                 "shasum": ""
             },
             "require": {
                 "guzzlehttp/guzzle": "^7.0",
                 "php": "^8.1",
-                "phpdocumentor/reflection-docblock": "^5.6",
+                "phpdocumentor/reflection-docblock": "^5.3 || ^5.6",
                 "psr/http-message": "^1.0|^2.0",
                 "psr/log": "^1.0|^2.0|^3.0",
-                "symfony/property-access": "^6.4 || ^7.0",
-                "symfony/property-info": "^6.4 || ^7.0",
-                "symfony/serializer": "^6.4 || ^7.0",
-                "symfony/validator": "^6.4 || ^7.0"
+                "symfony/property-access": "^5.4 || ^6.4 || ^7.0",
+                "symfony/property-info": "^5.4 || ^6.4 || ^7.0",
+                "symfony/serializer": "^5.4 || ^6.4 || ^7.0",
+                "symfony/validator": "^5.4 || ^6.4 || ^7.0"
             },
             "require-dev": {
+                "doctrine/orm": "^2.20",
                 "elasticsearch/elasticsearch": "^8.0",
-                "inspector-apm/inspector-php": "^3.9",
+                "ext-pdo": "*",
+                "friendsofphp/php-cs-fixer": "^3.75",
+                "inspector-apm/inspector-php": "dev-master",
+                "peckphp/peck": "^0.1.3",
                 "php-http/curl-client": "^2.3",
+                "phpstan/phpstan": "^2.1",
                 "phpunit/phpunit": "^9.0",
+                "rector/rector": "^2.0",
+                "symfony/cache": "^5.4 || ^6.4 || ^7.0",
                 "symfony/process": "^5.0|^6.0|^7.0",
+                "tomasvotruba/type-coverage": "^2.0",
                 "typesense/typesense-php": "^5.0"
             },
             "suggest": {
+                "doctrine/orm": "^2.20",
                 "elasticsearch/elasticsearch": "^7.0|^8.0",
                 "inspector-apm/inspector-php": "^3.9",
                 "php-http/curl-client": "^2.3",
@@ -4236,9 +4245,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.9.37"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.10.2"
             },
-            "time": "2025-05-19T16:24:46+00:00"
+            "time": "2025-05-23T13:11:56+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -4787,16 +4796,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.14.1",
+            "version": "v12.15.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "84b142958d1638a7e89de94ce75c2821c601d3d7"
+                "reference": "2ef7fb183f18e547af4eb9f5a55b2ac1011f0b77"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/84b142958d1638a7e89de94ce75c2821c601d3d7",
-                "reference": "84b142958d1638a7e89de94ce75c2821c601d3d7",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/2ef7fb183f18e547af4eb9f5a55b2ac1011f0b77",
+                "reference": "2ef7fb183f18e547af4eb9f5a55b2ac1011f0b77",
                 "shasum": ""
             },
             "require": {
@@ -4998,7 +5007,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-05-13T17:50:51+00:00"
+            "time": "2025-05-20T15:10:44+00:00"
         },
         {
             "name": "laravel/octane",
@@ -7551,16 +7560,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.57.0",
+            "version": "v6.57.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "7adee8aeec84fc911cf8aef204ae55f66be7fb0c"
+                "reference": "84e43f6ded2c1cad309d939185520e83da13101a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/7adee8aeec84fc911cf8aef204ae55f66be7fb0c",
-                "reference": "7adee8aeec84fc911cf8aef204ae55f66be7fb0c",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/84e43f6ded2c1cad309d939185520e83da13101a",
+                "reference": "84e43f6ded2c1cad309d939185520e83da13101a",
                 "shasum": ""
             },
             "require": {
@@ -7678,7 +7687,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2025-05-19T09:05:42+00:00"
+            "time": "2025-05-21T11:50:13+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -11192,16 +11201,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.34.1",
+            "version": "1.34.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "283d7d5dffeeff6452c9a182f466c327fec6db3b"
+                "reference": "e7d9d6e0807a9de46f544c76d54badc19af36ddc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/283d7d5dffeeff6452c9a182f466c327fec6db3b",
-                "reference": "283d7d5dffeeff6452c9a182f466c327fec6db3b",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/e7d9d6e0807a9de46f544c76d54badc19af36ddc",
+                "reference": "e7d9d6e0807a9de46f544c76d54badc19af36ddc",
                 "shasum": ""
             },
             "require": {
@@ -11273,7 +11282,7 @@
                 "spatie"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-health/tree/1.34.1"
+                "source": "https://github.com/spatie/laravel-health/tree/1.34.2"
             },
             "funding": [
                 {
@@ -11281,7 +11290,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-04-17T06:34:01+00:00"
+            "time": "2025-05-20T08:31:02+00:00"
         },
         {
             "name": "spatie/laravel-image-optimizer",
@@ -17004,16 +17013,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.16",
+            "version": "2.1.17",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "b8c1cf533cba0c305d91c6ccd23f3dd0566ba5f9"
+                "reference": "89b5ef665716fa2a52ecd2633f21007a6a349053"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/b8c1cf533cba0c305d91c6ccd23f3dd0566ba5f9",
-                "reference": "b8c1cf533cba0c305d91c6ccd23f3dd0566ba5f9",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/89b5ef665716fa2a52ecd2633f21007a6a349053",
+                "reference": "89b5ef665716fa2a52ecd2633f21007a6a349053",
                 "shasum": ""
             },
             "require": {
@@ -17058,7 +17067,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-16T09:40:10+00:00"
+            "time": "2025-05-21T20:55:28+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -17396,16 +17405,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "12.1.5",
+            "version": "12.1.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "f93ef2198df8d54b3195bcee381a33be51d8705e"
+                "reference": "2fdf0056c673c8f0f1eed00030be5f8243c1e6e0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/f93ef2198df8d54b3195bcee381a33be51d8705e",
-                "reference": "f93ef2198df8d54b3195bcee381a33be51d8705e",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/2fdf0056c673c8f0f1eed00030be5f8243c1e6e0",
+                "reference": "2fdf0056c673c8f0f1eed00030be5f8243c1e6e0",
                 "shasum": ""
             },
             "require": {
@@ -17427,7 +17436,7 @@
                 "sebastian/cli-parser": "^4.0.0",
                 "sebastian/comparator": "^7.0.1",
                 "sebastian/diff": "^7.0.0",
-                "sebastian/environment": "^8.0.0",
+                "sebastian/environment": "^8.0.1",
                 "sebastian/exporter": "^7.0.0",
                 "sebastian/global-state": "^8.0.0",
                 "sebastian/object-enumerator": "^7.0.0",
@@ -17473,7 +17482,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.1.5"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.1.6"
             },
             "funding": [
                 {
@@ -17497,7 +17506,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-05-11T06:44:52+00:00"
+            "time": "2025-05-21T12:36:31+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -17763,16 +17772,16 @@
         },
         {
             "name": "sebastian/environment",
-            "version": "8.0.0",
+            "version": "8.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/environment.git",
-                "reference": "8afe311eca49171bf95405cc0078be9a3821f9f2"
+                "reference": "d364b9e5d0d3b18a2573351a1786fbf96b7e0792"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/environment/zipball/8afe311eca49171bf95405cc0078be9a3821f9f2",
-                "reference": "8afe311eca49171bf95405cc0078be9a3821f9f2",
+                "url": "https://api.github.com/repos/sebastianbergmann/environment/zipball/d364b9e5d0d3b18a2573351a1786fbf96b7e0792",
+                "reference": "d364b9e5d0d3b18a2573351a1786fbf96b7e0792",
                 "shasum": ""
             },
             "require": {
@@ -17815,15 +17824,27 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/environment/issues",
                 "security": "https://github.com/sebastianbergmann/environment/security/policy",
-                "source": "https://github.com/sebastianbergmann/environment/tree/8.0.0"
+                "source": "https://github.com/sebastianbergmann/environment/tree/8.0.2"
             },
             "funding": [
                 {
                     "url": "https://github.com/sebastianbergmann",
                     "type": "github"
+                },
+                {
+                    "url": "https://liberapay.com/sebastianbergmann",
+                    "type": "liberapay"
+                },
+                {
+                    "url": "https://thanks.dev/u/gh/sebastianbergmann",
+                    "type": "thanks_dev"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/sebastian/environment",
+                    "type": "tidelift"
                 }
             ],
-            "time": "2025-02-07T04:56:08+00:00"
+            "time": "2025-05-21T15:05:44+00:00"
         },
         {
             "name": "sebastian/exporter",

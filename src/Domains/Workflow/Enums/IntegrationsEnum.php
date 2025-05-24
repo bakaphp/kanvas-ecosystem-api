@@ -25,6 +25,7 @@ enum IntegrationsEnum: string
     case ESIM_VENTA_MOBILE = 'esim_ventamobile';
     case AERO_AMBULANCIA = 'aero_ambulancia';
     case WASENDER = 'wa_sender';
+    case PASO_RAPIDO = 'paso_rapido';
     case PLATE_RECOGNIZER = 'plate_recognizer';
     case MINDEE = 'mindee';
     case SALESASSIST = 'salesassist';
