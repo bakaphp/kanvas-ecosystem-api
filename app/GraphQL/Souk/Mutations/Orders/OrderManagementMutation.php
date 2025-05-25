@@ -92,7 +92,7 @@ class OrderManagementMutation
             ];
         }
 
-        $log = activity('create-order-from-cart-app-' . $app->getId())
+        $log = activity('create-order-from-cart')
             ->causedBy($user)
             ->withProperties([
                 'request_data' => $request,
