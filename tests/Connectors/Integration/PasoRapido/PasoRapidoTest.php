@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\NetSuite;
+namespace Tests\Connectors\Integration\PasoRapido;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
