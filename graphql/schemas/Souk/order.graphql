@@ -37,7 +37,11 @@ type Order {
     created_at: String!
     updated_at: String
     order_type: OrderType
-    items: [OrderItem!]
+    items(includeAllItems: Boolean = false): [OrderItem!]
+        @HasMany (relation: "allItems")
+        @builder(
+            method: "App\\GraphQL\\Souk\\Builders\\Order\\OrderBuilder@filterByItems"
+        )
     shipping_address: Address @belongsTo(relation: "shippingAddress")
     custom_fields: [CustomField!]!
         @paginate(
