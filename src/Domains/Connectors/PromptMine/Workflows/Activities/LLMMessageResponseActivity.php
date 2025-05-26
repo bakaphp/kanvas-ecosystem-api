@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Connectors\PromptMine\Client as PromptClient;
+use Kanvas\Connectors\PromptMine\Enums\MessageTypEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -38,7 +40,13 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ];
                 }
 
-                $response = $this->generateResponse($message);
+                $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypEnum::IMAGE_FORMAT->value;
+
+                if (! $isTypeImage) {
+                    $response = $this->generateResponse($message);
+                } else {
+                    $response = $this->generateImageResponse($message);
+                }
                 if (empty($response)) {
                     return [
                         'error' => 'Response is empty',
@@ -97,5 +105,13 @@ class LLMMessageResponseActivity extends KanvasActivity
            ->asText();
 
         return str_replace(['```', 'json'], '', $response->text);
+    }
+
+    private function generateImageResponse(Message $message): array
+    {
+        $promptClient = new PromptClient($message->app);
+        $prompt = $message->message['prompt'] ?? null;
+
+        return $promptClient->generateImageWithIdeogram($prompt);
     }
 }
