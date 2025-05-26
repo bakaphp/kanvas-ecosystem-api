@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
-use Kanvas\Connectors\PromptMine\Enums\MessageTypEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -40,7 +39,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ];
                 }
 
-                $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypEnum::IMAGE_FORMAT->value;
+                $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value;
 
                 if (! $isTypeImage) {
                     $response = $this->generateResponse($message);
