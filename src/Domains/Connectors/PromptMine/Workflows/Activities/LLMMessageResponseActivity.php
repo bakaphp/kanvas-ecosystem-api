@@ -40,7 +40,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ];
                 }
 
-                $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypEnum::IMAGE_FORMAT->value;
+                $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value;
 
                 if (! $isTypeImage) {
                     $response = $this->generateResponse($message);
