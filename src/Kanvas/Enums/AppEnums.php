@@ -58,7 +58,7 @@ enum AppEnums implements EnumsInterface
     case CSV_DATE_FORMAT;
     case DEFAULT_PUBLIC_SEARCH_USER_ID;
     case CACHE_SEARCH;
-    CASE CACHE_SEARCH_TTL;
+    case CACHE_SEARCH_TTL;
 
     #[Override]
     public function getValue(): mixed
