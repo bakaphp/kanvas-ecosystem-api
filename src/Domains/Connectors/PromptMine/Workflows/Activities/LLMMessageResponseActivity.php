@@ -44,16 +44,25 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 if (! $isTypeImage) {
                     $response = $this->generateResponse($message);
+                    $messageTypeKey = 'nugget';
                 } else {
                     $response = $this->generateImageResponse($message);
+                    $messageTypeKey = 'image';
                 }
                 if (empty($response)) {
                     return [
+                        'result' => false,
                         'error' => 'Response is empty',
+                        'message' => $message->toArray(),
+                        'message_id' => $message->id,
                     ];
                 }
                 $messageInput = [
-                    'message' => $response,
+                    'message' => [
+                        'title' => 'Prompt Title',
+                        $messageTypeKey => $response,
+                        'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
+                    ],
                     'reactions_count' => 0,
                     'comments_count' => 0,
                     'total_liked' => 0,
@@ -82,7 +91,11 @@ class LLMMessageResponseActivity extends KanvasActivity
                 ))->execute();
 
                 return [
-                    'message' => $createMessage->toArray(),
+                    'result' => true,
+                    'child_message' => $createMessage->toArray(),
+                    'child_message_id' => $createMessage->id,
+                    'message' => $message->toArray(),
+                    'message_id' => $message->id,
                     'response' => $response,
                 ];
             },
