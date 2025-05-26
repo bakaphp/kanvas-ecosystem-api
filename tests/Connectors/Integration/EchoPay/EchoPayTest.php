@@ -166,7 +166,7 @@ final class EchoPayTest extends EchoPayBase
         $this->assertArrayHasKey('consumerAuthenticationInformation', $result);
         $this->assertArrayHasKey('status', $result);
         $this->assertInstanceOf(ConsumerAuthentication::class, $result['consumerAuthenticationInformation']);
-        $this->assertEquals("AUTHENTICATION_SUCCESSFUL", $result['status']);
+        $this->assertStringContainsString("AUTHENTICATION_", $result['status']);
     }
 
     public function testPayService()

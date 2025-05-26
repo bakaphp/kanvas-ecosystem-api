@@ -37,6 +37,7 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
+use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
@@ -142,6 +143,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncPeopleWithIPlusActivities::class,
             SyncZohoAgentFromReceiverJob::class,
             SoftPullActivity::class,
+            CreatePasoRapidoOrderActivity::class,
             CreateCreditScoreFromMessageActivity::class,
             LinkMessageToOrderActivity::class,
             GenerateStripeSignupLinkForUserActivity::class,

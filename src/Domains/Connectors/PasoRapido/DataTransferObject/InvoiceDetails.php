@@ -17,16 +17,4 @@ class InvoiceDetails extends Data
         public readonly string $reference
     ) {
     }
-
-    public static function fromArray(array $data): self
-    {
-        return new self(
-            $data['nombreComercial'],
-            $data['rncCedula'],
-            $data['valorFiscal'],
-            $data['comprobante'],
-            $data['pdf'],
-            $data['referencia']
-        );
-    }
 }

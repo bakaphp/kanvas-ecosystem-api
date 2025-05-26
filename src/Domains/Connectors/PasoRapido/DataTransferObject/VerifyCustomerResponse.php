@@ -21,20 +21,4 @@ class VerifyCustomerResponse extends Data
         public readonly string $status,
     ) {
     }
-
-    public static function fromArray(array $data): self
-    {
-        return new self(
-            $data['username'],
-            $data['lastname'],
-            $data['device'],
-            $data['message'],
-            $data['document'],
-            $data['balance'],
-            $data['type'],
-            $data['reference'],
-            $data['account'],
-            $data['status'],
-        );
-    }
 }

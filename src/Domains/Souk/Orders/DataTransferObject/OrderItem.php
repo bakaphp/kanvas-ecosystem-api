@@ -40,8 +40,8 @@ class OrderItem extends Data
             name: $variant->name,
             sku: $variant->sku,
             quantity: $request['quantity'],
-            price: $price,
-            tax: 0, //@todo get from region
+            price: $request['price'] ?? $price,
+            tax: 0, // @todo get from region
             discount: 0,
             currency: $region->currency,
             quantityShipped: $request['quantity_shipped'] ?? 0

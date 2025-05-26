@@ -15,8 +15,7 @@ class PaymentConfirmResponse extends Data
         public readonly string $tag,
         public readonly int $account,
         public readonly string $creditDate,
-        public readonly InvoiceDetails $invoiceDetails,
-        public readonly string $reference
+        public readonly InvoiceDetails $invoiceDetails
     ) {
     }
 }
