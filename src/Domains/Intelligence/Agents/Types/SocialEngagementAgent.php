@@ -585,7 +585,7 @@ GQL;
                         'interactions' => $interactions,
                         'message' => 'Found ' . count($interactions) . ' previous interaction(s)',
                     ];
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     Log::error('Failed to check previous interactions', [
                         'message_id' => $message_id,
                         'error' => $e->getMessage(),
@@ -674,7 +674,7 @@ GQL;
                         'days_ago' => $like->created_at->diffInDays(now()),
                         'entity_namespace' => $like->entity_namespace ?? 'Unknown',
                     ];
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     Log::warning('Could not process like', [
                         'like_id' => $like->id,
                         'error' => $e->getMessage(),
