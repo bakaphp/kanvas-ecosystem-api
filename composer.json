@@ -50,6 +50,7 @@
         "nevadskiy/laravel-tree": "^0.6.0",
         "nuwave/lighthouse": "^6.0",
         "openai-php/client": "^0.13.0",
+        "php-mcp/laravel": "^1.1",
         "phpclassic/php-shopify": "^1.2",
         "powersync/authorizenet-sdk-php": "^2.0",
         "pusher/pusher-php-server": "^7.2",
@@ -177,16 +178,6 @@
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/bakaphp/ZohoCrmApi.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/laravel-shift/laravel-scout-typesense-driver.git"
-        }
-    ],
     "extra": {
         "laravel": {
             "dont-discover": []

@@ -25,7 +25,7 @@ class GetProductsTool
         $this->logger->info('Searching products via MCP');
 
         $products = Variants::query()
-            ->with('variantWarehouses:quantity,price')
+            ->with('variantWarehouses:products_variants_id,quantity,price')
             ->where('name', 'like', "%{$name}%")
             ->where('is_deleted', 0)
             ->orWhere('sku', 'like', "%{$name}%")
@@ -39,12 +39,13 @@ class GetProductsTool
         }
 
         $products = $products->map(function ($product) {
+            $warehouse = $product->variantWarehouses[0] ?? null;
             return [
                 'id' => $product->id,
-                'name' => $product->name,
-                'description' => $product->description,
-                'quantity' => $product->variant_warehouses['quantity'],
-                'price' => $product->variant_warehouses['price'],
+                'name' => $product->name['en'] ?? $product->name,
+                'description' => $product->description['en'] ?? $product->description,
+                'quantity' => $warehouse->quantity ?? null,
+                'price' => $warehouse->price ?? null,
             ];
         });
 
