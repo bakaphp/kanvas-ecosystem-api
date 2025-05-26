@@ -120,11 +120,11 @@ class LLMMessageResponseActivity extends KanvasActivity
         return str_replace(['```', 'json'], '', $response->text);
     }
 
-    private function generateImageResponse(Message $message): array
+    private function generateImageResponse(Message $message): string
     {
         $promptClient = new PromptClient($message->app);
         $prompt = $message->message['prompt'] ?? null;
 
-        return $promptClient->generateImageWithIdeogram($prompt);
+        return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
     }
 }
