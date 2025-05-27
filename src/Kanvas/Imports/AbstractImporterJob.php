@@ -99,14 +99,18 @@ abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
         int $totalItems,
         int $totalProcessSuccessfully,
         int $totalProcessFailed,
-        array $errors
+        array $errors,
+        array $importedEntities = []
     ): void {
         if ($this->filesystemImport) {
             $this->filesystemImport->update([
                 'results' => [
-                    'total_items' => $totalItems,
-                    'total_process_successfully' => $totalProcessSuccessfully,
-                    'total_process_failed' => $totalProcessFailed,
+                    'summary' => [
+                        'total_items' => $totalItems,
+                        'total_process_successfully' => $totalProcessSuccessfully,
+                        'total_process_failed' => $totalProcessFailed,
+                    ],
+                    'details' => $importedEntities
                 ],
                 'exception' => $errors,
                 'status' => 'completed',
