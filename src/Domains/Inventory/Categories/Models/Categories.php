@@ -71,6 +71,7 @@ class Categories extends BaseModel
             ->whereHas('tags', function ($query) use ($tag) {
                 $query->where('name', $tag);
             })
+            ->inRandomOrder()
             ->get();
     }
     /**
