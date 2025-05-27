@@ -22,7 +22,7 @@ use Kanvas\Inventory\Traits\ScopesTrait;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Nevadskiy\Tree\AsTree;
 use Override;
-
+use Illuminate\Database\Eloquent\Collection;
 #[ObservedBy(CategoryObserver::class)]
 class Categories extends BaseModel
 {
@@ -65,6 +65,14 @@ class Categories extends BaseModel
         return $this->belongsToMany(Products::class, 'products_categories', 'categories_id', 'products_id');
     }
 
+    public function getProductsByTags(string $tag): Collection{
+
+       return $this->products()
+            ->whereHas('tags', function ($query) use ($tag) {
+                $query->where('name', $tag);
+            })
+            ->get();
+    }
     /**
      * Get the total amount of products of a product type.
      */
