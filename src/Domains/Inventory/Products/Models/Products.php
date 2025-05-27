@@ -23,6 +23,8 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
+use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
@@ -30,6 +32,7 @@ use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
+use Kanvas\Inventory\Products\Actions\ImportProductFromFilesystemAction;
 use Kanvas\Inventory\Products\Builders\ProductSortAttributeBuilder;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\Products\Observers\ProductsObserver;
@@ -72,7 +75,7 @@ use Override;
  * @property bool $is_deleted
  */
 #[ObservedBy(ProductsObserver::class)]
-class Products extends BaseModel implements EntityIntegrationInterface
+class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface
 {
     use UuidTrait;
     use SlugTrait;
@@ -774,5 +777,10 @@ class Products extends BaseModel implements EntityIntegrationInterface
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
+    }
+
+    public static function getImportHandler(FilesystemImports $filesystemImport)
+    {
+        return new ImportProductFromFilesystemAction($filesystemImport);
     }
 }

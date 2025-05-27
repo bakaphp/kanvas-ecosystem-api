@@ -112,6 +112,7 @@ class CreateOrderFromCartAction
             currency: $this->region->currency,
             fulfillmentStatus: 'pending',
             items: $items,
+            orderType: $this->request['input']['order_type'] ?? null,
             metadata: $this->request['input']['metadata'] ?? [],
             weight: 0.0,
             checkoutToken: '',

@@ -1,5 +1,3 @@
-version: "3.8"
-
 x-common-queue-settings: &common-queue-settings
   restart: always
   image: php-app-image # Use the built image for all the services
@@ -23,9 +21,9 @@ x-common-queue-settings: &common-queue-settings
   deploy:
       replicas: 1
       restart_policy:
-        condition: any  # Always restart, even if it exits successfully
-        delay: 5s       # Wait 5 seconds before restarting
-        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        condition: on-failure  # Changed from 'any' to work with max_attempts
+        delay: 5s
+        max_attempts: 3
         window: 30s 
 
 services:
@@ -57,9 +55,9 @@ services:
     deploy:
       replicas: 1
       restart_policy:
-        condition: any  # Always restart, even if it exits successfully
-        delay: 5s       # Wait 5 seconds before restarting
-        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        condition: on-failure  # Changed from 'any' to work with max_attempts
+        delay: 5s
+        max_attempts: 3
         window: 30s 
 
   queue:
@@ -105,9 +103,10 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=imports --tries=3 --timeout=3750"
+
   queue-scrapper:
     <<: *common-queue-settings
-    container_name: queue-scrapper
+    # REMOVED container_name because replicas > 1
     command:
       - "sh"
       - "-c"
@@ -115,13 +114,14 @@ services:
     deploy:
       replicas: 4
       restart_policy:
-        condition: any  # Always restart, even if it exits successfully
-        delay: 5s       # Wait 5 seconds before restarting
-        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        condition: on-failure  # Changed from 'any' to work with max_attempts
+        delay: 5s
+        max_attempts: 3
         window: 30s 
+
   queue-sync-shopify:
     <<: *common-queue-settings
-    container_name: queue-sync-shopify-queue
+    # REMOVED container_name because replicas > 1
     command:
       - "sh"
       - "-c"
@@ -129,13 +129,14 @@ services:
     deploy:
       replicas: 3
       restart_policy:
-        condition: any  # Always restart, even if it exits successfully
-        delay: 5s       # Wait 5 seconds before restarting
-        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        condition: on-failure  # Changed from 'any' to work with max_attempts
+        delay: 5s
+        max_attempts: 3
         window: 30s 
+
   queue-scout-worker:
     <<: *common-queue-settings
-    container_name: queue-scout-worker
+    # REMOVED container_name because replicas > 1
     command:
       - "sh"
       - "-c"
@@ -143,13 +144,14 @@ services:
     deploy:
       replicas: 3
       restart_policy:
-        condition: any  # Always restart, even if it exits successfully
-        delay: 5s       # Wait 5 seconds before restarting
-        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        condition: on-failure  # Changed from 'any' to work with max_attempts
+        delay: 5s
+        max_attempts: 3
         window: 30s 
+
   queue-workflow:
     <<: *common-queue-settings
-    container_name: queue-workflow
+    # REMOVED container_name because replicas > 1
     command:
       - "sh"
       - "-c"
@@ -157,9 +159,9 @@ services:
     deploy:
       replicas: 3
       restart_policy:
-        condition: any  # Always restart, even if it exits successfully
-        delay: 5s       # Wait 5 seconds before restarting
-        max_attempts: 3 # Optional: Limit retries (removes container after max_attempts)
+        condition: on-failure  # Changed from 'any' to work with max_attempts
+        delay: 5s
+        max_attempts: 3
         window: 30s 
 
   laravel-scheduler:
@@ -207,7 +209,7 @@ networks:
   sail:
     driver: bridge
   kanvas_docker_swarm_network:
-    driver: overlay
+    driver: bridge
 
 volumes:
   sail-redis:

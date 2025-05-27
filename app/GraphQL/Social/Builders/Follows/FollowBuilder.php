@@ -36,6 +36,6 @@ class FollowBuilder
     {
         //return users following the entity
         $app = app(Apps::class);
-        return UsersFollowsRepository::getFollowersBuilder($root, $app);
+        return UsersFollowsRepository::getEntityFollowersBuilder($root, $app);
     }
 }

@@ -6,6 +6,7 @@ namespace App\Console\Commands\Intelligence;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Inspector\Configuration;
 use Inspector\Inspector;
 use Kanvas\Apps\Models\Apps;
@@ -87,7 +88,7 @@ class KanvasAgentCommand extends Command
             $question = $this->ask('You');
 
             // Check if user wants to exit
-            if (strtolower($question) === 'exit' || strtolower($question) === 'quit') {
+            if ($question !== null && strtolower($question) === 'exit' || strtolower($question) === 'quit') {
                 $this->info('Chat session ended.');
 
                 break;
@@ -108,6 +109,7 @@ class KanvasAgentCommand extends Command
 
             // Display agent's response
             $this->newLine();
+            Log::info('Agent response: ' . $response->getContent());
             $this->info('Agent: ' . ChatHelper::extractTextFromResponse($response->getContent()));
             $this->newLine();
         }

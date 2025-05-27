@@ -92,6 +92,17 @@ class OrderManagementMutation
             ];
         }
 
+        $log = activity('create-order-from-cart')
+            ->causedBy($user)
+            ->withProperties([
+                'request_data' => $request,
+                'user_id' => $user->id,
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'cart_items' => $cart->getContent()->toArray(),
+            ])
+            ->log('User attempted to create order from cart');
+
         $createOrder = new CreateOrderFromCartAction(
             $cart,
             $company,
@@ -103,10 +114,15 @@ class OrderManagementMutation
             $billing,
             $shippingAddress,
             $request
-        );
+        )->execute();
+
+        $log->subject_type = get_class($createOrder);
+        $log->subject_id = $createOrder->id;
+        $log->description = 'User successfully created order from cart';
+        $log->save();
 
         return [
-            'order' => $createOrder->execute(),
+            'order' => $createOrder,
             'message' => 'Order created successfully',
         ];
     }

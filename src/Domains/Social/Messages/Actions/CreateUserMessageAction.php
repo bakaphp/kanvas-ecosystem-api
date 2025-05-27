@@ -25,40 +25,63 @@ class CreateUserMessageAction
 
     public function execute(): UserMessage
     {
-        return DB::connection('social')->transaction(function () {
-            // Search with a lock to prevent race conditions
-            $userMessage = UserMessage::withTrashed()
+        // Use shorter transaction with optimistic approach
+        $messageId = $this->message->getId();
+        $userId = $this->user->getId();
+        $appsId = $this->message->apps_id;
+
+        // First, try without transaction to reduce lock time
+        $userMessage = UserMessage::withTrashed()
             ->where([
-                'messages_id' => $this->message->getId(),
-                'users_id' => $this->user->getId(),
-                'apps_id' => $this->message->apps_id,
+                'apps_id' => $appsId,
+                'messages_id' => $messageId,
+                'users_id' => $userId,
             ])
-            ->lockForUpdate()
             ->first();
 
-            if (! $userMessage) {
-                $userMessage = UserMessage::create([
-                    'messages_id' => $this->message->getId(),
-                    'users_id' => $this->user->getId(),
-                    'apps_id' => $this->message->apps_id,
+        if ($userMessage) {
+            // Handle restoration in a minimal transaction
+            if ($userMessage->trashed()) {
+                DB::connection('social')->transaction(function () use ($userMessage) {
+                    $userMessage->restore();
+                });
+            }
+        } else {
+            // Use updateOrCreate which handles race conditions gracefully
+            $userMessage = UserMessage::updateOrCreate(
+                [
+                    'apps_id' => $appsId,
+                    'messages_id' => $messageId,
+                    'users_id' => $userId,
+                ],
+                [
                     'is_deleted' => 0,
-                ]);
-            } elseif ($userMessage->trashed()) {
-                $userMessage->restore();
-            }
+                ]
+            );
+        }
 
-            if ($this->message->appModuleMessage && ! empty($this->activity)) {
-                UserMessageActivity::firstOrCreate([
-                    'user_messages_id' => $userMessage->id,
-                    'from_entity_id' => $this->message->appModuleMessage->entity_id,
-                    'entity_namespace' => $this->activity['entity_namespace'] ?? null,
-                    'username' => $this->activity['username'] ?? null,
-                    'type' => $this->activity['type'] ?? null,
-                    'text' => $this->activity['text'] ?? null,
-                ]);
-            }
+        // Handle activity creation separately to minimize transaction scope
+        if ($this->message->appModuleMessage && ! empty($this->activity)) {
+            $this->createUserMessageActivity($userMessage);
+        }
 
-            return $userMessage;
-        });
+        return $userMessage;
+    }
+
+    private function createUserMessageActivity(UserMessage $userMessage): void
+    {
+        // Use updateOrCreate for activity as well
+        UserMessageActivity::updateOrCreate(
+            [
+                'user_messages_id' => $userMessage->id,
+                'from_entity_id' => $this->message->appModuleMessage->entity_id,
+            ],
+            [
+                'entity_namespace' => $this->activity['entity_namespace'] ?? null,
+                'username' => $this->activity['username'] ?? null,
+                'type' => $this->activity['type'] ?? null,
+                'text' => $this->activity['text'] ?? null,
+            ]
+        );
     }
 }

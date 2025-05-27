@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Connectors\PromptMine\Client as PromptClient;
+use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -38,14 +40,29 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ];
                 }
 
-                $response = $this->generateResponse($message);
+                $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value;
+
+                if (! $isTypeImage) {
+                    $response = $this->generateResponse($message);
+                    $messageTypeKey = 'nugget';
+                } else {
+                    $response = $this->generateImageResponse($message);
+                    $messageTypeKey = 'image';
+                }
                 if (empty($response)) {
                     return [
+                        'result' => false,
                         'error' => 'Response is empty',
+                        'message' => $message->toArray(),
+                        'message_id' => $message->id,
                     ];
                 }
                 $messageInput = [
-                    'message' => $response,
+                    'message' => [
+                        'title' => 'Prompt Title',
+                        $messageTypeKey => $response,
+                        'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
+                    ],
                     'reactions_count' => 0,
                     'comments_count' => 0,
                     'total_liked' => 0,
@@ -74,7 +91,11 @@ class LLMMessageResponseActivity extends KanvasActivity
                 ))->execute();
 
                 return [
-                    'message' => $createMessage->toArray(),
+                    'result' => true,
+                    'child_message' => $createMessage->toArray(),
+                    'child_message_id' => $createMessage->id,
+                    'message' => $message->toArray(),
+                    'message_id' => $message->id,
                     'response' => $response,
                 ];
             },
@@ -97,5 +118,13 @@ class LLMMessageResponseActivity extends KanvasActivity
            ->asText();
 
         return str_replace(['```', 'json'], '', $response->text);
+    }
+
+    private function generateImageResponse(Message $message): string
+    {
+        $promptClient = new PromptClient($message->app);
+        $prompt = $message->message['prompt'] ?? null;
+
+        return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
     }
 }

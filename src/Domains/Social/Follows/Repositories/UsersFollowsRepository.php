@@ -53,20 +53,34 @@ class UsersFollowsRepository
             ->first();
     }
 
+    /**
+     * Get a builder for followers of a user.
+     */
     public static function getFollowersBuilder(EloquentModel $entity, ?AppInterface $app = null): Builder
     {
-        $ecosystemConnection = config('database.connections.ecosystem.database');
+        return self::getEntityFollowersBuilder($entity, $app, Users::class);
+    }
+
+    /**
+     * Get a builder for followers of any entity.
+     */
+    public static function getEntityFollowersBuilder(
+        EloquentModel $entity,
+        ?AppInterface $app = null,
+        ?string $entityNamespace = null
+    ): Builder {
         $socialConnection = config('database.connections.social.database');
         $app = $app ?? app(Apps::class);
+        $entityNamespace = $entityNamespace ?? get_class($entity);
 
         return Users::join($socialConnection . '.users_follows', 'users.id', '=', 'users_follows.users_id')
-                ->where('users_follows.apps_id', $app->getId())
-                ->where('users_follows.is_deleted', 0)
-                ->where('users_follows.entity_id', $entity->id)
-                ->where('users_follows.users_id', '!=', $entity->id)
-               // ->where('users_follows.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-                ->where('users_follows.entity_namespace', Users::class)
-                ->select('users.*');
+            ->where('users_follows.apps_id', $app->getId())
+            ->where('users_follows.is_deleted', 0)
+            ->where('users_follows.entity_id', $entity->id)
+            ->where('users_follows.users_id', '!=', $entity->id)
+            // ->where('users_follows.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->where('users_follows.entity_namespace', $entityNamespace)
+            ->select('users.*');
     }
 
     public static function getFollowingBuilder(Users $user, ?AppInterface $app = null): Builder

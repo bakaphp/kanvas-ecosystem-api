@@ -43,6 +43,7 @@ class AddCostToCartAction
                 'Shipping Cost' => $fee->sum('shippingCost'),
                 'Other Fees' => $fee->sum('otherFee'),
                 'Service Fee' => $fee->sum('serviceFee'),
+                'Pounds' => $fee->sum('pounds'),
                 'Last Mile' => 0,
                 'Custom Tax' => 0,
             ],

@@ -125,13 +125,20 @@ class AeroAmbulanciaSubscriptionService
 
         $typeId = ['passport' => '2', 'id' => '1'];
 
+        // Ensure phone number is valid or use a placeholder
+        $phoneNumber = $beneficiaryData['phoneNumber'] ?? $people->getPhones()->first()?->value ?? '809732' . sprintf('%04d', random_int(0, 9999));
+
+        if (! preg_match('/^\d{10}$/', $phoneNumber)) {
+            throw new ValidationException('phoneNumber must be a valid phone number');
+        }
+
         return [
             'documentType' => $typeId[$beneficiaryData['documentType']],
             'documentNumber' => $beneficiaryData['documentNumber'],
             'firstName' => $beneficiaryData['firstname'],
             'lastName' => $beneficiaryData['lastname'],
             'email' => $people->getEmails()->first()?->value,
-            'phoneNumber' => $people->getPhones()->first()?->value ?? '809732' . sprintf('%04d', random_int(0, 9999)), // Default to a random number if not specified
+            'phoneNumber' => $phoneNumber,
             'sex' => $beneficiaryData['gender'],
             'birthdate' => $beneficiaryData['birthDate'],
             'activationDate' => $activationDate->format('Y-m-d H:i:s'),
