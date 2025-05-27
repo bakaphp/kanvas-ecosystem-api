@@ -89,7 +89,8 @@ class IndexCsvCommand extends Command
                     [$product],
                     null
                 ));
-                $action->execute();
+                $response = $action->execute();
+                $response[0]->addTag('Homepage');
                 $scrapperProducts = $app->get('scrapperProducts');
                 $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
                 $scrapperProducts[] = $asin;
