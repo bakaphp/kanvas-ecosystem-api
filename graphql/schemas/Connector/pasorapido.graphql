@@ -1,0 +1,10 @@
+type TagResult {
+    message: Mixed
+    data: Mixed
+}
+extend type Query @guard {
+    getTagBalance(tag: String!): TagResult
+        @field(
+            resolver: "App\\GraphQL\\Connector\\PasoRapido\\Queries\\PasoRapidoManagementQuery@getTagBalance"
+        )
+}

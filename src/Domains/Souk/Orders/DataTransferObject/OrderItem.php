@@ -32,7 +32,7 @@ class OrderItem extends Data
     {
         $variant = Variants::getByIdFromCompanyApp($request['variant_id'], $company, $app);
         $warehouse = $region->warehouses()->firstOrFail(); //@todo get product warehouse with  stock
-        $price = $variant->getPrice($warehouse);
+        $price = isset($request['price']) ? (float) $request['price'] : $variant->getPrice($warehouse);
 
         return new self(
             app: $app,
@@ -40,7 +40,7 @@ class OrderItem extends Data
             name: $variant->name,
             sku: $variant->sku,
             quantity: $request['quantity'],
-            price: $request['price'] ?? $price,
+            price: $price,
             tax: 0, // @todo get from region
             discount: 0,
             currency: $region->currency,
