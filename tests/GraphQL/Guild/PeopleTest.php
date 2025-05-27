@@ -356,11 +356,12 @@ class PeopleTest extends TestCase
                     'id' => $contactId,
                     'value' => fake()->email(),
                     'contacts_types_id' => 1,
-                ]
+                ],
             ],
             'address' => [],
             'custom_fields' => [],
         ];
+
         $response = $this->graphQL('
         mutation($id: ID!, $input: PeopleInput!) {
             updatePeople(id: $id, input: $input) {
@@ -385,8 +386,8 @@ class PeopleTest extends TestCase
                             [
                                 'id' => $contactId,
                                 'value' => $input['contacts'][0]['value'],
-                            ]
-                        ]
+                            ],
+                        ],
                     ],
                 ],
             ]);

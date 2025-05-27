@@ -58,15 +58,22 @@ class UpdatePeopleAction
 
             foreach ($this->peopleData->contacts as $contact) {
                 // Try to find by value (unique identifier)
-                $existingContact = $this->people->contacts()
-                    ->where('value', $contact->value)
-                    ->first();
+                if (isset($contact->id) && $contact->id > 0) {
+                    $existingContact = $this->people->contacts()
+                        ->where('id', $contact->id)
+                        ->first();
+                } else {
+                    $existingContact = $this->people->contacts()
+                        ->where('value', $contact->value)
+                        ->first();
+                }
 
                 if ($existingContact) {
                     // Update existing contact
                     $existingContact->update([
-                    'contacts_types_id' => $contact->contacts_types_id,
-                    'weight' => $contact->weight,
+                        'contacts_types_id' => $contact->contacts_types_id,
+                        'weight' => $contact->weight,
+                        'value' => $contact->value,
                     ]);
                     $keepValues[] = $existingContact->value;
                 } else {
