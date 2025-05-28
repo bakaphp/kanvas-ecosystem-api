@@ -47,7 +47,6 @@ extend type Query {
                     "id"
                     "name"
                     "slug"
-                    "users_id"
                     "description"
                     "entity_namespace"
                     "entity_id"
