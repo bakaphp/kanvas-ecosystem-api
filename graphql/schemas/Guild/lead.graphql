@@ -135,6 +135,12 @@ input LeadUpdateInput {
     files: [FilesystemInputUrl!]
 }
 
+enum LeadStatusEnum {
+    Won
+    Lost
+    Close
+}
+
 extend type Mutation @guard {
     createLead(input: LeadInput!): Lead!
         @field(
@@ -175,6 +181,10 @@ extend type Mutation @guard {
     attachFilesToLead(file: [Upload!]!, id: ID!, params: Mixed): Lead!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@attachFile"
+        )
+    leadWonOrLost(id: ID!, status: LeadStatusEnum!, reason_lost: String): Lead!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@wonOrLost"
         )
 }
 
