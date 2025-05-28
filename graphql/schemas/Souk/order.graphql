@@ -287,6 +287,11 @@ extend type Query @guard {
                     "order_types_id"
                 ]
             )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
         hasAddress: _
             @whereConditions(
                 columns: [
@@ -305,25 +310,5 @@ extend type Query @guard {
                 relation: "items"
                 columns: ["product_name", "product_sku", "variant_id"]
             )
-        hasPeople: _
-            @whereHasConditions(
-                handler: "App\\GraphQL\\Souk\\Handlers\\HasPeopleHandler"
-                columns: [
-                    "id"
-                    "users_id"
-                    "name"
-                    "firstname"
-                    "middlename"
-                    "lastname"
-                    "dob"
-                ]
-            )
-        orderBy: _
-            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
-    ): [Order!]!
-        @paginate(
-            model: "Kanvas\\Souk\\Orders\\Models\\Order"
-            scopes: ["fromCompany", "fromApp", "notDeleted", "filterByUser"]
-            defaultCount: 25
-        )
+    ): [Order!]! @paginate(defaultCount: 25)
 }
