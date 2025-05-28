@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Connector\PasoRapido\Queries;
+namespace App\GraphQL\Souk\Queries\Payments;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Apps\Models\Apps;
@@ -10,9 +10,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class PasoRapidoManagementQuery
+class WalletManagementQuery
 {
-    public function getTagBalance(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
+    public function getBalance(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $tag = $args['tag'];
         $app = app(Apps::class);
