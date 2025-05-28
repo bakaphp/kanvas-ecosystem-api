@@ -14,7 +14,7 @@ return new class () extends Migration {
             $table->id();
             $table->unsignedBigInteger('users_id');
             $table->unsignedBigInteger('apps_id');
-            $table->unsignedBigInteger('countries_id')->nullable();
+            $table->unsignedBigInteger('country_id')->nullable();
             $table->string('fullname');
             $table->string('phone')->nullable();
             $table->string('address');
@@ -23,7 +23,6 @@ return new class () extends Migration {
             $table->string('county')->nullable();
             $table->string('state')->nullable();
             $table->string('zip')->nullable();
-            $table->integer('countries_id')->nullable()->index('country_id');
             $table->integer('city_id')->nullable()->index('city_id');
             $table->integer('state_id')->nullable()->index('state_id');
             $table->boolean('is_default')->default(false)->index('is_default');

@@ -37,7 +37,7 @@ use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserContactsService;
-
+use Kanvas\Users\Models\UserAddress;
 class UserManagementMutation
 {
     use HasMutationUploadFiles;
@@ -76,6 +76,24 @@ class UserManagementMutation
         $userToEdit = $userManagement->update($request['data']);
 
         return $userToEdit;
+    }
+
+    public function deleteAddress(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        UsersRepository::belongsToThisApp($user, $app);
+
+        if (! isset($request['id'])) {
+            throw new Exception('Address ID is required');
+        }
+
+        $address = UserAddress::findOrFail($request['id']);
+        if ($address->apps_id !== $app->getId()) {
+            throw new Exception('Address does not belong to this app');
+        }
+
+        return $address->delete();
     }
 
     /**

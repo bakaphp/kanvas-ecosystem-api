@@ -48,6 +48,7 @@ input AddressInput {
     country: String
     country_id: ID
     is_default: Boolean
+    id: ID
 }
 
 extend type Query @guard {

@@ -10,6 +10,7 @@ use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\AbilityEnum;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Exceptions\InternalServerErrorException;
+use Kanvas\Users\Models\UserAddress;
 use Kanvas\Users\Models\Users;
 
 class UserManagement
@@ -49,7 +50,23 @@ class UserManagement
             if ($customFields) {
                 $this->user->setAll($customFields, true);
             }
-
+            if ($data['addresses']) {
+                foreach ($data['addresses'] as $addressData) {
+                    $address = UserAddress::updateOrCreate(
+                        ['id' => $addressData['id'] ?? null], // buscar por ID si lo trae
+                        [
+                            'address' => $addressData['address'],
+                            'city' => $addressData['city'],
+                            'state' => $addressData['state'],
+                            'zip' => $addressData['zip'],
+                            'is_default' => $addressData['is_default'] ?? false,
+                            'apps_id' => $this->app->getId(),
+                            'country_id' => $addressData['country_id'],
+                            'users_id' => $this->user->getId(),
+                        ]
+                    );
+                }
+            }
             if ($files) {
                 $this->user->addMultipleFilesFromUrl($files);
             }
