@@ -1,17 +1,16 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
-use Kanvas\Models\BaseModel;
-use Kanvas\Locations\Models\States;
 use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Locations\Models\States;
+use Kanvas\Models\BaseModel;
 
 class UserAddress extends BaseModel
 {
-
     protected $table = 'users_address';
 
     protected $guarded = [];

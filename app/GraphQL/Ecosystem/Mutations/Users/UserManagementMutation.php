@@ -30,6 +30,7 @@ use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
 use Kanvas\Users\Models\AdminInvite;
+use Kanvas\Users\Models\UserAddress;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersInvite;
@@ -37,7 +38,7 @@ use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserContactsService;
-use Kanvas\Users\Models\UserAddress;
+
 class UserManagementMutation
 {
     use HasMutationUploadFiles;
