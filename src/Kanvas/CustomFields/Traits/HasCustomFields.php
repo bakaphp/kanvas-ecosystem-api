@@ -137,6 +137,7 @@ trait HasCustomFields
             $paginatedResult[] = [
                 'name' => $key,
                 'value' => Str::jsonToArray($values[$index]),
+                'entity_id' => $this->getKey(),
             ];
         }
 
