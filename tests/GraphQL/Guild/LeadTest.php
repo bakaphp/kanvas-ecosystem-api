@@ -314,7 +314,7 @@ class LeadTest extends TestCase
                     'title' => $title,
                     'reason_lost' => 'Not answer',
                     'status' => [
-                        'name' => 'Won',
+                        'name' => 'Lost',
                     ],
                 ],
             ],
