@@ -566,4 +566,90 @@ class OrderTest extends TestCase
 
         $this->assertEquals(2.5, $order->items[0]->quantity);
     }
+
+
+    public function testCreatePaidOrder()
+    {
+        $app = app(Apps::class);
+        $regionResponse = $this->createRegion()->json()['data']['createRegion'];
+        $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+        $region = Regions::find($regionResponse['id']);
+        $company = $region->company;
+
+        $warehouseData = [
+            'id' => $warehouseResponse['id'],
+        ];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
+
+        $variant = Variants::find($variantResponse['id']);
+
+        $data = [
+            'email' => fake()->email(),
+            'region_id' => $region->getId(),
+            'metadata' => [
+                'data' => [
+                    'paso_rapido_tag' => "317169",
+                    'payment_methods_id' => "4",
+                    'payment_date' => "2025-05-21",
+                ],
+            ],
+            'customer' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+            ],
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                    'price' => 100,
+                ],
+            ],
+            'reference' => "Recarga de paso rapido",
+        ];
+
+        // Perform GraphQL mutation to create a draft order
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+        ]);
+
+        $orderData = $response->json()['data']['createOrderFromCart'];
+        $order = Order::find($orderData['id']);
+
+        $this->assertEquals("Recarga de paso rapido", $order->reference);
+    }
 }
