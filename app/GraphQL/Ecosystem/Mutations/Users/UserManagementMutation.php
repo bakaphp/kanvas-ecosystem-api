@@ -85,21 +85,13 @@ class UserManagementMutation
         $app = app(Apps::class);
         UsersRepository::belongsToThisApp($user, $app);
 
-        if (! isset($request['id'])) {
-            throw new Exception('Address ID is required');
-        }
-
-        $address = UserAddress::findOrFail($request['id']);
-        if ($address->apps_id !== $app->getId()) {
-            throw new Exception('Address does not belong to this app');
-        }
+        $address = UserAddress::getById((int) $request['id'], $app);
 
         return $address->delete();
     }
 
     /**
      * insertInvite.
-     *
      */
     public function insertUserInvite($rootValue, array $request): UsersInvite
     {
@@ -129,7 +121,6 @@ class UserManagementMutation
 
     /**
      * insertAdminInvite.
-     *
      */
     public function insertAdminInvite($rootValue, array $request): AdminInvite
     {
@@ -173,7 +164,6 @@ class UserManagementMutation
 
     /**
      * deleteInvite.
-     *
      */
     public function deleteInvite($rootValue, array $request): bool
     {
@@ -189,7 +179,6 @@ class UserManagementMutation
 
     /**
      * deleteInvite.
-     *
      */
     public function deleteAdminInvite($rootValue, array $request): bool
     {
@@ -205,7 +194,6 @@ class UserManagementMutation
 
     /**
      * processInvite.
-     *
      */
     public function getInvite($rootValue, array $request): UsersInvite
     {
@@ -215,7 +203,6 @@ class UserManagementMutation
 
     /**
      * Process User invite.
-     *
      */
     public function process($rootValue, array $request): array
     {
@@ -328,7 +315,6 @@ class UserManagementMutation
             ->with('user')
             ->lazy();
 
-
         $contactsEmails = array_flip($contactsEmails);
         $matchingContacts = [];
 
@@ -341,8 +327,8 @@ class UserManagementMutation
 
         // Return alse the contacts that are not in the app
         return [
-            "matching_contacts" => $matchingContacts,
-            "nonmatching_contacts" => array_diff_key($contactsEmails, array_flip($matchingContacts))
+            'matching_contacts' => $matchingContacts,
+            'nonmatching_contacts' => array_diff_key($contactsEmails, array_flip($matchingContacts)),
         ];
     }
 
