@@ -50,8 +50,23 @@ class UserManagement
             if ($customFields) {
                 $this->user->setAll($customFields, true);
             }
+
             if ($data['addresses']) {
                 foreach ($data['addresses'] as $addressData) {
+                    $existingAddress = UserAddress::where('users_id', $this->user->getId())
+                        ->where('address', $addressData['address'])
+                        ->where('city', $addressData['city'])
+                        ->where('state', $addressData['state'])
+                        ->where('zip', $addressData['zip'])
+                        ->where('apps_id', $this->app->getId())
+                        ->first();
+
+                    if ($existingAddress) {
+                        if (! isset($addressData['id']) || $existingAddress->id != $addressData['id']) {
+                            continue;
+                        }
+                    }
+
                     $attributes = [
                         'address' => $addressData['address'],
                         'city' => $addressData['city'],
@@ -62,12 +77,17 @@ class UserManagement
                         'country_id' => $addressData['country_id'],
                         'users_id' => $this->user->getId(),
                     ];
+
                     if (isset($addressData['id'])) {
-                        $attributes['id'] = $addressData['id'];
+                        UserAddress::where('id', $addressData['id'])
+                            ->where('users_id', $this->user->getId())
+                            ->update($attributes);
+                    } else {
+                        UserAddress::create($attributes);
                     }
-                    UserAddress::updateOrCreate($attributes);
                 }
             }
+
             if ($files) {
                 $this->user->addMultipleFilesFromUrl($files);
             }
