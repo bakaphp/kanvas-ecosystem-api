@@ -53,7 +53,7 @@ class UserManagement
             if ($data['addresses']) {
                 foreach ($data['addresses'] as $addressData) {
                     $address = UserAddress::updateOrCreate(
-                        ['id' => $addressData['id'] ?? null], // buscar por ID si lo trae
+                        ['id' => $addressData['id'] ?? null],
                         [
                             'address' => $addressData['address'],
                             'city' => $addressData['city'],
