@@ -81,6 +81,7 @@ class UserManagement
                     if (isset($addressData['id'])) {
                         UserAddress::where('id', $addressData['id'])
                             ->where('users_id', $this->user->getId())
+                            ->where('apps_id', $this->app->getId())
                             ->update($attributes);
                     } else {
                         UserAddress::create($attributes);
