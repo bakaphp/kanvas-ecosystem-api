@@ -182,7 +182,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@attachFile"
         )
-    wonOrLost(id: ID!, status: LeadStatusEnum!): Lead!
+    leadWonOrLost(id: ID!, status: LeadStatusEnum!, reason_lost: String): Lead!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@wonOrLost"
         )

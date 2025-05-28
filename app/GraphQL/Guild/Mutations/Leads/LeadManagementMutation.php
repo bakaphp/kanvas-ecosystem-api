@@ -147,10 +147,11 @@ class LeadManagementMutation
         $leadStatus = LeadStatus::getByName($req['status']);
         $lead = ModelsLead::getByIdFromCompanyApp(
             id: (int) $req['id'],
-            company: $user->getCurrentCompany(),
+            company: auth()->user()->getCurrentCompany(),
             app: app(Apps::class),
         );
         $lead->leads_status_id = $leadStatus->getId();
+        $lead->reason_lost = $req['reason_lost'] ?? '';
         $lead->save();
 
         return $lead;
