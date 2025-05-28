@@ -52,19 +52,20 @@ class UserManagement
             }
             if ($data['addresses']) {
                 foreach ($data['addresses'] as $addressData) {
-                    $address = UserAddress::updateOrCreate(
-                        ['id' => $addressData['id'] ?? null],
-                        [
-                            'address' => $addressData['address'],
-                            'city' => $addressData['city'],
-                            'state' => $addressData['state'],
-                            'zip' => $addressData['zip'],
-                            'is_default' => $addressData['is_default'] ?? false,
-                            'apps_id' => $this->app->getId(),
-                            'country_id' => $addressData['country_id'],
-                            'users_id' => $this->user->getId(),
-                        ]
-                    );
+                    $attributes = [
+                        'address' => $addressData['address'],
+                        'city' => $addressData['city'],
+                        'state' => $addressData['state'],
+                        'zip' => $addressData['zip'],
+                        'is_default' => $addressData['is_default'] ?? false,
+                        'apps_id' => $this->app->getId(),
+                        'country_id' => $addressData['country_id'],
+                        'users_id' => $this->user->getId(),
+                    ];
+                    if (isset($addressData['id'])) {
+                        $attributes['id'] = $addressData['id'];
+                    }
+                    UserAddress::updateOrCreate($attributes);
                 }
             }
             if ($files) {
