@@ -70,6 +70,7 @@ input MessageInput {
     system_modules_id: ID
     is_public: Int
     entity_id: Mixed
+    channel_slug: String
     distribution: DistributionInput
     tags: [TagInput!]
     slug: String
