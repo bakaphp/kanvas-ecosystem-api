@@ -58,7 +58,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                     $variant = $item->variant;
                     // Get the product type from the variant's product
                     $productType = strtolower($variant->product->productType->name ?? '');
-                    if (!in_array($productType, $validTypes)) {
+                    if (! in_array($productType, $validTypes)) {
                         continue;
                     }
 
@@ -72,7 +72,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                         $responses[] = [
                             'status' => 'error',
                             'message' => 'Provider not found',
-                        ]; 
+                        ];
                         continue;
                     }
                     $providerValue = strtolower($provider->value);
@@ -109,7 +109,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                             'status' => 'error',
                             'message' => 'Error creating order in eSim',
                             'response' => $e->getMessage(),
-                        ]; 
+                        ];
                         continue;
                     }
 
@@ -195,7 +195,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                         'message' => 'Order updated with eSim metadata',
                         'message_id' => $message->getId(),
                         'response' => $response,
-                    ]; 
+                    ];
                 }
                 if (count($responses) === 1) {
                     return $responses[0];
