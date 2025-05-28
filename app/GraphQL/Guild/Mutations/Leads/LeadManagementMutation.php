@@ -144,8 +144,9 @@ class LeadManagementMutation
     public function wonOrLost(mixed $root, array $req): ModelsLead
     {
        $leadStatus = LeadStatus::getByName($req['status']);
-        $lead = ModelsLead::getById(
+        $lead = ModelsLead::getByIdFromCompanyApp(
             id: (int) $req['id'],
+            company: $user->getCurrentCompany(),
             app: app(Apps::class),
         );
         $lead->leads_status_id = $leadStatus->getId();
