@@ -1,0 +1,11 @@
+type WalletResult {
+    message: Mixed
+    data: Mixed
+}
+
+extend type Query @guard {
+    getWalletBalance(tag: String!): WalletResult
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getBalance"
+        )
+}

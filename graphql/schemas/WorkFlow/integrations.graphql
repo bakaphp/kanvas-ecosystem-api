@@ -146,4 +146,5 @@ extend type Query @guard {
             scopes: ["fromApp", "notDeleted", "fromCompany"]
             defaultCount: 25
         )
+    
 }
