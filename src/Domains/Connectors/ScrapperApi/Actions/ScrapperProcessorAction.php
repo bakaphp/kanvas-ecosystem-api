@@ -47,6 +47,13 @@ class ScrapperProcessorAction
         $channels = Channels::getDefault($this->companyBranch->company);
         $repository = new ScrapperRepository($this->app);
         $service = new ProductVariantService($channels, $warehouse, $this->user);
+
+        $productVariantService = new ProductVariantService(
+            $channels,
+            $warehouse,
+            $this->user,
+        );
+
         foreach ($this->results as $i => $result) {
             try {
                 $product = $repository->getByAsin($result['asin']);
@@ -57,8 +64,10 @@ class ScrapperProcessorAction
                 }
                 $originalName = $product['name'];
                 $originalDescription = $service->getDescription($product);
+
                 $mappedProduct = $service->mapProduct($product);
-                $mappedProduct['variants'] = [$mappedProduct];
+                $mappedProduct['variants'] = $productVariantService->mapVariant($product);
+
                 try {
                     $product = (
                         new ProductImporterAction(
