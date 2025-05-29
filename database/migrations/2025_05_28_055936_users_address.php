@@ -12,9 +12,9 @@ return new class () extends Migration {
     {
         Schema::create('users_address', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('users_id');
-            $table->unsignedBigInteger('apps_id');
-            $table->unsignedBigInteger('country_id')->nullable();
+            $table->unsignedBigInteger('users_id')->index('users_id');
+            $table->unsignedBigInteger('apps_id')->index('apps_id');
+            $table->unsignedBigInteger('country_id')->index('country_id');
             $table->string('fullname');
             $table->string('phone')->nullable();
             $table->string('address');
