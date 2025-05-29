@@ -56,7 +56,7 @@ class ScrapperProcessorAction
 
         foreach ($this->results as $i => $result) {
             try {
-                if(!isset($result['asin']) || empty($result['asin'])) {
+                if (! isset($result['asin']) || empty($result['asin'])) {
                     Log::warning('No ASIN found for product', ['result' => $result]);
                     continue;
                 }
