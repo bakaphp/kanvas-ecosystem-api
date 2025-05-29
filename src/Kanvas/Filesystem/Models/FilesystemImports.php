@@ -13,6 +13,7 @@ use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Filesystem\Observers\FilesystemImportObserver;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
+use Override;
 
 /**
  * @property int $id
@@ -38,6 +39,7 @@ class FilesystemImports extends BaseModel
     public $table = 'filesystem_imports';
     protected $guarded = [];
 
+    #[Override]
     public function casts(): array
     {
         return [

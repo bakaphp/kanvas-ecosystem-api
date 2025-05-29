@@ -40,22 +40,34 @@ class ScrapperProcessorAction
 
     public function execute(): array
     {
+        app()->setLocale('es');
         $productList = [];
         $this->overwriteAppService(app: $this->app);
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
         $channels = Channels::getDefault($this->companyBranch->company);
         $repository = new ScrapperRepository($this->app);
         $service = new ProductVariantService($channels, $warehouse, $this->user);
+
+        $productVariantService = new ProductVariantService(
+            $channels,
+            $warehouse,
+            $this->user,
+        );
+
         foreach ($this->results as $i => $result) {
             try {
                 $product = $repository->getByAsin($result['asin']);
+
                 $product = array_merge($product, $result);
                 if (empty($product['price']) && empty($product['original_price']['price'])) {
                     continue;
                 }
                 $originalName = $product['name'];
+                $originalDescription = $service->getDescription($product);
+
                 $mappedProduct = $service->mapProduct($product);
-                $mappedProduct['variants'] = [$mappedProduct];
+                $mappedProduct['variants'] = $productVariantService->mapVariant($product);
+
                 try {
                     $product = (
                         new ProductImporterAction(
@@ -131,6 +143,9 @@ class ScrapperProcessorAction
 
                 continue;
             }
+            $product->setTranslation('name', 'en', $originalName);
+            $product->setTranslation('description', 'en', $originalDescription);
+            $product->save();
             $productList[] = $product;
         }
 

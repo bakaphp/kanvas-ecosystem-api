@@ -6,7 +6,7 @@ type Filesystem {
     type: String
     size: Float!
     field_name: String
-    attributes: JSON
+    attributes: Mixed
     created_at: DateTime
 }
 
@@ -14,7 +14,7 @@ input FilesystemInputUrl {
     url: String!
     name: String!
     file: Upload
-    attributes: JSON
+    attributes: Mixed
 }
 
 input FilesystemAttachInput {
@@ -40,6 +40,10 @@ extend type Mutation @guard {
     upload(file: Upload!): Filesystem!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@singleFile"
+        )
+    createFileSystem(input: FilesystemInputUrl!): Filesystem!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@createFileSystemFromUrl"
         )
     multiUpload(files: [Upload!]!): [Filesystem!]!
         @field(

@@ -7,6 +7,8 @@ namespace Kanvas\Social\Messages\Actions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
@@ -71,6 +73,18 @@ class CreateMessageAction
                     $this->entityId
                 );
                 $associateMessage->execute();
+            }
+
+            if ($this->messageInput->channel_slug !== null) {
+                new CreateChannelAction(new Channel(
+                    apps: $message->app,
+                    companies: $message->company,
+                    users: $message->user,
+                    entity_id: $message->getId(),
+                    entity_namespace: Message::class,
+                    name: $this->messageInput->channel_slug,
+                    slug: $this->messageInput->channel_slug,
+                ))->execute()->addMessage($message, $message->user);
             }
 
             if ($this->runWorkflow) {
