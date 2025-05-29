@@ -19,7 +19,7 @@ class ProductVariantService extends ProductService
             );
             $variant['files'] = $this->mapFilesystem(
                 product: [
-                    'image' => $group['images'] ?? $group['image'] ?? null,
+                    'image' => $group['images'] ?? [$group['image']] ?? null,
                     'images' => [],
                 ]
             );
