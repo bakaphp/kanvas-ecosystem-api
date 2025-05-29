@@ -97,7 +97,7 @@ class IndexCsvCommand extends Command
                 $app->set('scrapperProducts', json_encode($scrapperProducts));
             } catch (\Throwable $e) {
                 $this->error('Error: ' . $e->getMessage());
-                $this->error('Trace: '.$e->getTraceAsString());
+                $this->error('Trace: ' . $e->getTraceAsString());
                 $scrapperProducts = $app->get('failedScrapperProducts');
                 $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
                 $scrapperProducts[] = $asin;
