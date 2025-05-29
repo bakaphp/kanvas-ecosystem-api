@@ -21,7 +21,7 @@ class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
         // Check if the product is from the Dominican Republic first
         //$productCountry = $subscriptionVariant->getAttributeBySlug('destination')?->value ?? '';
         $productCountry = $subscriptionVariant->product->getAttributeBySlug('countries-code')?->value ?? $subscriptionVariant->product->getAttributeBySlug('destination')?->value ?? '';
-        if (is_string($productCountry) && strtoupper($productCountry) !== 'DO') {
+        if (! is_string($productCountry) || strtoupper($productCountry) !== 'DO') {
             return []; // Skip execution if not from the Dominican Republic
         }
 
