@@ -22,7 +22,7 @@ use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
-
+use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 class ScrapperProcessorAction
 {
     use KanvasJobsTrait;
@@ -40,7 +40,6 @@ class ScrapperProcessorAction
 
     public function execute(): array
     {
-        app()->setLocale('es');
         $productList = [];
         $this->overwriteAppService(app: $this->app);
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
@@ -146,8 +145,8 @@ class ScrapperProcessorAction
 
                 continue;
             }
-            $product->setTranslation('name', 'en', $originalName);
-            $product->setTranslation('description', 'en', $originalDescription);
+            $product->setTranslation('name', 'es', TranslateToSpanishAction::execute($originalName) ?? $originalName);
+            $product->setTranslation('description', 'es', TranslateToSpanishAction::execute($originalDescription) ?? $originalDescription);
             $product->save();
             $productList[] = $product;
         }
