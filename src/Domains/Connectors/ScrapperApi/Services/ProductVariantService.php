@@ -17,12 +17,14 @@ class ProductVariantService extends ProductService
                 $group['attributes'],
                 $product['attributes'] ?? []
             );
-            $variant['files'] = $this->mapFilesystem(
-                product: [
-                    'image' => isset($group['images']) ? $group['images'][0] : null,
-                    'images' => isset($group['images']) ? $group['images'] : [],
-                ]
-            );
+            if (isset($group['images'])) {
+                $variant['files'] = $this->mapFilesystem(
+                    product: [
+                        'image' => $group['images'][0],
+                        'images' => $group['images'],
+                    ]
+                );
+            }
             $variants[] = $variant;
         }
 
@@ -60,7 +62,6 @@ class ProductVariantService extends ProductService
                     if (isset($value['image']) && $value['image']) {
                         $variants[$asin]['images'][] = $value['image'];
                     }
-
                     continue;
                 }
                 $variants[$asin] = [
@@ -71,8 +72,10 @@ class ProductVariantService extends ProductService
                             'value' => $value['value'] ?? '',
                         ],
                     ],
-                    'images' => isset($value['image']) && $value['image'] ? [$value['image']] : null,
                 ];
+                if (isset($value['image']) && $value['image']) {
+                    $variants[$asin]['images'][] = $value['image'];
+                }
             }
         }
 
