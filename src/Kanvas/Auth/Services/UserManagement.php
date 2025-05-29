@@ -51,7 +51,7 @@ class UserManagement
                 $this->user->setAll($customFields, true);
             }
 
-            if ($data['addresses']) {
+            if (isset($data['addresses'])) {
                 foreach ($data['addresses'] as $addressData) {
                     $existingAddress = UserAddress::where('users_id', $this->user->getId())
                         ->where('address', $addressData['address'])
