@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Connectors\ScrapperApi\Events\ProductScrapperEvent;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
@@ -22,7 +23,7 @@ use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
-use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
+
 class ScrapperProcessorAction
 {
     use KanvasJobsTrait;
