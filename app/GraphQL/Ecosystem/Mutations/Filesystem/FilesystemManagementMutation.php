@@ -44,6 +44,35 @@ class FilesystemManagementMutation
         return (string) $fileSystemEntity->uuid;
     }
 
+    public function createFileSystemFromUrl(mixed $rootValue, array $request): Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        // Parse the URL
+        $parsedUrl = parse_url($request['input']['url']);
+        $path = $parsedUrl['path']; // Returns: /api/webhooks/upload/file.pdf
+
+        // Get file info from the path
+        $pathInfo = pathinfo($path);
+        $filetype = $pathInfo['extension']; // Returns: pdf
+
+        $fileSystem = new Filesystem();
+        $fileSystem->name = $request['input']['name'];
+        $fileSystem->companies_id = $company->getKey();
+        $fileSystem->apps_id = $app->getKey();
+        $fileSystem->users_id = $user->getId();
+        $fileSystem->path = $path;
+        $fileSystem->url = $request['input']['url'];
+        $fileSystem->file_type = $filetype;
+        $fileSystem->size = 0;
+        $fileSystem->saveOrFail();
+
+        // Upload file from URL
+        return $fileSystem;
+    }
+
     /**
      * deAttach a file from filesystem
      */
