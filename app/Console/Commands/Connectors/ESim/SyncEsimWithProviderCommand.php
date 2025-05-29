@@ -418,7 +418,7 @@ class SyncEsimWithProviderCommand extends Command
         }
 
         // Check for required esimStatus fields
-        if (!isset($esimStatus['unlimited'], $esimStatus['initialQuantity'], $esimStatus['remainingQuantity'])) {
+        if (! isset($esimStatus['unlimited'], $esimStatus['initialQuantity'], $esimStatus['remainingQuantity'])) {
             return;
         }
 
@@ -439,12 +439,12 @@ class SyncEsimWithProviderCommand extends Command
      */
     private function checkDataUsageThresholds(array $esimStatus, Users $notifyUser, Message $message): void
     {
-        if (!isset($esimStatus['initialQuantity'], $esimStatus['remainingQuantity'])) {
+        if (! isset($esimStatus['initialQuantity'], $esimStatus['remainingQuantity'])) {
             return;
         }
         $initialQuantity = $esimStatus['initialQuantity'];
         $remainingQuantity = $esimStatus['remainingQuantity'];
-        if (!is_numeric($initialQuantity) || !is_numeric($remainingQuantity) || $initialQuantity <= 0) {
+        if (! is_numeric($initialQuantity) || !is_numeric($remainingQuantity) || $initialQuantity <= 0) {
             return;
         }
         $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
@@ -478,7 +478,7 @@ class SyncEsimWithProviderCommand extends Command
     private function checkUnlimitedPlanExpiration(array $esimStatus, Users $notifyUser, Message $message): void
     {
         $expirationDate = $esimStatus['expirationDate'] ?? $esimStatus['expiration_date'] ?? null;
-        if (!$expirationDate) {
+        if (! $expirationDate) {
             return;
         }
         try {
@@ -505,12 +505,12 @@ class SyncEsimWithProviderCommand extends Command
      */
     private function checkUnlimitedPlanUsage(array $esimStatus, Users $notifyUser, Message $message, array $dataNotification): void
     {
-        if (!isset($esimStatus['initialQuantity'], $esimStatus['remainingQuantity'])) {
+        if (! isset($esimStatus['initialQuantity'], $esimStatus['remainingQuantity'])) {
             return;
         }
         $initialQuantity = $esimStatus['initialQuantity'];
         $remainingQuantity = $esimStatus['remainingQuantity'];
-        if (!is_numeric($initialQuantity) || !is_numeric($remainingQuantity) || $initialQuantity <= 0) {
+        if (! is_numeric($initialQuantity) || !is_numeric($remainingQuantity) || $initialQuantity <= 0) {
             return;
         }
         $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
