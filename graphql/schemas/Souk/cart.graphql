@@ -5,6 +5,7 @@ type Cart {
     total_discount: Money!
     total: Money!
     shipping: CartShipping
+    subtotal: Money!
 }
 
 type CartDiscount {

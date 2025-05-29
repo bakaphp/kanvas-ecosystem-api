@@ -6,11 +6,7 @@ namespace Kanvas\Filesystem\Models;
 
 use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
-use Kanvas\Users\Models\Users;
 
 /**
  * Filesystem Model.
@@ -35,28 +31,13 @@ class Filesystem extends BaseModel
     use Cachable;
 
     protected $table = 'filesystem';
-
-    /**
-     * Users relationship.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
-    }
-
-    /**
-     * Companies relationship.
-     */
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
-
-    /**
-     * Apps relationship.
-     */
-    public function app(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
+    protected $fillable = [
+        'users_id',
+        'apps_id',
+        'name',
+        'path',
+        'url',
+        'size',
+        'file_type',
+    ];
 }

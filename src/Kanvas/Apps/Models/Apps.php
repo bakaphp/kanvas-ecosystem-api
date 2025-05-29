@@ -37,6 +37,7 @@ use Override;
  * @property int $id
  * @property string $key
  * @property string $url
+ * @property string $name
  * @property string $description
  * @property string $domain
  * @property int $is_actived
