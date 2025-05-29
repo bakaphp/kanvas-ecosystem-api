@@ -73,7 +73,14 @@ class CartManagementMutation
          * @todo FOR THE LOVE OF GOD!! MOVE this to a specific module
          */
         if (! empty($discountCodes) && $app->get('temp-use-discount-codes')) {
-            if (strtolower($discountCodes[0]) !== 'aeroambupromoq2' && strtolower($discountCodes[0]) !== 'simlimitesb2b15kv' && strtolower($discountCodes[0]) !== 'coiscou') {
+            $validDiscountCodes = [
+                'aeroambupromoq2',
+                'simlimitesb2b15kv',
+                'coiscou',
+                'mom10',
+            ];
+
+            if (! in_array(strtolower($discountCodes[0]), $validDiscountCodes, true)) {
                 throw new ModelNotFoundException('Discount code not found');
             }
 
@@ -108,6 +115,17 @@ class CartManagementMutation
                   'type' => 'discount',
                   'target' => 'subtotal',
                   'value' => '-15%',
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($fifteenPercentOff);
+            } elseif (strtolower($discountCodes[0]) === 'mom10') {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'mom10',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-10%',
                   'minimum' => 1,
                   'order' => 1,
                 ]);

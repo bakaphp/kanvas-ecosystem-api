@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Models;
 
+use Baka\Casts\Json;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
+use Override;
 
 /**
  * Apps Model.
@@ -32,5 +34,13 @@ class FilesystemSettings extends BaseModel
     public function filesystem(): BelongsTo
     {
         return $this->belongsTo(Filesystem::class, 'filesystem_id');
+    }
+
+    #[Override]
+    public function casts(): array
+    {
+        return [
+            'value' => Json::class,
+        ];
     }
 }

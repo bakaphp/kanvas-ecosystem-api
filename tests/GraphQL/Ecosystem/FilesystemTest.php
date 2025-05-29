@@ -295,4 +295,50 @@ class FilesystemTest extends TestCase
             ]
         )->assertSuccessful();
     }
+
+    public function testCreateFileSystem(): void
+    {
+        // Test creating a filesystem entry from a URL
+        $response = $this->graphQL(/** @lang GraphQL */ '
+        mutation ($input: FilesystemInputUrl!) {
+            createFileSystem(input: $input) {
+                uuid,
+                name,
+                url,
+                type,
+                size
+            }
+        }
+    ', [
+            'input' => [
+                'url' => 'https://example.com/api/webhooks/upload/test-document.pdf',
+                'name' => 'Test Document',
+                'attributes' => [
+                    'description' => 'Test file created from URL',
+                    'category' => 'document',
+                ],
+            ],
+        ]);
+
+        $response->assertSuccessful()
+            ->assertJsonStructure([
+                'data' => [
+                    'createFileSystem' => [
+                        'uuid',
+                        'name',
+                        'url',
+                        'type',
+                        'size',
+                    ],
+                ],
+            ])
+            ->assertJson([
+                'data' => [
+                    'createFileSystem' => [
+                        'name' => 'Test Document',
+                        'url' => 'https://example.com/api/webhooks/upload/test-document.pdf',
+                    ],
+                ],
+            ]);
+    }
 }
