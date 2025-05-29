@@ -80,7 +80,6 @@ class ScrapperProcessorAction
                         )
                     )->execute();
                     $product->searchable();
-                    dump("Product {$product->name} imported successfully");
                 } catch (\Exception $e) {
                     Log::error($e->getMessage());
                     Log::debug($e->getTraceAsString());
