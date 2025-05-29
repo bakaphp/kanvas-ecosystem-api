@@ -23,7 +23,6 @@ class IndexCsvCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -90,14 +89,16 @@ class IndexCsvCommand extends Command
                     null
                 ));
                 $response = $action->execute();
-                $response[0]->addTag('Homepage');
+                if (! $response) {
+                    throw new \Exception('No Product scrapper' . $asin);
+                }
                 $scrapperProducts = $app->get('scrapperProducts');
                 $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
                 $scrapperProducts[] = $asin;
                 $app->set('scrapperProducts', json_encode($scrapperProducts));
             } catch (\Throwable $e) {
                 $this->error('Error: ' . $e->getMessage());
-                $this->error('Trace: '.$e->getTraceAsString());
+                $this->error('Trace: ' . $e->getTraceAsString());
                 $scrapperProducts = $app->get('failedScrapperProducts');
                 $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
                 $scrapperProducts[] = $asin;
