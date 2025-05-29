@@ -85,11 +85,11 @@ class UserManagementMutation
         $app = app(Apps::class);
         UsersRepository::belongsToThisApp($user, $app);
 
-        $address = UserAddress::fromApp($app)
+        return UserAddress::fromApp($app)
             ->fromUser($user)
             ->where('id', (int) $request['id'])
-            ->first();
-        return $address->delete();
+            ->firstOrFail()
+            ->delete();
     }
 
     /**
