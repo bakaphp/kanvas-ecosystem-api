@@ -56,8 +56,11 @@ class ScrapperProcessorAction
 
         foreach ($this->results as $i => $result) {
             try {
+                if (! isset($result['asin']) || empty($result['asin'])) {
+                    Log::warning('No ASIN found for product', ['result' => $result]);
+                    continue;
+                }
                 $product = $repository->getByAsin($result['asin']);
-
                 $product = array_merge($product, $result);
                 if (empty($product['price']) && empty($product['original_price']['price'])) {
                     continue;
