@@ -69,16 +69,17 @@ class AuthorizePortalPaymentProcessor
 
     protected function setCustomerBillingAddress(Order $orderInput): BillingDetail
     {
+
         return new BillingDetail(
             firstName: $orderInput->user->firstname,
             lastName: $orderInput->user->lastname,
-            country: $this->company->country,
-            city: $this->company->city,
-            address1: $this->company->address,
-            phone: $orderInput->user->phone_number,
+            country: $this->payment->paymentMethod->getMetadata('country'),
+            city: $this->payment->paymentMethod->getMetadata('city'),
+            address1: $this->payment->paymentMethod->getMetadata('address'),
+            phone: $this->payment->paymentMethod->getMetadata('phone'),
             email: $orderInput->user->email,
-            postalCode: $this->company->zip,
-            administrativeArea: $this->company->state,
+            postalCode: $this->payment->paymentMethod->getMetadata('zip_code'),
+            administrativeArea: $this->payment->paymentMethod->getMetadata('state'),
         );
     }
 
@@ -187,14 +188,6 @@ class AuthorizePortalPaymentProcessor
                 'message' => 'Payment failed',
             ];
         }
-
-        if ($payment->status === PaymentStatusEnum::PENDING->value) {
-            return [
-                'status' => 'pending',
-                'message' => 'Payment pending',
-            ];
-        }
-
 
         $this->payment = $payment;
         $payerData = $this->startPaymentIntent($payment->order, $payment);

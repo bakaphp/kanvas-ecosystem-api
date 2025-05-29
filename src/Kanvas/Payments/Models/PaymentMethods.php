@@ -39,4 +39,14 @@ class PaymentMethods extends BaseModel
     protected $casts = [
         'metadata' => Json::class,
     ];
+
+
+    public function getMetadata(string $key): mixed
+    {
+        if ($this->metadata === null) {
+            return null;
+        }
+
+        return $this->metadata[$key] ?? null;
+    }
 }
