@@ -27,7 +27,7 @@ input FilesystemAttachInput {
 extend type Query @guard {
     entityFiles(
         entity: SystemModuleEntityInput!
-        where: _ @whereConditions(columns: ["field_name", "uuid"])
+        where: _ @whereConditions(columns: ["field_name", "uuid", "file_type", "url"])
     ): [Filesystem!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFilesFromSystemModuleEntity"
