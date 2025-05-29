@@ -31,4 +31,13 @@ class Filesystem extends BaseModel
     use Cachable;
 
     protected $table = 'filesystem';
+    protected $fillable = [
+        'users_id',
+        'apps_id',
+        'name',
+        'path',
+        'url',
+        'size',
+        'file_type',
+    ];
 }
