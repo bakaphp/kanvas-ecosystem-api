@@ -6,6 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -42,6 +43,40 @@ class FilesystemManagementMutation
         $fileSystemEntity = $attachFile->execute($filesystemAttachmentInput->fieldName);
 
         return (string) $fileSystemEntity->uuid;
+    }
+
+    public function createFileSystemFromUrl(mixed $rootValue, array $request): Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        // Parse the URL
+        if (! filter_var($request['input']['url'], FILTER_VALIDATE_URL)) {
+            throw new InvalidArgumentException('The provided URL is not valid.');
+        }
+
+        $parsedUrl = parse_url($request['input']['url']);
+        $path = $parsedUrl['path']; // Returns: /api/webhooks/upload/file.pdf
+
+        // Get file info from the path
+        $pathInfo = pathinfo($path);
+        $filetype = $pathInfo['extension']; // Returns: pdf
+
+        return Filesystem::firstOrCreate(
+            [
+                'url' => $request['input']['url'],
+                'companies_id' => $company->getKey(),
+                'apps_id' => $app->getKey(),
+            ],
+            [
+                'name' => $request['input']['name'],
+                'users_id' => $user->getId(),
+                'path' => $path,
+                'file_type' => $filetype,
+                'size' => 0,
+            ]
+        );
     }
 
     /**
