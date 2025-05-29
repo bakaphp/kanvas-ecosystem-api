@@ -6,6 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -51,6 +52,10 @@ class FilesystemManagementMutation
         $company = $user->getCurrentCompany();
 
         // Parse the URL
+        if (! filter_var($request['input']['url'], FILTER_VALIDATE_URL)) {
+            throw new InvalidArgumentException('The provided URL is not valid.');
+        }
+        
         $parsedUrl = parse_url($request['input']['url']);
         $path = $parsedUrl['path']; // Returns: /api/webhooks/upload/file.pdf
 
@@ -58,19 +63,20 @@ class FilesystemManagementMutation
         $pathInfo = pathinfo($path);
         $filetype = $pathInfo['extension']; // Returns: pdf
 
-        $fileSystem = new Filesystem();
-        $fileSystem->name = $request['input']['name'];
-        $fileSystem->companies_id = $company->getKey();
-        $fileSystem->apps_id = $app->getKey();
-        $fileSystem->users_id = $user->getId();
-        $fileSystem->path = $path;
-        $fileSystem->url = $request['input']['url'];
-        $fileSystem->file_type = $filetype;
-        $fileSystem->size = 0;
-        $fileSystem->saveOrFail();
-
-        // Upload file from URL
-        return $fileSystem;
+        return Filesystem::firstOrCreate(
+            [
+                'url' => $request['input']['url'],
+                'companies_id' => $company->getKey(),
+                'apps_id' => $app->getKey(),
+            ],
+            [
+                'name' => $request['input']['name'],
+                'users_id' => $user->getId(),
+                'path' => $path,
+                'file_type' => $filetype,
+                'size' => 0,
+            ]
+        );
     }
 
     /**
