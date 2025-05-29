@@ -312,6 +312,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $this->belongsTo(Countries::class, 'country_id');
     }
 
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(UserAddress::class, 'users_id');
+    }
+
     public function getMainRoleAttribute(): string
     {
         $role = Roles::where('scope', RolesEnums::getScope(app(Apps::class)))->first();
