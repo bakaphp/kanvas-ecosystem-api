@@ -61,7 +61,7 @@ class FilesystemManagementMutation
 
         // Get file info from the path
         $pathInfo = pathinfo($path);
-        $filetype = $pathInfo['extension']; // Returns: pdf
+        $filetype = $pathInfo['extension'] ?? 'unknown'; // Returns: pdf
 
         return Filesystem::firstOrCreate(
             [
