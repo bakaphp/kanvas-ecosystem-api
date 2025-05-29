@@ -19,8 +19,8 @@ class ProductVariantService extends ProductService
             );
             $variant['files'] = $this->mapFilesystem(
                 product: [
-                    'image' => $group['images'] ?? [$group['image']] ?? null,
-                    'images' => [],
+                    'image' => isset($group['images']) ? $group['images'][0] : null,
+                    'images' => isset($group['images']) ? $group['images'] : [],
                 ]
             );
             $variants[] = $variant;
@@ -71,7 +71,7 @@ class ProductVariantService extends ProductService
                             'value' => $value['value'] ?? '',
                         ],
                     ],
-                    'images' => isset($value['image']) && $value['image'] ? $value['image'] : null,
+                    'images' => isset($value['image']) && $value['image'] ? [$value['image']] : null,
                 ];
             }
         }
