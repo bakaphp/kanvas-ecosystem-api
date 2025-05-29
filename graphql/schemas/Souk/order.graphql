@@ -287,6 +287,11 @@ extend type Query @guard {
                     "order_types_id"
                 ]
             )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
         hasAddress: _
             @whereConditions(
                 columns: [

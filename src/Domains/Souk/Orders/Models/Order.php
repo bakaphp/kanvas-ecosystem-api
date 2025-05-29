@@ -592,4 +592,9 @@ class Order extends BaseModel
     {
         return $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
     }
+
+    public function orderType(): BelongsTo
+    {
+        return $this->belongsTo(OrderTypes::class, 'order_types_id', 'id');
+    }
 }
