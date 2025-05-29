@@ -55,7 +55,7 @@ class FilesystemManagementMutation
         if (! filter_var($request['input']['url'], FILTER_VALIDATE_URL)) {
             throw new InvalidArgumentException('The provided URL is not valid.');
         }
-        
+
         $parsedUrl = parse_url($request['input']['url']);
         $path = $parsedUrl['path']; // Returns: /api/webhooks/upload/file.pdf
 
