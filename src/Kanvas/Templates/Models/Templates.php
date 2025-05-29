@@ -22,6 +22,8 @@ use Kanvas\TemplatesVariables\Models\TemplatesVariables;
  * @property int $companies_id
  * @property int $apps_id
  * @property string $name
+ * @property ?string $subject
+ * @property ?string $title
  * @property int $parent_template_id
  * @property string $template
  * @property string $created_at
