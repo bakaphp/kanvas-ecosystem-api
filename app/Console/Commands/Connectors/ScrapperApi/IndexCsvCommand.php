@@ -19,7 +19,7 @@ use League\Csv\Reader;
 
 class IndexCsvCommand extends Command
 {
-    protected $signature = 'kanvas:scrapper-search {app_id} {userId} {branch_id} {region_id} {url}';
+    protected $signature = 'kanvas:scrapper-index-csv {app_id} {userId} {branch_id} {region_id} {url}';
 
     /**
      * Execute the console command.
@@ -97,6 +97,7 @@ class IndexCsvCommand extends Command
                 $app->set('scrapperProducts', json_encode($scrapperProducts));
             } catch (\Throwable $e) {
                 $this->error('Error: ' . $e->getMessage());
+                $this->error('Trace: ' . $e->getTraceAsString());
                 $scrapperProducts = $app->get('failedScrapperProducts');
                 $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
                 $scrapperProducts[] = $asin;
