@@ -444,7 +444,7 @@ class SyncEsimWithProviderCommand extends Command
         }
         $initialQuantity = $esimStatus['initialQuantity'];
         $remainingQuantity = $esimStatus['remainingQuantity'];
-        if (! is_numeric($initialQuantity) || !is_numeric($remainingQuantity) || $initialQuantity <= 0) {
+        if (! is_numeric($initialQuantity) || ! is_numeric($remainingQuantity) || $initialQuantity <= 0) {
             return;
         }
         $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
@@ -510,7 +510,7 @@ class SyncEsimWithProviderCommand extends Command
         }
         $initialQuantity = $esimStatus['initialQuantity'];
         $remainingQuantity = $esimStatus['remainingQuantity'];
-        if (! is_numeric($initialQuantity) || !is_numeric($remainingQuantity) || $initialQuantity <= 0) {
+        if (! is_numeric($initialQuantity) || ! is_numeric($remainingQuantity) || $initialQuantity <= 0) {
             return;
         }
         $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
