@@ -146,7 +146,7 @@ class OrderService
         $clientDetails['imei_number'] = $imeiNumber;
 
         return $this->client->post('/api/v2/airalo/create/order', [
-            'quantity' => $item->quantity,
+            'quantity' => (int) $item->quantity,
             'plan' => $esimPlan->value,
             'type' => 'sim',
             'description' => $item->quantity . ' ' . $esimPlan->value,
