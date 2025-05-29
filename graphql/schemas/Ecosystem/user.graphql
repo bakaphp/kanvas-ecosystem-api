@@ -17,6 +17,8 @@ type User {
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
     address: AddressType
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@address")
+    addresses: [Address!]
+        @HasMany(relation: "addresses")
     sex: String
     user_active: Boolean!
     timezone: String
@@ -162,6 +164,7 @@ input UpdateUserInput {
     custom_fields: [CustomFieldEntityInput!]
     files: [FilesystemInputUrl!]
     role_ids: [ID!]
+    addresses: [AddressInput!]
 }
 
 input UserContactInput {
@@ -233,6 +236,11 @@ extend type Mutation {
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUserEmail"
+        )
+    deleteUserAddress(id: ID!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@deleteAddress"
         )
     updateDisplayname(displayname: String!): Boolean!
         @guard
