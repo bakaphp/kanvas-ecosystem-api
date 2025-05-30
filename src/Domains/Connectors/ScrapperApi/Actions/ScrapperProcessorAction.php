@@ -69,7 +69,7 @@ class ScrapperProcessorAction
                 $originalDescription = $service->getDescription($product);
 
                 $mappedProduct = $service->mapProduct($product);
-                $mappedProduct['variants'] = isset($product['customization_options']) ? $productVariantService->mapVariant($product) : [$product];
+                $mappedProduct['variants'] = isset($product['customization_options']) ? $productVariantService->mapVariant($product) : [$mappedProduct];
 
                 try {
                     $product = (
