@@ -58,7 +58,7 @@ class ImportProductFromFilesystemAction
                 }
 
                 $productTypeId = $this->filesystemImports->filesystemMapper->configuration['product_type_id'];
-                $productType = $productTypeId ? ProductsTypesRepository::getById($productTypeId, $this->filesystemImports->company, $this->filesystemImports->app) : null;
+                $productType = $productTypeId ? ProductsTypesRepository::getById((int) $productTypeId, $this->filesystemImports->company, $this->filesystemImports->app) : null;
                 $listOfProducts[] = [
                     'name' => $variants[0]['product_name'],
                     'description' => $variants[0]['product_description'] ?? '',
