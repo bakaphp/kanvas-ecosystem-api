@@ -197,23 +197,27 @@ class AuthorizePortalPaymentProcessor
             $consumerAuthenticationData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
 
             try {
-                $paymentResponse = $this->processPayment($payment, $consumerAuthenticationData, $referenceId);        
+                $paymentResponse = $this->processPayment($payment, $consumerAuthenticationData, $referenceId);
 
-            if ($paymentResponse->status->name === 'PAYED') {
-                $payment->status = PaymentStatusEnum::PAID;
-                $payment->addMetadata([
-                    'data' => $paymentResponse->toArray(),
-                ]);
-                $payment->save();
-                $payment->order->addPrivateMetadata('payment_intent_id', $paymentResponse->id);
-                $payment->order->addPrivateMetadata('payment_transaction_id', $paymentResponse->transactionId);
-                $payment->order->checkPayments();
-            }
+                if ($paymentResponse->status->name === 'PAYED') {
+                    $payment->status = PaymentStatusEnum::PAID;
+                    $payment->addMetadata([
+                        'data' => $paymentResponse->toArray(),
+                    ]);
+                    $payment->save();
+                    $payment->order->addPrivateMetadata('payment_intent_id', $paymentResponse->id);
+                    $payment->order->addPrivateMetadata('payment_transaction_id', $paymentResponse->transactionId);
+                    $payment->order->checkPayments();
+                }
 
-            return $paymentResponse;
+                return $paymentResponse;
             } catch (Throwable $e) {
                 report($e);
             }
+        } else {
+            $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION;
+            $payment->addPrivateMetadata('enrollment_data', $enrollmentData);
+            $payment->save();
         }
 
         return $enrollmentData;

@@ -195,7 +195,6 @@ final class EchoPayTest extends EchoPayBase
                 ]),
                 'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
                     "deviceChannel" => "BROWSER",
-                    "returnUrl" => "http://localhost:3000/portal/accept-code",
                     "referenceId" => $referenceId,
                     "transactionMode" => "eCommerce"
 
