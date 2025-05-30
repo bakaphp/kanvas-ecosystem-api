@@ -15,6 +15,7 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
+use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantCategoryEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantDocumentTypesEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantPlatformEnum;
@@ -124,7 +125,7 @@ class AuthorizePortalPaymentProcessor
                 ]),
                 'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
                     "deviceChannel" => "BROWSER",
-                    "returnUrl" => "http://localhost:3000/portal/accept-code",
+                    "returnUrl" => $this->app->get(ConfigurationEnum::REDIRECT_URL->value),
                     "referenceId" => $referenceId,
                     "transactionMode" => "eCommerce"
                 ]),
