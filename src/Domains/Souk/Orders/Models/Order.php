@@ -590,7 +590,7 @@ class Order extends BaseModel
 
     public function getPaidAmount(): float
     {
-        return $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
+        return (float) $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
     }
 
     public function orderType(): BelongsTo

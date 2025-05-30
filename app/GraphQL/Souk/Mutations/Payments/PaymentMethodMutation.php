@@ -40,11 +40,11 @@ class PaymentMethodMutation
                 billTo: new BillingDetail(
                     firstName: $user->firstname,
                     lastName: $user->lastname,
+                    email: $user->email,
                     country: $input['country'],
                     city: $input['city'],
                     address1: $input['address'],
                     phone: $input['phone'],
-                    email: $user->email,
                     postalCode: $input['zip_code'],
                     administrativeArea: $input['state'],
                 ),
@@ -67,6 +67,12 @@ class PaymentMethodMutation
                 processor: $input['processor'] ?? null,
                 metadata: $request['metadata'] ?? [
                     ...$tokenizedCard,
+                    'country' => $input['country'],
+                    'city' => $input['city'],
+                    'address' => $input['address'],
+                    'phone' => $input['phone'],
+                    'zip_code' => $input['zip_code'],
+                    'state' => $input['state']
                 ]
             );
             $action = new CreatePaymentMethodAction($paymentMethod);

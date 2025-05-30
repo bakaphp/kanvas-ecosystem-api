@@ -10,6 +10,10 @@ enum ConfigurationEnum: string
     case APP_TOKEN = 'ECHO_PAY_APP_TOKEN';
     case CLIENT_ID = 'ECHO_PAY_CLIENT_ID';
     case SECRET = 'ECHO_PAY_SECRET';
+    case MERCHANT_ID = 'ECHO_PAY_MERCHANT_ID';
+    case MERCHANT_KEY = 'ECHO_PAY_MERCHANT_KEY';
+    case MERCHANT_SECRET = 'ECHO_PAY_MERCHANT_SECRET';
+    case REDIRECT_URL = 'ECHO_PAY_REDIRECT_URL';
     case SANDBOX_URL = 'https://api-test.portall.com.do:2053';
 
     case AUTHORIZATION_PATH = '/api/v2/auth/token';

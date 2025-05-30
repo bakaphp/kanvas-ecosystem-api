@@ -2,12 +2,16 @@
 
 namespace Kanvas\Souk\Payments\Actions;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreatePaymentAction
 {
+    public bool $runWorkflow = true;
+
     public function __construct(
         protected Order $order,
     ) {
@@ -25,7 +29,21 @@ class CreatePaymentAction
             'currency' => $this->order->currency,
             'status' => PaymentStatusEnum::PENDING->value
         ];
+
         $payment = $this->order->payments()->create($formData);
+
+        DB::afterCommit(function () use ($payment) {
+            if ($this->runWorkflow) {
+                $payment->fireWorkflow(
+                    WorkflowEnum::CREATED->value,
+                    true,
+                    [
+                        'app' => $this->order->app,
+                    ]
+                );
+            }
+        });
+
         return $payment;
     }
 }
