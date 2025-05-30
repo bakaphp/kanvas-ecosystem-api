@@ -10,7 +10,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
-use Kanvas\Inventory\Categories\Models\Categories;
+
 class ProductService
 {
     public function __construct(
@@ -83,7 +83,8 @@ class ProductService
         return $product;
     }
 
-    public function mapCategories(array $product){
+    public function mapCategories(array $product)
+    {
         $categories = explode('›', $product['product_category']);
         $mappedCategories = [];
         foreach ($categories as $category) {
