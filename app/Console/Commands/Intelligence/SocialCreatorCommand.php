@@ -99,7 +99,7 @@ class SocialCreatorCommand extends Command
 
         // Find user for this agent
         $user = Users::where('email', $agentConfig['email'])
-            ->first();
+                ->first();
 
         if (! $user) {
             $this->error('User not found for email: ' . $agentConfig['email']);
@@ -125,6 +125,7 @@ class SocialCreatorCommand extends Command
         // Log completion summary
         $this->info('');
         $this->info('Creator agent ' . $agentConfig['email'] . ' completed content creation:');
+        $this->info('Creator Bio: ' . ($agentConfig['bio'] ?? 'No bio provided'));
         $this->info("- Total created: {$result['total_created']}");
         $this->info("- Total failed: {$result['total_failed']}");
         $this->info("- Success rate: {$result['success_rate']}%");

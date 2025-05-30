@@ -47,6 +47,33 @@ class UserManagementTest extends TestCase
         $this->assertArrayHasKey('data', $response);
     }
 
+    public function testGetAllUserNoAdmin()
+    {
+        $app = app(Apps::class);
+
+        $response = $this->graphQL(
+            /** @lang GraphQL */
+            '
+            query {
+                users(first: 10) {
+                    data {
+                        id,
+                        email,
+                        created_at
+                    },
+                    paginatorInfo {
+                      currentPage
+                      lastPage
+                    }
+                }
+            }
+            ',
+            [],
+            [],
+        );
+        $this->assertArrayHasKey('data', $response);
+    }
+
     public function testUpdateUserPassword()
     {
         $app = app(Apps::class);
@@ -544,7 +571,7 @@ class UserManagementTest extends TestCase
         $company = $user->getCurrentCompany();
 
         $email = fake()->email();
-        $password = "12345678";
+        $password = '12345678';
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation appCreateUser($data: CreateUserInput!) {
                 appCreateUser(data: $data) {
@@ -582,7 +609,6 @@ class UserManagementTest extends TestCase
         $userAssociate = UsersRepository::belongsToThisApp($createdUser, $app);
         $activeState = $userAssociate->isActive();
 
-
         $this->graphQL(/** @lang GraphQL */ '
            mutation login($data: LoginInput!) {
                 login(data: $data) {
@@ -611,7 +637,6 @@ class UserManagementTest extends TestCase
                 'user_id' => $createdUser->getId(),
             ]
         );
-
 
         $response->assertJson([
             'data' => [
