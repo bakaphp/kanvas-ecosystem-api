@@ -11,7 +11,7 @@ class ProductVariantService extends ProductService
         $variants = [];
         $variantsGroup = $this->groupVariant($product['customization_options']);
         foreach ($variantsGroup as $group) {
-            $variant = $product;
+            $variant = $this->mapProduct($product);
             $variant['sku'] = $group['asin'];
             $variant['attributes'] = array_merge(
                 $group['attributes'],
