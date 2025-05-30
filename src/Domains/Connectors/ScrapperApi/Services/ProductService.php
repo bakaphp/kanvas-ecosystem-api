@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ScrapperApi\Services;
 
 use Illuminate\Support\Str;
-use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
@@ -32,8 +31,8 @@ class ProductService
         $price = $this->calcDiscountPrice($product);
         $name = Str::limit($product['name'], 255);
         $product = [
-            'name' => TranslateToSpanishAction::execute($name) ?? $name,
-            'description' => TranslateToSpanishAction::execute($this->getDescription($product)) ?? $this->getDescription($product),
+            'name' =>  $name,
+            'description' => $this->getDescription($product),
             'price' => $amazonPrice,
             'discountPrice' => $amazonPrice,
             'slug' => Str::slug($product['asin']),
