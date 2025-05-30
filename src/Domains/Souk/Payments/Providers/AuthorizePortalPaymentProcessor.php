@@ -24,6 +24,7 @@ use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use Throwable;
 
 class AuthorizePortalPaymentProcessor
 {
@@ -156,7 +157,6 @@ class AuthorizePortalPaymentProcessor
                 ]),
                 'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
                     "deviceChannel" => "BROWSER",
-                    "returnUrl" => "http://localhost:3000/portal/accept-code",
                     "referenceId" => $referenceId,
                     "transactionMode" => "eCommerce"
 
@@ -166,9 +166,6 @@ class AuthorizePortalPaymentProcessor
             $merchantAuthentication,
             $service
         );
-
-
-        $this->checkEnrollment($payment->order, $referenceId);
 
         return $result;
     }
@@ -198,7 +195,9 @@ class AuthorizePortalPaymentProcessor
 
         if ($enrollmentData['status'] === 'AUTHENTICATION_SUCCESSFUL') {
             $consumerAuthenticationData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
-            $paymentResponse = $this->processPayment($payment, $consumerAuthenticationData, $referenceId);
+
+            try {
+                $paymentResponse = $this->processPayment($payment, $consumerAuthenticationData, $referenceId);        
 
             if ($paymentResponse->status->name === 'PAYED') {
                 $payment->status = PaymentStatusEnum::PAID;
@@ -212,6 +211,9 @@ class AuthorizePortalPaymentProcessor
             }
 
             return $paymentResponse;
+            } catch (Throwable $e) {
+                report($e);
+            }
         }
 
         return $enrollmentData;

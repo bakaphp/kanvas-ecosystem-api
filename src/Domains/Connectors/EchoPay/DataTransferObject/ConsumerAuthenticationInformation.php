@@ -10,7 +10,7 @@ class ConsumerAuthenticationInformation extends Data
 {
     public function __construct(
         public readonly string $deviceChannel,
-        public readonly string $returnUrl,
+        public readonly ?string $returnUrl,
         public readonly string $referenceId,
         public readonly string $transactionMode,
     ) {
