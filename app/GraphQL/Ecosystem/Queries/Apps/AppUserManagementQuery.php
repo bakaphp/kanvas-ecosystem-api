@@ -27,6 +27,25 @@ class AppUserManagementQuery
         return UserAppRepository::getAllAppUsers($app);
     }
 
+    public function getAllAppUsersNoAdmin(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $query = UserAppRepository::getAllAppUsers($app);
+
+        // Non-owners can only see themselves in the app
+        if (! $user->isAppOwner()) {
+            $query->where('users.id', $user->id);
+        }
+
+        return $query;
+    }
+
     public function getAdminUserCompanies(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
         return Users::select('companies.*')
