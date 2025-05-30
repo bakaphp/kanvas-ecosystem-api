@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Traits;
 
-use Exception;
+use Illuminate\Validation\UnauthorizedException;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 
 trait ShopifyWebhookValidation
@@ -18,14 +18,14 @@ trait ShopifyWebhookValidation
         $webhookSecret = $this->getWebhookSecret();
 
         if (empty($webhookSecret)) {
-            throw new Exception('Shopify webhook secret not configured');
+            throw new UnauthorizedException('Shopify webhook secret not configured');
         }
 
         // Get the HMAC header from the webhook request
         $hmacHeader = $this->getHmacHeader();
 
         if (empty($hmacHeader)) {
-            throw new Exception('Missing Shopify HMAC signature');
+            throw new UnauthorizedException('Missing Shopify HMAC signature');
         }
 
         // Get the raw payload body
@@ -36,7 +36,7 @@ trait ShopifyWebhookValidation
 
         // Compare the signatures
         if (! hash_equals($expectedHmac, $hmacHeader)) {
-            throw new Exception('Invalid Shopify webhook signature');
+            throw new UnauthorizedException('Invalid Shopify webhook signature');
         }
     }
 
@@ -59,7 +59,7 @@ trait ShopifyWebhookValidation
             return $this->receiver->company->get(CustomFieldEnum::SHOPIFY_API_KEY_V2->value);
         }
 
-        throw new Exception('Shopify webhook secret not found in configuration');
+        throw new UnauthorizedException('Shopify webhook secret not found in configuration');
     }
 
     /**
