@@ -64,7 +64,7 @@ class ImportProductFromFilesystemAction
                     'description' => $variants[0]['product_description'] ?? '',
                     'slug' => $variants[0]['productSlug'] ?? Str::slug($variants[0]['product_name']),
                     'sku' => $variants[0]['sku'],
-                    'status' => $variants[0]['status'],
+                    'status' => $variants[0]['status'] ?? null,
                     'customFields' => [],
                     'variants' => $variants,
                     'attributes' => $productAttributes,
