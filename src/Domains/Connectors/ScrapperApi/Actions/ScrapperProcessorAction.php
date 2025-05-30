@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Connectors\ScrapperApi\Events\ProductScrapperEvent;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
@@ -40,7 +41,6 @@ class ScrapperProcessorAction
 
     public function execute(): array
     {
-        app()->setLocale('es');
         $productList = [];
         $this->overwriteAppService(app: $this->app);
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
@@ -56,8 +56,11 @@ class ScrapperProcessorAction
 
         foreach ($this->results as $i => $result) {
             try {
+                if (! isset($result['asin']) || empty($result['asin'])) {
+                    Log::warning('No ASIN found for product', ['result' => $result]);
+                    continue;
+                }
                 $product = $repository->getByAsin($result['asin']);
-
                 $product = array_merge($product, $result);
                 if (empty($product['price']) && empty($product['original_price']['price'])) {
                     continue;
@@ -66,7 +69,7 @@ class ScrapperProcessorAction
                 $originalDescription = $service->getDescription($product);
 
                 $mappedProduct = $service->mapProduct($product);
-                $mappedProduct['variants'] = $productVariantService->mapVariant($product);
+                $mappedProduct['variants'] = isset($product['customization_options']) ? $productVariantService->mapVariant($product) : [$product];
 
                 try {
                     $product = (
@@ -143,8 +146,8 @@ class ScrapperProcessorAction
 
                 continue;
             }
-            $product->setTranslation('name', 'en', $originalName);
-            $product->setTranslation('description', 'en', $originalDescription);
+            $product->setTranslation('name', 'es', TranslateToSpanishAction::execute($originalName) ?? $originalName);
+            $product->setTranslation('description', 'es', TranslateToSpanishAction::execute($originalDescription) ?? $originalDescription);
             $product->save();
             $productList[] = $product;
         }

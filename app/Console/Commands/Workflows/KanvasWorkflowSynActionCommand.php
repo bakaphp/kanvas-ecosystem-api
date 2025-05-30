@@ -56,6 +56,7 @@ use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ShopifyCompanyConfigWebhookJob;
+use Kanvas\Connectors\Shopify\Jobs\ShopifyComplianceWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ShopifyOrderNotesWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateShopifyDraftOrderActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateUserActivity;
@@ -187,6 +188,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessMessageVehicleImageActivity::class,
             LLMMessageResponseActivity::class,
             ProcessPaymentActivity::class,
+            ShopifyComplianceWebhookJob::class,
         ];
 
         $createdActions = [];

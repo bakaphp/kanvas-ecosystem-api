@@ -11,9 +11,11 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $integrationCompanyId = $this->receiver->configuration['integration_company_id'];
