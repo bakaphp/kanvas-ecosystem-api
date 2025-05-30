@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Jobs;
 
+use Kanvas\Connectors\Shopify\Traits\ShopifyWebhookValidation;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
@@ -13,9 +14,13 @@ use Override;
 
 class ShopifyComplianceWebhookJob extends ProcessWebhookJob
 {
+    use ShopifyWebhookValidation;
+
     #[Override]
     public function execute(): array
     {
+        $this->validateShopifyWebhook();
+
         $messageInput = [
             'message' => $this->webhookRequest->payload,
             'reactions_count' => 0,
