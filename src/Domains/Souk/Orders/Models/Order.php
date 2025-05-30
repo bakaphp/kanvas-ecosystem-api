@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
@@ -26,6 +27,7 @@ use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 use Spatie\LaravelData\DataCollection;
@@ -584,13 +586,23 @@ class Order extends BaseModel
             $totalDebt = $this->total_net_amount - $totalPaid;
             if ($totalDebt <= 0) {
                 $this->fulfill();
+                DB::afterCommit(function () {
+                    $this->fireWorkflow(
+                        WorkflowEnum::UPDATED->value,
+                        true,
+                        [
+                            'app' => $this->app,
+                        ]
+                    );
+                });
             }
         }
     }
 
     public function getPaidAmount(): float
     {
-        return (float) $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
+        $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
+        return (float) $paidAmount;
     }
 
     public function orderType(): BelongsTo
