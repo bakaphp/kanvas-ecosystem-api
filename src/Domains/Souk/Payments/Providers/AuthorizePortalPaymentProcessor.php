@@ -136,7 +136,7 @@ class AuthorizePortalPaymentProcessor
         return $enrollmentCheck;
     }
 
-    public function processPayment(Payments $payment, ConsumerAuthentication $consumerAuthenticationData, $referenceId): PaymentResponse
+    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, $referenceId): PaymentResponse
     {
         $merchantAuthentication = $this->setupMerchantAuthentication(includeDetails: true);
         $service = $this->setupService();
@@ -156,19 +156,15 @@ class AuthorizePortalPaymentProcessor
                 ]),
                 'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
                     "deviceChannel" => "BROWSER",
-                    "returnUrl" => "http://localhost:3000/portal/accept-code",
                     "referenceId" => $referenceId,
                     "transactionMode" => "eCommerce"
 
                 ]),
             ]),
-            $consumerAuthenticationData,
+            $consumerData,
             $merchantAuthentication,
             $service
         );
-
-
-        $this->checkEnrollment($payment->order, $referenceId);
 
         return $result;
     }
@@ -197,8 +193,9 @@ class AuthorizePortalPaymentProcessor
 
 
         if ($enrollmentData['status'] === 'AUTHENTICATION_SUCCESSFUL') {
-            $consumerAuthenticationData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
-            $paymentResponse = $this->processPayment($payment, $consumerAuthenticationData, $referenceId);
+            $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
+
+            $paymentResponse = $this->processPayment($payment, $consumerData, $referenceId);
 
             if ($paymentResponse->status->name === 'PAYED') {
                 $payment->status = PaymentStatusEnum::PAID;
@@ -212,6 +209,10 @@ class AuthorizePortalPaymentProcessor
             }
 
             return $paymentResponse;
+        } else {
+            $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION;
+            $payment->addPrivateMetadata('enrollment_data', $enrollmentData);
+            $payment->save();
         }
 
         return $enrollmentData;
