@@ -9,7 +9,8 @@ type User {
     default_company: Int! @method(name: "defaultCompany")
     default_company_uuid: String! @method(name: "defaultCompanyUuid")
     default_company_branch: Int! @method(name: "defaultCompanyBranch")
-    default_company_branch_uuid: String! @method(name: "defaultCompanyBranchUuid")
+    default_company_branch_uuid: String!
+        @method(name: "defaultCompanyBranchUuid")
     email: Email! @method(name: "getAppEmail")
     is_active: Boolean! @method(name: "getAppIsActive")
     verify_two_factor: Boolean! @method(name: "runVerifyTwoFactorAuth")
@@ -17,8 +18,7 @@ type User {
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
     address: AddressType
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@address")
-    addresses: [Address!]
-        @HasMany(relation: "addresses")
+    addresses: [Address!] @HasMany(relation: "addresses")
     sex: String
     user_active: Boolean!
     timezone: String
@@ -168,22 +168,22 @@ input UpdateUserInput {
 }
 
 input UserContactInput {
-  first_name: String!
-  last_name: String!
-  phone_numbers: [PhoneNumberInput!]!
-  emails: [EmailInput!]!
-  company: String
-  job_title: String
+    first_name: String!
+    last_name: String!
+    phone_numbers: [PhoneNumberInput!]!
+    emails: [EmailInput!]!
+    company: String
+    job_title: String
 }
 
 input PhoneNumberInput {
-  type: String! # mobile, home, work
-  number: String!
+    type: String! # mobile, home, work
+    number: String!
 }
 
 input EmailInput {
-  type: String! # personal, work, other
-  email: Email!
+    type: String! # personal, work, other
+    email: Email!
 }
 
 extend type Mutation {
@@ -295,7 +295,9 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@requestDeleteAccount"
         )
-    checkUsersContactsMatch(contacts: [UserContactInput!]!): UserContactsMatchesFindings!
+    checkUsersContactsMatch(
+        contacts: [UserContactInput!]!
+    ): UserContactsMatchesFindings!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserContactsManagementMutation@checkUsersContactsMatch"
@@ -322,41 +324,22 @@ type Query @guard {
 extend type Query @guard {
     users(
         search: String @search
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "uuid"
-                    "firstname"
-                    "lastname"
-                    "displayname"
-                    "description"
-                    "dob"
-                    "email"
-                    "is_active"
-                    "verify_two_factor"
-                    "sex"
-                    "user_active"
-                    "timezone"
-                    "mainRole"
-                    "welcome"
-                    "created_at"
-                    "updated_at"
-                ]
-            )
+        where: _ @whereConditions(columnsEnum: UserAppEnumColumn)
         orderBy: _
             @orderBy(
                 columns: [
-                    "created_at"
-                    "updated_at"
                     "id"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "lastvisit"
+                    "created_at"
                 ]
             )
-        search: String @search
     ): [User!]!
         @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAllAppUsersNoAdmin"
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersBuilder@getAll"
-            scopes: ["fromApp", "notDeleted"]
         )
 }
