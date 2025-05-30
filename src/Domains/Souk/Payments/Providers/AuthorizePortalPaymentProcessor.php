@@ -24,6 +24,7 @@ use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use Throwable;
 
 class AuthorizePortalPaymentProcessor
 {
@@ -94,7 +95,7 @@ class AuthorizePortalPaymentProcessor
         ];
     }
 
-    public function startPaymentIntent(Order $orderInput): array
+    public function startPaymentIntent(): array
     {
         $merchantAuthentication = $this->setupMerchantAuthentication();
         $payerAuthentication = $this->client->setupPayer(
@@ -191,30 +192,48 @@ class AuthorizePortalPaymentProcessor
         $referenceId = $consumerAuthentication['referenceId'];
         $enrollmentData = $this->checkEnrollment($payment->order, $referenceId);
 
+        try {
+            if ($enrollmentData['status'] === 'AUTHENTICATION_SUCCESSFUL') {
+                $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
 
-        if ($enrollmentData['status'] === 'AUTHENTICATION_SUCCESSFUL') {
-            $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
+                $paymentResponse = $this->processPayment($payment, $consumerData, $referenceId);
 
-            $paymentResponse = $this->processPayment($payment, $consumerData, $referenceId);
+                if ($paymentResponse->status->name === 'PAYED') {
+                    $payment->status = PaymentStatusEnum::PAID;
+                    $payment->addMetadata([
+                        'data' => $paymentResponse->toArray(),
+                    ]);
+                    $payment->save();
+                    $payment->order->addPrivateMetadata('payment_intent_id', $paymentResponse->id);
+                    $payment->order->addPrivateMetadata('payment_transaction_id', $paymentResponse->transactionId);
+                    $payment->order->checkPayments();
+                }
 
-            if ($paymentResponse->status->name === 'PAYED') {
-                $payment->status = PaymentStatusEnum::PAID;
-                $payment->addMetadata([
-                    'data' => $paymentResponse->toArray(),
-                ]);
+                return [
+                    'status' => 'success',
+                    'message' => 'Payment successful',
+                    'data' => $paymentResponse,
+                ];
+            } else {
+                $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION;
+                $payment->addPrivateMetadata('enrollment_data', $enrollmentData);
                 $payment->save();
-                $payment->order->addPrivateMetadata('payment_intent_id', $paymentResponse->id);
-                $payment->order->addPrivateMetadata('payment_transaction_id', $paymentResponse->transactionId);
-                $payment->order->checkPayments();
             }
+        } catch (Throwable $e) {
+            report($e);
 
-            return $paymentResponse;
-        } else {
-            $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION;
-            $payment->addPrivateMetadata('enrollment_data', $enrollmentData);
-            $payment->save();
+            return [
+                'status' => 'error',
+                'message' => 'Payment failed',
+                'response' => $e->getMessage(),
+                'data' => $enrollmentData,
+            ];
         }
 
-        return $enrollmentData;
+        return [
+            'status' => 'success',
+            'message' => PaymentStatusEnum::PENDING_AUTHORIZATION,
+            'data' => $enrollmentData
+        ];
     }
 }

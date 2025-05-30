@@ -40,9 +40,10 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
 
                 return [
                     'payment' => $payment->getId(),
-                    'status' => 'success',
-                    'message' => 'Payment confirmed',
-                    'result' => $result,
+                    'status' => $result['status'],
+                    'message' => $result['message'],
+                    'result' => $result['data'],
+                    'response' => $result['response'] ?? null,
                 ];
             },
             company: $payment->company,

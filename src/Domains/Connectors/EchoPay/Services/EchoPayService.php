@@ -178,7 +178,7 @@ class EchoPayService
 
     public function payService(
         PaymentDetail $payment,
-        ConsumerAuthentication $consumerAuthenticationData,
+        ConsumerAuthentication $consumerData,
         MerchantDetail $merchant,
         array $service
     ): PaymentResponse {
@@ -189,7 +189,7 @@ class EchoPayService
                 ],
                 "processingInformation" => [
                     "capture" => false,
-                    "commerceIndicator" => $consumerAuthenticationData->indicator,
+                    "commerceIndicator" => $consumerData->indicator,
                 ],
                 "paymentInformation" => [
                     "paymentInstrument" => [
@@ -203,7 +203,7 @@ class EchoPayService
                     ],
                     "billTo" => $payment->orderInformation->billTo->toArray()
                 ],
-                "consumerAuthenticationInformation" => $consumerAuthenticationData->toArray(),
+                "consumerAuthenticationInformation" => $consumerData->toArray(),
                 "deviceInformation" => $payment->deviceInformation->toArray(),
                 "merchantDefinedInformation" => $merchant->merchantDefinedInformation->toArray()
             ],
