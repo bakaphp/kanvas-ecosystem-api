@@ -7,7 +7,7 @@ type Filesystem {
     size: Float!
     field_name: String
     attributes: Mixed
-    created_at: DateTime
+    created_at: DateTimeTz
 }
 
 input FilesystemInputUrl {
