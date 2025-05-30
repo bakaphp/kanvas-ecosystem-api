@@ -69,7 +69,6 @@ class AuthorizePortalPaymentProcessor
 
     protected function setCustomerBillingAddress(Order $orderInput): BillingDetail
     {
-
         return new BillingDetail(
             firstName: $orderInput->user->firstname,
             lastName: $orderInput->user->lastname,
