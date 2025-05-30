@@ -42,9 +42,7 @@ class ProductService
             'files' => $this->mapFilesystem(product: ['image' => $product['image'],'images' => $product['images']]),
             'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
             'isPublished' => true,
-            'categories' => [
-
-            ],
+            'categories' => $this->mapCategories($product),
             'warehouses' => [
                 [
                     'id' => $this->warehouse->id,
@@ -85,6 +83,26 @@ class ProductService
         return $product;
     }
 
+    public function mapCategories(array $product)
+    {
+        $categories = explode('›', $product['product_category']);
+        $mappedCategories = [];
+        foreach ($categories as $category) {
+            $category = trim($category);
+            if (empty($category)) {
+                continue;
+            }
+            $mappedCategories[] = [
+                'name' => $category,
+                'slug' => Str::slug($category),
+                'code' => Str::slug($category),
+                'position' => 0,
+            ];
+            break; // @todo: work with subcategories in the future
+        }
+        return $mappedCategories;
+    }
+
     protected function mapFilesystem(array $product): array
     {
         $files = [
@@ -102,22 +120,6 @@ class ProductService
         }
 
         return $files;
-    }
-
-    public function mapAttributes(array $product): array
-    {
-        $attributes = [];
-        if (! key_exists('attributes', $product)) {
-            return $attributes;
-        }
-        foreach ($product['attributes'] as $attribute) {
-            $attributes[] = [
-                'name' => $attribute['name'],
-                'value' => $attribute['value'],
-            ];
-        }
-
-        return $attributes;
     }
 
     public function calcWeight(array $product): float
