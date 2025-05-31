@@ -400,6 +400,10 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'description' => $this->description,
             'short_description' => $this->short_description,
             'attributes' => [],
+            'translations' => json_encode([
+                'name' => $this->getTranslations('name'),
+                'description' => $this->getTranslations('description'),
+            ]),
             'apps_id' => $this->apps_id,
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
@@ -502,7 +506,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name, description', // Use just 'message' instead of 'message.name'
+                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
             ]);
         }
 
