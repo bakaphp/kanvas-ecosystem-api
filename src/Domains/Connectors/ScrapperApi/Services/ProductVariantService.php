@@ -25,6 +25,7 @@ class ProductVariantService extends ProductService
                     ]
                 );
             }
+            $variant['name'] = $this->getName($group['attributes']);
             $variants[] = $variant;
         }
 
@@ -85,5 +86,13 @@ class ProductVariantService extends ProductService
         });
 
         return $variants;
+    }
+
+    public function getName(array $attributes): string {
+        $name = '';
+        foreach ($attributes as $attribute) {
+            $name .= $attribute['name'] . ': ' . $attribute['value'] . ' ';
+        }
+        return trim($name);
     }
 }
