@@ -358,7 +358,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
      */
     public function toSearchableArray(): array
     {
-        
         $product = [
             'objectID' => $this->uuid,
             'id' => (string) $this->id,
@@ -477,7 +476,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return $product;
     }
 
-    public function getAllTranslationsAsString(string $key):string {
+    public function getAllTranslationsAsString(string $key): string
+    {
         $translations = $this->getTranslations($key);
 
         if (empty($translations)) {
