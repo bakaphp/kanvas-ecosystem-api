@@ -13,7 +13,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
@@ -586,15 +585,14 @@ class Order extends BaseModel
             $totalDebt = $this->total_net_amount - $totalPaid;
             if ($totalDebt <= 0) {
                 $this->fulfill();
-                DB::afterCommit(function () {
-                    $this->fireWorkflow(
-                        WorkflowEnum::UPDATED->value,
-                        true,
-                        [
-                            'app' => $this->app,
-                        ]
-                    );
-                });
+
+                $this->fireWorkflow(
+                    WorkflowEnum::UPDATED->value,
+                    true,
+                    [
+                        'app' => $this->app,
+                    ]
+                );
             }
         }
     }
