@@ -68,20 +68,20 @@ class PullVehicleAction
             files: $formattedImagesUrl,
             attributes: [
                 [
-              'name' => 'Plate Number',
-              'value' => $this->vehicle->plateNumber,
+                    'name' => 'vehiclePlate',
+                    'value' => $this->vehicle->plateNumber,
                 ],
                 [
-              'name' => 'Make',
-              'value' => $this->vehicle->make,
+                    'name' => 'make',
+                    'value' => $this->vehicle->make,
                 ],
                 [
-              'name' => 'Model',
-              'value' => $this->vehicle->model,
+                    'name' => 'model',
+                    'value' => $this->vehicle->model,
                 ],
                 [
-              'name' => 'Color',
-              'value' => $this->vehicle->color,
+                    'name' => 'exteriorColor',
+                    'value' => $this->vehicle->color,
                 ],
             ],
         );
