@@ -2,7 +2,6 @@
 
 namespace Kanvas\Souk\Payments\Actions;
 
-use Illuminate\Support\Facades\DB;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -32,17 +31,15 @@ class CreatePaymentAction
 
         $payment = $this->order->payments()->create($formData);
 
-        DB::afterCommit(function () use ($payment) {
-            if ($this->runWorkflow) {
-                $payment->fireWorkflow(
-                    WorkflowEnum::CREATED->value,
-                    true,
-                    [
-                        'app' => $this->order->app,
-                    ]
-                );
-            }
-        });
+        if ($this->runWorkflow) {
+            $payment->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->order->app,
+                ]
+            );
+        }
 
         return $payment;
     }
