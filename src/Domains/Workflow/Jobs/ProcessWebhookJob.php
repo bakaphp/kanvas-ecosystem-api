@@ -28,6 +28,7 @@ abstract class ProcessWebhookJob implements ShouldQueue
 
     public $failOnTimeout = false;
     protected ReceiverWebhook $receiver;
+    protected int $failedReturnHttpCode = 500;
 
     public function __construct(
         protected ReceiverWebhookCall $webhookRequest
@@ -64,6 +65,11 @@ abstract class ProcessWebhookJob implements ShouldQueue
                 ],
             ]);
         }
+    }
+
+    public function getFailedReturnHttpCode(): int
+    {
+        return $this->failedReturnHttpCode;
     }
 
     abstract public function execute(): array;
