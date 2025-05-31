@@ -9,7 +9,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\App;
-use Illuminate\Validation\UnauthorizedException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -54,14 +53,13 @@ class ReceiverController extends BaseController
             return response()->json(['message' => 'Receiver processed']);
         }
 
-        try {
-            $response = $job->handle();
+        $response = $job->handle();
 
-            if (! is_array($response)) {
-                return response()->json(['message' => 'Something went wrong , we\'ve notify support'], 500);
-            }
-        } catch (UnauthorizedException $e) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+        if (! is_array($response)) {
+            return response()->json(
+                ['message' => "Something went wrong, we've notified support"],
+                method_exists($job, 'getFailedReturnHttpCode') ? $job->getFailedReturnHttpCode() : 500
+            );
         }
 
         $status = $response['status'] ?? 200;

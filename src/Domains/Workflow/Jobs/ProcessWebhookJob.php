@@ -14,9 +14,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
-use Throwable;
 
 use function Sentry\captureException;
+
+use Throwable;
 
 abstract class ProcessWebhookJob implements ShouldQueue
 {
@@ -28,6 +29,7 @@ abstract class ProcessWebhookJob implements ShouldQueue
 
     public $failOnTimeout = false;
     protected ReceiverWebhook $receiver;
+    protected int $failedReturnHttpCode = 500;
 
     public function __construct(
         protected ReceiverWebhookCall $webhookRequest
@@ -64,6 +66,11 @@ abstract class ProcessWebhookJob implements ShouldQueue
                 ],
             ]);
         }
+    }
+
+    public function getFailedReturnHttpCode(): int
+    {
+        return $this->failedReturnHttpCode;
     }
 
     abstract public function execute(): array;
