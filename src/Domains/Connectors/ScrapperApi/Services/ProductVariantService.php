@@ -88,7 +88,8 @@ class ProductVariantService extends ProductService
         return $variants;
     }
 
-    public function getName(array $attributes): string {
+    public function getName(array $attributes): string
+    {
         $name = '';
         foreach ($attributes as $attribute) {
             $name .= $attribute['name'] . ': ' . $attribute['value'] . ' ';
