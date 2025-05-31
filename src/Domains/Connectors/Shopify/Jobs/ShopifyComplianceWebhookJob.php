@@ -15,6 +15,7 @@ use Override;
 class ShopifyComplianceWebhookJob extends ProcessWebhookJob
 {
     use ShopifyWebhookValidation;
+    protected int $failedReturnHttpCode = 401;
 
     #[Override]
     public function execute(): array
