@@ -67,13 +67,17 @@ trait ShopifyWebhookValidation
      */
     protected function getHmacHeader(): ?string
     {
-        // Check headers in the webhook request payload
         $headers = $this->webhookRequest->headers ?? [];
 
-        // Shopify sends HMAC in X-Shopify-Hmac-Sha256 header
-        return $headers['X-Shopify-Hmac-Sha256'] ??
-               $headers['x-shopify-hmac-sha256'] ??
-               null;
+        if (isset($headers['X-Shopify-Hmac-Sha256'][0])) {
+            return $headers['X-Shopify-Hmac-Sha256'][0];
+        }
+
+        if (isset($headers['x-shopify-hmac-sha256'][0])) {
+            return $headers['x-shopify-hmac-sha256'][0];
+        }
+
+        return null;
     }
 
     /**
