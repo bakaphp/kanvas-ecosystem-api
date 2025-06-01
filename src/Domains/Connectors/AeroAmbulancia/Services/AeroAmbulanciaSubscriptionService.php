@@ -140,7 +140,7 @@ class AeroAmbulanciaSubscriptionService
             'email' => $people->getEmails()->first()?->value,
             'phoneNumber' => $phoneNumber,
             'sex' => $beneficiaryData['gender'],
-            'birthdate' => $beneficiaryData['birthDate'],
+            'birthdate' => Carbon::createFromFormat('d-m-Y', $beneficiaryData['birthDate'])->format('Y-m-d'),
             'activationDate' => $activationDate->format('Y-m-d H:i:s'),
             'expirationDate' => $expirationDateFormatted,
             'acquiredPlan' => (int) $acquiredPlan,
