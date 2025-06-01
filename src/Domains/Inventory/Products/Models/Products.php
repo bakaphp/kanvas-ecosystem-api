@@ -400,6 +400,10 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'description' => $this->description,
             'short_description' => $this->short_description,
             'attributes' => [],
+            'translations' => [
+                'name' => $this->getAllTranslationsAsString('name'),
+                'description' => $this->getAllTranslationsAsString('description'),
+            ],
             'apps_id' => $this->apps_id,
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
@@ -472,6 +476,19 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return $product;
     }
 
+    public function getAllTranslationsAsString(string $key): string
+    {
+        $translations = $this->getTranslations($key);
+
+        if (empty($translations)) {
+            return '';
+        }
+
+        // Join translations with a comma
+        return implode(', ', array_map(fn ($translation) => (string) $translation, $translations));
+    }
+
+
     public function searchableAs(): string
     {
         // As for this stage, the code doesn't know in which app need to set the index.
@@ -502,7 +519,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name, description', // Use just 'message' instead of 'message.name'
+                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
             ]);
         }
 
@@ -729,6 +746,24 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'prices',
                     'type' => 'object',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'translations',
+                    'type' => 'object',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'translations.name',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'translations.description',
+                    'type' => 'string',
                     'optional' => true,
                     'facet' => true,
                 ],
