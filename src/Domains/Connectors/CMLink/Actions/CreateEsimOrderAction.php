@@ -198,7 +198,7 @@ class CreateEsimOrderAction
             $this->esimData['data']['downloadUrl'],
             $this->availableVariant->sku,
             $this->esimData['data']['state'],
-            (int) $this->cmLinkOrder['quantity'],
+            (int) ($this->cmLinkOrder['quantity'] ?? 1),
             (float) $this->cmLinkOrder['price'],
             'bundle',
             $this->orderVariant->sku,
