@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\ActionEngine\Engagements\Models;
 
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
+use Kanvas\ActionEngine\Engagements\Observers\EngagementObserver;
 use Kanvas\ActionEngine\Models\BaseModel;
+use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
+use Kanvas\ActionEngine\Pipelines\Models\PipelineStageMessage;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -28,6 +32,7 @@ use Kanvas\Social\Messages\Models\Message;
  * @property string $entity_uuid
  * @property string $slug
  */
+#[ObservedBy(EngagementObserver::class)]
 class Engagement extends BaseModel
 {
     use UuidTrait;
@@ -58,6 +63,16 @@ class Engagement extends BaseModel
     public function people(): BelongsTo
     {
         return $this->belongsTo(People::class, 'people_id', 'id');
+    }
+
+    public function stage(): BelongsTo
+    {
+        return $this->belongsTo(PipelineStage::class, 'pipelines_stages_id', 'id');
+    }
+
+    public function stageMessage(): BelongsTo
+    {
+        return $this->belongsTo(PipelineStageMessage::class, 'pipelines_stages_id', 'id');
     }
 
     public static function getByMessageId(int|string $messageId): self
