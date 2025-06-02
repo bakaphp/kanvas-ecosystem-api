@@ -6,6 +6,9 @@ namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
+use Bavix\Wallet\Interfaces\Customer;
+use Bavix\Wallet\Interfaces\ProductInterface;
+use Bavix\Wallet\Traits\HasWallet;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Models\BaseModel;
@@ -39,12 +42,13 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
 
-class OrderItem extends BaseModel
+class OrderItem extends BaseModel implements ProductInterface
 {
     use UuidTrait;
     //use Searchable;
     use CanUseWorkflow;
     use NoCompanyRelationshipTrait;
+    use HasWallet;
 
     protected $table = 'order_items';
     protected $guarded = [];
@@ -107,5 +111,18 @@ class OrderItem extends BaseModel
     public function isPublic(): bool
     {
         return $this->is_public;
+    }
+
+    public function getAmountProduct(Customer $customer): int|string
+    {
+        return (string) $this->unit_price_gross_amount * 100;
+    }
+
+    public function getMetaProduct(): ?array
+    {
+        return [
+            'title' => $this->product_name,
+            'description' => 'Purchase of Product #' . $this->variant_id,
+        ];
     }
 }

@@ -16,6 +16,7 @@ use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartAction;
+use Kanvas\Souk\Orders\Actions\CreateOrderFromCartWalletAction;
 use Kanvas\Souk\Orders\Actions\UpdateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
@@ -64,11 +65,26 @@ class OrderManagementMutation
 
     public function createFromCart(mixed $root, array $request): array
     {
+        return $this->handleCreateOrderFromCart(
+            $request,
+            CreateOrderFromCartAction::class
+        );
+    }
+
+    public function createOrderFromWalletCart(mixed $root, array $request): array
+    {
+        return $this->handleCreateOrderFromCart(
+            $request,
+            CreateOrderFromCartWalletAction::class
+        );
+    }
+
+    private function handleCreateOrderFromCart(array $request, string $actionClass): array
+    {
         $user = auth()->user();
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
         $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
-
         $region = Regions::getDefault($company);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
@@ -76,9 +92,7 @@ class OrderManagementMutation
             $user->getCurrentBranch(),
             $user
         );
-
         $people = $createPeople->execute();
-
         $billing = isset($request['input']['billing']) ? CreditCardBilling::from($request['input']) : null;
         $shippingAddress = isset($request['input']['shipping_address']) ? Address::from($request['input']['shipping_address']) : null;
 
@@ -103,7 +117,7 @@ class OrderManagementMutation
             ])
             ->log('User attempted to create order from cart');
 
-        $createOrder = new CreateOrderFromCartAction(
+        $createOrder = new $actionClass(
             $cart,
             $company,
             $region,

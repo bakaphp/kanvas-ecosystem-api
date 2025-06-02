@@ -1,0 +1,49 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Souk\Wallet\Actions;
+
+use Bavix\Wallet\Objects\Cart;
+use Exception;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Wallet\Wallet;
+use Kanvas\Users\Repositories\UsersRepository;
+
+class PayFromWalletAction
+{
+    public function __construct(
+        protected Order $order,
+    ) {
+    }
+
+    public function execute(): Wallet
+    {
+        $userCompany = $this->order->getMetadata('user_company_id');
+        if (! $userCompany) {
+            throw new Exception('User company not found in order metadata.');
+        }
+
+        $company = Companies::getById($userCompany);
+
+        UsersRepository::belongsToThisApp(
+            $this->order->user,
+            $this->order->app,
+            $company
+        );
+
+        $wallet = $company->createAppWallet($this->order->app, ['name' => 'default']);
+        //$total = 0;
+        $cart = app(Cart::class);
+
+        foreach ($this->order->items() as $item) {
+            //$total += $item->getTotal();
+            $cart = $cart->withItem($item, quantity: $item->quantity);
+        }
+        // $wallet->withdrawFloat($total);
+        $wallet->payCart($cart);
+
+        return $wallet;
+    }
+}
