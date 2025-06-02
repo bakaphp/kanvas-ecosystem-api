@@ -33,7 +33,7 @@ class PayFromWalletAction
             $this->order->app,
             $company
         );
-        
+
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
         $wallet = $company->createAppWallet($this->order->app, ['name' => $tag]);
         //$total = 0;
