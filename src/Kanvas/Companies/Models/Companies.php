@@ -11,6 +11,8 @@ use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserInterface;
+use Bavix\Wallet\Interfaces\Customer;
+use Bavix\Wallet\Traits\CanPayFloat;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,6 +39,7 @@ use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
+use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -70,7 +73,7 @@ use Override;
  * @property bool $is_active
  */
 #[ObservedBy([CompaniesObserver::class])]
-class Companies extends BaseModel implements CompanyInterface
+class Companies extends BaseModel implements CompanyInterface, Customer
 {
     use HashTableTrait;
     use HasFilesystemTrait;
@@ -81,6 +84,8 @@ class Companies extends BaseModel implements CompanyInterface
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
     use AddressTraitRelationship;
+    use CanPayFloat;
+    use HasWalletsTrait;
 
     protected $table = 'companies';
 
