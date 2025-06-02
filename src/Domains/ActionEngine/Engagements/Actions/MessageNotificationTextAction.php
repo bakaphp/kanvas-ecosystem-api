@@ -44,8 +44,8 @@ class MessageNotificationTextAction
         $engagementMessage = $this->overwriteMessage === null ? $this->engagement->message : $this->overwriteMessage;
         $message = '';
 
-       // $data = $this->formatMessageData($engagementMessage);
-       $data = $engagementMessage->message;
+        // $data = $this->formatMessageData($engagementMessage);
+        $data = $engagementMessage->message;
         $messageData = [];
         if (isset($data['message']['data'])) {
             $messageData = Str::isJson((string) $data['message']['data']) ? json_decode($data['message']['data'], true) : $data['message']['data'];
