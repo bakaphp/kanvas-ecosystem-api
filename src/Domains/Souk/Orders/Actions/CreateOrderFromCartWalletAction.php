@@ -19,7 +19,7 @@ class CreateOrderFromCartWalletAction extends CreateOrderFromCartAction
     {
         $this->hasEnoughWalletBalance();
         $this->request['input']['reference'] = 'wallet';
-        $this->request['paymentGatewayName']= 'wallet';
+        $this->request['paymentGatewayName'] = 'wallet';
 
         $order = parent::execute();
 

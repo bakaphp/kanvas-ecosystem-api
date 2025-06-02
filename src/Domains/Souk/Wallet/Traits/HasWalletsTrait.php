@@ -6,10 +6,10 @@ namespace Kanvas\Souk\Wallet\Traits;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
+use Bavix\Wallet\Internal\Exceptions\ModelNotFoundException as WalletModelNotFoundException;
 use Bavix\Wallet\Traits\HasWallets;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Souk\Wallet\Wallet;
-use Bavix\Wallet\Internal\Exceptions\ModelNotFoundException as WalletModelNotFoundException;
 
 trait HasWalletsTrait
 {
