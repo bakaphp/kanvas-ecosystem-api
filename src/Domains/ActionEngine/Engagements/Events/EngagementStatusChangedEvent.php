@@ -15,7 +15,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Social\Messages\Models\Message;
 use Override;
-use Throwable;
 
 class EngagementStatusChangedEvent implements ShouldBroadcast
 {
@@ -35,7 +34,7 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
         $this->action = $this->engagement->companyAction->name;
 
         $overwriteMessage = null;
-        if ($this->engagement->companyAction->actions->slug === 'view-vehicle') {
+        if ($this->engagement->companyAction->action->slug === 'view-vehicle') {
             $overwriteMessage = $this->message;
         }
 
@@ -46,12 +45,20 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
     #[Override]
     public function broadcastOn(): Channel
     {
-        return new Channel('engagement-status-' . $this->engagement->lead->getId());
+        return new Channel('engagement-lead-' . $this->engagement->lead->getId());
     }
 
     public function broadcastAs(): string
     {
-        return 'lead.tasks';
+        return 'engagement.status';
+    }
+
+    public function broadcastWith(): array
+    {
+        return [
+            'action' => $this->action,
+            'notificationText' => $this->notificationTextAction->notificationText(),
+        ];
     }
 
     protected function handleStatus(): void
@@ -73,12 +80,11 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
 
     protected function handleSent(): void
     {
-        $messageText = $this->notificationTextAction->notificationText();
-        $this->sendToSlack($messageText);
+        /* $messageText = $this->notificationTextAction->notificationText();
 
         if ($this->lead->company->get('disable_all_notifications')) {
             return;
-        }
+        } */
 
         /*    $notification = new ActionNotification($this->message, $this->engagement);
            $notification->setTitle('Sent - ' . ucfirst($this->action));
@@ -90,7 +96,6 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
     protected function handleOpened(): void
     {
         $messageText = $this->notificationTextAction->notificationText();
-        $this->sendToSlack($messageText);
 
         if ($this->lead->company->get('disable_all_notifications')) {
             return;
@@ -109,7 +114,6 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
     protected function handleSubmitted(): void
     {
         $messageText = $this->notificationTextAction->notificationText();
-        $this->sendToSlack($messageText);
 
         if ($this->lead->company->get('disable_all_notifications')) {
             return;
@@ -137,17 +141,5 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
                 new NotifyLeadStakeholdersService($this->lead, $notification)->all();
             }
         }
-    }
-
-    protected function sendToSlack(string $text): void
-    {
-        /*  try {
-             app(SlackService::class)->send(
-                 "{$this->engagement->companies->name} - {$this->engagement->user->email} - {$text}",
-                 app()->environment('production') ? '#engagements-stats' : '#engagements-stats-dev'
-             );
-         } catch (Throwable $e) {
-             report($e);
-         } */
     }
 }

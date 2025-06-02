@@ -33,7 +33,7 @@ class NotifyLeadStakeholdersService
 
     public function managers(?string $emailContent = null): void
     {
-        $companyManagers = $this->lead->companies->get('company_manager');
+        $companyManagers = $this->lead->company->get('company_manager');
 
         if ($this->lead->get('sent_email_notification_to_manager')) {
             return;

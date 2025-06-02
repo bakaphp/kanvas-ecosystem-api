@@ -25,7 +25,7 @@ class MessageNotificationTextAction
      */
     public function notificationText(): string
     {
-        return $this->get((string) $this->engagement->stageMessage()->get()->message_notification);
+        return $this->get((string) $this->engagement->stageMessage()->first()->message_notification);
     }
 
     /**
@@ -33,7 +33,7 @@ class MessageNotificationTextAction
      */
     public function cardText(): string
     {
-        return $this->get((string) $this->engagement->stageMessage()->get()->message);
+        return $this->get((string) $this->engagement->stageMessage()->first()->message);
     }
 
     /**
@@ -44,7 +44,8 @@ class MessageNotificationTextAction
         $engagementMessage = $this->overwriteMessage === null ? $this->engagement->message : $this->overwriteMessage;
         $message = '';
 
-        $data = $this->formatMessageData($engagementMessage);
+       // $data = $this->formatMessageData($engagementMessage);
+       $data = $engagementMessage->message;
         $messageData = [];
         if (isset($data['message']['data'])) {
             $messageData = Str::isJson((string) $data['message']['data']) ? json_decode($data['message']['data'], true) : $data['message']['data'];
@@ -54,7 +55,7 @@ class MessageNotificationTextAction
         //variables for stage messages
         $values = [
             'sendingUser' => $engagementMessage->user,
-            'stage' => $this->engagement->getStage(),
+            'stage' => $this->engagement->stage,
             'message' => $engagementMessage,
             'messageData' => $messageData,
             'companyAction' => $this->engagement->companyAction,

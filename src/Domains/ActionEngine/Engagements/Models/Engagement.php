@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\ActionEngine\Engagements\Models;
 
 use Baka\Traits\UuidTrait;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
@@ -68,6 +69,23 @@ class Engagement extends BaseModel
     public function stage(): BelongsTo
     {
         return $this->belongsTo(PipelineStage::class, 'pipelines_stages_id', 'id');
+    }
+
+    public function getShareDate(): string
+    {
+        $createdAt = $this->created_at instanceof Carbon
+            ? $this->created_at
+            : Carbon::parse($this->created_at);
+
+        if ($createdAt->isToday()) {
+            return 'today';
+        } elseif ($createdAt->isYesterday()) {
+            return 'yesterday';
+        } elseif ($createdAt->greaterThan(now()->subDays(7))) {
+            return $createdAt->format('l');
+        } else {
+            return 'on ' . $createdAt->format('M. d');
+        }
     }
 
     public function stageMessage(): BelongsTo
