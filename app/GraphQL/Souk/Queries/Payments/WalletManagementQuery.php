@@ -53,7 +53,7 @@ class WalletManagementQuery
                 'Wallet not found for the given tag.',
             );
         }
-        
+
         $wallet = $company->createAppWallet($app, ['name' => $tag]);
 
         return Transaction::query()

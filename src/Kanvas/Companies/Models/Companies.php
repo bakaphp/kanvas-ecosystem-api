@@ -13,7 +13,6 @@ use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserInterface;
 use Bavix\Wallet\Interfaces\Customer;
 use Bavix\Wallet\Traits\CanPayFloat;
-use Bavix\Wallet\Traits\HasWallets;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;

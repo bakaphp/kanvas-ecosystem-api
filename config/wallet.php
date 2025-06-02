@@ -53,7 +53,6 @@ use Bavix\Wallet\Services\TaxService;
 use Bavix\Wallet\Services\TransactionService;
 use Bavix\Wallet\Services\TransferService;
 use Bavix\Wallet\Services\WalletService;
-use Kanvas\Souk\Wallet\KanvasWallet;
 use Kanvas\Souk\Wallet\Transaction as WalletTransaction;
 use Kanvas\Souk\Wallet\Transfer as WalletTransfer;
 use Kanvas\Souk\Wallet\Wallet as WalletWallet;

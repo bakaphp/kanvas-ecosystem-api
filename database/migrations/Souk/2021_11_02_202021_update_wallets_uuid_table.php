@@ -9,8 +9,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
-return new class() extends Migration
-{
+return new class () extends Migration {
     public function up(): void
     {
         if (Schema::hasColumn($this->table(), 'uuid')) {
