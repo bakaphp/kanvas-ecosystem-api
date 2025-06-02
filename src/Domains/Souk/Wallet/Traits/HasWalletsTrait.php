@@ -9,6 +9,7 @@ use Baka\Support\Str;
 use Bavix\Wallet\Traits\HasWallets;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Souk\Wallet\Wallet;
+use Bavix\Wallet\Internal\Exceptions\ModelNotFoundException as WalletModelNotFoundException;
 
 trait HasWalletsTrait
 {
@@ -39,7 +40,7 @@ trait HasWalletsTrait
         // Try to get the wallet with the given slug.
         try {
             return $this->getWalletOrFail($slug);
-        } catch (ModelNotFoundException $exception) {
+        } catch (ModelNotFoundException|WalletModelNotFoundException $exception) {
             // If the wallet is not found, return null.
             return null;
         }

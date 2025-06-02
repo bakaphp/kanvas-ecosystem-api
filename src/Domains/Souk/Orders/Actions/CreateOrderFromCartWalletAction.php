@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
-use Exception;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
@@ -19,6 +19,7 @@ class CreateOrderFromCartWalletAction extends CreateOrderFromCartAction
     {
         $this->hasEnoughWalletBalance();
         $this->request['input']['reference'] = 'wallet';
+        $this->request['paymentGatewayName']= 'wallet';
 
         $order = parent::execute();
 
@@ -47,7 +48,11 @@ class CreateOrderFromCartWalletAction extends CreateOrderFromCartAction
         $wallet = $company->createAppWallet($this->app, ['name' => $tag]);
 
         if ($wallet->balanceFloat < $this->cart->getTotal()) {
-            throw new Exception('Insufficient wallet balance to complete the order.');
+            throw new ValidationException(
+                'Insufficient wallet balance to complete the order.'
+                . ' Please add funds to your wallet or choose a different payment method.',
+                'wallet_balance_insufficient'
+            );
         }
     }
 }

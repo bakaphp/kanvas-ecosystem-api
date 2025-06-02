@@ -37,10 +37,15 @@ class PayFromWalletAction
         //$total = 0;
         $cart = app(Cart::class);
 
-        foreach ($this->order->items() as $item) {
+        foreach ($this->order->items as $item) {
             //$total += $item->getTotal();
-            $cart = $cart->withItem($item, quantity: $item->quantity);
+            $cart = $cart->withItem(
+                product: $item->variant,
+                quantity: (int) $item->quantity,
+                pricePerItem: (string) $item->getPrice()
+            );
         }
+
         // $wallet->withdrawFloat($total);
         $wallet->payCart($cart);
 
