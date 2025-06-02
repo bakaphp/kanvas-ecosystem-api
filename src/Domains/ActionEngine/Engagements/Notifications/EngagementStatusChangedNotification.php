@@ -23,7 +23,7 @@ class EngagementStatusChangedNotification extends Notification
         $this->setType(EnumsEmailTemplateEnum::BLANK->value);
         $this->setTemplateName(NotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED->value);
         $this->setData($data);
-        $this->slackChannel = $data['slack_channel'] ?? 'default';
+        $this->slackChannel = $data['slack_channel'] ?? $engagement->app->get('slack_channel', 'engagements');
     }
 
     public function toSlack($notifiable)
