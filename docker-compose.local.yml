@@ -48,6 +48,15 @@ services:
         depends_on:
             - mysql
             - redis
+    mcp:
+        container_name: mcp${APP_CONTAINER_NAME}
+        image: "kanvas-mcp:dev"
+        ports:
+          - "8888:8888"
+        networks:
+            - sail
+        depends_on:
+            - php
     queue:
         <<: *common-queue-settings
         container_name: queue
