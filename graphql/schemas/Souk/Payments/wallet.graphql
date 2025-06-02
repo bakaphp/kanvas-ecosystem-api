@@ -8,7 +8,7 @@ type WalletTransaction {
     id: ID!
     uuid: String!
     type: String!
-    amount: String! @method(name: "getAmountFloatAttribute")
+    amount: Money! @method(name: "getAmountFloatAttribute")
     confirmed: Boolean!
     status: String!
     meta: Mixed
