@@ -8,6 +8,7 @@ use Bavix\Wallet\Objects\Cart;
 use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Wallet;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -32,8 +33,9 @@ class PayFromWalletAction
             $this->order->app,
             $company
         );
-
-        $wallet = $company->createAppWallet($this->order->app, ['name' => 'default']);
+        
+        $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
+        $wallet = $company->createAppWallet($this->order->app, ['name' => $tag]);
         //$total = 0;
         $cart = app(Cart::class);
 
