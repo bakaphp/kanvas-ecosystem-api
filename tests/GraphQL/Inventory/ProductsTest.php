@@ -413,4 +413,30 @@ class ProductsTest extends TestCase
             $response['data']['updateProductTranslations']['translation']['name']
         );
     }
+
+    public function testProductDuplicate(): void
+    {
+        $productData = $this->createProduct()->json()['data']['createProduct'];
+
+        $this->assertArrayHasKey('id', $productData);
+        $id = $productData['id'];
+
+        $response = $this->graphQL('
+            mutation($id: ID!) {
+                duplicateProduct(id: $id)
+                {
+                    id,
+                    name,
+                    slug,
+                    description,
+                }
+            }', [
+            'id' => $id,
+        ]);
+
+        $this->assertEquals(
+            $productData['slug']."-copy",
+            $response->json()['data']['duplicateProduct']['slug']
+        );
+    }
 }
