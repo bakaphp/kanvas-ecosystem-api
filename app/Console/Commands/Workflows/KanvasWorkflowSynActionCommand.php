@@ -88,7 +88,7 @@ use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationAct
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageReportNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
-use Kanvas\Souk\Wallet\Activities\DepositWalletActivity;
+use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
@@ -192,7 +192,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessPaymentActivity::class,
             ShopifyComplianceWebhookJob::class,
             PayFromWalletActivity::class,
-            DepositWalletActivity::class,
+            AddFundsToWalletActivity::class,
         ];
 
         $createdActions = [];
