@@ -193,6 +193,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
         )
+    duplicateProduct(id: ID!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@duplicateProduct"
+        )
     updateProductAttributeTranslations(
         product_id: ID!
         attribute_id: ID!
