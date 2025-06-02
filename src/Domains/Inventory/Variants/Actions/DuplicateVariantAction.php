@@ -85,7 +85,7 @@ class DuplicateVariantAction
 
     public function setDuplicateName()
     {
-        $duplicateSku = $this->originalVariant->sku."(Copy)";
+        $duplicateSku = $this->originalVariant->sku . "(Copy)";
 
         $originalName = $this->originalVariant->name;
         $originalSlug = $this->originalVariant->slug;

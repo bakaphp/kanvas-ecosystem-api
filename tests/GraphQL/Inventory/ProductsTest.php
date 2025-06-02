@@ -435,7 +435,7 @@ class ProductsTest extends TestCase
         ]);
 
         $this->assertEquals(
-            $productData['slug']."-copy",
+            $productData['slug'] . "-copy",
             $response->json()['data']['duplicateProduct']['slug']
         );
     }

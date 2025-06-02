@@ -95,7 +95,7 @@ class DuplicateProductAction
             }
 
 
-            foreach($this->originalProduct->variants as $variant) {
+            foreach ($this->originalProduct->variants as $variant) {
                 (new DuplicateVariantAction(
                     $variant,
                     $products,
