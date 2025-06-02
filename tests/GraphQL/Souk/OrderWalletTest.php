@@ -50,10 +50,11 @@ class OrderWalletTest extends TestCase
         //$company->associateUserApp($user, $app, 1);
         // Prepare input data for the order
 
-        $company->createAppWallet($app, ['name' => 'default'])->deposit(1000, [
+        $wallet = $company->createAppWallet($app, ['name' => 'default'])->deposit(1000, [
             'description' => 'Initial deposit for order testing',
             'slug' => 'initial-deposit',
         ]);
+
         $data = [
             'cartId' => 'default',
 
@@ -100,5 +101,28 @@ class OrderWalletTest extends TestCase
                  ],
              ],
          ]);
+
+        // Test the getWalletBalance query
+        $balanceResponse = $this->graphQL('
+            query getWalletBalance($tag: String!) {
+            getWalletBalance(tag: $tag) {
+                balance
+                message
+                data
+            }
+            }
+        ', [
+            'tag' => 'default',
+        ]);
+
+        $balanceResponse->assertJsonStructure([
+            'data' => [
+            'getWalletBalance' => [
+                'balance',
+                'message',
+                'data',
+            ],
+            ],
+        ]);
     }
 }
