@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Override;
 
 class ProductFactory extends Factory
 {
@@ -17,6 +18,7 @@ class ProductFactory extends Factory
 
     protected $model = Products::class;
 
+    #[Override]
     public function definition()
     {
         $app = app(Apps::class);

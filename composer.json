@@ -16,6 +16,7 @@
         "automattic/woocommerce": "^3.1",
         "awobaz/compoships": "^2.2",
         "bacon/bacon-qr-code": "^3.0",
+        "bavix/laravel-wallet": "^11.4",
         "berkayk/onesignal-laravel": "^2.4",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",

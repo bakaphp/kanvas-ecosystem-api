@@ -6,11 +6,14 @@ namespace Kanvas\Inventory\Shopify;
 
 use GuzzleHttp\Client as GuzzleClient;
 
+/**
+ * @deprecated
+ * This class is deprecated and will be removed in future versions.
+ */
 class Client
 {
     /**
      * getClient.
-     *
      */
     public static function getClient(string $storeUrl): GuzzleClient
     {
@@ -18,7 +21,7 @@ class Client
             'base_uri' => "$storeUrl/admin/api/2023-01/graphql.json",
             'headers' => [
                 'X-Shopify-Access-Token' => config('shopify.access_token'),
-            ]
+            ],
         ]);
     }
 }
