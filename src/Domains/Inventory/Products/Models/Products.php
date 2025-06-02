@@ -465,12 +465,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
         $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
-            $product['attributes'][$attribute['name']] = $attribute['value'];
+            $product['attributes'][$attribute['name']] = (string)$attribute['value'];
         }
 
         $customFields = $this->getAllCustomFields();
         foreach ($customFields as $key => $value) {
-            $product['custom_fields'][$key] = $value;
+            $product['custom_fields'][$key] = (string)$value;
         }
 
         return $product;
@@ -487,7 +487,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         // Join translations with a comma
         return implode(', ', array_map(fn ($translation) => (string) $translation, $translations));
     }
-
 
     public function searchableAs(): string
     {
