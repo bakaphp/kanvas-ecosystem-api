@@ -8,6 +8,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
+use Kanvas\Inventory\Products\Actions\DuplicateProductAction;
 use Kanvas\Inventory\Products\Actions\RemoveAttributeAction;
 use Kanvas\Inventory\Products\Actions\UpdateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
@@ -180,5 +181,15 @@ class Products
         $productAttribute->save();
 
         return $productAttribute;
+    }
+
+    public function duplicateProduct(mixed $root, array $req): ProductsModel
+    {
+        $company = auth()->user()->getCurrentCompany();
+
+        $product = ProductsRepository::getById((int) $req['id'], $company);
+        $productModel = (new DuplicateProductAction($product, auth()->user()))->execute();
+
+        return $productModel;
     }
 }
