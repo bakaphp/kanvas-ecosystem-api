@@ -26,7 +26,7 @@ type Category {
     products: [Product!] @belongsToMany(relation: "products", type: PAGINATOR)
     productsTags(tag: String!): [Product!]! 
     @paginate(
-        defaultCount: 25
+        defaultCount: 4
         builder: "App\\GraphQL\\Inventory\\Builders\\Categories\\GetProductByTag@getProductsByTag"
     )
 }
