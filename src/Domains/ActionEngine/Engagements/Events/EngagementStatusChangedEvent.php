@@ -45,7 +45,8 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
     #[Override]
     public function broadcastOn(): Channel
     {
-        return new Channel('engagement-lead-' . $this->engagement->lead->getId());
+        //return new Channel('engagement-lead-' . $this->engagement->lead->getId());
+        return new Channel('engagement-lead-status');
     }
 
     public function broadcastAs(): string
