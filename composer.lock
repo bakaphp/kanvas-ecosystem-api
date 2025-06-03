@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6241619fd689c5b65ab19f2d9b916fba",
+    "content-hash": "f841d7dfb371ee2062687bfd5ac3c008",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1509,16 +1509,16 @@
         },
         {
             "name": "brick/math",
-            "version": "0.12.3",
+            "version": "0.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brick/math.git",
-                "reference": "866551da34e9a618e64a819ee1e01c20d8a588ba"
+                "reference": "fc7ed316430118cc7836bf45faff18d5dfc8de04"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brick/math/zipball/866551da34e9a618e64a819ee1e01c20d8a588ba",
-                "reference": "866551da34e9a618e64a819ee1e01c20d8a588ba",
+                "url": "https://api.github.com/repos/brick/math/zipball/fc7ed316430118cc7836bf45faff18d5dfc8de04",
+                "reference": "fc7ed316430118cc7836bf45faff18d5dfc8de04",
                 "shasum": ""
             },
             "require": {
@@ -1557,7 +1557,7 @@
             ],
             "support": {
                 "issues": "https://github.com/brick/math/issues",
-                "source": "https://github.com/brick/math/tree/0.12.3"
+                "source": "https://github.com/brick/math/tree/0.13.1"
             },
             "funding": [
                 {
@@ -1565,7 +1565,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-02-28T13:11:00+00:00"
+            "time": "2025-03-29T13:50:30+00:00"
         },
         {
             "name": "carbonphp/carbon-doctrine-types",
@@ -4040,16 +4040,16 @@
         },
         {
             "name": "imdhemy/appstore-iap",
-            "version": "1.8.0",
+            "version": "1.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/imdhemy/appstore-iap.git",
-                "reference": "18ab9841b4bdfaf21d48ed57cf62ef26da43fe9c"
+                "reference": "27453653f08fb559a21ccf27867a719038117924"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/imdhemy/appstore-iap/zipball/18ab9841b4bdfaf21d48ed57cf62ef26da43fe9c",
-                "reference": "18ab9841b4bdfaf21d48ed57cf62ef26da43fe9c",
+                "url": "https://api.github.com/repos/imdhemy/appstore-iap/zipball/27453653f08fb559a21ccf27867a719038117924",
+                "reference": "27453653f08fb559a21ccf27867a719038117924",
                 "shasum": ""
             },
             "require": {
@@ -4060,7 +4060,7 @@
                 "lcobucci/clock": "^3.0",
                 "lcobucci/jwt": "^5.3",
                 "nesbot/carbon": "^2.66|^3.8",
-                "php": ">=8.1"
+                "php": ">=8.3"
             },
             "require-dev": {
                 "fakerphp/faker": "^1.22",
@@ -4089,9 +4089,9 @@
             "description": "PHP Appstore In-App Purchase implementation",
             "support": {
                 "issues": "https://github.com/imdhemy/appstore-iap/issues",
-                "source": "https://github.com/imdhemy/appstore-iap/tree/1.8.0"
+                "source": "https://github.com/imdhemy/appstore-iap/tree/1.9.0"
             },
-            "time": "2025-05-25T18:05:17+00:00"
+            "time": "2025-06-03T13:00:22+00:00"
         },
         {
             "name": "imdhemy/google-play-billing",
@@ -4146,22 +4146,22 @@
         },
         {
             "name": "imdhemy/laravel-purchases",
-            "version": "1.16.0",
+            "version": "1.17.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/imdhemy/laravel-in-app-purchases.git",
-                "reference": "91da08e5f87a07c6fb13113a424ca95773ff2e5e"
+                "reference": "54a93cfad81e9c55b06f28a2d2492babf8070ec7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/91da08e5f87a07c6fb13113a424ca95773ff2e5e",
-                "reference": "91da08e5f87a07c6fb13113a424ca95773ff2e5e",
+                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/54a93cfad81e9c55b06f28a2d2492babf8070ec7",
+                "reference": "54a93cfad81e9c55b06f28a2d2492babf8070ec7",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
                 "ext-openssl": "*",
-                "imdhemy/appstore-iap": "^1.6",
+                "imdhemy/appstore-iap": "^1.8",
                 "imdhemy/google-play-billing": "^1.5",
                 "laravel/framework": ">=8.0",
                 "php": ">=8.1"
@@ -4212,7 +4212,7 @@
             ],
             "support": {
                 "issues": "https://github.com/imdhemy/laravel-in-app-purchases/issues",
-                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.16.0"
+                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.17.0"
             },
             "funding": [
                 {
@@ -4220,7 +4220,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-02-08T22:31:12+00:00"
+            "time": "2025-06-03T11:22:45+00:00"
         },
         {
             "name": "inspector-apm/inspector-php",
@@ -4273,16 +4273,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.10.19",
+            "version": "1.10.20",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "fbed59879b9a9de46d111c7a338eddbfe51a48bd"
+                "reference": "59bb13b1182aec96201115a421d6ec341875119f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/fbed59879b9a9de46d111c7a338eddbfe51a48bd",
-                "reference": "fbed59879b9a9de46d111c7a338eddbfe51a48bd",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/59bb13b1182aec96201115a421d6ec341875119f",
+                "reference": "59bb13b1182aec96201115a421d6ec341875119f",
                 "shasum": ""
             },
             "require": {
@@ -4339,9 +4339,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.10.19"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.10.20"
             },
-            "time": "2025-06-02T08:06:14+00:00"
+            "time": "2025-06-03T10:34:45+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -4890,20 +4890,20 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.16.0",
+            "version": "v12.17.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "293bb1c70224faebfd3d4328e201c37115da055f"
+                "reference": "8729d084510480fdeec9b6ad198180147d4a7f06"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/293bb1c70224faebfd3d4328e201c37115da055f",
-                "reference": "293bb1c70224faebfd3d4328e201c37115da055f",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/8729d084510480fdeec9b6ad198180147d4a7f06",
+                "reference": "8729d084510480fdeec9b6ad198180147d4a7f06",
                 "shasum": ""
             },
             "require": {
-                "brick/math": "^0.11|^0.12",
+                "brick/math": "^0.11|^0.12|^0.13",
                 "composer-runtime-api": "^2.2",
                 "doctrine/inflector": "^2.0.5",
                 "dragonmantank/cron-expression": "^3.4",
@@ -5101,7 +5101,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-05-27T15:49:44+00:00"
+            "time": "2025-06-03T14:04:18+00:00"
         },
         {
             "name": "laravel/octane",
@@ -7423,16 +7423,16 @@
         },
         {
             "name": "nette/utils",
-            "version": "v4.0.6",
+            "version": "v4.0.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nette/utils.git",
-                "reference": "ce708655043c7050eb050df361c5e313cf708309"
+                "reference": "e67c4061eb40b9c113b218214e42cb5a0dda28f2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nette/utils/zipball/ce708655043c7050eb050df361c5e313cf708309",
-                "reference": "ce708655043c7050eb050df361c5e313cf708309",
+                "url": "https://api.github.com/repos/nette/utils/zipball/e67c4061eb40b9c113b218214e42cb5a0dda28f2",
+                "reference": "e67c4061eb40b9c113b218214e42cb5a0dda28f2",
                 "shasum": ""
             },
             "require": {
@@ -7503,9 +7503,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nette/utils/issues",
-                "source": "https://github.com/nette/utils/tree/v4.0.6"
+                "source": "https://github.com/nette/utils/tree/v4.0.7"
             },
-            "time": "2025-03-30T21:06:30+00:00"
+            "time": "2025-06-03T04:55:08+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -16514,6 +16514,74 @@
     ],
     "packages-dev": [
         {
+            "name": "beyondcode/laravel-dump-server",
+            "version": "2.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/beyondcode/laravel-dump-server.git",
+                "reference": "8e9af58a02a59d6a028167e2afc5b5b1e58eb822"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/beyondcode/laravel-dump-server/zipball/8e9af58a02a59d6a028167e2afc5b5b1e58eb822",
+                "reference": "8e9af58a02a59d6a028167e2afc5b5b1e58eb822",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/console": "5.6.*|5.7.*|5.8.*|^6.0|^7.0|^8.0|^9.0|^10.0|^11.0|^12.0",
+                "illuminate/http": "5.6.*|5.7.*|5.8.*|^6.0|^7.0|^8.0|^9.0|^10.0|^11.0|^12.0",
+                "illuminate/support": "5.6.*|5.7.*|5.8.*|^6.0|^7.0|^8.0|^9.0|^10.0|^11.0|^12.0",
+                "php": ">=7.2.5",
+                "symfony/var-dumper": "^5.0|^6.0|^7.0"
+            },
+            "conflict": {
+                "spatie/laravel-ray": "*"
+            },
+            "require-dev": {
+                "larapack/dd": "^1.0",
+                "phpunit/phpunit": "^7.0|^9.3|^10.5"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "BeyondCode\\DumpServer\\DumpServerServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "helpers.php"
+                ],
+                "psr-4": {
+                    "BeyondCode\\DumpServer\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Marcel Pociot",
+                    "email": "marcel@beyondco.de",
+                    "homepage": "https://beyondco.de",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Symfony Var-Dump Server for Laravel",
+            "homepage": "https://github.com/beyondcode/laravel-dump-server",
+            "keywords": [
+                "beyondcode",
+                "laravel-dump-server"
+            ],
+            "support": {
+                "issues": "https://github.com/beyondcode/laravel-dump-server/issues",
+                "source": "https://github.com/beyondcode/laravel-dump-server/tree/2.1.0"
+            },
+            "time": "2025-02-26T08:27:59+00:00"
+        },
+        {
             "name": "fakerphp/faker",
             "version": "v1.24.1",
             "source": {
@@ -18703,6 +18771,6 @@
     "platform": {
         "php": "^8.4"
     },
-    "platform-dev": [],
-    "plugin-api-version": "2.3.0"
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
 }
