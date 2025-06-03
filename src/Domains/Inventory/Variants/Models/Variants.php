@@ -430,7 +430,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'attributes' => [],
             'apps_id' => $this->apps_id,
         ];
-        $attributes = $this->attributes()->get();
+        $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
             //if its over 100 characters we dont want to index it
             if (! is_array($attribute->value) && strlen((string) $attribute->value) > 100) {

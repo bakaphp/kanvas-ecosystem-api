@@ -817,7 +817,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         ];
     }
 
-    public static function getImportHandler(FilesystemImports $filesystemImport)
+    #[Override]
+    public static function getImportHandler(FilesystemImports $filesystemImport): mixed
     {
         return new ImportProductFromFilesystemAction($filesystemImport);
     }
