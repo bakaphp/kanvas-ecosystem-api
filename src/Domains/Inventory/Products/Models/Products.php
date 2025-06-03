@@ -465,12 +465,16 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
         $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
-            $product['attributes'][$attribute['name']] = (string)$attribute['value'];
+            $product['attributes'][$attribute['name']] = is_array($attribute['value'])
+                ? $attribute['value']
+                : (string) $attribute['value'];
         }
 
         $customFields = $this->getAllCustomFields();
         foreach ($customFields as $key => $value) {
-            $product['custom_fields'][$key] = (string)$value;
+            $product['custom_fields'][$key] = is_array($value)
+                ? $value
+                : (string) $value;
         }
 
         return $product;
