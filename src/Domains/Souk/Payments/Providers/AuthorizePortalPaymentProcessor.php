@@ -16,6 +16,7 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
+use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantCategoryEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantDocumentTypesEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantPlatformEnum;
@@ -204,8 +205,8 @@ class AuthorizePortalPaymentProcessor
                         'data' => $paymentResponse->toArray(),
                     ]);
                     $payment->save();
-                    $payment->order->addPrivateMetadata('payment_intent_id', $paymentResponse->id);
-                    $payment->order->addPrivateMetadata('payment_transaction_id', $paymentResponse->transactionId);
+                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, $paymentResponse->id);
+                    $payment->order->set(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $paymentResponse->transactionId);
                     $payment->order->checkPayments();
                 }
 

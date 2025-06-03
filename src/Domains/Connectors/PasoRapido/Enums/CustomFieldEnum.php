@@ -8,4 +8,5 @@ enum CustomFieldEnum: string
 {
     case PASO_RAPIDO_PAYMENT_STATUS = 'paso_rapido_payment_status';
     case PASO_RAPIDO_PAYMENT_RESPONSE = 'paso_rapido_payment_response';
+    case PASO_RAPIDO_DNI = 'paso_rapido_dni';
 }
