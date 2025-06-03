@@ -3,7 +3,7 @@
 namespace Kanvas\Users\Actions;
 
 use Baka\Contracts\AppInterface;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -21,7 +21,7 @@ class AddUserCompanyAction
     ) {
     }
 
-    public function execute(Collection $users, $rolId = null): bool
+    public function execute(Collection $users, int|string|null $rolId = null): bool
     {
         CompaniesRepository::userAssociatedToCompany(
             $this->company,
