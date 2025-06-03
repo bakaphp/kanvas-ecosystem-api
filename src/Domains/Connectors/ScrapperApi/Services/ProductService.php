@@ -63,6 +63,14 @@ class ProductService
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
                     'value' => $this->calcWeight($product),
                 ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_BRAND->value,
+                    'data' => $product['brand'] ?? '',
+                ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_RATING->value,
+                    'data' => $product['average_rating'] ?? 0,
+                ],
             ],
             'custom_fields' => [
                 [
@@ -76,15 +84,7 @@ class ProductService
                 [
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
                     'data' => $this->calcWeight($product),
-                ],
-                [
-                    'name' => ScrapperConfigEnum::SCRAPPER_BRAND->value,
-                    'data' => $product['brand'] ?? '',
-                ],
-                [
-                    'name' => ScrapperConfigEnum::SCRAPPER_RATING->value,
-                    'data' => $product['average_rating'] ?? 0,
-                ],
+                ]
             ],
         ];
 
