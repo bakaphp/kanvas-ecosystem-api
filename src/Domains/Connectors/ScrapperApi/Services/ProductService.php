@@ -31,7 +31,7 @@ class ProductService
         $price = $this->calcDiscountPrice($product);
         $name = Str::limit($product['name'], 255);
         $product = [
-            'name' =>  $name,
+            'name' => $name,
             'description' => $this->getDescription($product),
             'price' => $amazonPrice,
             'discountPrice' => $amazonPrice,
@@ -77,6 +77,14 @@ class ProductService
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
                     'data' => $this->calcWeight($product),
                 ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_BRAND->value,
+                    'data' => $product['brand'] ?? '',
+                ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_RATING->value,
+                    'data' => $product['average_rating'] ?? 0,
+                ],
             ],
         ];
 
@@ -98,8 +106,10 @@ class ProductService
                 'code' => Str::slug($category),
                 'position' => 0,
             ];
+
             break; // @todo: work with subcategories in the future
         }
+
         return $mappedCategories;
     }
 

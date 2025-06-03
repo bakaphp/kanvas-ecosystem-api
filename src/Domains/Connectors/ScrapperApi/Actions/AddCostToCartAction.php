@@ -33,6 +33,7 @@ class AddCostToCartAction
 
         $fee = collect($fees);
         $total = $fee->sum('total');
+        $total = $total + $total * 0.15;
         $this->cart->removeCartCondition('Shipping');
         $condition = new CartCondition([
             'name' => 'Shipping',
