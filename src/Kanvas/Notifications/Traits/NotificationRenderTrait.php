@@ -86,12 +86,12 @@ trait NotificationRenderTrait
         return $this->renderTemplate($this->getTemplateName());
     }
 
-    private function getEmailContentIfAvailable(): string
+    protected function getEmailContentIfAvailable(): string
     {
         return $this->getType()->hasEmailTemplate() ? $this->getEmailTemplate() : '';
     }
 
-    private function findTemplateByName(): ?object
+    protected function findTemplateByName(): ?object
     {
         try {
             return TemplatesRepository::getByName(
@@ -104,7 +104,7 @@ trait NotificationRenderTrait
         }
     }
 
-    private function renderTemplate(string $templateName): string
+    protected function renderTemplate(string $templateName): string
     {
         $renderTemplate = new RenderTemplateAction($this->app, $this->company);
 
