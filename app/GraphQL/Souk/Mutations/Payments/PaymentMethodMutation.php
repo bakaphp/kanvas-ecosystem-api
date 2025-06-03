@@ -40,13 +40,13 @@ class PaymentMethodMutation
                 billTo: new BillingDetail(
                     firstName: $user->firstname,
                     lastName: $user->lastname,
-                    country: $company->country,
-                    city: $company->city,
-                    address1: $company->address,
-                    phone: $user->phone_number,
                     email: $user->email,
-                    postalCode: $company->zip,
-                    administrativeArea: $company->state,
+                    country: $input['country'],
+                    city: $input['city'],
+                    address1: $input['address'],
+                    phone: $input['phone'],
+                    postalCode: $input['zip_code'],
+                    administrativeArea: $input['state'],
                 ),
                 merchant: MerchantDetail::from([
                     'id' => $app->get('ECHO_PAY_MERCHANT_ID'),
@@ -67,6 +67,12 @@ class PaymentMethodMutation
                 processor: $input['processor'] ?? null,
                 metadata: $request['metadata'] ?? [
                     ...$tokenizedCard,
+                    'country' => $input['country'],
+                    'city' => $input['city'],
+                    'address' => $input['address'],
+                    'phone' => $input['phone'],
+                    'zip_code' => $input['zip_code'],
+                    'state' => $input['state']
                 ]
             );
             $action = new CreatePaymentMethodAction($paymentMethod);

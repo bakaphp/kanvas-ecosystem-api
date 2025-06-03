@@ -26,6 +26,7 @@ use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 use Spatie\LaravelData\DataCollection;
@@ -584,12 +585,26 @@ class Order extends BaseModel
             $totalDebt = $this->total_net_amount - $totalPaid;
             if ($totalDebt <= 0) {
                 $this->fulfill();
+
+                $this->fireWorkflow(
+                    WorkflowEnum::UPDATED->value,
+                    true,
+                    [
+                        'app' => $this->app,
+                    ]
+                );
             }
         }
     }
 
     public function getPaidAmount(): float
     {
-        return $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
+        $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
+        return (float) $paidAmount;
+    }
+
+    public function orderType(): BelongsTo
+    {
+        return $this->belongsTo(OrderTypes::class, 'order_types_id', 'id');
     }
 }

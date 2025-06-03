@@ -14,6 +14,9 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Bavix\Wallet\Interfaces\Customer;
+use Bavix\Wallet\Interfaces\ProductInterface;
+use Bavix\Wallet\Traits\HasWallet;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -64,7 +67,7 @@ use Override;
  * @property int is_deleted
  */
 #[ObservedBy(VariantObserver::class)]
-class Variants extends BaseModel implements EntityIntegrationInterface
+class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface
 {
     use SlugTrait;
     use UuidTrait;
@@ -81,6 +84,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     use CanUseWorkflow;
     use HasRating;
     use HasTranslationsDefaultFallback;
+    use HasWallet;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
@@ -697,6 +701,21 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             ],
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+        ];
+    }
+
+    #[Override]
+    public function getAmountProduct(Customer $customer): int|string
+    {
+        return (string) $this->getPriceInfoFromDefaultChannel()->price;
+    }
+
+    #[Override]
+    public function getMetaProduct(): ?array
+    {
+        return [
+            'title' => $this->name,
+            'description' => 'Purchase of Variant ID#' . $this->getId(),
         ];
     }
 }

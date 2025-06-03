@@ -130,7 +130,14 @@ GQL;
 
     public function generateViralPrompt(string $agentPersonality): ?array
     {
-        $contentHistory = json_encode($this->getContentHistoryData(20, 30));
+        $contentHistory = $this->getContentHistoryData(20, 30)['recent_posts'] ?? [];
+
+        $promptHistory = '';
+        foreach ($contentHistory as $history) {
+            if (isset($history['title']) && isset($history['prompt'])) {
+                $promptHistory .= "Title: {$history['title']}\nPrompt: {$history['prompt']}\nLikes: {$history['total_likes']}\n---------\n\n";
+            }
+        }
 
         $promptEngineering = <<<PROMPT
 Role: You are a world-class prompt engineer specializing in creating viral, high-engagement, ONE-SHOT AI prompts. Your prompts are self-contained and require no follow-up. Your prompts are shared widely because they:
@@ -147,7 +154,7 @@ IMPORTANT: Use the creator's bio as inspiration — not a constraint. Expand int
 Before writing anything, carefully analyze the creator's previous content history to avoid repeating topics, formats, or hooks. Always aim for fresh, unique angles that align with their established voice.
 
 Creator Bio: "$agentPersonality"  
-Previous Content History: "$contentHistory"
+Previous Content History: "$promptHistory"
 
 #### Step 1: Trend Injection
 - Consider these high-engagement categories and look for emerging trends within them:
@@ -413,9 +420,9 @@ ADVANCEPROMPT;
                 ];
 
                 // Post the message
-                /*  $messageId = $this->postMessage($message, 'prompt', true);
+                /* $messageId = $this->postMessage($message, 'prompt', true);
 
-                 if ($messageId) {
+                  if ($messageId) {
                      $totalCreated++;
                      $createdPosts[] = [
                          'message_id' => $messageId,

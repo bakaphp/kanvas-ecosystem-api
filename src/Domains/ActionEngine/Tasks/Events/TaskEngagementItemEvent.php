@@ -11,6 +11,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Kanvas\ActionEngine\Tasks\DataTransferObject\TaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Guild\Leads\Models\Lead;
+use Override;
 
 class TaskEngagementItemEvent implements ShouldBroadcast
 {
@@ -36,6 +37,7 @@ class TaskEngagementItemEvent implements ShouldBroadcast
         ];
     }
 
+    #[Override]
     public function broadcastOn(): Channel
     {
         return new Channel('lead-tasks-' . $this->taskEngagementItem->leadId);
