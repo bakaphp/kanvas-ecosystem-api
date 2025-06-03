@@ -84,7 +84,15 @@ class ProductService
                 [
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
                     'data' => $this->calcWeight($product),
-                ]
+                ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_BRAND->value,
+                    'data' => $product['brand'] ?? 'Locompro',
+                ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_RATING->value,
+                    'data' => $product['average_rating'] ?? 0,
+                ],
             ],
         ];
 
