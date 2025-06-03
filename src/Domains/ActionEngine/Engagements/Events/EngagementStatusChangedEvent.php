@@ -57,6 +57,9 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
     {
         return [
             'action' => $this->action,
+            'leadId' => $this->lead->getId(),
+            'leadUuid' => $this->lead->uuid,
+            'engagementId' => $this->engagement->getId(),
             'notificationText' => $this->notificationTextAction->notificationText(),
         ];
     }
