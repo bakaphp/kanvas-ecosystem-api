@@ -76,10 +76,6 @@ class DuplicateProductAction
                 $products = Products::create(array_merge($search, $duplicatedProduct));
             }
 
-            if (! empty($this->originalProduct->files->toArray())) {
-                $products->addMultipleFilesFromUrl($this->originalProduct->files);
-            }
-
             if ($this->originalProduct->categories) {
                 foreach ($this->originalProduct->categories as $category) {
                     $category = CategoriesRepository::getById((int) $category['id'], $this->originalProduct->company);
