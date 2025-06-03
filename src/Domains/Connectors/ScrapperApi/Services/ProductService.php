@@ -87,7 +87,7 @@ class ProductService
                 ],
                 [
                     'name' => ScrapperConfigEnum::SCRAPPER_BRAND->value,
-                    'data' => $product['brand'] ?? '',
+                    'data' => $product['brand'] ?? 'Locompro',
                 ],
                 [
                     'name' => ScrapperConfigEnum::SCRAPPER_RATING->value,
