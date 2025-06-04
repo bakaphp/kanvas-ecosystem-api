@@ -28,32 +28,8 @@ class PaymentMethodMutation
         $card = null;
         // TODO: move this to a provider centry to avoid hardcoding here
         if ($input['processor'] == 'portal') {
-            [$year, $month] = explode('-', $input['expiration_date']);
             $portalService = new EchoPayService($app, $company);
-            $card = new CardTokenization(
-                card: new CardDetail(
-                    number: $input['number'],
-                    expirationMonth: $month,
-                    expirationYear: $year,
-                    type: $input['brand'],
-                ),
-                billTo: new BillingDetail(
-                    firstName: $user->firstname,
-                    lastName: $user->lastname,
-                    email: $user->email,
-                    country: $input['country'],
-                    city: $input['city'],
-                    address1: $input['address'],
-                    phone: $input['phone'],
-                    postalCode: $input['zip_code'],
-                    administrativeArea: $input['state'],
-                ),
-                merchant: MerchantDetail::from([
-                    'id' => $app->get('ECHO_PAY_MERCHANT_ID'),
-                    'key' => $app->get('ECHO_PAY_MERCHANT_KEY'),
-                    'secretKey' => $app->get('ECHO_PAY_MERCHANT_SECRET')
-                ]),
-            );
+            $card = CardTokenization::fromRequest($input, $app, $user);
             $tokenizedCard = $portalService->addCard($card);
             $paymentMethod = new PaymentMethod(
                 app: $app,
@@ -80,5 +56,34 @@ class PaymentMethodMutation
         }
 
         throw new Exception('Processor not supported');
+    }
+
+    public function updatePaymentMethod($_, array $request): PaymentMethods
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $input = $request['input'];
+        $card = null;
+        // TODO: move this to a provider centry to avoid hardcoding here
+        if ($input['processor'] == 'portal') {
+            [$year, $month] = explode('-', $input['expiration_date']);
+        }
+    }
+
+    public function deletePaymentMethod($_, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $paymentMethod = PaymentMethods::fromCompany($company)->fromApp($app)->where([
+            'id' => $request['id'],
+        ])->first();
+        
+        if (!$paymentMethod) {
+            throw new Exception('Payment method not found');
+        }
+
+        return $paymentMethod->delete();
     }
 }

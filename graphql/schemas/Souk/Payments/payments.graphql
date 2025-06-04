@@ -35,6 +35,14 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@createPaymentMethod"
         )
+    updatePaymentMethod(id: ID!, input: PaymentMethodInput!): PaymentMethod!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@updatePaymentMethod"
+        )
+    deletePaymentMethod(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@deletePaymentMethod"
+        )
     makePaymentIntent(paymentID: ID!): PaymentIntentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntent"
