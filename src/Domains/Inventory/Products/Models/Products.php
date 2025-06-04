@@ -465,12 +465,16 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
         $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
-            $product['attributes'][$attribute['name']] = $attribute['value'];
+            $product['attributes'][$attribute['name']] = is_array($attribute['value'])
+                ? $attribute['value']
+                : (string) $attribute['value'];
         }
 
         $customFields = $this->getAllCustomFields();
         foreach ($customFields as $key => $value) {
-            $product['custom_fields'][$key] = $value;
+            $product['custom_fields'][$key] = is_array($value)
+                ? $value
+                : (string) $value;
         }
 
         return $product;
@@ -487,7 +491,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         // Join translations with a comma
         return implode(', ', array_map(fn ($translation) => (string) $translation, $translations));
     }
-
 
     public function searchableAs(): string
     {
@@ -814,7 +817,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         ];
     }
 
-    public static function getImportHandler(FilesystemImports $filesystemImport)
+    #[Override]
+    public static function getImportHandler(FilesystemImports $filesystemImport): mixed
     {
         return new ImportProductFromFilesystemAction($filesystemImport);
     }

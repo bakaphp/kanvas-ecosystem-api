@@ -32,6 +32,7 @@ enum WorkflowEnum: string
     case AFTER_ID_VERIFICATION = 'after-id-verification';
     case DURING_WORKFLOW = 'during-workflow';
     case AFTER_ADDING_MESSAGE_TO_CHANNEL = 'after-adding-message-to-channel';
+    case BEFORE_ACTION = 'before-action';
 
     /**
      * Get the enum case by its value.

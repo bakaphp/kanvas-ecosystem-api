@@ -16,6 +16,7 @@
         "automattic/woocommerce": "^3.1",
         "awobaz/compoships": "^2.2",
         "bacon/bacon-qr-code": "^3.0",
+        "bavix/laravel-wallet": "^11.4",
         "berkayk/onesignal-laravel": "^2.4",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
@@ -37,6 +38,7 @@
         "laravel/framework": "^12.0",
         "laravel/octane": "^2.9",
         "laravel/sanctum": "^4.0",
+        "laravel/slack-notification-channel": "^3.5",
         "laravel/socialite": "^5.14.0",
         "laravel/tinker": "^2.7",
         "lcobucci/jwt": "^5.2",
@@ -82,6 +84,7 @@
         "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5.1"
     },
     "require-dev": {
+        "beyondcode/laravel-dump-server": "^2.1",
         "fakerphp/faker": "^1.9.1",
         "kitloong/laravel-migrations-generator": "^7.0",
         "larastan/larastan": "^3.0",
