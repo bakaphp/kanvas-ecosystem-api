@@ -10,9 +10,6 @@ use Spatie\Activitylog\Models\Activity;
 
 class ActivityLogManagementMutation
 {
-    /**
-     * changePassword.
-     */
     public function createActivityLog(mixed $root, array $req): Activity
     {
         $user = auth()->user();
