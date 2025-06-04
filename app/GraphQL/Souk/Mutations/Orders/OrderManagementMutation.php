@@ -84,7 +84,7 @@ class OrderManagementMutation
         $user = auth()->user();
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
-        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+        $company = $user->getCurrentCompany(); //B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
         $region = Regions::getDefault($company);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
