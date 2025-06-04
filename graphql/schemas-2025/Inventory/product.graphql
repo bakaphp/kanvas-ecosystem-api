@@ -1,4 +1,4 @@
-type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
+extend type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     id: ID!
     products_types_id: ID
     uuid: String!
@@ -31,8 +31,8 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
         @method(name: "visibleAttributes")
         @cacheRedis
     variants(includeUnpublished: Boolean = false): [Variant!]!
-        @HasMany
         @paginate(
+            defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"
         )
     integrations: [IntegrationsEntityReference!]!

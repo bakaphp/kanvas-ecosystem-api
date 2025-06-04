@@ -19,10 +19,10 @@ class VariantBuilderPaginate extends VariantBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        $builder = parent::filterByPublished($builder, $includeUnpublished, $root, $args, $context, $resolveInfo);
-        $builder->inRandomOrder()
-            ->limit(1);
-
-        return $builder;
+        $includeUnpublished = (bool) ($args['includeUnpublished'] ?? $includeUnpublished);
+        return $root->variants()
+            ->when($includeUnpublished !== true, function (Builder $query) {
+                $query->where('is_published', true);
+            });
     }
 }
