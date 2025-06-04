@@ -20,8 +20,8 @@ class NewOrderNotification extends Notification
         //$this->setType(EnumsEmailTemplateEnum::BLANK->value);
 
         // Check if this is an eSIM order and use appropriate template
-        $templateName = $this->isEsimOrder($order) 
-            ? EmailTemplateEnum::NEW_ORDER_ESIM->value 
+        $templateName = $this->isEsimOrder($order)
+            ? EmailTemplateEnum::NEW_ORDER_ESIM->value
             : EmailTemplateEnum::NEW_ORDER->value;
 
         $this->setTemplateName($templateName);
@@ -41,14 +41,14 @@ class NewOrderNotification extends Notification
             $variant = $item->variant;
 
             // Check if variant has eSIM-related attributes
-            if ($variant->getAttributeBySlug('esim_bundle_type') || 
-                $variant->getAttributeBySlug('esim_days') || 
+            if ($variant->getAttributeBySlug('esim_bundle_type') ||
+                $variant->getAttributeBySlug('esim_days') ||
                 $variant->getAttributeBySlug('esim-days')) {
                 return true;
             }
 
             // Check if product has eSIM provider
-            $provider = $variant->getAttributeBySlug('variant_provider') ?? 
+            $provider = $variant->getAttributeBySlug('variant_provider') ??
                        $variant->product->getAttributeBySlug('provider');
 
             if ($provider && in_array(strtolower($provider->value), ['esimgo', 'airalo', 'cmlink', 'venta_mobile', 'ventamobile', 'easy_activation'])) {
@@ -57,7 +57,7 @@ class NewOrderNotification extends Notification
 
             // Check if order has eSIM metadata
             if ($order->metadata && (
-                isset($order->metadata['data']['iccid']) || 
+                isset($order->metadata['data']['iccid']) ||
                 isset($order->metadata['order_esim_metadata']) ||
                 $order->get('order_esim_metadata')
             )) {
