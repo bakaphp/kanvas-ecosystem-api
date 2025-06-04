@@ -1,0 +1,528 @@
+type Message {
+    id: ID!
+    parent_id: ID
+    parent_unique_id: Mixed
+    uuid: String!
+    slug: String
+    companies_id: ID!
+    users_id: ID!
+    message_types_id: ID!
+    message: Mixed!
+    reactions_count: Int
+    comment_count: Int
+    total_liked: Int
+    total_disliked: Int
+    is_public: Int
+    is_locked: Int
+    is_premium: Int
+    total_saved: Int
+    total_shared: Int
+    total_view: Int
+    total_children: Int
+    total_purchase: Int
+    parent: Message @cacheRedis
+    user: User!
+    children: [Message!] @hasMany(type: PAGINATOR)
+    messageType: MessageType! @cacheRedis
+    appModuleMessage: AppModuleMessage @cacheRedis
+    myInteraction: myInteraction @method(name: "getMyInteraction")
+    comments: [MessageComments!]! @hasMany(type: PAGINATOR)
+    additional_field: Mixed
+    created_at: DateTime!
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+}
+
+type AppModuleMessage {
+    id: ID!
+    system_modules: String!
+    entity_id: Mixed!
+}
+
+type myInteraction {
+    is_liked: Boolean
+    is_disliked: Boolean
+    is_saved: Boolean
+    is_shared: Boolean
+    is_reported: Boolean
+    is_purchased: Boolean
+}
+
+input MessageInput {
+    message_verb: ID!
+    message: Mixed!
+    parent_id: ID
+    system_modules_id: ID
+    is_public: Int
+    entity_id: Mixed
+    channel_slug: String
+    distribution: DistributionInput
+    tags: [TagInput!]
+    slug: String
+    files: [Upload!]
+}
+
+input MessageUpdateInput {
+    message: Mixed
+    message_verb: ID
+    is_public: Int
+    is_deleted: Int
+    tags: [TagInput!]
+}
+
+enum DistributionType {
+    ALL
+    Channels
+    Followers
+}
+
+enum InteractionType {
+    LIKE @enum(value: 1)
+    SAVE @enum(value: 2)
+    SHARE @enum(value: 3)
+    REPORT @enum(value: 4)
+}
+
+input DistributionInput {
+    distributionType: DistributionType!
+    channels: [ID!]!
+    followers: [ID!]!
+}
+
+extend type Mutation @guard {
+    createMessage(input: MessageInput!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@create"
+        )
+    updateMessage(id: ID!, input: MessageUpdateInput!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@update"
+        )
+    deleteMessage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@delete"
+        )
+    restoreMessage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@recoverMessage"
+        )
+    deleteMultipleMessages(ids: [ID!]!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@deleteMultiple"
+        )
+    deleteAllMessages: Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@deleteAll"
+        )
+    interactionMessage(id: ID!, type: InteractionType!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@interaction"
+        )
+    likeMessage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@like"
+        )
+    disLikeMessage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@dislike"
+        )
+    shareMessage(id: ID!): String!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@share"
+        )
+    viewMessage(id: ID!): Int!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@view"
+        )
+    attachTopicToMessage(message_id: ID!, topic_id: ID!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@attachTopicToMessage"
+        )
+    detachTopicToMessage(message_id: ID!, topic_id: ID!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@detachTopicToMessage"
+        )
+    attachFileToMessage(message_id: ID!, file: Upload!): Message!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@attachFileToMessage"
+        )
+    uploadFileToMessage(message_id: ID!, file: Upload!): Message!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@attachFileToMessage"
+        )
+}
+
+extend type Query @guard {
+    messages(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "users_id"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_children"
+                    "total_disliked"
+                    "total_saved"
+                    "total_view"
+                    "total_shared"
+                    "is_public"
+                ]
+            )
+        hasUser: _
+            @whereHasConditions(
+                relation: "user"
+                columns: ["id", "displayname"]
+            )
+        hasChannel: _
+            @whereHasConditions(
+                relation: "channels"
+                columns: ["id", "name", "slug"]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        requiredTags: [String!]
+        customFilters: [String!]
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
+            )
+        hasAppModuleMessage: _
+            @whereHasConditions(columns: ["entity_id", "system_modules"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
+        search: String @search
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getAll"
+            scopes: ["fromApp", "notDeleted"]
+        )
+
+    forYouMessages(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_children"
+                    "total_disliked"
+                    "total_saved"
+                    "total_view"
+                    "total_shared"
+                    "is_public"
+                ]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getForYouFeed"
+            scopes: ["fromApp", "notDeleted"]
+        )
+    followingFeedMessages(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_children"
+                    "total_disliked"
+                    "total_saved"
+                    "total_view"
+                    "total_shared"
+                    "is_public"
+                ]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getFollowingFeed"
+            scopes: ["notDeleted"]
+        )
+    customFeedMessages(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_children"
+                    "total_disliked"
+                    "total_saved"
+                    "total_view"
+                    "total_shared"
+                    "is_public"
+                ]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
+        scenario: String!
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getCustomFeed"
+            scopes: ["fromApp", "notDeleted"]
+        )
+
+    channelMessages(
+        channel_uuid: String
+        channel_slug: String
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_saved"
+                    "total_shared"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getChannelMessages"
+            scopes: ["fromApp", "notDeleted"]
+        )
+
+    messagesGroupByDate(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "users_id"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_saved"
+                    "total_shared"
+                ]
+            )
+        hasUser: _
+            @whereHasConditions(
+                relation: "user"
+                columns: ["id", "displayname"]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
+            )
+        hasAppModuleMessage: _
+            @whereHasConditions(columns: ["entity_id", "system_modules"])
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+        search: String @search
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getGroupByDate"
+            scopes: ["fromApp", "notDeleted"]
+        )
+    messageSearchSuggestions(search: String): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@searchSuggestions"
+        )
+
+    messagesLikedByUser(
+        id: ID!
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "users_id"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_saved"
+                    "total_shared"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@likedMessagesByUser"
+        )
+    viewMessageHistory(
+        message_id: ID!
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@viewMessageHistory"
+        )
+}

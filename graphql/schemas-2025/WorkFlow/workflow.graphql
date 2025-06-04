@@ -1,0 +1,58 @@
+type Workflow {
+    id: ID!
+    class: String
+    activity_name: String @method(name: "getActivityName")
+    arguments: Mixed @method(name: "getUnSerializeArgument")
+    output: Mixed @method(name: "getUnSerializeOutput")
+    status: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type WorkflowAction {
+    id: ID!
+    name: String!
+    model_name: String!
+}
+
+type WorkflowStatus {
+    id: ID!
+    name: String!
+    slug: String
+}
+
+input runWorkflowEntityInput {
+    entity_namespace: String!
+    entity_id: ID!
+    action: String!
+    params: Mixed
+}
+
+extend type Mutation @guardByAppKey {
+    retryWebhookCall(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Receivers\\ReceiverWebhookMutationManagement@retryWebhookCall"
+        )
+    runWorkflowFromEntity(input: runWorkflowEntityInput!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Workflows\\WorkflowMutationManagement@runWorkflowFromEntity"
+        )
+}
+
+extend type Query @guard {
+    actions(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at"])
+    ): [WorkflowAction!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Models\\WorkflowAction"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+}

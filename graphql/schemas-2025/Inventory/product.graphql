@@ -1,4 +1,4 @@
-extend type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
+type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     id: ID!
     products_types_id: ID
     uuid: String!
@@ -33,7 +33,7 @@ extend type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products
     variants(includeUnpublished: Boolean = false): [Variant!]!
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilderPaginate@getVariants"
         )
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")

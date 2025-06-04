@@ -4,22 +4,17 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Builders\Variants;
 
-use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class VariantBuilderPaginate extends VariantBuilder
+class VariantBuilderPaginate
 {
-    // @todo: Implement pagination logic if needed
-    public function filterByPublished(
-        Builder $builder,
-        ?bool $includeUnpublished,
+    public function getVariants(
         mixed $root,
-        array $args,
-        GraphQLContext $context,
-        ResolveInfo $resolveInfo
-    ): Builder {
+        array $args
+    ): HasMany {
         $includeUnpublished = (bool) ($args['includeUnpublished'] ?? $includeUnpublished);
+
         return $root->variants()
             ->when($includeUnpublished !== true, function (Builder $query) {
                 $query->where('is_published', true);
