@@ -13,7 +13,7 @@ class VariantBuilderPaginate
         mixed $root,
         array $args
     ): HasMany {
-        $includeUnpublished = (bool) ($args['includeUnpublished'] ?? $includeUnpublished);
+        $includeUnpublished = (bool) ($args['includeUnpublished'] ?? false);
 
         return $root->variants()
             ->when($includeUnpublished !== true, function (Builder $query) {
