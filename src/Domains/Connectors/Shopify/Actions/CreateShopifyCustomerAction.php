@@ -27,11 +27,6 @@ class CreateShopifyCustomerAction
         );
     }
 
-    /**
-     * Execute the action to create or retrieve a Shopify customer.
-     *
-     * @return array The customer data from Shopify.
-     */
     public function execute(): int
     {
         $customerEmail = $this->people->getEmails()->first()?->value;
@@ -40,37 +35,53 @@ class CreateShopifyCustomerAction
             throw new ValidationException('Email is required to create a Shopify customer.');
         }
 
-        if ($this->people->get(ShopifyConfigurationService::getKey(
-            CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value,
-            $this->people->company,
-            $this->people->app,
-            $this->region
-        ))) {
-            return $this->people->get(ShopifyConfigurationService::getKey(
-                CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value,
-                $this->people->company,
-                $this->people->app,
-                $this->region
-            ));
+        // Check if we already have a stored Shopify customer ID
+        $existingShopifyId = $this->getStoredShopifyCustomerId();
+        if ($existingShopifyId) {
+            return $existingShopifyId;
         }
 
         // Check if the customer already exists in Shopify
         $existingCustomers = $this->shopifySdk->Customer->get(['email' => $customerEmail]);
 
         if (! empty($existingCustomers)) {
-            $this->saveCustomerReference($existingCustomers['id']);
+            $matchedCustomer = $this->findExactEmailMatch($existingCustomers, $customerEmail);
+            $this->saveCustomerReference($matchedCustomer['id']);
 
-            return $existingCustomers[0]['id'];
+            return $matchedCustomer['id'];
         }
 
         // Create a new customer in Shopify
         $customerData = $this->prepareCustomerData();
-
         $shopifyCustomer = $this->shopifySdk->Customer->post($customerData);
-
         $this->saveCustomerReference($shopifyCustomer['id']);
 
         return $shopifyCustomer['id'];
+    }
+
+    protected function getStoredShopifyCustomerId(): ?int
+    {
+        $shopifyCustomerId = $this->people->get(ShopifyConfigurationService::getKey(
+            CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value,
+            $this->people->company,
+            $this->people->app,
+            $this->region
+        ));
+
+        return $shopifyCustomerId ? (int) $shopifyCustomerId : null;
+    }
+
+    protected function findExactEmailMatch(array $customers, string $email): array
+    {
+        // Iterate through customers to find exact email match
+        foreach ($customers as $customer) {
+            if (isset($customer['email']) && strtolower($customer['email']) === strtolower($email)) {
+                return $customer;
+            }
+        }
+
+        // If no exact match found, return the first customer as fallback
+        return $customers[0];
     }
 
     protected function prepareCustomerData(): array
@@ -99,7 +110,6 @@ class CreateShopifyCustomerAction
             'province' => $address->state,
             'country' => $address->country?->name ?? '',
             'zip' => $address->zip,
-            //'phone' => $this->people->phone,
         ]];
     }
 
