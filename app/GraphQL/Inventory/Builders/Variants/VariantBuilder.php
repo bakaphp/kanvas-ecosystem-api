@@ -39,10 +39,15 @@ class VariantBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $includeUnpublished = (bool) ($args['includeUnpublished'] ?? $includeUnpublished);
+        $limitToOne = (bool) ($args['limitToOne'] ?? false);
         // Default to showing only published variants unless
         // includeUnpublished is explicitly set to true
         if ($includeUnpublished !== true) {
             $builder->where('is_published', true);
+        }
+        if ($limitToOne) {
+            $builder->inRandomOrder()
+                ->limit(1);
         }
 
         return $builder;
