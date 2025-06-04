@@ -4273,16 +4273,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.11.1",
+            "version": "1.11.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "8188afb4b49a8ac0b90d4ba2c97df8f19e5a8a08"
+                "reference": "ae5507ed918ae3ad3123c4ab52b2ffbb483f9aa5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/8188afb4b49a8ac0b90d4ba2c97df8f19e5a8a08",
-                "reference": "8188afb4b49a8ac0b90d4ba2c97df8f19e5a8a08",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/ae5507ed918ae3ad3123c4ab52b2ffbb483f9aa5",
+                "reference": "ae5507ed918ae3ad3123c4ab52b2ffbb483f9aa5",
                 "shasum": ""
             },
             "require": {
@@ -4334,9 +4334,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.11.1"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.11.6"
             },
-            "time": "2025-06-03T17:37:21+00:00"
+            "time": "2025-06-04T21:28:15+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
