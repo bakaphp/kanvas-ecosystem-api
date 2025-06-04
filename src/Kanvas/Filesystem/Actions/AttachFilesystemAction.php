@@ -40,7 +40,7 @@ class AttachFilesystemAction
 
                 // First, we'll look for an existing record with the same unique constraint
                 // This will prevent any duplication for this filesystem and entity
-                $existingEntity = FilesystemEntities::where([
+                $existingEntity = FilesystemEntities::disableCache()->where([
                     'filesystem_id' => $this->filesystem->getKey(),
                     'entity_id' => $this->entity->getKey(),
                     'companies_id' => $this->filesystem->companies_id,
@@ -54,7 +54,7 @@ class AttachFilesystemAction
                     // If we're not allowing duplicate files by name, check if there's
                     // already a file for this entity with the same field_name
                     if (! $allowDuplicateFiles) {
-                        $existingByFieldName = FilesystemEntities::where([
+                        $existingByFieldName = FilesystemEntities::disableCache()->where([
                             'entity_id' => $this->entity->getKey(),
                             'system_modules_id' => $systemModule->getKey(),
                             'field_name' => $fieldName,
