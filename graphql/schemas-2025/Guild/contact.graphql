@@ -1,0 +1,64 @@
+type Contact {
+    id: ID!
+    type: ContactType! @belongsTo
+    people: People! @belongsTo
+    value: String
+    weight: Int!
+}
+
+type ContactType {
+    id: ID!
+    company: Company! @belongsTo
+    name: String!
+    user: User! @belongsTo
+}
+
+type Address {
+    id: ID!
+    people: People! @belongsTo
+    address: String
+    address_2: String
+    city: String
+    county: String
+    state: String
+    zip: String
+    country: Country
+    is_default: Boolean!
+    countries: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: Cities @belongsTo(relation: "city")
+}
+
+input ContactInput {
+    value: String!
+    contacts_types_id: ID!
+    weight: Int
+    id: ID
+}
+
+input AddressInput {
+    address: String!
+    address_2: String
+    city: String
+    county: String
+    city_id: ID
+    state: String
+    state_id: ID
+    zip: String
+    country: String
+    country_id: ID
+    is_default: Boolean
+    id: ID
+}
+
+extend type Query @guard {
+    contactType(
+        where: _ @whereConditions(columns: ["name"])
+        orderBy: _ @orderBy(columns: ["name", "created_at"])
+    ): [ContactType!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Customers\\Models\\ContactType"
+            defaultCount: 25
+            scopes: ["notDeleted"]
+        )
+}
