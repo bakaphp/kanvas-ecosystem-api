@@ -1,4 +1,9 @@
 {
+    "settings": {
+        "http": {
+            "max_body_size": 100000000
+        }
+    },
     "listeners": {
         "*:8000": {
             "pass": "routes"
