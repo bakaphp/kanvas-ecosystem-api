@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Tests\Connectors\Integration\DriveCentric;
+namespace Tests\Connectors\Integration\DriveCentric;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;

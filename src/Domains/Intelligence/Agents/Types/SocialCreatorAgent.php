@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
@@ -505,14 +506,14 @@ ADVANCEPROMPT;
             )->addProperty(
                 new ToolProperty(
                     name: 'limit',
-                    type: 'integer',
+                    type: PropertyType::INTEGER,
                     description: 'Number of recent posts to retrieve (default: 20, max: 50)',
                     required: false
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'days_back',
-                    type: 'integer',
+                    type: PropertyType::INTEGER,
                     description: 'How many days back to look for posts (default: 30)',
                     required: false
                 )
@@ -526,14 +527,14 @@ ADVANCEPROMPT;
             )->addProperty(
                 new ToolProperty(
                     name: 'category',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Content category to analyze (e.g., "productivity", "ai", "career")',
                     required: false
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'timeframe',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Timeframe for analysis (e.g., "week", "month")',
                     required: false
                 )
@@ -547,14 +548,14 @@ ADVANCEPROMPT;
             )->addProperty(
                 new ToolProperty(
                     name: 'content_type',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Type of content to generate (e.g., "prompt", "tutorial", "insight")',
                     required: false
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'target_audience',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Target audience for the content (e.g., "developers", "entrepreneurs", "students")',
                     required: false
                 )
@@ -568,14 +569,14 @@ ADVANCEPROMPT;
             )->addProperty(
                 new ToolProperty(
                     name: 'title',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Content title to validate',
                     required: true
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'content',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Content body to validate',
                     required: true
                 )
