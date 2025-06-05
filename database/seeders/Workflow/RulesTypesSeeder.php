@@ -2,7 +2,6 @@
 
 namespace Database\Seeders\Workflow;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Rules\Models\RuleType;
