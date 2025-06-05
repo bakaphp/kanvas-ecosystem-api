@@ -281,7 +281,7 @@ class CRMAgent extends BaseAgent
             )->addProperty(
                 new ToolProperty(
                     name: 'limit',
-                    type: 'integer',
+                    type: PropertyType::INTEGER,
                     description: 'Maximum number of products to return (default: 5, max: 20)',
                     required: false
                 )
