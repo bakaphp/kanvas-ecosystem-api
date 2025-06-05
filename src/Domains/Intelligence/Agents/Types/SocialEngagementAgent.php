@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
@@ -485,14 +486,14 @@ GQL;
             )->addProperty(
                 new ToolProperty(
                     name: 'limit',
-                    type: 'integer',
+                    type: PropertyType::INTEGER,
                     description: 'Number of recent likes to retrieve (default: 20, max: 50)',
                     required: false
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'days_back',
-                    type: 'integer',
+                    type: PropertyType::INTEGER,
                     description: 'How many days back to look for likes (default: 30)',
                     required: false
                 )
@@ -506,7 +507,7 @@ GQL;
             )->addProperty(
                 new ToolProperty(
                     name: 'message_id',
-                    type: 'integer',
+                    type: PropertyType::INTEGER,
                     description: 'The ID of the message to retrieve content for',
                     required: true
                 )
@@ -545,7 +546,7 @@ GQL;
             )->addProperty(
                 new ToolProperty(
                     name: 'message_id',
-                    type: 'integer',
+                    type: PropertyType::INTEGER,
                     description: 'The ID of the message to check for previous interactions',
                     required: true
                 )
