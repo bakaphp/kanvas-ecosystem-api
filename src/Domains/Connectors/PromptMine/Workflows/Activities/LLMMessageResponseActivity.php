@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -57,9 +58,12 @@ class LLMMessageResponseActivity extends KanvasActivity
                         'message_id' => $message->id,
                     ];
                 }
+
+                $nuggetTitle = $this->generateTitleByPrompt($prompt);
+
                 $messageInput = [
                     'message' => [
-                        'title' => 'Prompt Title',
+                        'title' => $nuggetTitle,
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                     ],
@@ -90,6 +94,15 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ),
                 ))->execute();
 
+                $promptChannel = Channel::fromApp($app)
+                    ->where('entity_id', $message->getId())
+                    ->where('entity_namespace', $message::class)
+                    ->where('is_deleted', 0)
+                    ->first();
+                
+                $promptChannel->title = $nuggetTitle;
+                $promptChannel->save();
+
                 return [
                     'result' => true,
                     'child_message' => $createMessage->toArray(),
@@ -113,9 +126,9 @@ class LLMMessageResponseActivity extends KanvasActivity
         }
 
         $response = Prism::text()
-           ->using(Provider::Gemini, 'gemini-2.0-flash')
-           ->withPrompt($prompt)
-           ->asText();
+            ->using(Provider::Gemini, 'gemini-2.0-flash')
+            ->withPrompt($prompt)
+            ->asText();
 
         return str_replace(['```', 'json'], '', $response->text);
     }
@@ -126,5 +139,15 @@ class LLMMessageResponseActivity extends KanvasActivity
         $prompt = $message->message['prompt'] ?? null;
 
         return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
+    }
+
+    private function generateTitleByPrompt(string $prompt): string
+    {
+        $response = Prism::text()
+            ->using(Provider::Gemini, 'gemini-2.0-flash')
+            ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
+            ->generate();
+
+        return str_replace(['```', 'json'], '', $response->text);
     }
 }
