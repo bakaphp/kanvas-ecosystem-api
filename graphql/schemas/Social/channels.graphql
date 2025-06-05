@@ -11,9 +11,11 @@ type SocialChannel {
     entity_namespace: String!
     entity_id: ID!
     last_message_id: ID
+    title: String
     messages: [Message!]! @belongsToMany
     users: [User!]! @belongsToMany
     systemModule: SystemModule! @belongsTo
+    created_at: DateTime!
 }
 
 input SocialChannelInput {

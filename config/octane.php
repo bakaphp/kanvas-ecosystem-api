@@ -24,7 +24,6 @@ use Laravel\Octane\Listeners\StopWorkerIfNecessary;
 use Laravel\Octane\Octane;
 
 return [
-
     'host' => '0.0.0.0',
     'port' => '8000',
     'swoole' => [
@@ -33,6 +32,10 @@ return [
             'task_worker_num' => 10,
             'enable_coroutine' => true,
             'max_request' => 1000,
+            'package_max_length' => 100 * 1024 * 1024,
+            'buffer_output_size' => 32 * 1024 * 1024,
+            'http_parse_post' => true,
+            'http_parse_files' => true,
         ],
     ],
 

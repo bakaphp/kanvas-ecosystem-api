@@ -1,0 +1,75 @@
+input LikeEntityInput {
+    entity_id: Mixed!
+    entity_namespace: String!
+    interacted_entity_id: Mixed!
+    interacted_entity_namespace: String!
+}
+
+type Interactions {
+    like: Boolean
+    save: Boolean
+    dislike: Boolean
+}
+
+type SocialInteractionType {
+    name: String!
+    title: String!
+    description: String
+}
+
+type EntityInteractions {
+    entity_id: Mixed!
+    entity_namespace: String!
+    interacted_entity_id: Mixed!
+    interacted_entity_namespace: String!
+    interactions: Interactions @method(name: "getGroupInteractions")
+    entity: Mixed @method(name: "interactedEntityData")
+}
+
+type EntityInteraction {
+    interacted_entity_id: Mixed!
+    interacted_entity_namespace: String!
+    entity: Mixed! @method(name: "interactedEntityData")
+    interaction: SocialInteractionType!
+    notes: Mixed
+    created_at: Date!
+}
+
+extend type Mutation @guardByAuthOrCompany {
+    likeEntity(input: LikeEntityInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@likeEntity"
+        )
+    unLikeEntity(input: LikeEntityInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@unLikeEntity"
+        )
+    disLikeEntity(input: LikeEntityInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@disLikeEntity"
+        )
+        @deprecated(reason: "Use likeEntity instead")
+    getInteractionByEntity(input: LikeEntityInput!): Interactions!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@getInteractionByEntity"
+        )
+}
+
+extend type Query @guard {
+    entityInteractions(
+        entity_id: String!
+        entity_namespace: String!
+        where: _
+            @whereConditions(
+                columns: [
+                    "interactions_id"
+                    "interacted_entity_id"
+                    "interacted_entity_namespace"
+                ]
+            )
+    ): [EntityInteractions!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Interactions\\EntityInteractionsQueries@getAll"
+        )
+}
