@@ -16,6 +16,16 @@ class AddFundsToWalletActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
+        $userCompany = $order->getMetadata('user_company_id');
+
+        if (! $userCompany) {
+            return [
+                'result' => false,
+                'message' => 'User company not found in order metadata. Nothing to do',
+                'order_id' => $order->getId(),
+            ];
+        }
+
         return $this->executeIntegration(
             entity: $order,
             app: $app,
