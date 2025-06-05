@@ -99,7 +99,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ->where('entity_namespace', $message::class)
                     ->where('is_deleted', 0)
                     ->first();
-                $promptChannel->title = $nuggetTitle;
+                $promptChannel->title = $message->message['title'] ?? $nuggetTitle;
                 $promptChannel->save();
 
                 return [
