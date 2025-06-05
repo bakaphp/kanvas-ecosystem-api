@@ -267,6 +267,7 @@ services:
     volumes:
       - ".:/var/www/html"
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./docker/global-nginx.conf:/etc/nginx/conf.d/upload_limit.conf
     networks:
       - sail
     depends_on:
