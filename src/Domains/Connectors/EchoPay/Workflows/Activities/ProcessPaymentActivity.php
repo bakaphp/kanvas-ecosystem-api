@@ -4,6 +4,7 @@ namespace Kanvas\Connectors\EchoPay\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -36,7 +37,7 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
 
                 $hasMerchantService = $this->setupVendorService($payment->order, $payment->order->orderType, $app);
 
-                if (!$hasMerchantService) {
+                if (! $hasMerchantService) {
                     return [
                         'payment' => $payment->getId(),
                         'status' => 'error',
