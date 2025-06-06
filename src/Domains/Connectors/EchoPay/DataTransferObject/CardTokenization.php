@@ -24,21 +24,21 @@ class CardTokenization extends Data
 
         return new self(
             card: new CardDetail(
-                number: $request['number'],
+                number: $request['number'] ?? "",
                 expirationMonth: $month,
                 expirationYear: $year,
-                type: $request['brand'],
+                type: $request['brand'] ?? "",
             ),
             billTo: new BillingDetail(
                 firstName: $user->firstname,
                 lastName: $user->lastname,
                 email: $user->email,
-                country: $request['country'],
-                city: $request['city'],
-                address1: $request['address'],
-                phone: $request['phone'],
-                postalCode: $request['zip_code'],
-                administrativeArea: $request['state'],
+                country: $request['country'] ?? "",
+                city: $request['city'] ?? "",
+                address1: $request['address'] ?? "",
+                phone: $request['phone'] ?? "",
+                postalCode: $request['zip_code'] ?? "",
+                administrativeArea: $request['state'] ?? "",
             ),
             merchant: MerchantDetail::from(
                 [
