@@ -44,7 +44,7 @@ class PayFromWalletAction
             $cart = $cart->withItem(
                 product: $item->variant,
                 quantity: (int) $item->quantity,
-                pricePerItem: (string) $item->getPrice()
+                pricePerItem: (string) ($item->getPrice() * 100)
             );
         }
 
