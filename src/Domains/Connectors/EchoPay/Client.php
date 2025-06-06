@@ -97,6 +97,23 @@ class Client
     }
 
     /**
+     * Perform a PATCH request to the API.
+     */
+    public function patch(string $endpoint, array $data): array
+    {
+        try {
+            $response = $this->client->patch($endpoint, [
+                'json' => $data,
+            ]);
+            $body = $response->getBody()->getContents();
+
+            return json_decode($body, true);
+        } catch (ClientException $e) {
+            throw $e;
+        }
+    }
+
+    /**
      * Perform a DELETE request to the API.
      */
     public function delete(string $endpoint, array $data = []): array

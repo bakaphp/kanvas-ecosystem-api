@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\EchoPay\DataTransferObject;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
-use Spatie\LaravelData\Data;
 use Kanvas\Users\Models\Users;
+use Spatie\LaravelData\Data;
 
 class CardTokenization extends Data
 {
@@ -40,11 +40,12 @@ class CardTokenization extends Data
                 postalCode: $request['zip_code'],
                 administrativeArea: $request['state'],
             ),
-            merchant: MerchantDetail::from([
-                'id' => $app->get(ConfigurationEnum::MERCHANT_ID->value),
-                'key' => $app->get(ConfigurationEnum::MERCHANT_KEY->value),
-                'secretKey' => $app->get(ConfigurationEnum::MERCHANT_SECRET->value)
-            ]
+            merchant: MerchantDetail::from(
+                [
+                    'id' => $app->get(ConfigurationEnum::MERCHANT_ID->value),
+                    'key' => $app->get(ConfigurationEnum::MERCHANT_KEY->value),
+                    'secretKey' => $app->get(ConfigurationEnum::MERCHANT_SECRET->value)
+                ]
             )
         );
     }

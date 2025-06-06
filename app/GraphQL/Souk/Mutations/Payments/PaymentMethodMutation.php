@@ -6,12 +6,6 @@ namespace App\GraphQL\Souk\Mutations\Payments;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
-use Kanvas\Connectors\EchoPay\DataTransferObject\CardDetail;
-use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenization;
-use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
-use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Payments\Actions\CreatePaymentMethodAction;
 use Kanvas\Payments\Actions\UpdatePaymentMethodAction;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
@@ -23,27 +17,26 @@ class PaymentMethodMutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $companiesId = auth()->user()->currentCompanyId();
-        $company = Companies::find($companiesId);
+        $company = $user->getCurrentCompany();
         $input = $request['input'];
         $card = null;
         // TODO: move this to a provider centry to avoid hardcoding here
-        if ($input['processor'] == 'portal') {
-            $portalService = new EchoPayService($app, $company);
-            $card = CardTokenization::fromRequest($input, $app, $user);
-            $tokenizedCard = $portalService->addCard($card);
+        if ($input['processor']) {
+            $processor = app("payment.{$input['processor']}");
+            $paymentMethod = $processor->addCardFromRequest($input, $user);
+        } else {
             $paymentMethod = new PaymentMethod(
                 app: $app,
                 user: $user,
                 company: $company,
+                instrument_identifier_id: $input['instrument_identifier_id'],
                 payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
                 payment_methods_brand: $input['brand'],
-                stripe_card_id: $tokenizedCard['paymentInstrumentId'],
+                stripe_card_id: $input['stripe_card_id'],
                 expiration_date: $input['expiration_date'],
-                zip_code: $card->billTo->postalCode,
+                zip_code: $input['zip_code'],
                 processor: $input['processor'] ?? null,
                 metadata: $request['metadata'] ?? [
-                    ...$tokenizedCard,
                     'country' => $input['country'],
                     'city' => $input['city'],
                     'address' => $input['address'],
@@ -52,11 +45,9 @@ class PaymentMethodMutation
                     'state' => $input['state']
                 ]
             );
-            $action = new CreatePaymentMethodAction($paymentMethod);
-            return $action->execute();
         }
-
-        throw new Exception('Processor not supported');
+        $action = new CreatePaymentMethodAction($paymentMethod);
+        return $action->execute();
     }
 
     public function updatePaymentMethod($_, array $request): PaymentMethods
@@ -65,45 +56,41 @@ class PaymentMethodMutation
         $app = app(Apps::class);
         $company = $user->getCurrentCompany();
         $input = $request['input'];
-        $card = null;
 
         $paymentMethod = PaymentMethods::fromCompany($company)->fromApp($app)->where([
             'id' => $request['id'],
         ])->first();
 
-        if (!$paymentMethod) {
+        if (! $paymentMethod) {
             throw new Exception('Payment method not found');
         }
 
-        if ($paymentMethod->processor == 'portal') {
-            $portalService = new EchoPayService($app, $company);
-            $card = CardTokenization::fromRequest($input, $app, $user);
-            $tokenizedCard = $portalService->updateCard($paymentMethod->stripe_card_id, $card);
+        if ($paymentMethod->processor) {
+            $processor = app("payment.{$paymentMethod->processor}");
+            $paymentMethodUpdateData = $processor->updateCardFromRequest(PaymentMethod::from([
+                ...$paymentMethod->toArray(),
+                "app" => $app,
+                "user" => $user,
+                "company" => $company,
+            ]), $input);
+        } else {
             $paymentMethodUpdateData = new PaymentMethod(
                 app: $app,
                 user: $user,
                 company: $company,
-                payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
-                payment_methods_brand: $input['brand'],
-                stripe_card_id: $tokenizedCard['paymentInstrumentId'],
-                expiration_date: $input['expiration_date'],
-                zip_code: $card->billTo->postalCode,
-                processor: $input['processor'] ?? null,
-                metadata: $request['metadata'] ?? [
-                    ...$tokenizedCard,
-                    'country' => $input['country'],
-                    'city' => $input['city'],
-                    'address' => $input['address'],
-                    'phone' => $input['phone'],
-                    'zip_code' => $input['zip_code'],
-                    'state' => $input['state']
-                ]
+                instrument_identifier_id: $input['instrument_identifier_id'] ?? $paymentMethod->instrument_identifier_id,
+                payment_ending_numbers: $input['number'] ?? $paymentMethod->payment_ending_numbers,
+                payment_methods_brand: $input['brand'] ?? $paymentMethod->payment_methods_brand,
+                stripe_card_id: $input['stripe_card_id'] ?? $paymentMethod->stripe_card_id,
+                expiration_date: $input['expiration_date'] ?? $paymentMethod->expiration_date,
+                zip_code: $input['zip_code'] ?? $paymentMethod->zip_code,
+                processor: $input['processor'] ?? $paymentMethod->processor,
+                metadata: $input['metadata'] ?? $paymentMethod->metadata
             );
-            $action = new UpdatePaymentMethodAction($paymentMethod->id, $paymentMethodUpdateData);
-            return $action->execute();
         }
 
-        throw new Exception('Processor not supported');
+        $action = new UpdatePaymentMethodAction($paymentMethod->id, $paymentMethodUpdateData);
+        return $action->execute();
     }
 
     public function deletePaymentMethod($_, array $request): bool
@@ -114,14 +101,19 @@ class PaymentMethodMutation
         $paymentMethod = PaymentMethods::fromCompany($company)->fromApp($app)->where([
             'id' => $request['id'],
         ])->first();
-        
-        if (!$paymentMethod) {
+
+        if (! $paymentMethod) {
             throw new Exception('Payment method not found');
         }
 
-        if ($paymentMethod->processor == 'portal') {
-            $portalService = new EchoPayService($app, $company);
-            $portalService->deleteCard($paymentMethod->stripe_card_id, $paymentMethod->merchant_detail);
+        if ($paymentMethod->processor) {
+            $processor = app("payment.{$paymentMethod->processor}");
+            $processor->deleteCardFromRequest(PaymentMethod::from([
+                ...$paymentMethod->toArray(),
+                "app" => $app,
+                "user" => $user,
+                "company" => $company,
+            ]));
         }
 
         return $paymentMethod->delete();

@@ -6,9 +6,6 @@ namespace Tests\GraphQL\Souk;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
-use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
-use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class PaymentTest extends TestCase

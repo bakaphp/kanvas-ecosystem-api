@@ -14,10 +14,12 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
+use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 
 class EchoPayService
 {
     protected Client $client;
+    protected MerchantDetail $merchant;
 
     public function __construct(
         protected AppInterface $app,
@@ -25,6 +27,11 @@ class EchoPayService
         protected array $config = []
     ) {
         $this->client = (new Client($app, $company, $config));
+        $this->merchant = MerchantDetail::from([
+            'id' => $app->get(ConfigurationEnum::MERCHANT_ID->value),
+            'key' => $app->get(ConfigurationEnum::MERCHANT_KEY->value),
+            'secretKey' => $app->get(ConfigurationEnum::MERCHANT_SECRET->value)
+        ]);
     }
 
     public function consultService(ConsultServiceQuery $data): array
@@ -59,29 +66,103 @@ class EchoPayService
         ];
     }
 
-    public function updateCard(string $id, CardTokenization $data): array {
-        $response = $this->client->post(ConfigurationEnum::CARD_PATH->value . '/' . $id, $data->toArray());
+    public function addCardFromRequest(array $request, $user): PaymentMethod
+    {
+        $card = CardTokenization::fromRequest($request, $this->app, $user);
+        $tokenizedCard = $this->addCard($card);
+        return new PaymentMethod(
+            app: $this->app,
+            user: $user,
+            company: $this->company,
+            instrument_identifier_id: $tokenizedCard['instrumentIdentifierId'],
+            payment_ending_numbers: substr($request['number'], strlen($request['number']) - 4, 4),
+            payment_methods_brand: $request['brand'],
+            stripe_card_id: $tokenizedCard['paymentInstrumentId'],
+            expiration_date: $request['expiration_date'],
+            zip_code: $card->billTo->postalCode,
+            processor: 'portal',
+            metadata: [
+                ...(isset($request['metadata']) ? $request['metadata'] : []),
+                ...$tokenizedCard,
+                'country' => $request['country'],
+                'city' => $request['city'],
+                'address' => $request['address'],
+                'phone' => $request['phone'],
+                'zip_code' => $request['zip_code'],
+                'state' => $request['state']
+            ]
+        );
+    }
 
+    public function updateCard(string $id, CardTokenization $data): array
+    {
+        $data = $data->toArray();
+        unset($data['card']['number']);
+        $response = $this->client->patch(ConfigurationEnum::CARD_PATH->value . '/' . $id, $data);
+
+        $expirationDate = $response['data']['card']["expirationYear"] . "-" . $response['data']['card']['expirationMonth'];
         return [
-            "cardNumber" => $response['data']['cardNumber'],
-            "expirationDate" => $response['data']['expirationDate'],
+            "cardNumber" => $expirationDate,
+            "expirationDate" => $expirationDate,
             "instrumentIdentifierId" => $response['data']['instrumentIdentifierId'],
             "paymentInstrumentId" => $response['data']['paymentInstrumentId']
         ];
     }
 
-    public function deleteCard(string $id, MerchantDetail $merchant): array {
+    public function updateCardFromRequest(PaymentMethod $paymentMethod, array $request): PaymentMethod
+    {
+        $card = CardTokenization::fromRequest($request, $this->app, $paymentMethod->user);
+        $cardId = $paymentMethod->metadata['instrumentIdentifierId'] ?? $paymentMethod->instrument_identifier_id;
+        $tokenizedCard = $this->updateCard($cardId, $card);
+        return new PaymentMethod(
+            app: $this->app,
+            user: $paymentMethod->user,
+            company: $paymentMethod->company,
+            payment_ending_numbers: substr($request['number'], strlen($request['number']) - 4, 4),
+            payment_methods_brand: $request['brand'],
+            stripe_card_id: $tokenizedCard['paymentInstrumentId'],
+            expiration_date: $request['expiration_date'],
+            zip_code: $card->billTo->postalCode,
+            processor: 'portal',
+            metadata: $request['metadata'] ?? [
+                ...$tokenizedCard,
+                'country' => $request['country'],
+                'city' => $request['city'],
+                'address' => $request['address'],
+                'phone' => $request['phone'],
+                'zip_code' => $request['zip_code'],
+                'state' => $request['state']
+            ]
+        );
+    }
+
+    public function deleteCardFromRequest(PaymentMethod $paymentMethod): array
+    {
         $query = http_build_query([
-            'id' => $merchant->id,
-            'key' => $merchant->key,
-            'secretKey' => $merchant->secretKey
+            'id' => $this->merchant->id,
+            'key' => $this->merchant->key,
+            'secretKey' => $this->merchant->secretKey
         ]);
+
+        $id = $paymentMethod->metadata['paymentInstrumentId'] ?? $paymentMethod->stripe_card_id;
+
+        return $this->deleteCard($id);
+    }
+
+    public function deleteCard(string $id): array
+    {
+        $query = http_build_query([
+            'id' => $this->merchant->id,
+            'key' => $this->merchant->key,
+            'secretKey' => $this->merchant->secretKey
+        ]);
+
         $response = $this->client->delete(ConfigurationEnum::CARD_PATH->value . '/' . $id . '?' . $query);
 
         return [
-            "id" => $response['data']['id'],
-            "status" => $response['data']['status'],
-            "submitTimeUtc" => $response['data']['submitTimeUtc']
+            "id" => $id,
+            "message" => $response['message'],
+            "status" => $response['statusCode'] ?? 200
         ];
     }
 
