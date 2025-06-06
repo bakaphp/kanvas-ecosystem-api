@@ -11,11 +11,13 @@ use Kanvas\Connectors\EchoPay\Handlers\EchoPayHandler;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Tests\Connectors\Traits\HasIntegrationCompany;
+use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
 class PaymentTest extends TestCase
 {
     use HasIntegrationCompany;
+    use PaymentCases;
 
     protected Users $user;
     protected Companies $company;
@@ -31,12 +33,12 @@ class PaymentTest extends TestCase
         $this->apps = app(Apps::class);
 
         if (empty($this->apps->get(ConfigurationEnum::SECRET->value))) {
-            $this->apps->set(ConfigurationEnum::SECRET->value, getenv('TEST_ECHO_PAY_SECRET_KEY'));
-            $this->apps->set(ConfigurationEnum::APP_TOKEN->value, getenv('TEST_ECHO_PAY_APP_TOKEN'));
-            $this->apps->set(ConfigurationEnum::CLIENT_ID->value, getenv('TEST_ECHO_PAY_CLIENT_ID'));
-            $this->apps->set(ConfigurationEnum::MERCHANT_ID->value, getenv('TEST_ECHO_PAY_MERCHANT_ID'));
-            $this->apps->set(ConfigurationEnum::MERCHANT_KEY->value, getenv('TEST_ECHO_PAY_MERCHANT_KEY'));
-            $this->apps->set(ConfigurationEnum::MERCHANT_SECRET->value, getenv('TEST_ECHO_PAY_MERCHANT_SECRET'));
+            $this->apps->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET_KEY'));
+            $this->apps->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
+            $this->apps->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
+            $this->apps->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
+            $this->apps->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
+            $this->apps->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
         }
 
         $this->apps->setAppCompany($this->company);
@@ -48,40 +50,6 @@ class PaymentTest extends TestCase
             $this->company,
             $this->user
         );
-    }
-
-    public function addPaymentMethod(Companies $company, array $data): array
-    {
-        $response = $this->graphQL('
-        mutation createPaymentMethod($input: PaymentMethodInput!) {
-            createPaymentMethod(input: $input) {
-                id
-                }
-            }
-        ', [
-            'input' => $data,
-        ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
-        ]);
-
-        return $response->json('data.createPaymentMethod');
-    }
-
-    public function getCardData(): array
-    {
-        return [
-            "number" => "4111111111111111",
-            "processor" => "portal",
-            "brand" => "visa",
-            "expiration_date" => "2030-12",
-            "metadata" => [],
-            "address" => "Calle Duarte #45",
-            "city" => "Santo Domingo",
-            "state" => "Distrito Nacional",
-            "zip_code" => "10101",
-            "country" => "DO",
-            "phone" => "8095551234"
-        ];
     }
 
     public function testCreatePaymentMethod()

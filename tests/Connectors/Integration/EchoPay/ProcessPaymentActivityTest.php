@@ -16,12 +16,14 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
 final class ProcessPaymentActivityTest extends TestCase
 {
     use HasIntegrationCompany;
     use InventoryCases;
+    use PaymentCases;
 
     public function testOrderCreationWorkflow(): void
     {
@@ -34,6 +36,10 @@ final class ProcessPaymentActivityTest extends TestCase
 
         $app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
         $app->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
+        $app->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
+        $app->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $app->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $app->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
 
         $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
         $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value, env('TEST_ECHO_PAY_CHANNEL_CODE'));
@@ -87,28 +93,20 @@ final class ProcessPaymentActivityTest extends TestCase
             amount: 100
         );
 
-        $transactionId = "7478925724996114" . rand(100000, 999999);
+        $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
 
         $data = [
-            'email' => fake()->email(),
-            'region_id' => $region->getId(),
+            'cartId' => 0,
+            'customer' => [
+                'email' => fake()->email(),
+            ],
             'order_type' => $orderTypeName,
             'metadata' => [
                 'data' => [
                     'paso_rapido_tag' => "317169",
-                    'payment_methods_id' => "91",
+                    'payment_methods_id' => $paymentMethod['id'],
                     'payment_date' => now()->toDateTimeString(),
                 ],
-            ],
-            'customer' => [
-                'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-            ],
-            'shipping_address' => [
-                'address' => fake()->address(),
-                'address_2' => fake()->postcode(),
-                'city' => fake()->city(),
-                'state' => fake()->state(),
             ],
             'items' => [
                 [
@@ -117,11 +115,12 @@ final class ProcessPaymentActivityTest extends TestCase
                     'price' => 100,
                 ],
             ],
+            'reference' => "Recarga de paso rapido 2"
         ];
 
         // Perform GraphQL mutation to create a draft order
         $response = $this->graphQL('
-            mutation createOrderFromCart($input: DraftOrderInput!) {
+            mutation createOrderFromCart($input: OrderCartInput!) {
                 createOrderFromCart(input: $input) {
                     order {
                         id
@@ -136,6 +135,7 @@ final class ProcessPaymentActivityTest extends TestCase
         ]);
 
         $order = $response->json('data.createOrderFromCart.order');
+
         $order = Order::fromApp($app)->find($order['id']);
 
         $activity = new ProcessPaymentActivity(
@@ -146,7 +146,7 @@ final class ProcessPaymentActivityTest extends TestCase
         );
 
         $payment = $order->payments()->first();
-        $result = $activity->execute($payment, $app, []);
+        $activity->execute($payment, $app, []);
         $order->refresh();
         $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value));
         $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value));
