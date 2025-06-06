@@ -77,6 +77,7 @@ class CartManagementMutation
                 'aeroambupromoq2',
                 'simlimitesb2b15kv',
                 'coiscou',
+                'expo10',
             ];
 
             if (! in_array(strtolower($discountCodes[0]), $validDiscountCodes, true)) {
@@ -114,6 +115,17 @@ class CartManagementMutation
                   'type' => 'discount',
                   'target' => 'subtotal',
                   'value' => '-15%',
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($fifteenPercentOff);
+            } elseif (strtolower($discountCodes[0]) === 'expo10') {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'expo10',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-10%',
                   'minimum' => 1,
                   'order' => 1,
                 ]);
