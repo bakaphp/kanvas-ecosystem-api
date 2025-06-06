@@ -131,4 +131,28 @@ class PaymentTest extends TestCase
 
         $response->assertSuccessful();
     }
+
+    public function testUpdatePaymentMethod()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
+
+        $response = $this->graphQL('
+            mutation updatePaymentMethod($id: ID!, $input: PaymentMethodInput!) {
+                updatePaymentMethod(id: $id, input: $input) {
+                    id
+                }
+            }
+        ', [
+            'id' => $paymentMethod['id'],
+            'input' => $this->getCardData(),
+        ], [], [
+            'X-Kanvas-App' => $this->app->uuid,
+            'X-Kanvas-Location' => $company->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+    }
 }

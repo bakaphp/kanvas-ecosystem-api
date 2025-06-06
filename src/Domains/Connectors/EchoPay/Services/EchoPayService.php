@@ -49,13 +49,39 @@ class EchoPayService
 
     public function addCard(CardTokenization $data): array
     {
-        $response = $this->client->post(ConfigurationEnum::ADD_CARD_PATH->value, $data->toArray());
+        $response = $this->client->post(ConfigurationEnum::CARD_PATH->value, $data->toArray());
 
         return [
             "cardNumber" => $response['data']['cardNumber'],
             "expirationDate" => $response['data']['expirationDate'],
             "instrumentIdentifierId" => $response['data']['instrumentIdentifierId'],
             "paymentInstrumentId" => $response['data']['paymentInstrumentId']
+        ];
+    }
+
+    public function updateCard(string $id, CardTokenization $data): array {
+        $response = $this->client->post(ConfigurationEnum::CARD_PATH->value . '/' . $id, $data->toArray());
+
+        return [
+            "cardNumber" => $response['data']['cardNumber'],
+            "expirationDate" => $response['data']['expirationDate'],
+            "instrumentIdentifierId" => $response['data']['instrumentIdentifierId'],
+            "paymentInstrumentId" => $response['data']['paymentInstrumentId']
+        ];
+    }
+
+    public function deleteCard(string $id, MerchantDetail $merchant): array {
+        $query = http_build_query([
+            'id' => $merchant->id,
+            'key' => $merchant->key,
+            'secretKey' => $merchant->secretKey
+        ]);
+        $response = $this->client->delete(ConfigurationEnum::CARD_PATH->value . '/' . $id . '?' . $query);
+
+        return [
+            "id" => $response['data']['id'],
+            "status" => $response['data']['status'],
+            "submitTimeUtc" => $response['data']['submitTimeUtc']
         ];
     }
 

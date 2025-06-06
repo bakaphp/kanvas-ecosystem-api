@@ -18,7 +18,7 @@ enum ConfigurationEnum: string
 
     case AUTHORIZATION_PATH = '/api/v2/auth/token';
     case CONSULT_SERVICE_PATH = '/api/v2/echo-pay/service';
-    case ADD_CARD_PATH = '/api/v2/echo-pay/tms/card';
+    case CARD_PATH = '/api/v2/echo-pay/tms/card';
     case SETUP_PAYER_PATH = '/api/v2/echo-pay/3ds/setup-payer';
     case CHECK_PAYER_ENROLLMENT_PATH = '/api/v2/echo-pay/3ds/check-payer-enrollment';
     case VALIDATE_PAYER_AUTH_RESULT_PATH = '/api/v2/echo-pay/3ds/validate-auth-result';
