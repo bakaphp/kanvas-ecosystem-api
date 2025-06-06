@@ -13,37 +13,19 @@ use Tests\TestCase;
 
 class PaymentTest extends TestCase
 {
-    use InventoryCases;
-
-    protected $app;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->app = app(Apps::class);
-
-        $this->app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
-        $this->app->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
-        $this->app->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
-        $this->app->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
-    }
-
     public function addPaymentMethod(Companies $company, array $data): array
     {
         $response = $this->graphQL('
         mutation createPaymentMethod($input: PaymentMethodInput!) {
             createPaymentMethod(input: $input) {
                 id
+                }
             }
-        }
-    ', [
+        ', [
             'input' => $data,
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
-
-        print_r($response->json());
 
         return $response->json('data.createPaymentMethod');
     }
@@ -67,10 +49,8 @@ class PaymentTest extends TestCase
 
     public function testCreatePaymentMethod()
     {
-        $variantWarehouse = VariantsWarehouses::first();
-        $region = $variantWarehouse->warehouse->region;
-        $company = $region->company;
-        $user = $company->user;
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
 
         // Perform GraphQL mutation to create a payment method
         $response = $this->graphQL('
@@ -90,11 +70,9 @@ class PaymentTest extends TestCase
 
     public function testListPaymentMethods()
     {
-        $variantWarehouse = VariantsWarehouses::first();
-        $region = $variantWarehouse->warehouse->region;
-        $company = $region->company;
-        $user = $company->user;
-
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
         $this->addPaymentMethod($company, $this->getCardData());
 
         // Get the payment methods
@@ -114,8 +92,8 @@ class PaymentTest extends TestCase
     public function testDeletePaymentMethod()
     {
         $user = auth()->user();
+        $app = app(Apps::class);
         $company = $user->getCurrentCompany();
-
         $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
 
         $response = $this->graphQL('
@@ -125,7 +103,6 @@ class PaymentTest extends TestCase
         ', [
             'id' => $paymentMethod['id'],
         ], [], [
-            'X-Kanvas-App' => $this->app->uuid,
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
 
@@ -136,6 +113,7 @@ class PaymentTest extends TestCase
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
 
         $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
 
@@ -149,7 +127,6 @@ class PaymentTest extends TestCase
             'id' => $paymentMethod['id'],
             'input' => $this->getCardData(),
         ], [], [
-            'X-Kanvas-App' => $this->app->uuid,
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
 

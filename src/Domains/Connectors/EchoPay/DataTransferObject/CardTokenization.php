@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\EchoPay\DataTransferObject;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Spatie\LaravelData\Data;
 use Kanvas\Users\Models\Users;
 
@@ -40,9 +41,9 @@ class CardTokenization extends Data
                 administrativeArea: $request['state'],
             ),
             merchant: MerchantDetail::from([
-                'id' => $app->get('ECHO_PAY_MERCHANT_ID'),
-                'key' => $app->get('ECHO_PAY_MERCHANT_KEY'),
-                'secretKey' => $app->get('ECHO_PAY_MERCHANT_SECRET')
+                'id' => $app->get(ConfigurationEnum::MERCHANT_ID->value),
+                'key' => $app->get(ConfigurationEnum::MERCHANT_KEY->value),
+                'secretKey' => $app->get(ConfigurationEnum::MERCHANT_SECRET->value)
             ]
             )
         );
