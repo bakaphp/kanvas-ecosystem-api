@@ -1,0 +1,117 @@
+type Category {
+    id: ID!
+    companies_id: Int!
+    parent_id: Int
+    uuid: String!
+    name: String!
+    slug: String!
+    code: String
+    position: Int
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    is_published: Boolean!
+    companies: Company!
+    weight: Int
+    users: User!
+    total_products: Int! @method(name: "getTotalProducts")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    children: [Category!] @hasMany(type: PAGINATOR)
+    products: [Product!] @belongsToMany(relation: "products", type: PAGINATOR)
+    productsTags(tag: String!): [Product!]! 
+    @paginate(
+        defaultCount: 4
+        builder: "App\\GraphQL\\Inventory\\Builders\\Categories\\GetProductByTag@getProductsByTag"
+    )
+}
+
+input CategoryInput {
+    parent_id: Int
+    name: String!
+    code: String
+    position: Int
+    source_id: Mixed
+    companies_id: Int
+    is_published: Boolean!
+    weight: Int
+}
+input CategoryUpdateInput {
+    parent_id: Int
+    name: String!
+    code: String
+    slug: String
+    position: Int
+    is_published: Boolean
+}
+
+input ProductCategoriesReferenceInput {
+    id: ID!
+}
+
+extend type Mutation @guard {
+    createCategory(input: CategoryInput!): Category!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@create"
+        )
+    updateCategory(id: ID!, input: CategoryUpdateInput!): Category!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@update"
+        )
+    updateCategoryTranslations(
+        id: ID!
+        input: TranslationInput!
+        code: String!
+    ): Category!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@updateCategoryTranslation"
+        )
+    deleteCategory(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@delete"
+        )
+    uploadFileToCategory(id: ID!, file: Upload!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\CategoryMediaMutation@attachFileToCategory"
+        )
+}
+
+extend type Query @guard {
+    categories(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "parent_id"
+                    "name"
+                    "slug"
+                    "code"
+                    "uuid"
+                    "is_published"
+                    "position"
+                    "id"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "position"
+                    "code"
+                ]
+            )
+    ): [Category!]!
+        @paginate(
+            model: "Kanvas\\Inventory\\Categories\\Models\\Categories"
+            defaultCount: 25
+            scopes: ["fromApp", "fromCompany"]
+        )
+}

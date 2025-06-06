@@ -1,0 +1,104 @@
+input CreateUserInput {
+    firstname: String
+    lastname: String
+    displayname: String
+    email: Email! @rules(apply: ["required"])
+    company_name: String
+    phone_number: String
+    password: String @rules(apply: ["min:8"])
+    cell_phone_number: String
+    role_ids: [ID!]
+    custom_fields: [CustomFieldEntityInput!]
+    create_company: Boolean
+    company_id: ID
+}
+
+extend type Mutation @guardByAppKey {
+    appCreateUser(data: CreateUserInput!): User!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@createUser"
+        )
+    appDeleteUser(user_id: ID): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appDeleteUser"
+        )
+    appDeActiveUser(user_id: ID): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appDeActivateUser"
+        )
+    appActivateUser(user_id: ID): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appActivateUser"
+        )
+    appRestoreDeletedUser(user_id: ID): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@restoreDeletedUser"
+        )
+    appResetUserPassword(user_id: ID, password: String): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appResetUserPassword"
+        )
+    appUpdateUserDisplayname(user_id: ID, displayname: String): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appUpdateUserDisplayname"
+        )
+}
+
+enum UserAppEnumColumn {
+    ID @enum(value: "users.id")
+    UUID @enum(value: "users.uuid")
+    FIRSTNAME @enum(value: "users_associated_apps.firstname")
+    LASTNAME @enum(value: "users_associated_apps.lastname")
+    DISPLAYNAME @enum(value: "users_associated_apps.displayname")
+    EMAIL @enum(value: "users_associated_apps.email")
+    IS_ACTIVE @enum(value: "users_associated_apps.is_active")
+    ROLE_ID @enum(value: "users_associated_apps.user_role")
+}
+
+extend type Query @guardByAppKey {
+    appUsers(
+        search: String @search
+        where: _ @whereConditions(columnsEnum: UserAppEnumColumn)
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "lastvisit"
+                    "created_at"
+                ]
+            )
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAllAppUsers"
+            defaultCount: 25
+        )
+    appAdmins(
+        search: String @search
+        where: _ @whereConditions(columnsEnum: UserAppEnumColumn)
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "created_at"
+                ]
+            )
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAppAdminUsers"
+            defaultCount: 25
+        )
+
+    adminUserCompanies(user_id: ID!): [Company!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAdminUserCompanies"
+            defaultCount: 25
+        )
+}

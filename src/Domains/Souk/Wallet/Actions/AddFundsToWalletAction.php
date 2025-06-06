@@ -36,12 +36,12 @@ class AddFundsToWalletAction
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
         $wallet = $company->createAppWallet($this->order->app, ['name' => $tag]);
         $total = 0;
-        foreach ($this->order->items() as $item) {
+        foreach ($this->order->items as $item) {
             if ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value)?->value === null) {
                 continue;
             }
 
-            $total += $item->getTotal();
+            $total += (float) ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_AMOUNT->value)?->value ?? $item->getPrice());
         }
         if ($total <= 0) {
             throw new Exception('Total amount to deposit must be greater than zero.');

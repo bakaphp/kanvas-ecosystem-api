@@ -1,0 +1,147 @@
+type EventTheme {
+    id: ID!
+    name: String!
+    user: User! @belongsTo(relation: "user")
+    created_at: DateTime
+    updated_at: DateTime
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+}
+
+type EventThemeArea {
+    id: ID!
+    name: String!
+    user: User! @belongsTo(relation: "user")
+    created_at: DateTime
+    updated_at: DateTime
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+}
+
+type EventType {
+    id: ID!
+    name: String!
+    user: User! @belongsTo(relation: "user")
+    created_at: DateTime
+    updated_at: DateTime
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+}
+
+type EventClass {
+    id: ID!
+    name: String!
+    user: User! @belongsTo(relation: "user")
+    created_at: DateTime
+    updated_at: DateTime
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+}
+
+type EventStatus {
+    id: ID!
+    name: String!
+    user: User! @belongsTo(relation: "user")
+    created_at: DateTime
+    updated_at: DateTime
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+}
+
+extend type Query @guard {
+    eventThemes(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "companies_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [EventTheme!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Themes\\Models\\Theme"
+            defaultCount: 25
+        )
+    eventThemeAreas(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "companies_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [EventThemeArea!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Themes\\Models\\ThemeArea"
+            defaultCount: 25
+        )
+    eventTypes(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "companies_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [EventType!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\EventType"
+            defaultCount: 25
+        )
+    eventStatus(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "companies_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [EventStatus!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\EventStatus"
+            defaultCount: 25
+        )
+    eventClasses(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "companies_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [EventClass!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\EventClass"
+            defaultCount: 25
+        )
+}

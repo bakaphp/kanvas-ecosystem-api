@@ -11,6 +11,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
@@ -241,7 +242,7 @@ class CRMAgent extends BaseAgent
             )->addProperty(
                 new ToolProperty(
                     name: 'image_url',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'The URL or file path of the image to process',
                     required: true
                 )
@@ -273,21 +274,21 @@ class CRMAgent extends BaseAgent
             )->addProperty(
                 new ToolProperty(
                     name: 'search_term',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Optional search term to filter inventory (product name, type, category, etc.)',
                     required: false
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'limit',
-                    type: 'integer',
+                    type: PropertyType::INTEGER,
                     description: 'Maximum number of products to return (default: 5, max: 20)',
                     required: false
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'category',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Optional category name to filter products',
                     required: false
                 )

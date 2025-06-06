@@ -1,0 +1,21 @@
+type adminProductDashboard {
+    total_products: Int!
+    total_variants: Int!
+    product_status: [adminProductStatusDashboard!]!
+}
+
+type adminProductStatusDashboard {
+    status_id: ID!
+    status_name: String!
+    status_slug: String!
+    status_companies_id: ID!
+    total_amount: Int
+
+}
+
+extend type Query @guardByAppKey {
+    productAdminDashboard: adminProductDashboard!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Dashboard\\Admin\\ProductDashboardBuilder@getCompanyInfo"
+        )
+}

@@ -131,6 +131,7 @@ trait ActivityIntegrationTrait
                 'company' => $company?->getId() ?? 'no company',
                 'integration' => $integration->value,
                 'entity_id' => $entity->getId(),
+                'trace' => $exception->getTraceAsString(),
             ];
         }
 
