@@ -71,9 +71,6 @@ class SyncEmailTemplateAction
                 'name' => EnumsEmailTemplateEnum::NEW_ORDER->value,
                 'template' => File::get(resource_path('views/emails/newOrder.blade.php')),
             ], [
-                'name' => EnumsEmailTemplateEnum::NEW_ORDER_ESIM->value,
-                'template' => File::get(resource_path('views/emails/newOrderEsim.blade.php')),
-            ], [
                 'name' => EnumsEmailTemplateEnum::NEW_ORDER_STORE_OWNER->value,
                 'template' => File::get(resource_path('views/emails/newOrderStoreOwner.blade.php')),
             ], [
