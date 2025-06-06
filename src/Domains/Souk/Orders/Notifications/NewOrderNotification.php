@@ -8,6 +8,7 @@ use Kanvas\Notifications\Notification;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Enums\EmailTemplateEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Templates\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
 
 class NewOrderNotification extends Notification
 {
