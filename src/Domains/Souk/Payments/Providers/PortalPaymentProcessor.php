@@ -27,7 +27,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Throwable;
 
-class AuthorizePortalPaymentProcessor
+class PortalPaymentProcessor
 {
     protected EchoPayService $client;
     protected string $refId;
@@ -85,14 +85,14 @@ class AuthorizePortalPaymentProcessor
         );
     }
 
-    protected function setupService(): array
+    protected function setupService(Order $orderInput): array
     {
         return [
-            "merchantKey" => "00000000016739100006575",
-            "channelCode" => "004",
-            "serviceCode" => "0101",
-            "serviceTypeId" => "106",
-            "contract" => "6537824"
+            "merchantKey" => $orderInput->get(CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value),
+            "channelCode" => $orderInput->get(CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value),
+            "serviceCode" => $orderInput->get(CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value),
+            "serviceTypeId" => $orderInput->get(CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value),
+            "contract" => $orderInput->get(CustomFieldEnum::ECHO_PAY_CONTRACT->value)
         ];
     }
 

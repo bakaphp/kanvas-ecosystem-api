@@ -7,6 +7,14 @@ namespace Kanvas\Souk\Orders\Models;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Souk\Models\BaseModel;
 
+/**
+ * Class Order
+ *
+ * @property int $id
+ * @property int $apps_id
+ * @property int companies_id
+ * @property string $name
+ * */
 class OrderTypes extends BaseModel
 {
     protected $table = 'order_types';
@@ -17,3 +25,4 @@ class OrderTypes extends BaseModel
         return $this->hasMany(Order::class, 'order_types_id', 'id');
     }
 }
+
