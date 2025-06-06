@@ -49,9 +49,17 @@ class AddFundsToWalletActivity extends KanvasActivity
                     ];
                 }
 
-                return new AddFundsToWalletAction(
+                $transaction = new AddFundsToWalletAction(
                     order: $order,
                 )->execute();
+
+                return [
+                    'result' => true,
+                    'message' => 'Funds added to wallet successfully.',
+                    'order_id' => $order->getId(),
+                    'transaction_id' => $transaction->getKey(),
+                    'amount' => $transaction->amountFloat ?? 0,
+                ];
             },
             company: $order->company,
         );
