@@ -27,7 +27,12 @@ class VariantPriceService
     {
         try {
             if ($this->useCompanySpecificPrice && $this->currentUserCompany) {
-                return $this->getCompanySpecificPrice($variant);
+                $companyPrice = $this->getCompanySpecificPrice($variant);
+
+                // If company-specific price is 0, fall back to channel price
+                if ($companyPrice > 0) {
+                    return $companyPrice;
+                }
             }
 
             return $this->getChannelPrice($variant, $channelId);

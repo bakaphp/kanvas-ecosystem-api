@@ -13,7 +13,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class AddFundsToWalletActivity extends KanvasActivity
 {
-    public $tries = 1;
+    public $tries = 3;
 
     public function execute(Order $order, Apps $app, array $params): array
     {
