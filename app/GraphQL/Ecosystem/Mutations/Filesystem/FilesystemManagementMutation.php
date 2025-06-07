@@ -249,6 +249,8 @@ class FilesystemManagementMutation
 
         $filesystemService = new FilesystemServices(app(Apps::class));
 
-        return $filesystemService->delete($filesystem);
+        if ($filesystemService->delete($filesystem)) {
+            return $filesystem->delete();
+        }
     }
 }
