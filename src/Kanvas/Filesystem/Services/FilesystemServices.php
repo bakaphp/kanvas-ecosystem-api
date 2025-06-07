@@ -35,14 +35,40 @@ class FilesystemServices
     public function upload(UploadedFile $file, Users $user): ModelsFilesystem
     {
         $path = $this->app->get('cloud-bucket-path') ?? '/';
+        $preserveOriginalName = (bool) ($this->app->get('filesystem-preserve-original-filename') ?? false);
 
-        $uploadedFile = $this->storage->put(
-            $path,
-            $file,
-            [
-                'visibility' => 'public',
-            ]
-        );
+        if ($preserveOriginalName) {
+            $originalName = $file->getClientOriginalName();
+            $filename = $originalName;
+            $counter = 1;
+
+            // Check if file exists and modify name if necessary to avoid collision
+            while ($this->storage->exists(rtrim($path, '/') . '/' . $filename)) {
+                $pathInfo = pathinfo($originalName);
+                $name = $pathInfo['filename'] ?? pathinfo($originalName, PATHINFO_FILENAME);
+                $extension = $pathInfo['extension'] ?? pathinfo($originalName, PATHINFO_EXTENSION);
+                $filename = $name . '_' . $counter . '.' . $extension;
+                $counter++;
+            }
+
+            $uploadedFile = $this->storage->putFileAs(
+                $path,
+                $file,
+                $filename,
+                [
+                    'visibility' => 'public',
+                ]
+            );
+        } else {
+            // Keep existing behavior (generates unique filename)
+            $uploadedFile = $this->storage->put(
+                $path,
+                $file,
+                [
+                    'visibility' => 'public',
+                ]
+            );
+        }
 
         $createFileSystem = new CreateFilesystemAction($file, $user, $this->app, $this->company);
 
