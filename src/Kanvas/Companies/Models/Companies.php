@@ -429,7 +429,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'fields' => [
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'users_id',

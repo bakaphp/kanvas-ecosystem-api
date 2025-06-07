@@ -895,7 +895,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'fields' => [
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'firstname',
