@@ -44,6 +44,51 @@ class FilesystemTest extends TestCase
                 ],
             ]);
     }
+    public function testDeleteFile(): void
+    {
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+                mutation ($file: Upload!) {
+                    upload(file: $file)
+                    { 
+                        uuid, 
+                        name, 
+                        url 
+                    } 
+                }
+            ',
+            'variables' => [
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('avatar.jpg'),
+        ];
+
+        $response = $this->multipartGraphQL($operations, $map, $file)->json();
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation(
+                $uuid: String!
+            ){
+                deleteFile(
+                    uuid: $uuid
+                ) 
+            }',
+            [
+                'uuid' => $response['data']['upload']['uuid'],
+            ]
+        )->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'deleteFile' => true,
+            ],
+        ]);
+    }
 
     public function testMultiUploadFile(): void
     {
