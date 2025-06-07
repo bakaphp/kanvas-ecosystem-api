@@ -849,13 +849,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function toSearchableArray(): array
     {
         return [
-            'id' => $this->getId(),
+            'id' => (string) $this->getId(),
             'firstname' => $this->firstname,
             'lastname' => $this->lastname,
             'displayname' => $this->displayname,
             'email' => $this->email,
             'apps' => $this->apps->pluck('id')->toArray(),
             'companies' => $this->companies->pluck('id')->toArray(),
+            'created_at' => $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString(),
         ];
     }
 
