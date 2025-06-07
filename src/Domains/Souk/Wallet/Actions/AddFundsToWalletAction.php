@@ -25,7 +25,8 @@ class AddFundsToWalletAction
             throw new Exception('User company not found in order metadata.');
         }
 
-        $company = Companies::getById($userCompany);
+        ///$company = Companies::getById($userCompany); hotfix while we figure it out
+        $company = $this->order->user->getCurrentCompany();
 
         UsersRepository::belongsToThisApp(
             $this->order->user,
