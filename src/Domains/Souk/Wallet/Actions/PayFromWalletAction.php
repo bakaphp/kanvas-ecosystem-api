@@ -26,7 +26,8 @@ class PayFromWalletAction
             throw new Exception('User company not found in order metadata.');
         }
 
-        $company = Companies::getById($userCompany);
+        //$company = Companies::getById($userCompany);
+        $company = $this->order->user->getCurrentCompany();
 
         UsersRepository::belongsToThisApp(
             $this->order->user,
