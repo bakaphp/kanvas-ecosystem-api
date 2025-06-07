@@ -38,10 +38,11 @@ final class ProcessPaymentActivityTest extends TestCase
         $app->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
         $app->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
         $app->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $app->set(ConfigurationEnum::MERCHANT_IDENTIFIER->value, env('TEST_ECHO_PAY_MERCHANT_IDENTIFIER'));
         $app->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
         $app->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
 
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_SERVICE_KEY'));
         $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value, env('TEST_ECHO_PAY_CHANNEL_CODE'));
         $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value, env('TEST_ECHO_PAY_SERVICE_CODE'));
         $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value, env('TEST_ECHO_PAY_SERVICE_TYPE_ID'));
@@ -146,9 +147,9 @@ final class ProcessPaymentActivityTest extends TestCase
         );
 
         $payment = $order->payments()->first();
-        $activity->execute($payment, $app, []);
+        $result = $activity->execute($payment, $app, []);
         $order->refresh();
-        $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value));
+        $this->assertEquals($result["status"], "success");
         $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value));
         $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value));
         $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value));

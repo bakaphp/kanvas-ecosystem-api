@@ -54,12 +54,12 @@ class PortalPaymentProcessor
             ...($includeDetails
                 ? ['merchantDefinedInformation' => new MerchantDefinedInformation(
                     category: MerchantCategoryEnum::RETAIL,
-                    cardIdentifier: $this->app->get('ECHO_PAY_MERCHANT_IDENTIFIER'),
+                    cardIdentifier: $this->app->get(ConfigurationEnum::MERCHANT_IDENTIFIER->value) ?? "",
                     platform: MerchantPlatformEnum::WEB,
                     customerId: "user_" . $this->payment->order->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
                     documentType: MerchantDocumentTypesEnum::DNI,
-                    documentNumber: $this->app->get('ECHO_PAY_MERCHANT_DOCUMENT_NUMBER'),
+                    documentNumber: $this->app->get(ConfigurationEnum::MERCHANT_DOCUMENT_NUMBER->value) ?? "",
                 )]
                 : [])
         ]);
@@ -88,11 +88,11 @@ class PortalPaymentProcessor
     protected function setupService(Order $orderInput): array
     {
         return [
-            "merchantKey" => $orderInput->get(CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value),
-            "channelCode" => $orderInput->get(CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value),
-            "serviceCode" => $orderInput->get(CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value),
-            "serviceTypeId" => $orderInput->get(CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value),
-            "contract" => $orderInput->get(CustomFieldEnum::ECHO_PAY_CONTRACT->value)
+            "merchantKey" => (string) $orderInput->get(CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value),
+            "channelCode" => (string) $orderInput->get(CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value),
+            "serviceCode" => (string) $orderInput->get(CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value),
+            "serviceTypeId" => (string) $orderInput->get(CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value),
+            "contract" => (string) $orderInput->get(CustomFieldEnum::ECHO_PAY_CONTRACT->value)
         ];
     }
 
@@ -141,7 +141,7 @@ class PortalPaymentProcessor
     public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, $referenceId): PaymentResponse
     {
         $merchantAuthentication = $this->setupMerchantAuthentication(includeDetails: true);
-        $service = $this->setupService();
+        $service = $this->setupService($payment->order);
         $result = $this->client->payService(
             PaymentDetail::from([
                 'orderCode' => $payment->order->reference . '_' . $payment->order->id,
