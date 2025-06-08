@@ -233,6 +233,11 @@ class CreateOrderInESimActivity extends KanvasActivity
                 // After processing all items and quantities, update order metadata
                 if (! empty($allEsimResponses)) {
                     // Merge all responses into order metadata
+
+                    foreach ($allEsimResponses as $key => $esimResponse) {
+                        // Ensure each response has the 'order' and 'items' keys
+                        unset($allEsimResponses[$key]['order'], $allEsimResponses[$key]['items']);
+                    }
                     $combinedResponse = [
                         'esims' => $allEsimResponses,
                         'total_esims_created' => count($allEsimResponses),
@@ -243,18 +248,18 @@ class CreateOrderInESimActivity extends KanvasActivity
 
                     $order->metadata = array_merge(($order->metadata ?? []), $combinedResponse);
                     $order->metadata = array_merge(($order->metadata ?? []), ['message_ids' => $messageIds]);
-                    // Remove 'order' and 'items' keys from all esims in the array
-                    foreach ($order->metadata['esims'] as &$esim) {
-                        unset($esim['order'], $esim['items']);
-                    }
 
                     //@todo this is a temporary fix to handle single eSim responses
-                    if ($allEsimResponses === 1) {
-                        $order->metadata['success'] = $order->metadata['esims'][0]['success'] ?? true;
-                        $order->metadata['data'] = $order->metadata['esims'][0]['data'];
-                        $order->metadata['esim_status'] = $order->metadata['esims'][0]['esim_status'];
-                        $order->metadata['woocommerce_response'] = $order->metadata['esims'][0]['woocommerce_response'];
-                        $order->metadata['message_id'] = $order->metadata['esims'][0]['message_id'];
+                    if ($combinedResponse['total_esims_created'] === 1) {
+                        $legacyEsim = [
+                            'success' => $allEsimResponses[0]['success'] ?? true,
+                            'data' => $allEsimResponses[0]['data'] ?? [],
+                            'esim_status' => $allEsimResponses[0]['esim_status'] ?? [],
+                            'woocommerce_response' => $allEsimResponses[0]['woocommerce_response'] ?? [],
+                            'message_id' => $allEsimResponses[0]['message_id'] ?? null,
+                        ];
+
+                        $order->metadata = array_merge(($order->metadata ?? []), $legacyEsim);
                     }
 
                     $order->completed();
