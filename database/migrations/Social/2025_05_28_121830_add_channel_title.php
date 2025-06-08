@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('channels', function (Blueprint $table) {
-            $table->string('title')->nullable()->after('users_id');
+            $table->string('title')->nullable()->after('name');
         });
     }
 
