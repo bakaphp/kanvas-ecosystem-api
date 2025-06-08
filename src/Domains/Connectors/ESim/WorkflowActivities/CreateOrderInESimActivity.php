@@ -52,13 +52,17 @@ class CreateOrderInESimActivity extends KanvasActivity
                     ];
                 }
 
-                $validTypes = ['local', 'global', 'regional'];
+                $validateEsimProductType = ['local', 'global', 'regional'];
                 $responses = [];
+                $allEsimResponses = [];
+                $woocommerceResponse = ['web order' => true]; // Default for non-mobile orders
+                $woocommerceSent = false; // Flag to track if WooCommerce order was sent
+
                 foreach ($order->items as $item) {
                     $variant = $item->variant;
                     // Get the product type from the variant's product
                     $productType = strtolower($variant->product->productType->name ?? '');
-                    if (! in_array($productType, $validTypes)) {
+                    if (! in_array($productType, $validateEsimProductType)) {
                         continue;
                     }
 
@@ -73,133 +77,187 @@ class CreateOrderInESimActivity extends KanvasActivity
                             'status' => 'error',
                             'message' => 'Provider not found',
                         ];
+
                         continue;
                     }
+
                     $providerValue = strtolower($provider->value);
                     $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
                     $isRefuelOrder = isset($order->metadata['parent_order_id']) && ! empty($order->metadata['parent_order_id']);
                     $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
 
-                    try {
-                        if ($providerValue == strtolower(ProviderEnum::CMLINK->value) ||
-                            $providerValue == strtolower(ProviderEnum::VENTA_MOBILE->value)) {
-                            $actionClass = $providerValue == strtolower(ProviderEnum::CMLINK->value)
-                                ? CreateEsimOrderAction::class
-                                : ActionsCreateEsimOrderAction::class;
-                            $esim = (new $actionClass($order))->execute();
-                            $woocommerceResponse = $fromMobile
-                                ? $this->sendOrderToCommerce($order, $esim, $providerValue)
-                                : ['web order' => true];
-                            $response = [
-                                'success' => true,
-                                'data' => [
-                                    ...array_diff_key($esim->toArray(), ['esim_status' => '']),
-                                    'plan_origin' => $esim->plan,
-                                ],
-                                'esim_status' => $esim->esimStatus->toArray(),
-                                'woocommerce_response' => $woocommerceResponse,
+                    // Get quantity from item (default to 1 if not set)
+                    $quantity = $item->quantity ?? 1;
+
+                    // Create eSims based on quantity
+                    for ($i = 0; $i < $quantity; $i++) {
+                        try {
+                            if ($providerValue == strtolower(ProviderEnum::CMLINK->value) ||
+                                $providerValue == strtolower(ProviderEnum::VENTA_MOBILE->value)) {
+                                $actionClass = $providerValue == strtolower(ProviderEnum::CMLINK->value)
+                                    ? CreateEsimOrderAction::class
+                                    : ActionsCreateEsimOrderAction::class;
+
+                                // Pass the variant to the action for this specific eSim creation
+                                $esim = (new $actionClass($order, null, $variant))->execute();
+
+                                // Send to WooCommerce only once and only for mobile orders
+                                if ($fromMobile && ! $woocommerceSent) {
+                                    $woocommerceResponse = $this->sendOrderToCommerce($order, $esim, $providerValue);
+                                    $woocommerceSent = true;
+                                }
+
+                                $response = [
+                                    'success' => true,
+                                    'data' => [
+                                        ...array_diff_key($esim->toArray(), ['esim_status' => '']),
+                                        'plan_origin' => $esim->plan,
+                                    ],
+                                    'esim_status' => $esim->esimStatus->toArray(),
+                                    'woocommerce_response' => $woocommerceResponse,
+                                ];
+                            } else {
+                                $createOrder = new OrderService($order, $variant);
+                                $response = $createOrder->createOrder();
+                            }
+                        } catch (Throwable $e) {
+                            report($e);
+                            $responses[] = [
+                                'status' => 'error',
+                                'message' => 'Error creating order in eSim',
+                                'response' => $e->getMessage(),
                             ];
-                        } else {
-                            $createOrder = new OrderService($order);
-                            $response = $createOrder->createOrder();
+
+                            continue;
                         }
-                    } catch (Throwable $e) {
-                        report($e);
+
+                        $response['order_id'] = $order->id;
+                        $response['order'] = $order->toArray();
+                        $response['esim_sequence'] = $i + 1; // Add sequence number for tracking
+                        $response['total_quantity'] = $quantity; // Add total quantity info
+
+                        if (! isset($response['label'])) {
+                            $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
+                        }
+
+                        $sku = null;
+                        foreach ($order->items as $itemDetail) {
+                            $variantDetail = Variants::where('id', $itemDetail->variant_id)->first();
+                            $detail['variant'] = $variantDetail->toArray();
+                            $detail['variant']['attributes'] = $variantDetail->attributes()->pluck('value', 'name')->toArray();
+                            $sku = $variantDetail->sku;
+                            $response['items'][] = $detail;
+                        }
+
+                        try {
+                            if ($providerValue === strtolower(ProviderEnum::E_SIM_GO->value)) {
+                                $esimGo = new ESimService($app);
+                                $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);
+                                $esimData['expiration_date'] = null;
+                                $esimData['phone_number'] = null;
+                                $response['esim_status'] = $esimData;
+                            } elseif ($providerValue === strtolower(ProviderEnum::EASY_ACTIVATION->value)) {
+                                $response['esim_status'] = [
+                                    'expiration_date' => $response['data']['end_date'] ?? null,
+                                    'esim_status' => $response['data']['status'] ?? null,
+                                    'phone_number' => $response['data']['phone_number'] ?? null,
+                                ];
+                                $response['data']['plan_origin'] = $response['data']['plan'];
+                                $response['data']['plan'] = $sku;
+                            } elseif ($providerValue === strtolower(ProviderEnum::AIRALO->value)) {
+                                $response['esim_status'] = [
+                                    'expiration_date' => null,
+                                    'esim_status' => $response['data']['status'] ?? null,
+                                    'phone_number' => null,
+                                ];
+                                $response['data']['plan_origin'] = $response['data']['plan'] ?? null;
+                                $response['data']['plan'] = $sku;
+                            }
+                        } catch (Throwable $e) {
+                            report($e);
+                        }
+
+                        // Create message for each eSim
+                        if (! $isRefuelOrder) {
+                            $messageType = (new CreateMessageTypeAction(
+                                new MessageTypeInput(
+                                    $app->getId(),
+                                    0,
+                                    'esim',
+                                    'esim',
+                                )
+                            ))->execute();
+                            $createMessage = new CreateMessageAction(
+                                new MessageInput(
+                                    $app,
+                                    $order->company,
+                                    $order->user,
+                                    $messageType,
+                                    $response
+                                ),
+                                SystemModulesRepository::getByModelName(Order::class, $app),
+                                $order->getId()
+                            );
+                            $message = $createMessage->execute();
+                            $this->updateMessageMetaDataOrderNumber($message, $woocommerceResponse ?? []);
+
+                            // Set ICCID custom field for this message to support targeted refueling
+                            $iccid = $response['data']['iccid'] ?? $response['data']['sim'] ?? null;
+                            if ($iccid) {
+                                $message->set(CustomFieldEnum::MESSAGE_ESIM_ICCID->value, $iccid);
+                            }
+
+                            // Set variant SKU for this message to support refuel targeting
+                            $message->set(CustomFieldEnum::MESSAGE_ESIM_VARIANT_SKU->value, $variant->sku);
+
+                            $response['message_id'] = $message->getId();
+                        } else {
+                            $parentOrder = Order::getById($order->metadata['parent_order_id']);
+                            $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
+                            $message->setPublic();
+                            $response['message_id'] = $message->getId();
+                        }
+
+                        // Store each eSim response with its message ID
+                        $allEsimResponses[] = $response;
+
                         $responses[] = [
-                            'status' => 'error',
-                            'message' => 'Error creating order in eSim',
-                            'response' => $e->getMessage(),
+                            'status' => 'success',
+                            'message' => 'Order updated with eSim metadata',
+                            'message_id' => $message->getId(),
+                            'response' => $response,
                         ];
-                        continue;
+                    }
+                }
+
+                // After processing all items and quantities, update order metadata
+                if (! empty($allEsimResponses)) {
+                    // Merge all responses into order metadata
+                    $combinedResponse = [
+                        'esims' => $allEsimResponses,
+                        'total_esims_created' => count($allEsimResponses),
+                    ];
+
+                    // Collect all message IDs
+                    $messageIds = array_column($allEsimResponses, 'message_id');
+
+                    $order->metadata = array_merge(($order->metadata ?? []), $combinedResponse);
+                    $order->metadata = array_merge(($order->metadata ?? []), ['message_ids' => $messageIds]);
+                    $order->completed();
+                    $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $combinedResponse);
+
+                    // Set the first message ID as the primary message ID for backward compatibility
+                    if (! empty($messageIds)) {
+                        $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $messageIds[0]);
                     }
 
-                    $order->metadata = array_merge(($order->metadata ?? []), $response);
-                    $order->completed();
-                    $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $response);
-                    $response['order_id'] = $order->id;
-                    $response['order'] = $order->toArray();
-                    if (! isset($response['label'])) {
-                        $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
-                    }
-                    $sku = null;
-                    foreach ($order->items as $itemDetail) {
-                        $variantDetail = Variants::where('id', $itemDetail->variant_id)->first();
-                        $detail['variant'] = $variantDetail->toArray();
-                        $detail['variant']['attributes'] = $variantDetail->attributes()->pluck('value', 'name')->toArray();
-                        $sku = $variantDetail->sku;
-                        $response['items'][] = $detail;
-                    }
-                    try {
-                        if ($providerValue === strtolower(ProviderEnum::E_SIM_GO->value)) {
-                            $esimGo = new ESimService($app);
-                            $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);
-                            $esimData['expiration_date'] = null;
-                            $esimData['phone_number'] = null;
-                            $response['esim_status'] = $esimData;
-                        } elseif ($providerValue === strtolower(ProviderEnum::EASY_ACTIVATION->value)) {
-                            $response['esim_status'] = [
-                                'expiration_date' => $response['data']['end_date'] ?? null,
-                                'esim_status' => $response['data']['status'] ?? null,
-                                'phone_number' => $response['data']['phone_number'] ?? null,
-                            ];
-                            $response['data']['plan_origin'] = $response['data']['plan'];
-                            $response['data']['plan'] = $sku;
-                        } elseif ($providerValue === strtolower(ProviderEnum::AIRALO->value)) {
-                            $response['esim_status'] = [
-                                'expiration_date' => null,
-                                'esim_status' => $response['data']['status'] ?? null,
-                                'phone_number' => null,
-                            ];
-                            $response['data']['plan_origin'] = $response['data']['plan'] ?? null;
-                            $response['data']['plan'] = $sku;
-                        }
-                    } catch (Throwable $e) {
-                        report($e);
-                    }
-                    //create the esim for the user
-                    if (! $isRefuelOrder) {
-                        $messageType = (new CreateMessageTypeAction(
-                            new MessageTypeInput(
-                                $app->getId(),
-                                0,
-                                'esim',
-                                'esim',
-                            )
-                        ))->execute();
-                        $createMessage = new CreateMessageAction(
-                            new MessageInput(
-                                $app,
-                                $order->company,
-                                $order->user,
-                                $messageType,
-                                $response
-                            ),
-                            SystemModulesRepository::getByModelName(Order::class, $app),
-                            $order->getId()
-                        );
-                        $message = $createMessage->execute();
-                        $this->updateMessageMetaDataOrderNumber($message, $woocommerceResponse ?? []);
-                        $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
-                        $order->updateOrFail();
-                        $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
-                    } else {
-                        $parentOrder = Order::getById($order->metadata['parent_order_id']);
-                        $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
-                        $message->setPublic();
-                        $order->metadata = array_merge(($order->metadata ?? []), ['message_id' => $message->getId()]);
-                        $order->updateOrFail();
-                        $order->set(CustomFieldEnum::MESSAGE_ESIM_ID->value, $message->getId());
-                    }
-                    $responses[] = [
-                        'status' => 'success',
-                        'message' => 'Order updated with eSim metadata',
-                        'message_id' => $message->getId(),
-                        'response' => $response,
-                    ];
+                    $order->updateOrFail();
                 }
+
                 if (count($responses) === 1) {
                     return $responses[0];
                 }
+
                 return $responses;
             },
             company: $order->company,
