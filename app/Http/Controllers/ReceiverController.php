@@ -56,7 +56,10 @@ class ReceiverController extends BaseController
         $response = $job->handle();
 
         if (! is_array($response)) {
-            return response()->json(['message' => 'Something went wrong , we\'ve notify support'], 500);
+            return response()->json(
+                ['message' => "Something went wrong, we've notified support"],
+                method_exists($job, 'getFailedReturnHttpCode') ? $job->getFailedReturnHttpCode() : 500
+            );
         }
 
         $status = $response['status'] ?? 200;

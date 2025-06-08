@@ -34,8 +34,8 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             // Extract verification data from params
             $verificationData = $params;
 
-            $isShowRoom = $params['is_showroom'] ?? false;
-
+            //$isShowRoom = $params['is_showroom'] ?? false;
+            $isShowRoom = ! isset($verificationData['ipqs']);
             // Get person name from lead entity
             $name = IdVerificationService::getName($verificationData);
             $name = $name !== 'Unknown' ? $name : ($entity->title ?? ($entity->people->name ?? 'Customer'));
@@ -83,8 +83,11 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     ];
 
                     dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData, $name) {
-                        //since we are running 2 diff version of the api, we need to slow you down to get the last message
-                        sleep(30);
+                        $key = IntegrationsEnum::INTELLICHECK->value . '_sent_report';
+                        if ($entity->get($key)) {
+                            // If the report has already been sent, we skip the rest of the process
+                            return;
+                        }
 
                         $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
                         $notification = new Blank(
@@ -102,6 +105,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                             $entity,
                         );
 
+                        $entity->set($key, true);
                         $notification->setSubject($name . ' - ID Verification Report');
                         Notification::send($usersToNotify, $notification);
 
@@ -141,7 +145,9 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                        } */
 
                         //$entity->addFile($pdfReport, 'id-verification');
-                    });
+
+                        //since we are running 2 diff version of the api, we need to slow you down to get the last message
+                    })->delay(now()->addSeconds(30));
 
                     return [
                         'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],

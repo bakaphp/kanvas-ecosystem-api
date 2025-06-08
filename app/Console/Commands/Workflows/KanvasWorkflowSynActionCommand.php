@@ -11,6 +11,7 @@ use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
+use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
@@ -37,6 +38,7 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
+use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
@@ -54,6 +56,7 @@ use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ShopifyCompanyConfigWebhookJob;
+use Kanvas\Connectors\Shopify\Jobs\ShopifyComplianceWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ShopifyOrderNotesWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateShopifyDraftOrderActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\CreateUserActivity;
@@ -85,6 +88,8 @@ use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationAct
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageReportNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
+use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
+use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
 
@@ -142,6 +147,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncPeopleWithIPlusActivities::class,
             SyncZohoAgentFromReceiverJob::class,
             SoftPullActivity::class,
+            CreatePasoRapidoOrderActivity::class,
             CreateCreditScoreFromMessageActivity::class,
             LinkMessageToOrderActivity::class,
             GenerateStripeSignupLinkForUserActivity::class,
@@ -183,6 +189,10 @@ class KanvasWorkflowSynActionCommand extends Command
             WorkflowsProcessVehicleImageActivity::class,
             ProcessMessageVehicleImageActivity::class,
             LLMMessageResponseActivity::class,
+            ProcessPaymentActivity::class,
+            ShopifyComplianceWebhookJob::class,
+            PayFromWalletActivity::class,
+            AddFundsToWalletActivity::class,
         ];
 
         $createdActions = [];

@@ -48,7 +48,7 @@ class IdVerificationService
         $ocMatch = false;
 
         // Extract nested data safely with null coalescing
-        $facial = $verificationData['idcheck']['data']['facial']['data'] ?? [];
+        $facial = $verificationData['facial']['data'] ?? [];
         $ocrMatch = $verificationData['ocr_match']['data'] ?? [];
         $idCheck = $verificationData['idcheck']['data'] ?? [];
         $ipqsAddress = $verificationData['ipqs']['addressDetails']['data'] ?? [];
@@ -169,7 +169,7 @@ class IdVerificationService
         }
 
         // Skip IPQS validation if in showroom mode or IPQS address data is empty
-        $skipIpqsValidation = $isShowRoom || empty($ipqsAddress);
+        $skipIpqsValidation = empty($ipqsAddress);
 
         if (! $skipIpqsValidation) {
             // BEHAVIOR RISKS - NEW RULE (remove failure conditions, only keep flag)

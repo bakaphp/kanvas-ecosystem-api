@@ -20,7 +20,8 @@ class CalculateShippingCostAction
 
     public function execute(): array
     {
-        $pounds = $this->variant->getAttributeByName(ConfigurationEnum::WEIGHT_UNIT->value)->value / 453.59237;
+        $weightAttr = $this->variant->getAttributeByName(ConfigurationEnum::WEIGHT_UNIT->value)?->value;
+        $pounds = $weightAttr ? ($weightAttr / 453.59237) : 1;
         $pounds = $pounds * $this->quantity;
         $price = $this->variant->getPriceInfoFromDefaultChannel()->price;
         // LoCompro Cost
@@ -57,6 +58,7 @@ class CalculateShippingCostAction
             'otherFee' => $otherFee,
             'serviceFee' => $serviceFeeCost,
             'total' => $totalLoCompro,
+            'pounds' => $pounds,
         ];
     }
 }

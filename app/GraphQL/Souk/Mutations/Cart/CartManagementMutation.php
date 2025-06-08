@@ -73,7 +73,16 @@ class CartManagementMutation
          * @todo FOR THE LOVE OF GOD!! MOVE this to a specific module
          */
         if (! empty($discountCodes) && $app->get('temp-use-discount-codes')) {
-            if (strtolower($discountCodes[0]) !== 'aeroambupromoq2' && strtolower($discountCodes[0]) !== 'simlimitesb2b15kv') {
+            $validDiscountCodes = [
+                'aeroambupromoq2',
+                'simlimitesb2b15kv',
+                'coiscou',
+                'expo10',
+                'pamela',
+                'wendy',
+            ];
+
+            if (! in_array(strtolower($discountCodes[0]), $validDiscountCodes, true)) {
                 throw new ModelNotFoundException('Discount code not found');
             }
 
@@ -108,6 +117,50 @@ class CartManagementMutation
                   'type' => 'discount',
                   'target' => 'subtotal',
                   'value' => '-15%',
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($fifteenPercentOff);
+            } elseif (strtolower($discountCodes[0]) === 'expo10') {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'expo10',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-10%',
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($fifteenPercentOff);
+            } elseif (strtolower($discountCodes[0]) === 'coiscou') {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'coiscou',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-20',
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($fifteenPercentOff);
+            } elseif (strtolower($discountCodes[0]) === 'wendy') {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'wendy',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-28',
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($fifteenPercentOff);
+            } elseif (strtolower($discountCodes[0]) === 'pamela') {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'pamela',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-11',
                   'minimum' => 1,
                   'order' => 1,
                 ]);

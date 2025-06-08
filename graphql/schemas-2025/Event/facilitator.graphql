@@ -1,0 +1,43 @@
+type Facilitator {
+    id: ID!
+    uuid: String!
+    slug: String!
+    people: People! @belongsTo(relation: "people")
+    user: User! @belongsTo(relation: "user")
+    company: Company! @belongsTo(relation: "company")
+    description: String
+    identification: String
+    resume: String 
+    created_at: DateTime
+    updated_at: DateTime
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+}
+
+extend type Query @guard {
+    facilitators(
+        search: String @search
+        where: _
+            @whereConditions(columns: ["id", "name", "slug", "companies_id", "people_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [Participant!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Facilitators\\Models\\Facilitator"
+            defaultCount: 25
+        )
+}

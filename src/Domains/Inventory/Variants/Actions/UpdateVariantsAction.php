@@ -72,10 +72,10 @@ class UpdateVariantsAction
         );
 
         //update product searchable index
-        $this->variant->product->searchable();
+        $this->variant->product?->searchable();
 
         if ($this->runWorkflow) {
-            $this->variant->product->fireWorkflow(
+            $this->variant->product?->fireWorkflow(
                 WorkflowEnum::UPDATED->value,
                 true
             );

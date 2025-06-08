@@ -57,8 +57,10 @@ class ProductImporterJob extends AbstractImporterJob
                 ))->execute();
                 if ($product->wasRecentlyCreated) {
                     $created++;
+                    $processProducts['created'][] = $product->only(['id', 'name']);
                 } else {
                     $updated++;
+                    $processProducts['updated'][] = $product->only(['id', 'name']);
                 }
                 $totalProcessSuccessfully++;
                 $processProductIds[] = $product->getId();
@@ -74,6 +76,7 @@ class ProductImporterJob extends AbstractImporterJob
                 Log::error($e->getMessage(), $errorDetails);
                 captureException($e);
                 $totalProcessFailed++;
+                $processProducts['failed'][] = $errorDetails;
             }
         }
 
@@ -81,7 +84,8 @@ class ProductImporterJob extends AbstractImporterJob
             $totalItems,
             $totalProcessSuccessfully,
             $totalProcessFailed,
-            $errors
+            $errors,
+            $processProducts
         );
 
         $this->executeWorkflow(

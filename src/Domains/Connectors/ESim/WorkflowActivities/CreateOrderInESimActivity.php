@@ -221,7 +221,7 @@ class CreateOrderInESimActivity extends KanvasActivity
             $stripe = new StripeClient($order->app->get(EnumsConfigurationEnum::STRIPE_SECRET_KEY->value));
 
             $clientSecret = $order->checkout_token;
-            $paymentIntentId = explode('_secret_', $clientSecret)[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
+            $paymentIntentId = explode('_secret_', $clientSecret ?? '')[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
 
             $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
 

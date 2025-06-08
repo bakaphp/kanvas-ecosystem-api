@@ -1,0 +1,25 @@
+extend type Mutation @guardByAppKey {
+    setAppSetting(input: ModuleConfigInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@setAppSetting"
+        )
+    deleteAppSetting(key: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@deleteAppSetting"
+        )
+}
+
+extend type Query @guardByAppKey {
+    appSettings: [ModuleConfig!]! @deprecated(reason: "Use adminAppSettings instead")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getAppSetting"
+        )
+    adminAppSettings: [ModuleConfig!]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getAppSetting"
+        )
+    adminAppSetting(key: String!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getAppSettingByKey"
+        )
+}

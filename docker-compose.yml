@@ -30,9 +30,9 @@ services:
         extra_hosts:
             - "host.docker.internal:host-gateway"
         # command:
-        #     - "sh"
-        #     - "-c"
-        #     - "php artisan octane:start --server=swoole --task-workers=10"
+            # - "sh"
+            # - "-c"
+            # - "php artisan octane:start --server=swoole --task-workers=10 --workers=8"
         environment:
             WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
@@ -168,6 +168,12 @@ services:
         restart: always
         ports:
             - 3005:3000
+    dashboard_typesense:
+        container_name: dashboard_typesense
+        image: bfritscher/typesense-dashboard
+        restart: always
+        ports:
+            - 8086:80
     minio1:
         image: minio/minio
         container_name: minio${APP_CONTAINER_NAME}

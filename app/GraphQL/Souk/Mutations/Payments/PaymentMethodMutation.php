@@ -1,0 +1,84 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\GraphQL\Souk\Mutations\Payments;
+
+use Exception;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\CardDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenization;
+use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
+use Kanvas\Connectors\EchoPay\Services\EchoPayService;
+use Kanvas\Payments\Actions\CreatePaymentMethodAction;
+use Kanvas\Payments\DataTransferObjet\PaymentMethod;
+use Kanvas\Payments\Models\PaymentMethods;
+
+class PaymentMethodMutation
+{
+    public function createPaymentMethod($_, array $request): PaymentMethods
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $companiesId = auth()->user()->currentCompanyId();
+        $company = Companies::find($companiesId);
+        $input = $request['input'];
+        $card = null;
+        // TODO: move this to a provider centry to avoid hardcoding here
+        if ($input['processor'] == 'portal') {
+            [$year, $month] = explode('-', $input['expiration_date']);
+            $portalService = new EchoPayService($app, $company);
+            $card = new CardTokenization(
+                card: new CardDetail(
+                    number: $input['number'],
+                    expirationMonth: $month,
+                    expirationYear: $year,
+                    type: $input['brand'],
+                ),
+                billTo: new BillingDetail(
+                    firstName: $user->firstname,
+                    lastName: $user->lastname,
+                    email: $user->email,
+                    country: $input['country'],
+                    city: $input['city'],
+                    address1: $input['address'],
+                    phone: $input['phone'],
+                    postalCode: $input['zip_code'],
+                    administrativeArea: $input['state'],
+                ),
+                merchant: MerchantDetail::from([
+                    'id' => $app->get('ECHO_PAY_MERCHANT_ID'),
+                    'key' => $app->get('ECHO_PAY_MERCHANT_KEY'),
+                    'secretKey' => $app->get('ECHO_PAY_MERCHANT_SECRET')
+                ]),
+            );
+            $tokenizedCard = $portalService->addCard($card);
+            $paymentMethod = new PaymentMethod(
+                app: $app,
+                user: $user,
+                company: $company,
+                payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
+                payment_methods_brand: $input['brand'],
+                stripe_card_id: $tokenizedCard['paymentInstrumentId'],
+                expiration_date: $input['expiration_date'],
+                zip_code: $card->billTo->postalCode,
+                processor: $input['processor'] ?? null,
+                metadata: $request['metadata'] ?? [
+                    ...$tokenizedCard,
+                    'country' => $input['country'],
+                    'city' => $input['city'],
+                    'address' => $input['address'],
+                    'phone' => $input['phone'],
+                    'zip_code' => $input['zip_code'],
+                    'state' => $input['state']
+                ]
+            );
+            $action = new CreatePaymentMethodAction($paymentMethod);
+            return $action->execute();
+        }
+
+        throw new Exception('Processor not supported');
+    }
+}

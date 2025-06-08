@@ -49,12 +49,12 @@ class RedisAgentChatHistory extends AbstractChatHistory
         //Redis::del($redisKey);
         $cachedHistory = false; //Redis::get($redisKey); no redis for now
 
-        if ($cachedHistory) {
-            $messages = json_decode($cachedHistory, true);
-            $this->history = $this->unserializeMessages($messages);
+        /*  if ($cachedHistory) {
+             $messages = json_decode($cachedHistory, true);
+             $this->history = $this->unserializeMessages($messages);
 
-            return;
-        }
+             return;
+         } */
 
         // If not in Redis, try to load from database
         $history = AgentHistory::where('agent_id', $this->agent->id)
@@ -86,7 +86,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
                 }
             }
 
-            $this->history = $this->unserializeMessages($messages);
+            //$this->history = $this->unserializeMessages($messages);
 
             // Cache in Redis for faster access next time
             $this->updateRedis();

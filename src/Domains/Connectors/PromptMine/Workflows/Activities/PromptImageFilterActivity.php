@@ -159,7 +159,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity): array
     {
         // Step 1: Submit the image for processing
-        $submitResponse = $this->submitImage($fileUrl, $imageFilter);
+        $submitResponse = $this->submitImage($fileUrl, $imageFilter, $entity->message['prompt'] ?? '');
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -355,7 +355,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
         $createNuggetMessage = (new CreateNuggetMessageAction(
-            parentMessage: $entity,
+            parentMessage: $entity->parent_id ? $entity->parent : $entity,
             messageData: [
                 'title' => $title,
                 'type' => 'image-format',
@@ -431,7 +431,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $imageUrl, string $imageFilter): array
+    protected function submitImage(string $imageUrl, string $imageFilter, string $prompt): array
     {
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
@@ -439,6 +439,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             'operation' => 'submit',
             'image_url' => $imageUrl,
             'model' => 'fal-ai/' . $imageFilter,
+            'prompt' => $prompt,
         ]);
 
         return $response->json();

@@ -44,7 +44,16 @@ class CompanyAction extends BaseModel
     use AsTree;
 
     protected $table = 'companies_actions';
-    protected $guarded = [];
+    protected $guarded = [
+        'apps_id',
+        'companies_id',
+        'companies_branches_id',
+        'actions_id',
+        'pipelines_id',
+        'users_id',
+        'parent_id',
+        'path',
+    ];
 
     #[Override]
     protected function casts(): array
