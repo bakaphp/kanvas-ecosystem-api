@@ -7,7 +7,7 @@ type Filesystem {
     size: Float!
     field_name: String
     attributes: Mixed
-    created_at: DateTimeTz
+    created_at: DateTimeTz @method(name: "createdAt")
 }
 
 input FilesystemInputUrl {
