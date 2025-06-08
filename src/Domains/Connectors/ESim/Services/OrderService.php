@@ -77,16 +77,16 @@ class OrderService
     protected function processEsimGoRefuelOrder($item): array
     {
         $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
-        
+
         // Get the specific ICCID from the refuel order metadata
         $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
-        
+
         // Fall back to legacy metadata location if not found
-        if (!$targetIccid) {
+        if (! $targetIccid) {
             $targetIccid = $this->order->metadata['data']['iccid'] ?? null;
         }
 
-        if (!$targetIccid) {
+        if (! $targetIccid) {
             return [
                 'status' => 'error',
                 'message' => 'ICCID is required for refuel order',
@@ -141,7 +141,7 @@ class OrderService
         // Get the specific ICCID from the refuel order metadata
         $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
 
-        if (!$targetIccid) {
+        if (! $targetIccid) {
             return [
                 'status' => 'error',
                 'message' => 'ICCID is required for refuel order',
@@ -232,7 +232,7 @@ class OrderService
         // Get the specific ICCID from the refuel order metadata
         $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
 
-        if (!$targetIccid) {
+        if (! $targetIccid) {
             return [
                 'status' => 'error',
                 'message' => 'ICCID is required for refuel order',
