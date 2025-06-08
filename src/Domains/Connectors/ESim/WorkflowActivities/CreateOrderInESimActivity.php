@@ -243,6 +243,20 @@ class CreateOrderInESimActivity extends KanvasActivity
 
                     $order->metadata = array_merge(($order->metadata ?? []), $combinedResponse);
                     $order->metadata = array_merge(($order->metadata ?? []), ['message_ids' => $messageIds]);
+                    // Remove 'order' and 'items' keys from all esims in the array
+                    foreach ($order->metadata['esims'] as &$esim) {
+                        unset($esim['order'], $esim['items']);
+                    }
+
+                    //@todo this is a temporary fix to handle single eSim responses
+                    if ($allEsimResponses === 1) {
+                        $order->metadata['success'] = $order->metadata['esims'][0]['success'] ?? true;
+                        $order->metadata['data'] = $order->metadata['esims'][0]['data'];
+                        $order->metadata['esim_status'] = $order->metadata['esims'][0]['esim_status'];
+                        $order->metadata['woocommerce_response'] = $order->metadata['esims'][0]['woocommerce_response'];
+                        $order->metadata['message_id'] = $order->metadata['esims'][0]['message_id'];
+                    }
+
                     $order->completed();
                     $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $combinedResponse);
 
