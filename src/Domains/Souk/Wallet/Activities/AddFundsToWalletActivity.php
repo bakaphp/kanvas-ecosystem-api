@@ -13,15 +13,26 @@ use Kanvas\Workflow\KanvasActivity;
 
 class AddFundsToWalletActivity extends KanvasActivity
 {
+    public $tries = 3;
+
     public function execute(Order $order, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
         $isAddingWalletFundTransaction = false;
         foreach ($order->items as $item) {
-            if ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value)?->value === null) {
-                continue;
+            if ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value)?->value !== null) {
+                $isAddingWalletFundTransaction = true;
+
+                break; // Exit early since we found what we're looking for
             }
-            $isAddingWalletFundTransaction = true;
+        }
+
+        if (! $isAddingWalletFundTransaction) {
+            return [
+                'result' => false,
+                'message' => 'No wallet fund transaction found in order items.',
+                'order_id' => $order->getId(),
+            ];
         }
 
         $userCompany = $order->getMetadata('user_company_id');
@@ -47,9 +58,17 @@ class AddFundsToWalletActivity extends KanvasActivity
                     ];
                 }
 
-                return new AddFundsToWalletAction(
+                $transaction = new AddFundsToWalletAction(
                     order: $order,
                 )->execute();
+
+                return [
+                    'result' => true,
+                    'message' => 'Funds added to wallet successfully.',
+                    'order_id' => $order->getId(),
+                    'transaction_id' => $transaction->getKey(),
+                    'amount' => $transaction->amountFloat ?? 0,
+                ];
             },
             company: $order->company,
         );

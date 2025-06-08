@@ -16,6 +16,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Messages\Models\Message;
+use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
@@ -50,28 +51,28 @@ class InventoryAgent extends BaseAgent
             )->addProperty(
                 new ToolProperty(
                     name: 'search_term',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Search term to find products by name, SKU, or description',
                     required: false
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'product_id',
-                    type: 'integer',
+                    type: PropertyType::INTEGER,
                     description: 'Specific product ID to retrieve detailed information',
                     required: false
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'category',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Filter products by category name',
                     required: false
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'limit',
-                    type: 'integer',
+                    type: PropertyType::INTEGER,
                     description: 'Maximum number of products to return (default: 5, max: 20)',
                     required: false
                 )
@@ -239,21 +240,21 @@ class InventoryAgent extends BaseAgent
             )->addProperty(
                 new ToolProperty(
                     name: 'identifier',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Product ID or SKU to identify the product for update',
                     required: true
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'field',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'Field to update (name, description, price, stock, etc.)',
                     required: true
                 )
             )->addProperty(
                 new ToolProperty(
                     name: 'value',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'New value for the specified field',
                     required: true
                 )
@@ -470,7 +471,7 @@ class InventoryAgent extends BaseAgent
             )->addProperty(
                 new ToolProperty(
                     name: 'message_id',
-                    type: 'string',
+                    type: PropertyType::STRING,
                     description: 'The ID of the message to retrieve',
                     required: true
                 )

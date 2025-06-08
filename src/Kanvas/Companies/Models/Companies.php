@@ -388,6 +388,8 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $array['apps'] = UserCompanyApps::where('companies_id', $this->id)->get()->pluck('apps_id')->toArray();
         $array['users'] = CompaniesRepository::getAllCompanyUsers($this)->pluck('id')->toArray();
         $array = $this->transform($array);
+        $array['id'] = (string) $this->getKey();
+        $array['created_at'] = $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString();
 
         return $array;
     }
@@ -427,7 +429,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'fields' => [
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'users_id',

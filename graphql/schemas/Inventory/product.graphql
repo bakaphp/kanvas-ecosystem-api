@@ -35,6 +35,11 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
         @builder(
             method: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"
         )
+    variantsPaginate(includeUnpublished: Boolean = false): [Variant!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilderPaginate@getVariants"
+        )
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo

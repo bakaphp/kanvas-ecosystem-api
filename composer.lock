@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f841d7dfb371ee2062687bfd5ac3c008",
+    "content-hash": "f59e0471d29d3833bce0111bb5aa8451",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.343.23",
+            "version": "3.344.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "010869992129557cfbf2740d94d82ef3b5228462"
+                "reference": "7ff4b73f2d6550949be14b8822e100963e068705"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/010869992129557cfbf2740d94d82ef3b5228462",
-                "reference": "010869992129557cfbf2740d94d82ef3b5228462",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/7ff4b73f2d6550949be14b8822e100963e068705",
+                "reference": "7ff4b73f2d6550949be14b8822e100963e068705",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.343.23"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.344.1"
             },
-            "time": "2025-06-02T18:04:47+00:00"
+            "time": "2025-06-05T18:09:40+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -2307,16 +2307,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.68.1",
+            "version": "v0.69.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "b32a1be1a0ea5b7bc439f6b9835d8d75ed522ce2"
+                "reference": "0207b0875e9d3bcf560ea424471e3c96126964e7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/b32a1be1a0ea5b7bc439f6b9835d8d75ed522ce2",
-                "reference": "b32a1be1a0ea5b7bc439f6b9835d8d75ed522ce2",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/0207b0875e9d3bcf560ea424471e3c96126964e7",
+                "reference": "0207b0875e9d3bcf560ea424471e3c96126964e7",
                 "shasum": ""
             },
             "require": {
@@ -2371,7 +2371,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.68.1"
+                "source": "https://github.com/prism-php/prism/tree/v0.69.0"
             },
             "funding": [
                 {
@@ -2379,7 +2379,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-27T22:15:27+00:00"
+            "time": "2025-06-03T14:17:34+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -2774,16 +2774,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.397.0",
+            "version": "v0.397.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "a69d060a405f347e1c25f1a7c3528d8d2a29132c"
+                "reference": "8366037e450b62ffc1c5489459f207640acca2b4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/a69d060a405f347e1c25f1a7c3528d8d2a29132c",
-                "reference": "a69d060a405f347e1c25f1a7c3528d8d2a29132c",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/8366037e450b62ffc1c5489459f207640acca2b4",
+                "reference": "8366037e450b62ffc1c5489459f207640acca2b4",
                 "shasum": ""
             },
             "require": {
@@ -2812,9 +2812,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.397.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.397.1"
             },
-            "time": "2025-05-30T02:03:56+00:00"
+            "time": "2025-06-04T17:28:44+00:00"
         },
         {
             "name": "google/auth",
@@ -4224,16 +4224,16 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.12.2",
+            "version": "3.12.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "24c8c12b79c8c4d0019f85ebe861ab47c11ec637"
+                "reference": "3b680e6c12f58a0c135f86e1a5dbd3abb89db621"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/24c8c12b79c8c4d0019f85ebe861ab47c11ec637",
-                "reference": "24c8c12b79c8c4d0019f85ebe861ab47c11ec637",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/3b680e6c12f58a0c135f86e1a5dbd3abb89db621",
+                "reference": "3b680e6c12f58a0c135f86e1a5dbd3abb89db621",
                 "shasum": ""
             },
             "require": {
@@ -4267,22 +4267,22 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.12.2"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.12.3"
             },
-            "time": "2025-05-26T20:35:15+00:00"
+            "time": "2025-06-05T08:16:24+00:00"
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.11.6",
+            "version": "1.11.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "ae5507ed918ae3ad3123c4ab52b2ffbb483f9aa5"
+                "reference": "1ab30bf9225c7383d44b9cf0ca6adb5892ad8b93"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/ae5507ed918ae3ad3123c4ab52b2ffbb483f9aa5",
-                "reference": "ae5507ed918ae3ad3123c4ab52b2ffbb483f9aa5",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/1ab30bf9225c7383d44b9cf0ca6adb5892ad8b93",
+                "reference": "1ab30bf9225c7383d44b9cf0ca6adb5892ad8b93",
                 "shasum": ""
             },
             "require": {
@@ -4334,9 +4334,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.11.6"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.11.10"
             },
-            "time": "2025-06-04T21:28:15+00:00"
+            "time": "2025-06-06T15:36:01+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -7714,16 +7714,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.57.1",
+            "version": "v6.58.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "84e43f6ded2c1cad309d939185520e83da13101a"
+                "reference": "3558f1fc426aa4b950f1f7142416b84cc2790317"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/84e43f6ded2c1cad309d939185520e83da13101a",
-                "reference": "84e43f6ded2c1cad309d939185520e83da13101a",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/3558f1fc426aa4b950f1f7142416b84cc2790317",
+                "reference": "3558f1fc426aa4b950f1f7142416b84cc2790317",
                 "shasum": ""
             },
             "require": {
@@ -7841,7 +7841,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2025-05-21T11:50:13+00:00"
+            "time": "2025-06-05T07:44:59+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -16204,16 +16204,16 @@
         },
         {
             "name": "filp/whoops",
-            "version": "2.18.0",
+            "version": "2.18.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filp/whoops.git",
-                "reference": "a7de6c3c6c3c022f5cfc337f8ede6a14460cf77e"
+                "reference": "8fcc6a862f2e7b94eb4221fd0819ddba3d30ab26"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/filp/whoops/zipball/a7de6c3c6c3c022f5cfc337f8ede6a14460cf77e",
-                "reference": "a7de6c3c6c3c022f5cfc337f8ede6a14460cf77e",
+                "url": "https://api.github.com/repos/filp/whoops/zipball/8fcc6a862f2e7b94eb4221fd0819ddba3d30ab26",
+                "reference": "8fcc6a862f2e7b94eb4221fd0819ddba3d30ab26",
                 "shasum": ""
             },
             "require": {
@@ -16263,7 +16263,7 @@
             ],
             "support": {
                 "issues": "https://github.com/filp/whoops/issues",
-                "source": "https://github.com/filp/whoops/tree/2.18.0"
+                "source": "https://github.com/filp/whoops/tree/2.18.1"
             },
             "funding": [
                 {
@@ -16271,7 +16271,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-03-15T12:00:00+00:00"
+            "time": "2025-06-03T18:56:14+00:00"
         },
         {
             "name": "hamcrest/hamcrest-php",
