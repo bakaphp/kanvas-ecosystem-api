@@ -243,8 +243,10 @@ class CreateOrderInESimActivity extends KanvasActivity
 
                     $order->metadata = array_merge(($order->metadata ?? []), $combinedResponse);
                     $order->metadata = array_merge(($order->metadata ?? []), ['message_ids' => $messageIds]);
-                    unset($order->metadata['esims']['order']); // Remove the 'order' key if it exists
-                    unset($order->metadata['esims']['items']); // Remove the 'items' key if it exists
+                    // Remove 'order' and 'items' keys from all esims in the array
+                    foreach ($order->metadata['esims'] as &$esim) {
+                        unset($esim['order'], $esim['items']);
+                    }
 
                     //@todo this is a temporary fix to handle single eSim responses
                     if ($allEsimResponses === 1) {
