@@ -237,4 +237,22 @@ class FilesystemManagementMutation
 
         return $fileSystems;
     }
+
+    public function deleteFile(mixed $rootValue, array $request): bool
+    {
+        $filesystem = Filesystem::when(! auth()->user()->isAdmin(), function ($query) {
+            $query->where('users_id', auth()->user()->getId())
+            ->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        })->where('uuid', $request['uuid'])
+            ->notDeleted()
+            ->firstOrFail();
+
+        $filesystemService = new FilesystemServices(app(Apps::class));
+
+        if ($filesystemService->delete($filesystem)) {
+            return $filesystem->delete();
+        }
+
+        return false;
+    }
 }
