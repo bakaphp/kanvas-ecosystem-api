@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Models;
 
 use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
+use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
 
 /**
@@ -40,4 +41,10 @@ class Filesystem extends BaseModel
         'size',
         'file_type',
     ];
+    public $timestamps = true;
+
+    public function createdAt(): Carbon
+    {
+        return ! empty($this->created_at) ? $this->created_at : now();
+    }
 }
