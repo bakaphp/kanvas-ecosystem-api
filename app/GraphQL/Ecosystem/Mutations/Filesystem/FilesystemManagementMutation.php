@@ -252,5 +252,7 @@ class FilesystemManagementMutation
         if ($filesystemService->delete($filesystem)) {
             return $filesystem->delete();
         }
+
+        return false;
     }
 }
