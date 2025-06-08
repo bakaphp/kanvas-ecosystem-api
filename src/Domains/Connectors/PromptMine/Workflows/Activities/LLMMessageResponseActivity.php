@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
-use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -94,13 +93,9 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ),
                 ))->execute();
 
-                $promptChannel = Channel::fromApp($app)
-                    ->where('entity_id', $message->getId())
-                    ->where('entity_namespace', $message::class)
-                    ->where('is_deleted', 0)
-                    ->first();
-                
-                if ($promptChannel) {
+                $promptChannel = $message->channels->first();
+
+                if ($promptChannel && empty($promptChannel->title)) {
                     $promptChannel->title = $message->message['title'] ?? $nuggetTitle;
                     $promptChannel->save();
                 }
