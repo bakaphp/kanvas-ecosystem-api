@@ -1,0 +1,308 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Connectors\Integration\NetSuite;
+
+use Kanvas\Apps\Models\Apps;
+use Tests\TestCase;
+use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteAction;
+use Illuminate\Support\Facades\Auth;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\Models\Order;
+use Tests\GraphQL\Inventory\Traits\InventoryCases;
+
+final class OrderTest extends TestCase
+{
+
+    use InventoryCases;
+
+    protected $variant;
+    protected $region;
+    protected $company;
+    protected $user;
+    protected $apps;
+
+
+
+    public function setUp(): void
+    {
+        parent::setUp();
+        $this->apps = app(Apps::class);
+        $this->user = Auth::user();
+        $this->company = $this->user->getCurrentCompany();
+        $this->region = Regions::getDefault($this->company, $this->apps);
+
+        $warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct(
+            data: [
+                'name' => 'NetSuite Order Test Product',
+                'description' => 'NetSuite Order Test Description',
+                'sku' => '4511338005811',
+                'barcode' => '4511338005811',
+                'price' => 100,
+                'quantity' => 100,
+            ],
+            attributes: [
+                [
+                    'name' => 'slots',
+                    'value' => 100
+                ]
+            ]
+        )->json()['data']['createProduct'];
+
+        $warehouseData = [
+            'id' => $warehouseResponse['id'],
+        ];
+
+        $product = Products::find($productResponse['id']);
+        $variant = $product->variants()->first();
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: (string) $variant->getId(),
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $variant->getId(),
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
+
+        $this->variant = $variant;
+    }
+
+    public function createDraftOrder(): Order
+    {
+        $data = [
+            'email' => fake()->email(),
+            'region_id' => $this->region->getId(),
+            'metadata' => hash('sha256', random_bytes(10)),
+            'customer' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+            ],
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ],
+            'items' => [
+                [
+                    'variant_id' => $this->variant->getId(),
+                    'quantity' => 1,
+                    'price' => 6,
+                ],
+            ],
+        ];
+
+        // Perform GraphQL mutation to create a draft order
+        $response = $this->graphQL('
+            mutation createDraftOrder($input: DraftOrderInput!) {
+                createDraftOrder(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $order = Order::find($response->json('data.createDraftOrder.id'));
+        return $order;
+    }
+
+    public function testPushOrderWithExistingCustomer(): void
+    {
+        $app = app(Apps::class);
+
+        // Get the order you want to push
+        $order = $this->createDraftOrder();
+
+        // Create the action
+        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+
+        // Push order to NetSuite with an existing NetSuite customer ID
+        $result = $pushAction->execute(
+            order: $order,
+            netsuiteCustomerId: getenv('NET_SUITE_CUSTOMER_ID'), // NetSuite customer internal ID
+            createCustomerIfNotExists: false
+        );
+
+        if ($result['success']) {
+            $this->assertNotNull($result['data']['netsuite_quote_id']);
+            $this->assertNotNull($result['data']['netsuite_quote_number']);
+        } else {
+            $this->fail($result['message']);
+        }
+    }
+
+
+    public function testPushOrderWithoutCustomer(): void
+    {
+        $app = app(Apps::class);
+
+        // Get the order you want to push
+        $order = $this->createDraftOrder();
+
+        // Create the action
+        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+
+        // Push order to NetSuite without specifying a customer
+        $result = $pushAction->execute(
+            order: $order,
+            netsuiteCustomerId: null,
+            createCustomerIfNotExists: false
+        );
+
+        if ($result['success']) {
+            echo "Quote created successfully without customer!\n";
+            echo "NetSuite Quote ID: " . $result['data']['netsuite_quote_id'] . "\n";
+        } else {
+            echo "Error: " . $result['message'] . "\n";
+        }
+    }
+
+
+    public function updateExistingQuote(): void
+    {
+        $app = app(Apps::class);
+
+        // Get the order that was already pushed to NetSuite
+        $order = $this->createDraftOrder();
+
+        // Create the action
+        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+
+        // Update the existing quote
+        $result = $pushAction->updateQuote($order);
+
+        if ($result['success']) {
+            echo "Quote updated successfully!\n";
+            echo "NetSuite Quote ID: " . $result['data']['netsuite_quote_id'] . "\n";
+        } else {
+            echo "Error: " . $result['message'] . "\n";
+        }
+    }
+
+
+    public function testConvertQuoteToSalesOrder(): void
+    {
+        $app = app(Apps::class);
+
+        // Get the order that has an associated NetSuite quote
+        $order = $this->createDraftOrder();
+
+        // Create the action
+        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+
+        // Convert the quote to a sales order
+        $result = $pushAction->convertQuoteToSalesOrder($order);
+
+        if ($result['success']) {
+            echo "Quote converted to sales order successfully!\n";
+            echo "NetSuite Sales Order ID: " . $result['data']['netsuite_sales_order_id'] . "\n";
+            echo "NetSuite Sales Order Number: " . $result['data']['netsuite_sales_order_number'] . "\n";
+        } else {
+            echo "Error: " . $result['message'] . "\n";
+        }
+    }
+
+
+    public function testSyncOrderStatus(): void
+    {
+        $app = app(Apps::class);
+
+        // Get the order that has an associated NetSuite quote
+        $order = $this->createDraftOrder();
+
+        // Create the action
+        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+
+        // Sync status from NetSuite
+        $result = $pushAction->syncOrderStatusFromNetSuite($order);
+
+        if ($result['success']) {
+            echo "Order status synced successfully!\n";
+            echo "NetSuite Quote Status: " . $result['data']['netsuite_quote_status'] . "\n";
+        } else {
+            echo "Error: " . $result['message'] . "\n";
+        }
+    }
+
+    public function testCheckOrderNetSuiteStatus(): void
+    {
+        $order = $this->createDraftOrder();
+
+        $netsuiteQuoteId = $order->getMetadata('netsuite_quote_id');
+        $netsuiteQuoteNumber = $order->getMetadata('netsuite_quote_number');
+        $netsuiteStatus = $order->getMetadata('netsuite_quote_status');
+        $pushedAt = $order->getMetadata('netsuite_pushed_at');
+
+        if ($netsuiteQuoteId) {
+            echo "Order has been pushed to NetSuite:\n";
+            echo "  Quote ID: $netsuiteQuoteId\n";
+            echo "  Quote Number: $netsuiteQuoteNumber\n";
+            echo "  Status: $netsuiteStatus\n";
+            echo "  Pushed At: $pushedAt\n";
+
+            // Check if it's been converted to sales order
+            $salesOrderId = $order->getMetadata('netsuite_sales_order_id');
+            if ($salesOrderId) {
+                echo "  Sales Order ID: $salesOrderId\n";
+                echo "  Sales Order Number: " . $order->getMetadata('netsuite_sales_order_number') . "\n";
+                echo "  Converted At: " . $order->getMetadata('netsuite_converted_at') . "\n";
+            }
+        } else {
+            echo "Order has not been pushed to NetSuite yet.\n";
+        }
+    }
+
+    public function testBatchPushOrders(): void
+    {
+        $app = app(Apps::class);
+
+        // Get orders that haven't been pushed to NetSuite
+        $orders = Order::whereCompleted()
+            ->get()
+            ->filter(function (Order $order) {
+                return !$order->getMetadata('netsuite_quote_id');
+            });
+
+        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+
+        $results = [];
+        foreach ($orders as $order) {
+            echo "Processing Order #{$order->getOrderNumber()}...\n";
+
+            $result = $pushAction->execute(
+                order: $order,
+                netsuiteCustomerId: null,
+                createCustomerIfNotExists: false
+            );
+
+            $results[] = $result;
+
+            if ($result['success']) {
+                echo "  ✓ Success - Quote ID: {$result['data']['netsuite_quote_id']}\n";
+            } else {
+                echo "  ✗ Failed - {$result['message']}\n";
+            }
+
+            // Add delay to avoid rate limiting
+            sleep(1);
+        }
+
+        $successful = array_filter($results, fn($r) => $r['success']);
+        $failed = array_filter($results, fn($r) => !$r['success']);
+
+        echo "\nBatch processing completed.\n";
+    }
+}

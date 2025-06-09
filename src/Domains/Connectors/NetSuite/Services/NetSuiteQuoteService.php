@@ -62,6 +62,7 @@ class NetSuiteQuoteService
             // Set item reference (you may need to map SKU to NetSuite item internal ID)
             $itemRef = new RecordRef();
             $itemRef->name = $orderItem->product_sku;
+            $itemRef->type = 'inventoryItem';
             $estimateItem->item = $itemRef;
 
             $estimateItem->quantity = $orderItem->quantity;
@@ -185,7 +186,7 @@ class NetSuiteQuoteService
         $response = $this->service->update($updateRequest);
 
         if ($response->writeResponse->status->isSuccess) {
-            return $response->writeResponse->record;
+            return $response->writeResponse;
         } else {
             throw new Exception('Error updating quote: ' . $response->writeResponse->status->statusDetail[0]->message);
         }
@@ -240,7 +241,7 @@ class NetSuiteQuoteService
         $response = $this->service->add($addRequest);
 
         if ($response->writeResponse->status->isSuccess) {
-            return $response->writeResponse->record;
+            return $response->writeResponse;
         } else {
             throw new Exception('Error converting quote to sales order: ' . $response->writeResponse->status->statusDetail[0]->message);
         }

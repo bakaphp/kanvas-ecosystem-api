@@ -26,23 +26,21 @@ trait InventoryCases
 {
     public function createProduct(array $data = [], array $attributes = []): TestResponse
     {
-        if (empty($data)) {
-            $name = fake()->name;
-            $data = [
-                'name' => $name,
-                'description' => fake()->text,
-                'sku' => fake()->time,
-                'slug' => Str::slug($name),
-                'weight' => 1,
-                'attributes' => [
-                    [
-                        'name' => fake()->name,
-                        'value' => fake()->name,
-                    ],
-                    ...$attributes,
+        $name =  $data['name'] ?? fake()->name;
+        $data = [
+            'name' => $name,
+            'description' => $data['description'] ?? fake()->text,
+            'sku' => $data['sku'] ?? fake()->time,
+            'slug' => Str::slug($name),
+            'weight' => $data['weight'] ?? 1,
+            'attributes' => [
+                [
+                    'name' => fake()->name,
+                    'value' => fake()->name,
                 ],
-            ];
-        }
+                ...$attributes,
+            ],
+        ];
 
         return $this->graphQL('
             mutation($data: ProductInput!) {
@@ -289,7 +287,7 @@ trait InventoryCases
             new DataTransferObjectAttributes(
                 app: $app,
                 company: $company,
-                user : $user,
+                user: $user,
                 name: 'Default',
                 slug: 'default',
                 attributeType: null
