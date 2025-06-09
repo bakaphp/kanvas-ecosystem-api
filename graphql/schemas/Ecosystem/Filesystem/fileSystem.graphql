@@ -7,7 +7,7 @@ type Filesystem {
     size: Float!
     field_name: String
     attributes: Mixed
-    created_at: DateTimeTz
+    created_at: DateTimeTz @method(name: "createdAt")
 }
 
 input FilesystemInputUrl {
@@ -60,6 +60,10 @@ extend type Mutation @guard {
     deAttachFiles(uuids: [String!]!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@deAttachFiles"
+        )
+    deleteFile(uuid: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@deleteFile"
         )
     uploadCsv(file: Upload!): Mixed!
         @field(
