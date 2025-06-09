@@ -271,7 +271,7 @@ class Lead extends BaseModel
                 ],
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'uuid',
