@@ -18,6 +18,8 @@ use Kanvas\Social\Models\BaseModel;
  */
 class Interactions extends BaseModel
 {
+ 
+    protected $connection = 'social';
     protected $table = 'interactions';
     protected $guarded = [];
 }

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
+use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -83,6 +84,11 @@ class Notifications extends BaseModel
         return $this->belongsTo(NotificationTypes::class, 'notification_type_id');
     }
 
+    public function interaction(): BelongsTo
+    {
+        return $this->belongsTo(Interactions::class, 'interaction_id');
+    }
+
     /**
      * Not deleted scope.
      */
@@ -108,7 +114,7 @@ class Notifications extends BaseModel
                 if ($systemModuleFilter['name']) {
                     $notificationSystemModule = SystemModulesRepository::getByName($systemModuleFilter['name'], $app);
                     $query->where('system_modules_id', $notificationSystemModule->getId());
-                    
+
                     if ($notificationSystemModule::class == Message::class && isset($systemModuleFilter['message_type_verb'])) {
                         $query->getQuery()->join('messages', 'messages.id', '=', 'notifications.entity_id');
 
@@ -119,9 +125,19 @@ class Notifications extends BaseModel
             });
         }
 
+        if (isset($args['whereInteraction']) && $args['whereInteraction']['name']) {
+                $interaction = Interactions::fromApp($app)
+                    ->where('name', $args['whereInteraction']['name'])
+                    ->where('is_deleted', 0)
+                    ->first();
+                if ($interaction) {
+                    $query->where('interaction_id', $interaction->getId());
+                }
+        }
+
         return $query->where('users_id', auth()->user()->id)
-                ->where('is_deleted', StateEnums::NO->getValue())
-                ->where('apps_id', $app->id);
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->where('apps_id', $app->id);
     }
 
     /**
