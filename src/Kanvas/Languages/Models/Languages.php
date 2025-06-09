@@ -8,6 +8,7 @@ use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Kanvas\Languages\Factories\LanguagesFactory;
 use Kanvas\Models\BaseModel;
+use Override;
 
 /**
  * Languages Class.
@@ -22,13 +23,9 @@ class Languages extends BaseModel
     use HasFactory;
     //public $incrementing = false;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'languages';
 
+    #[Override]
     protected static function newFactory()
     {
         return LanguagesFactory::new();

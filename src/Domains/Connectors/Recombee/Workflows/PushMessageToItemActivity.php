@@ -16,7 +16,7 @@ use Throwable;
 
 class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    public $tries = 3;
+    public $tries = 4;
 
     /**
      * @param \Kanvas\Social\Messages\Models\Message $message
