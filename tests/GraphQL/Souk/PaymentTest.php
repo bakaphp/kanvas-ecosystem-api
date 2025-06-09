@@ -124,4 +124,94 @@ class PaymentTest extends TestCase
 
         $response->assertSuccessful();
     }
+
+    public function testCreatePaymentMethodVisa()
+    {
+        // Perform GraphQL mutation to create a payment method
+        $response = $this->graphQL('
+            mutation createPaymentMethod($input: PaymentMethodInput!) {
+                createPaymentMethod(input: $input) {
+                    payment_methods_brand
+                }
+            }
+        ', [
+            'input' => [
+                ...$this->getCardData(),
+                'processor' => null,
+                'brand' => null,
+                'number' => '4111111111111111',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+        $response->assertJson([
+            'data' => [
+                'createPaymentMethod' => [
+                    'payment_methods_brand' => 'visa',
+                ],
+            ],
+        ]);
+    }
+
+    public function testCreatePaymentMethodMastercard()
+    {
+        // Perform GraphQL mutation to create a payment method
+        $response = $this->graphQL('
+            mutation createPaymentMethod($input: PaymentMethodInput!) {
+                createPaymentMethod(input: $input) {
+                    payment_methods_brand
+                }
+            }
+        ', [
+            'input' => [
+                ...$this->getCardData(),
+                'processor' => null,
+                'brand' => null,
+                'number' => '5555555555554444',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+        $response->assertJson([
+            'data' => [
+                'createPaymentMethod' => [
+                    'payment_methods_brand' => 'mastercard',
+                ],
+            ],
+        ]);
+    }
+
+    public function testCreatePaymentMethodAmex()
+    {
+        // Perform GraphQL mutation to create a payment method
+        $response = $this->graphQL('
+            mutation createPaymentMethod($input: PaymentMethodInput!) {
+                createPaymentMethod(input: $input) {
+                    payment_methods_brand
+                }
+            }
+        ', [
+            'input' => [
+                ...$this->getCardData(),
+                'processor' => null,
+                'brand' => null,
+                'number' => '378282246310005',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+        $response->assertJson([
+            'data' => [
+                'createPaymentMethod' => [
+                    'payment_methods_brand' => 'amex',
+                ],
+            ],
+        ]);
+    }
 }

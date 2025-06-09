@@ -14,7 +14,7 @@ type PaymentMethod {
 input PaymentMethodInput{
     number: String!
     expiration_date: String!
-    brand: String!
+    brand: String
     processor: String
     metadata: Mixed
     address: String!
