@@ -82,7 +82,7 @@ class VariantService
             }
 
             if (! empty($variantDto->files)) {
-                $variantModel->overWriteFiles($variantDto->files);
+                $variantModel->overWriteFiles($variantDto->files, $product->app, true);
             }
 
             if (isset($variant['warehouses'])) {
