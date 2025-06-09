@@ -22,6 +22,7 @@ class PaymentMethod extends Data
         public readonly string $zip_code,
         public readonly bool $is_default = false,
         public readonly bool $is_deleted = false,
+        public readonly ?string $instrument_identifier_id = null,
         public readonly string $processor = "stripe",
         public readonly mixed $metadata = [],
     ) {

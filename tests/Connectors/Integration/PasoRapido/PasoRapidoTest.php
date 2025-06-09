@@ -9,7 +9,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyCustomerResponse;
-use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyPaymentResponse;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Tests\TestCase;
 
