@@ -33,6 +33,8 @@ use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
+use Kanvas\Connectors\NetSuite\Webhooks\Activities\NetsuitePushOrderActivity;
+use Kanvas\Connectors\NetSuite\Webhooks\Activities\PushOrderActivity as ActivitiesPushOrderActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
@@ -193,6 +195,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ShopifyComplianceWebhookJob::class,
             PayFromWalletActivity::class,
             AddFundsToWalletActivity::class,
+            NetsuitePushOrderActivity::class,
         ];
 
         $createdActions = [];
