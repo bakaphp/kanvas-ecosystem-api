@@ -80,6 +80,32 @@ final class EchoPayTest extends EchoPayBase
         $this->assertArrayHasKey('paymentInstrumentId', $result);
     }
 
+    public function testUpdateCard()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $echoPayService = $this->getService($app, $company);
+
+        $tokenizedCard = $echoPayService->addCard($this->getCardData());
+        $result = $echoPayService->updateCard($tokenizedCard['paymentInstrumentId'], $this->getCardData());
+
+        $this->assertArrayHasKey('cardNumber', $result);
+        $this->assertArrayHasKey('expirationDate', $result);
+        $this->assertArrayHasKey('instrumentIdentifierId', $result);
+        $this->assertArrayHasKey('paymentInstrumentId', $result);
+    }
+
+    public function testDeleteCard()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $echoPayService = $this->getService($app, $company);
+
+        $tokenizedCard = $echoPayService->addCard($this->getCardData());
+        $result = $echoPayService->deleteCard($tokenizedCard['paymentInstrumentId']);
+        $this->assertArrayHasKey('status', $result);
+    }
+
     public function testSetupPayer()
     {
         $app = app(Apps::class);

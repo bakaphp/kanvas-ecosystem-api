@@ -57,9 +57,12 @@ class LLMMessageResponseActivity extends KanvasActivity
                         'message_id' => $message->id,
                     ];
                 }
+
+                $nuggetTitle = $this->generateTitleByPrompt($prompt);
+
                 $messageInput = [
                     'message' => [
-                        'title' => 'Prompt Title',
+                        'title' => $nuggetTitle,
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                     ],
@@ -90,6 +93,14 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ),
                 ))->execute();
 
+                $promptChannel = $message->channels->first();
+
+                if ($promptChannel && empty($promptChannel->title)) {
+                    $promptChannel->name = $message->message['title'] ?? $nuggetTitle;
+                    $promptChannel->title = $promptChannel->name;
+                    $promptChannel->save();
+                }
+
                 return [
                     'result' => true,
                     'child_message' => $createMessage->toArray(),
@@ -113,9 +124,9 @@ class LLMMessageResponseActivity extends KanvasActivity
         }
 
         $response = Prism::text()
-           ->using(Provider::Gemini, 'gemini-2.0-flash')
-           ->withPrompt($prompt)
-           ->asText();
+            ->using(Provider::Gemini, 'gemini-2.0-flash')
+            ->withPrompt($prompt)
+            ->asText();
 
         return str_replace(['```', 'json'], '', $response->text);
     }
@@ -126,5 +137,15 @@ class LLMMessageResponseActivity extends KanvasActivity
         $prompt = $message->message['prompt'] ?? null;
 
         return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
+    }
+
+    private function generateTitleByPrompt(string $prompt): string
+    {
+        $response = Prism::text()
+            ->using(Provider::Gemini, 'gemini-2.0-flash')
+            ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
+            ->generate();
+
+        return str_replace(['```', 'json'], '', $response->text);
     }
 }

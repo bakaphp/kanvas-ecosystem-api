@@ -31,4 +31,5 @@ enum IntegrationsEnum: string
     case MINDEE = 'mindee';
     case SALESASSIST = 'salesassist';
     case ECHO_PAY = 'echo_pay';
+    case PLUSVAL = 'plusval';
 }
