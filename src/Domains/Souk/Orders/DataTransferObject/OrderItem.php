@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Currencies\Models\Currencies;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Regions\Models\Regions;
 use Spatie\LaravelData\Data;
 
 class OrderItem extends Data
@@ -28,9 +27,9 @@ class OrderItem extends Data
     ) {
     }
 
-    public static function viaRequest(AppInterface $app, CompanyInterface $company, Regions $region, array $request): self
+    public static function viaRequest(AppInterface $app, Regions $region, array $request): self
     {
-        $variant = Variants::getByIdFromCompanyApp($request['variant_id'], $company, $app);
+        $variant = Variants::getById($request['variant_id'], $app);
         $warehouse = $region->warehouses()->firstOrFail(); //@todo get product warehouse with  stock
         $price = isset($request['price']) ? (float) $request['price'] : $variant->getPrice($warehouse);
 
