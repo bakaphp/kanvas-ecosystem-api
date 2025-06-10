@@ -92,7 +92,7 @@ final class OrderTest extends TestCase
             'items' => [
                 [
                     'variant_id' => $this->variant->getId(),
-                    'quantity' => 1,
+                    'quantity' => 5,
                     'price' => 6,
                 ],
             ],
