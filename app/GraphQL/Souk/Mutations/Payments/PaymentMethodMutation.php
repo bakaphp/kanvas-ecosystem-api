@@ -119,7 +119,7 @@ class PaymentMethodMutation
         return $paymentMethod->delete();
     }
 
-    public function guessCardBrand($number)
+    public function guessCardBrand($number): ?string
     {
         $number = preg_replace('/[^0-9]/', '', $number);
 
@@ -148,7 +148,7 @@ class PaymentMethodMutation
         return null;
     }
 
-    private function isValidLuhn($number)
+    private function isValidLuhn($number): bool
     {
         $sum = 0;
         $length = strlen($number);
