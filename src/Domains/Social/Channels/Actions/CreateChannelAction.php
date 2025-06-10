@@ -39,7 +39,6 @@ class CreateChannelAction
             'apps_id' => $this->channelDto->apps->id,
             'companies_id' => $this->channelDto->companies->id,
             'slug' => $slug,
-            'entity_id', $this->channelDto->entity_id,
             'entity_id' => $this->channelDto->entity_id,
             'entity_namespace' => $this->channelDto->entity_namespace,
             'users_id' => $this->channelDto->users->id,
