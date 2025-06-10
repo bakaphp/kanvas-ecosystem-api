@@ -70,7 +70,14 @@ extend type Mutation @guard {
 extend type Query {
     paymentMethods(
         orderBy: PaymentMethodOrderByInput
-        where: PaymentMethodWhereInput
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "payment_methods_brand"
+                    "users_id"
+                ]
+            )
     ): [PaymentMethod!]!
         @paginate(
             defaultCount: 25 
@@ -78,9 +85,10 @@ extend type Query {
             scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
     
-    paymentMethod(id: Int!): PaymentMethod 
+    paymentMethod(id: ID!): PaymentMethod!
         @find(
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
 }
 
