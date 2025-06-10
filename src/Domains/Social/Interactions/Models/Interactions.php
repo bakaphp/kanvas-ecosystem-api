@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Interactions\Models;
 
-use Kanvas\Social\Models\BaseModel;
 use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Models\BaseModel;
 
 /**
  * Class Interactions.

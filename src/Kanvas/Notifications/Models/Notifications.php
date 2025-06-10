@@ -14,9 +14,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -126,10 +126,10 @@ class Notifications extends BaseModel
         }
 
         if (isset($args['whereInteraction']) && $args['whereInteraction']['name']) {
-                $interaction = Interactions::fetchByName($args['whereInteraction']['name'], $app);
-                if ($interaction) {
-                    $query->where('interaction_id', $interaction->getId());
-                }
+            $interaction = Interactions::fetchByName($args['whereInteraction']['name'], $app);
+            if ($interaction) {
+                $query->where('interaction_id', $interaction->getId());
+            }
         }
 
         return $query->where('users_id', auth()->user()->id)
