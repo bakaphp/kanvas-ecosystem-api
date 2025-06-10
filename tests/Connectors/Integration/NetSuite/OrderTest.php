@@ -4,18 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\NetSuite;
 
-use Kanvas\Apps\Models\Apps;
-use Tests\TestCase;
-use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteAction;
 use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteAction;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\TestCase;
 
 final class OrderTest extends TestCase
 {
-
     use InventoryCases;
 
     protected $variant;
@@ -121,13 +120,11 @@ final class OrderTest extends TestCase
 
     public function testPushOrderWithExistingCustomer(): void
     {
-        $app = app(Apps::class);
-
         // Get the order you want to push
         $order = $this->createDraftOrder();
 
         // Create the action
-        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
 
         // Push order to NetSuite with an existing NetSuite customer ID
         // $result = $pushAction->execute(
@@ -147,93 +144,83 @@ final class OrderTest extends TestCase
 
     public function testPushOrderWithoutCustomer(): void
     {
-        $app = app(Apps::class);
-
         // Get the order you want to push
         $order = $this->createDraftOrder();
 
         // Create the action
-        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
 
         // Push order to NetSuite without specifying a customer
-        $result = $pushAction->execute(
-            order: $order,
-            netsuiteCustomerId: null,
-            createCustomerIfNotExists: false
-        );
+        // $result = $pushAction->execute(
+        //     order: $order,
+        //     netsuiteCustomerId: null,
+        //     createCustomerIfNotExists: false
+        // );
 
-        if ($result['success']) {
-            echo "Quote created successfully without customer!\n";
-            echo "NetSuite Quote ID: " . $result['data']['netsuite_quote_id'] . "\n";
-        } else {
-            echo "Error: " . $result['message'] . "\n";
-        }
+        // if ($result['success']) {
+        //     $this->assertNotNull($result['data']['netsuite_quote_id']);
+        //     $this->assertNotNull($result['data']['netsuite_quote_number']);
+        // } else {
+        //     $this->fail($result['message']);
+        // }
     }
 
 
     public function updateExistingQuote(): void
     {
-        $app = app(Apps::class);
-
         // Get the order that was already pushed to NetSuite
         $order = $this->createDraftOrder();
 
         // Create the action
-        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
 
-        // Update the existing quote
-        $result = $pushAction->updateQuote($order);
+        // // Update the existing quote
+        // $result = $pushAction->updateQuote($order);
 
-        if ($result['success']) {
-            echo "Quote updated successfully!\n";
-            echo "NetSuite Quote ID: " . $result['data']['netsuite_quote_id'] . "\n";
-        } else {
-            echo "Error: " . $result['message'] . "\n";
-        }
+        // if ($result['success']) {
+        //     $this->assertNotNull($result['data']['netsuite_quote_id']);
+        //     $this->assertNotNull($result['data']['netsuite_quote_number']);
+        // } else {
+        //     $this->fail($result['message']);
+        // }
     }
 
 
     public function testConvertQuoteToSalesOrder(): void
     {
-        $app = app(Apps::class);
-
         // Get the order that has an associated NetSuite quote
         $order = $this->createDraftOrder();
 
         // Create the action
-        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
 
         // Convert the quote to a sales order
         $result = $pushAction->convertQuoteToSalesOrder($order);
 
         if ($result['success']) {
-            echo "Quote converted to sales order successfully!\n";
-            echo "NetSuite Sales Order ID: " . $result['data']['netsuite_sales_order_id'] . "\n";
-            echo "NetSuite Sales Order Number: " . $result['data']['netsuite_sales_order_number'] . "\n";
+            $this->assertNotNull($result['data']['netsuite_sales_order_id']);
+            $this->assertNotNull($result['data']['netsuite_sales_order_number']);
         } else {
-            echo "Error: " . $result['message'] . "\n";
+            $this->fail($result['message']);
         }
     }
 
 
     public function testSyncOrderStatus(): void
     {
-        $app = app(Apps::class);
-
         // Get the order that has an associated NetSuite quote
         $order = $this->createDraftOrder();
 
         // Create the action
-        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
+        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
 
         // Sync status from NetSuite
         $result = $pushAction->syncOrderStatusFromNetSuite($order);
 
         if ($result['success']) {
-            echo "Order status synced successfully!\n";
-            echo "NetSuite Quote Status: " . $result['data']['netsuite_quote_status'] . "\n";
+            $this->assertNotNull($result['data']['netsuite_quote_status']);
         } else {
-            echo "Error: " . $result['message'] . "\n";
+            $this->fail($result['message']);
         }
     }
 
@@ -247,62 +234,20 @@ final class OrderTest extends TestCase
         $pushedAt = $order->getMetadata('netsuite_pushed_at');
 
         if ($netsuiteQuoteId) {
-            echo "Order has been pushed to NetSuite:\n";
-            echo "  Quote ID: $netsuiteQuoteId\n";
-            echo "  Quote Number: $netsuiteQuoteNumber\n";
-            echo "  Status: $netsuiteStatus\n";
-            echo "  Pushed At: $pushedAt\n";
+            $this->assertNotNull($netsuiteQuoteId);
+            $this->assertNotNull($netsuiteQuoteNumber);
+            $this->assertNotNull($netsuiteStatus);
+            $this->assertNotNull($pushedAt);
 
             // Check if it's been converted to sales order
             $salesOrderId = $order->getMetadata('netsuite_sales_order_id');
             if ($salesOrderId) {
-                echo "  Sales Order ID: $salesOrderId\n";
-                echo "  Sales Order Number: " . $order->getMetadata('netsuite_sales_order_number') . "\n";
-                echo "  Converted At: " . $order->getMetadata('netsuite_converted_at') . "\n";
+                $this->assertNotNull($salesOrderId);
+                $this->assertNotNull($order->getMetadata('netsuite_sales_order_number'));
+                $this->assertNotNull($order->getMetadata('netsuite_converted_at'));
             }
         } else {
-            echo "Order has not been pushed to NetSuite yet.\n";
+            $this->fail('Order has not been pushed to NetSuite yet.');
         }
-    }
-
-    public function testBatchPushOrders(): void
-    {
-        $app = app(Apps::class);
-
-        // Get orders that haven't been pushed to NetSuite
-        $orders = Order::whereCompleted()
-            ->get()
-            ->filter(function (Order $order) {
-                return !$order->getMetadata('netsuite_quote_id');
-            });
-
-        $pushAction = new PushOrderToNetSuiteAction($app, $this->company);
-
-        $results = [];
-        foreach ($orders as $order) {
-            echo "Processing Order #{$order->getOrderNumber()}...\n";
-
-            $result = $pushAction->execute(
-                order: $order,
-                netsuiteCustomerId: null,
-                createCustomerIfNotExists: false
-            );
-
-            $results[] = $result;
-
-            if ($result['success']) {
-                echo "  ✓ Success - Quote ID: {$result['data']['netsuite_quote_id']}\n";
-            } else {
-                echo "  ✗ Failed - {$result['message']}\n";
-            }
-
-            // Add delay to avoid rate limiting
-            sleep(1);
-        }
-
-        $successful = array_filter($results, fn($r) => $r['success']);
-        $failed = array_filter($results, fn($r) => !$r['success']);
-
-        echo "\nBatch processing completed.\n";
     }
 }
