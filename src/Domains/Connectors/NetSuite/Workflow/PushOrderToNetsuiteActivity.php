@@ -1,35 +1,38 @@
 <?php
 
-namespace Kanvas\Connectors\NetSuite\Webhooks\Activities;
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\NetSuite\Workflow;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteAction;
+use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-class NetsuitePushOrderActivity extends KanvasActivity implements WorkflowActivityInterface
+class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
 
-
         return $this->executeIntegration(
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::NETSUITE,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) {
-                $pushAction = new PushOrderToNetSuiteAction($app, $order->company);
+                $netsuiteCustomerId = $order->user->getCurrentCompany()->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value) ?? null;
 
-                $result = $pushAction->execute(
-                    order: $order,
-                    netsuiteCustomerId: null,
-                    createCustomerIfNotExists: false
-                );
+                $result = new PushOrderToNetSuiteAction($app, $order->company)
+                        ->execute(
+                            order: $order,
+                            netsuiteCustomerId: $netsuiteCustomerId,
+                            createCustomerIfNotExists: false
+                        );
 
                 return [
                     'order' => $order->getId(),

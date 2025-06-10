@@ -60,7 +60,7 @@ class PushOrderToNetSuiteAction
             ];
         } catch (Exception $e) {
             // Log the error (you might want to use your logging system)
-            error_log('NetSuite Quote Creation Error: ' . $e->getMessage());
+            report($e);
 
             return [
                 'success' => false,
@@ -105,7 +105,7 @@ class PushOrderToNetSuiteAction
                 ],
             ];
         } catch (Exception $e) {
-            error_log('NetSuite Quote Update Error: ' . $e->getMessage());
+            report($e);
 
             return [
                 'success' => false,
@@ -158,7 +158,7 @@ class PushOrderToNetSuiteAction
                 ],
             ];
         } catch (Exception $e) {
-            error_log('NetSuite Quote Conversion Error: ' . $e->getMessage());
+            report($e);
 
             return [
                 'success' => false,
@@ -202,35 +202,24 @@ class PushOrderToNetSuiteAction
     protected function handleCustomer(
         Order $order,
         ?string $netsuiteCustomerId,
-        bool $createCustomerIfNotExists
+        bool $syncCompanyAsCustomer
     ): ?string {
         // If NetSuite customer ID is provided, use it
         if ($netsuiteCustomerId) {
             return $netsuiteCustomerId;
         }
 
-        // Check if order already has NetSuite customer ID in custom fields
-        $existingCustomerId = $order->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
-        if ($existingCustomerId) {
-            return $existingCustomerId;
+        if ($syncCompanyAsCustomer) {
+            return (string) new SyncCompanyWithNetSuiteAction(
+                $this->app,
+                $order->company
+            )->execute()->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
         }
 
-        // Fallback to metadata for backward compatibility
-        $existingCustomerId = $order->getMetadata('netsuite_customer_id');
-        if ($existingCustomerId) {
-            return $existingCustomerId;
-        }
-
-        // If we should create customer automatically and have people information
-        if ($createCustomerIfNotExists && $order->people_id) {
-            // You would need to implement customer creation logic here
-            // This is a placeholder - you'd need to create a NetSuite customer creation service
-            throw new Exception('Automatic customer creation not implemented. Please provide netsuite_customer_id.');
-        }
-
-        // If no customer information is available, we can still create a quote without a customer
-        // NetSuite allows quotes without customers in some configurations
-        return null;
+        return (string) new SyncPeopleWithNetSuiteAction(
+            $this->app,
+            $order->people
+        )->execute()->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
     }
 
     /**
@@ -302,6 +291,8 @@ class PushOrderToNetSuiteAction
                 ],
             ];
         } catch (Exception $e) {
+            report($e);
+
             return [
                 'success' => false,
                 'message' => 'Failed to sync order status from NetSuite: ' . $e->getMessage(),

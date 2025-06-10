@@ -23,8 +23,6 @@ final class OrderTest extends TestCase
     protected $user;
     protected $apps;
 
-
-
     public function setUp(): void
     {
         parent::setUp();
@@ -46,8 +44,8 @@ final class OrderTest extends TestCase
             attributes: [
                 [
                     'name' => 'slots',
-                    'value' => 100
-                ]
+                    'value' => 100,
+                ],
             ]
         )->json()['data']['createProduct'];
 
@@ -65,7 +63,6 @@ final class OrderTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: (string) $variant->getId(),
@@ -115,6 +112,7 @@ final class OrderTest extends TestCase
         ]);
 
         $order = Order::find($response->json('data.createDraftOrder.id'));
+
         return $order;
     }
 
@@ -127,20 +125,19 @@ final class OrderTest extends TestCase
         $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
 
         // Push order to NetSuite with an existing NetSuite customer ID
-        // $result = $pushAction->execute(
-        //     order: $order,
-        //     netsuiteCustomerId: getenv('NET_SUITE_CUSTOMER_ID'), // NetSuite customer internal ID
-        //     createCustomerIfNotExists: false
-        // );
+        $result = $pushAction->execute(
+            order: $order,
+            netsuiteCustomerId: getenv('NET_SUITE_CUSTOMER_ID'), // NetSuite customer internal ID
+            createCustomerIfNotExists: false
+        );
 
-        // if ($result['success']) {
-        //     $this->assertNotNull($result['data']['netsuite_quote_id']);
-        //     $this->assertNotNull($result['data']['netsuite_quote_number']);
-        // } else {
-        //     $this->fail($result['message']);
-        // }
+        if ($result['success']) {
+            $this->assertNotNull($result['data']['netsuite_quote_id']);
+            $this->assertNotNull($result['data']['netsuite_quote_number']);
+        } else {
+            $this->fail($result['message']);
+        }
     }
-
 
     public function testPushOrderWithoutCustomer(): void
     {
@@ -151,20 +148,19 @@ final class OrderTest extends TestCase
         $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
 
         // Push order to NetSuite without specifying a customer
-        // $result = $pushAction->execute(
-        //     order: $order,
-        //     netsuiteCustomerId: null,
-        //     createCustomerIfNotExists: false
-        // );
+        $result = $pushAction->execute(
+            order: $order,
+            netsuiteCustomerId: null,
+            createCustomerIfNotExists: false
+        );
 
-        // if ($result['success']) {
-        //     $this->assertNotNull($result['data']['netsuite_quote_id']);
-        //     $this->assertNotNull($result['data']['netsuite_quote_number']);
-        // } else {
-        //     $this->fail($result['message']);
-        // }
+        if ($result['success']) {
+            $this->assertNotNull($result['data']['netsuite_quote_id']);
+            $this->assertNotNull($result['data']['netsuite_quote_number']);
+        } else {
+            $this->fail($result['message']);
+        }
     }
-
 
     public function updateExistingQuote(): void
     {
@@ -175,16 +171,15 @@ final class OrderTest extends TestCase
         $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
 
         // // Update the existing quote
-        // $result = $pushAction->updateQuote($order);
+        $result = $pushAction->updateQuote($order);
 
-        // if ($result['success']) {
-        //     $this->assertNotNull($result['data']['netsuite_quote_id']);
-        //     $this->assertNotNull($result['data']['netsuite_quote_number']);
-        // } else {
-        //     $this->fail($result['message']);
-        // }
+        if ($result['success']) {
+            $this->assertNotNull($result['data']['netsuite_quote_id']);
+            $this->assertNotNull($result['data']['netsuite_quote_number']);
+        } else {
+            $this->fail($result['message']);
+        }
     }
-
 
     public function testConvertQuoteToSalesOrder(): void
     {
@@ -204,7 +199,6 @@ final class OrderTest extends TestCase
             $this->fail($result['message']);
         }
     }
-
 
     public function testSyncOrderStatus(): void
     {
