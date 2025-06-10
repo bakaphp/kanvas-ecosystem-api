@@ -20,6 +20,8 @@ trait PaymentCases
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
 
+        print_r($response->json());
+
         return $response->json('data.createPaymentMethod');
     }
 
