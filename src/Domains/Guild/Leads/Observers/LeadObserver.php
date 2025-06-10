@@ -74,11 +74,11 @@ class LeadObserver
                         $lead->app,
                         $lead->company,
                         $lead->user,
-                        (string)$lead->id,
+                        (string)$lead->getKey(),
                         Lead::class,
                         'Default Channel',
                         $lead->description ?? '',
-                        $lead->uuid
+                        $lead->uuid->toString()
                     )
                 )
             )->execute();
