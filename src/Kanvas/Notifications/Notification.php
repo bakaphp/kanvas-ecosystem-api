@@ -24,6 +24,7 @@ use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Traits\NotificationOneSignalTrait;
 use Kanvas\Notifications\Traits\NotificationRenderTrait;
 use Kanvas\Notifications\Traits\NotificationStorageTrait;
+use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Override;
@@ -39,6 +40,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected Apps $app;
     protected ?string $subject = null;
     protected ?NotificationTypes $type = null;
+    protected ?Interactions $interaction = null;
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
     protected ?CompanyInterface $company = null;
@@ -223,5 +225,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         }
 
         return $primaryEmail;
+    }
+
+    public function setInteraction(string $name): void
+    {
+        $this->interaction = Interactions::fetchByName($name, $this->app);
     }
 }
