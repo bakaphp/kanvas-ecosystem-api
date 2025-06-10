@@ -19,12 +19,14 @@ use NetSuite\NetSuiteService;
 class NetSuiteQuoteService
 {
     protected NetSuiteService $service;
+    protected NetSuiteProductService $productService;
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
         $this->service = (new Client($app, $company))->getService();
+        $this->productService = new NetSuiteProductService($app, $company);
     }
 
     /**
@@ -59,10 +61,12 @@ class NetSuiteQuoteService
         foreach ($order->items as $orderItem) {
             $estimateItem = new EstimateItem();
 
+            $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($orderItem->product_sku);
             // Set item reference (you may need to map SKU to NetSuite item internal ID)
             $itemRef = new RecordRef();
             $itemRef->name = $orderItem->product_sku;
             $itemRef->type = 'inventoryItem';
+            $itemRef->internalId = $searchNetsuiteProductInfo[0]->internalId;
             $estimateItem->item = $itemRef;
 
             $estimateItem->quantity = $orderItem->quantity;
@@ -124,7 +128,7 @@ class NetSuiteQuoteService
         $response = $this->service->add($addRequest);
 
         if ($response->writeResponse->status->isSuccess) {
-            return $response->writeResponse->record;
+            return $this->getQuoteById($response->writeResponse->baseRef->internalId);
         } else {
             $errorMessage = 'Error creating quote: ';
             if (isset($response->writeResponse->status->statusDetail[0]->message)) {
