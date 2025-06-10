@@ -329,7 +329,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 $attributesDto = AttributesDto::from([
                     'app' => app(Apps::class),
                     'user' => $user,
-                    'company' => $this->product->company,
+                    'company' => $this->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
                     'isVisible' => true,
