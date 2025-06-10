@@ -147,8 +147,8 @@ class EngagementMutation
         ];
 
         $engagementMessage = new EngagementMessage(
-            data: $data,
-            text: $messageEnglish,
+            data: array_merge($data, $messageData),
+            text: $companyAction->name,
             verb: $action,
             status: ActionStatusEnum::SENT->value,
             actionLink: $messageData['link'],
