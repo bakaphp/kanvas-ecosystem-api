@@ -19,6 +19,8 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
@@ -195,11 +197,18 @@ class EngagementMutation
         $pipeline = Pipeline::getBySlug($action, $app, $company);
         $stage = $pipeline->stages()->where('slug', ActionStatusEnum::SENT->value)->firstOrFail();
 
-        $leadChannel = $lead->socialChannel?->count() ? $lead->socialChannel->first() : null;
-        if ($leadChannel) {
-            $leadChannel->addMessage($createMessage, $user);
+        $channel = new CreateChannelAction(new Channel(
+            apps: $app,
+            companies: $lead->company,
+            users: $lead->user,
+            entity_id: $lead->getId(),
+            entity_namespace: Lead::class,
+            name: $lead->uuid,
+            slug: $lead->uuid,
+        ))->execute();
+        if ($channel) {
+            $channel->addMessage($createMessage, $user);
         }
-
         //save share history en company action history
         //generate link
         //create msg
@@ -303,9 +312,17 @@ class EngagementMutation
 
         $pipeline = Pipeline::getBySlug($action, $app, $company);
         $stage = $pipeline->stages()->where('slug', $status)->firstOrFail();
-        $leadChannel = $lead->socialChannel?->count() ? $lead->socialChannel->first() : null;
-        if ($leadChannel) {
-            $leadChannel->addMessage($createMessage, $user);
+        $channel = new CreateChannelAction(new Channel(
+            apps: $app,
+            companies: $lead->company,
+            users: $lead->user,
+            entity_id: $lead->getId(),
+            entity_namespace: Lead::class,
+            name: $lead->uuid,
+            slug: $lead->uuid,
+        ))->execute();
+        if ($channel) {
+            $channel->addMessage($createMessage, $user);
         }
 
         //save share history en company action history
