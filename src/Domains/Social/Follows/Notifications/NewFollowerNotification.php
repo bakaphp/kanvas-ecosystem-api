@@ -8,6 +8,7 @@ use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Notification;
 use Kanvas\Social\Follows\Enums\NotificationTemplateEnum;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
+use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Users\Models\Users;
 
 class NewFollowerNotification extends Notification
@@ -20,6 +21,7 @@ class NewFollowerNotification extends Notification
         $this->setType(EmailTemplateEnum::BLANK->value);
         $this->setTemplateName(NotificationTemplateEnum::EMAIL_NEW_FOLLOWER->value);
         $this->setPushTemplateName(NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value);
+        $this->setInteraction(InteractionEnum::FOLLOW->getValue());
         $this->setData($data);
         $this->channels = [
             //NotificationChannelEnum::getNotificationChannelBySlug('mail'),

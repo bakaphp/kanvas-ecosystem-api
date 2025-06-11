@@ -8,6 +8,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
+use Kanvas\Social\Enums\InteractionEnum;
 
 class ImageProcessingPushNotification extends CustomMessageNotification
 {
@@ -40,6 +41,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
         $this->setType(EmailTemplateEnum::BLANK->value);
         $this->setPushTemplateName($templates['push_template']);
         $this->setData($data);
+        $this->setInteraction(InteractionEnum::SYSTEM_INFO->getValue());
         //$this->setFromUser($user);
         $this->channels = $via;
     }

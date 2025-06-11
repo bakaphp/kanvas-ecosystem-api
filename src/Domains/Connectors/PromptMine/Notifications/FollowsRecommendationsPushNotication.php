@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
 use Kanvas\Notifications\Notification;
+use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
 
@@ -38,6 +39,7 @@ class FollowsRecommendationsPushNotication extends Notification
         $this->setType(EmailTemplateEnum::BLANK->value);
         $this->setPushTemplateName($templates['push_template']);
         $this->setData($data);
+        $this->setInteraction(InteractionEnum::RECOMMENDATIONS->getValue());
         $this->channels = $via;
     }
 }
