@@ -6,9 +6,9 @@ namespace Kanvas\Social\Follows\Notifications;
 
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Notification;
+use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Follows\Enums\NotificationTemplateEnum;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
-use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Users\Models\Users;
 
 class NewFollowerNotification extends Notification
