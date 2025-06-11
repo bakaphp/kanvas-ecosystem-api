@@ -63,14 +63,15 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
 
                     $publishedFromChat = isset($messageData['id']) && (int) $messageData['id'] > 0 && $entity->messageType->name === MessageTypeEnum::NUGGET->value;
 
-                    if (! $publishedFromChat) {
+                    if ($publishedFromChat) {
                         $messageFromChat = Message::getById(
                             $messageData['id'],
                             $entity->app
                         );
 
                         $messageFromChat->addMessage([
-                            'is_posted' > true,
+                            'is_posted' => true,
+                            'posted_message_id' => $entity->getId(),
                         ]);
                     }
                 }
