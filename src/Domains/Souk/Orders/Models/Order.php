@@ -213,6 +213,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function failed(): void
+    {
+        $this->status = 'failed';
+        $this->saveOrFail();
+    }
+
     public function cancel(): void
     {
         $this->status = 'canceled';

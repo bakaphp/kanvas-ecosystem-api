@@ -19,7 +19,7 @@ class CreatePaymentAction
     public function execute($formData = []): Payments
     {
         $formData = [
-            "amount" => $this->order->getTotalAmount(),
+            "amount" => $formData['amount'] ?? $this->order->getTotalAmount(),
             "payment_date" => $formData['payment_date'] ?? date("Y-m-d"),
             "concept" => $formData['concept'] ?? "Payment {$this->order->reference}",
             "payment_methods_id" => $formData['payment_methods_id'] ?? $this->order->payment_method_id,

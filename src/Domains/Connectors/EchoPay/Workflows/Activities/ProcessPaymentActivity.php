@@ -74,6 +74,6 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
         $order->set(CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value, $app->get($orderType->name . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value));
         $order->set(CustomFieldEnum::ECHO_PAY_CONTRACT->value, $app->get($orderType->name . '_' . CustomFieldEnum::ECHO_PAY_CONTRACT->value));
 
-        return $order->get(CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value);
+        return $order->get(CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value) ?? false;
     }
 }

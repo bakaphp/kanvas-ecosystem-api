@@ -9,4 +9,5 @@ enum OrderStatusEnum: string
     case COMPLETED = 'completed';
     case DRAFT = 'draft';
     case CANCELED = 'canceled';
+    case FAILED = 'failed';
 }

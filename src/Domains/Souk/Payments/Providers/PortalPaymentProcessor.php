@@ -224,6 +224,13 @@ class PortalPaymentProcessor
         } catch (Throwable $e) {
             report($e);
 
+            $payment->status = PaymentStatusEnum::FAILED;
+            $payment->addPrivateMetadata('enrollment_data', $enrollmentData);
+            $payment->addPrivateMetadata('error', $e->getMessage());
+            $payment->save();
+
+            $payment->order->failed();
+
             return [
                 'status' => 'error',
                 'message' => 'Payment failed: ' . $e->getMessage(),
