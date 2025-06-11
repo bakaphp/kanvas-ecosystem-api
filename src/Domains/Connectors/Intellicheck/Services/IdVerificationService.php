@@ -193,7 +193,7 @@ class IdVerificationService
             }
 
             // Add score-based flags (no failures for risk scores now)
-            if ($scoresAbove75 >= 2) {
+            if ($scoresAbove75 >= 1) {
                 $flags[] = 'Multiple risk scores >= 75';
                 if ($riskScore >= 75) {
                     $flags[] = 'Risk score';

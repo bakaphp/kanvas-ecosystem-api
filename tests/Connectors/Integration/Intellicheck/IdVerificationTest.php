@@ -565,7 +565,7 @@ final class IdVerificationTest extends TestCase
         $this->assertArrayHasKey('status', $verificationResults);
     }
 
-    public function testIdVerificationShowroomNoFlag()
+    public function testIdVerificationShowroomWithFlag()
     {
         $verificationData = $this->idVerificationFlag();
 
@@ -580,7 +580,7 @@ final class IdVerificationTest extends TestCase
         $name = $lead->people->name;
 
         $verificationResults = IdVerificationService::processVerificationData($verificationData, $name, $isShowRoom);
-        $this->assertEquals('green', $verificationResults['status']);
+        $this->assertEquals('flag', $verificationResults['status']);
         $this->assertArrayHasKey('flags', $verificationResults);
         $this->assertArrayHasKey('failures', $verificationResults);
         $this->assertArrayHasKey('results', $verificationResults);
