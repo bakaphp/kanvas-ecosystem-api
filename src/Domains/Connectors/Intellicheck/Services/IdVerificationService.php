@@ -224,10 +224,10 @@ class IdVerificationService
                 $flagGroups[] = 'behavior risk';
             }
 
-            if (strtolower($ipqsAddress['city'] ?? '') !== strtolower($idCheck['city'] ?? '')) {
-                $flags[] = 'City mismatch between IPQS and ID';
-                $flagGroups[] = 'connection risk';
-            }
+            /*   if (strtolower($ipqsAddress['city'] ?? '') !== strtolower($idCheck['city'] ?? '')) {
+                  $flags[] = 'City mismatch between IPQS and ID';
+                  $flagGroups[] = 'connection risk';
+              } */
 
             if (($ipqsAddress['country_code'] ?? 'US') !== 'US') {
                 $flags[] = 'Country code mismatch';
@@ -280,7 +280,7 @@ class IdVerificationService
 
         if (empty($failures)) {
             // Always make sure expired IDs are flagged
-            if ($isExpired || count($flags) >= 2 || $flagNotice) {
+            if ($isExpired || count($flags) >= 3 || $flagNotice) {
                 // Create message using flag groups
                 $flagReasons = [];
                 foreach ($flaggedGroups as $group) {
