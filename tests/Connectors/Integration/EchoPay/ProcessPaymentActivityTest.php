@@ -148,6 +148,9 @@ final class ProcessPaymentActivityTest extends TestCase
 
         $payment = $order->payments()->first();
         $result = $activity->execute($payment, $app, []);
+        if ($result["status"] != "success") {
+            $this->fail($result["message"]);
+        }
         $order->refresh();
         $this->assertEquals($result["status"], "success");
         $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value));

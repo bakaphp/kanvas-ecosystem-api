@@ -142,6 +142,7 @@ class PortalPaymentProcessor
     {
         $merchantAuthentication = $this->setupMerchantAuthentication(includeDetails: true);
         $service = $this->setupService($payment->order);
+
         $result = $this->client->payService(
             PaymentDetail::from([
                 'orderCode' => $payment->order->reference . '_' . $payment->order->id,
@@ -225,7 +226,7 @@ class PortalPaymentProcessor
 
             return [
                 'status' => 'error',
-                'message' => 'Payment failed',
+                'message' => 'Payment failed: ' . $e->getMessage(),
                 'response' => $e->getMessage(),
                 'data' => $enrollmentData,
             ];
