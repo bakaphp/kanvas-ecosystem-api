@@ -117,6 +117,8 @@ class MessageNotificationTest extends TestCase
             ],
         ]);
 
+        print_r($result);
+
         $this->assertArrayHasKey('message', $result);
         $this->assertArrayHasKey('message_id', $result);
     }
