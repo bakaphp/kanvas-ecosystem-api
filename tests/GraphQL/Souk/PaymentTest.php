@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
@@ -72,7 +73,11 @@ class PaymentTest extends TestCase
 
     public function testListPaymentMethods()
     {
-        $this->addPaymentMethod($this->company, $this->getCardData());
+        try {
+            $this->addPaymentMethod($this->company, $this->getCardData());
+        } catch (Exception $e) {
+            $this->fail('Error adding payment method: ' . $e->getMessage());
+        }
 
         // Get the payment methods
         $response = $this->graphQL('

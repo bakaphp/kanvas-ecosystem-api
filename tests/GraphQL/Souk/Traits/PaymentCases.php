@@ -2,6 +2,7 @@
 
 namespace Tests\GraphQL\Souk\Traits;
 
+use Exception;
 use Kanvas\Companies\Models\Companies;
 
 trait PaymentCases
@@ -20,7 +21,13 @@ trait PaymentCases
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
 
-        return $response->json('data.createPaymentMethod');
+        $paymentMethod = $response->json('data.createPaymentMethod');
+
+        if (! $paymentMethod) {
+            throw new Exception('Error adding payment method: ' . json_encode($response->json()));
+        }
+
+        return $paymentMethod;
     }
 
     public function getCardData(): array
