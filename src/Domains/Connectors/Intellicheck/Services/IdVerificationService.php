@@ -228,41 +228,41 @@ class IdVerificationService
                   $flags[] = 'City mismatch between IPQS and ID';
                   $flagGroups[] = 'connection risk';
               } */
+            /*
+                        if (($ipqsAddress['country_code'] ?? 'US') !== 'US') {
+                            $flags[] = 'Country code mismatch';
+                            $flagGroups[] = 'connection risk';
+                        }
 
-            if (($ipqsAddress['country_code'] ?? 'US') !== 'US') {
-                $flags[] = 'Country code mismatch';
-                $flagGroups[] = 'connection risk';
-            }
+                        if ($ipqsAddress['recent_abuse'] ?? false) {
+                            $flags[] = 'Recent abuse detected';
+                            $flagGroups[] = 'connection risk';
+                        }
 
-            if ($ipqsAddress['recent_abuse'] ?? false) {
-                $flags[] = 'Recent abuse detected';
-                $flagGroups[] = 'connection risk';
-            }
+                        if ($ipqsAddress['frequent_abuser'] ?? false) {
+                            $flags[] = 'Frequent abuser detected';
+                            $flagGroups[] = 'connection risk';
+                        }
 
-            if ($ipqsAddress['frequent_abuser'] ?? false) {
-                $flags[] = 'Frequent abuser detected';
-                $flagGroups[] = 'connection risk';
-            }
+                        if ($ipqsAddress['high_risk_attacks'] ?? false) {
+                            $flags[] = 'High risk attacks detected';
+                            $flagGroups[] = 'connection risk';
+                        }
 
-            if ($ipqsAddress['high_risk_attacks'] ?? false) {
-                $flags[] = 'High risk attacks detected';
-                $flagGroups[] = 'connection risk';
-            }
+                        if ($ipqsAddress['vpn'] ?? false) {
+                            $flags[] = 'VPN detected';
+                            $flagGroups[] = 'connection risk';
+                        }
 
-            if ($ipqsAddress['vpn'] ?? false) {
-                $flags[] = 'VPN detected';
-                $flagGroups[] = 'connection risk';
-            }
+                        if ($ipqsAddress['active_vpn'] ?? false) {
+                            $flags[] = 'Active VPN detected';
+                            $flagGroups[] = 'connection risk';
+                        }
 
-            if ($ipqsAddress['active_vpn'] ?? false) {
-                $flags[] = 'Active VPN detected';
-                $flagGroups[] = 'connection risk';
-            }
-
-            if (($ipqsAddress['abuse_velocity'] ?? '') === 'True') {
-                $flags[] = 'High abuse velocity detected';
-                $flagGroups[] = 'connection risk';
-            }
+                        if (($ipqsAddress['abuse_velocity'] ?? '') === 'True') {
+                            $flags[] = 'High abuse velocity detected';
+                            $flagGroups[] = 'connection risk';
+                        } */
         } else {
             // In showroom mode or empty IPQS data, add these values to results but set them to 0
             $results['risk_score'] = 0;
