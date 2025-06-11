@@ -82,6 +82,7 @@ use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
+use Kanvas\Social\Messages\Workflows\Activities\CheckMessageContentActivity;
 use Kanvas\Social\Messages\Workflows\Activities\DistributeMessageActivity;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationActivity;
@@ -193,6 +194,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ShopifyComplianceWebhookJob::class,
             PayFromWalletActivity::class,
             AddFundsToWalletActivity::class,
+            CheckMessageContentActivity::class
         ];
 
         $createdActions = [];
