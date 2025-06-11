@@ -84,6 +84,7 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
                     'message_data' => $entity->message,
                     'message_id' => $entity->getId(),
                     'update_chat' => $publishedFromChat,
+                    'message_chat' => isset($messageFromChat) && $messageFromChat instanceof Message ? $messageFromChat->toArray() : [],
                 ];
             },
             company: $company,
