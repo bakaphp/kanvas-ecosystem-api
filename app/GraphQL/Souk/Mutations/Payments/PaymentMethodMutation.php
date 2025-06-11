@@ -29,10 +29,10 @@ class PaymentMethodMutation
                 app: $app,
                 user: $user,
                 company: $company,
-                instrument_identifier_id: $input['instrument_identifier_id'],
+                instrument_identifier_id: $input['instrument_identifier_id'] ?? "",
                 payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
-                payment_methods_brand: $input['brand'],
-                stripe_card_id: $input['stripe_card_id'],
+                payment_methods_brand: $input['brand'] ?? $this->guessCardBrand($input['number']),
+                stripe_card_id: $input['stripe_card_id'] ?? "",
                 expiration_date: $input['expiration_date'],
                 zip_code: $input['zip_code'],
                 processor: $input['processor'] ?? null,
@@ -117,5 +117,54 @@ class PaymentMethodMutation
         }
 
         return $paymentMethod->delete();
+    }
+
+    public function guessCardBrand($number): ?string
+    {
+        $number = preg_replace('/[^0-9]/', '', $number);
+
+        if (! $this->isValidLuhn($number)) {
+            return null;
+        }
+
+        $firstDigit = substr($number, 0, 1);
+        $firstTwoDigits = substr($number, 0, 2);
+
+        // Visa
+        if ($firstDigit === '4') {
+            return 'visa';
+        }
+
+        // Mastercard
+        if ($firstTwoDigits >= '51' && $firstTwoDigits <= '55') {
+            return 'mastercard';
+        }
+
+        // American Express
+        if ($firstTwoDigits === '34' || $firstTwoDigits === '37') {
+            return 'amex';
+        }
+
+        return null;
+    }
+
+    private function isValidLuhn($number): bool
+    {
+        $sum = 0;
+        $length = strlen($number);
+        $parity = $length % 2;
+
+        for ($i = 0; $i < $length; $i++) {
+            $digit = $number[$i];
+            if ($i % 2 === $parity) {
+                $digit *= 2;
+                if ($digit > 9) {
+                    $digit -= 9;
+                }
+            }
+            $sum += $digit;
+        }
+
+        return $sum % 10 === 0;
     }
 }

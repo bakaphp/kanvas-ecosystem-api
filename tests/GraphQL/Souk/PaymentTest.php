@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
@@ -32,14 +33,12 @@ class PaymentTest extends TestCase
         ]);
         $this->apps = app(Apps::class);
 
-        if (empty($this->apps->get(ConfigurationEnum::SECRET->value))) {
-            $this->apps->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET_KEY'));
-            $this->apps->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
-            $this->apps->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
-            $this->apps->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
-            $this->apps->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
-            $this->apps->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
-        }
+        $this->apps->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
+        $this->apps->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
+        $this->apps->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
+        $this->apps->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $this->apps->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $this->apps->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
 
         $this->apps->setAppCompany($this->company);
 
@@ -72,7 +71,11 @@ class PaymentTest extends TestCase
 
     public function testListPaymentMethods()
     {
-        $this->addPaymentMethod($this->company, $this->getCardData());
+        try {
+            $this->addPaymentMethod($this->company, $this->getCardData());
+        } catch (Exception $e) {
+            $this->fail('Error adding payment method: ' . $e->getMessage());
+        }
 
         // Get the payment methods
         $response = $this->graphQL('
@@ -123,5 +126,95 @@ class PaymentTest extends TestCase
         ]);
 
         $response->assertSuccessful();
+    }
+
+    public function testCreatePaymentMethodVisa()
+    {
+        // Perform GraphQL mutation to create a payment method
+        $response = $this->graphQL('
+            mutation createPaymentMethod($input: PaymentMethodInput!) {
+                createPaymentMethod(input: $input) {
+                    payment_methods_brand
+                }
+            }
+        ', [
+            'input' => [
+                ...$this->getCardData(),
+                'processor' => null,
+                'brand' => null,
+                'number' => '4111111111111111',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+        $response->assertJson([
+            'data' => [
+                'createPaymentMethod' => [
+                    'payment_methods_brand' => 'visa',
+                ],
+            ],
+        ]);
+    }
+
+    public function testCreatePaymentMethodMastercard()
+    {
+        // Perform GraphQL mutation to create a payment method
+        $response = $this->graphQL('
+            mutation createPaymentMethod($input: PaymentMethodInput!) {
+                createPaymentMethod(input: $input) {
+                    payment_methods_brand
+                }
+            }
+        ', [
+            'input' => [
+                ...$this->getCardData(),
+                'processor' => null,
+                'brand' => null,
+                'number' => '5555555555554444',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+        $response->assertJson([
+            'data' => [
+                'createPaymentMethod' => [
+                    'payment_methods_brand' => 'mastercard',
+                ],
+            ],
+        ]);
+    }
+
+    public function testCreatePaymentMethodAmex()
+    {
+        // Perform GraphQL mutation to create a payment method
+        $response = $this->graphQL('
+            mutation createPaymentMethod($input: PaymentMethodInput!) {
+                createPaymentMethod(input: $input) {
+                    payment_methods_brand
+                }
+            }
+        ', [
+            'input' => [
+                ...$this->getCardData(),
+                'processor' => null,
+                'brand' => null,
+                'number' => '378282246310005',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+        $response->assertJson([
+            'data' => [
+                'createPaymentMethod' => [
+                    'payment_methods_brand' => 'amex',
+                ],
+            ],
+        ]);
     }
 }

@@ -27,7 +27,7 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command(RunHealthChecksCommand::class)->everyMinute();
         $schedule->command(DispatchQueueCheckJobsCommand::class)->everyMinute();
-        $schedule->command(ScheduleCheckHeartbeatCommand::class)->everyMinute();
+        #$schedule->command(ScheduleCheckHeartbeatCommand::class)->everyMinute();
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
