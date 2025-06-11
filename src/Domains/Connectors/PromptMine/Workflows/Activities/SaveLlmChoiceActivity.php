@@ -67,7 +67,7 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
                         $messageFromChat = Message::getById(
                             $messageData['id'],
                             $entity->app
-                        );
+                        )->children()->first();
 
                         $messageFromChat->addMessage([
                             'is_posted' => true,
