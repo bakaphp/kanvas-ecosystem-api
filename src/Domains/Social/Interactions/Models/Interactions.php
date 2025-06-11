@@ -25,7 +25,7 @@ class Interactions extends BaseModel
     protected $guarded = [];
 
 
-    public function fetchByName(string $name, ?AppInterface $app): self
+    public static function fetchByName(string $name, ?AppInterface $app): self
     {
         $app = $app ?? app(Apps::class);
         return Interactions::fromApp($app)
