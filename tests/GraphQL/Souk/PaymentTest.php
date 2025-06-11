@@ -33,14 +33,12 @@ class PaymentTest extends TestCase
         ]);
         $this->apps = app(Apps::class);
 
-        if (empty($this->apps->get(ConfigurationEnum::SECRET->value))) {
-            $this->apps->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET_KEY'));
-            $this->apps->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
-            $this->apps->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
-            $this->apps->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
-            $this->apps->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
-            $this->apps->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
-        }
+        $this->apps->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
+        $this->apps->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
+        $this->apps->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
+        $this->apps->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $this->apps->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $this->apps->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
 
         $this->apps->setAppCompany($this->company);
 
