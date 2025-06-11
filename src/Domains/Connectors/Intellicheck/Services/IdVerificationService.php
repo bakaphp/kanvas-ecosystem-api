@@ -280,7 +280,7 @@ class IdVerificationService
 
         if (empty($failures)) {
             // Always make sure expired IDs are flagged
-            if ($isExpired || count($flags) >= 3 || $flagNotice) {
+            if ($isExpired || count($flags) >= 2 || $flagNotice) {
                 // Create message using flag groups
                 $flagReasons = [];
                 foreach ($flaggedGroups as $group) {
