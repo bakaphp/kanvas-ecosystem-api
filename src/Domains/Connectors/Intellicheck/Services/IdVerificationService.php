@@ -224,10 +224,10 @@ class IdVerificationService
                 $flagGroups[] = 'behavior risk';
             }
 
-          /*   if (strtolower($ipqsAddress['city'] ?? '') !== strtolower($idCheck['city'] ?? '')) {
-                $flags[] = 'City mismatch between IPQS and ID';
-                $flagGroups[] = 'connection risk';
-            } */
+            /*   if (strtolower($ipqsAddress['city'] ?? '') !== strtolower($idCheck['city'] ?? '')) {
+                  $flags[] = 'City mismatch between IPQS and ID';
+                  $flagGroups[] = 'connection risk';
+              } */
 
             if (($ipqsAddress['country_code'] ?? 'US') !== 'US') {
                 $flags[] = 'Country code mismatch';
