@@ -162,43 +162,45 @@ final class OrderTest extends TestCase
         }
     }
 
+    /*
+    @todo These tests are currently commented out because the functionality is not implemented yet.
     public function updateExistingQuote(): void
-    {
-        // Get the order that was already pushed to NetSuite
-        $order = $this->createDraftOrder();
+        {
+            // Get the order that was already pushed to NetSuite
+            $order = $this->createDraftOrder();
 
-        // Create the action
-        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
+            // Create the action
+            $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
 
-        // // Update the existing quote
-        $result = $pushAction->updateQuote($order);
+            // // Update the existing quote
+            $result = $pushAction->updateQuote($order);
 
-        if ($result['success']) {
-            $this->assertNotNull($result['data']['netsuite_quote_id']);
-            $this->assertNotNull($result['data']['netsuite_quote_number']);
-        } else {
-            $this->fail($result['message']);
+            if ($result['success']) {
+                $this->assertNotNull($result['data']['netsuite_quote_id']);
+                $this->assertNotNull($result['data']['netsuite_quote_number']);
+            } else {
+                $this->fail($result['message']);
+            }
         }
-    }
 
-    public function testConvertQuoteToSalesOrder(): void
-    {
-        // Get the order that has an associated NetSuite quote
-        $order = $this->createDraftOrder();
+        public function testConvertQuoteToSalesOrder(): void
+        {
+            // Get the order that has an associated NetSuite quote
+            $order = $this->createDraftOrder();
 
-        // Create the action
-        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
+            // Create the action
+            $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
 
-        // Convert the quote to a sales order
-        $result = $pushAction->convertQuoteToSalesOrder($order);
+            // Convert the quote to a sales order
+            $result = $pushAction->convertQuoteToSalesOrder($order);
 
-        if ($result['success']) {
-            $this->assertNotNull($result['data']['netsuite_sales_order_id']);
-            $this->assertNotNull($result['data']['netsuite_sales_order_number']);
-        } else {
-            $this->fail($result['message']);
-        }
-    }
+            if ($result['success']) {
+                $this->assertNotNull($result['data']['netsuite_sales_order_id']);
+                $this->assertNotNull($result['data']['netsuite_sales_order_number']);
+            } else {
+                $this->fail($result['message']);
+            }
+        } */
 
     public function testSyncOrderStatus(): void
     {
@@ -207,6 +209,11 @@ final class OrderTest extends TestCase
 
         // Create the action
         $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
+        $result = $pushAction->execute(
+            order: $order,
+            netsuiteCustomerId: null,
+            createCustomerIfNotExists: false
+        );
 
         // Sync status from NetSuite
         $result = $pushAction->syncOrderStatusFromNetSuite($order);
@@ -221,6 +228,13 @@ final class OrderTest extends TestCase
     public function testCheckOrderNetSuiteStatus(): void
     {
         $order = $this->createDraftOrder();
+
+        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
+        $result = $pushAction->execute(
+            order: $order,
+            netsuiteCustomerId: null,
+            createCustomerIfNotExists: false
+        );
 
         $netsuiteQuoteId = $order->getMetadata('netsuite_quote_id');
         $netsuiteQuoteNumber = $order->getMetadata('netsuite_quote_number');

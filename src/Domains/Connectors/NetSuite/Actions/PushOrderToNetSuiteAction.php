@@ -40,9 +40,12 @@ class PushOrderToNetSuiteAction
 
             // Handle customer creation/lookup if needed
             $customerId = $this->handleCustomer($order, $netsuiteCustomerId, $createCustomerIfNotExists);
-
             // Create the quote in NetSuite
-            $netsuiteQuote = $this->quoteService->createQuoteFromOrder($order, $customerId);
+            $netsuiteQuote = $this->quoteService->createQuoteFromOrder(
+                $order,
+                $customerId,
+                $netsuiteCustomerId === null ? false : true //if customer doesnt exist we cant use custom rate for now
+            );
 
             // Store NetSuite quote information in order custom fields and metadata
             $this->updateOrderWithNetSuiteData($order, $netsuiteQuote);
@@ -214,6 +217,10 @@ class PushOrderToNetSuiteAction
                 $this->app,
                 $order->company
             )->execute()->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
+        }
+
+        if (! empty($order->user_email)) {
+            $order->people->addEmail($order->user_email);
         }
 
         return (string) new SyncPeopleWithNetSuiteAction(

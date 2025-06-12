@@ -32,7 +32,7 @@ class NetSuiteQuoteService
     /**
      * Create a NetSuite quote (estimate) from a Kanvas order
      */
-    public function createQuoteFromOrder(Order $order, ?string $netsuiteCustomerId = null): Estimate
+    public function createQuoteFromOrder(Order $order, ?string $netsuiteCustomerId = null, bool $customRate = true): Estimate
     {
         $estimate = new Estimate();
 
@@ -70,7 +70,9 @@ class NetSuiteQuoteService
             $estimateItem->item = $itemRef;
 
             $estimateItem->quantity = $orderItem->quantity;
-            $estimateItem->rate = $orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount;
+            if ($customRate) {
+                $estimateItem->rate = $orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount;
+            }
             $estimateItem->amount = $orderItem->quantity * ($orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount);
             $estimateItem->description = $orderItem->product_name;
 
@@ -199,7 +201,7 @@ class NetSuiteQuoteService
     /**
      * Get quote by internal ID
      */
-    public function getQuoteById(string $quoteInternalId): Estimate
+    public function getQuoteById(string|int $quoteInternalId): Estimate
     {
         $getRequest = new \NetSuite\Classes\GetRequest();
         $estimateRef = new RecordRef();
