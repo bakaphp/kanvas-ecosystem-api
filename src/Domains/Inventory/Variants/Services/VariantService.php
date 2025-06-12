@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Status\Models\Status;
@@ -103,6 +104,21 @@ class VariantService
                     $company,
                     []
                 );
+            }
+
+            if (isset($variant['channels'])) {
+                foreach ($variant['channels'] as $variantChannel) {
+                    $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
+                    $channel = ChannelRepository::getById((int) $variantChannel['channels_id']);
+                    $variantChannelDto = VariantChannelDto::from($variantChannel);
+    
+                    self::addVariantChannel(
+                        $variantModel,
+                        $warehouse,
+                        $channel,
+                        $variantChannelDto
+                    );
+                }
             }
 
             $variantsData[] = $variantModel;
