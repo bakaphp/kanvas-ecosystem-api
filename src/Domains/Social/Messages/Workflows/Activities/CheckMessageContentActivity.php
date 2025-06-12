@@ -45,7 +45,6 @@ class CheckMessageContentActivity extends KanvasActivity implements WorkflowActi
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($entity, $app) {
-
                 if ((new CheckMessageContentAction($entity->message, $app))->execute()) {
                     $entity->is_public = 0;
                     $entity->is_deleted = 1;
