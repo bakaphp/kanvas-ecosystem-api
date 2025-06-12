@@ -7,11 +7,13 @@ namespace Kanvas\Workflow\Rules\Factories;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Rules\Models\RuleType;
+use Override;
 
 class RuleTypeFactory extends Factory
 {
     protected $model = RuleType::class;
 
+    #[Override]
     public function definition()
     {
         return [
