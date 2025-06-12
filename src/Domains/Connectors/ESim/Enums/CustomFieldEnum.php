@@ -11,4 +11,6 @@ enum CustomFieldEnum: string
     case PRODUCT_ESIM_ID = 'product_esim_id';
     case VARIANT_ESIM_ID = 'variant_esim_id';
     case WOOCOMMERCE_ORDER_ID = 'woocommerce_id';
+    case MESSAGE_ESIM_ICCID = 'message_esim_iccid';
+    case MESSAGE_ESIM_VARIANT_SKU = 'message_esim_variant_sku';
 }

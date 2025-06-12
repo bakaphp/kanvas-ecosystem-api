@@ -14,7 +14,7 @@ type PaymentMethod {
 input PaymentMethodInput{
     number: String!
     expiration_date: String!
-    brand: String!
+    brand: String
     processor: String
     metadata: Mixed
     address: String!
@@ -23,6 +23,20 @@ input PaymentMethodInput{
     phone: String!
     zip_code: String!
     state: String!
+}
+
+input PaymentMethodUpdateInput{
+    number: String
+    expiration_date: String
+    brand: String
+    processor: String
+    metadata: Mixed
+    address: String
+    country: String
+    city: String
+    phone: String
+    zip_code: String
+    state: String
 }
 
 type PaymentIntentResult {
@@ -34,6 +48,14 @@ extend type Mutation @guard {
     createPaymentMethod(input: PaymentMethodInput!): PaymentMethod!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@createPaymentMethod"
+        )
+    updatePaymentMethod(id: ID!, input: PaymentMethodUpdateInput!): PaymentMethod!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@updatePaymentMethod"
+        )
+    deletePaymentMethod(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@deletePaymentMethod"
         )
     makePaymentIntent(paymentID: ID!): PaymentIntentResult!
         @field(
@@ -48,7 +70,14 @@ extend type Mutation @guard {
 extend type Query {
     paymentMethods(
         orderBy: PaymentMethodOrderByInput
-        where: PaymentMethodWhereInput
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "payment_methods_brand"
+                    "users_id"
+                ]
+            )
     ): [PaymentMethod!]!
         @paginate(
             defaultCount: 25 
@@ -56,9 +85,10 @@ extend type Query {
             scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
     
-    paymentMethod(id: Int!): PaymentMethod 
+    paymentMethod(id: ID!): PaymentMethod!
         @find(
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
 }
 

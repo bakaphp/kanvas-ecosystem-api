@@ -26,7 +26,7 @@ final class EchoPayTest extends EchoPayBase
         $tokenizedCard = $echoPayService->addCard($this->getCardData());
 
         $setupResult = $echoPayService->setupPayer(
-            "TC50171_3",
+            'TC50171_3',
             $tokenizedCard['paymentInstrumentId'],
             MerchantDetail::from($this->getMerchantData())
         );
@@ -36,6 +36,7 @@ final class EchoPayTest extends EchoPayBase
             'referenceId' => $setupResult['consumerAuthenticationInformation']['referenceId'],
         ];
     }
+
     public function testConsultService()
     {
         $app = app(Apps::class);
@@ -45,7 +46,7 @@ final class EchoPayTest extends EchoPayBase
         $result = $echoPayService->consultService(ConsultServiceQuery::from([
             'merchantKey' => '00000000016739100006575',
             'serviceCode' => '0101',
-            'contract' => '6537824'
+            'contract' => '6537824',
         ]));
 
         $expectedKeys = [
@@ -80,6 +81,32 @@ final class EchoPayTest extends EchoPayBase
         $this->assertArrayHasKey('paymentInstrumentId', $result);
     }
 
+    public function testUpdateCard()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $echoPayService = $this->getService($app, $company);
+
+        $tokenizedCard = $echoPayService->addCard($this->getCardData());
+        $result = $echoPayService->updateCard($tokenizedCard['paymentInstrumentId'], $this->getCardData());
+
+        $this->assertArrayHasKey('cardNumber', $result);
+        $this->assertArrayHasKey('expirationDate', $result);
+        $this->assertArrayHasKey('instrumentIdentifierId', $result);
+        $this->assertArrayHasKey('paymentInstrumentId', $result);
+    }
+
+    public function testDeleteCard()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $echoPayService = $this->getService($app, $company);
+
+        $tokenizedCard = $echoPayService->addCard($this->getCardData());
+        $result = $echoPayService->deleteCard($tokenizedCard['paymentInstrumentId']);
+        $this->assertArrayHasKey('status', $result);
+    }
+
     public function testSetupPayer()
     {
         $app = app(Apps::class);
@@ -89,7 +116,7 @@ final class EchoPayTest extends EchoPayBase
         $tokenizedCard = $echoPayService->addCard($this->getCardData());
 
         $result = $echoPayService->setupPayer(
-            "TC50171_3",
+            'TC50171_3',
             $tokenizedCard['paymentInstrumentId'],
             MerchantDetail::from($this->getMerchantData())
         );
@@ -107,7 +134,7 @@ final class EchoPayTest extends EchoPayBase
         $company = Companies::first();
         $echoPayService = $this->getService($app, $company);
 
-        ["tokenizedCard" => $tokenizedCard, "referenceId" => $referenceId] = $this->getSetupData($app, $company);
+        ['tokenizedCard' => $tokenizedCard, 'referenceId' => $referenceId] = $this->getSetupData($app, $company);
 
         $result = $echoPayService->checkPayerEnrollment(
             PaymentDetail::from([
@@ -119,16 +146,15 @@ final class EchoPayTest extends EchoPayBase
                     'billTo' => $this->getCardData()->billTo,
                 ]),
                 'deviceInformation' => DeviceInformation::from([
-                    "httpAcceptContent" => "application/json",
-                    "httpBrowserLanguage" => "en_us",
-                    "userAgentBrowserValue" => "chrome"
+                    'httpAcceptContent' => 'application/json',
+                    'httpBrowserLanguage' => 'en_us',
+                    'userAgentBrowserValue' => 'chrome',
                 ]),
                 'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
-                    "deviceChannel" => "BROWSER",
-                    "returnUrl" => "http://localhost:3000/return-url.js",
-                    "referenceId" => $referenceId,
-                    "transactionMode" => "eCommerce"
-
+                    'deviceChannel' => 'BROWSER',
+                    'returnUrl' => 'http://localhost:3000/return-url.js',
+                    'referenceId' => $referenceId,
+                    'transactionMode' => 'eCommerce',
                 ]),
             ]),
             $this->getCardData()->merchant,
@@ -166,7 +192,7 @@ final class EchoPayTest extends EchoPayBase
         $this->assertArrayHasKey('consumerAuthenticationInformation', $result);
         $this->assertArrayHasKey('status', $result);
         $this->assertInstanceOf(ConsumerAuthentication::class, $result['consumerAuthenticationInformation']);
-        $this->assertStringContainsString("AUTHENTICATION_", $result['status']);
+        $this->assertStringContainsString('AUTHENTICATION_', $result['status']);
     }
 
     public function testPayService()
@@ -175,7 +201,7 @@ final class EchoPayTest extends EchoPayBase
         $company = Companies::first();
         $echoPayService = $this->getService($app, $company);
 
-        ["tokenizedCard" => $tokenizedCard, "referenceId" => $referenceId] = $this->getSetupData($app, $company);
+        ['tokenizedCard' => $tokenizedCard, 'referenceId' => $referenceId] = $this->getSetupData($app, $company);
 
         $cardData = $this->getCardData();
 
@@ -189,42 +215,41 @@ final class EchoPayTest extends EchoPayBase
                     'billTo' => $cardData->billTo,
                 ]),
                 'deviceInformation' => DeviceInformation::from([
-                    "httpAcceptContent" => "application/json",
-                    "httpBrowserLanguage" => "en_us",
-                    "userAgentBrowserValue" => "chrome"
+                    'httpAcceptContent' => 'application/json',
+                    'httpBrowserLanguage' => 'en_us',
+                    'userAgentBrowserValue' => 'chrome',
                 ]),
                 'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
-                    "deviceChannel" => "BROWSER",
-                    "referenceId" => $referenceId,
-                    "transactionMode" => "eCommerce"
-
+                    'deviceChannel' => 'BROWSER',
+                    'referenceId' => $referenceId,
+                    'transactionMode' => 'eCommerce',
                 ]),
             ]),
             ConsumerAuthentication::from([
-                "indicator" => "vbv",
-                "eciRaw" => "05",
-                "authenticationResult" => "0",
-                "strongAuthentication" => [
-                    "OutageExemptionIndicator" => "0"
+                'indicator' => 'vbv',
+                'eciRaw' => '05',
+                'authenticationResult' => '0',
+                'strongAuthentication' => [
+                    'OutageExemptionIndicator' => '0',
                 ],
-                "authenticationStatusMsg" => "Success",
-                "eci" => "05",
-                "token" => "AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS",
-                "cavv" => "AAIBBYNoEwAAACcKhAJkdQAAAAA=",
-                "paresStatus" => "Y",
-                "xid" => "AAIBBYNoEwAAACcKhAJkdQAAAAA=",
-                "directoryServerTransactionId" => "cd346fc0-d248-48f7-9b76-1f4741076fec",
-                "threeDSServerTransactionId" => "3bf3718f-39d0-42eb-acda-ced2f80fc6a6",
-                "specificationVersion" => "2.2.0",
-                "acsTransactionId" => "27442f28-623b-4115-ad48-6ede081db03c"
+                'authenticationStatusMsg' => 'Success',
+                'eci' => '05',
+                'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
+                'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+                'paresStatus' => 'Y',
+                'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+                'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
+                'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
+                'specificationVersion' => '2.2.0',
+                'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
             ]),
             $cardData->merchant,
             [
-                "merchantKey" => "00000000016739100006575",
-                "channelCode" => "004",
-                "serviceCode" => "0101",
-                "serviceTypeId" => "106",
-                "contract" => "6537824"
+                'merchantKey' => '00000000016739100006575',
+                'channelCode' => '004',
+                'serviceCode' => '0101',
+                'serviceTypeId' => '106',
+                'contract' => '6537824',
             ]
         );
 
