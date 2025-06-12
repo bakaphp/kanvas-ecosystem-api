@@ -6,11 +6,11 @@ namespace Tests\GraphQL\Souk;
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Connectors\Movipass\Actions\CheckExpiringOrders;
-use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Connectors\Movipass\Notifications\ExpiringReservationPushNotification;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
@@ -340,10 +340,10 @@ class OrderExpirableTest extends TestCase
         );
 
         $timezone = "America/New_York";
-
+        Date::setTestNow(now()->startOfSecond());
         $rightNow = now($timezone)->toDateTimeString();
-        $rightNowPlus15 = now($timezone)->addMinutes(16)->toDateTimeString();
-        $rightNowPlus5 = now($timezone)->addMinutes(6)->toDateTimeString();
+        $rightNowPlus15 = now($timezone)->addMinutes(15)->toDateTimeString();
+        $rightNowPlus5 = now($timezone)->addMinutes(5)->toDateTimeString();
 
         $reservation1 = $this->createDraftOrder(
             variantId: $variantResponse['id'],
@@ -382,10 +382,7 @@ class OrderExpirableTest extends TestCase
         );
 
         $checkExpiringOrders = new CheckExpiringOrders($this->apps);
-        $orders = $checkExpiringOrders->execute($timezone, [
-            EnumsConfigurationEnum::EXPIRING_RESERVATION_MAX->value,
-            EnumsConfigurationEnum::EXPIRING_RESERVATION_MIN->value
-        ], [$reservation1->getId(), $reservation2->getId(), $reservation3->getId()]);
+        $orders = $checkExpiringOrders->execute($rightNow, null, [$reservation1->getId(), $reservation2->getId(), $reservation3->getId()]);
         $this->assertEquals(3, $orders->count());
 
         $orders->each(function ($order) {
@@ -394,5 +391,6 @@ class OrderExpirableTest extends TestCase
 
         $checkExpiringOrders->notify($orders);
         Notification::assertSentTimes(ExpiringReservationPushNotification::class, 3);
+        Date::setTestNow();
     }
 }

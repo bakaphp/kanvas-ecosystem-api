@@ -53,7 +53,7 @@ class CheckExpiringOrdersCommand extends Command
     {
         $checkExpiringOrders = new CheckExpiringOrders($app);
         $orders = $checkExpiringOrders->execute(
-            $appTimeZone,
+            now($appTimeZone)->toDateTimeString(),
             [
                 EnumsConfigurationEnum::EXPIRING_RESERVATION_MAX->value,
                 EnumsConfigurationEnum::EXPIRING_RESERVATION_MIN->value

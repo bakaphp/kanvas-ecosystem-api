@@ -16,20 +16,20 @@ class CheckExpiringOrders
     ) {
     }
 
-    public function execute(string $appTimeZone, array $notifyIn, array $orderIds = []): Collection
+    public function execute(string $timeZonedNow, ?array $notifyIn = null, array $orderIds = []): Collection
     {
         $subQuery = Order::query()
             ->fromApp($this->apps)
             ->selectRaw("
                 TIMESTAMPDIFF(
                 MINUTE,
-                NOW(),
-                CONVERT_TZ(JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')), '{$appTimeZone}', 'UTC')
+                ?,
+                JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at'))
                 )
                 AS ends_in,
                 id,
                 metadata
-            ")
+            ", [$timeZonedNow])
             ->notDeleted()
             ->whereNotFulfilled()
             ->whereNotNull('metadata')
@@ -41,7 +41,9 @@ class CheckExpiringOrders
             })
             ->orderBy('id', 'desc');
 
-        return $subQuery->get()->whereIn('ends_in', $notifyIn);
+        return $subQuery->get()->when($notifyIn, function ($query) use ($notifyIn) {
+            $query->whereIn('ends_in', $notifyIn);
+        });
     }
 
     public function notify(Collection $orders, array $via = ['database']): void
