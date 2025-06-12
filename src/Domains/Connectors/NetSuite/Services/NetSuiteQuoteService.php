@@ -32,7 +32,8 @@ class NetSuiteQuoteService
     /**
      * Create a NetSuite quote (estimate) from a Kanvas order
      */
-    public function createQuoteFromOrder(Order $order, ?string $netsuiteCustomerId = null): Estimate
+
+    public function createQuoteFromOrder(Order $order, ?string $netsuiteCustomerId = null, bool $customRate = true): Estimate
     {
         $estimate = new Estimate();
 
@@ -62,13 +63,6 @@ class NetSuiteQuoteService
             $estimateItem = new EstimateItem();
 
             $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($orderItem->product_sku);
-            if (empty($searchNetsuiteProductInfo)) {
-                throw new Exception("Product with SKU '{$orderItem->product_sku}' not found in NetSuite");
-            }
-
-            if (count($searchNetsuiteProductInfo) > 1) {
-                throw new Exception("Multiple products found with SKU '{$orderItem->product_sku}' in NetSuite. Please ensure SKUs are unique.");
-            }
 
             // Set item reference (you may need to map SKU to NetSuite item internal ID)
             $itemRef = new RecordRef();
@@ -78,7 +72,9 @@ class NetSuiteQuoteService
             $estimateItem->item = $itemRef;
 
             $estimateItem->quantity = $orderItem->quantity;
-            $estimateItem->rate = $orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount;
+            if ($customRate) {
+                $estimateItem->rate = $orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount;
+            }
             $estimateItem->amount = $orderItem->quantity * ($orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount);
             $estimateItem->description = $orderItem->product_name;
 
@@ -159,7 +155,6 @@ class NetSuiteQuoteService
         $estimateRef->type = 'estimate';
         $getRequest->baseRef = $estimateRef;
 
-        print_r($quoteInternalId);
 
         $getResponse = $this->service->get($getRequest);
 
@@ -209,7 +204,8 @@ class NetSuiteQuoteService
     /**
      * Get quote by internal ID
      */
-    public function getQuoteById(string $quoteInternalId): Estimate
+
+    public function getQuoteById(string|int $quoteInternalId): Estimate
     {
         $getRequest = new \NetSuite\Classes\GetRequest();
         $estimateRef = new RecordRef();

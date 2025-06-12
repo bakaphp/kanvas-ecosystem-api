@@ -193,16 +193,20 @@ class IdVerificationService
             }
 
             // Add score-based flags (no failures for risk scores now)
-            if ($scoresAbove75 >= 2) {
+            $flagGroupScores = [];
+            if ($scoresAbove75 >= 1) {
                 $flags[] = 'Multiple risk scores >= 75';
                 if ($riskScore >= 75) {
                     $flags[] = 'Risk score';
+                    $flagGroupScores[] = 'Risk score';
                 }
                 if ($fraudScore >= 75) {
                     $flags[] = 'Fraud score';
+                    $flagGroupScores[] = 'Fraud score';
                 }
                 if ($fraudChance >= 75) {
                     $flags[] = 'Fraud chance';
+                    $flagGroupScores[] = 'Fraud chance';
                 }
                 $flagGroups[] = 'behavior risk';
                 $flagNotice = true;
@@ -224,10 +228,10 @@ class IdVerificationService
                 $flagGroups[] = 'behavior risk';
             }
 
-            /*   if (strtolower($ipqsAddress['city'] ?? '') !== strtolower($idCheck['city'] ?? '')) {
-                  $flags[] = 'City mismatch between IPQS and ID';
-                  $flagGroups[] = 'connection risk';
-              } */
+            if (strtolower($ipqsAddress['city'] ?? '') !== strtolower($idCheck['city'] ?? '')) {
+                $flags[] = 'City mismatch between IPQS and ID';
+                $flagGroups[] = 'connection risk';
+            }
 
             if (($ipqsAddress['country_code'] ?? 'US') !== 'US') {
                 $flags[] = 'Country code mismatch';
@@ -280,7 +284,8 @@ class IdVerificationService
 
         if (empty($failures)) {
             // Always make sure expired IDs are flagged
-            if ($isExpired || count($flags) >= 3 || $flagNotice) {
+            //if ($isExpired || count($flags) >= 2 || $flagNotice) {
+            if ($isExpired || ($flagNotice && count($flagGroupScores) >= 2)) {
                 // Create message using flag groups
                 $flagReasons = [];
                 foreach ($flaggedGroups as $group) {

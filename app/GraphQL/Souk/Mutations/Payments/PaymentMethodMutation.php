@@ -20,7 +20,7 @@ class PaymentMethodMutation
         $company = $user->getCurrentCompany();
         $input = $request['input'];
         $card = null;
-        // TODO: move this to a provider centry to avoid hardcoding here
+        // TODO: move this to a provider to avoid hardcoding here
         if ($input['processor']) {
             $processor = app("payment.{$input['processor']}");
             $paymentMethod = $processor->addCardFromRequest($input, $user);
@@ -29,10 +29,10 @@ class PaymentMethodMutation
                 app: $app,
                 user: $user,
                 company: $company,
-                instrument_identifier_id: $input['instrument_identifier_id'] ?? "",
+                instrument_identifier_id: $input['instrument_identifier_id'] ?? '',
                 payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
                 payment_methods_brand: $input['brand'] ?? $this->guessCardBrand($input['number']),
-                stripe_card_id: $input['stripe_card_id'] ?? "",
+                stripe_card_id: $input['stripe_card_id'] ?? '',
                 expiration_date: $input['expiration_date'],
                 zip_code: $input['zip_code'],
                 processor: $input['processor'] ?? null,
@@ -42,12 +42,12 @@ class PaymentMethodMutation
                     'address' => $input['address'],
                     'phone' => $input['phone'],
                     'zip_code' => $input['zip_code'],
-                    'state' => $input['state']
+                    'state' => $input['state'],
                 ]
             );
         }
-        $action = new CreatePaymentMethodAction($paymentMethod);
-        return $action->execute();
+
+        return new CreatePaymentMethodAction($paymentMethod)->execute();
     }
 
     public function updatePaymentMethod($_, array $request): PaymentMethods
@@ -69,9 +69,9 @@ class PaymentMethodMutation
             $processor = app("payment.{$paymentMethod->processor}");
             $paymentMethodUpdateData = $processor->updateCardFromRequest(PaymentMethod::from([
                 ...$paymentMethod->toArray(),
-                "app" => $app,
-                "user" => $user,
-                "company" => $company,
+                'app' => $app,
+                'user' => $user,
+                'company' => $company,
             ]), $input);
         } else {
             $paymentMethodUpdateData = new PaymentMethod(
@@ -89,8 +89,10 @@ class PaymentMethodMutation
             );
         }
 
-        $action = new UpdatePaymentMethodAction($paymentMethod->id, $paymentMethodUpdateData);
-        return $action->execute();
+        return new UpdatePaymentMethodAction(
+            $paymentMethod->id,
+            $paymentMethodUpdateData
+        )->execute();
     }
 
     public function deletePaymentMethod($_, array $request): bool
@@ -110,9 +112,9 @@ class PaymentMethodMutation
             $processor = app("payment.{$paymentMethod->processor}");
             $processor->deleteCardFromRequest(PaymentMethod::from([
                 ...$paymentMethod->toArray(),
-                "app" => $app,
-                "user" => $user,
-                "company" => $company,
+                'app' => $app,
+                'user' => $user,
+                'company' => $company,
             ]));
         }
 
@@ -148,14 +150,14 @@ class PaymentMethodMutation
         return null;
     }
 
-    private function isValidLuhn($number): bool
+    private function isValidLuhn(string|int $number): bool
     {
         $sum = 0;
-        $length = strlen($number);
+        $length = strlen((string)$number);
         $parity = $length % 2;
 
         for ($i = 0; $i < $length; $i++) {
-            $digit = $number[$i];
+            $digit = (int)$number[$i];
             if ($i % 2 === $parity) {
                 $digit *= 2;
                 if ($digit > 9) {

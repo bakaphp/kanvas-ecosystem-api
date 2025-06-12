@@ -33,17 +33,17 @@ trait PaymentCases
     public function getCardData(): array
     {
         return [
-            "number" => "4111111111111111",
-            "processor" => "portal",
-            "brand" => "visa",
-            "expiration_date" => "2030-12",
-            "metadata" => [],
-            "address" => "Calle Duarte #45",
-            "city" => "Santo Domingo",
-            "state" => "Distrito Nacional",
-            "zip_code" => "10101",
-            "country" => "DO",
-            "phone" => "8095551234"
+            'number' => '4111111111111111',
+            'processor' => 'portal',
+            'brand' => 'visa',
+            'expiration_date' => '2030-12',
+            'metadata' => [],
+            'address' => 'Calle Duarte #45',
+            'city' => 'Santo Domingo',
+            'state' => 'Distrito Nacional',
+            'zip_code' => '10101',
+            'country' => 'DO',
+            'phone' => '8095551234',
         ];
     }
 }

@@ -24,7 +24,6 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
     {
         $this->overwriteAppService($app);
 
-
         return $this->executeIntegration(
             entity: $payment,
             app: $app,
@@ -89,8 +88,6 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
             company: $payment->company,
         );
     }
-
-
 
     private function setUpVendorService(Order $order, OrderTypes $orderType, Apps $app): bool
     {
