@@ -22,6 +22,7 @@ use Kanvas\Connectors\EchoPay\Enums\MerchantDocumentTypesEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantPlatformEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantTokenizationEnum;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -138,38 +139,58 @@ class PortalPaymentProcessor
         return $enrollmentCheck;
     }
 
-    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, $referenceId): PaymentResponse
+    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, $referenceId): array
     {
         $merchantAuthentication = $this->setupMerchantAuthentication(includeDetails: true);
         $service = $this->setupService($payment->order);
-
-        $result = $this->client->payService(
-            PaymentDetail::from([
-                'orderCode' => $payment->order->reference . '_' . $payment->order->id,
-                'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
-                'orderInformation' => OrderInformation::from([
-                    'currency' => 'DOP',
-                    'totalAmount' => $payment->order->getTotalAmount(),
-                    'billTo' => $this->setCustomerBillingAddress($payment->order),
-                ]),
-                'deviceInformation' => DeviceInformation::from([
-                    "httpAcceptContent" => "application/json",
-                    "httpBrowserLanguage" => "en_us",
-                    "userAgentBrowserValue" => "chrome"
-                ]),
-                'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
-                    "deviceChannel" => "BROWSER",
-                    "referenceId" => $referenceId,
-                    "transactionMode" => "eCommerce"
-
-                ]),
+        $pamentData =PaymentDetail::from([
+            'orderCode' => $payment->order->reference . '_' . $payment->order->id,
+            'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
+            'orderInformation' => OrderInformation::from([
+                'currency' => 'DOP',
+                'totalAmount' => $payment->order->getTotalAmount(),
+                'billTo' => $this->setCustomerBillingAddress($payment->order),
             ]),
-            $consumerData,
-            $merchantAuthentication,
-            $service
-        );
+            'deviceInformation' => DeviceInformation::from([
+                "httpAcceptContent" => "application/json",
+                "httpBrowserLanguage" => "en_us",
+                "userAgentBrowserValue" => "chrome"
+            ]),
+            'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
+                "deviceChannel" => "BROWSER",
+                "referenceId" => $referenceId,
+                "transactionMode" => "eCommerce"
 
-        return $result;
+            ]),
+        ]);
+
+        try {
+            $result = $this->client->payService(
+                $pamentData,
+                $consumerData,
+                $merchantAuthentication,
+                $service
+            );
+
+            return [
+                'status' => 'success',
+                'message' => 'Payment successful',
+                'data' => $result,
+            ];
+        } catch (Throwable $e) {
+            report($e);
+
+            return [
+                'status' => 'error',
+                'message' => 'Payment failed: ' . $e->getMessage(),
+                'data' =>[
+                    'pamentData' => $pamentData,
+                    'consumerData' => $consumerData,
+                    'merchantAuthentication' => $merchantAuthentication,
+                    'service' => $service 
+                ],
+            ];
+        }
     }
 
     public function makePaymentIntent(Payments $payment): PaymentResponse | array
@@ -200,33 +221,66 @@ class PortalPaymentProcessor
 
                 $paymentResponse = $this->processPayment($payment, $consumerData, $referenceId);
 
-                if ($paymentResponse->status->name === 'PAYED') {
+                //  If the payment is successful and the status is PAYED
+                if ($paymentResponse['status'] === 'success' && $paymentResponse['data']->status->name === 'PAYED') {
                     $payment->status = PaymentStatusEnum::PAID;
                     $payment->addMetadata([
-                        'data' => $paymentResponse->toArray(),
+                        'data' => $paymentResponse['data'],
                     ]);
                     $payment->save();
-                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, $paymentResponse->id);
-                    $payment->order->set(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $paymentResponse->transactionId);
+                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, $paymentResponse["data"]->id);
+                    $payment->order->set(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $paymentResponse["data"]->transactionId);
                     $payment->order->checkPayments();
-                }
 
-                return [
-                    'status' => 'success',
-                    'message' => 'Payment successful',
-                    'data' => $paymentResponse,
-                ];
+                    return [
+                        'status' => 'success',
+                        'message' => 'Payment successful',
+                        'data' => $paymentResponse['data'],
+                    ];
+
+                //  If by the enrollment status the payment is supossed to pass but we miss some data it will fail
+                } else if ($paymentResponse['status'] === 'error') {
+                    $payment->status = PaymentStatusEnum::FAILED;
+                    $payment->addMetadata([
+                        'enrollment_data' => $enrollmentData,
+                    ]);
+                    $payment->save();
+
+                    $payment->order->updateQuietly([
+                        'status' => OrderStatusEnum::FAILED->value,
+                    ]);
+
+                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($paymentResponse['message']));
+
+                    return [
+                        'status' => 'error',
+                        'message' => $paymentResponse['message'],
+                        'data' => $paymentResponse['data'],
+                        "response" => $enrollmentData,
+                    ];
+                }
             } else {
+                //  If the enrollment status is not AUTHENTICATION_SUCCESSFUL it means that the front needs to authenticate the payer
                 $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION;
-                $payment->addPrivateMetadata('enrollment_data', $enrollmentData);
+                $payment->addMetadata([
+                    'enrollment_data' => $enrollmentData,
+                ]);
                 $payment->save();
+
+                $payment->order->updateQuietly([
+                    'status' => OrderStatusEnum::FAILED->value,
+                ]);
+
+                $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($enrollmentData));
             }
         } catch (Throwable $e) {
             report($e);
 
             $payment->status = PaymentStatusEnum::FAILED;
-            $payment->addPrivateMetadata('enrollment_data', $enrollmentData);
-            $payment->addPrivateMetadata('error', $e->getMessage());
+            $payment->addMetadata([
+                'enrollment_data' => $enrollmentData, 
+                'error' => $e->getMessage()
+            ]);
             $payment->save();
 
             $payment->order->failed();

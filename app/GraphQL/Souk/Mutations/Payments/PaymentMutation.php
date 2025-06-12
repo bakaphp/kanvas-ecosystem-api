@@ -76,10 +76,6 @@ class PaymentMutation
             throw new ValidationException('Order is already completed');
         }
 
-        if ($order->isCancelled()) {
-            throw new ValidationException('Order is already cancelled');
-        }
-
         $formData = $request['input'];
 
         if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {
