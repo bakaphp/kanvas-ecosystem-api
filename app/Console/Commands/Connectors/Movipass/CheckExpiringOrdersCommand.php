@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Souk;
+namespace App\Console\Commands\Connectors\Movipass;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
@@ -21,14 +21,14 @@ class CheckExpiringOrdersCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-souk:check-expiring-orders {app_id?}';
+    protected $signature = 'kanvas:movipass-check-expiring-orders {app_id?}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Finish expired orders';
+    protected $description = 'Check expiring orders';
 
     public function handle(): void
     {

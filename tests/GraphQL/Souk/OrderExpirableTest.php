@@ -391,6 +391,7 @@ class OrderExpirableTest extends TestCase
 
         $checkExpiringOrders->notify($orders);
         Notification::assertSentTimes(ExpiringReservationPushNotification::class, 3);
+        Artisan::call('kanvas:movipass-check-expiring-orders', ['app_id' => $this->apps->getId()]);
         Date::setTestNow();
     }
 }
