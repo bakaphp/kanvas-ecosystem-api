@@ -26,21 +26,23 @@ trait InventoryCases
 {
     public function createProduct(array $data = [], array $attributes = []): TestResponse
     {
-        $name =  $data['name'] ?? fake()->name;
-        $data = [
-            'name' => $name,
-            'description' => $data['description'] ?? fake()->text,
-            'sku' => $data['sku'] ?? fake()->time,
-            'slug' => Str::slug($name),
-            'weight' => $data['weight'] ?? 1,
-            'attributes' => [
-                [
-                    'name' => fake()->name,
-                    'value' => fake()->name,
+        if (empty($data)) {
+            $name = $data['name'] ?? fake()->name;
+            $data = [
+                'name' => $name,
+                'description' => fake()->text,
+                'sku' => fake()->time,
+                'slug' => Str::slug($name),
+                'weight' => 1,
+                'attributes' => [
+                    [
+                        'name' => fake()->name,
+                        'value' => fake()->name,
+                    ],
+                    ...$attributes,
                 ],
-                ...$attributes,
-            ],
-        ];
+            ];
+        }
 
         return $this->graphQL('
             mutation($data: ProductInput!) {
@@ -130,7 +132,7 @@ trait InventoryCases
                     'price' => 100,
                     'discounted_price' => 10,
                     'is_published' => true,
-                ]
+                ],
             ];
         }
 
@@ -180,7 +182,7 @@ trait InventoryCases
             $data = [
                 'name' => fake()->name,
                 'slug' => Str::slug(fake()->name),
-                'short_slug' =>  Str::slug(fake()->name),
+                'short_slug' => Str::slug(fake()->name),
                 'is_default' => 1,
                 'currency_id' => 1,
             ];

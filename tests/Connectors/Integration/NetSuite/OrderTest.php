@@ -37,9 +37,10 @@ final class OrderTest extends TestCase
                 'name' => 'NetSuite Order Test Product',
                 'description' => 'NetSuite Order Test Description',
                 'sku' => '4511338005811',
-                'barcode' => '4511338005811',
+                'slug' => '4511338005811',
+                'weight' => 1,
                 'price' => 100,
-                'quantity' => 100,
+                //'quantity' => 100,
             ],
             attributes: [
                 [
@@ -48,7 +49,7 @@ final class OrderTest extends TestCase
                 ],
             ]
         )->json()['data']['createProduct'];
-
+    
         $warehouseData = [
             'id' => $warehouseResponse['id'],
         ];
