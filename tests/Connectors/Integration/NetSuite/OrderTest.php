@@ -49,7 +49,7 @@ final class OrderTest extends TestCase
                 ],
             ]
         )->json()['data']['createProduct'];
-    
+
         $warehouseData = [
             'id' => $warehouseResponse['id'],
         ];
