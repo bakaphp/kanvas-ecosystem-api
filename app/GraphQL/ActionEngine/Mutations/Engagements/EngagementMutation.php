@@ -173,7 +173,7 @@ class EngagementMutation
             preFill: [],
             via: $via,
             product_id: $data['product_id'] ?? null,
-            channel_id: $channel ? $channel->getId() : null,
+            channel_id: $channel ? $channel->uuid : null,
         );
         $messageInput = [
             'message' => $engagementMessage->toArray(),
