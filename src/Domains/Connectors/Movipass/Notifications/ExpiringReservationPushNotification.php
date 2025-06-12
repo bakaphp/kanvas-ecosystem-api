@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Notifications;
 
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
 
-class ExpiringReservationPushNotification extends CustomMessageNotification
+class ExpiringReservationPushNotification extends CustomOrderNotification
 {
     public function __construct(
         Users $user,
-        Message $entity,
+        Order $entity,
         string $message,
         string $title,
         array $via,
@@ -26,9 +25,9 @@ class ExpiringReservationPushNotification extends CustomMessageNotification
             'company' => $entity->company,
             'message' => $message,
             'title' => $title,
-            'metadata' => $entity->getMessage(),
+            'metadata' => $entity->toArray(),
             'via' => $via,
-            'message_owner_id' => $entity->user->getId(),
+            'message_owner_id' => $entity->users_id,
             'message_id' => $entity->getId(),
             'parent_message_id' => $entity->getId(),
             'destination_id' => $entity->getId(),

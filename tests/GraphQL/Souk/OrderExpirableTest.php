@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Connectors\Movipass\Actions\CheckExpiringOrders;
+use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Connectors\Movipass\Notifications\ExpiringReservationPushNotification;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
@@ -43,11 +45,10 @@ class OrderExpirableTest extends TestCase
     }
 
     public function createDraftOrder(
-        array $metadata, 
-        string $variantId, 
+        array $metadata,
+        string $variantId,
         int $quantity = 1,
-    ): Order
-    {
+    ): Order {
         $data = [
             'email' => fake()->email(),
             'region_id' => $this->region->getId(),
@@ -298,9 +299,10 @@ class OrderExpirableTest extends TestCase
         $this->assertEquals(50, $variantWarehouse->refresh()->quantity);
         $this->assertEquals(50, $variantProduct->refresh()->getAttributeByName('capacity')->value['availableParkingSpaces']);
     }
-    
+
     public function testOrderExpirableNotifications(): void
     {
+        Notification::fake();
         $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
         $productResponse = $this->createProduct(attributes: [
             [
@@ -308,7 +310,6 @@ class OrderExpirableTest extends TestCase
                 'value' => 100
             ]
         ])->json()['data']['createProduct'];
-
 
         $variantResponse = $this->createVariant(
             productId: $productResponse['id'],
@@ -323,7 +324,6 @@ class OrderExpirableTest extends TestCase
             ]
         )->json()['data']['createVariant'];
 
-        
         $this->addVariantToChannel(
             variantId: $variantResponse['id'],
             channelId: $this->channelResponse['id'],
@@ -341,13 +341,17 @@ class OrderExpirableTest extends TestCase
 
         $timezone = "America/New_York";
 
+        $rightNow = now($timezone)->toDateTimeString();
+        $rightNowPlus15 = now($timezone)->addMinutes(16)->toDateTimeString();
+        $rightNowPlus5 = now($timezone)->addMinutes(6)->toDateTimeString();
+
         $reservation1 = $this->createDraftOrder(
             variantId: $variantResponse['id'],
             quantity: 1,
             metadata: [
                 'data' => [
-                    'start_at' => now($timezone)->toDateTimeString(),
-                    'end_at' => now($timezone)->addMinutes(15)->toDateTimeString(),
+                    'start_at' => $rightNow,
+                    'end_at' => $rightNowPlus15,
                     'notify_in' => 15,
                 ]
             ],
@@ -358,8 +362,8 @@ class OrderExpirableTest extends TestCase
             quantity: 1,
             metadata: [
                 'data' => [
-                    'start_at' => now($timezone)->toDateTimeString(),
-                    'end_at' => now($timezone)->addMinutes(15)->toDateTimeString(),
+                    'start_at' => $rightNow,
+                    'end_at' => $rightNowPlus15,
                     'notify_in' => 15,
                 ]
             ],
@@ -370,138 +374,25 @@ class OrderExpirableTest extends TestCase
             quantity: 1,
             metadata: [
                 'data' => [
-                    'start_at' => now($timezone)->toDateTimeString(),
-                    'end_at' => now($timezone)->addMinutes(5)->toDateTimeString(),
+                    'start_at' => $rightNow,
+                    'end_at' => $rightNowPlus5,
                     'notify_in' => 5,
                 ]
             ],
         );
 
-        $orders = (new CheckExpiringOrders($this->apps))->execute($timezone, [15, 5], [$reservation1->getId(), $reservation2->getId(), $reservation3->getId()]);
+        $checkExpiringOrders = new CheckExpiringOrders($this->apps);
+        $orders = $checkExpiringOrders->execute($timezone, [
+            EnumsConfigurationEnum::EXPIRING_RESERVATION_MAX->value,
+            EnumsConfigurationEnum::EXPIRING_RESERVATION_MIN->value
+        ], [$reservation1->getId(), $reservation2->getId(), $reservation3->getId()]);
         $this->assertEquals(3, $orders->count());
 
-        $orders->each(function ($order) use ($timezone) {
-            $orderEndTime = $order->metadata['data']['end_at'];
-            $parkingTimeZone = $order->items->first(function ($item) {
-                return $item->variant->first()?->attributes->first(fn ($attribute) => $attribute->key === 'timezone')?->value;
-            })?->variant?->attributes?->first(fn ($attribute) => $attribute->key === 'timezone')?->value;
-
-            $orderEndTime = Carbon::parse($orderEndTime, $parkingTimeZone ?? $timezone);
-            $minutesUntilExpiry = now()->diffInMinutes($orderEndTime);
-            $notifyIn = $order->metadata['data']['notify_in'];
-            $this->assertEquals($notifyIn, $minutesUntilExpiry);    
+        $orders->each(function ($order) {
+            $this->assertEquals($order->ends_in, $order->metadata['data']['notify_in']);
         });
+
+        $checkExpiringOrders->notify($orders);
+        Notification::assertSentTimes(ExpiringReservationPushNotification::class, 3);
     }
-
-            // public function testOrderExpirableNotifications(): void
-            // {
-            //     $app = app(Apps::class);
-            //     $app->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
-            //     $regionResponse = $this->createRegion()->json()['data']['createRegion'];
-            //     $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
-            //     $productResponse = $this->createProduct(attributes: [
-            //         [
-            //             'name' => 'slots',
-            //             'value' => 100
-            //         ]
-            //     ])->json()['data']['createProduct'];
-            //     $region = Regions::find($regionResponse['id']);
-            //     $company = $region->company;
-
-            //     $warehouseData = [
-            //         'id' => $warehouseResponse['id'],
-            //     ];
-
-            //     $variantResponse = $this->createVariant(
-            //         productId: $productResponse['id'],
-            //         warehouseData: $warehouseData,
-            //         attributes: [
-            //             [
-            //                 'name' => 'timezone',
-            //                 'value' => 'America/New_York',
-            //             ],
-            //         ]
-            //     )->json()['data']['createVariant'];
-
-            //     $channelResponse = $this->createChannel()->json()['data']['createChannel'];
-
-            //     $this->addVariantToChannel(
-            //         variantId: $variantResponse['id'],
-            //         channelId: $channelResponse['id'],
-            //         warehouseData: $warehouseData
-            //     );
-
-
-            //     $this->addVariantToWarehouse(
-            //         variantId: $variantResponse['id'],
-            //         warehouseId: $warehouseResponse['id'],
-            //         amount: 100
-            //     );
-
-            //     $variant = Variants::find($variantResponse['id']);
-            //     $channel = $variant->variantChannels()->where('channels_id', $channelResponse['id'])->first();
-            //     $variantWarehouse = $channel?->productVariantWarehouse()->first();
-            //     $timezone = "America/New_York";
-
-            //     $data = [
-            //         'email' => fake()->email(),
-            //         'region_id' => $region->getId(),
-            //         'metadata' => [
-            //             'data' => [
-            //                 'start_at' => now($timezone)->toDateTimeString(),
-            //                 'end_at' => now($timezone)->addMinutes(15)->toDateTimeString(),
-            //                 'notify_in' => 15,
-            //             ]
-            //         ],
-            //         'customer' => [
-            //             'firstname' => fake()->firstName(),
-            //             'lastname' => fake()->lastName(),
-            //         ],
-            //         'shipping_address' => [
-            //             'address' => fake()->address(),
-            //             'address_2' => fake()->postcode(),
-            //             'city' => fake()->city(),
-            //             'state' => fake()->state(),
-            //         ],
-            //         'items' => [
-            //             [
-            //                 'variant_id' => $variantResponse['id'],
-            //                 'quantity' => 1,
-            //             ],
-            //         ],
-            //     ];
-
-            //     // Perform GraphQL mutation to create a draft order
-            //     $response = $this->graphQL('
-            //         mutation createDraftOrder($input: DraftOrderInput!) {
-            //             createDraftOrder(input: $input) {
-            //                 id
-            //             }
-            //         }
-            //     ', [
-            //         'input' => $data,
-            //     ], [], [
-            //         'X-Kanvas-Location' => $company->branch->uuid,
-            //         'X-Kanvas-App' => $app->key,
-            //     ]);
-
-            //     $order = $response->json()['data']['createDraftOrder'];
-            //     $order = Order::fromApp($app)->find($order['id']);
-                
-            
-            //     $orders = (new CheckExpiringOrders($this->apps))->execute($timezone, [15, 5]);
-            //     $this->assertEquals(3, $orders->count());
-
-            //     $orders->each(function ($order) {
-            //         $orderEndTime = $order->metadata['data']['end_at'];
-            //         $parkingTimeZone = $order->items->first(function ($item) {
-            //             return $item->variant->first()?->attributes->first(fn ($attribute) => $attribute->key === 'timezone')?->value;
-            //         })?->variant?->attributes?->first(fn ($attribute) => $attribute->key === 'timezone')?->value;
-
-            //         $orderEndTime = Carbon::parse($orderEndTime, $parkingTimeZone ?? $timezone);
-            //         $minutesUntilExpiry = now()->diffInMinutes($orderEndTime, false);
-            //         $notifyIn = $order->metadata['data']['notify_in'];
-            //         $this->assertEquals($minutesUntilExpiry, $notifyIn);    
-            //     });
-            // }
 }
