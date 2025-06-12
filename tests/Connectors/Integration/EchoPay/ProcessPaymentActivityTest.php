@@ -32,7 +32,7 @@ final class ProcessPaymentActivityTest extends TestCase
         $company = $user->getCurrentCompany();
         $region = Regions::getDefault($company ?? $company, $app);
 
-        $orderTypeName = "paso_rapido";
+        $orderTypeName = 'paso_rapido';
 
         $app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
         $app->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
@@ -60,8 +60,8 @@ final class ProcessPaymentActivityTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $warehouseData = [
@@ -87,7 +87,6 @@ final class ProcessPaymentActivityTest extends TestCase
             warehouseData: $warehouseData
         );
 
-
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
             warehouseId: $warehouseResponse['id'],
@@ -104,7 +103,7 @@ final class ProcessPaymentActivityTest extends TestCase
             'order_type' => $orderTypeName,
             'metadata' => [
                 'data' => [
-                    'paso_rapido_tag' => "317169",
+                    'paso_rapido_tag' => '317169',
                     'payment_methods_id' => $paymentMethod['id'],
                     'payment_date' => now()->toDateTimeString(),
                 ],
@@ -116,7 +115,7 @@ final class ProcessPaymentActivityTest extends TestCase
                     'price' => 100,
                 ],
             ],
-            'reference' => "Recarga de paso rapido 2"
+            'reference' => 'Recarga de paso rapido 2',
         ];
 
         // Perform GraphQL mutation to create a draft order
@@ -148,11 +147,11 @@ final class ProcessPaymentActivityTest extends TestCase
 
         $payment = $order->payments()->first();
         $result = $activity->execute($payment, $app, []);
-        if ($result["status"] != "success") {
-            $this->fail($result["message"]);
+        if ($result['status'] != 'success') {
+            $this->fail($result['message']);
         }
         $order->refresh();
-        $this->assertEquals($result["status"], "success");
+        $this->assertEquals($result['status'], 'success');
         $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value));
         $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value));
         $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value));
