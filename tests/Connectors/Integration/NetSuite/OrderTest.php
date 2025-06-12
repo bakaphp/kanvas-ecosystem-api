@@ -237,6 +237,7 @@ final class OrderTest extends TestCase
             createCustomerIfNotExists: false
         );
 
+        $order->refresh();
         $netsuiteQuoteId = $order->getMetadata('netsuite_quote_id');
         $netsuiteQuoteNumber = $order->getMetadata('netsuite_quote_number');
         $netsuiteStatus = $order->getMetadata('netsuite_quote_status');
