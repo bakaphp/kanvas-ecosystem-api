@@ -23,7 +23,7 @@ class CheckMessageContentActivity extends KanvasActivity implements WorkflowActi
     {
         $this->overwriteAppService($app);
 
-        if ( !$entity->parent_id && $entity->message_types_id !== MessagesTypesRepository::getByVerb('prompt', $app)->getId()) {
+        if (! $entity->parent_id && $entity->message_types_id !== MessagesTypesRepository::getByVerb('prompt', $app)->getId()) {
             return [
                 'message' => 'Message is not a prompt message, skipping',
                 'message_id' => $entity->getId(),
