@@ -30,7 +30,7 @@ class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActi
                 $result = new PushOrderToNetSuiteAction($app, $order->company)
                         ->execute(
                             order: $order,
-                            netsuiteCustomerId: $netsuiteCustomerId,
+                            netsuiteCustomerId: $netsuiteCustomerId !== null ? (string) $netsuiteCustomerId : null,
                             createCustomerIfNotExists: false
                         );
 
