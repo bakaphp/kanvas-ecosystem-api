@@ -61,7 +61,7 @@ class NetSuiteQuoteService
         foreach ($order->items as $orderItem) {
             $estimateItem = new EstimateItem();
 
-            $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($orderItem->product_sku);
+            $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($orderItem->variant->barcode ?? $orderItem->product_sku);
             // Set item reference (you may need to map SKU to NetSuite item internal ID)
             $itemRef = new RecordRef();
             $itemRef->name = $orderItem->product_sku;
