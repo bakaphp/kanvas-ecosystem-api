@@ -6,11 +6,11 @@ namespace App\GraphQL\Souk\Mutations\Payments;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Souk\Payments\Actions\MakePaymentIntentAction;
 use Kanvas\Souk\Payments\Models\Payments;
-use Kanvas\Exceptions\ValidationException;
-use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 
 class PaymentMutation
 {
@@ -59,7 +59,8 @@ class PaymentMutation
         ];
     }
 
-    public function addPaymentToOrder($_, array $request): array {
+    public function addPaymentToOrder($_, array $request): array 
+    {
         $app = app(Apps::class);
         $orderId = (int) $request['orderID'];
 

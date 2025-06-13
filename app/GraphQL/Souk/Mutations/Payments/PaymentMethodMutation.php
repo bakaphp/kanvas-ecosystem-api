@@ -56,7 +56,7 @@ class PaymentMethodMutation
             } else {
                 $errorMessage = $e->getMessage();
             }
-            
+
             if (is_array($errorMessage)) {
                 $errorMessage = implode(', ', $errorMessage);
             }

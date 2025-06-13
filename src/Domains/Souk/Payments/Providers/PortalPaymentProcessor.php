@@ -143,7 +143,7 @@ class PortalPaymentProcessor
     {
         $merchantAuthentication = $this->setupMerchantAuthentication(includeDetails: true);
         $service = $this->setupService($payment->order);
-        $pamentData =PaymentDetail::from([
+        $pamentData = PaymentDetail::from([
             'orderCode' => $payment->order->reference . '_' . $payment->order->id,
             'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
             'orderInformation' => OrderInformation::from([
@@ -183,11 +183,11 @@ class PortalPaymentProcessor
             return [
                 'status' => 'error',
                 'message' => 'Payment failed: ' . $e->getMessage(),
-                'data' =>[
+                'data' => [
                     'pamentData' => $pamentData,
                     'consumerData' => $consumerData,
                     'merchantAuthentication' => $merchantAuthentication,
-                    'service' => $service 
+                    'service' => $service
                 ],
             ];
         }
@@ -238,8 +238,8 @@ class PortalPaymentProcessor
                         'data' => $paymentResponse['data'],
                     ];
 
-                //  If by the enrollment status the payment is supossed to pass but we miss some data it will fail
-                } else if ($paymentResponse['status'] === 'error') {
+                    //  If by the enrollment status the payment is supossed to pass but we miss some data it will fail
+                } elseif ($paymentResponse['status'] === 'error') {
                     $payment->status = PaymentStatusEnum::FAILED;
                     $payment->addMetadata([
                         'enrollment_data' => $enrollmentData,
@@ -278,7 +278,7 @@ class PortalPaymentProcessor
 
             $payment->status = PaymentStatusEnum::FAILED;
             $payment->addMetadata([
-                'enrollment_data' => $enrollmentData, 
+                'enrollment_data' => $enrollmentData,
                 'error' => $e->getMessage()
             ]);
             $payment->save();

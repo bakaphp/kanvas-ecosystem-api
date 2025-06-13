@@ -228,7 +228,7 @@ class EchoPayService
         ];
 
         $response = $this->client->post(ConfigurationEnum::CHECK_PAYER_ENROLLMENT_PATH->value, $formData);
-        
+
         return [
             'clientReferenceInformation' => [
                 'code' => $response['data']['clientReferenceInformation']['code'],
