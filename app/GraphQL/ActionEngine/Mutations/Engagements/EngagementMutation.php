@@ -181,6 +181,11 @@ class EngagementMutation
         $urlParams = http_build_query($params) . $extraField;
         $urlParams .= '&caction=' . $companyAction->uuid;
 
+        $companyLanguage = $lead->company->get('COMPANY_MULTI_LANGUAGE'); // Adjust flag name as needed
+        if ($companyLanguage) {
+            $urlParams .= '&lang=' . $companyLanguage;
+        }
+
         $url = $actionPageUrl . "/{$action}?{$urlParams}";
         $urlPreview = $actionPageUrl . "/{$action}?{$urlParams}&preview=true";
 
