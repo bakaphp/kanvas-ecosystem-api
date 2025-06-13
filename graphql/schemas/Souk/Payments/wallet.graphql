@@ -10,7 +10,7 @@ type WalletTransaction {
     type: String!
     amount: Money! @method(name: "getAmountFloatAttribute")
     confirmed: Boolean!
-    status: String!
+    status: String
     meta: Mixed
     created_at: DateTimeTz
 }
