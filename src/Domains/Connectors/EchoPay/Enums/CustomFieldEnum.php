@@ -8,6 +8,9 @@ enum CustomFieldEnum: string
 {
     case ECHO_PAY_TRANSACTION_ID = 'payment_transaction_id';
     case ECHO_PAY_PAYMENT_INTENT_ID = 'payment_intent_id';
+    case ECHO_PAY_PAYMENT_STATUS = 'payment_status';
+    case ECHO_PAY_PAYMENT_RESPONSE = 'payment_response';
+
 
     case ECHO_PAY_MERCHANT_KEY = 'merchant_key';
     case ECHO_PAY_CHANNEL_CODE = 'channel_code';

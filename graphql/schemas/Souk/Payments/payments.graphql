@@ -44,6 +44,18 @@ type PaymentIntentResult {
     message: Mixed
 }
 
+type PaymentResult {
+    payment: Mixed
+    message: Mixed
+}
+
+input PaymentInput {
+    amount: Money!
+    payment_date: String
+    concept: String
+    payment_methods_id: ID
+}
+
 extend type Mutation @guard {
     createPaymentMethod(input: PaymentMethodInput!): PaymentMethod!
         @field(
@@ -64,6 +76,10 @@ extend type Mutation @guard {
     makePaymentIntentFromOrder(orderID: ID!): PaymentIntentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
+        )
+    addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@addPaymentToOrder"
         )
 }
 

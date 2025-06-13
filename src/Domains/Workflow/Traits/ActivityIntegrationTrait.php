@@ -95,6 +95,7 @@ trait ActivityIntegrationTrait
         if (! $integrationCompany) {
             return [
                 'error' => 'No integration configured for this company',
+                'region' => $region->getId(),
                 'integration' => $integration->value,
                 'company' => $company?->getId() ?? 'no company',
                 'entity_id' => $entity->getId(),
