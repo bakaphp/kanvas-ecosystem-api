@@ -93,6 +93,7 @@ input VariantsInput {
     files: [FilesystemInputUrl!]
     slug: String
     discountPrice: Float
+    quantity: Int
     status: StatusReferenceInput
     price: Float
     weight: Float
