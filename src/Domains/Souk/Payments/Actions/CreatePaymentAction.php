@@ -9,7 +9,6 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
-
 class CreatePaymentAction
 {
     public bool $runWorkflow = true;
@@ -26,6 +25,10 @@ class CreatePaymentAction
 
         if (! $paymentMethod) {
             throw new \Exception('Payment method not found');
+        }
+
+        if ($this->order->getPaidAmount() >= $this->order->getTotalAmount()) {
+            throw new \Exception('Order already paid');
         }
 
         $formData = [

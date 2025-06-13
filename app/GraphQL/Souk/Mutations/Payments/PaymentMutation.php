@@ -59,7 +59,7 @@ class PaymentMutation
         ];
     }
 
-    public function addPaymentToOrder($_, array $request): array 
+    public function addPaymentToOrder($_, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderID'];

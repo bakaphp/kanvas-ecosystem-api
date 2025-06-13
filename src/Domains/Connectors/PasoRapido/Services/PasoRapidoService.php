@@ -34,7 +34,6 @@ class PasoRapidoService
      */
     public function verifyCustomer(string $tag): VerifyCustomerResponse
     {
-    
         $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
 
         return VerifyCustomerResponse::from([

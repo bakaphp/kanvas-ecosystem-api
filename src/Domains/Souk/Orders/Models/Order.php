@@ -595,7 +595,7 @@ class Order extends BaseModel
             $totalPaid = $this->getPaidAmount();
             $totalDebt = $this->total_net_amount - $totalPaid;
             if ($totalDebt <= 0) {
-                $this->fulfill();
+                $this->completed();
 
                 $this->fireWorkflow(
                     WorkflowEnum::UPDATED->value,

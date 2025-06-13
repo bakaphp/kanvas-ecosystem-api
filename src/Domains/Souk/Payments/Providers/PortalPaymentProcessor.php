@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Providers;
 
+use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
@@ -160,7 +161,6 @@ class PortalPaymentProcessor
                 "deviceChannel" => "BROWSER",
                 "referenceId" => $referenceId,
                 "transactionMode" => "eCommerce"
-
             ]),
         ]);
 
@@ -180,9 +180,16 @@ class PortalPaymentProcessor
         } catch (Throwable $e) {
             report($e);
 
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorMessage = json_decode((string) $response->getBody())->message ?? $e->getMessage();
+            } else {
+                $errorMessage = $e->getMessage();
+            }
+
             return [
                 'status' => 'error',
-                'message' => 'Payment failed: ' . $e->getMessage(),
+                'message' => $errorMessage,
                 'data' => [
                     'pamentData' => $pamentData,
                     'consumerData' => $consumerData,
@@ -210,12 +217,11 @@ class PortalPaymentProcessor
         }
 
         $this->payment = $payment;
-        $payerData = $this->startPaymentIntent($payment->order, $payment);
-        $consumerAuthentication = $payerData['consumerAuthenticationInformation'];
-        $referenceId = $consumerAuthentication['referenceId'];
-        $enrollmentData = $this->checkEnrollment($payment->order, $referenceId);
-
         try {
+            $payerData = $this->startPaymentIntent($payment->order, $payment);
+            $consumerAuthentication = $payerData['consumerAuthenticationInformation'];
+            $referenceId = $consumerAuthentication['referenceId'];
+            $enrollmentData = $this->checkEnrollment($payment->order, $referenceId);
             if ($enrollmentData['status'] === 'AUTHENTICATION_SUCCESSFUL') {
                 $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
 
@@ -273,8 +279,20 @@ class PortalPaymentProcessor
 
                 $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($enrollmentData));
             }
+
+            return [
+                'status' => 'success',
+                'message' => PaymentStatusEnum::PENDING_AUTHORIZATION,
+                'data' => $enrollmentData
+            ];
         } catch (Throwable $e) {
             report($e);
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorMessage = json_decode((string) $response->getBody())->message ?? $e->getMessage();
+            } else {
+                $errorMessage = $e->getMessage();
+            }
 
             $payment->status = PaymentStatusEnum::FAILED;
             $payment->addMetadata([
@@ -287,16 +305,10 @@ class PortalPaymentProcessor
 
             return [
                 'status' => 'error',
-                'message' => 'Payment failed: ' . $e->getMessage(),
+                'message' => $errorMessage,
                 'response' => $e->getMessage(),
                 'data' => $enrollmentData,
             ];
         }
-
-        return [
-            'status' => 'success',
-            'message' => PaymentStatusEnum::PENDING_AUTHORIZATION,
-            'data' => $enrollmentData
-        ];
     }
 }
