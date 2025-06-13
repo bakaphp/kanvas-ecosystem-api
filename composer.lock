@@ -15399,16 +15399,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.6.2",
+            "version": "8.6.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "b9c2b44392727bb22ee99d5972e7cbe361036fcc"
+                "reference": "0adab66d4ebb0fa2780ad3c9332f495cc78b44c6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/b9c2b44392727bb22ee99d5972e7cbe361036fcc",
-                "reference": "b9c2b44392727bb22ee99d5972e7cbe361036fcc",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/0adab66d4ebb0fa2780ad3c9332f495cc78b44c6",
+                "reference": "0adab66d4ebb0fa2780ad3c9332f495cc78b44c6",
                 "shasum": ""
             },
             "require": {
@@ -15445,7 +15445,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2025-05-29T12:18:35+00:00"
+            "time": "2025-06-12T10:34:08+00:00"
         },
         {
             "name": "typesense/laravel-scout-typesense-driver",
