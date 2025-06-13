@@ -15,6 +15,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Regions\Models\Regions as ModelsRegions;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
@@ -78,8 +79,10 @@ class Order extends Data
             throw new InvalidArgumentException('Not the correct item structure to generate a line item');
         }
 
+        $isB2B = B2BConfigurationService::hasGlobalCompany($this->app);
+
         foreach ($lineItems as $lineItem) {
-            $variant = Variants::getById($lineItem['id'], $this->app);
+            $variant = Variants::getById($lineItem['id'], ! $isB2B ? $this->app : null);
 
             //this shouldn't happen but just in case
             if (! $variant) {
