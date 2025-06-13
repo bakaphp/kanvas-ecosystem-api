@@ -18,14 +18,14 @@ class CheckMessageContentAction
     public function execute(): bool
     {
         $messageContent = is_array($this->message) ? $this->message : json_decode($this->message, true);
-        if ($this->app->get('enable-image-moderation')) {
+        if ($this->app->get('enable-image-moderation') && $this->app->get('image-moderation-field') !== null && ! empty($messageContent[$this->app->get('image-moderation-field')])) {
             $imageContentModerationService = (new ContentModerationService())->scanImage($messageContent[$this->app->get('image-moderation-field')]);
             if (in_array(true, $imageContentModerationService, true)) {
                 return true;
             }
         }
 
-        if ($this->app->get('enable-text-moderation')) {
+        if ($this->app->get('enable-text-moderation') && $this->app->get('text-moderation-field') !== null && ! empty($messageContent[$this->app->get('text-moderation-field')])) {
             $textContentModerationService = (new ContentModerationService())->scanText($messageContent[$this->app->get('text-moderation-field')]);
             if (in_array(true, $textContentModerationService, true)) {
                 return true;

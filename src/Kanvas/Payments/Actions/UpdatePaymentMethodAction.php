@@ -25,6 +25,7 @@ class UpdatePaymentMethodAction
         $paymentMethod->processor = $this->updateData->processor;
         $paymentMethod->metadata = $this->updateData->metadata;
         $paymentMethod->save();
+
         return $paymentMethod;
     }
 }

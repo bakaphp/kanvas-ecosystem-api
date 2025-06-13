@@ -146,6 +146,16 @@ class EngagementMutation
             ],
         ];
 
+        $channel = new CreateChannelAction(new Channel(
+            apps: $app,
+            companies: $lead->company,
+            users: $lead->user,
+            entity_id: $lead->getId(),
+            entity_namespace: Lead::class,
+            name: $lead->uuid,
+            slug: $lead->uuid,
+        ))->execute();
+
         $engagementMessage = new EngagementMessage(
             data: array_merge($data, $messageData),
             text: $companyAction->name,
@@ -163,6 +173,7 @@ class EngagementMutation
             preFill: [],
             via: $via,
             product_id: $data['product_id'] ?? null,
+            channel_id: $channel ? $channel->uuid : null,
         );
         $messageInput = [
             'message' => $engagementMessage->toArray(),
@@ -197,15 +208,6 @@ class EngagementMutation
         $pipeline = Pipeline::getBySlug($action, $app, $company);
         $stage = $pipeline->stages()->where('slug', ActionStatusEnum::SENT->value)->firstOrFail();
 
-        $channel = new CreateChannelAction(new Channel(
-            apps: $app,
-            companies: $lead->company,
-            users: $lead->user,
-            entity_id: $lead->getId(),
-            entity_namespace: Lead::class,
-            name: $lead->uuid,
-            slug: $lead->uuid,
-        ))->execute();
         if ($channel) {
             $channel->addMessage($createMessage, $user);
         }

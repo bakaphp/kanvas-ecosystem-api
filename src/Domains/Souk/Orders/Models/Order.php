@@ -298,6 +298,11 @@ class Order extends BaseModel
     public function addMetadata(string $key, mixed $value): void
     {
         $metadata = $this->metadata ?? [];
+
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
         $metadata[$key] = $value;
 
         $this->metadata = $metadata;
@@ -364,7 +369,7 @@ class Order extends BaseModel
                 ],
                 [
                     'name' => 'id',
-                    'type' => 'string',
+                    'type' => 'int64',
                 ],
                 [
                     'name' => 'uuid',
@@ -606,6 +611,7 @@ class Order extends BaseModel
     public function getPaidAmount(): float
     {
         $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
+
         return (float) $paidAmount;
     }
 
