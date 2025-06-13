@@ -98,11 +98,18 @@ class VariantService
                 }
             } else {
                 $warehouse = Warehouses::getDefault($company);
+                $variantWarehouseInfo = [];
+
+                $variantWarehouseInfo = array_filter([
+                    'price' => $variant['price'] ?? null,
+                    'quantity' => $variant['quantity'] ?? null,
+                ]);
+
                 WarehouseService::addToWarehouses(
                     $variantModel,
                     $warehouse,
                     $company,
-                    []
+                    $variantWarehouseInfo
                 );
             }
 
