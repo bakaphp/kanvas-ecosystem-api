@@ -82,12 +82,12 @@ class WalletManagementQuery
 
             return [
                 'message' => $errorMessage,
-                'data' => [],
+                'data' => null,
             ];
         } catch (Exception $e) {
             return [
                 'message' => $e->getMessage(), 
-                'data' => [],
+                'data' => null,
             ];
         }
     }

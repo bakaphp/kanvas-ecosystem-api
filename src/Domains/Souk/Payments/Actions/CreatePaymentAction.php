@@ -42,54 +42,21 @@ class CreatePaymentAction
             'status' => PaymentStatusEnum::PENDING->value
         ];
 
-        $this->setUpVendorService($this->order);
-
         $payment = $this->order->payments()->create($formData);
         $this->order->updateQuietly([
             'status' => OrderStatusEnum::PENDING->value,
         ]);
 
-        $activity = new ProcessPaymentActivity(
-            0,
-            now()->toDateTimeString(),
-            StoredWorkflow::make(),
-            []
-        );
-
-        $result = $activity->execute($payment, $this->order->app, []);
-
-        dd($result);
-
-        // if ($this->runWorkflow) {
-        //     $payment->fireWorkflow(
-        //         WorkflowEnum::CREATED->value,
-        //         true,
-        //         [
-        //             'app' => $this->order->app,
-        //         ]
-        //     );
-        // }
+        if ($this->runWorkflow) {
+            $payment->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->order->app,
+                ]
+            );
+        }
 
         return $payment;
-    }
-
-
-    private function setUpVendorService(Order $order): void
-    {
-        $orderTypeName = "paso_rapido";
-
-        $this->order->app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
-        $this->order->app->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
-        $this->order->app->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
-        $this->order->app->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
-        $this->order->app->set(ConfigurationEnum::MERCHANT_IDENTIFIER->value, env('TEST_ECHO_PAY_MERCHANT_IDENTIFIER'));
-        $this->order->app->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
-        $this->order->app->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
-
-        $this->order->app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_SERVICE_KEY'));
-        $this->order->app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value, env('TEST_ECHO_PAY_CHANNEL_CODE'));
-        $this->order->app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value, env('TEST_ECHO_PAY_SERVICE_CODE'));
-        $this->order->app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value, env('TEST_ECHO_PAY_SERVICE_TYPE_ID'));
-        $this->order->app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_CONTRACT->value, env('TEST_ECHO_PAY_CONTRACT'));
     }
 }
