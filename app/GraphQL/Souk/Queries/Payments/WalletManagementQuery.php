@@ -71,9 +71,22 @@ class WalletManagementQuery
                 'message' => 'success',
                 'data' => $customer->toArray(),
             ];
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorMessage = json_decode((string) $response->getBody())->descripcionMensaje;
+            } else {
+                $errorMessage = $e->getMessage();
+            }
+
+            return [
+                'message' => $errorMessage,
+                'data' => [],
+            ];
         } catch (Exception $e) {
             return [
-                'message' => $e->getMessage(),
+                'message' => $e->getMessage(), 
                 'data' => [],
             ];
         }
