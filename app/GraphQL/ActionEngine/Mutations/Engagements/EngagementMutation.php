@@ -127,6 +127,7 @@ class EngagementMutation
         $request['users_id'] = $user->getId();
         $request['leads_id'] = $lead->uuid;
         $request['lead_id'] = $lead->uuid;
+        $request['contact_id'] = $people->uuid;
         $request['vehicle_id'] = null;
         $request['receivers_id'] = $receiver->uuid;
         $request['receiver_id'] = $receiver->uuid;
@@ -136,6 +137,8 @@ class EngagementMutation
         $request['actions_slug'] = $action;
         $request['cid'] = $lead->company->uuid;
         $request['bcid'] = $lead->branch ? $lead->branch->uuid : null;
+        $request['company_action_id'] = $companyAction->getId();
+        $request['extraField'] = $request['extraField'] ?? [];
 
         if (! empty($parentAction['form_type'])) {
             $request['form_type'] = $parentAction['form_type'];
@@ -147,18 +150,6 @@ class EngagementMutation
         if (is_array($extraField)) {
             $extraField = implode('&', $extraField);
         }
-
-        $companyActionVisitor = CompanyActionVisitor::create([
-            'visitors_id' => $request['request_id'],
-            'leads_id' => $lead->uuid,
-            'receivers_id' => $receiver->uuid,
-            'contacts_id' => $people->uuid,
-            'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-            'companies_actions_id' => $companyAction->getId(),
-            'actions_slug' => $request['action'],
-            'request' => $request,
-        ]);
 
         $params = array_intersect_key(
             $request,
@@ -178,6 +169,19 @@ class EngagementMutation
                 'form_type',
             ])
         );
+
+        $companyActionVisitor = CompanyActionVisitor::create([
+            'visitors_id' => $request['request_id'],
+            'leads_id' => $lead->uuid,
+            'receivers_id' => $receiver->uuid,
+            'contacts_id' => $people->uuid,
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'companies_actions_id' => $companyAction->getId(),
+            'actions_slug' => $request['action'],
+            'request' => $request,
+        ]);
+
         $urlParams = http_build_query($params) . $extraField;
         $urlParams .= '&caction=' . $companyAction->uuid;
 
@@ -220,7 +224,7 @@ class EngagementMutation
         ))->execute();
 
         $engagementMessage = new EngagementMessage(
-            data: array_merge($data, $messageData),
+            data: $data, //array_merge($data, $messageData),
             text: $companyAction->name,
             verb: $action,
             status: ActionStatusEnum::SENT->value,
