@@ -7,6 +7,7 @@ namespace App\GraphQL\ActionEngine\Mutations\Engagements;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Support\Url;
+use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Actions\Models\CompanyActionVisitor;
@@ -40,6 +41,8 @@ class EngagementMutation
         $request = $request['input'];
 
         $lead = Lead::getByIdFromCompanyApp($request['lead_id'], $company, $app);
+        $user->follow($lead);
+
         $people = ! empty($request['people_id']) ? People::getByIdFromCompanyApp($request['people_id'], $company, $app) : $lead->people;
         $receiver = ! empty($request['receiver_id']) ? LeadReceiver::getByIdFromCompanyApp($request['receiver_id'], $company, $app) : ($lead->receiver ?? LeadReceiver::getDefault($company, $app));
         $requestId = $request['request_id'];
@@ -50,6 +53,27 @@ class EngagementMutation
         $source = $request['source'];
         $via = $request['via'] ?? 'copy';
         $data = $request['data'] ?? [];
+
+        $newCreditApp = [
+            ActionEnum::CREDIT_APP_2->value,
+            ActionEnum::CREDIT_APP_3->value,
+            ActionEnum::CREDIT_APP_4->value,
+            ActionEnum::CREDIT_APP_5->value,
+            ActionEnum::CREDIT_APP_6->value,
+            ActionEnum::CREDIT_APP_7->value,
+        ];
+
+        $newCosigner = [
+            ActionEnum::CO_SIGNER_2->value,
+            ActionEnum::CO_SIGNER_3->value,
+            ActionEnum::CO_SIGNER_4->value,
+            ActionEnum::CO_SIGNER_5->value,
+        ];
+
+        $codeShare = [
+            ActionEnum::SHARE_BLUELINK->value,
+            ActionEnum::SHARE_ELECTRIFY_AMERICA->value,
+        ];
 
         $companyAction = CompanyAction::getByAction(
             Action::getBySlug($action, $company),
@@ -63,6 +87,40 @@ class EngagementMutation
          */
         $newActionPageUrl = in_array($action, $app->get('new-action-slug') ?? []);
         $actionPageUrl = ! $newActionPageUrl ? $app->get('TEMP_LANDING_PAGE') : $app->get('NEW_LANDING_PAGE');
+
+        if (in_array($action, $newCreditApp)) {
+            $request['mixed_credit_app'] = $action;
+            $action = ActionEnum::CREDIT_APP->value;
+            //$request['actions_slug'] = $action;
+            $formType = [
+                ActionEnum::CREDIT_APP_2->value => 'finance-lease',
+                ActionEnum::CREDIT_APP_3->value => 'personal-check',
+                ActionEnum::CREDIT_APP_4->value => 'cashier-check',
+                ActionEnum::CREDIT_APP_5->value => 'all-cash',
+                ActionEnum::CREDIT_APP_6->value => '5-liner',
+                ActionEnum::CREDIT_APP_7->value => 'finance',
+            ];
+            $request['form_type'] = $formType[$request['mixed_credit_app']];
+        }
+
+        if (in_array($action, $newCosigner)) {
+            $request['mixed_cosigner_app'] = $action;
+            $action = ActionEnum::CO_SIGNER->value;
+            //$request['actions_slug'] = $action;
+            $formType = [
+                ActionEnum::CO_SIGNER_2->value => 'finance-lease',
+                ActionEnum::CO_SIGNER_3->value => 'personal-check',
+                ActionEnum::CO_SIGNER_4->value => 'cashier-check',
+                ActionEnum::CO_SIGNER_5->value => 'all-cash',
+            ];
+            $request['form_type'] = $formType[$request['mixed_cosigner_app']];
+        }
+
+        if (in_array($action, $codeShare)) {
+            $request['mixed_share_code'] = $action;
+            $action = ActionEnum::SHARE_BLUELINK->value;
+            //$request['actions_slug'] = $action;
+        }
 
         $request['visitors_id'] = $requestId;
         $request['visitor_id'] = $request['visitors_id'];
