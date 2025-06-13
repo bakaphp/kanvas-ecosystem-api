@@ -8,6 +8,11 @@ use Tests\TestCase;
 
 class EngagementTest extends TestCase
 {
+    public function testEngagementByFilter()
+    {
+        //todo add test
+        $this->markTestIncomplete('TODO: Implement the test logic for EngagementByFilter query.');
+    }
     /**
      * @todo add the action engine setup
      */
