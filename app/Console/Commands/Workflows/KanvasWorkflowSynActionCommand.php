@@ -90,6 +90,7 @@ use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationAct
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageReportNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
+use Kanvas\Souk\Orders\Activities\B2BUpdateCompanyOrderActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
@@ -196,7 +197,8 @@ class KanvasWorkflowSynActionCommand extends Command
             PayFromWalletActivity::class,
             AddFundsToWalletActivity::class,
             PushOrderToNetsuiteActivity::class,
-            CheckMessageContentActivity::class
+            CheckMessageContentActivity::class,
+            B2BUpdateCompanyOrderActivity::class
         ];
 
         $createdActions = [];
