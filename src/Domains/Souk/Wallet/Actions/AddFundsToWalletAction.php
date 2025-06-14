@@ -48,6 +48,19 @@ class AddFundsToWalletAction
             throw new Exception('Total amount to deposit must be greater than zero.');
         }
 
-        return $wallet->depositFloat($total);
+        $transaction = $wallet->depositFloat($total);
+        $transaction->meta = [
+            'order_id' => $this->order->getId(),
+            'variants' => $this->order->items->map(function ($item) {
+                return [
+                    'id' => $item->variant->getId(),
+                    'name' => $item->variant->name,
+                    'price' => $item->getPrice(),
+                    'quantity' => $item->quantity,
+                ];
+            })->toArray(),
+        ];
+
+        return $transaction;
     }
 }
