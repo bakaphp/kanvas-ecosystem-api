@@ -41,6 +41,7 @@ use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\CheckNuggetGenerationCountActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
@@ -198,7 +199,8 @@ class KanvasWorkflowSynActionCommand extends Command
             AddFundsToWalletActivity::class,
             PushOrderToNetsuiteActivity::class,
             CheckMessageContentActivity::class,
-            B2BUpdateCompanyOrderActivity::class
+            B2BUpdateCompanyOrderActivity::class,
+            CheckNuggetGenerationCountActivity::class,
         ];
 
         $createdActions = [];

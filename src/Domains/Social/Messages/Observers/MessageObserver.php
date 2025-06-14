@@ -38,14 +38,9 @@ class MessageObserver
 
     public function created(Message $message): void
     {
-        /*         $message->fireWorkflow(WorkflowEnum::CREATED->value, true, [
-                    'app' => $message->app,
-                    'notification_name' => WorkflowEnum::CREATED->value . '-' . $message->messageType->name
-                ]); */
-
-        if ($message->app->get('check-free-generation-count') && $message->app->get('free-generation-check-message-type') && $message->parent_id) {
-            (new CheckNuggetGenerationCountAction($message))->execute();
-        }
+        /*         if ($message->app->get('check-free-generation-count') && $message->app->get('free-generation-check-message-type') && $message->parent_id) {
+                    (new CheckNuggetGenerationCountAction($message))->execute();
+                } */
 
         $message->clearLightHouseCacheJob();
     }

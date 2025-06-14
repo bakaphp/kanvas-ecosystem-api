@@ -39,7 +39,7 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity) use ($messageData) {
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageData) {
                 if (! isset($messageData['ai_model'])) {
                     return [
                         'result' => false,

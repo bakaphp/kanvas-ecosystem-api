@@ -14,11 +14,12 @@ class CheckNuggetGenerationCountAction
 {
     public function __construct(
         private Message $message,
-    ) {}
+    ) {
+    }
 
     public function execute(): bool
     {
-        $loggedUsed = auth()->user();
+        //$loggedUsed = auth()->user();
         $messageType = MessageType::findOrFail($this->message->app->get('free-generation-check-message-type'));
         $messageOrder = AppModuleMessage::fromApp($this->message->app->getId())
             ->where('apps_id', $this->message->app->getId())
@@ -29,7 +30,8 @@ class CheckNuggetGenerationCountAction
             ->where('is_deleted', 0)
             ->first();
 
-        if (($this->message->parent->total_children > $this->message->app->get('nugget-free-generation-limit') && $loggedUsed->getId() == $this->message->user->getId()) || ($messageOrder && !$messageOrder->entity->isCompleted())) {
+        if (($this->message->parent->total_children > $this->message->app->get('nugget-free-generation-limit'))
+            || ($messageOrder && ! $messageOrder->entity->isCompleted())) {
             throw new Exception('You have reached the limit of nuggets you can generate for free');
         }
 
