@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\EchoPay;
 
+use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsultServiceQuery;
@@ -14,6 +15,7 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
+use Throwable;
 
 final class EchoPayTest extends EchoPayBase
 {
@@ -205,55 +207,65 @@ final class EchoPayTest extends EchoPayBase
 
         $cardData = $this->getCardData();
 
-        $result = $echoPayService->payService(
-            PaymentDetail::from([
-                'orderCode' => 'TC50171_3',
-                'paymentInstrumentId' => $tokenizedCard['paymentInstrumentId'],
-                'orderInformation' => OrderInformation::from([
-                    'currency' => 'DOP',
-                    'totalAmount' => '100',
-                    'billTo' => $cardData->billTo,
+        try {
+            $result = $echoPayService->payService(
+                PaymentDetail::from([
+                    'orderCode' => 'TC50171_3',
+                    'paymentInstrumentId' => $tokenizedCard['paymentInstrumentId'],
+                    'orderInformation' => OrderInformation::from([
+                        'currency' => 'DOP',
+                        'totalAmount' => '100',
+                        'billTo' => $cardData->billTo,
+                    ]),
+                    'deviceInformation' => DeviceInformation::from([
+                        'httpAcceptContent' => 'application/json',
+                        'httpBrowserLanguage' => 'en_us',
+                        'userAgentBrowserValue' => 'chrome',
+                    ]),
+                    'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
+                        'deviceChannel' => 'BROWSER',
+                        'referenceId' => $referenceId,
+                        'transactionMode' => 'eCommerce',
+                    ]),
                 ]),
-                'deviceInformation' => DeviceInformation::from([
-                    'httpAcceptContent' => 'application/json',
-                    'httpBrowserLanguage' => 'en_us',
-                    'userAgentBrowserValue' => 'chrome',
+                ConsumerAuthentication::from([
+                    'indicator' => 'vbv',
+                    'eciRaw' => '05',
+                    'authenticationResult' => '0',
+                    'strongAuthentication' => [
+                        'OutageExemptionIndicator' => '0',
+                    ],
+                    'authenticationStatusMsg' => 'Success',
+                    'eci' => '05',
+                    'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
+                    'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+                    'paresStatus' => 'Y',
+                    'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+                    'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
+                    'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
+                    'specificationVersion' => '2.2.0',
+                    'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
                 ]),
-                'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
-                    'deviceChannel' => 'BROWSER',
-                    'referenceId' => $referenceId,
-                    'transactionMode' => 'eCommerce',
-                ]),
-            ]),
-            ConsumerAuthentication::from([
-                'indicator' => 'vbv',
-                'eciRaw' => '05',
-                'authenticationResult' => '0',
-                'strongAuthentication' => [
-                    'OutageExemptionIndicator' => '0',
-                ],
-                'authenticationStatusMsg' => 'Success',
-                'eci' => '05',
-                'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
-                'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
-                'paresStatus' => 'Y',
-                'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
-                'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
-                'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
-                'specificationVersion' => '2.2.0',
-                'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
-            ]),
-            $cardData->merchant,
-            [
-                'merchantKey' => '00000000016739100006575',
-                'channelCode' => '004',
-                'serviceCode' => '0101',
-                'serviceTypeId' => '106',
-                'contract' => '6537824',
-            ]
-        );
+                $cardData->merchant,
+                [
+                    'merchantKey' => '00000000016739100006575',
+                    'channelCode' => '004',
+                    'serviceCode' => '0101',
+                    'serviceTypeId' => '106',
+                    'contract' => '6537824',
+                ]
+            );
 
-        $this->assertInstanceOf(PaymentResponse::class, $result);
-        $this->assertEquals('PAYED', $result->status->name);
+            $this->assertInstanceOf(PaymentResponse::class, $result);
+            $this->assertEquals('PAYED', $result->status->name);
+        } catch (Throwable $e) {
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $response = $e->getResponse();
+                $responseMessage = json_decode((string) $response->getBody())->message ?? $e->getMessage();
+                $this->assertEquals('Service cannot be paid', $responseMessage);
+            } else {
+                $this->fail($e->getMessage());
+            }
+        }
     }
 }

@@ -4274,16 +4274,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.12.12",
+            "version": "1.12.14",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "a80243b18fbc6c3d5c7c6d61380d0d86ecd4577d"
+                "reference": "f7c004a1d745c8d5ac3684184fb88f2f0abbccda"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/a80243b18fbc6c3d5c7c6d61380d0d86ecd4577d",
-                "reference": "a80243b18fbc6c3d5c7c6d61380d0d86ecd4577d",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/f7c004a1d745c8d5ac3684184fb88f2f0abbccda",
+                "reference": "f7c004a1d745c8d5ac3684184fb88f2f0abbccda",
                 "shasum": ""
             },
             "require": {
@@ -4335,9 +4335,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.12.12"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.12.14"
             },
-            "time": "2025-06-11T16:12:08+00:00"
+            "time": "2025-06-13T11:18:20+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -17285,16 +17285,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "12.2.1",
+            "version": "12.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "5f09fda04e7caea93cff50b4e90319184f3e6ee3"
+                "reference": "19e25c2da3f8071a683ee1e445b0e24bba25de61"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/5f09fda04e7caea93cff50b4e90319184f3e6ee3",
-                "reference": "5f09fda04e7caea93cff50b4e90319184f3e6ee3",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/19e25c2da3f8071a683ee1e445b0e24bba25de61",
+                "reference": "19e25c2da3f8071a683ee1e445b0e24bba25de61",
                 "shasum": ""
             },
             "require": {
@@ -17362,7 +17362,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.2.1"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.2.2"
             },
             "funding": [
                 {
@@ -17386,7 +17386,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-06-07T05:17:47+00:00"
+            "time": "2025-06-13T05:49:28+00:00"
         },
         {
             "name": "sebastian/cli-parser",
