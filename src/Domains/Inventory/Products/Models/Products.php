@@ -399,6 +399,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'is_published' => $this->is_published,
             'description' => $this->description,
             'short_description' => $this->short_description,
+            'product_type_slug' => $this->productsType?->slug ?? null,
             'attributes' => [],
             'translations' => [
                 'name' => $this->getAllTranslationsAsString('name'),
@@ -686,6 +687,10 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'name' => 'files',
                     'type' => 'object[]',
                     'optional' => true,
+                ],
+                [
+                    'name' => 'product_type_slug',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'company',
