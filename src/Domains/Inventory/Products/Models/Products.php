@@ -691,6 +691,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'product_type_slug',
                     'type' => 'string',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'company',
