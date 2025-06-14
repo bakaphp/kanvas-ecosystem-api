@@ -60,6 +60,7 @@ class AddFundsToWalletAction
                 ];
             })->toArray(),
         ];
+        $transaction->saveOrFail();
 
         return $transaction;
     }
