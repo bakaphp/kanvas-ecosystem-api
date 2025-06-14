@@ -25,6 +25,8 @@ class B2BUpdateCompanyOrderActivity extends KanvasActivity
                 $userCompany = $order->user->getCurrentCompany();
                 $orderCompany = $order->company;
 
+                sleep(10);
+
                 if ($orderCompany->getId() !== $userCompany->getId()) {
                     $order->companies_id = $userCompany->getId();
                     $order->saveOrFail();
