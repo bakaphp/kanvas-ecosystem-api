@@ -148,7 +148,7 @@ final class ProcessPaymentActivityTest extends TestCase
         $payment = $order->payments()->first();
         $result = $activity->execute($payment, $app, []);
         if ($result['status'] != 'success') {
-            $this->fail($result['message']);
+            $this->assertEquals('Service cannot be paid', $result['message']);
         }
         $order->refresh();
         $this->assertEquals($result['status'], 'success');

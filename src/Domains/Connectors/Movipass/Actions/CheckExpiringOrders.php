@@ -41,9 +41,7 @@ class CheckExpiringOrders
             })
             ->orderBy('id', 'desc');
 
-        return $subQuery->get()->when($notifyIn, function ($query) use ($notifyIn) {
-            $query->whereIn('ends_in', $notifyIn);
-        });
+        return $subQuery->get()->when($notifyIn, fn ($query) => $query->whereIn('ends_in', $notifyIn));
     }
 
     public function notify(Collection $orders, array $via = ['database']): void
