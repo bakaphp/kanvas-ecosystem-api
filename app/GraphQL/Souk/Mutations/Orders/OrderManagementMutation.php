@@ -24,6 +24,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use Throwable;
 
 class OrderManagementMutation
@@ -83,7 +84,7 @@ class OrderManagementMutation
         $user = auth()->user();
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
         $region = Regions::getDefault($company);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
