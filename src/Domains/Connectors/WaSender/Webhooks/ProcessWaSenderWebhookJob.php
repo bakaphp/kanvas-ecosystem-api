@@ -256,6 +256,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $data = $payload['data'] ?? [];
         $channelId = $payload['data']['key']['remoteJid'] ?? null;
 
+        if ($channelId === null) {
+            return [
+                'error' => 'Missing channel ID in payload',
+            ];
+        }
+
         $processedUpdates = [];
         $time = $payload['timestamp'] ?? time();
         $channel = $this->getOrCreateChannel($channelId);
