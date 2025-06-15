@@ -39,7 +39,9 @@ class NetSuiteQuoteService
 
         // Set basic quote information
         $estimate->tranId = 'QUOTE-' . $order->getOrderNumber();
-        $estimate->memo = $order->customer_note ?? 'Quote created from Order #' . $order->getOrderNumber();
+        $orderPONumber = $order->getMetadata('poNumber') !== null ? (string) $order->getMetadata('poNumber') : null;
+        $orderMemo = $orderPONumber !== null ? 'Quote created from PO#' . $orderPONumber : 'Quote created from Order #' . $order->getOrderNumber();
+        $estimate->memo = $order->customer_note ?? $orderMemo;
         $estimate->tranDate = date('c', strtotime($order->created_at->toDateString()));
 
         // Set customer reference
