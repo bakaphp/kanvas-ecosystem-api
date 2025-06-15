@@ -115,6 +115,8 @@ class CreateEsimOrderAction
             $this->availableVariant = $parentProductIccid->variant;
             $this->iccid = $this->availableVariant->sku;
         }
+        $this->lpaCode = $this->availableVariant->getAttributeBySlug('lpa')?->value;
+        $this->imsi = $this->availableVariant->getAttributeBySlug('imsi')?->value;
 
         try {
             // Get service information
@@ -127,6 +129,8 @@ class CreateEsimOrderAction
             $service = $serviceInfo[0];
             $this->serviceId = $service['services_info']['id_service_inst'];
             $this->contractId = $service['id_contract_inst'];
+            $this->msisdn = $service['services_info']['msisdn'] ?? null;
+            $this->imsi = $service['services_info']['imsi'] ?? null;
 
             // Check if we need to customize the data amount and validity period
             $dataAmount = FileSizeConverter::toBytes($this->orderVariant->getAttributeBySlug('data')?->value);
