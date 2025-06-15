@@ -214,16 +214,17 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $text = $message->message['raw_data']['message']['conversation'] ?? $message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
                 $triggerWords = ['process', 'process document', 'dale', 'run'];
                 $triggerProcess = $text !== null && in_array(trim(strtolower($text)), $triggerWords);
+                $lastUnprocessedImageParentMessage = null;
 
                 if ($triggerProcess) {
                     //$isLastMessageDocument = MessageTypeEnum::isDocumentType($lastMessageParent->messageType->verb);
                     $lastUnprocessedImageMessage = ChannelRepository::getChannelMessagesByVerb($channel, MessageTypeEnum::IMAGE->value)
                                 ->orderBy('messages.created_at', 'desc')
                                 ->first();
-                    $lastUnprocessedImageParentMessage = $lastUnprocessedImageMessage ? $lastUnprocessedImageMessage->parent : null;
+                    $lastUnprocessedImageParentMessage = $lastUnprocessedImageMessage instanceof Message ? $lastUnprocessedImageMessage->parent : null;
                     //$isLastMessageDocument = MessageTypeEnum::isDocumentType($lastUnprocessedImageParentMessage->messageType->verb);
                     //$processDocument = $isLastMessageDocument && $text !== null && in_array(trim(strtolower($text)), $triggerWords);
-                    $processDocument = $lastUnprocessedImageMessage ? ! $lastUnprocessedImageParentMessage->get('created_product') : false;
+                    $processDocument = $lastUnprocessedImageMessage instanceof Message ? ! $lastUnprocessedImageParentMessage->get('created_product') : false;
                 }
 
                 $channel->fireWorkflow(
