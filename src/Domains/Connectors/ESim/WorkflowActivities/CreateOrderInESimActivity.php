@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ESim\WorkflowActivities;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\CMLink\Actions\CreateEsimOrderAction;
 use Kanvas\Connectors\ESim\Actions\PushOrderToCommerceAction;
@@ -17,6 +18,7 @@ use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Connectors\Stripe\Services\StripeCustomerService;
 use Kanvas\Connectors\VentaMobile\Actions\CreateEsimOrderAction as ActionsCreateEsimOrderAction;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -24,6 +26,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -275,6 +278,19 @@ class CreateOrderInESimActivity extends KanvasActivity
 
                 if (count($responses) === 1) {
                     return $responses[0];
+                }
+
+                try {
+                    if ($app->get('esim-send-email')) {
+                        $orderNotification = new NewOrderNotification($order, [
+                            'app' => $order->app,
+                            'company' => $order->company,
+                        ]);
+                        $orderNotification->channels = ['mail'];
+                        $order->user->notify($orderNotification);
+                    }
+                } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
+                    // Handle notification failure
                 }
 
                 return $responses;
