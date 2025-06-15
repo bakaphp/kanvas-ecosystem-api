@@ -32,7 +32,7 @@ trait HasTranslationsDefaultFallback
             return [];
         }
 
-        $fallbackLocale = is_object($this->app) ? $this->app->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) : 'en';
+        $fallbackLocale = $this->app?->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) ?? 'en';
 
         $isJson = is_string($attributeValue) &&
             ($attributeValue[0] ?? '') === '{' &&
