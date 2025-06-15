@@ -130,7 +130,7 @@ class CreateEsimOrderAction
             $this->serviceId = $service['services_info']['id_service_inst'];
             $this->contractId = $service['id_contract_inst'];
             $this->msisdn = $service['services_info']['msisdn'] ?? null;
-            $this->imsi = $service['services_info']['imsi'] ?? null;
+            $this->imsi = $service['services_info']['imsi'] ?? $this->imsi ?? null;
 
             // Check if we need to customize the data amount and validity period
             $dataAmount = FileSizeConverter::toBytes($this->orderVariant->getAttributeBySlug('data')?->value);
