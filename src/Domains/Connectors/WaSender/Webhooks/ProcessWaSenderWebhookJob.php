@@ -220,7 +220,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     $lastUnprocessedImageMessage = ChannelRepository::getChannelMessagesByVerb($channel, MessageTypeEnum::IMAGE->value)
                                 ->orderBy('messages.created_at', 'desc')
                                 ->first();
-                    $lastUnprocessedImageParentMessage = $lastUnprocessedImageMessage->parent ?? null;
+                    $lastUnprocessedImageParentMessage = $lastUnprocessedImageMessage ? $lastUnprocessedImageMessage->parent : null;
                     //$isLastMessageDocument = MessageTypeEnum::isDocumentType($lastUnprocessedImageParentMessage->messageType->verb);
                     //$processDocument = $isLastMessageDocument && $text !== null && in_array(trim(strtolower($text)), $triggerWords);
                     $processDocument = $lastUnprocessedImageMessage ? $lastUnprocessedImageParentMessage->get('created_product', false) : false;
