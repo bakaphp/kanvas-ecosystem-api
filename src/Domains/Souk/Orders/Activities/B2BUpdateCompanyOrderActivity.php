@@ -29,7 +29,7 @@ class B2BUpdateCompanyOrderActivity extends KanvasActivity
 
                 if ($orderCompany->getId() !== $userCompany->getId()) {
                     $order->companies_id = $userCompany->getId();
-                    $order->saveOrFail();
+                    $order->updateOrFail();
 
                     return [
                         'result' => true,
