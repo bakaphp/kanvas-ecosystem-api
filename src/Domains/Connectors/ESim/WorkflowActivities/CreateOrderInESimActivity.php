@@ -276,10 +276,6 @@ class CreateOrderInESimActivity extends KanvasActivity
                     $order->updateOrFail();
                 }
 
-                if (count($responses) === 1) {
-                    return $responses[0];
-                }
-
                 try {
                     if ($app->get('esim-send-email')) {
                         $orderNotification = new NewOrderNotification($order, [
@@ -291,6 +287,10 @@ class CreateOrderInESimActivity extends KanvasActivity
                     }
                 } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
                     // Handle notification failure
+                }
+
+                if (count($responses) === 1) {
+                    return $responses[0];
                 }
 
                 return $responses;
