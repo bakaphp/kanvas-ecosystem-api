@@ -138,6 +138,11 @@ class CreateOrderInESimActivity extends KanvasActivity
                         $response['order'] = $order->toArray();
                         $response['esim_sequence'] = $i + 1; // Add sequence number for tracking
                         $response['total_quantity'] = $quantity; // Add total quantity info
+                        $response['variant_info'] = [
+                            'name' => $variant->name,
+                            'product_name' => $variant->product->name,
+                            'attributes' => $variant->attributes()->pluck('value', 'name')->toArray(),
+                        ];
 
                         if (! isset($response['label'])) {
                             $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
