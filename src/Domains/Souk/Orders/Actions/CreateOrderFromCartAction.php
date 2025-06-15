@@ -122,7 +122,7 @@ class CreateOrderFromCartAction
         );
 
         $order = (new CreateOrderAction($order))->execute();
-        
+
         //@todo remove this we already have it on create order action
         new SendUserNotificationAction(
             $order->app,
