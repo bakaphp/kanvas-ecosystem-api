@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Souk;
 
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -87,7 +88,7 @@ class SetB2BChannelVariantPricingCommand extends Command
                 ))->execute();
 
                 $this->info('Variant ID: ' . $variant->getId() . ' processed successfully. Price set to: ' . $variantChannelPrice . ' in channel: ' . $channel->name);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->error('Error processing variant ID: ' . $variant->getId() . '. Error: ' . $e->getMessage());
             }
         }
