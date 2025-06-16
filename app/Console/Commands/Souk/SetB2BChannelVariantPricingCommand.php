@@ -61,7 +61,7 @@ class SetB2BChannelVariantPricingCommand extends Command
             $variantWarehouses = $variant->warehouses->first();
             $variantChannelPrice = $variant->getPriceInfoFromDefaultChannel()->price;
 
-            if($discountedPricePercentage > 0) {
+            if ($discountedPricePercentage > 0) {
                 $variantChannelPrice *= $discountedPricePercentage;
             }
 
