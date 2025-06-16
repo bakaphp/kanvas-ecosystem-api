@@ -19,7 +19,7 @@ class FixChannelVariantsCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('app_id'));
         $channel = Channels::where('apps_id', $app->getId())
