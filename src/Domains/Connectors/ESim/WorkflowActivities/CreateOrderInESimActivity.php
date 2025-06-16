@@ -140,16 +140,23 @@ class CreateOrderInESimActivity extends KanvasActivity
                         $response['order'] = $order->toArray();
                         $response['esim_sequence'] = $i + 1; // Add sequence number for tracking
                         $response['total_quantity'] = $quantity; // Add total quantity info
-                        $response['variant_info'] = [
-                            'name' => $variant->name,
-                            'product_name' => $variant->product->name,
-                            'attributes' => $variant->attributes()->pluck('value', 'name')->toArray(),
-                        ];
-                        $response['qr_url'] = ! empty($response['data']['qr_code']) ? $this->saveQrCodeFromBase64(
-                            $response['data']['qr_code'] ?? '',
-                            $order,
-                            $response['data']['iccid'] . '.png'
-                        )->url : null;
+
+                        try {
+                            $response['variant_info'] = [
+                                'name' => $variant->name,
+                                'product_name' => $variant->product->name,
+                                'attributes' => $variant->attributes()->pluck('value', 'name')->toArray(),
+                            ];
+
+                            $response['qr_url'] = ! empty($response['data']['qr_code']) ? $this->saveQrCodeFromBase64(
+                                $response['data']['qr_code'] ?? '',
+                                $order,
+                                $response['data']['iccid'] . '.png'
+                            )->url : null;
+                        } catch (Throwable $e) {
+                            report($e);
+                            $response['qr_url'] = null; // Set to null if QR code saving fails
+                        }
 
                         if (! isset($response['label'])) {
                             $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
