@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Souk;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -17,7 +18,9 @@ use Kanvas\Souk\Services\B2BConfigurationService;
 
 class SetB2BChannelVariantPricingCommand extends Command
 {
-    protected $signature = 'kanvas:set-b2b-channel-variant-pricing {app_id} {company_id} {discounted_price_percentage?}';
+    use KanvasJobsTrait;
+
+    protected $signature = 'kanvas:set-b2b-channel-variant-pricing {app_id} {company_id} {product_type_id} {discounted_price_percentage?}';
 
     /**
      * Execute the console command.
@@ -30,15 +33,15 @@ class SetB2BChannelVariantPricingCommand extends Command
         $this->overwriteAppService($app);
 
         $b2bCompany = B2BConfigurationService::getConfiguredB2BCompany($app, $company);
-
+        $productTypeId = (int) $this->argument('product_type_id');
         $channel = new CreateChannel(new DataTransferObjectChannels(
             app: $app,
-            company: $company,
-            user: $company->user,
+            company: $b2bCompany,
+            user: $b2bCompany->user,
             name: $company->name,
             is_published: true,
             slug: $company->uuid
-        ), $company->user)->execute();
+        ), $b2bCompany->user)->execute();
 
         $variants = Variants::query()
             ->select('products_variants.*')
@@ -49,8 +52,8 @@ class SetB2BChannelVariantPricingCommand extends Command
             ->where('products.companies_id', $b2bCompany->getId())
             ->where('products.is_published', 1)
             ->where('products.is_deleted', 0)
-            ->whereNull('products_variants_channels.price')
-            ->whereNotNull('products_variants_warehouses.price')
+            ->where('products.products_types_id', $productTypeId)
+            ->whereNotNull('products_variants_channels.price')
             ->get();
 
         /*    $defaultChannel = Channels::getDefault(
@@ -58,25 +61,35 @@ class SetB2BChannelVariantPricingCommand extends Command
                company: $b2bCompany
            ); */
         foreach ($variants as $variant) {
-            $variantWarehouses = $variant->warehouses->first();
-            $variantChannelPrice = $variant->getPriceInfoFromDefaultChannel()->price;
+            try {
+                $variantWarehouses = $variant->variantWarehouses->first();
+                $variantChannelPrice = $variant->getPriceInfoFromDefaultChannel()->price;
 
-            if ($discountedPricePercentage > 0) {
-                $variantChannelPrice *= $discountedPricePercentage;
+                if ($discountedPricePercentage > 0) {
+                    $variantChannelPrice = $variantChannelPrice - ($variantChannelPrice * $discountedPricePercentage);
+                }
+
+                if ($variantChannelPrice <= 0) {
+                    $this->error('Variant ID: ' . $variant->getId() . ' has a price of 0 or less. Skipping.');
+
+                    continue;
+                }
+
+                $variantChannel = VariantChannel::from([
+                                'price' => number_format($variantChannelPrice, 2, '.', ''),
+                                'discounted_price' => number_format($variantChannelPrice, 2, '.', ''),
+                                'is_published' => 1,
+                    ]);
+                (new AddVariantToChannelAction(
+                    $variantWarehouses,
+                    $channel,
+                    $variantChannel
+                ))->execute();
+
+                $this->info('Variant ID: ' . $variant->getId() . ' processed successfully. Price set to: ' . $variantChannelPrice . ' in channel: ' . $channel->name);
+            } catch (\Exception $e) {
+                $this->error('Error processing variant ID: ' . $variant->getId() . '. Error: ' . $e->getMessage());
             }
-
-            $variantChannel = VariantChannel::from([
-                            'price' => number_format($variantChannelPrice, 2, '.', ''),
-                            'discounted_price' => number_format($variantChannelPrice, 2, '.', ''),
-                            'is_published' => 1,
-                ]);
-            (new AddVariantToChannelAction(
-                $variantWarehouses,
-                $channel,
-                $variantChannel
-            ))->execute();
-
-            $this->info('Variant ID: ' . $variant->getId() . ' processed successfully. Price set to: ' . $variantChannelPrice . ' in channel: ' . $channel->name);
         }
 
         $this->info('All products processed successfully.');
