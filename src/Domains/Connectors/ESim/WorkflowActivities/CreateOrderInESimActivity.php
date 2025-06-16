@@ -19,6 +19,8 @@ use Kanvas\Connectors\Stripe\Services\StripeCustomerService;
 use Kanvas\Connectors\VentaMobile\Actions\CreateEsimOrderAction as ActionsCreateEsimOrderAction;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -143,6 +145,11 @@ class CreateOrderInESimActivity extends KanvasActivity
                             'product_name' => $variant->product->name,
                             'attributes' => $variant->attributes()->pluck('value', 'name')->toArray(),
                         ];
+                        $response['qr_url'] = ! empty($response['data']['qr_code']) ? $this->saveQrCodeFromBase64(
+                            $response['data']['qr_code'] ?? '',
+                            $order,
+                            $response['data']['iccid'] . '.png'
+                        )->url : null;
 
                         if (! isset($response['label'])) {
                             $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
@@ -374,5 +381,25 @@ class CreateOrderInESimActivity extends KanvasActivity
             $message->message = $messageData;
             $message->saveOrFail();
         }
+    }
+
+    protected function saveQrCodeFromBase64(string $base64DataUri, Order $order, ?string $filename = null): Filesystem
+    {
+        // Extract the base64 data from the data URI
+        $base64Data = substr($base64DataUri, strpos($base64DataUri, ',') + 1);
+
+        // Generate filename if not provided
+        if (! $filename) {
+            $filename = 'qr_' . uniqid() . '.png';
+        }
+
+        // Use your existing FilesystemServices
+        $filesystemService = new FilesystemServices($this->app, $this->company);
+
+        return $filesystemService->createFileSystemFromBase64(
+            $base64Data,  // Just the base64 data without the data URI prefix
+            $filename,
+            $order->user
+        );
     }
 }
