@@ -394,7 +394,7 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         // Use your existing FilesystemServices
-        $filesystemService = new FilesystemServices($this->app, $this->company);
+        $filesystemService = new FilesystemServices($order->app, $order->company);
 
         return $filesystemService->createFileSystemFromBase64(
             $base64Data,  // Just the base64 data without the data URI prefix
