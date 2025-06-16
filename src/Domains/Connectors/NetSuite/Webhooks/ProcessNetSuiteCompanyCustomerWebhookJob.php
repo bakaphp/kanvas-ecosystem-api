@@ -34,7 +34,7 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
 
         $user = $this->receiver->app->keys()->firstOrFail()->user;
 
-        if (isset($payload['sublists']['addressbook']['line1'])) {
+        if (isset($payload['sublists']['addressbook']['line 1'])) {
             $addAddressAction = new AddAddressToCompanyAction($company, $user, $this->receiver->app);
             $addressData = $payload['sublists']['addressbook']['line 1'];
             $addAddressAction->execute(new Address(
