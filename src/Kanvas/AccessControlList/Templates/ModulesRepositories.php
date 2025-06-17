@@ -10,6 +10,8 @@ use Kanvas\Enums\ModuleEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Rotations\Models\Rotation;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -18,8 +20,7 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
-use Kanvas\Guild\Leads\Models\LeadType;
-use Kanvas\Guild\Pipelines\Models\Pipeline;
+
 class ModulesRepositories
 {
     public static function getAbilitiesByModule(): array
