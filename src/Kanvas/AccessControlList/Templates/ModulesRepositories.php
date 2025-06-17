@@ -18,7 +18,8 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
-
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 class ModulesRepositories
 {
     public static function getAbilitiesByModule(): array
@@ -91,6 +92,16 @@ class ModulesRepositories
                     'delete',
                 ],
                 Rotation::class => [
+                    'create',
+                    'edit',
+                    'delete',
+                ],
+                LeadType::class => [
+                    'create',
+                    'edit',
+                    'delete',
+                ],
+                Pipeline::class => [
                     'create',
                     'edit',
                     'delete',
