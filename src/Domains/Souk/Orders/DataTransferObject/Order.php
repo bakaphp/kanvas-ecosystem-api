@@ -58,7 +58,7 @@ class Order extends Data
         public readonly ?string $reference = null,
         public readonly ?PaymentMethod $paymentMethod = null,
         public readonly ?string $paymentStatus = null, // enums
-        public readonly ?ModelsOrder $relatedOrder = null,
+        public readonly ?ModelsOrder $parent = null,
     ) {
         $this->items = is_array($items) ? $this->getOrderItems($items) : $items;
     }

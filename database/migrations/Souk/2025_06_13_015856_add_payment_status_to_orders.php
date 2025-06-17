@@ -13,7 +13,13 @@ return new class () extends Migration {
     public function up()
     {
         Schema::table('orders', function (Blueprint $table) {
-            $table->unsignedBigInteger('related_order_id')->nullable()->index()->after('id');
+            $table->foreignId('parent_id')
+                ->nullable()
+                ->index()
+                ->constrained('orders')
+                ->after('id')
+                ->cascadeOnDelete();
+            $table->string('path')->nullable()->index();
             $table->enum('payment_status', ['unpaid', 'pending_action', 'processing', 'paid', 'failed', 'refunded'])->nullable()->after('status');
         });
     }
@@ -27,7 +33,8 @@ return new class () extends Migration {
     {
         Schema::table('orders', function (Blueprint $table) {
             $table->dropColumn('payment_status');
-            $table->dropColumn('related_order_id');
+            $table->dropColumn('parent_id');
+            $table->dropColumn('path');
             $table->enum('status', ['draft', 'completed', 'canceled', 'cancelled', 'pending', 'failed'])->nullable()->change();
         });
     }

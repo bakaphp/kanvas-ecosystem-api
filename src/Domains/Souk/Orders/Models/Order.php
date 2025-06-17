@@ -28,6 +28,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Nevadskiy\Tree\AsTree;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -85,6 +86,7 @@ class Order extends BaseModel
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use AsTree;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -618,15 +620,5 @@ class Order extends BaseModel
     public function orderType(): BelongsTo
     {
         return $this->belongsTo(OrderTypes::class, 'order_types_id', 'id');
-    }
-
-    public function relatedOrder(): BelongsTo
-    {
-        return $this->belongsTo(Order::class, 'related_order_id', 'id');
-    }
-
-    public function relatedOrders(): HasMany
-    {
-        return $this->hasMany(Order::class, 'related_order_id', 'id');
     }
 }

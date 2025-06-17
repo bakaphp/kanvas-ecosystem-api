@@ -37,7 +37,7 @@ type Order {
     created_at: String!
     updated_at: String
     order_type: OrderType @belongsTo(relation: "orderType")
-    related_order: Order @belongsTo(relation: "relatedOrder")
+    parent: Order @belongsTo(relation: "parent")
     payment_status: String
     payments: [Payment!] @hasMany(relation: "payments")
     items(includeAllItems: Boolean = false): [OrderItem!]
@@ -147,7 +147,7 @@ input OrderCustomerInput {
 
 input OrderCartInput {
     cartId: ID!
-    related_order_id: ID
+    parent_id: ID
     customer: OrderCustomerInput!
     billing: OrderBillingInput
     shipping_address: AddressInput
@@ -307,7 +307,7 @@ extend type Query @guard {
                     "order_number"
                     "reference"
                     "order_types_id"
-                    "related_order_id"
+                    "parent_id"
                 ]
             )
         orderType: _

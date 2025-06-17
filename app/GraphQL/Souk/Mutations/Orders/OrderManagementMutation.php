@@ -182,25 +182,25 @@ class OrderManagementMutation
         $app = app(Apps::class);
         $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
 
-        $relatedOrder = Order::where([
+        $parentOrder = Order::where([
             'apps_id' => $app->getId(),
             'id' => $request['id'],
             'companies_id' => $company->getId(),
         ])->first();
 
-        if (! $relatedOrder) {
+        if (! $parentOrder) {
             return [
                 'order' => null,
                 'message' => [
-                    'error_code' => 'Related order not found',
-                    'error_message' => 'Related order not found',
+                    'error_code' => 'Parent order not found',
+                    'error_message' => 'Parent order not found',
                 ],
             ];
         }
 
         $orderInput = $request['input'];
 
-        if ($relatedOrder->metadata['data']['end_at'] > $orderInput['metadata']['data']['end_at']) {
+        if ($parentOrder->metadata['data']['end_at'] > $orderInput['metadata']['data']['end_at']) {
             throw new ValidationException('Extended reservation is not allowed');
         }
 
@@ -247,7 +247,7 @@ class OrderManagementMutation
             $billing,
             $shippingAddress,
             $request,
-            $relatedOrder
+            $parentOrder
         )->execute();
 
         $log->subject_type = get_class($createOrder);

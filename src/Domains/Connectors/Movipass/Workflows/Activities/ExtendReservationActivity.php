@@ -22,9 +22,9 @@ class ExtendReservationActivity extends KanvasActivity implements WorkflowActivi
         return $this->executeIntegration(
             entity: $order,
             app: $app,
-            integration: IntegrationsEnum::PASO_RAPIDO,
+            integration: IntegrationsEnum::MOVIPASS,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) {
-                if (! isset($order->related_order_id)) {
+                if (! isset($order->parent_id)) {
                     return [
                         'order' => $order->getId(),
                         'status' => 'error',
@@ -33,10 +33,10 @@ class ExtendReservationActivity extends KanvasActivity implements WorkflowActivi
                 }
 
                 try {
-                    $mainReservation = Order::find($order->related_order_id);
+                    $mainReservation = Order::find($order->parent_id);
                     if ($mainReservation && $order->status === OrderStatusEnum::COMPLETED->value) {
                         $latestEnd = Order::where('id', $mainReservation->id)
-                            ->orWhere('related_order_id', $mainReservation->id)
+                            ->orWhere('parent_id', $mainReservation->id)
                             ->whereNotNull('metadata')
                             ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
                             ->max(DB::raw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at'))"));

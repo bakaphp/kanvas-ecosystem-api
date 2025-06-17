@@ -79,7 +79,7 @@ class CreateOrderAction
             $order->payment_gateway_names = $this->orderData->paymentGatewayName;
             $order->language_code = $this->orderData->languageCode;
             $order->reference = $this->orderData->reference;
-            $order->related_order_id = $this->orderData->relatedOrder?->getId() ?? null;
+            $order->parent_id = $this->orderData->parent?->getId() ?? null;
             $order->saveOrFail();
 
             if ($this->orderData->orderType) {
