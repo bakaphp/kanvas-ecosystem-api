@@ -24,7 +24,7 @@ class ProductVariantService extends ProductService
                 'warehouses_id' => $this->warehouse->getId(),
                 'channels_id' => $this->channels->getId()
             ];
-           $variant['channels'][] = $channel;
+            $variant['channels'][] = $channel;
 
             if (isset($group['images'])) {
                 $variant['files'] = $this->mapFilesystem(
