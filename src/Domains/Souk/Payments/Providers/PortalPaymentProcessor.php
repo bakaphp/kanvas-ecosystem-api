@@ -244,18 +244,22 @@ class PortalPaymentProcessor
 
                 //  If the payment is successful and the status is PAYED
                 if ($paymentResponse['status'] === 'success' && $paymentResponse['data']['status'] === 'AUTHORIZED') {
-                    $transactionId = $paymentResponse['data']['processorInformation']['transactionId'];
-                    $intentId = $paymentResponse['data']['id'];
+                    $transactionId = (string) $paymentResponse['data']['processorInformation']['transactionId'];
+                    $intentId = (string) $paymentResponse['data']['id'];
+
                     $capturePayment = $this->capturePayment($payment, $intentId);
 
                     $payment->status = PaymentStatusEnum::PAID;
                     $payment->addMetadata([
-                        'data' => $paymentResponse['data'],
-                        'capture_data' => json_encode($capturePayment),
+                        'data' => [
+                            'payment_response' => $paymentResponse['data'],
+                            'capture_data' => $capturePayment,
+                        ],
                     ]);
                     $payment->save();
-                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, (string) $intentId);
-                    $payment->order->set(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, (string) $transactionId);
+
+                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:' . $intentId);
+                    $payment->order->set(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $transactionId);
                     $payment->order->checkPayments();
 
                     return [
