@@ -52,7 +52,7 @@ class AddAddressToCompanyAction
 
     public function fromNetSuite(array $address): CompaniesAddress
     {
-       return $this->execute(new Address(
+        return $this->execute(new Address(
             address: $address['addrtext_initialvalue'],
             city: $address['city_initialvalue'],
             state: $address['displaystate_initialvalue'],

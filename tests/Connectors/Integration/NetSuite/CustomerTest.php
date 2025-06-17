@@ -16,7 +16,6 @@ use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Tests\TestCase;
 

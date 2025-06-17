@@ -8,7 +8,6 @@ use Kanvas\Companies\Actions\AddAddressToCompanyAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
