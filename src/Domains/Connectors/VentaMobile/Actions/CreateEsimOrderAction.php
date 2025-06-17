@@ -384,7 +384,7 @@ class CreateEsimOrderAction
     protected function findVariantByIccid(Order $parentOrder, string $iccid): ?Variants
     {
         // Look through all order items to find the one with matching ICCID (SKU)
-        foreach ($parentOrder->allItems() as $item) {
+        foreach ($parentOrder->allItems()->get() as $item) {
             if ((string) $item->variant->sku === $iccid || (string) $item->product_sku === $iccid) {
                 return $item->variant;
             }
