@@ -20,7 +20,7 @@ use Throwable;
 class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
-    public function execute(Model $payment, AppInterface $app, array $params): array
+    public function execute(Model $payment, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
 
@@ -28,7 +28,7 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
             entity: $payment,
             app: $app,
             integration: IntegrationsEnum::ECHO_PAY,
-            integrationOperation: function ($payment, $app, $integrationCompany, $additionalParams) {
+            integrationOperation: function ($payment, $app, $integrationCompany, $additionalParams) use ($params) {
                 if ($payment->paymentMethod->processor !== 'portal') {
                     return [
                         'payment' => $payment->getId(),
@@ -54,7 +54,8 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
                 try {
                     $paymentProcessor = new PortalPaymentProcessor(
                         $app,
-                        $payment->company
+                        $payment->company,
+                        $params
                     );
 
                     $result = $paymentProcessor->makePaymentIntent($payment);

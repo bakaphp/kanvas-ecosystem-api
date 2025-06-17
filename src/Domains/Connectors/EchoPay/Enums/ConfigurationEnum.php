@@ -25,4 +25,7 @@ enum ConfigurationEnum: string
     case CHECK_PAYER_ENROLLMENT_PATH = '/api/v2/echo-pay/3ds/check-payer-enrollment';
     case VALIDATE_PAYER_AUTH_RESULT_PATH = '/api/v2/echo-pay/3ds/validate-auth-result';
     case PAY_SERVICE_PATH = '/api/v2/echo-pay/service/pay';
+    case AUTHORIZE_PAYMENT_PATH = '/api/v2/cybersource-payment/authorize';
+    case CAPTURE_PAYMENT_PATH = '/api/v2/cybersource-payment/capture';
+    case REVERSAL_PAYMENT_PATH = '/api/v2/cybersource-payment/reversal';
 }

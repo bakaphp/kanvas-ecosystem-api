@@ -28,6 +28,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Nevadskiy\Tree\AsTree;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -85,6 +86,7 @@ class Order extends BaseModel
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use AsTree;
 
     protected $table = 'orders';
     protected $guarded = [];

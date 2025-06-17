@@ -62,17 +62,22 @@ class OrderFinishExpiredCommand extends Command
             $variantWarehouse = $channel?->productVariantWarehouse()->first();
             // Mark order as completed
             $order->fulfill();
-            $available = $variantWarehouse->quantity + 1;
-            $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
-            $product = $variant->product;
-            $capacity = $product->getAttributeByName('capacity')?->value;
-            // @deprecated: remove this after new flow is implemented
-            if ($capacity) {
-                $product->addAttribute('capacity', [
-                    'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
-                    'availableParkingSpaces' => $available,
-                    'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
-                ]);
+
+            // If the order is not related to another order. it means that is not an extension
+            // but a main order, we can update the warehouse quantity when the order is finished
+            if (! $order->parent_id) {
+                $available = $variantWarehouse->quantity + 1;
+                $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
+                $product = $variant->product;
+                $capacity = $product->getAttributeByName('capacity')?->value;
+                // @deprecated: remove this after new flow is implemented
+                if ($capacity) {
+                    $product->addAttribute('capacity', [
+                        'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
+                        'availableParkingSpaces' => $available,
+                        'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
+                    ]);
+                }
             }
             $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
         } else {
