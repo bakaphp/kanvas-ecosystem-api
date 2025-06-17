@@ -5,6 +5,7 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -33,7 +34,7 @@ class ExtendReservationActivity extends KanvasActivity implements WorkflowActivi
 
                 try {
                     $mainReservation = Order::find($order->related_order_id);
-                    if ($mainReservation) {
+                    if ($mainReservation && $order->status === OrderStatusEnum::COMPLETED->value) {
                         $latestEnd = Order::where('id', $mainReservation->id)
                             ->orWhere('related_order_id', $mainReservation->id)
                             ->whereNotNull('metadata')
