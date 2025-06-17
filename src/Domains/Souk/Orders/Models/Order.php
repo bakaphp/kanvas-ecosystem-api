@@ -629,6 +629,4 @@ class Order extends BaseModel
     {
         return $this->hasMany(Order::class, 'related_order_id', 'id');
     }
-
-
 }

@@ -63,7 +63,9 @@ class OrderFinishExpiredCommand extends Command
             // Mark order as completed
             $order->fulfill();
 
-            if (!$order->related_order_id) {
+            // If the order is not related to another order. it means that is not an extension
+            // but a main order, we can update the warehouse quantity when the order is finished
+            if (! $order->related_order_id) {
                 $available = $variantWarehouse->quantity + 1;
                 $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
                 $product = $variant->product;

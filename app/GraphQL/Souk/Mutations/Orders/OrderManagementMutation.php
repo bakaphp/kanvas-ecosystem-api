@@ -187,8 +187,8 @@ class OrderManagementMutation
             'id' => $request['id'],
             'companies_id' => $company->getId(),
         ])->first();
-        
-        if (!$relatedOrder) {
+
+        if (! $relatedOrder) {
             return [
                 'order' => null,
                 'message' => [
@@ -197,7 +197,6 @@ class OrderManagementMutation
                 ],
             ];
         }
-        
 
         $orderInput = $request['input'];
 

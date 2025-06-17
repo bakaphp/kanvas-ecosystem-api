@@ -31,8 +31,6 @@ class ExtendReservationActivity extends KanvasActivity implements WorkflowActivi
                     ];
                 }
 
-                
-                
                 try {
                     $mainReservation = Order::find($order->related_order_id);
                     if ($mainReservation) {
@@ -41,8 +39,7 @@ class ExtendReservationActivity extends KanvasActivity implements WorkflowActivi
                             ->whereNotNull('metadata')
                             ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
                             ->max(DB::raw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at'))"));
-    
-                        
+
                         $mainReservation->update([
                             'metadata->data->end_at' => $latestEnd,
                             'metadata->data->original_end_at' => $mainReservation->metadata['data']['original_end_at'] ?? $mainReservation->metadata['data']['end_at'],
@@ -58,7 +55,6 @@ class ExtendReservationActivity extends KanvasActivity implements WorkflowActivi
                     return [
                         'order' => $order->getId(),
                         'status' => 'error',
-                        'tag' => $tag,
                         'message' => $e->getMessage(),
                         'report' => 'fail',
                         'trace' => $e->getTraceAsString(),

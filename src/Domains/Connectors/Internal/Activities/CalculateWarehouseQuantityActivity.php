@@ -20,7 +20,11 @@ class CalculateWarehouseQuantityActivity extends KanvasActivity implements Workf
     {
         $this->overwriteAppService($app);
         $checkExpiredOrders = $app->get(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value) == 1;
-        if (count($order->items) > 0 && $checkExpiredOrders && !$order->related_order_id) {
+        $isMainOrder = ! $order->related_order_id;
+
+        // If the order is not related to another order. it means that is not an extension
+        // but a main order, we can update the warehouse quantity when the order is completed/paid
+        if (count($order->items) > 0 && $checkExpiredOrders && $isMainOrder) {
             $variant = $order->items->first(function ($item) {
                 return $item->variant->product?->attributes
                 ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));
@@ -59,6 +63,7 @@ class CalculateWarehouseQuantityActivity extends KanvasActivity implements Workf
         ->notDeleted()
         ->whereNotFulfilled()
         ->whereNotNull('metadata')
+        ->whereNull('related_order_id')
         ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
         ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) is not null")
         ->orderBy('id', 'desc')

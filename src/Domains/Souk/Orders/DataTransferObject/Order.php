@@ -31,7 +31,6 @@ class Order extends Data
         public readonly CompanyInterface $company,
         public readonly People $people,
         public readonly UserInterface $user,
-        public readonly ?ModelsOrder $relatedOrder = null,
         public readonly string $token,
         public readonly string $orderNumber,
         public readonly ?Address $shippingAddress,
@@ -59,6 +58,7 @@ class Order extends Data
         public readonly ?string $reference = null,
         public readonly ?PaymentMethod $paymentMethod = null,
         public readonly ?string $paymentStatus = null, // enums
+        public readonly ?ModelsOrder $relatedOrder = null,
     ) {
         $this->items = is_array($items) ? $this->getOrderItems($items) : $items;
     }
