@@ -81,7 +81,7 @@
         "typesense/typesense-php": "^4.2",
         "vlucas/phpdotenv": "^5.5",
         "webleit/zohocrmapi": "dev-master",
-        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5.1"
+        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^2.0.0"
     },
     "require-dev": {
         "beyondcode/laravel-dump-server": "^2.1",
