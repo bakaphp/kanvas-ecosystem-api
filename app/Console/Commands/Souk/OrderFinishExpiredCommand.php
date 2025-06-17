@@ -62,17 +62,20 @@ class OrderFinishExpiredCommand extends Command
             $variantWarehouse = $channel?->productVariantWarehouse()->first();
             // Mark order as completed
             $order->fulfill();
-            $available = $variantWarehouse->quantity + 1;
-            $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
-            $product = $variant->product;
-            $capacity = $product->getAttributeByName('capacity')?->value;
-            // @deprecated: remove this after new flow is implemented
-            if ($capacity) {
-                $product->addAttribute('capacity', [
-                    'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
-                    'availableParkingSpaces' => $available,
-                    'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
-                ]);
+
+            if (!$order->related_order_id) {
+                $available = $variantWarehouse->quantity + 1;
+                $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
+                $product = $variant->product;
+                $capacity = $product->getAttributeByName('capacity')?->value;
+                // @deprecated: remove this after new flow is implemented
+                if ($capacity) {
+                    $product->addAttribute('capacity', [
+                        'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
+                        'availableParkingSpaces' => $available,
+                        'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
+                    ]);
+                }
             }
             $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
         } else {

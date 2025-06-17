@@ -20,7 +20,7 @@ class CalculateWarehouseQuantityActivity extends KanvasActivity implements Workf
     {
         $this->overwriteAppService($app);
         $checkExpiredOrders = $app->get(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value) == 1;
-        if (count($order->items) > 0 && $checkExpiredOrders) {
+        if (count($order->items) > 0 && $checkExpiredOrders && !$order->related_order_id) {
             $variant = $order->items->first(function ($item) {
                 return $item->variant->product?->attributes
                 ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));

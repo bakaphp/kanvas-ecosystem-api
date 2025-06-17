@@ -579,11 +579,9 @@ class Order extends BaseModel
     {
         $orderType = OrderTypes::firstOrCreate([
             'apps_id' => $this->apps_id,
-            'companies_id' => $this->companies_id,
             'name' => $orderType,
         ], [
             'apps_id' => $this->apps_id,
-            'companies_id' => $this->companies_id,
             'name' => $orderType,
         ]);
 
@@ -626,4 +624,11 @@ class Order extends BaseModel
     {
         return $this->belongsTo(Order::class, 'related_order_id', 'id');
     }
+
+    public function relatedOrders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'related_order_id', 'id');
+    }
+
+
 }

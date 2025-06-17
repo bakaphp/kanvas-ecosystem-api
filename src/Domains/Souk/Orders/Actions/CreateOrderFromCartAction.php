@@ -38,6 +38,7 @@ class CreateOrderFromCartAction
         protected ?CreditCardBilling $billingAddress,
         protected ?Address $shippingAddress,
         protected ?array $request,
+        protected ?ModelsOrder $relatedOrder = null,
     ) {
     }
 
@@ -120,7 +121,7 @@ class CreateOrderFromCartAction
             languageCode: null,
             reference: $this->request['input']['reference'] ?? '',
             paymentStatus: 'unpaid',
-            relatedOrder: $this->request['input']['related_order_id'] ?? null,
+            relatedOrder: $this->relatedOrder,
         );
 
         $order = (new CreateOrderAction($order))->execute();
