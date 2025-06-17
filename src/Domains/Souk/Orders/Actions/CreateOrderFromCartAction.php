@@ -119,6 +119,8 @@ class CreateOrderFromCartAction
             paymentGatewayName: ['manual'],
             languageCode: null,
             reference: $this->request['input']['reference'] ?? '',
+            paymentStatus: 'unpaid',
+            relatedOrder: $this->request['input']['related_order_id'] ?? null,
         );
 
         $order = (new CreateOrderAction($order))->execute();

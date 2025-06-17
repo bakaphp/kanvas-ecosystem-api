@@ -36,7 +36,10 @@ type Order {
     is_deleted: Boolean!
     created_at: String!
     updated_at: String
-    order_type: OrderType
+    order_type: OrderType @belongsTo(relation: "orderType")
+    related_order: Order @belongsTo(relation: "relatedOrder")
+    payment_status: String
+    payments: [Payment!] @hasMany(relation: "payments")
     items(includeAllItems: Boolean = false): [OrderItem!]
         @HasMany (relation: "allItems")
         @builder(
@@ -144,6 +147,7 @@ input OrderCustomerInput {
 
 input OrderCartInput {
     cartId: ID!
+    related_order_id: ID
     customer: OrderCustomerInput!
     billing: OrderBillingInput
     shipping_address: AddressInput

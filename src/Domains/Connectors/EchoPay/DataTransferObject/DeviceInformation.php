@@ -9,9 +9,11 @@ use Spatie\LaravelData\Data;
 class DeviceInformation extends Data
 {
     public function __construct(
-        public readonly string $httpAcceptContent,
-        public readonly string $httpBrowserLanguage,
-        public readonly string $userAgentBrowserValue,
+        public readonly ?string $httpAcceptContent,
+        public readonly ?string $httpBrowserLanguage,
+        public readonly ?string $userAgentBrowserValue,
+        public readonly ?string $ipAddress,
+        public readonly ?string $fingerprintSessionId,
     ) {
     }
 }

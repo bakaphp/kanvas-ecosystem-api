@@ -41,7 +41,8 @@ class PortalPaymentProcessor
      */
     public function __construct(
         protected Apps $app,
-        protected Companies $company
+        protected Companies $company,
+        protected array $params = []
     ) {
         $this->client = new EchoPayService($this->app, $this->company);
         $this->refId = 'ref' . time();        // Set the transaction's refId
@@ -153,9 +154,8 @@ class PortalPaymentProcessor
                 'billTo' => $this->setCustomerBillingAddress($payment->order),
             ]),
             'deviceInformation' => DeviceInformation::from([
-                "httpAcceptContent" => "application/json",
-                "httpBrowserLanguage" => "en_us",
-                "userAgentBrowserValue" => "chrome"
+                "ipAddress" => request()->ip(),
+                "fingerprintSessionId" => "visanetdr_0000000000000023e013b2-d21811eb-ae3f-e90c619c3f54"
             ]),
             'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
                 "deviceChannel" => "BROWSER",
@@ -165,11 +165,10 @@ class PortalPaymentProcessor
         ]);
 
         try {
-            $result = $this->client->payService(
+            $result = $this->client->authorizePayment(
                 $pamentData,
                 $consumerData,
-                $merchantAuthentication,
-                $service
+                $merchantAuthentication
             );
 
             return [
@@ -248,7 +247,9 @@ class PortalPaymentProcessor
                 } elseif ($paymentResponse['status'] === 'error') {
                     $payment->status = PaymentStatusEnum::FAILED;
                     $payment->addMetadata([
-                        'enrollment_data' => $enrollmentData,
+                        "data" => [
+                            'enrollment_data' => json_encode($enrollmentData),
+                        ]
                     ]);
                     $payment->save();
 
@@ -257,6 +258,8 @@ class PortalPaymentProcessor
                     ]);
 
                     $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($paymentResponse['message']));
+                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value . "_details", json_encode($paymentResponse['data']));
+                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value . "_enrollment_data", json_encode($enrollmentData));
 
                     return [
                         'status' => 'error',

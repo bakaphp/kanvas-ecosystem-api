@@ -15,6 +15,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Regions\Models\Regions as ModelsRegions;
+use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
@@ -30,6 +31,7 @@ class Order extends Data
         public readonly CompanyInterface $company,
         public readonly People $people,
         public readonly UserInterface $user,
+        public readonly ?ModelsOrder $relatedOrder = null,
         public readonly string $token,
         public readonly string $orderNumber,
         public readonly ?Address $shippingAddress,
@@ -56,6 +58,7 @@ class Order extends Data
         public readonly array $paymentGatewayName = [],
         public readonly ?string $reference = null,
         public readonly ?PaymentMethod $paymentMethod = null,
+        public readonly ?string $paymentStatus = null, // enums
     ) {
         $this->items = is_array($items) ? $this->getOrderItems($items) : $items;
     }
