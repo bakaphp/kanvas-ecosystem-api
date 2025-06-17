@@ -4745,16 +4745,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.33",
+            "version": "1.0.34",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel-workflow/laravel-workflow.git",
-                "reference": "e718685fa3573753bbea2c7812741dea5d55bb8c"
+                "reference": "a0d3ff623dbda9faf546df92d58536f16e0feab8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/e718685fa3573753bbea2c7812741dea5d55bb8c",
-                "reference": "e718685fa3573753bbea2c7812741dea5d55bb8c",
+                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/a0d3ff623dbda9faf546df92d58536f16e0feab8",
+                "reference": "a0d3ff623dbda9faf546df92d58536f16e0feab8",
                 "shasum": ""
             },
             "require": {
@@ -4795,9 +4795,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/laravel-workflow/laravel-workflow/issues",
-                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.33"
+                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.34"
             },
-            "time": "2025-03-22T21:56:50+00:00"
+            "time": "2025-04-12T21:54:08+00:00"
         },
         {
             "name": "laravel/cashier",
