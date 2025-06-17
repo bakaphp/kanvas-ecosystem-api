@@ -12,6 +12,7 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenization;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsultServiceQuery;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
@@ -355,7 +356,7 @@ class EchoPayService
         PaymentDetail $payment,
         ConsumerAuthentication $consumerData,
         MerchantDetail $merchant
-    ): PaymentResponse {
+    ): array {
         $formData = [
             'payment' => [
                 'clientReferenceInformation' => [
@@ -389,6 +390,34 @@ class EchoPayService
         ];
         $response = $this->client->post(ConfigurationEnum::AUTHORIZE_PAYMENT_PATH->value, $formData);
 
-        return PaymentResponse::from($response['data']);
+        return $response['data'];
+    }
+
+    public function capturePayment(
+        PaymentCaptureInput $payment,
+        MerchantDetail $merchant
+    ): array {
+        $formData = [
+            'transactionId' => $payment->transactionId,
+            'payment' => [
+                'clientReferenceInformation' => [
+                    'code' => $payment->orderCode,
+                ],
+                'orderInformation' => [
+                    'amountDetails' => [
+                        'currency' => $payment->currency,
+                        'totalAmount' => $payment->totalAmount,
+                    ]
+                ],
+            ],
+            'merchant' => [
+                'id' => $merchant->id,
+                'key' => $merchant->key,
+                'secretKey' => $merchant->secretKey,
+            ]
+        ];
+        $response = $this->client->post(ConfigurationEnum::CAPTURE_PAYMENT_PATH->value, $formData);
+
+        return $response['data'];
     }
 }
