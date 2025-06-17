@@ -28,15 +28,32 @@ class B2BUpdateCompanyOrderActivity extends KanvasActivity
                 sleep(30);
 
                 if ($orderCompany->getId() !== $userCompany->getId()) {
-                    $order->companies_id = $userCompany->getId();
+                    // Check for conflict
+                    $conflict = Order::fromApp($app)
+                        ->where('companies_id', $userCompany->getId())
+                        ->where('order_number', $order->order_number)
+                        ->where('id', '!=', $order->id)
+                        ->exists();
+
+                    // If conflict exists, generate a new order number
+                    if ($conflict) {
+                        $order->companies_id = $userCompany->getId();
+                        $order->order_number = $order->generateOrderNumber(); // Uses lockForUpdate to avoid race
+                    } else {
+                        $order->companies_id = $userCompany->getId();
+                    }
+
                     $order->updateOrFail();
 
                     return [
                         'result' => true,
-                        'message' => 'Order company updated successfully.',
+                        'message' => $conflict
+                            ? 'Order company updated with new order number due to conflict.'
+                            : 'Order company updated successfully.',
                         'order_id' => $order->getId(),
                         'new_company_id' => $userCompany->getId(),
                         'old_company_id' => $orderCompany->getId(),
+                        'new_order_number' => $order->order_number,
                     ];
                 }
 
