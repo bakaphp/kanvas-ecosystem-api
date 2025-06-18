@@ -54,9 +54,7 @@ class ScrapperAction
                 $uuid
             ));
             $classConcurrently[] = fn () => $action->execute();
-            logger()->info('Testing time');
         }
-        logger()->info('Before Octane');
         $resultsOctane = Octane::concurrently($classConcurrently, 60000);
         sleep(4);
         return [
