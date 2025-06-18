@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.344.6",
+            "version": "3.345.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "eb0bc621472592545539329499961a15a3f9f6dc"
+                "reference": "61b4675bc02db8d7f3e1ba6931dc827c5ae23aa8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/eb0bc621472592545539329499961a15a3f9f6dc",
-                "reference": "eb0bc621472592545539329499961a15a3f9f6dc",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/61b4675bc02db8d7f3e1ba6931dc827c5ae23aa8",
+                "reference": "61b4675bc02db8d7f3e1ba6931dc827c5ae23aa8",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.344.6"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.345.0"
             },
-            "time": "2025-06-12T18:03:59+00:00"
+            "time": "2025-06-17T18:09:42+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -2775,7 +2775,7 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.398.0",
+            "version": "v0.399.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
@@ -2813,7 +2813,7 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.398.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.399.0"
             },
             "time": "2025-06-04T17:28:44+00:00"
         },
@@ -4228,24 +4228,29 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.12.3",
+            "version": "3.15.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "3b680e6c12f58a0c135f86e1a5dbd3abb89db621"
+                "reference": "30d9c8ab5a4ac3a313722e4a9676461de8ec1963"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/3b680e6c12f58a0c135f86e1a5dbd3abb89db621",
-                "reference": "3b680e6c12f58a0c135f86e1a5dbd3abb89db621",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/30d9c8ab5a4ac3a313722e4a9676461de8ec1963",
+                "reference": "30d9c8ab5a4ac3a313722e4a9676461de8ec1963",
                 "shasum": ""
             },
             "require": {
-                "php": ">=7.2"
+                "php": "^8.1"
             },
             "require-dev": {
+                "ext-curl": "*",
+                "friendsofphp/php-cs-fixer": "^3.75",
                 "inspector-apm/neuron-ai": "^1.2.22",
-                "phpunit/phpunit": "^9.0"
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^9.0",
+                "rector/rector": "^2.0",
+                "tomasvotruba/type-coverage": "^2.0"
             },
             "type": "library",
             "autoload": {
@@ -4271,26 +4276,27 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.12.3"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.15.6"
             },
-            "time": "2025-06-05T08:16:24+00:00"
+            "time": "2025-06-18T09:58:26+00:00"
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.12.18",
+            "version": "1.13.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "13125ab1abf1a7ed905859e41c1394ffe743bf68"
+                "reference": "b201939f2ba747437ba937b070c410927208af51"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/13125ab1abf1a7ed905859e41c1394ffe743bf68",
-                "reference": "13125ab1abf1a7ed905859e41c1394ffe743bf68",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/b201939f2ba747437ba937b070c410927208af51",
+                "reference": "b201939f2ba747437ba937b070c410927208af51",
                 "shasum": ""
             },
             "require": {
                 "guzzlehttp/guzzle": "^7.0",
+                "inspector-apm/inspector-php": "^3.15.5",
                 "php": "^8.1",
                 "psr/http-message": "^1.0|^2.0",
                 "psr/log": "^1.0|^2.0|^3.0"
@@ -4300,7 +4306,6 @@
                 "elasticsearch/elasticsearch": "^8.0",
                 "ext-pdo": "*",
                 "friendsofphp/php-cs-fixer": "^3.75",
-                "inspector-apm/inspector-php": "dev-master",
                 "monolog/monolog": "^3.9",
                 "php-http/curl-client": "^2.3",
                 "phpstan/phpstan": "^2.1",
@@ -4314,7 +4319,6 @@
             "suggest": {
                 "doctrine/orm": "^2.20",
                 "elasticsearch/elasticsearch": "^7.0|^8.0",
-                "inspector-apm/inspector-php": "^3.9",
                 "php-http/curl-client": "^2.3",
                 "symfony/process": "^4.0|^5.0|^6.0|^7.0",
                 "typesense/typesense-php": "^5.0"
@@ -4326,9 +4330,6 @@
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
             "authors": [
                 {
                     "name": "Valerio Barbera",
@@ -4338,9 +4339,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.12.18"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.13.0"
             },
-            "time": "2025-06-17T14:03:05+00:00"
+            "time": "2025-06-18T09:56:33+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -4889,16 +4890,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.19.0",
+            "version": "v12.19.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "dc96bb635385a7f139afe39b339a36e87ec72770"
+                "reference": "97c581cb23bdc3147aab0d5087b19167d329991e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/dc96bb635385a7f139afe39b339a36e87ec72770",
-                "reference": "dc96bb635385a7f139afe39b339a36e87ec72770",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/97c581cb23bdc3147aab0d5087b19167d329991e",
+                "reference": "97c581cb23bdc3147aab0d5087b19167d329991e",
                 "shasum": ""
             },
             "require": {
@@ -5100,7 +5101,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-06-17T17:02:22+00:00"
+            "time": "2025-06-17T23:44:27+00:00"
         },
         {
             "name": "laravel/octane",
@@ -16355,16 +16356,16 @@
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
-            "version": "v2.0.0",
+            "version": "v2.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema.git",
-                "reference": "8c1fcc6119ff89fddc0486600345870013aee114"
+                "reference": "5846573cf249ea75c0e6f88725a4949544e6e1b8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/as-yakovenko/laravel-lighthouse-graphql-multi-schema/zipball/8c1fcc6119ff89fddc0486600345870013aee114",
-                "reference": "8c1fcc6119ff89fddc0486600345870013aee114",
+                "url": "https://api.github.com/repos/as-yakovenko/laravel-lighthouse-graphql-multi-schema/zipball/5846573cf249ea75c0e6f88725a4949544e6e1b8",
+                "reference": "5846573cf249ea75c0e6f88725a4949544e6e1b8",
                 "shasum": ""
             },
             "require": {
@@ -16406,9 +16407,9 @@
             ],
             "support": {
                 "issues": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/issues",
-                "source": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/tree/v2.0.0"
+                "source": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/tree/v2.1.1"
             },
-            "time": "2025-06-15T08:46:47+00:00"
+            "time": "2025-06-17T10:49:45+00:00"
         }
     ],
     "packages-dev": [
@@ -16545,16 +16546,16 @@
         },
         {
             "name": "filp/whoops",
-            "version": "2.18.2",
+            "version": "2.18.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filp/whoops.git",
-                "reference": "89dabca1490bc77dbcab41c2b20968c7e44bf7c3"
+                "reference": "59a123a3d459c5a23055802237cb317f609867e5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/filp/whoops/zipball/89dabca1490bc77dbcab41c2b20968c7e44bf7c3",
-                "reference": "89dabca1490bc77dbcab41c2b20968c7e44bf7c3",
+                "url": "https://api.github.com/repos/filp/whoops/zipball/59a123a3d459c5a23055802237cb317f609867e5",
+                "reference": "59a123a3d459c5a23055802237cb317f609867e5",
                 "shasum": ""
             },
             "require": {
@@ -16604,7 +16605,7 @@
             ],
             "support": {
                 "issues": "https://github.com/filp/whoops/issues",
-                "source": "https://github.com/filp/whoops/tree/2.18.2"
+                "source": "https://github.com/filp/whoops/tree/2.18.3"
             },
             "funding": [
                 {
@@ -16612,7 +16613,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-06-11T20:42:19+00:00"
+            "time": "2025-06-16T00:02:10+00:00"
         },
         {
             "name": "hamcrest/hamcrest-php",
@@ -17293,16 +17294,16 @@
         },
         {
             "name": "phpunit/php-code-coverage",
-            "version": "12.3.0",
+            "version": "12.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/php-code-coverage.git",
-                "reference": "9075a8efc66e11bc55c319062e147bdb06777267"
+                "reference": "ddec29dfc128eba9c204389960f2063f3b7fa170"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/9075a8efc66e11bc55c319062e147bdb06777267",
-                "reference": "9075a8efc66e11bc55c319062e147bdb06777267",
+                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/ddec29dfc128eba9c204389960f2063f3b7fa170",
+                "reference": "ddec29dfc128eba9c204389960f2063f3b7fa170",
                 "shasum": ""
             },
             "require": {
@@ -17358,7 +17359,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/php-code-coverage/issues",
                 "security": "https://github.com/sebastianbergmann/php-code-coverage/security/policy",
-                "source": "https://github.com/sebastianbergmann/php-code-coverage/tree/12.3.0"
+                "source": "https://github.com/sebastianbergmann/php-code-coverage/tree/12.3.1"
             },
             "funding": [
                 {
@@ -17378,7 +17379,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-05-23T15:49:03+00:00"
+            "time": "2025-06-18T08:58:13+00:00"
         },
         {
             "name": "phpunit/php-file-iterator",
@@ -17789,16 +17790,16 @@
         },
         {
             "name": "sebastian/comparator",
-            "version": "7.0.1",
+            "version": "7.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/comparator.git",
-                "reference": "b478f34614f934e0291598d0c08cbaba9644bee5"
+                "reference": "03d905327dccc0851c9a08d6a979dfc683826b6f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/b478f34614f934e0291598d0c08cbaba9644bee5",
-                "reference": "b478f34614f934e0291598d0c08cbaba9644bee5",
+                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/03d905327dccc0851c9a08d6a979dfc683826b6f",
+                "reference": "03d905327dccc0851c9a08d6a979dfc683826b6f",
                 "shasum": ""
             },
             "require": {
@@ -17809,7 +17810,7 @@
                 "sebastian/exporter": "^7.0"
             },
             "require-dev": {
-                "phpunit/phpunit": "^12.0"
+                "phpunit/phpunit": "^12.2"
             },
             "suggest": {
                 "ext-bcmath": "For comparing BcMath\\Number objects"
@@ -17817,7 +17818,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "7.0-dev"
+                    "dev-main": "7.1-dev"
                 }
             },
             "autoload": {
@@ -17857,15 +17858,27 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/comparator/issues",
                 "security": "https://github.com/sebastianbergmann/comparator/security/policy",
-                "source": "https://github.com/sebastianbergmann/comparator/tree/7.0.1"
+                "source": "https://github.com/sebastianbergmann/comparator/tree/7.1.0"
             },
             "funding": [
                 {
                     "url": "https://github.com/sebastianbergmann",
                     "type": "github"
+                },
+                {
+                    "url": "https://liberapay.com/sebastianbergmann",
+                    "type": "liberapay"
+                },
+                {
+                    "url": "https://thanks.dev/u/gh/sebastianbergmann",
+                    "type": "thanks_dev"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/sebastian/comparator",
+                    "type": "tidelift"
                 }
             ],
-            "time": "2025-03-07T07:00:32+00:00"
+            "time": "2025-06-17T07:41:58+00:00"
         },
         {
             "name": "sebastian/complexity",
@@ -18670,6 +18683,6 @@
     "platform": {
         "php": "^8.4"
     },
-    "platform-dev": [],
-    "plugin-api-version": "2.3.0"
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
 }
