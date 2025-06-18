@@ -302,7 +302,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                         $orderNotification = new NewOrderNotification($order, [
                             'app' => $order->app,
                             'company' => $order->company,
-                            'subject' => $language === 'es' ? 'Tu eSIM de ' . ucfirst($order->app->name) . ' está lista para usar' : 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use',
+                            'subject' => $language === 'en' ? 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use' : 'Tu eSIM de ' . ucfirst($order->app->name) . ' está lista para usar',
                         ]);
                         $orderNotification->channels = ['mail'];
                         $order->user->notify($orderNotification);
