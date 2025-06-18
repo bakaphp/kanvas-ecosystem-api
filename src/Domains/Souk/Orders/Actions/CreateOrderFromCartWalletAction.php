@@ -37,7 +37,7 @@ class CreateOrderFromCartWalletAction extends CreateOrderFromCartAction
         }
 
         //$company = Companies::getById($this->request['input']['metadata']['user_company_id']);
-        $company = $this->order->user->getCurrentCompany();
+        $company = $this->user->getCurrentCompany();
 
         UsersRepository::belongsToThisApp(
             $this->user,
