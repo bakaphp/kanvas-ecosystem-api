@@ -90,6 +90,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                     $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
                     $isRefuelOrder = isset($order->metadata['parent_order_id']) && ! empty($order->metadata['parent_order_id']);
                     $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
+                    $language = $order->metadata['language'] ?? 'es';
 
                     // Get quantity from item (default to 1 if not set)
                     $quantity = $item->quantity ?? 1;
@@ -237,6 +238,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                             $parentOrder = Order::getById($order->metadata['parent_order_id']);
                             $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
                             $message->setPublic();
+                            $message->addEntity($order);
                             $response['message_id'] = $message->getId();
                         }
 
@@ -300,7 +302,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                         $orderNotification = new NewOrderNotification($order, [
                             'app' => $order->app,
                             'company' => $order->company,
-                            'subject' => 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use',
+                            'subject' => $language === 'en' ? 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use' : 'Tu eSIM de ' . ucfirst($order->app->name) . ' está lista para usar',
                         ]);
                         $orderNotification->channels = ['mail'];
                         $order->user->notify($orderNotification);
