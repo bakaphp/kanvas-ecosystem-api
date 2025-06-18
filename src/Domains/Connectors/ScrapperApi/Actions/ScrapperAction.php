@@ -31,6 +31,7 @@ class ScrapperAction
 
     public function execute(): array
     {
+        logger()->info('Start search');
         $repository = new ScrapperRepository($this->app);
         $results = $repository->getSearch($this->search);
         $scrapperProducts = 0;
