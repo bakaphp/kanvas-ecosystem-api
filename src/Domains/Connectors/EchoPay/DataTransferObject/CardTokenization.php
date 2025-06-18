@@ -30,8 +30,8 @@ class CardTokenization extends Data
                 type: $request['brand'] ?? '',
             ),
             billTo: new BillingDetail(
-                firstName: $user->firstname,
-                lastName: $user->lastname,
+                firstName: $request['firstname'] ?? $user->firstname,
+                lastName: $request['lastname'] ?? $user->lastname,
                 email: $user->email,
                 country: $request['country'] ?? '',
                 city: $request['city'] ?? '',
