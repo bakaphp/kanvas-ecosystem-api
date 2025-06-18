@@ -274,11 +274,11 @@ class Order extends BaseModel
 
     public function generateOrderNumber(): int
     {
-        // Lock the orders table while retrieving the last order
+        // Lock the orders table while retrieving the order with the highest order_number
         $lastOrder = Order::where('companies_id', $this->companies_id)
             ->where('apps_id', $this->apps_id)
             ->lockForUpdate() // Ensure no race conditions
-            ->latest('id')
+            ->orderBy('order_number', 'desc') // Order by the actual order_number field
             ->first();
 
         $lastOrderNumber = $lastOrder ? intval($lastOrder->order_number) : 0;
