@@ -23,6 +23,7 @@ use Kanvas\Connectors\EchoPay\Enums\MerchantCategoryEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantDocumentTypesEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantPlatformEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantTokenizationEnum;
+use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum as EnumsPaymentStatusEnum;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
@@ -143,7 +144,139 @@ class PortalPaymentProcessor
         return $enrollmentCheck;
     }
 
-    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, $referenceId): array
+
+    public function makePaymentIntent(Payments $payment): PaymentResponse | array
+    {
+        if ($payment->status === PaymentStatusEnum::PAID->value) {
+            return [
+                'status' => 'success',
+                'message' => 'Payment already paid',
+            ];
+        }
+
+        if ($payment->status === PaymentStatusEnum::FAILED->value) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment failed',
+            ];
+        }
+
+        $this->payment = $payment;
+
+        try {
+            $payerData = $this->startPaymentIntent($payment->order, $payment);
+            $consumerAuthentication = $payerData['consumerAuthenticationInformation'];
+            $referenceId = $consumerAuthentication['referenceId'];
+            $enrollmentData = $this->checkEnrollment($payment->order, $referenceId);
+            $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
+
+            if ($this->isValidEci($consumerData->eci, $enrollmentData)) {
+                return [
+                    'status' => 'success',
+                    'message' => 'Payer enrolled',
+                    'data' => $consumerData
+                ];
+            } else {
+                return $this->requestUserValidation($payment, $enrollmentData, $referenceId);
+            }   
+        } catch (Throwable $e) {
+            report($e);
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorMessage = json_decode((string) $response->getBody())->message ?? $e->getMessage();
+            } else {
+                $errorMessage = $e->getMessage();
+            }
+
+            $payment->status = PaymentStatusEnum::FAILED;
+            $payment->addMetadata([
+                'enrollment_data' => $enrollmentData,
+                'error' => $e->getMessage()
+            ]);
+            $payment->save();
+
+            $payment->order->updateQuietly([
+                'status' => OrderStatusEnum::FAILED->value,
+                'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => $errorMessage,
+                'response' => $e->getMessage(),
+                'data' => $enrollmentData,
+            ];
+        }
+    }
+
+    private function isValidEci(string $eci, array $enrollmentData): bool
+    {
+        return in_array($eci, [
+            '05',
+            '06',
+        ]);
+
+        if ($enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value) {
+            return true;
+        }
+
+        return false;
+    }
+
+    //  If the enrollment status is not AUTHENTICATION_SUCCESSFUL it means that the front needs to authenticate the payer
+    private function requestUserValidation(Payments $payment, array $enrollmentData): array
+    {
+        $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION;
+        $payment->addMetadata([
+            'enrollment_data' => $enrollmentData,
+        ]);
+        $payment->save();
+        
+        $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($enrollmentData));
+        
+        $payment->order->updateQuietly([
+        'status' => OrderStatusEnum::PENDING->value,
+        'payment_status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value
+        ]);
+
+        return [
+            'status' => 'success',
+            'message' => PaymentStatusEnum::PENDING_AUTHORIZATION,
+            'data' => $enrollmentData
+        ];
+    }
+
+    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, $referenceId) {
+        $paymentResponse = $this->processPaymentCall($payment, $consumerData, $referenceId);
+
+        //  If the payment is successful and the status is PAYED
+        if ($paymentResponse['status'] === 'success' && $paymentResponse['data']['status'] === 'AUTHORIZED') {
+            $transactionId = (string) $paymentResponse['data']['processorInformation']['transactionId'];
+            $intentId = (string) $paymentResponse['data']['id'];
+
+            $payment->status = PaymentStatusEnum::PAID;
+            $payment->addMetadata([
+                'data' => [
+                    'payment_response' => $paymentResponse['data'],
+                ],
+            ]);
+            $payment->save();
+
+            $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:' . $intentId);
+            $payment->order->set(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $transactionId);
+            $payment->order->set(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
+            $payment->order->checkPayments();
+
+            return [
+                'status' => 'success',
+                'message' => 'Payment successful',
+                'data' => $paymentResponse['data'],
+            ];
+        }
+    }
+
+
+    private function processPaymentCall(Payments $payment, ConsumerAuthentication $consumerData, $referenceId): array
     {
         $merchantAuthentication = $this->setupMerchantAuthentication(includeDetails: true);
         $service = $this->setupService($payment->order);
@@ -201,10 +334,11 @@ class PortalPaymentProcessor
         }
     }
 
+
     public function capturePayment(Payments $payment, string $transactionId): array
     {
         $merchantAuthentication = $this->setupMerchantAuthentication();
-        return $this->client->capturePayment(
+        $capturePayment = $this->client->capturePayment(
             PaymentCaptureInput::from([
                 'transactionId' => $transactionId,
                 'orderCode' => $payment->order->reference . '_' . $payment->order->id,
@@ -213,134 +347,14 @@ class PortalPaymentProcessor
             ]),
             $merchantAuthentication
         );
-    }
 
-    public function makePaymentIntent(Payments $payment): PaymentResponse | array
-    {
-        if ($payment->status === PaymentStatusEnum::PAID->value) {
-            return [
-                'status' => 'success',
-                'message' => 'Payment already paid',
-            ];
-        }
-
-        if ($payment->status === PaymentStatusEnum::FAILED->value) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment failed',
-            ];
-        }
-
-        $this->payment = $payment;
-        try {
-            $payerData = $this->startPaymentIntent($payment->order, $payment);
-            $consumerAuthentication = $payerData['consumerAuthenticationInformation'];
-            $referenceId = $consumerAuthentication['referenceId'];
-            $enrollmentData = $this->checkEnrollment($payment->order, $referenceId);
-            if ($enrollmentData['status'] === 'AUTHENTICATION_SUCCESSFUL') {
-                $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
-
-                $paymentResponse = $this->processPayment($payment, $consumerData, $referenceId);
-
-                //  If the payment is successful and the status is PAYED
-                if ($paymentResponse['status'] === 'success' && $paymentResponse['data']['status'] === 'AUTHORIZED') {
-                    $transactionId = (string) $paymentResponse['data']['processorInformation']['transactionId'];
-                    $intentId = (string) $paymentResponse['data']['id'];
-
-                    $capturePayment = $this->capturePayment($payment, $intentId);
-
-                    $payment->status = PaymentStatusEnum::PAID;
-                    $payment->addMetadata([
-                        'data' => [
-                            'payment_response' => $paymentResponse['data'],
-                            'capture_data' => $capturePayment,
-                        ],
-                    ]);
-                    $payment->save();
-
-                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:' . $intentId);
-                    $payment->order->set(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $transactionId);
-                    $payment->order->checkPayments();
-
-                    return [
-                        'status' => 'success',
-                        'message' => 'Payment successful',
-                        'data' => $paymentResponse['data'],
-                    ];
-
-                    //  If by the enrollment status the payment is supossed to pass but we miss some data it will fail
-                } elseif ($paymentResponse['status'] === 'error') {
-                    $payment->status = PaymentStatusEnum::FAILED;
-                    $payment->addMetadata([
-                        "data" => [
-                            'enrollment_data' => json_encode($enrollmentData),
-                        ]
-                    ]);
-                    $payment->save();
-
-                    $payment->order->updateQuietly([
-                        'status' => OrderStatusEnum::FAILED->value,
-                    ]);
-
-                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($paymentResponse['message']));
-                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value . "_details", json_encode($paymentResponse['data']));
-                    $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value . "_enrollment_data", json_encode($enrollmentData));
-
-                    return [
-                        'status' => 'error',
-                        'message' => $paymentResponse['message'],
-                        'data' => $paymentResponse['data'],
-                        "response" => $enrollmentData,
-                    ];
-                }
-            } else {
-                //  If the enrollment status is not AUTHENTICATION_SUCCESSFUL it means that the front needs to authenticate the payer
-                $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION;
-                $payment->addMetadata([
-                    'enrollment_data' => $enrollmentData,
-                ]);
-                $payment->save();
-
-                $payment->order->updateQuietly([
-                    'status' => OrderStatusEnum::PENDING->value
-                ]);
-
-                $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($enrollmentData));
-            }
-
-            return [
-                'status' => 'success',
-                'message' => PaymentStatusEnum::PENDING_AUTHORIZATION,
-                'data' => $enrollmentData
-            ];
-        } catch (Throwable $e) {
-            report($e);
-            if ($e instanceof RequestException && $e->hasResponse()) {
-                $response = $e->getResponse();
-                $errorMessage = json_decode((string) $response->getBody())->message ?? $e->getMessage();
-            } else {
-                $errorMessage = $e->getMessage();
-            }
-
-            $payment->status = PaymentStatusEnum::FAILED;
-            $payment->addMetadata([
-                'enrollment_data' => $enrollmentData,
-                'error' => $e->getMessage()
-            ]);
-            $payment->save();
-
-            $payment->order->updateQuietly([
-                'status' => OrderStatusEnum::FAILED->value,
-                'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
-            ]);
-
-
-            return [
-                'status' => 'error',
-                'message' => $errorMessage,
-                'response' => $e->getMessage(),
-                'data' => $enrollmentData,
-            ];
-        }
+        $payment->status = PaymentStatusEnum::PAID;
+        $payment->addMetadata([
+            'data' => [
+                ...$payment->metadata['data'],
+                'capture_data' => $capturePayment,
+            ],
+        ]);
+        $payment->save();
     }
 }
