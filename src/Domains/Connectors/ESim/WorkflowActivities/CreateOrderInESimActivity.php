@@ -94,6 +94,7 @@ class CreateOrderInESimActivity extends KanvasActivity
 
                     // Get quantity from item (default to 1 if not set)
                     $quantity = $item->quantity ?? 1;
+                    $esimExtraInfoDetails = $order->metadata['esimDetails'] ?? [];
 
                     // Create eSims based on quantity
                     for ($i = 0; $i < $quantity; $i++) {
@@ -161,6 +162,10 @@ class CreateOrderInESimActivity extends KanvasActivity
 
                         if (! isset($response['label'])) {
                             $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
+                        }
+
+                        if (isset($esimExtraInfoDetails[$variant->id]['labels']) && ! empty($esimExtraInfoDetails[$variant->id]['labels'])) {
+                            $response['label'] = array_shift($esimExtraInfoDetails[$variant->id]['labels']);
                         }
 
                         $sku = null;
