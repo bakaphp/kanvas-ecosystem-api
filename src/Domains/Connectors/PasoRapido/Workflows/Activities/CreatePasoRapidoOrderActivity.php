@@ -96,7 +96,7 @@ class CreatePasoRapidoOrderActivity extends KanvasActivity implements WorkflowAc
             if ($confirmPaymentResponse->tag) {
                 $order->set(CustomFieldEnum::PASO_RAPIDO_PAYMENT_STATUS->value, PaymentStatusEnum::PAID->value);
                 $order->set(CustomFieldEnum::PASO_RAPIDO_PAYMENT_RESPONSE->value, json_encode($confirmPaymentResponse->toArray()));
-                
+                $order->set(EchoPayCustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
                 // Clear retry count on success
                 $this->clearRetryCount($order);
 

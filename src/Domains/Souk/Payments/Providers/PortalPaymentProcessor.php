@@ -71,11 +71,6 @@ class PortalPaymentProcessor
         ]);
     }
 
-    protected function setupPayerAuthentication(MerchantDetail $merchantAuthentication, string $paymentInstrumentId): array
-    {
-        return $this->client->setupPayer($this->refId, $paymentInstrumentId, $merchantAuthentication);
-    }
-
     protected function setCustomerBillingAddress(Order $orderInput): BillingDetail
     {
         return new BillingDetail(
@@ -102,72 +97,48 @@ class PortalPaymentProcessor
         ];
     }
 
-    public function startPaymentIntent(): array
+    public function startPaymentIntent(Payments $payment): array
     {
         $merchantAuthentication = $this->setupMerchantAuthentication();
         $payerAuthentication = $this->client->setupPayer(
-            $this->refId,
-            $this->payment->paymentMethod->stripe_card_id,
+            $payment->order->order_number,
+            $payment->paymentMethod->stripe_card_id,
             $merchantAuthentication
         );
 
         return $payerAuthentication;
     }
 
-    public function checkEnrollment(Order $orderInput, string $referenceId): array
+    public function checkEnrollment(Payments $payment, string $referenceId): array
     {
         $merchantAuthentication = $this->setupMerchantAuthentication();
-        $enrollmentCheck = $this->client->checkPayerEnrollment(
-            PaymentDetail::from([
-                'orderCode' => $orderInput->reference . '_' . $orderInput->id,
-                'paymentInstrumentId' => $this->payment->paymentMethod->stripe_card_id,
-                'orderInformation' => OrderInformation::from([
-                    'currency' => 'DOP',
-                    'totalAmount' => $orderInput->getTotalAmount(),
-                    'billTo' => $this->setCustomerBillingAddress($orderInput),
-                ]),
-                'deviceInformation' => DeviceInformation::from([
-                    "httpAcceptContent" => "application/json",
-                    "httpBrowserLanguage" => "en_us",
-                    "userAgentBrowserValue" => "chrome"
-                ]),
-                'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
-                    "deviceChannel" => "BROWSER",
-                    "returnUrl" => $this->app->get(ConfigurationEnum::REDIRECT_URL->value),
-                    "referenceId" => $referenceId,
-                    "transactionMode" => "eCommerce"
-                ]),
-            ]),
-            $merchantAuthentication
-        );
-
-        return $enrollmentCheck;
-    }
-
-
-    public function makePaymentIntent(Payments $payment): PaymentResponse | array
-    {
-        if ($payment->status === PaymentStatusEnum::PAID->value) {
-            return [
-                'status' => 'success',
-                'message' => 'Payment already paid',
-            ];
-        }
-
-        if ($payment->status === PaymentStatusEnum::FAILED->value) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment failed',
-            ];
-        }
-
-        $this->payment = $payment;
+        $orderInput = $payment->order;
 
         try {
-            $payerData = $this->startPaymentIntent($payment->order, $payment);
-            $consumerAuthentication = $payerData['consumerAuthenticationInformation'];
-            $referenceId = $consumerAuthentication['referenceId'];
-            $enrollmentData = $this->checkEnrollment($payment->order, $referenceId);
+            $enrollmentData = $this->client->checkPayerEnrollment(
+                PaymentDetail::from([
+                    'orderCode' => $orderInput->reference . '_' . $orderInput->id,
+                    'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
+                    'orderInformation' => OrderInformation::from([
+                        'currency' => 'DOP',
+                        'totalAmount' => $orderInput->getTotalAmount(),
+                        'billTo' => $this->setCustomerBillingAddress($orderInput),
+                    ]),
+                    'deviceInformation' => DeviceInformation::from([
+                        "httpAcceptContent" => "application/json",
+                        "httpBrowserLanguage" => "en_us",
+                        "userAgentBrowserValue" => "chrome"
+                    ]),
+                    'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
+                        "deviceChannel" => "BROWSER",
+                        "returnUrl" => $this->app->get(ConfigurationEnum::REDIRECT_URL->value),
+                        "referenceId" => $referenceId,
+                        "transactionMode" => "eCommerce"
+                    ]),
+                ]),
+                $merchantAuthentication
+            );
+
             $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
 
             if ($this->isValidEci($consumerData->eci, $enrollmentData)) {
@@ -178,7 +149,7 @@ class PortalPaymentProcessor
                 ];
             } else {
                 return $this->requestUserValidation($payment, $enrollmentData, $referenceId);
-            }   
+            }
         } catch (Throwable $e) {
             report($e);
             if ($e instanceof RequestException && $e->hasResponse()) {
@@ -231,12 +202,12 @@ class PortalPaymentProcessor
             'enrollment_data' => $enrollmentData,
         ]);
         $payment->save();
-        
+
         $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($enrollmentData));
-        
+
         $payment->order->updateQuietly([
-        'status' => OrderStatusEnum::PENDING->value,
-        'payment_status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value
+            'status' => OrderStatusEnum::PENDING->value,
+            'payment_status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value
         ]);
 
         return [
@@ -246,7 +217,8 @@ class PortalPaymentProcessor
         ];
     }
 
-    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, $referenceId) {
+    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, $referenceId)
+    {
         $paymentResponse = $this->processPaymentCall($payment, $consumerData, $referenceId);
 
         //  If the payment is successful and the status is PAYED
@@ -349,6 +321,10 @@ class PortalPaymentProcessor
         );
 
         $payment->status = PaymentStatusEnum::PAID;
+        $payment->order->updateQuietly([
+            'payment_status' => PaymentStatusEnum::PAID->value,
+            'status' => OrderStatusEnum::COMPLETED->value,
+        ]);
         $payment->addMetadata([
             'data' => [
                 ...$payment->metadata['data'],
@@ -356,5 +332,62 @@ class PortalPaymentProcessor
             ],
         ]);
         $payment->save();
+    }
+
+    public function reversePayment(Payments $payment, string $transactionId): array
+    {
+        $merchantAuthentication = $this->setupMerchantAuthentication();
+        $this->client->reversePayment(
+            PaymentCaptureInput::from([
+                'transactionId' => $transactionId,
+                'orderCode' => $payment->order->reference . '_' . $payment->order->id,
+                'currency' => 'DOP',
+                'totalAmount' => $payment->order->getTotalAmount(),
+            ]),
+            $merchantAuthentication
+        );
+    }
+
+    //  process the request with the device data
+    public function completeDeviceData(Payments $payment, string $deviceData): array
+    {
+        $order = $payment->order;
+
+        try {
+            $enrollmentResult = $this->checkEnrollment($payment, $deviceData);
+
+            // If user interaction is pending, stop job and wait
+            if ($payment->refresh()->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+                return [
+                    'payment' => $payment->getId(),
+                    'status' => 'pending_action',
+                    'message' => 'Payment pending action for order ' . $order->id . '. Waiting for user.',
+                    'data' => $enrollmentResult,
+                ];
+            }
+            return [
+                'status' => 'success',
+                'message' => 'Payment successful',
+                'data' => $enrollmentResult,
+            ];
+        } catch (Throwable $e) {
+            $payment->order->updateQuietly([
+                'status' => OrderStatusEnum::FAILED->value,
+            ]);
+
+            $payment->updateQuietly([
+                'status' => PaymentStatusEnum::FAILED->value,
+            ]);
+
+            $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($e->getMessage()));
+
+            return [
+                'payment' => $payment->getId(),
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'report' => 'fail',
+                'trace' => $e->getTraceAsString(),
+            ];
+        }
     }
 }

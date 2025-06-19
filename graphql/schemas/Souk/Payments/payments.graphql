@@ -81,6 +81,16 @@ input PaymentInput {
     payment_methods_id: ID
 }
 
+type PayerAuthResponse {
+  deviceDataUrl: String!
+  status: String!
+}
+
+type PayerAuthStatus {
+  status: String!
+  challengeUrl: String
+}
+
 extend type Mutation @guard {
     createPaymentMethod(input: PaymentMethodInput!): PaymentMethod!
         @field(
@@ -105,6 +115,14 @@ extend type Mutation @guard {
     addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentIntentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@addPaymentToOrder"
+        )
+    initiatePayerAuthentication(orderId: ID!): PayerAuthResponse!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@initiatePayerAuthentication"
+        )
+    completeDeviceData(orderId: ID!): PayerAuthStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@completeDeviceData"
         )
 }
 
