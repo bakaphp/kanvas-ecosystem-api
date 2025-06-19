@@ -114,7 +114,7 @@ class VariantService
             }
             if (isset($variant['channels'])) {
                 foreach ($variant['channels'] as $variantChannel) {
-                    if(isset($variantChannel['warehouses_id'])) {
+                    if (isset($variantChannel['warehouses_id'])) {
                         $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
                     } else {
                         $warehouse = Warehouses::getDefault($company);
