@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Channels\Models\Channel;
@@ -131,7 +132,7 @@ class Message extends BaseModel
         return $this->hasOne(AppModuleMessage::class, 'message_id');
     }
 
-    public function users()
+    public function users(): BelongsToMany
     {
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
@@ -188,6 +189,20 @@ class Message extends BaseModel
         $legacyClassMap = SystemModules::convertLegacySystemModules($this->appModuleMessage->system_modules);
 
         return $legacyClassMap::getById($this->appModuleMessage->entity_id);
+    }
+
+    public function engagement(): HasOne
+    {
+        return $this->hasOne(
+            Engagement::class,
+            'message_id',
+            'id'
+        );
+    }
+
+    public function getEngagement(): Engagement
+    {
+        return $this->engagement()->firstOrFail();
     }
 
     #[Override]
