@@ -97,7 +97,7 @@ class VariantService
                     );
                 }
             } else {
-                $warehouse = Warehouses::getDefault($company);
+                $warehouse = Warehouses::getDefault($company, $product->app);
                 $variantWarehouseInfo = [];
 
                 $variantWarehouseInfo = array_filter([
@@ -117,7 +117,7 @@ class VariantService
                     if (isset($variantChannel['warehouses_id'])) {
                         $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
                     } else {
-                        $warehouse = Warehouses::getDefault($company);
+                        $warehouse = Warehouses::getDefault($company, $product->app);
                     }
                     $channel = ChannelRepository::getById((int) $variantChannel['channels_id']);
                     $variantChannelDto = VariantChannelDto::from($variantChannel);
@@ -156,7 +156,7 @@ class VariantService
 
         $company = $variantDto->product->company;
 
-        $warehouse = Warehouses::getDefault($company);
+        $warehouse = Warehouses::getDefault($company, $product->app);
 
         if (isset($variant['warehouse']['status'])) {
             $variant['warehouse']['status_id'] = StatusRepository::getById(
@@ -164,7 +164,7 @@ class VariantService
                 $company
             )->getId();
         } else {
-            $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
+            $variant['warehouse']['status_id'] = Status::getDefault($company, $product->app)->getId();
         }
 
         if (! empty($productDto->warehouses) && isset($productDto->warehouses[0]['quantity']) && isset($productDto->warehouses[0]['price'])) {
