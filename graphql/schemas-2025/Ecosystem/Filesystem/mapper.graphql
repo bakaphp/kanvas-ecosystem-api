@@ -15,7 +15,7 @@ type FilesystemMapper {
 
 type FilesystemImportHistory {
     id: ID!
-    users: User!
+    user: User!
     company: Company!
     results: Mixed
     exception: Mixed

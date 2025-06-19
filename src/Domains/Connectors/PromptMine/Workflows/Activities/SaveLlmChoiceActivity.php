@@ -39,25 +39,11 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity) use ($messageData) {
-                if (! isset($messageData['ai_model'])) {
-                    return [
-                        'result' => false,
-                        'message' => 'Message does not have an AI model',
-                    ];
-                }
-                UserConfig::updateOrCreate(
-                    [
-                        'users_id' => $entity->user->getId(),
-                        'name' => 'llm_last_choice',
-                    ],
-                    [
-                        'value' => $messageData['ai_model'],
-                        'is_public' => 1,
-                    ],
-                );
-
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageData) {
                 $publishedFromChat = false;
+                /**
+                 * @todo move this someplace else, not good having 2 logics in the same activity
+                 */
                 if ($entity instanceof Message) {
                     $messageData = $entity->message;
 
@@ -75,6 +61,25 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
                         ]);
                     }
                 }
+
+                if (! isset($messageData['ai_model'])) {
+                    return [
+                        'result' => false,
+                        'message' => 'Message does not have an AI model',
+                        'update_chat' => $publishedFromChat,
+                        'message_chat' => isset($messageFromChat) && $messageFromChat instanceof Message ? $messageFromChat->toArray() : [],
+                    ];
+                }
+                UserConfig::updateOrCreate(
+                    [
+                        'users_id' => $entity->user->getId(),
+                        'name' => 'llm_last_choice',
+                    ],
+                    [
+                        'value' => $messageData['ai_model'],
+                        'is_public' => 1,
+                    ],
+                );
 
                 return [
                     'message' => 'LLM choice saved',

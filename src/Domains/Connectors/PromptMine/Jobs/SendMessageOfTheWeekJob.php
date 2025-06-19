@@ -40,7 +40,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        $messageOfTheWeek = MessagesRepository::getMostPopularMesssageByTotalLikes($this->app, $this->messageType);
+        $messageOfTheWeek = MessagesRepository::getMostPopularMessageByTotalLikes($this->app, $this->messageType);
         if ($messageOfTheWeek === null) {
             return;
         }

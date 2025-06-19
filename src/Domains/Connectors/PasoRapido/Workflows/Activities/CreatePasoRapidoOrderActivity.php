@@ -46,9 +46,11 @@ class CreatePasoRapidoOrderActivity extends KanvasActivity implements WorkflowAc
 
                 try {
                     $pasoRapidoService = new PasoRapidoService($app, $order->company);
+                    $intentId = $order->get(EchoPayCustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value);
+                    $bankTransaction = explode(':', $intentId)[1];
                     $confirmPaymentResponse = $pasoRapidoService->confirmPayment(new PaymentConfirmData(
                         reference: $tag,
-                        bankTransaction: $order->get(EchoPayCustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value),
+                        bankTransaction: $bankTransaction,
                         amount: $order->getTotalAmount(),
                         fiscalCredit: false,
                         dni: $order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? "",

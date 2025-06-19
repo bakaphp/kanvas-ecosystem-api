@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Enums;
 
+/**
+ * @deprecated Use Kanvas\ActionEngine\Actions\Enums\ActionEnum instead.
+ */
 enum ConfigurationEnum: string
 {
     case CONTENT = 'dealer-content';

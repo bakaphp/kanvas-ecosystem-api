@@ -28,6 +28,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Nevadskiy\Tree\AsTree;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -85,6 +86,7 @@ class Order extends BaseModel
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use AsTree;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -213,6 +215,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function failed(): void
+    {
+        $this->status = 'failed';
+        $this->saveOrFail();
+    }
+
     public function cancel(): void
     {
         $this->status = 'canceled';
@@ -266,11 +274,11 @@ class Order extends BaseModel
 
     public function generateOrderNumber(): int
     {
-        // Lock the orders table while retrieving the last order
+        // Lock the orders table while retrieving the order with the highest order_number
         $lastOrder = Order::where('companies_id', $this->companies_id)
             ->where('apps_id', $this->apps_id)
             ->lockForUpdate() // Ensure no race conditions
-            ->latest('id')
+            ->orderBy('order_number', 'desc') // Order by the actual order_number field
             ->first();
 
         $lastOrderNumber = $lastOrder ? intval($lastOrder->order_number) : 0;
@@ -589,7 +597,7 @@ class Order extends BaseModel
             $totalPaid = $this->getPaidAmount();
             $totalDebt = $this->total_net_amount - $totalPaid;
             if ($totalDebt <= 0) {
-                $this->fulfill();
+                $this->completed();
 
                 $this->fireWorkflow(
                     WorkflowEnum::UPDATED->value,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ESim\WorkflowActivities;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\CMLink\Actions\CreateEsimOrderAction;
 use Kanvas\Connectors\ESim\Actions\PushOrderToCommerceAction;
@@ -17,6 +18,9 @@ use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Connectors\Stripe\Services\StripeCustomerService;
 use Kanvas\Connectors\VentaMobile\Actions\CreateEsimOrderAction as ActionsCreateEsimOrderAction;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -24,6 +28,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -57,6 +62,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $allEsimResponses = [];
                 $woocommerceResponse = ['web order' => true]; // Default for non-mobile orders
                 $woocommerceSent = false; // Flag to track if WooCommerce order was sent
+                $language = 'es';
 
                 foreach ($order->items as $item) {
                     $variant = $item->variant;
@@ -85,9 +91,11 @@ class CreateOrderInESimActivity extends KanvasActivity
                     $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
                     $isRefuelOrder = isset($order->metadata['parent_order_id']) && ! empty($order->metadata['parent_order_id']);
                     $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
+                    $language = $order->metadata['language'] ?? 'es';
 
                     // Get quantity from item (default to 1 if not set)
                     $quantity = $item->quantity ?? 1;
+                    $esimExtraInfoDetails = $order->metadata['esimDetails'] ?? [];
 
                     // Create eSims based on quantity
                     for ($i = 0; $i < $quantity; $i++) {
@@ -136,8 +144,29 @@ class CreateOrderInESimActivity extends KanvasActivity
                         $response['esim_sequence'] = $i + 1; // Add sequence number for tracking
                         $response['total_quantity'] = $quantity; // Add total quantity info
 
+                        try {
+                            $response['variant_info'] = [
+                                'name' => $variant->name,
+                                'product_name' => $variant->product->name,
+                                'attributes' => $variant->attributes()->pluck('value', 'name')->toArray(),
+                            ];
+
+                            $response['qr_url'] = ! empty($response['data']['qr_code']) ? $this->saveQrCodeFromBase64(
+                                $response['data']['qr_code'] ?? '',
+                                $order,
+                                $response['data']['iccid'] . '.png'
+                            )->url : null;
+                        } catch (Throwable $e) {
+                            report($e);
+                            $response['qr_url'] = null; // Set to null if QR code saving fails
+                        }
+
                         if (! isset($response['label'])) {
                             $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
+                        }
+
+                        if (isset($esimExtraInfoDetails[$variant->id]['labels']) && ! empty($esimExtraInfoDetails[$variant->id]['labels'])) {
+                            $response['label'] = array_shift($esimExtraInfoDetails[$variant->id]['labels']);
                         }
 
                         $sku = null;
@@ -215,6 +244,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                             $parentOrder = Order::getById($order->metadata['parent_order_id']);
                             $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
                             $message->setPublic();
+                            $message->addEntity($order);
                             $response['message_id'] = $message->getId();
                         }
 
@@ -271,6 +301,20 @@ class CreateOrderInESimActivity extends KanvasActivity
                     }
 
                     $order->updateOrFail();
+                }
+
+                try {
+                    if ($app->get('esim-send-email')) {
+                        $orderNotification = new NewOrderNotification($order, [
+                            'app' => $order->app,
+                            'company' => $order->company,
+                            'subject' => $language === 'en' ? 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use' : 'Tu eSIM de ' . ucfirst($order->app->name) . ' está lista para usar',
+                        ]);
+                        $orderNotification->channels = ['mail'];
+                        $order->user->notify($orderNotification);
+                    }
+                } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
+                    // Handle notification failure
                 }
 
                 if (count($responses) === 1) {
@@ -352,5 +396,25 @@ class CreateOrderInESimActivity extends KanvasActivity
             $message->message = $messageData;
             $message->saveOrFail();
         }
+    }
+
+    protected function saveQrCodeFromBase64(string $base64DataUri, Order $order, ?string $filename = null): Filesystem
+    {
+        // Extract the base64 data from the data URI
+        $base64Data = substr($base64DataUri, strpos($base64DataUri, ',') + 1);
+
+        // Generate filename if not provided
+        if (! $filename) {
+            $filename = 'qr_' . uniqid() . '.png';
+        }
+
+        // Use your existing FilesystemServices
+        $filesystemService = new FilesystemServices($order->app, $order->company);
+
+        return $filesystemService->createFileSystemFromBase64(
+            $base64Data,  // Just the base64 data without the data URI prefix
+            $filename,
+            $order->user
+        );
     }
 }

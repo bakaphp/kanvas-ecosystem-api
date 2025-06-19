@@ -53,11 +53,11 @@ class ScrapperProcessorAction
             $warehouse,
             $this->user,
         );
-
         foreach ($this->results as $i => $result) {
             try {
                 if (! isset($result['asin']) || empty($result['asin'])) {
                     Log::warning('No ASIN found for product', ['result' => $result]);
+
                     continue;
                 }
                 Products::withTrashed()
@@ -74,7 +74,7 @@ class ScrapperProcessorAction
                 $originalDescription = $service->getDescription($product);
 
                 $mappedProduct = $service->mapProduct($product);
-                $mappedProduct['variants'] = isset($product['customization_options']) ? $productVariantService->mapVariant($product) : [$mappedProduct];
+                $mappedProduct['variants'] = $productVariantService->mapVariant($product);
 
                 try {
                     $product = (
@@ -156,7 +156,6 @@ class ScrapperProcessorAction
             $product->save();
             $productList[] = $product;
         }
-
         return $productList;
     }
 
