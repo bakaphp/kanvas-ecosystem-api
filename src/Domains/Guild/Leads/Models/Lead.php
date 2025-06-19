@@ -164,7 +164,8 @@ class Lead extends BaseModel
 
     public function socialChannels(): HasMany
     {
-        return $this->hasMany(Channel::class, 'entity_id', 'id')->where('entity_namespace', self::class);
+        return $this->hasMany(Channel::class, 'entity_id', 'id')
+            ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
     }
 
     public function receiver(): BelongsTo
