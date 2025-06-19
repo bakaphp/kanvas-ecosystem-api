@@ -177,20 +177,19 @@ class PaymentMutation
 
             $enrollmentResult = $paymentProcessor->completeDeviceData($payment);
 
-            if ($enrollmentResult['status'] === 'pending_action') {
+            
+            if ($enrollmentResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+                $order->set("authorization_data", json_encode($enrollmentResult['data']));
+
                 return [
-                    'status' => 'pending_action',
-                    'message' => 'Payment pending action for order ' . $payment->order->id . '. Waiting for user.',
-                    'data' => [
-                        "challengeUrl" => $enrollmentResult["data"]["challengeUrl"],
-                        "accessToken" => $enrollmentResult["data"]["accessToken"],
-                        "referenceId" => $enrollmentResult["data"]["referenceId"],
-                    ],
+                    'status' => $enrollmentResult['status'],
+                    'message' => 'Payment pending action for order ' . $order->id . '. Waiting for user.',
+                    'data' => $enrollmentResult['data'],
                 ];
             }
 
             if ($enrollmentResult['status'] != 'success') {
-                $order->set('payment_status', 'failed');
+                $order->set('payment_status', PaymentStatusEnum::FAILED->value);
                 $order->save();
 
                 return [
@@ -215,4 +214,57 @@ class PaymentMutation
             ];
         }
     }
+
+    public function validatePayerAuthResult($_, array $request)
+    {
+        $app = app(Apps::class);
+        $orderId = (int) $request['orderId'];
+        $transactionId = $request['transactionId'];
+
+        $payment = Payments::where([
+            'apps_id' => $app->getId(),
+            'payable_id' => $orderId,
+            'payable_type' => Order::class,
+        ])->first();
+
+        if (! $payment) {
+            throw new Exception('Payment not found');
+        }
+
+        $order = $payment->order;
+
+        if ($payment->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+            $paymentProcessor = new PortalPaymentProcessor(
+                $app,
+                $payment->company,
+                []
+            );
+
+            $validationResult = $paymentProcessor->validatePayerAuthResult($payment, $order, $transactionId);
+    
+            if ($validationResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+                return [
+                    'status' => $validationResult['status'],
+                    'message' => 'Payment pending action for order ' . $order->id . '. Waiting for user.',
+                    'data' => $order->get('authorization_data'),
+                ];
+            }
+
+            $result = new ProcessPaymentAction($app, $payment, $order)->execute($validationResult['data']);
+
+            return [
+                'status' => $result['status'],
+                'message' => $result['message'],
+                'data' => $result['data'],
+            ];
+        } else {
+            return [
+                'status' => 'error',
+                'message' => 'Payment is not waiting for payer authentication: ' . $payment->status,
+                'data' => [],
+            ];
+        }
+    }
+    
+
 }

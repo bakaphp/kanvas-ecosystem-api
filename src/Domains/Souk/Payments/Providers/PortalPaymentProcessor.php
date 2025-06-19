@@ -140,7 +140,7 @@ class PortalPaymentProcessor
 
             $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
 
-            if ($this->isValidEci($consumerData->eci, $enrollmentData)) {
+            if ($this->isValidEci($consumerData, $enrollmentData)) {
                 return [
                     'status' => 'success',
                     'message' => 'Payer enrolled',
@@ -179,18 +179,75 @@ class PortalPaymentProcessor
         }
     }
 
-    private function isValidEci(string $eci, array $enrollmentData): bool
+    public function validatePayerAuthResult(Payments $payment, Order $order, string $transactionId): array
     {
-        return in_array($eci, [
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+
+        try {
+            $validatedData = $this->client->validatePayerAuthResult(
+                $transactionId,
+                PaymentDetail::from([
+                    'orderCode' =>  $order->reference . '_' . $order->id,
+                    'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
+                    'orderInformation' => OrderInformation::from([
+                        'currency' => 'DOP',
+                        'totalAmount' => $order->getTotalAmount(),
+                    ]),
+                ]),
+                $merchantAuthentication
+            );
+
+            $consumerData = ConsumerAuthentication::from($validatedData['consumerAuthenticationInformation']);
+
+            if ($this->isValidEci($consumerData, $validatedData)) {
+                return [
+                    'status' => 'success',
+                    'message' => 'Payer enrolled',
+                    'data' => $consumerData
+                ];
+            } else {
+                return $this->requestUserValidation($payment, $validatedData);
+            }
+        } catch (Throwable $e) {
+            report($e);
+            if ($e instanceof RequestException && $e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorMessage = json_decode((string) $response->getBody())->message ?? $e->getMessage();
+            } else {
+                $errorMessage = $e->getMessage();
+            }
+
+            $payment->status = PaymentStatusEnum::FAILED;
+            $payment->addMetadata([
+                'enrollment_data' => [],
+                'error' => $e->getMessage()
+            ]);
+            $payment->save();
+
+            $payment->order->updateQuietly([
+                'status' => OrderStatusEnum::FAILED->value,
+                'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => $errorMessage,
+                'response' => $e->getMessage(),
+                'data' => [],
+            ];
+        }
+    }
+
+    private function isValidEci(ConsumerAuthentication $consumerData, array $enrollmentData): bool
+    {
+        if ($enrollmentData['status'] !== EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value) {
+            return false;
+        }
+
+        return in_array($consumerData->eci, [
             '05',
             '06',
         ]);
-
-        if ($enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value) {
-            return true;
-        }
-
-        return false;
     }
 
     //  If the enrollment status is not AUTHENTICATION_SUCCESSFUL it means that the front needs to authenticate the payer
@@ -210,9 +267,9 @@ class PortalPaymentProcessor
         ]);
 
         return [
-            'status' => 'success',
-            'message' => PaymentStatusEnum::PENDING_AUTHORIZATION,
-            'data' => $enrollmentData
+            'status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+            'message' => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+            'data' => ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation'])
         ];
     }
 
@@ -386,9 +443,12 @@ class PortalPaymentProcessor
             if ($payment->refresh()->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
                 return [
                     'payment' => $payment->getId(),
-                    'status' => 'pending_action',
+                    'status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
                     'message' => 'Payment pending action for order ' . $order->id . '. Waiting for user.',
-                    'data' => $enrollmentResult,
+                    'data' => [
+                        ...$enrollmentResult['data']->toArray(),
+                        'returnUrl' => $this->app->get(ConfigurationEnum::REDIRECT_URL->value),
+                    ],
                 ];
             }
 

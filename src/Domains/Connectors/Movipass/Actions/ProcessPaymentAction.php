@@ -34,7 +34,11 @@ class ProcessPaymentAction
             'data' => [],
         ];
 
-        $paymentProcessor->processPayment($this->payment, $consumerData, $this->order);
+        $paymentResult = $paymentProcessor->processPayment($this->payment, $consumerData, $this->order);
+
+        if ($paymentResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+            $this->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($paymentResult));
+        }
 
         if ($this->order->orderType->name === IntegrationsEnum::PASO_RAPIDO->value) {
             $createPasoRapidoOrderActivity = new CreatePasoRapidoOrderActivity(

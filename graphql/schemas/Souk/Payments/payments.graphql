@@ -126,6 +126,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@completeDeviceData"
         )
+    validatePayerAuthResult(orderId: ID!, transactionId: String!): PayerAuthStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayerAuthResult"
+        )
 }
 
 extend type Query {
