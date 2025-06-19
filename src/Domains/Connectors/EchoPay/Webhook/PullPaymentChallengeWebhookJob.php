@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\EchoPay\Webhook;
 
 use Exception;
+use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -16,8 +18,10 @@ class PullPaymentChallengeWebhookJob extends ProcessWebhookJob
     #[Override]
     public function execute(): array
     {
-        $orderId = $this->webhookRequest->payload['orderId'];
         $payload = $this->webhookRequest->payload;
+        $orderId = $this->webhookRequest->payload['MD'];
+        $transactionId = $this->webhookRequest->payload['TransactionId'];
+
 
         if (! $orderId) {
             return [
@@ -37,26 +41,9 @@ class PullPaymentChallengeWebhookJob extends ProcessWebhookJob
 
         $order = $payment->order;
 
-        $paymentProcessor = new PortalPaymentProcessor(
-            $app,
-            $payment->company,
-            []
-        );
+        $order->set(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value, $transactionId);
 
-        $paymentProcessor->validatePayerAuthResult($payment, $order);
-
-        $result = new ProcessPaymentAction($this->receiver->app, $payment, $order)->execute($enrollmentResult['data']);
-
-        return [
-            'status' => $result['status'],
-            'message' => $result['message'],
-            'data' => $result['data'],
-        ];
-       
-
-        return [
-            'message' => 'NetSuite Company Synced',
-            'payload' => $payload,
-        ];
+        echo '<script>window.parent.postMessage({type: "payment_complete", status: "success", message: "Transaction id received"}, "*"); window.close();</script>';
+        exit;
     }
 }

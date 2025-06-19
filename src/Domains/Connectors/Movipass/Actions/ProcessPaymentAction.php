@@ -5,12 +5,12 @@ namespace Kanvas\Connectors\Movipass\Actions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
-use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
+use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Workflow\Models\StoredWorkflow;
 
 class ProcessPaymentAction
 {
@@ -41,14 +41,10 @@ class ProcessPaymentAction
         }
 
         if ($this->order->orderType->name === IntegrationsEnum::PASO_RAPIDO->value) {
-            $createPasoRapidoOrderActivity = new CreatePasoRapidoOrderActivity(
-                0,
-                now()->toDateTimeString(),
-                StoredWorkflow::make(),
-                []
-            );
+            $createPasoRapidoOrderAction = new CreatePasoRapidoOrderAction($this->app, $this->order);
+            $response = $createPasoRapidoOrderAction->execute();
 
-            $response = $createPasoRapidoOrderActivity->execute($this->order, $this->app, []);
+        
             $result['message'] = $response['message'];
             $result['data'] = $response['data'];
         } else {
@@ -60,8 +56,9 @@ class ProcessPaymentAction
         if ($this->order->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value)) {
             $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
         } else {
-            $response = $paymentProcessor->reversePayment($this->payment, $this->order, $bankTransaction);
-            $result['message'] = $response['message'];
+            $reason = $result['message'];
+            $response = $paymentProcessor->reversePayment($this->payment, $this->order, $bankTransaction, $reason);
+            $result['message'] = $response['message'] . ' - ' . $reason;
             $result['data'] = $response['data'];
         }
 

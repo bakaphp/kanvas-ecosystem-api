@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Providers;
 
+use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -282,7 +283,7 @@ class PortalPaymentProcessor
             $transactionId = (string) $paymentResponse['data']['processorInformation']['transactionId'];
             $intentId = (string) $paymentResponse['data']['id'];
 
-            $payment->status = PaymentStatusEnum::PAID;
+            $payment->status = PaymentStatusEnum::AUTHORIZED;
             $payment->addMetadata([
                 'data' => [
                     'payment_response' => $paymentResponse['data'],
@@ -301,7 +302,7 @@ class PortalPaymentProcessor
                 'data' => $paymentResponse['data'],
             ];
         } else {
-           throw new \Exception('Payment failed');
+           throw new Exception('Payment failed');
         }
     }
 
@@ -397,7 +398,7 @@ class PortalPaymentProcessor
         ];
     }
 
-    public function reversePayment(Payments $payment, Order $order, string $transactionId): array
+    public function reversePayment(Payments $payment, Order $order, string $transactionId, string $reason): array
     {
         $merchantAuthentication = $this->setupMerchantAuthentication($payment);
         $reversePayment = $this->client->reversePayment(
@@ -407,7 +408,8 @@ class PortalPaymentProcessor
                 'currency' => 'DOP',
                 'totalAmount' => $order->getTotalAmount(),
             ]),
-            $merchantAuthentication
+            $merchantAuthentication,
+            $reason
         );
 
         $payment->status = PaymentStatusEnum::REVERSED;

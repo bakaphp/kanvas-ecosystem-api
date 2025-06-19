@@ -27,5 +27,5 @@ enum ConfigurationEnum: string
     case PAY_SERVICE_PATH = '/api/v2/echo-pay/service/pay';
     case AUTHORIZE_PAYMENT_PATH = '/api/v2/cybersource-payment/authorize';
     case CAPTURE_PAYMENT_PATH = '/api/v2/cybersource-payment/capture';
-    case REVERSAL_PAYMENT_PATH = '/api/v2/cybersource-payment/reversal';
+    case REVERSAL_PAYMENT_PATH = '/api/v2/cybersource-payment/authorize/reversal';
 }

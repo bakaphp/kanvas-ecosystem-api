@@ -491,7 +491,7 @@ class EchoPayService
                 'secretKey' => $merchant->secretKey,
             ]
         ];
-        $response = $this->client->post(ConfigurationEnum::CAPTURE_PAYMENT_PATH->value, $formData);
+        $response = $this->client->post(ConfigurationEnum::REVERSAL_PAYMENT_PATH->value, $formData);
 
         return $response['data'];
     }

@@ -6,6 +6,8 @@ namespace App\GraphQL\Souk\Mutations\Payments;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
+use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
@@ -168,6 +170,18 @@ class PaymentMutation
 
         $order = $payment->order;
 
+        // If payment is already authorized, jump directly to ProcessPaymentAction
+        if ($payment->status === PaymentStatusEnum::AUTHORIZED->value) {
+            $authorizationData = ConsumerAuthentication::from(json_decode($order->get('authorization_data') ?? '{}', true));
+            $result = new ProcessPaymentAction($app, $payment, $order)->execute($authorizationData);
+            
+            return [
+                'status' => $result['status'],
+                'message' => $result['message'],
+                'data' => $result['data'],
+            ];
+        }
+
         if ($payment->status === PaymentStatusEnum::WAITING_DEVICE_DATA->value) {
             $paymentProcessor = new PortalPaymentProcessor(
                 $app,
@@ -219,7 +233,6 @@ class PaymentMutation
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
-        $transactionId = $request['transactionId'];
 
         $payment = Payments::where([
             'apps_id' => $app->getId(),
@@ -232,6 +245,11 @@ class PaymentMutation
         }
 
         $order = $payment->order;
+        $authTransactionId = $order->get(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value);
+
+        if (! $authTransactionId) {
+            throw new Exception('Transaction ID mismatch');
+        }
 
         if ($payment->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
             $paymentProcessor = new PortalPaymentProcessor(
@@ -240,7 +258,8 @@ class PaymentMutation
                 []
             );
 
-            $validationResult = $paymentProcessor->validatePayerAuthResult($payment, $order, $transactionId);
+            $authTransactionId = $order->get(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value);
+            $validationResult = $paymentProcessor->validatePayerAuthResult($payment, $order, $authTransactionId);
     
             if ($validationResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
                 return [
