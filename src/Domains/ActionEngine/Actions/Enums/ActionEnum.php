@@ -2,16 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\SalesAssist\Enums;
+namespace Kanvas\ActionEngine\Actions\Enums;
 
-/**
- * @deprecated Use Kanvas\ActionEngine\Actions\Enums\ActionEnum instead.
- */
-enum ConfigurationEnum: string
+enum ActionEnum: string
 {
     case CONTENT = 'dealer-content';
     case DOWNLOAD_APP = 'download-app';
-    case DOWNLOAD_PRODUCT = 'download-vehicle';
+    case DOWNLOAD_PRODUCT = 'download-product';
+    case DOWNLOAD_VEHICLE = 'download-vehicle';
     case TRADE_WALK = 'trade-walk';
     case VIEW_PRODUCT = 'view-vehicle';
     case GET_DOCS = 'get-docs';
@@ -20,6 +18,8 @@ enum ConfigurationEnum: string
     case CREDIT_APP_3 = 'credit-app-3';
     case CREDIT_APP_4 = 'credit-app-4';
     case CREDIT_APP_5 = 'credit-app-5';
+    case CREDIT_APP_6 = 'credit-app-6';
+    case CREDIT_APP_7 = 'credit-app-7';
     case BUSINESS_CREDIT_APP = 'business-credit-app';
     case GET_REFERRAL = 'get-referrals';
     case ADD_TRADE = 'add-trade';
@@ -65,4 +65,5 @@ enum ConfigurationEnum: string
     case LOANER_CAR_AGREEMENT = 'loaner-car-agreement';
     case FINANCE_AND_INSURANCE = 'finance-and-insurance';
     case MILEAGE_CONFIRMATION = 'mileage-confirmation';
+    case CREDIT_UNION_APPLICATION = 'credit-union-application';
 }

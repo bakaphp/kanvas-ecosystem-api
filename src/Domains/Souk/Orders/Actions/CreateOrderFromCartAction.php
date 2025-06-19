@@ -122,7 +122,13 @@ class CreateOrderFromCartAction
         );
 
         $order = (new CreateOrderAction($order))->execute();
-        new SendUserNotificationAction($order->app, $this->company, $order->user)->execute('admin-new-order', $order->toArray());
+
+        //@todo remove this we already have it on create order action
+        new SendUserNotificationAction(
+            $order->app,
+            $this->company,
+            $order->user
+        )->execute('admin-new-order', $order->toArray());
 
         $this->cart->clear();
 

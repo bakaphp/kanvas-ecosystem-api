@@ -343,6 +343,7 @@ class OrderExpirableTest extends TestCase
         Date::setTestNow(now()->startOfSecond());
         $rightNow = now($timezone)->toDateTimeString();
         $rightNowPlus15 = now($timezone)->addMinutes(15)->toDateTimeString();
+        $rightNowPlus30 = now($timezone)->addMinutes(30)->toDateTimeString();
         $rightNowPlus5 = now($timezone)->addMinutes(5)->toDateTimeString();
 
         $reservation1 = $this->createDraftOrder(
@@ -381,8 +382,24 @@ class OrderExpirableTest extends TestCase
             ],
         );
 
+        $reservation4 = $this->createDraftOrder(
+            variantId: $variantResponse['id'],
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $rightNow,
+                    'end_at' => $rightNowPlus30,
+                    'notify_in' => 30,
+                ]
+            ],
+        );
+
         $checkExpiringOrders = new CheckExpiringOrders($this->apps);
-        $orders = $checkExpiringOrders->execute($rightNow, null, [$reservation1->getId(), $reservation2->getId(), $reservation3->getId()]);
+        $orders = $checkExpiringOrders->execute($rightNow, [
+            15,
+            5
+        ], [$reservation1->getId(), $reservation2->getId(), $reservation3->getId(), $reservation4->getId()]);
+
         $this->assertEquals(3, $orders->count());
 
         $orders->each(function ($order) {

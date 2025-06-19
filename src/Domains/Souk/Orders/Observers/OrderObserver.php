@@ -8,7 +8,7 @@ use Kanvas\Souk\Orders\Models\Order;
 
 class OrderObserver
 {
-    public function creating(Order $order)
+    public function creating(Order $order): void
     {
         if (empty($order->order_number)) {
             $order->order_number = $order->generateOrderNumber();

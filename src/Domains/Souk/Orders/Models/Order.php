@@ -213,6 +213,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function failed(): void
+    {
+        $this->status = 'failed';
+        $this->saveOrFail();
+    }
+
     public function cancel(): void
     {
         $this->status = 'canceled';
@@ -589,7 +595,7 @@ class Order extends BaseModel
             $totalPaid = $this->getPaidAmount();
             $totalDebt = $this->total_net_amount - $totalPaid;
             if ($totalDebt <= 0) {
-                $this->fulfill();
+                $this->completed();
 
                 $this->fireWorkflow(
                     WorkflowEnum::UPDATED->value,

@@ -30,6 +30,13 @@ extend type Query @guard {
     getActivityLog(
         system_module_uuid: String!
         entity_id: Int!
+        orderBy: _@orderBy(
+            columns: [
+                "id"
+                "created_at"
+                "updated_at"
+            ]
+        )
     ): [ActivityLog!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\ActivityLog\\ActivityLogQuery@getAllActivityLogs"

@@ -233,10 +233,28 @@ class EchoPayService
             'clientReferenceInformation' => [
                 'code' => $response['data']['clientReferenceInformation']['code'],
             ],
-            'consumerAuthenticationInformation' => ConsumerAuthentication::from($response['data']['consumerAuthenticationInformation']),
-            'errorInformation' => isset($response['data']['errorInformation']) ? [
-                'reason' => $response['data']['errorInformation']['reason'],
-                'message' => $response['data']['errorInformation']['message'],
+            "consumerAuthenticationInformation" => ConsumerAuthentication::from([
+                "indicator" => $response['data']['consumerAuthenticationInformation']['ecommerceIndicator'] ?? null,
+                "authenticationTransactionId" => $response['data']['consumerAuthenticationInformation']['authenticationTransactionId'] ?? null,
+                "eciRaw" => $response['data']['consumerAuthenticationInformation']['eciRaw'] ?? null,
+                "authenticationResult" => $response['data']['consumerAuthenticationInformation']['authenticationResult'] ?? null,
+                "strongAuthentication" => $response['data']['consumerAuthenticationInformation']['strongAuthentication'] ?? null,
+                "authenticationStatusMsg" => $response['data']['consumerAuthenticationInformation']['authenticationStatusMsg'] ?? null,
+                "eci" => $response['data']['consumerAuthenticationInformation']['eci'] ?? null,
+                "token" => $response['data']['consumerAuthenticationInformation']['token'] ?? null,
+                "cavv" => $response['data']['consumerAuthenticationInformation']['cavv'] ?? null,
+                "paresStatus" => $response['data']['consumerAuthenticationInformation']['paresStatus'] ?? null,
+                "xid" => $response['data']['consumerAuthenticationInformation']['xid'] ?? null,
+                "directoryServerTransactionId" => $response['data']['consumerAuthenticationInformation']['directoryServerTransactionId'] ?? null,
+                "threeDSServerTransactionId" => $response['data']['consumerAuthenticationInformation']['threeDSServerTransactionId'] ?? null,
+                "specificationVersion" => $response['data']['consumerAuthenticationInformation']['specificationVersion'] ?? null,
+                "acsTransactionId" => $response['data']['consumerAuthenticationInformation']['acsTransactionId'] ?? null,
+                "ucafCollectionIndicator" => $response['data']['consumerAuthenticationInformation']['ucafCollectionIndicator'] ?? "",
+                "ucafAuthenticationData" => $response['data']['consumerAuthenticationInformation']['ucafAuthenticationData'] ?? "",
+            ]),
+            "errorInformation" => isset($response['data']['errorInformation']) ? [
+                "reason" => $response['data']['errorInformation']['reason'],
+                "message" => $response['data']['errorInformation']['message']
             ] : null,
             'id' => $response['data']['id'],
             'paymentInformation' => [

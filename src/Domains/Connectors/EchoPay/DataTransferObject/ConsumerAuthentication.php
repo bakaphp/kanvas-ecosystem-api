@@ -10,6 +10,7 @@ class ConsumerAuthentication extends Data
 {
     public function __construct(
         public readonly ?string $indicator,
+        public readonly ?string $authenticationTransactionId,
         public readonly ?string $eciRaw,
         public readonly ?string $authenticationResult,
         public readonly array $strongAuthentication,
@@ -23,6 +24,8 @@ class ConsumerAuthentication extends Data
         public readonly ?string $threeDSServerTransactionId,
         public readonly ?string $specificationVersion,
         public readonly ?string $acsTransactionId,
+        public readonly ?string $ucafCollectionIndicator,
+        public readonly ?string $ucafAuthenticationData,
     ) {
     }
 }

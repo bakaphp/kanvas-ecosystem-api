@@ -18,6 +18,7 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -31,7 +32,7 @@ use Spatie\LaravelData\DataCollection;
 
 class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 {
-    protected int $timeThresholdInSeconds = 5;
+    protected int $timeThresholdInSeconds = 8;
 
     #[Override]
     public function execute(): array
@@ -198,6 +199,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $channel->addMessage($message);
             $lastMessageParent = $lastMessage->parent ?? null;
 
+            //get the previous msg before this that was of type document and is not process by me , to check
+
             if ($isDocument) {
                 new DownloadMessageFileAction(
                     $channel,
@@ -208,12 +211,20 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             // only fire for non-document messages
             if (! $isDocument) {
                 $processDocument = false;
-                if ($lastMessageParent !== null) {
-                    $text = $message->message['raw_data']['message']['conversation'] ??
-                       $message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
-                    $isLastMessageDocument = MessageTypeEnum::isDocumentType($lastMessageParent->messageType->verb);
-                    $triggerWords = ['process', 'process document', 'dale', 'run'];
-                    $processDocument = $isLastMessageDocument && $text !== null && in_array(trim(strtolower($text)), $triggerWords);
+                $text = $message->message['raw_data']['message']['conversation'] ?? $message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
+                $triggerWords = ['process', 'process document', 'dale', 'run'];
+                $triggerProcess = $text !== null && in_array(trim(strtolower($text)), $triggerWords);
+                $lastUnprocessedImageParentMessage = null;
+
+                if ($triggerProcess) {
+                    //$isLastMessageDocument = MessageTypeEnum::isDocumentType($lastMessageParent->messageType->verb);
+                    $lastUnprocessedImageMessage = ChannelRepository::getChannelMessagesByVerb($channel, MessageTypeEnum::IMAGE->value)
+                                ->orderBy('messages.created_at', 'desc')
+                                ->first();
+                    $lastUnprocessedImageParentMessage = $lastUnprocessedImageMessage instanceof Message ? $lastUnprocessedImageMessage->parent : null;
+                    //$isLastMessageDocument = MessageTypeEnum::isDocumentType($lastUnprocessedImageParentMessage->messageType->verb);
+                    //$processDocument = $isLastMessageDocument && $text !== null && in_array(trim(strtolower($text)), $triggerWords);
+                    $processDocument = $lastUnprocessedImageMessage instanceof Message ? ! $lastUnprocessedImageParentMessage->get('created_product') : false;
                 }
 
                 $channel->fireWorkflow(
@@ -226,7 +237,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                         'company' => $message->company,
                         'process_document' => $processDocument,
                         'text' => $text,
-                        'lastMessageParentDocument' => $lastMessageParent !== null ? $lastMessageParent : null,
+                        'lastMessageParentDocument' => $lastUnprocessedImageParentMessage !== null ? $lastUnprocessedImageParentMessage : null,
                     ]
                 );
             }
@@ -255,6 +266,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     {
         $data = $payload['data'] ?? [];
         $channelId = $payload['data']['key']['remoteJid'] ?? null;
+
+        if ($channelId === null) {
+            return [
+                'error' => 'Missing channel ID in payload',
+            ];
+        }
 
         $processedUpdates = [];
         $time = $payload['timestamp'] ?? time();
