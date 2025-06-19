@@ -115,10 +115,13 @@ class VariantService
 
             if (isset($variant['channels'])) {
                 foreach ($variant['channels'] as $variantChannel) {
-                    $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
+                    if(isset($variantChannel['warehouses_id'])) {
+                        $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
+                    } else {
+                        $warehouse = Warehouses::getDefault($company);
+                    }
                     $channel = ChannelRepository::getById((int) $variantChannel['channels_id']);
                     $variantChannelDto = VariantChannelDto::from($variantChannel);
-
                     self::addVariantChannel(
                         $variantModel,
                         $warehouse,
