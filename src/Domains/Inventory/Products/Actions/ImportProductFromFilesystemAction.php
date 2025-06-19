@@ -43,6 +43,8 @@ class ImportProductFromFilesystemAction
 
             if (isset($this->filesystemImports->filesystemMapper->configuration['channels_id'])) {
                 $variant['channels'][]['channels_id'] = $this->filesystemImports->filesystemMapper->configuration['channels_id'];
+                $variant['channels'][]['price'] = $variant['price'] ?? 0.0;
+                $variant['channels'][]['discounted_price'] = $variant['discounted_price'] ?? 0.0;
             }
             $listOfVariants[$variant['handler']][] = $variant;
         }
