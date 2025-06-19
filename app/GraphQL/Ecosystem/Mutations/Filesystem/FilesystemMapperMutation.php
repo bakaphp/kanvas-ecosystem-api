@@ -19,7 +19,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Models\FilesystemMapper as ModelsFilesystemMapper;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Services\SystemModulesServices;
 use League\Csv\Reader;
@@ -112,7 +112,11 @@ class FilesystemMapperMutation
         //$filesystem = Filesystem::getByIdFromCompanyApp($input['filesystem_id'], $company, $app);
         $filesystem = Filesystem::getById($input['filesystem_id'], $app);
         $mapper = ModelsFilesystemMapper::getByIdFromCompanyApp($input['filesystem_mapper_id'], $company, $app);
-        $regions = Regions::getByIdFromCompanyApp($input['regions_id'], $company, $app);
+
+        $regions = $req['regionId'] ?? null
+            ? Regions::getByIdFromCompanyApp($input['regions_id'], $company, $app)
+            : Regions::getDefault($company, $app);
+
         $dto = FilesystemImport::from([
             'app' => $app,
             'users' => $user,
