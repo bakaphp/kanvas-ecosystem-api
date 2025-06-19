@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Payments;
 
-use App\Domains\Connectors\Movipass\Actions\ProcessPaymentAction;
 use Exception;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
@@ -131,21 +131,23 @@ class PaymentMutation
 
         $consumerAuthenticationInformation = $session['consumerAuthenticationInformation'];
 
-        $payment->order->addAttribute('auth_session_id', $consumerAuthenticationInformation['referenceId']);
-        $payment->order->addAttribute('device_data_url', $consumerAuthenticationInformation['deviceDataCollectionUrl']);
-        $payment->order->addAttribute('access_token', $consumerAuthenticationInformation['accessToken']);
-        $payment->order->addAttribute('payment_status', 'waiting_device_data');
+        $payment->order->set('auth_session_id', $consumerAuthenticationInformation['referenceId']);
+        $payment->order->set('device_data_url', $consumerAuthenticationInformation['deviceDataCollectionUrl']);
+        $payment->order->set('access_token', $consumerAuthenticationInformation['accessToken']);
+        $payment->order->set('payment_status', 'waiting_device_data');
 
         $payment->status = PaymentStatusEnum::WAITING_DEVICE_DATA;
         $payment->save();
 
 
         return [
-            'deviceDataUrl' =>   $consumerAuthenticationInformation['deviceDataCollectionUrl'],
-            'accessToken' => $consumerAuthenticationInformation['accessToken'],
-            'referenceId' => $consumerAuthenticationInformation['referenceId'],
             'message' => 'Waiting for device data',
             'status' => 'waiting_device_data',
+            'data' => [
+                'deviceDataUrl' => $consumerAuthenticationInformation['deviceDataCollectionUrl'],
+                'accessToken' => $consumerAuthenticationInformation['accessToken'],
+                'referenceId' => $consumerAuthenticationInformation['referenceId'],
+            ],
         ];
     }
 
@@ -164,28 +166,41 @@ class PaymentMutation
             throw new Exception('Payment not found');
         }
 
-        if ($payment->status === PaymentStatusEnum::WAITING_DEVICE_DATA) {
+        $order = $payment->order;
+
+        if ($payment->status === PaymentStatusEnum::WAITING_DEVICE_DATA->value) {
             $paymentProcessor = new PortalPaymentProcessor(
                 $app,
                 $payment->company,
                 []
             );
 
-            $completeDeviceDataResult = $paymentProcessor->completeDeviceData($payment, $request['deviceData']);
+            $enrollmentResult = $paymentProcessor->completeDeviceData($payment);
 
-            if ($completeDeviceDataResult['status'] === 'pending_action') {
+            if ($enrollmentResult['status'] === 'pending_action') {
                 return [
                     'status' => 'pending_action',
                     'message' => 'Payment pending action for order ' . $payment->order->id . '. Waiting for user.',
                     'data' => [
-                        "challengeUrl" => $completeDeviceDataResult["data"]["challengeUrl"],
-                        "accessToken" => $completeDeviceDataResult["data"]["accessToken"],
-                        "referenceId" => $completeDeviceDataResult["data"]["referenceId"],
+                        "challengeUrl" => $enrollmentResult["data"]["challengeUrl"],
+                        "accessToken" => $enrollmentResult["data"]["accessToken"],
+                        "referenceId" => $enrollmentResult["data"]["referenceId"],
                     ],
                 ];
             }
 
-            $result = new ProcessPaymentAction($app, $payment)->execute();
+            if ($enrollmentResult['status'] != 'success') {
+                $order->set('payment_status', 'failed');
+                $order->save();
+
+                return [
+                    'status' => $enrollmentResult['status'],
+                    'message' => $enrollmentResult['message'],
+                    'data' => $enrollmentResult['data'],
+                ];
+            }
+
+            $result = new ProcessPaymentAction($app, $payment, $order)->execute($enrollmentResult['data']);
 
             return [
                 'status' => $result['status'],
@@ -195,7 +210,8 @@ class PaymentMutation
         } else {
             return [
                 'status' => 'error',
-                'message' => 'Payment is not waiting for device data',
+                'message' => 'Payment is not waiting for device data: ' . $payment->status,
+                'data' => [],
             ];
         }
     }

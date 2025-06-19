@@ -16,7 +16,6 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
-use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantCategoryEnum;
@@ -51,7 +50,7 @@ class PortalPaymentProcessor
         $this->refId = 'ref' . time();        // Set the transaction's refId
     }
 
-    protected function setupMerchantAuthentication(bool $includeDetails = false): MerchantDetail
+    protected function setupMerchantAuthentication(Payments $payment, bool $includeDetails = false): MerchantDetail
     {
         return MerchantDetail::from([
             'id' => $this->app->get('ECHO_PAY_MERCHANT_ID'),
@@ -62,7 +61,7 @@ class PortalPaymentProcessor
                     category: MerchantCategoryEnum::RETAIL,
                     cardIdentifier: $this->app->get(ConfigurationEnum::MERCHANT_IDENTIFIER->value) ?? "",
                     platform: MerchantPlatformEnum::WEB,
-                    customerId: "user_" . $this->payment->order->user->id,
+                    customerId: "user_" . $payment->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
                     documentType: MerchantDocumentTypesEnum::DNI,
                     documentNumber: $this->app->get(ConfigurationEnum::MERCHANT_DOCUMENT_NUMBER->value) ?? "",
@@ -71,18 +70,18 @@ class PortalPaymentProcessor
         ]);
     }
 
-    protected function setCustomerBillingAddress(Order $orderInput): BillingDetail
+    protected function setCustomerBillingAddress(Payments $payment, Order $orderInput): BillingDetail
     {
         return new BillingDetail(
-            firstName: $this->payment->paymentMethod->getMetadata('firstname') ?? $orderInput->user->firstname,
-            lastName: $this->payment->paymentMethod->getMetadata('lastname') ?? $orderInput->user->lastname,
-            country: $this->payment->paymentMethod->getMetadata('country'),
-            city: $this->payment->paymentMethod->getMetadata('city'),
-            address1: $this->payment->paymentMethod->getMetadata('address'),
-            phone: $this->payment->paymentMethod->getMetadata('phone'),
+            firstName: $payment->paymentMethod->getMetadata('firstname') ?? $orderInput->user->firstname,
+            lastName: $payment->paymentMethod->getMetadata('lastname') ?? $orderInput->user->lastname,
+            country: $payment->paymentMethod->getMetadata('country'),
+            city: $payment->paymentMethod->getMetadata('city'),
+            address1: $payment->paymentMethod->getMetadata('address'),
+            phone: $payment->paymentMethod->getMetadata('phone'),
             email: $orderInput->user->email,
-            postalCode: $this->payment->paymentMethod->getMetadata('zip_code'),
-            administrativeArea: $this->payment->paymentMethod->getMetadata('state'),
+            postalCode: $payment->paymentMethod->getMetadata('zip_code'),
+            administrativeArea: $payment->paymentMethod->getMetadata('state'),
         );
     }
 
@@ -99,9 +98,9 @@ class PortalPaymentProcessor
 
     public function startPaymentIntent(Payments $payment): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication();
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
         $payerAuthentication = $this->client->setupPayer(
-            $payment->order->order_number,
+            "order_" .$payment->order->order_number,
             $payment->paymentMethod->stripe_card_id,
             $merchantAuthentication
         );
@@ -111,8 +110,8 @@ class PortalPaymentProcessor
 
     public function checkEnrollment(Payments $payment, string $referenceId): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication();
         $orderInput = $payment->order;
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
 
         try {
             $enrollmentData = $this->client->checkPayerEnrollment(
@@ -122,7 +121,7 @@ class PortalPaymentProcessor
                     'orderInformation' => OrderInformation::from([
                         'currency' => 'DOP',
                         'totalAmount' => $orderInput->getTotalAmount(),
-                        'billTo' => $this->setCustomerBillingAddress($orderInput),
+                        'billTo' => $this->setCustomerBillingAddress($payment, $orderInput),
                     ]),
                     'deviceInformation' => DeviceInformation::from([
                         "httpAcceptContent" => "application/json",
@@ -161,7 +160,7 @@ class PortalPaymentProcessor
 
             $payment->status = PaymentStatusEnum::FAILED;
             $payment->addMetadata([
-                'enrollment_data' => $enrollmentData,
+                'enrollment_data' => [],
                 'error' => $e->getMessage()
             ]);
             $payment->save();
@@ -175,7 +174,7 @@ class PortalPaymentProcessor
                 'status' => 'error',
                 'message' => $errorMessage,
                 'response' => $e->getMessage(),
-                'data' => $enrollmentData,
+                'data' => [],
             ];
         }
     }
@@ -217,9 +216,9 @@ class PortalPaymentProcessor
         ];
     }
 
-    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, $referenceId)
+    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, Order $order)
     {
-        $paymentResponse = $this->processPaymentCall($payment, $consumerData, $referenceId);
+        $paymentResponse = $this->processPaymentCall($payment, $consumerData, $order);
 
         //  If the payment is successful and the status is PAYED
         if ($paymentResponse['status'] === 'success' && $paymentResponse['data']['status'] === 'AUTHORIZED') {
@@ -234,31 +233,33 @@ class PortalPaymentProcessor
             ]);
             $payment->save();
 
-            $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:' . $intentId);
-            $payment->order->set(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $transactionId);
-            $payment->order->set(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
-            $payment->order->checkPayments();
+            $order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:' . $intentId);
+            $order->set(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $transactionId);
+            $order->set(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
+            $order->checkPayments();
 
             return [
                 'status' => 'success',
                 'message' => 'Payment successful',
                 'data' => $paymentResponse['data'],
             ];
+        } else {
+           throw new \Exception('Payment failed');
         }
     }
 
 
-    private function processPaymentCall(Payments $payment, ConsumerAuthentication $consumerData, $referenceId): array
+    private function processPaymentCall(Payments $payment, ConsumerAuthentication $consumerData, Order $order): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication(includeDetails: true);
-        $service = $this->setupService($payment->order);
+        $referenceId = $order->get('auth_session_id');
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, includeDetails: true);
         $pamentData = PaymentDetail::from([
-            'orderCode' => $payment->order->reference . '_' . $payment->order->id,
+            'orderCode' => $order->reference . '_' . $order->id,
             'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
             'orderInformation' => OrderInformation::from([
                 'currency' => 'DOP',
-                'totalAmount' => $payment->order->getTotalAmount(),
-                'billTo' => $this->setCustomerBillingAddress($payment->order),
+                'totalAmount' => $order->getTotalAmount(),
+                'billTo' => $this->setCustomerBillingAddress($payment, $order),
             ]),
             'deviceInformation' => DeviceInformation::from([
                 "ipAddress" => request()->ip(),
@@ -300,28 +301,27 @@ class PortalPaymentProcessor
                     'pamentData' => $pamentData,
                     'consumerData' => $consumerData,
                     'merchantAuthentication' => $merchantAuthentication,
-                    'service' => $service
                 ],
             ];
         }
     }
 
 
-    public function capturePayment(Payments $payment, string $transactionId): array
+    public function capturePayment(Payments $payment, Order $order, string $transactionId): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication();
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
         $capturePayment = $this->client->capturePayment(
             PaymentCaptureInput::from([
                 'transactionId' => $transactionId,
-                'orderCode' => $payment->order->reference . '_' . $payment->order->id,
+                'orderCode' => $order->reference . '_' . $order->id,
                 'currency' => 'DOP',
-                'totalAmount' => $payment->order->getTotalAmount(),
+                'totalAmount' => $order->getTotalAmount(),
             ]),
             $merchantAuthentication
         );
 
         $payment->status = PaymentStatusEnum::PAID;
-        $payment->order->updateQuietly([
+        $order->updateQuietly([
             'payment_status' => PaymentStatusEnum::PAID->value,
             'status' => OrderStatusEnum::COMPLETED->value,
         ]);
@@ -332,29 +332,55 @@ class PortalPaymentProcessor
             ],
         ]);
         $payment->save();
+
+        return [
+            'status' => 'success',
+            'message' => 'Payment captured successfully',
+            'data' => $capturePayment,
+        ];
     }
 
-    public function reversePayment(Payments $payment, string $transactionId): array
+    public function reversePayment(Payments $payment, Order $order, string $transactionId): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication();
-        $this->client->reversePayment(
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $reversePayment = $this->client->reversePayment(
             PaymentCaptureInput::from([
                 'transactionId' => $transactionId,
-                'orderCode' => $payment->order->reference . '_' . $payment->order->id,
+                'orderCode' => $order->reference . '_' . $order->id,
                 'currency' => 'DOP',
-                'totalAmount' => $payment->order->getTotalAmount(),
+                'totalAmount' => $order->getTotalAmount(),
             ]),
             $merchantAuthentication
         );
+
+        $payment->status = PaymentStatusEnum::REVERSED;
+        $order->updateQuietly([
+            'payment_status' => PaymentStatusEnum::REVERSED->value,
+            'status' => OrderStatusEnum::CANCELED->value,
+        ]);
+
+        $payment->addMetadata([
+            'data' => [
+                ...$payment->metadata['data'],
+                'reverse_data' => $reversePayment,
+            ],
+        ]);
+        $payment->save();
+
+        return [
+            'status' => 'success',
+            'message' => 'Payment reversed successfully',
+            'data' => $reversePayment,
+        ];
     }
 
     //  process the request with the device data
-    public function completeDeviceData(Payments $payment, string $deviceData): array
+    public function completeDeviceData(Payments $payment): array
     {
         $order = $payment->order;
 
         try {
-            $enrollmentResult = $this->checkEnrollment($payment, $deviceData);
+            $enrollmentResult = $this->checkEnrollment($payment, $order->get('auth_session_id'));
 
             // If user interaction is pending, stop job and wait
             if ($payment->refresh()->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
@@ -365,13 +391,11 @@ class PortalPaymentProcessor
                     'data' => $enrollmentResult,
                 ];
             }
-            return [
-                'status' => 'success',
-                'message' => 'Payment successful',
-                'data' => $enrollmentResult,
-            ];
+
+            return $enrollmentResult;
+
         } catch (Throwable $e) {
-            $payment->order->updateQuietly([
+            $order->updateQuietly([
                 'status' => OrderStatusEnum::FAILED->value,
             ]);
 
@@ -379,13 +403,14 @@ class PortalPaymentProcessor
                 'status' => PaymentStatusEnum::FAILED->value,
             ]);
 
-            $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($e->getMessage()));
+            $order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($e->getMessage()));
 
             return [
                 'payment' => $payment->getId(),
                 'status' => 'error',
                 'message' => $e->getMessage(),
                 'report' => 'fail',
+                'data' => null,
                 'trace' => $e->getTraceAsString(),
             ];
         }

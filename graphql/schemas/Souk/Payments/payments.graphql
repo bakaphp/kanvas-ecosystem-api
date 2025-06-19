@@ -82,13 +82,15 @@ input PaymentInput {
 }
 
 type PayerAuthResponse {
-  deviceDataUrl: String!
   status: String!
+  message: String
+  data: Mixed
 }
 
 type PayerAuthStatus {
   status: String!
-  challengeUrl: String
+  message: String
+  data: Mixed
 }
 
 extend type Mutation @guard {

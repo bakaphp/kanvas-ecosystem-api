@@ -422,4 +422,34 @@ class EchoPayService
 
         return $response['data'];
     }
+
+    public function reversePayment(
+        PaymentCaptureInput $payment,
+        MerchantDetail $merchant,
+        string $reason = "test"
+    ): array {
+        $formData = [
+            'transactionId' => $payment->transactionId,
+            'payment' => [
+                'clientReferenceInformation' => [
+                    'code' => $payment->orderCode,
+                ],
+                'reversalInformation' => [
+                    'amountDetails' => [
+                        'currency' => $payment->currency,
+                        'totalAmount' => $payment->totalAmount,
+                    ],
+                    "reason" => $reason,
+                ],
+            ],
+            'merchant' => [
+                'id' => $merchant->id,
+                'key' => $merchant->key,
+                'secretKey' => $merchant->secretKey,
+            ]
+        ];
+        $response = $this->client->post(ConfigurationEnum::CAPTURE_PAYMENT_PATH->value, $formData);
+
+        return $response['data'];
+    }
 }

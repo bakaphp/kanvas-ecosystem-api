@@ -1,10 +1,12 @@
 <?php
 
-namespace App\Domains\Connectors\Movipass\Actions;
+namespace Kanvas\Connectors\Movipass\Actions;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -14,18 +16,27 @@ class ProcessPaymentAction
 {
     public function __construct(
         protected Apps $app,
-        protected Payments $payment
+        protected Payments $payment,
+        protected Order $order
     ) {
     }
 
-    public function execute(Payments $payment) {
+    public function execute(ConsumerAuthentication $consumerData) {
         $paymentProcessor = new PortalPaymentProcessor(
             $this->app,
             $this->payment->company,
             []
         );
 
-        if ($payment->order->orderType->name === IntegrationsEnum::PASO_RAPIDO->value) {
+        $result = [
+            'status' => 'success',
+            'message' => 'Payment processed successfully',
+            'data' => [],
+        ];
+
+        $paymentProcessor->processPayment($this->payment, $consumerData, $this->order);
+
+        if ($this->order->orderType->name === IntegrationsEnum::PASO_RAPIDO->value) {
             $createPasoRapidoOrderActivity = new CreatePasoRapidoOrderActivity(
                 0,
                 now()->toDateTimeString(),
@@ -33,16 +44,24 @@ class ProcessPaymentAction
                 []
             );
 
-            $createPasoRapidoOrderActivity->execute($payment->order, $this->app, []);
+            $response = $createPasoRapidoOrderActivity->execute($this->order, $this->app, []);
+            $result['message'] = $response['message'];
+            $result['data'] = $response['data'];
         } else {
-            $payment->order->set(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
+            $this->order->set(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
         }
 
-        if ($payment->order->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value)) {
-            $paymentProcessor->capturePayment($payment, $payment->order->get(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value));
+        $intentId = $this->order->fresh()->get(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value);
+        $bankTransaction = explode(':', $intentId)[1];
+        if ($this->order->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value)) {
+            $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
         } else {
-            $paymentProcessor->reversePayment($payment, $payment->order->get(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value));
+            $response = $paymentProcessor->reversePayment($this->payment, $this->order, $bankTransaction);
+            $result['message'] = $response['message'];
+            $result['data'] = $response['data'];
         }
+
+        return $result;
     }
 }
 

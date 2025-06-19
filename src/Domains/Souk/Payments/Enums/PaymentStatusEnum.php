@@ -9,5 +9,6 @@ enum PaymentStatusEnum: string
     case PENDING_AUTHORIZATION = 'pending_authorization';
     case PAID = 'paid';
     case FAILED = 'failed';
+    case REVERSED = 'reversed';
     case CANCELLED = 'cancelled';
 }
