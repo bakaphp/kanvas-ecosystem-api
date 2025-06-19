@@ -62,6 +62,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $allEsimResponses = [];
                 $woocommerceResponse = ['web order' => true]; // Default for non-mobile orders
                 $woocommerceSent = false; // Flag to track if WooCommerce order was sent
+                $language = 'es';
 
                 foreach ($order->items as $item) {
                     $variant = $item->variant;
