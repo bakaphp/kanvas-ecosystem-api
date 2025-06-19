@@ -16,7 +16,6 @@ use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Tests\TestCase;
 
@@ -105,13 +104,7 @@ final class CustomerTest extends TestCase
         $payload = $this->getPayload();
         $addressData = $payload['sublists']['addressbook']['line 1'];
         $addAddressAction = new AddAddressToCompanyAction($company, $app->keys()->firstOrFail()->user, $app);
-        $address = $addAddressAction->execute(address: new Address(
-            address: $addressData['addrtext_initialvalue'],
-            city: $addressData['city_initialvalue'],
-            state: $addressData['displaystate_initialvalue'],
-            zip: $addressData['zip_initialvalue'],
-            country: $addressData['country_initialvalue']
-        ), isDefault: true);
+        $address = $addAddressAction->fromNetSuite($addressData);
 
         $this->assertEquals($address->is_default, true);
         $this->assertEquals($address->address, $addressData['addrtext_initialvalue']);

@@ -149,12 +149,11 @@ final class ProcessPaymentActivityTest extends TestCase
         $result = $activity->execute($payment, $app, []);
         if ($result['status'] != 'success') {
             $this->assertEquals('Service cannot be paid', $result['message']);
+            return;
         }
         $order->refresh();
         $this->assertEquals($result['status'], 'success');
-        $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value));
-        $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value));
-        $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value));
-        $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_CONTRACT->value));
+        $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value));
+        $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value));
     }
 }

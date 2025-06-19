@@ -62,6 +62,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $allEsimResponses = [];
                 $woocommerceResponse = ['web order' => true]; // Default for non-mobile orders
                 $woocommerceSent = false; // Flag to track if WooCommerce order was sent
+                $language = 'es';
 
                 foreach ($order->items as $item) {
                     $variant = $item->variant;
@@ -90,9 +91,11 @@ class CreateOrderInESimActivity extends KanvasActivity
                     $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
                     $isRefuelOrder = isset($order->metadata['parent_order_id']) && ! empty($order->metadata['parent_order_id']);
                     $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
+                    $language = $order->metadata['language'] ?? 'es';
 
                     // Get quantity from item (default to 1 if not set)
                     $quantity = $item->quantity ?? 1;
+                    $esimExtraInfoDetails = $order->metadata['esimDetails'] ?? [];
 
                     // Create eSims based on quantity
                     for ($i = 0; $i < $quantity; $i++) {
@@ -160,6 +163,10 @@ class CreateOrderInESimActivity extends KanvasActivity
 
                         if (! isset($response['label'])) {
                             $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
+                        }
+
+                        if (isset($esimExtraInfoDetails[$variant->id]['labels']) && ! empty($esimExtraInfoDetails[$variant->id]['labels'])) {
+                            $response['label'] = array_shift($esimExtraInfoDetails[$variant->id]['labels']);
                         }
 
                         $sku = null;
@@ -237,6 +244,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                             $parentOrder = Order::getById($order->metadata['parent_order_id']);
                             $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
                             $message->setPublic();
+                            $message->addEntity($order);
                             $response['message_id'] = $message->getId();
                         }
 
@@ -300,7 +308,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                         $orderNotification = new NewOrderNotification($order, [
                             'app' => $order->app,
                             'company' => $order->company,
-                            'subject' => 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use',
+                            'subject' => $language === 'en' ? 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use' : 'Tu eSIM de ' . ucfirst($order->app->name) . ' está lista para usar',
                         ]);
                         $orderNotification->channels = ['mail'];
                         $order->user->notify($orderNotification);

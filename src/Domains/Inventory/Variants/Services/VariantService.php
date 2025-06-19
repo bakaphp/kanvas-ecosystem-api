@@ -112,7 +112,6 @@ class VariantService
                     $variantWarehouseInfo
                 );
             }
-
             if (isset($variant['channels'])) {
                 foreach ($variant['channels'] as $variantChannel) {
                     if(isset($variantChannel['warehouses_id'])) {
@@ -256,7 +255,7 @@ class VariantService
 
             $missingVariants = [
                 ...$missingVariants,
-                ...array_values(array_diff($chunk, $foundVariants))
+                ...array_values(array_diff($chunk, $foundVariants)),
             ];
         }
 
@@ -273,7 +272,7 @@ class VariantService
             ->where([
                 'sku' => $variantData['sku'],
                 'companies_id' => $company->id,
-                'apps_id' => $app->id
+                'apps_id' => $app->id,
             ])
             ->first();
 
@@ -288,8 +287,8 @@ class VariantService
         }
 
         return [
-            "missing_skus" => $missingSkus,
-            "changed_barcodes" => $changedBarcodes
+            'missing_skus' => $missingSkus,
+            'changed_barcodes' => $changedBarcodes,
         ];
     }
 }

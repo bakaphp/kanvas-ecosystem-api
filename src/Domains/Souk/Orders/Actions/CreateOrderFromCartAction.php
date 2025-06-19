@@ -38,6 +38,7 @@ class CreateOrderFromCartAction
         protected ?CreditCardBilling $billingAddress,
         protected ?Address $shippingAddress,
         protected ?array $request,
+        protected ?ModelsOrder $parent = null,
     ) {
     }
 
@@ -119,6 +120,8 @@ class CreateOrderFromCartAction
             paymentGatewayName: ['manual'],
             languageCode: null,
             reference: $this->request['input']['reference'] ?? '',
+            paymentStatus: 'unpaid',
+            parent: $this->parent,
         );
 
         $order = (new CreateOrderAction($order))->execute();
