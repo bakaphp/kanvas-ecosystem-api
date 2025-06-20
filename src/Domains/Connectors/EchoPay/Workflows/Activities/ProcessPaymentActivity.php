@@ -38,6 +38,7 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
                     $payment->company
                 );
 
+                // @TODO: Deprecated this should be removed after testing
                 $session = $paymentProcessor->startPaymentIntent($payment);
 
                 $consumerAuthenticationInformation = $session['consumerAuthenticationInformation'];
