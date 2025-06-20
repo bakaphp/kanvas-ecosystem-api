@@ -21,12 +21,12 @@ class RealStateAgent extends BaseAgent
         return [
             Tool::make(
                 'get_customer_information',
-                'I can get all customer information by name. When you ask for information about any customer by name, I will call this method to retrieve their complete profile and deal history.',
+                'I can get all customer information by name. When you ask for information about any customer by name, I will call this method to retrieve their deals with the complete profile for the customer and the agent.',
             )->addProperty(
                 new ToolProperty(
                     name: 'customerName',
                     type: PropertyType::STRING,
-                    description: 'The name of the customer to retrieve information for. This should be the full name of the customer, e.g., "Hector Baba".',
+                    description: 'The name of the customer to retrieve information for. This should be the full name of the customer, e.g., "Juan Perez".',
                     required: true
                 )
             )
@@ -105,6 +105,7 @@ class RealStateAgent extends BaseAgent
                 'deal_name' => $deal['name'],
                 'deal_status' => $deal['status'],
                 'deal_rating' => $deal['rating'],
+                'deal_logs' => $deal['events'] ?? [],
                 'created_date' => $deal['created_at'],
                 'last_updated' => $deal['updated_at'],
                 'notes' => $deal['notes'],
