@@ -309,15 +309,9 @@ class Lead extends BaseModel
 
     public function removeParticipant(People $people): bool
     {
-        $participant = LeadParticipant::where('leads_id', $this->id)
+        return LeadParticipant::where('leads_id', $this->id)
             ->where('peoples_id', $people->id)
-            ->firstOrFail();
-
-        // Soft delete the participant
-        $participant->is_deleted = 1;
-        $participant->deleted_at = now();
-
-        return $participant->save();
+            ->firstOrFail()->delete();
     }
 
     public function setOrganization(Organization $organization): void
