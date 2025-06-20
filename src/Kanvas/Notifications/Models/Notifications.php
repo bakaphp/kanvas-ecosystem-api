@@ -126,7 +126,7 @@ class Notifications extends BaseModel
         }
 
         if (isset($args['whereInteraction']) && $args['whereInteraction']['name']) {
-            $interaction = Interactions::fetchByName($args['whereInteraction']['name'], $app);
+            $interaction = Interactions::getByName($args['whereInteraction']['name'], $app);
             if ($interaction) {
                 $query->where('interaction_id', $interaction->getId());
             }

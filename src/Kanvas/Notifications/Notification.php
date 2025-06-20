@@ -229,6 +229,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     public function setInteraction(string $name): void
     {
-        $this->interaction = Interactions::fetchByName($name, $this->app);
+        $this->interaction = Interactions::getByName($name, $this->app);
     }
 }
