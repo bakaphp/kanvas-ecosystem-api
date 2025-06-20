@@ -77,6 +77,9 @@ use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
+use Kanvas\Connectors\VinSolution\Workflow\PushLeadActivity;
+use Kanvas\Connectors\VinSolution\Workflow\PushLeadNotesActivity;
+use Kanvas\Connectors\VinSolution\Workflow\PushPeopleActivity;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
@@ -203,6 +206,9 @@ class KanvasWorkflowSynActionCommand extends Command
             B2BUpdateCompanyOrderActivity::class,
             CheckNuggetGenerationCountActivity::class,
             ExtendReservationActivity::class,
+            PushLeadNotesActivity::class,
+            PushLeadActivity::class,
+            PushPeopleActivity::class,
         ];
 
         $createdActions = [];

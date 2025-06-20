@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Enums;
 
-/**
- * @deprecated Use Kanvas\ActionEngine\Actions\Enums\ActionEnum instead.
- */
 enum ConfigurationEnum: string
 {
+    /**
+     * @deprecated Use Kanvas\ActionEngine\Actions\Enums\ActionEnum instead.
+     */
     case CONTENT = 'dealer-content';
     case DOWNLOAD_APP = 'download-app';
     case DOWNLOAD_PRODUCT = 'download-vehicle';
@@ -65,4 +65,5 @@ enum ConfigurationEnum: string
     case LOANER_CAR_AGREEMENT = 'loaner-car-agreement';
     case FINANCE_AND_INSURANCE = 'finance-and-insurance';
     case MILEAGE_CONFIRMATION = 'mileage-confirmation';
+    case SALES_ASSIST_LANDING_PAGE = 'sales-assist-landing-page';
 }

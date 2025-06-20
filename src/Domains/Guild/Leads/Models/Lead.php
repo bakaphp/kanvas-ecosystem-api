@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Event\Participants\Models\ParticipantType;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
@@ -256,6 +257,67 @@ class Lead extends BaseModel
     protected static function newFactory()
     {
         return new LeadFactory();
+    }
+
+    public function addCoBuyerParticipant(People $people): LeadParticipant
+    {
+        $type = ParticipantType::where('name', 'Co-Buyer')
+            ->where('is_deleted', 0)
+            ->where('companies_id', $this->companies_id)
+            ->first();
+
+        // Find existing participant or create new one
+        $participant = LeadParticipant::where('leads_id', $this->id)
+            ->where('peoples_id', $people->id)
+            ->first();
+
+        if (! $participant) {
+            $participant = new LeadParticipant();
+        }
+
+        // Set participant data
+        $participant->leads_id = $this->id;
+        $participant->peoples_id = $people->id;
+        $participant->participants_types_id = $type ? $type->id : 0;
+        $participant->is_deleted = 0;
+
+        $participant->save();
+
+        return $participant;
+    }
+
+    public function addParticipant(People $people): LeadParticipant
+    {
+        // Find existing participant or create new one
+        $participant = LeadParticipant::where('leads_id', $this->id)
+            ->where('peoples_id', $people->id)
+            ->where('is_deleted', 0)
+            ->first();
+
+        if (! $participant) {
+            $participant = new LeadParticipant();
+        }
+
+        $participant->leads_id = $this->id;
+        $participant->peoples_id = $people->id;
+        $participant->is_deleted = 0;
+
+        $participant->save();
+
+        return $participant;
+    }
+
+    public function removeParticipant(People $people): bool
+    {
+        return LeadParticipant::where('leads_id', $this->id)
+            ->where('peoples_id', $people->id)
+            ->firstOrFail()->delete();
+    }
+
+    public function setOrganization(Organization $organization): void
+    {
+        $this->organization_id = $organization->id;
+        $this->save();
     }
 
     /**
