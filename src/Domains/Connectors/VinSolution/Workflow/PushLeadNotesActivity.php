@@ -22,7 +22,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-class LeadNotesActivity extends KanvasActivity
+class PushLeadNotesActivity extends KanvasActivity
 {
     public $tries = 3;
 
