@@ -99,6 +99,7 @@ class RealStateAgent extends BaseAgent
     {
         return array_map(function ($deal) {
             $client = $deal['client'] ?? [];
+            $user = $deal['user'] ?? [];
 
             return [
                 'deal_id' => $deal['id'],
@@ -109,6 +110,14 @@ class RealStateAgent extends BaseAgent
                 'created_date' => $deal['created_at'],
                 'last_updated' => $deal['updated_at'],
                 'notes' => $deal['notes'],
+                'user' => [
+                    'id' => $user['id'] ?? null,
+                    'first_name' => $user['name'] ?? null,
+                    'last_name' => $user['lastname'] ?? null,
+                    'cellphone' => $user['celphone'] ?? null,
+                    'email' => $user['email'] ?? null,
+                    'position' => $user['position'] ?? null,
+                ],
                 'client' => [
                     'name' => $client['fullname'] ?? null,
                     'email' => $client['email'] ?? null,
