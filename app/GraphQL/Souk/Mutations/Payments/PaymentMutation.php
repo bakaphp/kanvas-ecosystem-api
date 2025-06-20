@@ -182,7 +182,7 @@ class PaymentMutation
             ];
         }
 
-        if ($payment->status === PaymentStatusEnum::WAITING_DEVICE_DATA->value) {
+        if (in_array($payment->status, [PaymentStatusEnum::WAITING_DEVICE_DATA->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
             $paymentProcessor = new PortalPaymentProcessor(
                 $app,
                 $payment->company,
@@ -264,13 +264,21 @@ class PaymentMutation
             $authTransactionId = $order->get(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value);
             $validationResult = $paymentProcessor->validatePayerAuthResult($payment, $order, $authTransactionId);
 
-            if ($validationResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+            if (in_array($validationResult['status'], [PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
                 return [
                     'status' => $validationResult['status'],
                     'message' => 'Payment pending action for order ' . $order->id . '. Waiting for user.',
-                    'data' => $order->get('authorization_data'),
+                    'data' => $validationResult['data'],
+                ];
+            } elseif ($validationResult['status'] === PaymentStatusEnum::FAILED->value) {
+                return [
+                    'status' => $validationResult['status'],
+                    'message' => $validationResult['message'],
+                    'data' => $validationResult['data'],
                 ];
             }
+
+            dd($validationResult);
 
             $result = new ProcessPaymentAction($app, $payment, $order)->execute($validationResult['data']);
 
