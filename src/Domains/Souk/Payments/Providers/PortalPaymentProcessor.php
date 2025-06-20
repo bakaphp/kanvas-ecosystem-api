@@ -78,8 +78,8 @@ class PortalPaymentProcessor
     protected function setCustomerBillingAddress(Order $orderInput): BillingDetail
     {
         return new BillingDetail(
-            firstName: $orderInput->user->firstname,
-            lastName: $orderInput->user->lastname,
+            firstName: $this->payment->paymentMethod->getMetadata('firstname') ?? $orderInput->user->firstname,
+            lastName: $this->payment->paymentMethod->getMetadata('lastname') ?? $orderInput->user->lastname,
             country: $this->payment->paymentMethod->getMetadata('country'),
             city: $this->payment->paymentMethod->getMetadata('city'),
             address1: $this->payment->paymentMethod->getMetadata('address'),

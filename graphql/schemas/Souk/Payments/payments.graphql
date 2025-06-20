@@ -46,6 +46,8 @@ input PaymentMethodInput{
     phone: String!
     zip_code: String!
     state: String!
+    firstname: String
+    lastname: String
 }
 
 input PaymentMethodUpdateInput{

@@ -93,6 +93,8 @@ class EchoPayService
                 'phone' => $request['phone'],
                 'zip_code' => $request['zip_code'],
                 'state' => $request['state'],
+                'firstname' => $request['firstname'] ?? null,
+                'lastname' => $request['lastname'] ?? null,
             ]
         );
     }

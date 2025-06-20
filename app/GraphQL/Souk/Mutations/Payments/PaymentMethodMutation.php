@@ -45,6 +45,8 @@ class PaymentMethodMutation
                         'phone' => $input['phone'],
                         'zip_code' => $input['zip_code'],
                         'state' => $input['state'],
+                        'firstname' => $input['firstname'] ?? null,
+                        'lastname' => $input['lastname'] ?? null,
                     ]
                 );
             }
