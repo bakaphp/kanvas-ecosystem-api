@@ -10,7 +10,6 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-
 class CreatePasoRapidoOrderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

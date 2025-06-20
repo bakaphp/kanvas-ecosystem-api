@@ -6,10 +6,8 @@ namespace Kanvas\Connectors\EchoPay\Webhook;
 
 use Exception;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Models\Payments;
-use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 

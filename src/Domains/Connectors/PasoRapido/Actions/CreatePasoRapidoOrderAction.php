@@ -17,7 +17,8 @@ class CreatePasoRapidoOrderAction
     public function __construct(
         protected Apps $app,
         protected Order $order,
-    ) {}
+    ) {
+    }
 
     public function execute(): array
     {

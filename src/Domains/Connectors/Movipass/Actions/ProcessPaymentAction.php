@@ -44,7 +44,6 @@ class ProcessPaymentAction
             $createPasoRapidoOrderAction = new CreatePasoRapidoOrderAction($this->app, $this->order);
             $response = $createPasoRapidoOrderAction->execute();
 
-        
             $result['message'] = $response['message'];
             $result['data'] = $response['data'];
         } else {
@@ -65,4 +64,3 @@ class ProcessPaymentAction
         return $result;
     }
 }
-

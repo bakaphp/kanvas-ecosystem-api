@@ -101,7 +101,7 @@ class PortalPaymentProcessor
     {
         $merchantAuthentication = $this->setupMerchantAuthentication($payment);
         $payerAuthentication = $this->client->setupPayer(
-            "order_" .$payment->order->order_number,
+            "order_" . $payment->order->order_number,
             $payment->paymentMethod->stripe_card_id,
             $merchantAuthentication
         );
@@ -302,7 +302,7 @@ class PortalPaymentProcessor
                 'data' => $paymentResponse['data'],
             ];
         } else {
-           throw new Exception('Payment failed');
+            throw new Exception('Payment failed');
         }
     }
 
@@ -455,7 +455,6 @@ class PortalPaymentProcessor
             }
 
             return $enrollmentResult;
-
         } catch (Throwable $e) {
             $order->updateQuietly([
                 'status' => OrderStatusEnum::FAILED->value,
