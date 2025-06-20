@@ -7,24 +7,23 @@ namespace Tests\Connectors\Integration\PasoRapido;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
+use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
 use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
 use Kanvas\Connectors\PasoRapido\Enums\CustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\Handlers\PasoRapidoHandler;
-use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
-final class PasoRapidoOrderActivityTest extends TestCase
+final class PasoRapidoOrderTest extends TestCase
 {
     use HasIntegrationCompany;
     use InventoryCases;
 
-    public function testOrderCreationWorkflow(): void
+    public function testCreatePasoRapidoOrder(): void
     {
         $app = app(Apps::class);
         $user = Auth::user();
@@ -128,20 +127,15 @@ final class PasoRapidoOrderActivityTest extends TestCase
         $order = $response->json()['data']['createDraftOrder'];
         $order = Order::fromApp($app)->find($order['id']);
 
-        $order->set(EnumsCustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $transactionId);
+        $order->set(EnumsCustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:' . $transactionId);
         $order->set(CustomFieldEnum::PASO_RAPIDO_DNI->value, "1234567890");
 
-        $activity = new CreatePasoRapidoOrderActivity(
-            0,
-            now()->toDateTimeString(),
-            StoredWorkflow::make(),
-            []
-        );
+        $createPasoRapidoOrderAction = new CreatePasoRapidoOrderAction($app, $order);
+        $result = $createPasoRapidoOrderAction->execute();
 
-        $result = $activity->execute($order, $app, []);
         $order->refresh();
-        $this->assertArrayHasKey('order', $result);
-        $this->assertArrayHasKey('tag', $result);
+        $this->assertArrayHasKey('order', $result['data']);
+        $this->assertArrayHasKey('tag', $result['data']);
         $this->assertNotNull($order->get(CustomFieldEnum::PASO_RAPIDO_PAYMENT_STATUS->value));
         $this->assertNotNull($order->get(CustomFieldEnum::PASO_RAPIDO_PAYMENT_RESPONSE->value));
     }

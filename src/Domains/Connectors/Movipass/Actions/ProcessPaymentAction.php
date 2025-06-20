@@ -58,6 +58,7 @@ class ProcessPaymentAction
         } else {
             $reason = $result['message'];
             $response = $paymentProcessor->reversePayment($this->payment, $this->order, $bankTransaction, $reason);
+            $result['status'] = PaymentStatusEnum::FAILED->value;
             $result['message'] = $response['message'] . ' - ' . $reason;
             $result['data'] = $response['data'];
         }

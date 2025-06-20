@@ -247,7 +247,11 @@ class PaymentMutation
         $authTransactionId = $order->get(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value);
 
         if (! $authTransactionId) {
-            throw new Exception('Transaction ID mismatch');
+            return [
+                'status' => 'error',
+                'message' => 'Transaction ID mismatch',
+                'data' => [],
+            ];
         }
 
         if ($payment->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
