@@ -10,7 +10,7 @@ type WalletTransaction {
     type: String!
     amount: Money! @method(name: "getAmountFloatAttribute")
     confirmed: Boolean!
-    status: String!
+    status: String
     meta: Mixed
     created_at: DateTimeTz
 }
@@ -20,7 +20,14 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getBalance"
         )
-    getWalletTransactions(tag: String!): [WalletTransaction!]!
+    getWalletTransactions(
+        tag: String!
+        where: _
+            @whereConditions(
+                columns: ["id", "uuid", "type", "amount", "confirmed", "status"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "status", "created_at"])
+    ): [WalletTransaction!]!
         @paginate(
             builder: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getTransactions"
             defaultCount: 25

@@ -36,7 +36,19 @@ class Channel extends BaseModel
 
     protected $table = 'channels';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'name',
+        'slug',
+        'description',
+        'apps_id',
+        'companies_id',
+        'entity_id',
+        'entity_namespace',
+        'users_id',
+        'last_message_id',
+        'metadata',
+        'uuid',
+    ];
 
     protected $casts = [
         'metadata' => Json::class,

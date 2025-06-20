@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Types;
 
 use Exception;
 use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Kanvas\Social\Messages\Models\Message;
@@ -133,6 +134,9 @@ GQL;
     {
         $contentHistory = $this->getContentHistoryData(20, 30)['recent_posts'] ?? [];
 
+        // Get trending data
+        $trendingData = $this->getTrendingDataForPrompt();
+
         $promptHistory = '';
         foreach ($contentHistory as $history) {
             if (isset($history['title']) && isset($history['prompt'])) {
@@ -141,58 +145,94 @@ GQL;
         }
 
         $promptEngineering = <<<PROMPT
-Role: You are a world-class prompt engineer specializing in creating viral, high-engagement, ONE-SHOT AI prompts. Your prompts are self-contained and require no follow-up. Your prompts are shared widely because they:
-1. Solve urgent problems with razor-sharp specificity.
-2. Leverage emerging trends (tech, culture, seasonal events) within relevant categories.
-3. Elicit "stop the scroll" outputs (surprising, emotional, hyper-useful, or uniquely insightful).
-4. Encourage sharing via clear customization hooks.
+You are PromptAlchemist, a Viral Content Alchemist (VCA-Bot) who transforms raw trends and timeless human needs into golden, shareable AI experiences that solve real problems and spark conversation.
 
-### Daily Task
-Generate 1 self-contained, viral-worthy prompt based on the creator's personality and preferences described below.
+### Creator Bio
+$agentPersonality
 
-IMPORTANT: Use the creator's bio as inspiration — not a constraint. Expand into adjacent or complementary topics that fit their interests, tone, and audience.
+### Past Prompt History (Avoid Repeats)
+$promptHistory
 
-Before writing anything, carefully analyze the creator's previous content history to avoid repeating topics, formats, or hooks. Always aim for fresh, unique angles that align with their established voice.
+### Current Trending Data (Use For Trend Injection)
+$trendingData
 
-Creator Bio: "$agentPersonality"  
-Previous Content History: "$promptHistory"
+## MISSION: Create 1 Viral-Ready Prompt Blueprint
 
-#### Step 1: Trend Injection
-- Consider these high-engagement categories and look for emerging trends within them:
-    - Career/Professional Development (e.g., AI upskilling, remote work strategies)
-    - Productivity Tools (e.g., AI assistants for specific tasks)
-    - Personal Growth/Self-Improvement (e.g., building resilience in the digital age)
-    - Education/Homework (e.g., AI for personalized learning)
-    - Life Advice/Mental Health (e.g., managing digital overload)
-- Combine relevant trends with the creator’s voice and content personality to propose original ideas, including crossovers from their interest sphere.
+Your output must be scroll-stopping, screenshot-worthy, and inherently personalizable. It should create an *artifact* using a unique mechanism, driven by a specific emotional context.
 
-#### Step 2: Craft the Prompt
-A. Title Formula (Pick One - prioritize positive framing and action):
-    - "How to [Action Verb] [Benefit] Like a [Relatable Figure] in [Short Timeframe]"
-    - "The [Intriguing Adjective] [Compelling Metaphor] for [Specific Problem]"
-    - "[Benefit] in [Timeframe]: The [Adjective] Method for [Target Audience]"
-    - Consider starting words like: Unlock, Discover, Master, Secret to, Effortlessly, Quickly. Titles MUST be 3-7 words.
+---
 
-B. Prompt Structure
-1. Role: "You are a [highly credible authority figure relevant to the topic]."
-2. Goal: "Generate [very specific and actionable output]."
-3. Constraints: "Use a [specific framework/tone - e.g., concise, empathetic, step-by-step]/Keep it under [word/character limit]." (Provide short examples if helpful)
-4. CTA: "To make this your own, [instruction for customization - e.g., 'replace [X] with your specific situation,' and include an example that will make for a fascinating, captivating use case for people to read in the output."
-5. New lines must be separated with \\n
+## Step 1: Insight & Trend Vetting
+A. **Find 1 Vetted Trend** using:
+- One mainstream source (e.g., Twitter, Google Trends)
+- Two non-mainstream sources (e.g., Substack, Reddit, Discord)
 
-#### Step 3: Quality Check
-- Stop the Scroll Test: Would this output immediately grab attention and elicit a strong reaction?
-- Action Test: Can a user immediately understand and act upon the prompt?
-- Share Trigger: Does it clearly invite and facilitate customization and sharing?
-- Uniqueness Check: Does this prompt offer a fresh angle or novel application compared to past content?
+B. **Sentiment Check**
+- What’s the core emotion behind this trend? (e.g., fear, grief, excitement)
+- Discard trends involving tragedy, death, violence, or disaster (Mandatory)
+- Controversial but safe trends must offer tools to *understand/navigate complexity*, not exploit it.
 
-### Final Output Format
-Return ONLY a true JSON object, avoiding markdown and again make sure its TRUE JSON, not a stringified version. The output should look like this:
+C. **Creative Collision**
+Blend:
+1. Vetted Trend  
+2. Evergreen Desire (from category list below)  
+3. Unexpected Format (e.g., escape room, screenplay, performance review)
+
+---
+
+## Step 2: Choose a Content Category
+Pick 1:
+- Career/Professional Development  
+- Productivity Tools / Everyday Hacks  
+- Personal Growth / Self-Improvement  
+- Education / Homework Help  
+- Life Advice / Mental Health  
+- Community Connection  
+- Viral-Worthy AI Image Art
+
+---
+
+## Step 3: Build the Prompt Blueprint
+
+### Title
+- 3-7 words only
+- Must use conceptual or metaphorical hooks (not [Number] + [Steps] + [Result])
+- Examples: “Turn Your Haters Into Fans”, “Design Your Future Like a Game”
+
+### Prompt Structure
+1. **Hook & Micro-Story**: Start with a situation that hits emotionally.
+2. **AI Persona (Unexpected Expert)**: Assign a non-obvious, hyper-specific character (e.g., “K-pop Tour Manager”, “Olympic Sports Psychologist”).
+3. **Mission & Artifact**: User should receive a clearly named deliverable (e.g., "Insight Map", "Launch Diagnostic", "Fan Conversion Script").
+4. **Secret Sauce (Framework)**: Invent a new, named process the AI must use (e.g., "Critique, Stretch, Flip").
+5. **<User_Input> as Raw Material**: Ask for an emotionally grounded, specific situation.
+
+---
+
+## Step 4: Anti-Crap Checklist
+- Bans:
+  - “Zen Unlock”, “Blueprint”, “3-Step Anything”, Pomodoro, “Digital Detox”, capsule wardrobes, financial clarity tropes
+- Must:
+  - Avoid Medium-style phrasing
+  - Introduce metaphor, twist, or narrative POV
+  - Deliver a unique and practical result, not just advice
+
+---
+
+## Step 5: Output Format
+
+Return **ONLY** valid JSON:
 {
-  "title": "The '[Compelling Hook]' Prompt: [Key Benefit]",
-  "prompt": "[Structured prompt with Role, Goal, Constraints, CTA]",
-  "target_LLM": "GPT-4o/Claude/Mixtral"
+  "title": "[3-7 word conceptual hook]",
+  "prompt": "[Complete prompt with Hook, Persona, Artifact, Framework, and <User_Input>]",
+  "target_LLM": "[GPT-4o / Claude / Mixtral] // Choose based on tone (creative, empathetic, technical)"
 }
+
+🎛 Choose LLM:
+- GPT-4o: Creative hooks, wordplay, storytelling
+- Claude: Empathetic, emotional processing, gentle tone
+- Mixtral: Technical tools, logic-heavy analysis
+
+Generate your viral prompt now. Output ONLY the final JSON.
 PROMPT;
 
         try {
@@ -216,6 +256,32 @@ PROMPT;
                 ];
             }
 
+            // Additional validation to ensure all required fields are present
+            if (! isset($result['title']) || ! isset($result['prompt']) || ! isset($result['target_LLM'])) {
+                Log::warning('Missing required fields in AI response', [
+                    'response' => $result,
+                ]);
+
+                return [
+                    'action' => 'error',
+                    'reason' => 'Missing required fields in response',
+                ];
+            }
+
+            // Validate title length (3-7 words)
+            $titleWordCount = str_word_count($result['title']);
+            if ($titleWordCount < 3 || $titleWordCount > 7) {
+                Log::warning('Title word count validation failed', [
+                    'title' => $result['title'],
+                    'word_count' => $titleWordCount,
+                ]);
+
+                return [
+                    'action' => 'error',
+                    'reason' => 'Title must be 3-7 words in length',
+                ];
+            }
+
             return $result;
         } catch (Exception $e) {
             Log::error('Prompt generation failed', [
@@ -229,55 +295,186 @@ PROMPT;
         }
     }
 
+    /**
+     * Get trending data formatted for prompt injection
+     */
+    private function getTrendingDataForPrompt(): string
+    {
+        $trendingData = "=== TWITTER/X TRENDING TOPICS ===\n";
+
+        // Get Twitter trends
+        $twitterTrends = $this->getTwitterTrends();
+        if (! empty($twitterTrends)) {
+            foreach (array_slice($twitterTrends, 0, 8) as $index => $trend) {
+                $trendTitle = is_string($trend) ? $trend : ($trend['title'] ?? 'Unknown');
+                $trendingData .= ($index + 1) . ". {$trendTitle}\n";
+            }
+        } else {
+            $trendingData .= "- No Twitter trends available\n";
+        }
+
+        $trendingData .= "\n=== REDDIT HOT TOPICS ===\n";
+
+        // Get Reddit trends
+        $redditTrends = $this->getRedditTrending();
+        if (! empty($redditTrends)) {
+            foreach (array_slice($redditTrends, 0, 6) as $index => $trend) {
+                $trendTitle = is_string($trend) ? $trend : ($trend['title'] ?? 'Unknown');
+                $score = isset($trend['score']) ? " ({$trend['score']} upvotes)" : '';
+                $trendingData .= ($index + 1) . ". {$trendTitle}{$score}\n";
+            }
+        } else {
+            $trendingData .= "- No Reddit trends available\n";
+        }
+
+        $trendingData .= "\n=== TREND INJECTION INSTRUCTIONS ===\n";
+        $trendingData .= "- Pick 1-2 trending topics from above that could be transformed into a viral prompt\n";
+        $trendingData .= "- Add an unexpected twist or unique angle to make it prompt-worthy\n";
+        $trendingData .= "- Focus on topics that solve real problems or provide practical value\n";
+        $trendingData .= "- Avoid political controversies or sensitive topics\n\n";
+
+        return $trendingData;
+    }
+
+    /**
+     * Get Twitter trending topics (free aggregators)
+     */
+    private function getTwitterTrends(): array
+    {
+        // Try multiple free sources
+        $sources = [
+            'https://trends24.in/api/trends/united-states',
+            'https://xtrends.iamrohit.in/api/trends/united-states',
+        ];
+
+        foreach ($sources as $source) {
+            try {
+                $response = Http::timeout(10)
+                    ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; TrendBot/1.0)'])
+                    ->get($source);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+
+                    return $data['trends'] ?? $data ?? [];
+                }
+            } catch (Exception $e) {
+                continue; // Try next source
+            }
+        }
+
+        // Fallback: scrape trends24.in directly
+        return $this->scrapeTrends24();
+    }
+
+    /**
+     * Get Reddit trending posts
+     */
+    private function getRedditTrending(): array
+    {
+        try {
+            // Get r/all hot posts
+            $response = Http::timeout(10)->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (compatible; TrendBot/1.0)',
+            ])->get('https://www.reddit.com/r/all/hot.json?limit=15');
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                return array_map(function ($post) {
+                    return [
+                        'title' => $post['data']['title'],
+                        'score' => $post['data']['score'],
+                        'subreddit' => $post['data']['subreddit'],
+                        'url' => $post['data']['url'] ?? null,
+                    ];
+                }, $data['data']['children'] ?? []);
+            }
+        } catch (Exception $e) {
+            Log::warning('Reddit API failed', ['error' => $e->getMessage()]);
+        }
+
+        return [];
+    }
+
+    /**
+     * Scrape trends24.in for Twitter trends
+     */
+    private function scrapeTrends24(): array
+    {
+        try {
+            $response = Http::timeout(10)
+                ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; TrendBot/1.0)'])
+                ->get('https://trends24.in/united-states/');
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $html = $response->body();
+            $trends = [];
+
+            // Parse trending topics from HTML
+            preg_match_all('/<li[^>]*>.*?<a[^>]*>([^<]+)<\/a>.*?<\/li>/s', $html, $matches);
+
+            if (isset($matches[1])) {
+                foreach (array_slice($matches[1], 0, 15) as $trend) {
+                    $cleanTrend = trim(strip_tags($trend));
+                    if (! empty($cleanTrend) && strlen($cleanTrend) > 2) {
+                        $trends[] = [
+                            'title' => $cleanTrend,
+                            'platform' => 'twitter',
+                            'source' => 'trends24',
+                        ];
+                    }
+                }
+            }
+
+            return $trends;
+        } catch (Exception $e) {
+            Log::warning('Trends24 scraping failed', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
     public function generateNugget(string $prompt): ?array
     {
         $nuggetGenerator = <<<ADVANCEPROMPT
-# Atomic Execution Engine
-You are a single-response AI that transforms prompts into complete, viral-ready outputs. Every response must:
-1. Generate a complete, self-contained response to the prompt
-2. Begin with a clear, descriptive title using the "# Title" format
-3. Provide comprehensive content that fully addresses the prompt
-4. Do NOT include phrases like "let me know if you need more" or "is there anything else"
-5. Do NOT frame this as the beginning of a conversation
-6. Maintain a length up to 3000 characters (not including title)
-7. New lines must be separated with \n
-8. Replace any variables or placeholders with realistic examples
+You are a Viral Content Alchemist (VCA-Bot) executing a transformation prompt.
 
-# TONE AND STYLE:
+Your mission is to generate a single viral-ready, screenshot-worthy response based on the following rules:
 
-- Match the tone requested in the prompt (professional, creative, casual, etc.)
-- Organize information logically with appropriate structure
-- Include specific, actionable information rather than generalities
-- Ensure the content is engaging and valuable as a standalone piece
+### STRUCTURE (Do Not Deviate)
+1. Title: Start with `# [Unexpected Twist] [Familiar Concept]` — must be catchy and under 70 characters.
+2. Hook: ⚡ One-liner that makes users pause, feel, or laugh.
+3. Nuggets: 3–5 crisp bullets with either surprising insights, emotional reframes, or highly actionable steps.
+4. Template: Include 1 reusable prompt, code block, or script that users will want to steal.
+5. CTA: End with a clear line encouraging personalization, e.g., “Swap the bold part with your situation and run it.”
+6. Format all line breaks with \\n — no actual newlines.
 
-# PROHIBITED ELEMENTS:
+### VOICE & STYLE
+- Avoid fluff. Surprise or impress in every line.
+- Use either playful, bold, or dead-serious tone depending on original prompt.
+- Every bullet should have a strong “aha”, “oh damn”, or “I need this” effect.
+- No weak filler. No vague “tips”. No inspirational quotes.
 
-- Conversational openings or closings
-- Questions directed at the user
-- References to follow-up interactions
-- Apologies or disclaimers about AI limitations
-- Excessive wordiness or padding
+### PROHIBITED ELEMENTS
+- Don’t begin or end with conversational filler.
+- Don’t ask the user questions in the nugget.
+- Don’t say “as an AI…” or similar disclaimers.
 
-# Execution Protocol:
-1. Parse prompt for core intent and style
-2. Generate title as "# [Unexpected Twist] [Core Topic]"
-3. Create output with:
-   - Header hook (emoji + bold claim)
-   - 3-5 key insights (bullet points)
-   - 1 actionable template/code snippet
-   - Customization reminder
-4. Validate no follow-up needed
-5. Maintain a length up to 3000 characters (not including title)
-
-This is the prompt to execute: $prompt
-
-Output Requirements:
+### OUTPUT FORMAT
+Only return a valid JSON like this:
 {
-    "title": "[Clear, Crisp Title Under 70 chars]",
-    "nugget": "[Hook]\n[3 Knowledge Nuggets]\n[1 Template]\n[CTA]",
-    "engagement_hook": "[Question that sparks comments]",
-    "completeness_score": 1-10
+  "title": "[Under 70 chars]",
+  "nugget": "[⚡Hook]\\n[• Insight 1]\\n[• Insight 2]\\n[• Insight 3]\\n[Template]\\n[CTA]",
+  "engagement_hook": "[Controversial or funny question to provoke replies]",
+  "completeness_score": 1-10
 }
+
+### PROMPT TO EXECUTE
+$prompt
 ADVANCEPROMPT;
 
         try {

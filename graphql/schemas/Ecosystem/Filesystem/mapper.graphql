@@ -15,7 +15,7 @@ type FilesystemMapper {
 
 type FilesystemImportHistory {
     id: ID!
-    users: User!
+    user: User!
     company: Company!
     results: Mixed
     exception: Mixed
@@ -38,7 +38,7 @@ input FilesystemMapperInput {
 }
 
 input FilesystemImportInput {
-    regions_id: ID!
+    regions_id: ID
     filesystem_mapper_id: ID!
     filesystem_id: ID!
     extra: Mixed

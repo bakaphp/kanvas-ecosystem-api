@@ -7,6 +7,7 @@ namespace App\GraphQL\ActionEngine\Mutations\Engagements;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Support\Url;
+use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Actions\Models\CompanyActionVisitor;
@@ -19,6 +20,8 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
@@ -38,6 +41,8 @@ class EngagementMutation
         $request = $request['input'];
 
         $lead = Lead::getByIdFromCompanyApp($request['lead_id'], $company, $app);
+        $user->follow($lead);
+
         $people = ! empty($request['people_id']) ? People::getByIdFromCompanyApp($request['people_id'], $company, $app) : $lead->people;
         $receiver = ! empty($request['receiver_id']) ? LeadReceiver::getByIdFromCompanyApp($request['receiver_id'], $company, $app) : ($lead->receiver ?? LeadReceiver::getDefault($company, $app));
         $requestId = $request['request_id'];
@@ -48,6 +53,27 @@ class EngagementMutation
         $source = $request['source'];
         $via = $request['via'] ?? 'copy';
         $data = $request['data'] ?? [];
+
+        $newCreditApp = [
+            ActionEnum::CREDIT_APP_2->value,
+            ActionEnum::CREDIT_APP_3->value,
+            ActionEnum::CREDIT_APP_4->value,
+            ActionEnum::CREDIT_APP_5->value,
+            ActionEnum::CREDIT_APP_6->value,
+            ActionEnum::CREDIT_APP_7->value,
+        ];
+
+        $newCosigner = [
+            ActionEnum::CO_SIGNER_2->value,
+            ActionEnum::CO_SIGNER_3->value,
+            ActionEnum::CO_SIGNER_4->value,
+            ActionEnum::CO_SIGNER_5->value,
+        ];
+
+        $codeShare = [
+            ActionEnum::SHARE_BLUELINK->value,
+            ActionEnum::SHARE_ELECTRIFY_AMERICA->value,
+        ];
 
         $companyAction = CompanyAction::getByAction(
             Action::getBySlug($action, $company),
@@ -62,11 +88,46 @@ class EngagementMutation
         $newActionPageUrl = in_array($action, $app->get('new-action-slug') ?? []);
         $actionPageUrl = ! $newActionPageUrl ? $app->get('TEMP_LANDING_PAGE') : $app->get('NEW_LANDING_PAGE');
 
+        if (in_array($action, $newCreditApp)) {
+            $request['mixed_credit_app'] = $action;
+            $action = ActionEnum::CREDIT_APP->value;
+            //$request['actions_slug'] = $action;
+            $formType = [
+                ActionEnum::CREDIT_APP_2->value => 'finance-lease',
+                ActionEnum::CREDIT_APP_3->value => 'personal-check',
+                ActionEnum::CREDIT_APP_4->value => 'cashier-check',
+                ActionEnum::CREDIT_APP_5->value => 'all-cash',
+                ActionEnum::CREDIT_APP_6->value => '5-liner',
+                ActionEnum::CREDIT_APP_7->value => 'finance',
+            ];
+            $request['form_type'] = $formType[$request['mixed_credit_app']];
+        }
+
+        if (in_array($action, $newCosigner)) {
+            $request['mixed_cosigner_app'] = $action;
+            $action = ActionEnum::CO_SIGNER->value;
+            //$request['actions_slug'] = $action;
+            $formType = [
+                ActionEnum::CO_SIGNER_2->value => 'finance-lease',
+                ActionEnum::CO_SIGNER_3->value => 'personal-check',
+                ActionEnum::CO_SIGNER_4->value => 'cashier-check',
+                ActionEnum::CO_SIGNER_5->value => 'all-cash',
+            ];
+            $request['form_type'] = $formType[$request['mixed_cosigner_app']];
+        }
+
+        if (in_array($action, $codeShare)) {
+            $request['mixed_share_code'] = $action;
+            $action = ActionEnum::SHARE_BLUELINK->value;
+            //$request['actions_slug'] = $action;
+        }
+
         $request['visitors_id'] = $requestId;
         $request['visitor_id'] = $request['visitors_id'];
         $request['users_id'] = $user->getId();
         $request['leads_id'] = $lead->uuid;
         $request['lead_id'] = $lead->uuid;
+        $request['contact_id'] = $people->uuid;
         $request['vehicle_id'] = null;
         $request['receivers_id'] = $receiver->uuid;
         $request['receiver_id'] = $receiver->uuid;
@@ -76,6 +137,8 @@ class EngagementMutation
         $request['actions_slug'] = $action;
         $request['cid'] = $lead->company->uuid;
         $request['bcid'] = $lead->branch ? $lead->branch->uuid : null;
+        $request['company_action_id'] = $companyAction->getId();
+        $request['extraField'] = $request['extraField'] ?? [];
 
         if (! empty($parentAction['form_type'])) {
             $request['form_type'] = $parentAction['form_type'];
@@ -87,18 +150,6 @@ class EngagementMutation
         if (is_array($extraField)) {
             $extraField = implode('&', $extraField);
         }
-
-        $companyActionVisitor = CompanyActionVisitor::create([
-            'visitors_id' => $request['request_id'],
-            'leads_id' => $lead->uuid,
-            'receivers_id' => $receiver->uuid,
-            'contacts_id' => $people->uuid,
-            'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-            'companies_actions_id' => $companyAction->getId(),
-            'actions_slug' => $request['action'],
-            'request' => $request,
-        ]);
 
         $params = array_intersect_key(
             $request,
@@ -118,8 +169,26 @@ class EngagementMutation
                 'form_type',
             ])
         );
+
+        $companyActionVisitor = CompanyActionVisitor::create([
+            'visitors_id' => $request['request_id'],
+            'leads_id' => $lead->uuid,
+            'receivers_id' => $receiver->uuid,
+            'contacts_id' => $people->uuid,
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'companies_actions_id' => $companyAction->getId(),
+            'actions_slug' => $request['action'],
+            'request' => $request,
+        ]);
+
         $urlParams = http_build_query($params) . $extraField;
         $urlParams .= '&caction=' . $companyAction->uuid;
+
+        $companyLanguage = $lead->company->get('COMPANY_MULTI_LANGUAGE'); // Adjust flag name as needed
+        if ($companyLanguage) {
+            $urlParams .= '&lang=' . $companyLanguage;
+        }
 
         $url = $actionPageUrl . "/{$action}?{$urlParams}";
         $urlPreview = $actionPageUrl . "/{$action}?{$urlParams}&preview=true";
@@ -144,9 +213,19 @@ class EngagementMutation
             ],
         ];
 
+        $channel = new CreateChannelAction(new Channel(
+            apps: $app,
+            companies: $lead->company,
+            users: $lead->user,
+            entity_id: $lead->getId(),
+            entity_namespace: Lead::class,
+            name: $lead->uuid,
+            slug: $lead->uuid,
+        ))->execute();
+
         $engagementMessage = new EngagementMessage(
-            data: $data,
-            text: $messageEnglish,
+            data: $data, //array_merge($data, $messageData),
+            text: $companyAction->name,
             verb: $action,
             status: ActionStatusEnum::SENT->value,
             actionLink: $messageData['link'],
@@ -161,6 +240,7 @@ class EngagementMutation
             preFill: [],
             via: $via,
             product_id: $data['product_id'] ?? null,
+            channel_id: $channel ? $channel->uuid : null,
         );
         $messageInput = [
             'message' => $engagementMessage->toArray(),
@@ -195,11 +275,9 @@ class EngagementMutation
         $pipeline = Pipeline::getBySlug($action, $app, $company);
         $stage = $pipeline->stages()->where('slug', ActionStatusEnum::SENT->value)->firstOrFail();
 
-        $leadChannel = $lead->socialChannel?->count() ? $lead->socialChannel->first() : null;
-        if ($leadChannel) {
-            $leadChannel->addMessage($createMessage, $user);
+        if ($channel) {
+            $channel->addMessage($createMessage, $user);
         }
-
         //save share history en company action history
         //generate link
         //create msg
@@ -303,9 +381,17 @@ class EngagementMutation
 
         $pipeline = Pipeline::getBySlug($action, $app, $company);
         $stage = $pipeline->stages()->where('slug', $status)->firstOrFail();
-        $leadChannel = $lead->socialChannel?->count() ? $lead->socialChannel->first() : null;
-        if ($leadChannel) {
-            $leadChannel->addMessage($createMessage, $user);
+        $channel = new CreateChannelAction(new Channel(
+            apps: $app,
+            companies: $lead->company,
+            users: $lead->user,
+            entity_id: $lead->getId(),
+            entity_namespace: Lead::class,
+            name: $lead->uuid,
+            slug: $lead->uuid,
+        ))->execute();
+        if ($channel) {
+            $channel->addMessage($createMessage, $user);
         }
 
         //save share history en company action history

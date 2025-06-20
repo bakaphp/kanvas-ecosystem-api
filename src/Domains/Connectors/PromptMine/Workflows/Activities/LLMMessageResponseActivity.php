@@ -98,7 +98,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 if ($promptChannel && empty($promptChannel->title)) {
                     $promptChannel->name = $message->message['title'] ?? $nuggetTitle;
                     $promptChannel->title = $promptChannel->name;
-                    $promptChannel->save();
+                    $promptChannel->update();
                 }
 
                 return [

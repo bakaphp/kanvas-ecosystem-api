@@ -15,8 +15,8 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
@@ -38,6 +38,7 @@ class CreateOrderFromCartAction
         protected ?CreditCardBilling $billingAddress,
         protected ?Address $shippingAddress,
         protected ?array $request,
+        protected ?ModelsOrder $parent = null,
     ) {
     }
 
@@ -119,10 +120,18 @@ class CreateOrderFromCartAction
             paymentGatewayName: ['manual'],
             languageCode: null,
             reference: $this->request['input']['reference'] ?? '',
+            paymentStatus: 'unpaid',
+            parent: $this->parent,
         );
 
         $order = (new CreateOrderAction($order))->execute();
-        new SendUserNotificationAction($order->app, $this->company, $order->user)->execute('admin-new-order', $order->toArray());
+
+        //@todo remove this we already have it on create order action
+        new SendUserNotificationAction(
+            $order->app,
+            $this->company,
+            $order->user
+        )->execute('admin-new-order', $order->toArray());
 
         $this->cart->clear();
 

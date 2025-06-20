@@ -28,6 +28,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Nevadskiy\Tree\AsTree;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -85,6 +86,7 @@ class Order extends BaseModel
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use AsTree;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -213,6 +215,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function failed(): void
+    {
+        $this->status = 'failed';
+        $this->saveOrFail();
+    }
+
     public function cancel(): void
     {
         $this->status = 'canceled';
@@ -266,11 +274,11 @@ class Order extends BaseModel
 
     public function generateOrderNumber(): int
     {
-        // Lock the orders table while retrieving the last order
+        // Lock the orders table while retrieving the order with the highest order_number
         $lastOrder = Order::where('companies_id', $this->companies_id)
             ->where('apps_id', $this->apps_id)
             ->lockForUpdate() // Ensure no race conditions
-            ->latest('id')
+            ->orderBy('order_number', 'desc') // Order by the actual order_number field
             ->first();
 
         $lastOrderNumber = $lastOrder ? intval($lastOrder->order_number) : 0;
@@ -292,6 +300,11 @@ class Order extends BaseModel
     public function addMetadata(string $key, mixed $value): void
     {
         $metadata = $this->metadata ?? [];
+
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
         $metadata[$key] = $value;
 
         $this->metadata = $metadata;
@@ -358,7 +371,7 @@ class Order extends BaseModel
                 ],
                 [
                     'name' => 'id',
-                    'type' => 'string',
+                    'type' => 'int64',
                 ],
                 [
                     'name' => 'uuid',
@@ -584,7 +597,7 @@ class Order extends BaseModel
             $totalPaid = $this->getPaidAmount();
             $totalDebt = $this->total_net_amount - $totalPaid;
             if ($totalDebt <= 0) {
-                $this->fulfill();
+                $this->completed();
 
                 $this->fireWorkflow(
                     WorkflowEnum::UPDATED->value,
@@ -600,6 +613,7 @@ class Order extends BaseModel
     public function getPaidAmount(): float
     {
         $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
+
         return (float) $paidAmount;
     }
 

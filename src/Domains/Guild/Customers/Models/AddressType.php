@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Customers\Models;
 use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Models\BaseModel;
+use Override;
 
 /**
  * Class AddressType.
@@ -22,6 +23,7 @@ class AddressType extends BaseModel
     protected $table = 'address_types';
     protected $guarded = [];
 
+    #[Override]
     public static function getByName(string $name, ?AppInterface $app = null): self
     {
         $app = $app ?? app(Apps::class);

@@ -38,6 +38,7 @@ input WarehouseReferenceInput {
     can_pre_order: Boolean
     is_coming_soon: Boolean
     is_new: Boolean
+    config: Mixed
 }
 
 input WarehouseInputUpdate {

@@ -6,6 +6,7 @@ namespace App\Console\Commands\Intelligence;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Inspector\Configuration;
 use Inspector\Inspector;
@@ -13,6 +14,13 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
 
@@ -62,12 +70,12 @@ class KanvasAgentCommand extends Command
         $entity = $namespace::getById($entity);
         $crm->setConfiguration($agent, $entity);
 
-        $crm->observe(
+        /* $crm->observe(
             new AgentMonitoring($inspector)
-        );
+        ); */
 
         if ($this->option('interactive')) {
-            $this->startInteractiveChat($crm);
+            $this->startInteractiveChat($crm, $entity);
         } else {
             // Handle single question mode for backward compatibility
             $question = $this->ask('What would you like to ask the agent?');
@@ -79,7 +87,7 @@ class KanvasAgentCommand extends Command
     /**
      * Start an interactive chat session with the agent.
      */
-    protected function startInteractiveChat($agent)
+    protected function startInteractiveChat(object $agent, Model $entity)
     {
         $this->info("Interactive chat session started. Type 'exit' or 'quit' to end the conversation.");
         $chatHistory = [];
@@ -94,8 +102,40 @@ class KanvasAgentCommand extends Command
                 break;
             }
 
+            $channel = new Channel();
+            $channel->name = 'Kanvas Agent Channel';
+            $channel->slug = $entity->uuid;
+            $channel->companies_id = $entity->companies_id;
+            $channel->apps_id = $entity->apps_id;
+            $channel->description = 'Channel for Kanvas Agent interactions';
+            $channel->save();
+            $messageType = 'kanvas-agent-message';
+            $messageTypeModel = (new CreateMessageTypeAction(
+                new MessageTypeInput(
+                    $entity->app->getId(),
+                    0,
+                    $messageType,
+                    $messageType,
+                )
+            ))->execute();
+
+            // Create the message using the action
+            $messageInput = new MessageInput(
+                app: $entity->app,
+                company: $entity->company,
+                user: $entity->user,
+                type: $messageTypeModel,
+                message: [
+                ],
+                is_public: 1,
+                slug: $entity->uuid,
+            );
+
+            $createMessageAction = new CreateMessageAction($messageInput);
+            $message = $createMessageAction->execute();
+
             // Send message to agent
-            $response = $agent->chat(new UserMessage($question));
+            $response = $agent instanceof ADKAgent ? $agent->chat($channel, $message, $question) : $agent->chat(new UserMessage($question));
 
             // Store in chat history if you want to implement context
             $chatHistory[] = [

@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\PromptMine\Actions;
 use Exception;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Souk\Orders\Models\Order;
 
 class CheckNuggetGenerationCountAction
@@ -18,23 +19,21 @@ class CheckNuggetGenerationCountAction
 
     public function execute(): bool
     {
-        $freeGenerationCountCustomField = $this->message->user->getId() . '-nugget-free-generation-count';
+        //$loggedUsed = auth()->user();
+        $messageType = MessageType::findOrFail($this->message->app->get('free-generation-check-message-type'));
         $messageOrder = AppModuleMessage::fromApp($this->message->app->getId())
             ->where('apps_id', $this->message->app->getId())
             ->where('companies_id', $this->message->company->getId())
+            ->where('message_types_id', $messageType->getId())
             ->where('system_modules', Order::class)
             ->where('entity_id', $this->message->getId())
             ->where('is_deleted', 0)
             ->first();
-        // $messageOrder = AppModuleMessage::find(121530);
 
-        if ($this->message->get($freeGenerationCountCustomField) > $this->message->app->get('nugget-free-generation-limit') && ! $messageOrder->entity->isCompleted()) {
+        if (($this->message->parent->total_children > $this->message->app->get('nugget-free-generation-limit'))
+            || ($messageOrder && ! $messageOrder->entity->isCompleted())) {
             throw new Exception('You have reached the limit of nuggets you can generate for free');
         }
-
-        ! $this->message->get($freeGenerationCountCustomField) ?
-            $this->message->set($freeGenerationCountCustomField, 0) :
-            $this->message->increment($freeGenerationCountCustomField);
 
         return true;
     }

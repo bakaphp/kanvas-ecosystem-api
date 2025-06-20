@@ -9,14 +9,23 @@ class ProductVariantService extends ProductService
     public function mapVariant(array $product): array
     {
         $variants = [];
-        $variantsGroup = $this->groupVariant($product['customization_options']);
+        $variantsGroup = key_exists('customization_options', $product) ? $this->groupVariant($product['customization_options']) : [$product];
         foreach ($variantsGroup as $group) {
             $variant = $this->mapProduct($product);
             $variant['sku'] = $group['asin'];
             $variant['attributes'] = array_merge(
-                $group['attributes'],
+                $group['attributes'] ?? [],
                 $product['attributes'] ?? []
             );
+            $channel = [
+                'price' => $variant['price'],
+                'discounted_price' => $variant['discountPrice'],
+                'is_published' => true,
+                'warehouses_id' => $this->warehouse->getId(),
+                'channels_id' => $this->channels->getId()
+            ];
+            $variant['channels'][] = $channel;
+
             if (isset($group['images'])) {
                 $variant['files'] = $this->mapFilesystem(
                     product: [
@@ -25,7 +34,7 @@ class ProductVariantService extends ProductService
                     ]
                 );
             }
-            $variant['name'] = $this->getName($group['attributes']);
+            $variant['name'] = key_exists('attributes', $group) ? $this->getName($group['attributes']) : $group['name'];
             $variants[] = $variant;
         }
 

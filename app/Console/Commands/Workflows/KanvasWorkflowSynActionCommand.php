@@ -33,13 +33,16 @@ use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
+use Kanvas\Connectors\NetSuite\Workflow\PushOrderToNetsuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\CheckNuggetGenerationCountActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
@@ -74,6 +77,9 @@ use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
+use Kanvas\Connectors\VinSolution\Workflow\PushLeadActivity;
+use Kanvas\Connectors\VinSolution\Workflow\PushLeadNotesActivity;
+use Kanvas\Connectors\VinSolution\Workflow\PushPeopleActivity;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
@@ -82,12 +88,14 @@ use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
+use Kanvas\Social\Messages\Workflows\Activities\CheckMessageContentActivity;
 use Kanvas\Social\Messages\Workflows\Activities\DistributeMessageActivity;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageReportNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
+use Kanvas\Souk\Orders\Activities\B2BUpdateCompanyOrderActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
@@ -193,6 +201,14 @@ class KanvasWorkflowSynActionCommand extends Command
             ShopifyComplianceWebhookJob::class,
             PayFromWalletActivity::class,
             AddFundsToWalletActivity::class,
+            PushOrderToNetsuiteActivity::class,
+            CheckMessageContentActivity::class,
+            B2BUpdateCompanyOrderActivity::class,
+            CheckNuggetGenerationCountActivity::class,
+            ExtendReservationActivity::class,
+            PushLeadNotesActivity::class,
+            PushLeadActivity::class,
+            PushPeopleActivity::class,
         ];
 
         $createdActions = [];

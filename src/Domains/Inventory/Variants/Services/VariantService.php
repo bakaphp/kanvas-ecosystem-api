@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Status\Models\Status;
@@ -82,7 +83,7 @@ class VariantService
             }
 
             if (! empty($variantDto->files)) {
-                $variantModel->overWriteFiles($variantDto->files);
+                $variantModel->overWriteFiles($variantDto->files, $product->app, true);
             }
 
             if (isset($variant['warehouses'])) {
@@ -96,13 +97,37 @@ class VariantService
                     );
                 }
             } else {
-                $warehouse = Warehouses::getDefault($company);
+                $warehouse = Warehouses::getDefault($company, $product->app);
+                $variantWarehouseInfo = [];
+
+                $variantWarehouseInfo = array_filter([
+                    'price' => $variant['price'] ?? null,
+                    'quantity' => $variant['quantity'] ?? null,
+                ]);
+
                 WarehouseService::addToWarehouses(
                     $variantModel,
                     $warehouse,
                     $company,
-                    []
+                    $variantWarehouseInfo
                 );
+            }
+            if (isset($variant['channels'])) {
+                foreach ($variant['channels'] as $variantChannel) {
+                    if (isset($variantChannel['warehouses_id'])) {
+                        $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
+                    } else {
+                        $warehouse = Warehouses::getDefault($company, $product->app);
+                    }
+                    $channel = ChannelRepository::getById((int) $variantChannel['channels_id']);
+                    $variantChannelDto = VariantChannelDto::from($variantChannel);
+                    self::addVariantChannel(
+                        $variantModel,
+                        $warehouse,
+                        $channel,
+                        $variantChannelDto
+                    );
+                }
             }
 
             $variantsData[] = $variantModel;
@@ -131,7 +156,7 @@ class VariantService
 
         $company = $variantDto->product->company;
 
-        $warehouse = Warehouses::getDefault($company);
+        $warehouse = Warehouses::getDefault($company, $product->app);
 
         if (isset($variant['warehouse']['status'])) {
             $variant['warehouse']['status_id'] = StatusRepository::getById(
@@ -139,7 +164,7 @@ class VariantService
                 $company
             )->getId();
         } else {
-            $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
+            $variant['warehouse']['status_id'] = Status::getDefault($company, $product->app)->getId();
         }
 
         if (! empty($productDto->warehouses) && isset($productDto->warehouses[0]['quantity']) && isset($productDto->warehouses[0]['price'])) {
@@ -230,7 +255,7 @@ class VariantService
 
             $missingVariants = [
                 ...$missingVariants,
-                ...array_values(array_diff($chunk, $foundVariants))
+                ...array_values(array_diff($chunk, $foundVariants)),
             ];
         }
 
@@ -247,7 +272,7 @@ class VariantService
             ->where([
                 'sku' => $variantData['sku'],
                 'companies_id' => $company->id,
-                'apps_id' => $app->id
+                'apps_id' => $app->id,
             ])
             ->first();
 
@@ -262,8 +287,8 @@ class VariantService
         }
 
         return [
-            "missing_skus" => $missingSkus,
-            "changed_barcodes" => $changedBarcodes
+            'missing_skus' => $missingSkus,
+            'changed_barcodes' => $changedBarcodes,
         ];
     }
 }

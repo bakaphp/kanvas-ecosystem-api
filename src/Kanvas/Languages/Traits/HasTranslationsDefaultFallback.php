@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Languages\Traits;
 
 use Baka\Support\Str;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Attributes\Models\AttributesValues;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
@@ -31,7 +32,7 @@ trait HasTranslationsDefaultFallback
             return [];
         }
 
-        $fallbackLocale = config('app.fallback_locale') ?? 'en';
+        $fallbackLocale = $this->app?->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) ?? 'en';
 
         $isJson = is_string($attributeValue) &&
             ($attributeValue[0] ?? '') === '{' &&

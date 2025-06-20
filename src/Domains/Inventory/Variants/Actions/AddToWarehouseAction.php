@@ -50,7 +50,8 @@ class AddToWarehouseAction
                 'is_on_promo' => $this->variantsWarehousesDto->is_on_promo,
                 'can_pre_order' => $this->variantsWarehousesDto->can_pre_order,
                 'is_coming_son' => $this->variantsWarehousesDto->is_coming_son,
-                'is_new' => $this->variantsWarehousesDto->is_new
+                'is_new' => $this->variantsWarehousesDto->is_new,
+                'config' => $this->variantsWarehousesDto->config
             ]
         );
 
