@@ -253,7 +253,14 @@ class PortalPaymentProcessor
     //  If the enrollment status is not AUTHENTICATION_SUCCESSFUL it means that the front needs to authenticate the payer
     private function requestUserValidation(Payments $payment, array $enrollmentData): array
     {
-        $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION;
+        $statusMap = [
+            EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+            EnumsPaymentStatusEnum::AUTHENTICATION_FAILED->value => PaymentStatusEnum::FAILED->value,
+            EnumsPaymentStatusEnum::PENDING_AUTHENTICATION->value => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+        ];
+
+        $paymentStatus = $statusMap[$enrollmentData['status']];
+        $payment->status = $paymentStatus;
         $payment->addMetadata([
             'enrollment_data' => $enrollmentData,
         ]);
@@ -262,13 +269,13 @@ class PortalPaymentProcessor
         $payment->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($enrollmentData));
 
         $payment->order->updateQuietly([
-            'status' => OrderStatusEnum::PENDING->value,
-            'payment_status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value
+            'status' => $paymentStatus === PaymentStatusEnum::PENDING_AUTHORIZATION->value ? OrderStatusEnum::PENDING->value : OrderStatusEnum::FAILED->value,
+            'payment_status' => $paymentStatus
         ]);
 
         return [
-            'status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
-            'message' => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+            'status' => $paymentStatus,
+            'message' => $paymentStatus,
             'data' => ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation'])
         ];
     }
@@ -403,8 +410,8 @@ class PortalPaymentProcessor
         $payment->status = PaymentStatusEnum::PAID;
         $order->updateQuietly([
             'payment_status' => PaymentStatusEnum::PAID->value,
-            'status' => OrderStatusEnum::COMPLETED->value,
         ]);
+        $order->checkPayments();
         $payment->addMetadata([
             'data' => [
                 ...$payment->metadata['data'],
