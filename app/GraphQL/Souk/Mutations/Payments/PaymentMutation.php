@@ -174,7 +174,7 @@ class PaymentMutation
         if ($payment->status === PaymentStatusEnum::AUTHORIZED->value) {
             $authorizationData = ConsumerAuthentication::from(json_decode($order->get('authorization_data') ?? '{}', true));
             $result = new ProcessPaymentAction($app, $payment, $order)->execute($authorizationData);
-        
+
             return [
                 'status' => $result['status'],
                 'message' => $result['message'],
@@ -190,7 +190,7 @@ class PaymentMutation
             );
 
             $enrollmentResult = $paymentProcessor->completeDeviceData($payment);
-            
+
             if ($enrollmentResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
                 $order->set("authorization_data", json_encode($enrollmentResult['data']));
 

@@ -21,7 +21,8 @@ class ProcessPaymentAction
     ) {
     }
 
-    public function execute(ConsumerAuthentication $consumerData) {
+    public function execute(ConsumerAuthentication $consumerData)
+    {
         $paymentProcessor = new PortalPaymentProcessor(
             $this->app,
             $this->payment->company,

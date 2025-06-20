@@ -28,7 +28,7 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
                         'message' => 'Payment processor is not portal',
                     ];
                 }
-                // @DEPRECATED: We are not using this anymore, keep it to not broke process              
+                // @DEPRECATED: We are not using this anymore, keep it to not broke process
             },
             company: $payment->company,
         );

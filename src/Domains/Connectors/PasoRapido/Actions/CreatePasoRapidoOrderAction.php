@@ -2,7 +2,6 @@
 
 namespace Kanvas\Connectors\PasoRapido\Actions;
 
-
 use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EchoPayCustomFieldEnum;
