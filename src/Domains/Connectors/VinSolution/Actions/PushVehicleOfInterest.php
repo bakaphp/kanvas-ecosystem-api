@@ -58,7 +58,6 @@ class PushVehicleOfInterest
             'model' => $product['model'],
             'vin' => $product['vin'],
             'trim' => $product['trim'] ?? ' ',
-            'trim' => $product['trim'] ?? ' ',
             'stockNumber' => $product['stock_number'],
             'doors' => 4,
             'mileage' => $product['millage'] ?? 0,
