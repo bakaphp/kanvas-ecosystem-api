@@ -18,7 +18,8 @@ class GenerateWhoToFollowRecommendationsAction
     public function __construct(
         protected AppInterface $app,
         protected ?CompanyInterface $company = null
-    ) {}
+    ) {
+    }
 
     public function execute(UserInterface $user, int $pageSize = 10, string $scenario = ScenariosEnum::USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS->value): Builder
     {
