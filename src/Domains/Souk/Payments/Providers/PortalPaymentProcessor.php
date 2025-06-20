@@ -352,8 +352,10 @@ class PortalPaymentProcessor
             if ($e instanceof RequestException && $e->hasResponse()) {
                 $response = $e->getResponse();
                 $errorMessage = json_decode((string) $response->getBody())->message ?? $e->getMessage();
+                $messageBody = json_decode((string) $response->getBody())->data ?? [];
             } else {
                 $errorMessage = $e->getMessage();
+                $messageBody = [];
             }
 
             $payment->status = PaymentStatusEnum::FAILED->value;
@@ -365,8 +367,9 @@ class PortalPaymentProcessor
     
             $payment->addMetadata([
                 'data' => [
-                    ...$payment->metadata['data'],
+                    ...isset($payment->metadata['data']) ? $payment->metadata['data'] : [],
                     'error' => $errorMessage,
+                    'message_body' => $messageBody,
                 ],
             ]);
             $payment->save();
@@ -375,6 +378,7 @@ class PortalPaymentProcessor
                 'status' => 'error',
                 'message' => $errorMessage,
                 'data' => [
+                    'message_body' => $messageBody,
                     'pamentData' => $pamentData,
                     'consumerData' => $consumerData,
                     'merchantAuthentication' => $merchantAuthentication,
