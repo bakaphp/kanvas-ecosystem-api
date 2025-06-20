@@ -23,7 +23,7 @@ class PullPaymentChallengeWebhookJob extends ProcessWebhookJob
 
         if (! $orderId) {
             return [
-                'message' => 'Not a NetSuite Company',
+                'message' => 'Not a valid order',
             ];
         }
 
@@ -41,7 +41,9 @@ class PullPaymentChallengeWebhookJob extends ProcessWebhookJob
 
         $order->set(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value, $transactionId);
 
-        echo '<script>window.parent.postMessage({type: "payment_complete", status: "success", message: "Transaction id received"}, "*"); window.close();</script>';
-        exit;
+        return [
+            'message' => 'Transaction id received',
+            'html' => '<script>window.parent.postMessage({type: "payment_complete", status: "success", message: "Transaction id received"}, "*"); window.close();</script>',
+        ];
     }
 }
