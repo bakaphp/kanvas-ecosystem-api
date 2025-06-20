@@ -38,7 +38,7 @@ class OrderItem extends Data
         }
 
         $warehouse = $region->warehouses()->firstOrFail(); //@todo get product warehouse with  stock
-        $price = isset($request['price']) ? (float) $request['price'] : $variant->getPrice($warehouse);
+        $price = (float) ($request['price'] ?? $variant->getPriceInfoFromDefaultChannel()?->price ?? $variant->getPrice($warehouse));
 
         return new self(
             app: $app,
