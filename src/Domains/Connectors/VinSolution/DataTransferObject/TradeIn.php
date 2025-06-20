@@ -33,7 +33,7 @@ class TradeIn extends Data
 
     public static function fromMultiple(Message $message, Lead $lead): self
     {
-        $messageData = $message->getMessage();
+        $messageData = $message->message;
         $formData = $messageData['data']['form'] ?? [];
         $files = $lead->getFiles();
         $filesLinks = '';
