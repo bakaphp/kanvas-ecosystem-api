@@ -274,7 +274,7 @@ class PortalPaymentProcessor
         ];
     }
 
-    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, Order $order)
+    public function processPayment(Payments $payment, ConsumerAuthentication $consumerData, Order $order): array
     {
         $paymentResponse = $this->processPaymentCall($payment, $consumerData, $order);
 
@@ -302,7 +302,11 @@ class PortalPaymentProcessor
                 'data' => $paymentResponse['data'],
             ];
         } else {
-            throw new Exception('Payment failed');
+            return [
+                'status' => $paymentResponse['status'],
+                'message' => $paymentResponse['message'],
+                'data' => $paymentResponse['data'],
+            ];
         }
     }
 
@@ -351,6 +355,21 @@ class PortalPaymentProcessor
             } else {
                 $errorMessage = $e->getMessage();
             }
+
+            $payment->status = PaymentStatusEnum::FAILED->value;
+            $order->updateQuietly([
+                'payment_status' => PaymentStatusEnum::FAILED->value,
+                'status' => OrderStatusEnum::FAILED->value,
+                'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
+            ]);
+    
+            $payment->addMetadata([
+                'data' => [
+                    ...$payment->metadata['data'],
+                    'error' => $errorMessage,
+                ],
+            ]);
+            $payment->save();
 
             return [
                 'status' => 'error',
@@ -412,10 +431,11 @@ class PortalPaymentProcessor
             $reason
         );
 
-        $payment->status = PaymentStatusEnum::REVERSED;
+        $payment->status = PaymentStatusEnum::REVERSED->value;
         $order->updateQuietly([
             'payment_status' => PaymentStatusEnum::REVERSED->value,
-            'status' => OrderStatusEnum::CANCELED->value,
+            'status' => OrderStatusEnum::FAILED->value,
+            'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
         ]);
 
         $payment->addMetadata([

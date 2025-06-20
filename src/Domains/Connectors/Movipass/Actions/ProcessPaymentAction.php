@@ -37,6 +37,14 @@ class ProcessPaymentAction
 
         $paymentResult = $paymentProcessor->processPayment($this->payment, $consumerData, $this->order);
 
+        if ($paymentResult['status'] === 'error') {
+            $result['status'] = $paymentResult['status'];
+            $result['message'] = $paymentResult['message'];
+            $result['data'] = $paymentResult['data'];
+
+            return $result;
+        }
+
         if ($paymentResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
             $this->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($paymentResult));
         }
