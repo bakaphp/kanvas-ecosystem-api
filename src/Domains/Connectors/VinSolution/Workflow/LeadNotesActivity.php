@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Workflow;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\VinSolution\Actions\AddNoteToLeadAction;
+use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -37,7 +37,7 @@ class LeadNotesActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($lead) {
-                $leadNoteAction = new AddNoteToLeadAction(
+                $leadNoteAction = new PushNoteToLeadAction(
                     lead: $lead,
                     message: $message,
                 );

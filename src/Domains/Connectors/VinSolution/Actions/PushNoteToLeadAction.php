@@ -17,7 +17,7 @@ use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Social\Messages\Models\Message;
 use Throwable;
 
-class AddNoteToLeadAction
+class PushNoteToLeadAction
 {
     public function __construct(
         protected ModelsLead $lead,
