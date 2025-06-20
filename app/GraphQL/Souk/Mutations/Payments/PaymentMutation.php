@@ -278,8 +278,6 @@ class PaymentMutation
                 ];
             }
 
-            dd($validationResult);
-
             $result = new ProcessPaymentAction($app, $payment, $order)->execute($validationResult['data']);
 
             return [
