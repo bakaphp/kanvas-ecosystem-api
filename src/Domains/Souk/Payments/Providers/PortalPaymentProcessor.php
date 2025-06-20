@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Providers;
 
-use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -364,7 +363,7 @@ class PortalPaymentProcessor
                 'status' => OrderStatusEnum::FAILED->value,
                 'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
             ]);
-    
+
             $payment->addMetadata([
                 'data' => [
                     ...isset($payment->metadata['data']) ? $payment->metadata['data'] : [],
