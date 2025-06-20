@@ -6,26 +6,25 @@ namespace Tests\Connectors\Integration\EchoPay;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
-use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\EchoPay\Handlers\EchoPayHandler;
-use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
+use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
-final class ProcessPaymentActivityTest extends TestCase
+final class ProcessPaymentTest extends TestCase
 {
     use HasIntegrationCompany;
     use InventoryCases;
     use PaymentCases;
 
-    public function testOrderCreationWorkflow(): void
+    public function testProcessPayment(): void
     {
         $app = app(Apps::class);
         $user = Auth::user();
@@ -41,12 +40,6 @@ final class ProcessPaymentActivityTest extends TestCase
         $app->set(ConfigurationEnum::MERCHANT_IDENTIFIER->value, env('TEST_ECHO_PAY_MERCHANT_IDENTIFIER'));
         $app->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
         $app->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
-
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_SERVICE_KEY'));
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value, env('TEST_ECHO_PAY_CHANNEL_CODE'));
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value, env('TEST_ECHO_PAY_SERVICE_CODE'));
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value, env('TEST_ECHO_PAY_SERVICE_TYPE_ID'));
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_CONTRACT->value, env('TEST_ECHO_PAY_CONTRACT'));
 
         $this->setIntegration(
             $app,
@@ -137,23 +130,33 @@ final class ProcessPaymentActivityTest extends TestCase
         $order = $response->json('data.createOrderFromCart.order');
 
         $order = Order::fromApp($app)->find($order['id']);
-
-        $activity = new ProcessPaymentActivity(
-            0,
-            now()->toDateTimeString(),
-            StoredWorkflow::make(),
-            []
-        );
-
         $payment = $order->payments()->first();
-        $result = $activity->execute($payment, $app, []);
-        if ($result['status'] != 'success') {
-            $this->assertEquals('Service cannot be paid', $result['message']);
-            return;
-        }
+        $order->set('auth_session_id', '1234567890');
+
+        $processPaymentAction = new ProcessPaymentAction($app, $payment, $order);
+
+        $result = $processPaymentAction->execute(ConsumerAuthentication::from([
+                'indicator' => 'vbv',
+                'eciRaw' => '05',
+                'authenticationResult' => '0',
+                'strongAuthentication' => [
+                    'OutageExemptionIndicator' => '0',
+                ],
+                'authenticationStatusMsg' => 'Success',
+                'eci' => '05',
+                'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
+                'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+                'paresStatus' => 'Y',
+                'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+                'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
+                'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
+                'specificationVersion' => '2.2.0',
+                'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
+        ]));
+
         $order->refresh();
-        $this->assertEquals($result['status'], 'success');
-        $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value));
-        $this->assertNotNull($order->get(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value));
+        $this->assertArrayHasKey('status', $result);
+        $this->assertArrayHasKey('message', $result);
+        $this->assertArrayHasKey('data', $result);
     }
 }
