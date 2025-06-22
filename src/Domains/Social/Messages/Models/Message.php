@@ -131,7 +131,7 @@ class Message extends BaseModel
         return $this->hasOne(AppModuleMessage::class, 'message_id');
     }
 
-    public function users()
+    public function users(): BelongsToMany
     {
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }

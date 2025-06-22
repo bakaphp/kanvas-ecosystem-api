@@ -35,22 +35,20 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
         $messageData = is_array($message->message) ? $message->message : (Str::isJson($message->message) ? json_decode($message->message, true) : []);
         $fieldToSlug = $messageData[$slugField] ?? $messageData[$backupField] ?? null;
 
-        /*   if ($fieldToSlug === null) {
-              //return ['No slug field {' . $slugField . ' found in message ' . $message->id];
-              $fieldToSlug = (string) $message->id;
-          } */
-
         if (empty($messageData) && $fieldToSlug === null) {
             return ['No data found to generate slug for message ' . $message->id];
         }
 
         try {
             $generatedSlug = $this->generateSlug($fieldToSlug !== null ? $fieldToSlug : json_encode($messageData));
-            $message->slug = Str::limit($generatedSlug, 190, '');
+            $baseSlug = Str::limit($generatedSlug, 190, '');
         } catch (Exception $e) {
             // Fallback to simple slug if AI generation fails
-            $message->slug = Str::simpleSlug(Str::limit($fieldToSlug, 190, ''));
+            $baseSlug = Str::simpleSlug(Str::limit($fieldToSlug, 190, ''));
         }
+
+        // Check if slug is unique, if not append message ID
+        $message->slug = $this->ensureUniqueSlug($baseSlug, $message, $app);
 
         if (method_exists($message, 'disableWorkflows')) {
             $message->disableWorkflows();
@@ -71,5 +69,26 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
             ->asText();
 
         return str_replace(['```', 'json'], '', $response->text);
+    }
+
+    private function ensureUniqueSlug(string $baseSlug, Model $message, AppInterface $app): string
+    {
+        // Build the query to check for existing slugs in the same app
+        $query = $message->newQuery()
+            ->where('slug', $baseSlug)
+            ->where('apps_id', $app->getId());
+
+        // Exclude current message if it's being updated
+        if ($message->exists) {
+            $query->where('id', '!=', $message->id);
+        }
+
+        // If slug is unique, return as is
+        if (! $query->exists()) {
+            return $baseSlug;
+        }
+
+        // If not unique, append message ID
+        return $baseSlug . '-' . $message->getId();
     }
 }

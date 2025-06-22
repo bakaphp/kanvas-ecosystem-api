@@ -37,6 +37,7 @@ class MessageObserver
         // check if it has a parent, update parent total children
         if ($message->parent_id && $message->parent) {
             $message->parent->increment('total_children');
+            $message->parent->searchable();
         }
     }
 
