@@ -32,8 +32,13 @@ class Str extends IlluminateStr
         return strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $string)));
     }
 
-    public static function sanitizePhoneNumber(?string $phone): string
+    public static function sanitizePhoneNumber(?string $phone = null): string
     {
-        return $phone ? preg_replace('/\D+/', '', $phone) : '';
+        return (string) ($phone !== null ? preg_replace('/\D+/', '', $phone) : '');
+    }
+
+    public static function cleanJsonString(string $json): string
+    {
+        return (string) preg_replace('/\s+/', ' ', trim($json));
     }
 }
