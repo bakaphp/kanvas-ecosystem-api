@@ -131,7 +131,7 @@ class Message extends BaseModel
         return $this->hasOne(AppModuleMessage::class, 'message_id');
     }
 
-    public function users()
+    public function users(): BelongsToMany
     {
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
@@ -355,8 +355,66 @@ class Message extends BaseModel
         ->count();
     }
 
+    public function toSearchableArray(): array
+    {
+        $this->loadMissing(['user', 'messageType']);
+
+        $data = [
+            'objectID' => $this->uuid,
+            ...$this->toArray(),
+            'user' => [
+                'id' => $this->users_id,
+                'name' => trim(($this->user->firstname ?? '') . ' ' . ($this->user->lastname ?? '')),
+                'displayname' => $this->user->displayname,
+            ],
+            'message_type' => $this->messageType ? [
+                'id' => $this->messageType->id,
+                'name' => $this->messageType->name,
+                'verb' => $this->messageType->verb,
+            ] : null,
+        ];
+
+        // Add parent reference for child messages
+        if ($this->parent_id) {
+            $data['parent'] = [
+                'id' => $this->parent_id,
+                'uuid' => $this->parent?->uuid,
+            ];
+        }
+
+        // Add children summary for parent messages
+        if (! $this->parent_id) {
+            $data['children'] = $this->getSearchableChildrenSummary();
+            $data['has_children'] = $this->total_children > 0;
+        }
+
+        return $data;
+    }
+
+    private function getSearchableChildrenSummary(): array
+    {
+        return $this->children()
+            ->where('is_public', 1)
+            ->select(['id', 'uuid', 'message', 'created_at', 'users_id'])
+            ->with('user:id,firstname,lastname,displayname')
+            ->limit(5) // Increased from 3 for better context
+            ->get()
+            ->map(fn ($child) => [
+                'id' => $child->id,
+                'uuid' => $child->uuid,
+                'message' => $child->message,
+                'created_at' => $child->created_at->toIso8601String(),
+                'user' => [
+                    'id' => $child->users_id,
+                    'name' => trim(($child->user->firstname ?? '') . ' ' . ($child->user->lastname ?? '')),
+                    'displayname' => $child->user->displayname,
+                ],
+            ])->toArray();
+    }
+
     /**
      * The Typesense schema to be created for the Message model.
+     * @psalm-suppress MissingTemplateParam
      */
     public function typesenseCollectionSchema(): array
     {
