@@ -169,14 +169,4 @@ class Notifications extends BaseModel
             $this->forceFill(['read' => 1])->save();
         }
     }
-
-    public function getUnreadNotificationsCount(): int
-    {
-        return (int) self::query()
-            ->where('users_id', auth()->user()->id)
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->where('read', StateEnums::NO->getValue())
-            ->where('apps_id', app(Apps::class)->id)
-            ->count();
-    }
 }
