@@ -12,9 +12,11 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class SyncUserInteractionToEventActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    #[Override]
     public function execute(Model $userInteraction, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
