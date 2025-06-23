@@ -47,6 +47,10 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
             $baseSlug = Str::simpleSlug(Str::limit($fieldToSlug, 190, ''));
         }
 
+        if (empty($baseSlug)) {
+            $baseSlug = (string) $message->getId();
+        }
+
         // Check if slug is unique, if not append message ID
         $message->slug = trim($this->ensureUniqueSlug($baseSlug, $message, $app));
 
