@@ -192,7 +192,8 @@ class MessageBuilder
 
         $messageTypeId = $app->get('social-user-message-filter-message-type');
 
-        return UserMessage::getUserMessageFollowingFeed($user, $app)->when(
+        //return UserMessage::getUserMessageFollowingFeed($user, $app)->when( should be using this one but need to check events
+        return UserMessage::getFollowingFeed($user, $app)->when(
             $messageTypeId !== null,
             function ($query) use ($messageTypeId) {
                 return $query->where('messages.message_types_id', $messageTypeId);
