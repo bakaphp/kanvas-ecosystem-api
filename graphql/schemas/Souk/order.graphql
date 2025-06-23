@@ -40,6 +40,10 @@ type Order {
     parent: Order @belongsTo(relation: "parent")
     payment_status: String
     payments: [Payment!] @hasMany(relation: "payments")
+    transaction_link: String!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Builders\\Order\\TransactionLinkBuilder@getLink"
+        )
     items(includeAllItems: Boolean = false): [OrderItem!]
         @HasMany(relation: "allItems")
         @builder(
