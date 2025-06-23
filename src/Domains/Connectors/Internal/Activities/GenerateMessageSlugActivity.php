@@ -48,7 +48,7 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
         }
 
         // Check if slug is unique, if not append message ID
-        $message->slug = $this->ensureUniqueSlug($baseSlug, $message, $app);
+        $message->slug = trim($this->ensureUniqueSlug($baseSlug, $message, $app));
 
         if (method_exists($message, 'disableWorkflows')) {
             $message->disableWorkflows();
