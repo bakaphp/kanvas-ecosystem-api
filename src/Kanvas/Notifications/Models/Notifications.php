@@ -111,8 +111,8 @@ class Notifications extends BaseModel
         if (isset($args['whereSystemModule'])) {
             $systemModuleFilter = $args['whereSystemModule'];
             $query->whereHas('systemModule', function ($query) use ($systemModuleFilter, $app) {
-                if ($systemModuleFilter['name']) {
-                    $notificationSystemModule = SystemModulesRepository::getByName($systemModuleFilter['name'], $app);
+                if ($systemModuleFilter['slug']) {
+                    $notificationSystemModule = SystemModulesRepository::getBySlug($systemModuleFilter['slug'], $app);
                     $query->where('system_modules_id', $notificationSystemModule->getId());
 
                     if ($notificationSystemModule::class == Message::class && isset($systemModuleFilter['message_type_verb'])) {
@@ -168,5 +168,15 @@ class Notifications extends BaseModel
         if (! $this->read) {
             $this->forceFill(['read' => 1])->save();
         }
+    }
+
+    public function getUnreadNotificationsCount(): int
+    {
+        return (int) self::query()
+            ->where('users_id', auth()->user()->id)
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->where('read', StateEnums::NO->getValue())
+            ->where('apps_id', app(Apps::class)->id)
+            ->count();
     }
 }

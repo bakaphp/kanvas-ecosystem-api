@@ -34,6 +34,10 @@ type User {
     apps: [App!]! @HasManyThrough
     photo: Filesystem @method(name: "getPhoto")
     social: UserSocialInfo @method(name: "getSocialInfo")
+    notification_unread_count: Int
+        @field(
+            resolver: "Kanvas\\Notifications\\Models\\Notifications@getUnreadNotificationsCount"
+        )
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
