@@ -33,7 +33,7 @@ class PaymentMethodMutation
                     company: $company,
                     instrument_identifier_id: $input['instrument_identifier_id'] ?? '',
                     payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
-                    payment_methods_brand: $input['brand'] ?? $this->guessCardBrand($input['number']),
+                    payment_methods_brand: $this->guessCardBrand($input['number']),
                     stripe_card_id: $input['stripe_card_id'] ?? '',
                     expiration_date: $input['expiration_date'],
                     zip_code: $input['zip_code'],
