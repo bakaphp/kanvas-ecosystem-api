@@ -17,6 +17,7 @@ enum ConfigurationEnum: string
     case MERCHANT_DOCUMENT_NUMBER = 'ECHO_PAY_MERCHANT_DOCUMENT_NUMBER';
     case REDIRECT_URL = 'ECHO_PAY_REDIRECT_URL';
     case SANDBOX_URL = 'https://api-test.portall.com.do:2053';
+    case BYPASS_ECI = 'ECHO_PAY_BYPASS_ECI';
 
     case AUTHORIZATION_PATH = '/api/v2/auth/token';
     case CONSULT_SERVICE_PATH = '/api/v2/echo-pay/service';
@@ -25,4 +26,7 @@ enum ConfigurationEnum: string
     case CHECK_PAYER_ENROLLMENT_PATH = '/api/v2/echo-pay/3ds/check-payer-enrollment';
     case VALIDATE_PAYER_AUTH_RESULT_PATH = '/api/v2/echo-pay/3ds/validate-auth-result';
     case PAY_SERVICE_PATH = '/api/v2/echo-pay/service/pay';
+    case AUTHORIZE_PAYMENT_PATH = '/api/v2/cybersource-payment/authorize';
+    case CAPTURE_PAYMENT_PATH = '/api/v2/cybersource-payment/capture';
+    case REVERSAL_PAYMENT_PATH = '/api/v2/cybersource-payment/authorize/reversal';
 }

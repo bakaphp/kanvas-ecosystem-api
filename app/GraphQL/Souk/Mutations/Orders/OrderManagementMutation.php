@@ -85,6 +85,7 @@ class OrderManagementMutation
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
         $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+
         $region = Regions::getDefault($company);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
@@ -127,7 +128,7 @@ class OrderManagementMutation
             $app,
             $billing,
             $shippingAddress,
-            $request
+            $request,
         )->execute();
 
         $log->subject_type = get_class($createOrder);
@@ -150,7 +151,7 @@ class OrderManagementMutation
         $orderData = $request['input'];
 
         if (! $user->isAdmin()) {
-            throw new ValidationException('User is not authorized to delete this order');
+            throw new ValidationException('User is not authorized to update this order');
         }
 
         $order = Order::where([
@@ -171,6 +172,92 @@ class OrderManagementMutation
         return [
             'order' => $updateOrder->execute(),
             'message' => 'Order updated successfully',
+        ];
+    }
+
+    public function extendOrder(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
+        $app = app(Apps::class);
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+
+        $parentOrder = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $request['id'],
+            'companies_id' => $company->getId(),
+        ])->first();
+
+        if (! $parentOrder) {
+            return [
+                'order' => null,
+                'message' => [
+                    'error_code' => 'Parent order not found',
+                    'error_message' => 'Parent order not found',
+                ],
+            ];
+        }
+
+        $orderInput = $request['input'];
+
+        if ($parentOrder->metadata['data']['end_at'] > $orderInput['metadata']['data']['end_at']) {
+            throw new ValidationException('Extended reservation is not allowed');
+        }
+
+        $region = Regions::getDefault($company);
+        $orderCustomer = OrderCustomer::from($request['input']['customer']);
+        $createPeople = new CreatePeopleFromUserAction(
+            $app,
+            $user->getCurrentBranch(),
+            $user
+        );
+        $people = $createPeople->execute();
+        $billing = isset($request['input']['billing']) ? CreditCardBilling::from($request['input']) : null;
+        $shippingAddress = isset($request['input']['shipping_address']) ? Address::from($request['input']['shipping_address']) : null;
+
+        if ($cart->isEmpty() && empty($request['input']['items'])) {
+            return [
+                'order' => null,
+                'message' => [
+                    'error_code' => 'Cart is empty',
+                    'error_message' => 'Cart is empty',
+                ],
+            ];
+        }
+
+        $log = activity('create-order-from-cart')
+            ->causedBy($user)
+            ->withProperties([
+                'request_data' => $request,
+                'user_id' => $user->id,
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'cart_items' => $cart->getContent()->toArray(),
+            ])
+            ->log('User attempted to create order from cart');
+
+        $createOrder = new CreateOrderFromCartAction(
+            $cart,
+            $company,
+            $region,
+            $orderCustomer,
+            $people,
+            $user,
+            $app,
+            $billing,
+            $shippingAddress,
+            $request,
+            $parentOrder
+        )->execute();
+
+        $log->subject_type = get_class($createOrder);
+        $log->subject_id = $createOrder->id;
+        $log->description = 'User successfully created order from cart';
+        $log->save();
+
+        return [
+            'order' => $createOrder,
+            'message' => 'Order created successfully',
         ];
     }
 

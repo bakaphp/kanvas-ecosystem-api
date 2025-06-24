@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Models;
 
-use Awobaz\Compoships\Database\Eloquent\Model;
 use Baka\Casts\Json;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
+use Kanvas\Social\Interactions\Models\Interactions;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -82,11 +84,17 @@ class Notifications extends BaseModel
         return $this->belongsTo(NotificationTypes::class, 'notification_type_id');
     }
 
+    public function interaction(): BelongsTo
+    {
+        return $this->belongsTo(Interactions::class, 'interaction_id');
+    }
+
     /**
      * Not deleted scope.
      */
     public function scopeAllNotifications(Builder $query, array $args): Builder
     {
+        $app = app(Apps::class);
         if (isset($args['whereType'])) {
             $notificationTypeFilter = $args['whereType'];
             $query->whereHas('types', function ($query) use ($notificationTypeFilter) {
@@ -100,9 +108,33 @@ class Notifications extends BaseModel
             });
         }
 
+        if (isset($args['whereSystemModule'])) {
+            $systemModuleFilter = $args['whereSystemModule'];
+            $query->whereHas('systemModule', function ($query) use ($systemModuleFilter, $app) {
+                if ($systemModuleFilter['slug']) {
+                    $notificationSystemModule = SystemModulesRepository::getBySlug($systemModuleFilter['slug'], $app);
+                    $query->where('system_modules_id', $notificationSystemModule->getId());
+
+                    if ($notificationSystemModule::class == Message::class && isset($systemModuleFilter['message_type_verb'])) {
+                        $query->getQuery()->join('messages', 'messages.id', '=', 'notifications.entity_id');
+
+                        $messageType = MessagesTypesRepository::getByVerb($systemModuleFilter['message_type_verb'], $app);
+                        $query->where('messages.message_type_id', $messageType->getId());
+                    }
+                }
+            });
+        }
+
+        if (isset($args['whereInteraction']) && $args['whereInteraction']['name']) {
+            $interaction = Interactions::getByName($args['whereInteraction']['name'], $app);
+            if ($interaction) {
+                $query->where('interaction_id', $interaction->getId());
+            }
+        }
+
         return $query->where('users_id', auth()->user()->id)
-                ->where('is_deleted', StateEnums::NO->getValue())
-                ->where('apps_id', app(Apps::class)->id);
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->where('apps_id', $app->id);
     }
 
     /**

@@ -11,7 +11,6 @@ use Kanvas\Imports\AbstractImporterJob;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Events\ProductImportEvent;
-use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Override;

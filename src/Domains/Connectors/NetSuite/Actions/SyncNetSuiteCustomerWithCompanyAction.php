@@ -14,6 +14,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
+use Kanvas\Inventory\Support\Setup;
 use Kanvas\Users\Actions\AssignCompanyAction;
 
 class SyncNetSuiteCustomerWithCompanyAction
@@ -75,6 +76,12 @@ class SyncNetSuiteCustomerWithCompanyAction
 
         $action = new AssignCompanyAction($company->user, $branch, $role);
         $action->execute();
+
+        (new Setup(
+            $this->app,
+            $company->user,
+            $company
+        ))->run();
 
         return $company;
     }
