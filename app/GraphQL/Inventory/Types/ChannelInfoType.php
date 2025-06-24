@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Types;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class ChannelInfoType
