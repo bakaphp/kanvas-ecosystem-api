@@ -47,6 +47,7 @@ use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
+use Kanvas\Connectors\QuickBooks\Workflows\PushOrderToInvoiceActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
@@ -209,6 +210,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PushLeadNotesActivity::class,
             PushLeadActivity::class,
             PushPeopleActivity::class,
+            PushOrderToInvoiceActivity::class,
         ];
 
         $createdActions = [];
