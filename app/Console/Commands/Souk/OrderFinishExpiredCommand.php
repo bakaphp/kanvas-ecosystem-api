@@ -56,7 +56,7 @@ class OrderFinishExpiredCommand extends Command
             $variant = $order->items->first(function ($item) {
                 return $item->variant->product?->attributes
                 ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));
-            })?->variant;                
+            })?->variant;
             // Mark order as completed
             $order->fulfill();
 

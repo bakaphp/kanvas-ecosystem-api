@@ -64,7 +64,7 @@ class PortalPaymentProcessor
                     customerId: "user_" . $payment->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
                     documentType: MerchantDocumentTypesEnum::DNI,
-                    documentNumber: $payment->user->get('driver_license') ?? "",
+                    documentNumber: (string) ($payment->user->get('driver_license') ?? ""),
                 )]
                 : [])
         ]);
