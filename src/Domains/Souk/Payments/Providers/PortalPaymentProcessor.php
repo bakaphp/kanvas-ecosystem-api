@@ -64,7 +64,7 @@ class PortalPaymentProcessor
                     customerId: "user_" . $payment->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
                     documentType: MerchantDocumentTypesEnum::DNI,
-                    documentNumber: $payment->user->get('driver_license') ?? "",
+                    documentNumber: (string) ($payment->user->get('driver_license') ?? ""),
                 )]
                 : [])
         ]);
@@ -431,7 +431,6 @@ class PortalPaymentProcessor
         $order->updateQuietly([
             'payment_status' => PaymentStatusEnum::PAID->value,
         ]);
-        $order->checkPayments();
         $payment->addMetadata([
             'data' => [
                 ...$payment->metadata['data'],
@@ -439,6 +438,7 @@ class PortalPaymentProcessor
             ],
         ]);
         $payment->save();
+        $order->checkPayments();
 
         return [
             'status' => 'success',
