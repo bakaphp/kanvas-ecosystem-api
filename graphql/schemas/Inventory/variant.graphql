@@ -37,13 +37,6 @@ type Variant {
     companies: Company! @belongsTo(relation: "company")
     channels(currencyCode: String): [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")
-        @lazyLoad(
-            relations: [
-                "channels"
-                "variantChannels"
-                "productVariantWarehouse"
-            ]
-        )
     channel(currencyCode: String): VariantPricingInfo
         @field(
             resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price"
