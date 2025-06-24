@@ -34,7 +34,7 @@ class B2BCompanyPriceConfigurationActivity extends KanvasActivity
         }
 
         return $this->executeIntegration(
-            entity: $mainAppCompany,
+            entity: $buyerCompany,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($buyerCompany, $app, $integrationCompany, $additionalParams) use ($mainAppCompany, $productTypes, $discountedPricePercentage) {
