@@ -18,13 +18,13 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesAddress;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Services\SetupService;
-use Kanvas\Users\Actions\AssignRoleAction;
+use Kanvas\Users\Actions\AddAdminsToCompanyAction;
+use Kanvas\Users\Actions\AddUserCompanyAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
@@ -52,12 +52,17 @@ class CompanyManagementMutation
         }
         $dto = Company::viaRequest($request['input'], $user);
         $company = (new CreateCompaniesAction($dto))->execute();
+        $branch = app(CompaniesBranches::class);
+        $authUser = auth()->user();
+        $app = app(Apps::class);
 
         (new SetupService())->onBoarding(
             $user,
             app(Apps::class),
             $company
         );
+
+        (new AddAdminsToCompanyAction($app, $authUser, $company, $branch))->execute();
 
         return $company;
     }
@@ -153,55 +158,15 @@ class CompanyManagementMutation
         $user = Users::getById($request['user_id']);
         $company = Companies::getById($request['id']);
         $app = app(Apps::class);
-
-        CompaniesRepository::userAssociatedToCompany(
-            $company,
-            auth()->user()
-        );
-
-        $company->hasCompanyPermission(auth()->user());
-
         $branch = app(CompaniesBranches::class);
+        $authUser = auth()->user();
 
-        $companyDefaultBranch = $company->defaultBranch()->first();
-
-        //this happens if they we dont get a branch for via header for the current company (frontend needs to fix)
-        if ($branch->companies_id != $company->getId() && $companyDefaultBranch) {
-            $branch = $companyDefaultBranch;
-        }
-
-        DB::transaction(function () use ($user, $company, $branch, $request, $app) {
-            $company->associateUser(
-                $user,
-                StateEnums::YES->getValue(),
-                CompaniesBranches::getGlobalBranch(),
-                (int) ($request['rol_id'] ?? null)
-            );
-
-            if (is_object($branch)) {
-                $company->associateUser(
-                    $user,
-                    StateEnums::YES->getValue(),
-                    $branch,
-                    (int) ($request['rol_id'] ?? null)
-                );
-            }
-
-            $company->associateUserApp(
-                $user,
-                app(Apps::class),
-                StateEnums::YES->getValue(),
-                (int) ($request['rol_id'] ?? null)
-            );
-
-            //@todo this is a legacy role and should be removed
-            $assignLegacyRole = new AssignRoleAction(
-                $user,
-                $company,
-                $app
-            );
-            $assignLegacyRole->execute('Admins');
-        });
+        new AddUserCompanyAction(
+            $authUser,
+            $company,
+            $app,
+            $branch
+        )->execute(collect([$user]), $request['rol_id'] ?? null);
 
         return true;
     }

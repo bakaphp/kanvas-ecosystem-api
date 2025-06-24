@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
@@ -23,7 +24,11 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Nevadskiy\Tree\AsTree;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -81,6 +86,7 @@ class Order extends BaseModel
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use AsTree;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -125,6 +131,11 @@ class Order extends BaseModel
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
+    }
+
+    public function payments(): MorphMany
+    {
+        return $this->morphMany(Payments::class, 'payable');
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder
@@ -204,6 +215,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function failed(): void
+    {
+        $this->status = 'failed';
+        $this->saveOrFail();
+    }
+
     public function cancel(): void
     {
         $this->status = 'canceled';
@@ -257,12 +274,12 @@ class Order extends BaseModel
 
     public function generateOrderNumber(): int
     {
-        // Lock the orders table while retrieving the last order
+        // Lock the orders table while retrieving the order with the highest order_number
         $lastOrder = Order::where('companies_id', $this->companies_id)
-                        ->where('apps_id', $this->apps_id)
-                        ->lockForUpdate() // Ensure no race conditions
-                        ->latest('id')
-                        ->first();
+            ->where('apps_id', $this->apps_id)
+            ->lockForUpdate() // Ensure no race conditions
+            ->orderBy('order_number', 'desc') // Order by the actual order_number field
+            ->first();
 
         $lastOrderNumber = $lastOrder ? intval($lastOrder->order_number) : 0;
         $newOrderNumber = $lastOrderNumber + 1;
@@ -283,6 +300,11 @@ class Order extends BaseModel
     public function addMetadata(string $key, mixed $value): void
     {
         $metadata = $this->metadata ?? [];
+
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
         $metadata[$key] = $value;
 
         $this->metadata = $metadata;
@@ -553,5 +575,50 @@ class Order extends BaseModel
         $customIndex = $app->get('app_custom_order_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'orders');
+    }
+
+    public function setOrderType(string $orderType): void
+    {
+        $orderType = OrderTypes::firstOrCreate([
+            'apps_id' => $this->apps_id,
+            'name' => $orderType,
+        ], [
+            'apps_id' => $this->apps_id,
+            'name' => $orderType,
+        ]);
+
+        $this->order_types_id = $orderType->id;
+        $this->saveOrFail();
+    }
+
+    public function checkPayments(): void
+    {
+        if ($this && ($this->payments)) {
+            $totalPaid = $this->getPaidAmount();
+            $totalDebt = $this->total_net_amount - $totalPaid;
+            if ($totalDebt <= 0) {
+                $this->completed();
+
+                $this->fireWorkflow(
+                    WorkflowEnum::UPDATED->value,
+                    true,
+                    [
+                        'app' => $this->app,
+                    ]
+                );
+            }
+        }
+    }
+
+    public function getPaidAmount(): float
+    {
+        $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
+
+        return (float) $paidAmount;
+    }
+
+    public function orderType(): BelongsTo
+    {
+        return $this->belongsTo(OrderTypes::class, 'order_types_id', 'id');
     }
 }

@@ -14,6 +14,9 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Bavix\Wallet\Interfaces\Customer;
+use Bavix\Wallet\Interfaces\ProductInterface;
+use Bavix\Wallet\Traits\HasWallet;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -64,7 +67,7 @@ use Override;
  * @property int is_deleted
  */
 #[ObservedBy(VariantObserver::class)]
-class Variants extends BaseModel implements EntityIntegrationInterface
+class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface
 {
     use SlugTrait;
     use UuidTrait;
@@ -81,6 +84,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     use CanUseWorkflow;
     use HasRating;
     use HasTranslationsDefaultFallback;
+    use HasWallet;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
@@ -325,7 +329,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                 $attributesDto = AttributesDto::from([
                     'app' => app(Apps::class),
                     'user' => $user,
-                    'company' => $this->product->company,
+                    'company' => $this->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
                     'isVisible' => true,
@@ -426,13 +430,15 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             'attributes' => [],
             'apps_id' => $this->apps_id,
         ];
-        $attributes = $this->attributes()->get();
+        $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
-            //if its over 100 characters we dont want to index it
-            if (! is_array($attribute->value) && strlen((string) $attribute->value) > 100) {
+            // If it's over 100 characters we don't want to index it
+            if (! is_array($attribute['value']) && strlen((string) $attribute['value']) > 100) {
                 continue;
             }
-            $variant['attributes'][$attribute->name] = $attribute->value;
+            $variant['attributes'][$attribute['name']] = is_array($attribute['value'])
+                ? $attribute['value']
+                : (string) $attribute['value'];
         }
 
         return $variant;
@@ -697,6 +703,21 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             ],
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+        ];
+    }
+
+    #[Override]
+    public function getAmountProduct(Customer $customer): int|string
+    {
+        return (string) $this->getPriceInfoFromDefaultChannel()->price;
+    }
+
+    #[Override]
+    public function getMetaProduct(): ?array
+    {
+        return [
+            'title' => $this->name,
+            'description' => 'Purchase of Variant ID#' . $this->getId(),
         ];
     }
 }

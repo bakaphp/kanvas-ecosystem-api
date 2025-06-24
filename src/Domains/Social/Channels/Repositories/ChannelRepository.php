@@ -6,6 +6,7 @@ namespace Kanvas\Social\Channels\Repositories;
 
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
 class ChannelRepository
@@ -19,8 +20,18 @@ class ChannelRepository
     {
         $databaseSocial = config('database.connections.social.database', 'social');
         $builder = Channel::join($databaseSocial . '.channel_users', 'channel_users.channel_id', '=', 'channels.id')
-            ->where('users_id', $user->getId());
+            ->where('channel_users.users_id', $user->getId());
 
         return $builder;
+    }
+
+    public static function getChannelMessagesByVerb(Channel $channel, string $verb): Builder
+    {
+        return Message::join('channel_messages', 'messages.id', '=', 'channel_messages.messages_id')
+            ->join('message_types', 'messages.message_types_id', '=', 'message_types.id')
+            ->where('channel_messages.channel_id', $channel->getId())
+            ->where('message_types.verb', $verb)
+            ->where('messages.is_deleted', 0)
+            ->select('messages.*');
     }
 }

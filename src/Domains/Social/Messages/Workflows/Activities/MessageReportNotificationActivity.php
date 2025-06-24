@@ -17,7 +17,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class MessageReportNotificationActivity extends KanvasActivity
 {
-    public $tries = 1;
+    public $tries = 2;
 
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {

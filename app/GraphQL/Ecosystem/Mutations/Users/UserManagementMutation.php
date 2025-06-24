@@ -30,6 +30,7 @@ use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
 use Kanvas\Users\Models\AdminInvite;
+use Kanvas\Users\Models\UserAddress;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersInvite;
@@ -78,9 +79,21 @@ class UserManagementMutation
         return $userToEdit;
     }
 
+    public function deleteAddress(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        UsersRepository::belongsToThisApp($user, $app);
+
+        return UserAddress::fromApp($app)
+            ->fromUser($user)
+            ->where('id', (int) $request['id'])
+            ->firstOrFail()
+            ->delete();
+    }
+
     /**
      * insertInvite.
-     *
      */
     public function insertUserInvite($rootValue, array $request): UsersInvite
     {
@@ -110,7 +123,6 @@ class UserManagementMutation
 
     /**
      * insertAdminInvite.
-     *
      */
     public function insertAdminInvite($rootValue, array $request): AdminInvite
     {
@@ -154,7 +166,6 @@ class UserManagementMutation
 
     /**
      * deleteInvite.
-     *
      */
     public function deleteInvite($rootValue, array $request): bool
     {
@@ -170,7 +181,6 @@ class UserManagementMutation
 
     /**
      * deleteInvite.
-     *
      */
     public function deleteAdminInvite($rootValue, array $request): bool
     {
@@ -186,7 +196,6 @@ class UserManagementMutation
 
     /**
      * processInvite.
-     *
      */
     public function getInvite($rootValue, array $request): UsersInvite
     {
@@ -196,7 +205,6 @@ class UserManagementMutation
 
     /**
      * Process User invite.
-     *
      */
     public function process($rootValue, array $request): array
     {
@@ -309,7 +317,6 @@ class UserManagementMutation
             ->with('user')
             ->lazy();
 
-
         $contactsEmails = array_flip($contactsEmails);
         $matchingContacts = [];
 
@@ -322,8 +329,8 @@ class UserManagementMutation
 
         // Return alse the contacts that are not in the app
         return [
-            "matching_contacts" => $matchingContacts,
-            "nonmatching_contacts" => array_diff_key($contactsEmails, array_flip($matchingContacts))
+            'matching_contacts' => $matchingContacts,
+            'nonmatching_contacts' => array_diff_key($contactsEmails, array_flip($matchingContacts)),
         ];
     }
 

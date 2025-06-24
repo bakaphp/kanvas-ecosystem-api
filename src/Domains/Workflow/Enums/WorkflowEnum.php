@@ -11,6 +11,8 @@ enum WorkflowEnum: string
     case CREATED = 'created';
     case UPDATED = 'updated';
     case DELETED = 'deleted';
+    case CREATING = 'creating';
+    case UPDATING = 'updating';
     case REGISTERED = 'registered';
     case ATTACH_FILE = 'attach-file';
     case USER_LOGIN = 'user-login';
@@ -32,6 +34,7 @@ enum WorkflowEnum: string
     case AFTER_ID_VERIFICATION = 'after-id-verification';
     case DURING_WORKFLOW = 'during-workflow';
     case AFTER_ADDING_MESSAGE_TO_CHANNEL = 'after-adding-message-to-channel';
+    case BEFORE_ACTION = 'before-action';
 
     /**
      * Get the enum case by its value.

@@ -1,0 +1,62 @@
+type CustomField {
+    name: String!
+    value: Mixed
+    systemModule: SystemModule! @belongsTo
+    entity_id: ID!
+}
+
+input CustomFieldInput {
+    name: String!
+    data: Mixed # in 2025 we will deprecated this field
+    value: Mixed
+    system_module_uuid: String!
+    entity_id: ID!
+}
+
+input CustomFieldEntityInput {
+    name: ID!
+    data: Mixed # in 2025 we will deprecated this field
+    value: Mixed
+    public: Boolean
+}
+
+extend type Mutation @guard {
+    setCustomField(input: CustomFieldInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@create"
+        )
+    deleteCustomField(input: CustomFieldInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@delete"
+        )
+    getCustomField(input: CustomFieldInput!): Mixed
+        @deprecated(reason: "use the query customField")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@get"
+        )
+
+    getAllCustomField(input: CustomFieldInput!): Mixed
+        @deprecated(reason: "use the query customFields")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@getAll"
+        )
+}
+
+extend type Query @guard {
+    customField(
+        name: String!
+        system_module_uuid: String!
+        entity_id: String!
+    ): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@get"
+        )
+    customFields(
+        name: String!
+        system_module_uuid: String!
+        entity_id: String!
+    ): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAll"
+        )
+}

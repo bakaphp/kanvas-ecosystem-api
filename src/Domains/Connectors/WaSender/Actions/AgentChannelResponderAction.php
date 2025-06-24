@@ -12,6 +12,7 @@ use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -104,7 +105,7 @@ class AgentChannelResponderAction
             );
         }
 
-        $question = $currentAgent->chat(new UserMessage($messageConversation));
+        $question = $currentAgent instanceof ADKAgent ? $currentAgent->chat($this->channel, $this->message, $messageConversation) : $currentAgent->chat(new UserMessage($messageConversation));
         $responseContent = $question->getContent();
 
         // Extract text from response that might be formatted with markdown code blocks

@@ -30,7 +30,6 @@ class CreateFilesystemAction
     public function execute(string $uploadUrl, string $uploadPath): Filesystem
     {
         $app = $this->app;
-
         $companyId = $this->company ? $this->company->getId() : $this->user->getCurrentCompany()->getKey();
         $fileSystem = new Filesystem();
         $fileSystem->name = $this->file->getClientOriginalName();

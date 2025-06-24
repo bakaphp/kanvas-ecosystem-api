@@ -53,34 +53,50 @@ class UpdatePeopleAction
         $this->people->syncTags($this->peopleData->tags);
 
         if ($this->peopleData->contacts->count()) {
-            $contacts = [];
-            $keepIDs = [];
+            $contactsToSave = [];
+            $keepValues = [];
+
             foreach ($this->peopleData->contacts as $contact) {
-                $existingContact = $this->people->contacts()
-                ->where('value', $contact->value)
-                ->first();
-                if ($contact->id && $this->people->contacts()->find($contact->id)) {
-                    $this->people->contacts()->find($contact->id)->update([
-                        'contacts_types_id' => $contact->contacts_types_id,
-                        'value' => $contact->value,
-                        'weight' => $contact->weight,
-                    ]);
-                    $keepIDs[] = $contact->id;
-                    continue;
+                // Try to find by value (unique identifier)
+                if (isset($contact->id) && $contact->id > 0) {
+                    $existingContact = $this->people->contacts()
+                        ->where('id', $contact->id)
+                        ->first();
+                } else {
+                    $existingContact = $this->people->contacts()
+                        ->where('value', $contact->value)
+                        ->first();
                 }
 
-                if (! $existingContact) {
-                    $contacts[] = new Contact([
+                if ($existingContact) {
+                    // Update existing contact
+                    $existingContact->update([
                         'contacts_types_id' => $contact->contacts_types_id,
-                        'value' => $contact->value,
                         'weight' => $contact->weight,
+                        'value' => $contact->value,
                     ]);
+                    $keepValues[] = $existingContact->value;
+                } else {
+                    // New contact to be saved
+                    $contactsToSave[] = new Contact([
+                    'contacts_types_id' => $contact->contacts_types_id,
+                    'value' => $contact->value,
+                    'weight' => $contact->weight,
+                    ]);
+                    $keepValues[] = $contact->value;
                 }
             }
-            $this->people->contacts()->whereNotIn('id', $keepIDs)->delete();
 
-            if (count($contacts) > 0) {
-                $this->people->contacts()->saveMany($contacts);
+            // Delete contacts not present in the input
+            if (! empty($keepValues)) {
+                $this->people->contacts()->whereNotIn('value', $keepValues)->delete();
+            } else {
+                // If no contacts to keep, delete all
+                $this->people->contacts()->delete();
+            }
+
+            if (count($contactsToSave) > 0) {
+                $this->people->contacts()->saveMany($contactsToSave);
             }
         }
 

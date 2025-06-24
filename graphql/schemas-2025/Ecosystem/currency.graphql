@@ -1,0 +1,21 @@
+type Currency {
+    id: Int!
+    code: String!
+    currency: String!
+}
+
+extend type Query @guard {
+    currencies(
+        orderBy: _ @orderBy(columns: ["id", "country", "currency", "code"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "country"
+                    "currency"
+                    "code"
+                    "id"
+                ]
+            )
+    ): [Currency!]!
+        @paginate(defaultCount: 25, model: "Kanvas\\Currencies\\Models\\Currencies")
+}

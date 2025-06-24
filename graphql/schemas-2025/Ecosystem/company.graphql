@@ -1,0 +1,417 @@
+type Company {
+    id: ID!
+    uuid: String!
+    name: String!
+    website: String
+    address: String
+    zipcode: Int
+    email: String
+    language: String
+    timezone: String
+    phone: String
+    user: User @belongsTo(relation: "user")
+    groups: [CompanyGroup!]! @hasMany(relation: "groups")
+    branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
+    photo: Filesystem @method(name: "getPhoto")
+    countries: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: States @belongsTo(relation: "city")
+    address_2: String
+    city: String
+    state: String
+    country: String
+    zip: String
+    is_active: Boolean!
+    users: [User] @HasManyThrough
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    addresses: [CompanyAddress!]!
+        @paginate(
+           builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\AddressManagementQuery@getAllCompanyAddress"
+           defaultCount: 25
+        )
+    country_code: String
+    created_at: DateTime
+    updated_at: DateTime
+    total_users: Int!
+    total_branches: Int!
+    custom_fields(
+        orderBy: _ @orderBy(columns: ["updated_at", "created_at"])
+    ): [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
+        )
+}
+
+type CompanyGroup {
+    id: ID!
+    uuid: String!
+    name: String!
+    app: App! @belongsTo(relation: "app")
+    stripe_id: String
+    is_default: Int!
+    country_code: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanyAssociation {
+    companyGroup: CompanyGroup!
+    company: Company!
+    is_default: Int!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanyBranch {
+    id: ID!
+    uuid: String!
+    company: Company! @belongsTo(relation: "company")
+    companies_id: Int!
+    name: String!
+    email: String
+    phone: String
+    photo: Filesystem @method(name: "getPhoto")
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    address: String
+    user: User! @belongsTo(relation: "user")
+    countries: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: States @belongsTo(relation: "city")
+    address_2: String
+    city: String
+    state: String
+    country: String
+    zip: String
+    zipcode: Int
+    total_users: Int!
+    is_active: Boolean!
+    is_default: Boolean!
+    custom_fields(
+        orderBy: _ @orderBy(columns: ["updated_at", "created_at"])
+    ): [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
+        )
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanySettings {
+    company: Company! @belongsTo(relation: "company")
+    name: ID!
+    value: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input CompanyInput {
+    name: String!
+    website: String
+    address: String
+    zipcode: Int
+    email: String
+    language: String
+    timezone: String
+    phone: String
+    country_code: String
+    users_id: Int
+    files: [FilesystemInputUrl!]
+    custom_fields: [CustomFieldEntityInput!]
+    is_active: Boolean
+    timezone: String
+    address: String
+    is_active: Boolean
+    countries_id: ID
+    states_id: ID
+    cities_id: ID
+    address: String
+    address_2: String
+    city: String
+    state: String
+    country: String
+    zip: String
+}
+
+### @todo Split the create and update input.
+### @todo Required is_default value.
+input CompanyBranchInput {
+    name: String!
+    companies_id: ID!
+    is_default: Boolean
+    website: String
+    zipcode: Int
+    email: String
+    country_code: String
+    language: String
+    timezone: String
+    phone: String
+    files: [FilesystemInputUrl!]
+    countries_id: ID
+    states_id: ID
+    cities_id: ID
+    address: String
+    address_2: String
+    city: String
+    state: String
+    country: String
+    zip: String
+    is_active: Boolean
+}
+
+type CompanySettings {
+    name: String!
+    settings: Mixed
+}
+
+enum CompanyUserColumn {
+    ID @enum(value: "users.id")
+    UUID @enum(value: "users.uuid")
+    COMPANIES_ID @enum(value: "users_associated_company.companies_id")
+    COMPANIES_BRANCHES_ID
+        @enum(value: "users_associated_company.companies_branches_id")
+    DISPLAYNAME @enum(value: "users_associated_apps.displayname")
+    FIRSTNAME @enum(value: "users_associated_apps.firstname")
+    LASTNAME @enum(value: "users_associated_apps.lastname")
+    EMAIL @enum(value: "users_associated_apps.email")
+    USER_ROLE @enum(value: "users_associated_company.user_role")
+    USER_ACTIVE @enum(value: "users_associated_company.user_active")
+    CREATED_AT @enum(value: "users_associated_apps.created_at")
+    UPDATE_AT @enum(value: "users_associated_apps.updated_at")
+}
+
+enum CompanyOrderColumn {
+    ID @enum(value: "companies.id")
+    NAME @enum(value: "companies.name")
+    ADDRESS @enum(value: "companies.address")
+    IS_ACTIVE @enum(value: "companies.is_active")
+    CREATED_AT @enum(value: "companies.created_at")
+    UPDATED_AT @enum(value: "companies.updated_at")
+}
+
+enum CompanyAddressColumn {
+    ID @enum(value: "companies_address.id")
+    IS_DEFAULT @enum(value: "companies_address.is_default")
+}
+
+type Dashboard {
+    name: String!
+    fields: JSON!
+}
+extend type Query @guard {
+    companies(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "website"
+                    "address"
+                    "zipcode"
+                    "email"
+                    "language"
+                    "timezone"
+                    "phone"
+                    "country_code"
+                    "is_active"
+                ]
+            )
+        hasUsers: _
+            @whereHasConditions(columns: ["id", "uuid", "displayname", "email"])
+        orderBy: _ @orderBy(columnsEnum: CompanyOrderColumn)
+    ): [Company!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Companies\\Models\\Companies"
+            scopes: ["companyInApp", "notDeleted"]
+        )
+
+    branches(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "address"
+                    "companies_id"
+                    "email"
+                    "phone"
+                    "is_default"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "companies_id"
+                ]
+            )
+    ): [CompanyBranch!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Companies\\Models\\CompaniesBranches"
+            scopes: ["userAssociated", "notDeleted"]
+        )
+
+    companyUsers(
+        where: _ @whereConditions(columnsEnum: CompanyUserColumn)
+        orderBy: _ @orderBy(columnsEnum: CompanyUserColumn)
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyUsers"
+            defaultCount: 25
+        )
+
+    companyBranchUsers(
+        where: _ @whereConditions(columnsEnum: CompanyUserColumn)
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id", "name"])
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyBranchUsers"
+            defaultCount: 25
+        )
+
+    companySettings: CompanySettings!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettingQuery@getAllSettings"
+        )
+
+    companyAddresses(
+        where: _ @whereConditions(columnsEnum: CompanyAddressColumn)
+        orderBy: _ @orderBy(columnsEnum: CompanyAddressColumn)
+    ): [CompanyAddress!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\AddressManagementQuery@getAllCompanyAddress"
+            defaultCount: 25
+        )
+
+    dashboard: Dashboard!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\DashboardQuery@getDashboard"
+        )
+}
+
+input CompanyAddressInput {
+    fullname: String
+    phone: String
+    address: String!
+    address_2: String
+    city: String
+    county: String
+    city_id: ID
+    state: String
+    state_id: ID
+    zip: String
+    country: String
+    country_id: ID
+    is_default: Boolean
+}
+
+type CompanyAddress {
+    id: ID!
+    fullname: String
+    phone: String
+    address: String
+    address_2: String
+    city: String
+    county: String
+    state: String
+    zip: String
+    country: Country
+    is_default: Boolean!
+    countries: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: Cities @belongsTo(relation: "city")
+}
+
+extend type Mutation @guard {
+    createCompany(input: CompanyInput): Company!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@createCompany"
+        )
+    updateCompany(id: ID!, input: CompanyInput): Company!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updateCompany"
+        )
+    updateCompanyPhotoProfile(file: Upload!, id: ID!): Company!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updatePhotoProfile"
+        )
+    uploadFileToCompany(id: ID!, file: Upload!): Company!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@attachFileToCompany"
+        )
+    deleteCompany(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@deleteCompany"
+        )
+    createCompanyBranch(input: CompanyBranchInput): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@createCompaniesBranch"
+        )
+    updateCompanyBranch(id: ID!, input: CompanyBranchInput): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updateCompanyBranch"
+        )
+    updatePhotoProfileToCompanyBranch(file: Upload!, id: ID!): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updatePhotoProfile"
+        )
+    uploadFileToCompanyBranch(id: ID!, file: Upload!): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@attachFileToCompany"
+        )
+    deleteCompanyBranch(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@deleteCompanyBranch"
+        )
+    addUserToBranch(id: ID!, user_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@addUserToBranch"
+        )
+    removeUserFromBranch(id: ID!, user_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@removeUserFromBranch"
+        )
+    addUserToCompany(id: ID!, user_id: ID!, rol_id: ID): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@addUserToCompany"
+        )
+    removeUserFromCompany(id: ID!, user_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@removeUserFromCompany"
+        )
+    addAddressToCompany(id: ID!, input: CompanyAddressInput): CompanyAddress!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@addAddressToCompany"
+        )
+    updateCompanyAddress(
+        id: ID!
+        address_id: ID!
+        input: CompanyAddressInput
+    ): CompanyAddress!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updateCompanyAddress"
+        )
+    removeAddressFromCompany(id: ID!, address_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@removeAddressFromCompany"
+        )
+}

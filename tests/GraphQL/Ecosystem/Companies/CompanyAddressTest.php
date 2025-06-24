@@ -59,7 +59,7 @@ class CompanyAddressTest extends TestCase
         return $response->json('data.addAddressToCompany');
     }
 
-    public function testAddUserToCompany(): void
+    public function testAddAddressToCompany(): void
     {
         $companyData = $this->companyInputData();
 

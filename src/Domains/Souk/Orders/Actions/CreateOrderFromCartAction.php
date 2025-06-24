@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -15,8 +16,8 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
@@ -38,6 +39,7 @@ class CreateOrderFromCartAction
         protected ?CreditCardBilling $billingAddress,
         protected ?Address $shippingAddress,
         protected ?array $request,
+        protected ?ModelsOrder $parent = null,
     ) {
     }
 
@@ -91,6 +93,12 @@ class CreateOrderFromCartAction
 
         $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
 
+        try {
+            $currency = isset($this->request['input']['currency']) && ! empty($this->request['input']['currency']) ? Currencies::getByCode($this->request['input']['currency']) : $this->region->currency;
+        } catch (ModelNotFoundException $e) {
+            $currency = $this->region->currency;
+        }
+
         $order = new Order(
             app: $this->app,
             region: $this->region,
@@ -109,19 +117,28 @@ class CreateOrderFromCartAction
             status: 'completed',
             orderNumber: '',
             shippingMethod: null,
-            currency: $this->region->currency,
+            currency: $currency,
             fulfillmentStatus: 'pending',
             items: $items,
+            orderType: $this->request['input']['order_type'] ?? null,
             metadata: $this->request['input']['metadata'] ?? [],
             weight: 0.0,
             checkoutToken: '',
             paymentGatewayName: ['manual'],
             languageCode: null,
             reference: $this->request['input']['reference'] ?? '',
+            paymentStatus: 'unpaid',
+            parent: $this->parent,
         );
 
         $order = (new CreateOrderAction($order))->execute();
-        new SendUserNotificationAction($order->app, $this->company, $order->user)->execute('admin-new-order', $order->toArray());
+
+        //@todo remove this we already have it on create order action
+        new SendUserNotificationAction(
+            $order->app,
+            $this->company,
+            $order->user
+        )->execute('admin-new-order', $order->toArray());
 
         $this->cart->clear();
 

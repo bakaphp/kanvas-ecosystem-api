@@ -1,0 +1,285 @@
+type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
+    id: ID!
+    products_types_id: ID
+    uuid: String!
+    name: String!
+    slug: String!
+    description: String
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    short_description: String
+    html_description: String
+    warranty_terms: String
+    upc: String
+    system_module: SystemModule! @method(name: "getSystemModule")
+    total_variants: Int @method(name: "getTotalVariants")
+    status: Status
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    is_published: Boolean
+    created_at: DateTime
+    updated_at: DateTime
+    categories: [Category!]! @BelongsToMany
+    warehouses: [Warehouse!]! @BelongsToMany
+    attributes: [ProductAttribute!]!
+        @method(name: "visibleAttributes")
+        @cacheRedis
+    variants(includeUnpublished: Boolean = false): [Variant!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilderPaginate@getVariants"
+        )
+    integrations: [IntegrationsEntityReference!]!
+        @method(name: "getEntityIntegrationsSummary")
+    productsTypes: ProductType @belongsTo
+    companies: Company! @belongsTo(relation: "company")
+    usersRatings: [UserRating!] @hasMany(relation: "usersRatings")
+    rating: Float
+    weight: Float
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+}
+
+### @todo extract this into its own type.
+type EntityExport {
+    url: String!
+    message: Mixed!
+}
+
+type ProductTranslation {
+    name: String
+    description: String
+    html_description: String
+    language: LanguageDisplay!
+}
+
+input ProductInput {
+    products_types_id: ID
+    sku: String @rules(apply: ["required_without:variants"])
+    name: String!
+    description: String
+    slug: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+    upc: String
+    is_published: Boolean
+    categories: [ProductCategoriesReferenceInput!]
+    warehouses: [Int!]
+    source_id: Mixed
+    variants: [VariantsInput!]
+    status: StatusReferenceInput
+    attributes: [ProductAttributesInput!]
+    files: [FilesystemInputUrl!]
+    price: Float
+    weight: Float
+    company_id: ID
+    custom_fields: [CustomFieldEntityInput!]
+}
+
+input ProductAttributesInput {
+    id: ID
+    name: String!
+    value: Mixed
+}
+
+input ProductInputUpdate {
+    products_types_id: Int
+    name: String
+    slug: String
+    description: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+    upc: String
+    is_published: Boolean
+    weight: Float
+    status: StatusReferenceInput
+    attributes: [ProductAttributesInput!]
+    files: [FilesystemInputUrl!]
+    categories: [ProductCategoriesReferenceInput!]
+}
+
+input NearByLocationInput {
+    lat: Float!
+    long: Float!
+    radius: Float! # in kilometers
+}
+
+input ProductAttributeOrderBy {
+    name: String
+    sort: String
+    format: FormatSortAttribute!
+}
+
+input ProductTranslationInput {
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+}
+
+enum FormatSortAttribute {
+    NUMERIC
+    STRING
+    DATE
+}
+type ProductAttributesValue {
+    product: Product!
+    attribute: Attributes!
+    translation(languageCode: String!): AttributeValueTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    value: Mixed
+}
+extend type Mutation @guard {
+    createProduct(input: ProductInput!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"
+        )
+    updateProduct(id: ID!, input: ProductInputUpdate): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
+        )
+    updateProductTranslations(
+        id: ID!
+        input: ProductTranslationInput!
+        code: String!
+    ): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductTranslation"
+        )
+    uploadFileToProduct(id: ID!, file: Upload!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductMediaMutation@attachFileToProduct"
+        )
+    deleteProduct(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@delete"
+        )
+    addAttribute(id: ID!, attribute_id: ID!, value: String!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttribute"
+        )
+    removeAttribute(id: ID!, attribute_id: ID!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeAttribute"
+        )
+    addWarehouse(id: ID!, warehouse_id: ID!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addWarehouse"
+        )
+    removeWarehouse(id: ID!, warehouse_id: ID!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeWarehouse"
+        )
+    addCategory(id: ID!, category_id: ID!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
+        )
+    duplicateProduct(id: ID!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@duplicateProduct"
+        )
+    updateProductAttributeTranslations(
+        product_id: ID!
+        attribute_id: ID!
+        code: String!
+        value: Mixed
+    ): ProductAttributesValue!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateProductAttributeTranslation"
+        )
+}
+
+extend type Query @guard {
+    products(
+        search: String @search
+        variantAttributeValue: String
+        variantAttributeOrderBy: ProductAttributeOrderBy
+        attributeOrderBy: ProductAttributeOrderBy
+        nearByLocation: NearByLocationInput
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "products_types_id"
+                    "companies_id"
+                    "name"
+                    "description"
+                    "slug"
+                    "code"
+                    "uuid"
+                    "is_published"
+                    "rating"
+                    "users_id"
+                    "status_id"
+                ]
+            )
+        hasVariants: _
+            @whereHasConditions(relation: "variants", columns: ["id", "sku"])
+        hasCategories: _
+            @whereHasConditions(relation: "categories", columns: ["id", "name"])
+        hasWarehouses: _
+            @whereHasConditions(
+                relation: "warehouses"
+                columns: ["id", "name", "uuid"]
+            )
+        hasChannels: _
+            @whereHasConditions(
+                relation: "channels"
+                columns: ["id", "name", "uuid"]
+            )
+        hasAttributes: _
+            @whereHasConditions(
+                relation: "attributes"
+                columns: ["id", "name", "uuid"]
+            )
+        hasAttributesValues: _
+            @whereHasConditions(
+                relation: "attributeValues"
+                columns: ["products_id", "value", "attributes_id"]
+            )
+        hasCustomFields: _
+            @whereHasConditions(
+                relation: "customFields"
+                columns: ["name", "value"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "weight"
+                    "rating"
+                ]
+            )
+    ): [Product!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
+            defaultCount: 25
+        )
+    productsExport: EntityExport
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"
+        )
+}

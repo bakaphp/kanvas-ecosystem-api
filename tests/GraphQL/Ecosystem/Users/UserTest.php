@@ -93,6 +93,363 @@ class UserTest extends TestCase
         ->assertSee('sex');
     }
 
+    public function testEditAddress(): void
+    {
+        $loginData = self::loginData();
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+        $displayname = fake()->firstName();
+        $address = [
+            'address' => fake()->address(),
+            'city' => fake()->city(),
+            'state' => fake()->state(),
+            'country' => fake()->country(),
+            'zip' => fake()->postcode(),
+            'is_default' => true,
+            'country_id' => 1,
+        ];
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    addresses {
+                        id
+                        address
+                        city
+                        state
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'displayname' => $displayname,
+                    'description' => fake()->text(30),
+                    'sex' => 'U',
+                    'phone_number' => fake()->phoneNumber(),
+                    'address_1' => fake()->address(),
+                    'timezone' => 'America/New_York',
+                    'welcome' => true,
+                    'custom_fields' => [
+                        [
+                            'name' => 'test',
+                            'data' => 'test',
+                        ],
+                    ],
+                    'files' => [
+                        [
+                            'name' => 'photo',
+                            'url' => fake()->url,
+                        ],
+                    ],
+                    'addresses' => [
+                        $address,
+                    ],
+                ],
+            ]
+        );
+        $response->assertJson([
+            'data' => [
+                'updateUser' => [
+                    'addresses' => [
+                        [
+                            'address' => $address['address'],
+                            'city' => $address['city'],
+                            'state' => $address['state'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testEditDuplicateAddress(): void
+    {
+        $loginData = self::loginData();
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+        $displayname = fake()->firstName();
+        $address = [
+            'address' => fake()->address(),
+            'city' => fake()->city(),
+            'state' => fake()->state(),
+            'country' => fake()->country(),
+            'zip' => fake()->postcode(),
+            'is_default' => true,
+            'country_id' => 1,
+        ];
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    addresses {
+                        id
+                        address
+                        city
+                        state
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'displayname' => $displayname,
+                    'description' => fake()->text(30),
+                    'sex' => 'U',
+                    'phone_number' => fake()->phoneNumber(),
+                    'address_1' => fake()->address(),
+                    'timezone' => 'America/New_York',
+                    'welcome' => true,
+                    'custom_fields' => [
+                        [
+                            'name' => 'test',
+                            'data' => 'test',
+                        ],
+                    ],
+                    'files' => [
+                        [
+                            'name' => 'photo',
+                            'url' => fake()->url,
+                        ],
+                    ],
+                    'addresses' => [
+                        $address,
+                    ],
+                ],
+            ]
+        );
+        $response->assertJson([
+            'data' => [
+                'updateUser' => [
+                    'addresses' => [
+                        [
+                            'address' => $address['address'],
+                            'city' => $address['city'],
+                            'state' => $address['state'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+        $addressId = $response->json('data.updateUser.addresses.0.id');
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    addresses {
+                        id
+                        address
+                        city
+                        state
+                    }
+                }
+            }',
+            [
+                        'id' => 0,
+                        'data' => [
+                            'addresses' => [
+                                $address,
+                            ],
+                        ],
+                    ]
+        );
+        $addressIdDuplicate = $response->json('data.updateUser.addresses.0.id');
+        $this->assertEquals($addressId, $addressIdDuplicate);
+    }
+
+    public function testUpdateAddress(): void
+    {
+        $loginData = self::loginData();
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+        $displayname = fake()->firstName();
+        $address = [
+            'address' => fake()->address(),
+            'city' => fake()->city(),
+            'state' => fake()->state(),
+            'country' => fake()->country(),
+            'zip' => fake()->postcode(),
+            'is_default' => true,
+            'country_id' => 1,
+        ];
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    addresses {
+                        id
+                        address
+                        city
+                        state
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'displayname' => $displayname,
+                    'description' => fake()->text(30),
+                    'sex' => 'U',
+                    'phone_number' => fake()->phoneNumber(),
+                    'address_1' => fake()->address(),
+                    'timezone' => 'America/New_York',
+                    'welcome' => true,
+                    'custom_fields' => [
+                        [
+                            'name' => 'test',
+                            'data' => 'test',
+                        ],
+                    ],
+                    'files' => [
+                        [
+                            'name' => 'photo',
+                            'url' => fake()->url,
+                        ],
+                    ],
+                    'addresses' => [
+                        $address,
+                    ],
+                ],
+            ]
+        );
+        $response->assertJson([
+            'data' => [
+                'updateUser' => [
+                    'addresses' => [
+                        [
+                            'address' => $address['address'],
+                            'city' => $address['city'],
+                            'state' => $address['state'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+        $addressId = $response->json('data.updateUser.addresses.0.id');
+        $address['id'] = $addressId;
+        $address['address'] = fake()->address();
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    addresses {
+                        id
+                        address
+                        city
+                        state
+                    }
+                }
+            }',
+            [
+                        'id' => 0,
+                        'data' => [
+                            'addresses' => [
+                                $address,
+                            ],
+                        ],
+                    ]
+        );
+        $response->assertJson([
+            'data' => [
+                'updateUser' => [
+                    'addresses' => [
+                        [
+                            'address' => $address['address'],
+                            'city' => $address['city'],
+                            'state' => $address['state'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testDeleteUserAddress(): void
+    {
+        $loginData = self::loginData();
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+        $displayname = fake()->firstName();
+        $address = [
+            'address' => fake()->address(),
+            'city' => fake()->city(),
+            'state' => fake()->state(),
+            'country' => fake()->country(),
+            'zip' => fake()->postcode(),
+            'is_default' => true,
+            'country_id' => 1,
+        ];
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    addresses {
+                        id
+                        address
+                        city
+                        state
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'displayname' => $displayname,
+                    'description' => fake()->text(30),
+                    'sex' => 'U',
+                    'phone_number' => fake()->phoneNumber(),
+                    'address_1' => fake()->address(),
+                    'timezone' => 'America/New_York',
+                    'welcome' => true,
+                    'custom_fields' => [
+                        [
+                            'name' => 'test',
+                            'data' => 'test',
+                        ],
+                    ],
+                    'files' => [
+                        [
+                            'name' => 'photo',
+                            'url' => fake()->url,
+                        ],
+                    ],
+                    'addresses' => [
+                        $address,
+                    ],
+                ],
+            ]
+        );
+        $addressId = $response->json('data.updateUser.addresses.0.id');
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation deleteUserAddress($id: ID!) {
+                deleteUserAddress(id: $id)
+            }',
+            [
+                'id' => $addressId,
+            ]
+        )->assertJson([
+            'data' => [
+                'deleteUserAddress' => true,
+            ],
+        ]);
+    }
+
     public function testChangePassword()
     {
         $newPassword = 'abc123456';

@@ -1,0 +1,126 @@
+type Role {
+    id: ID!
+    name: String!
+    title: String
+    scope: String
+    userCount: Int!
+    abilitiesCount: Int!
+    systemRole: Boolean! @method(name: "isSystemRole")
+}
+type Abilities {
+    id: ID
+    name: String!
+    title: String
+    module: AppModule!
+    entity_type: String
+    roleId: ID
+}
+type RoleAbilities {
+    module: AppModule!
+}
+type RoleEntity {
+    name: String
+    abilities: [Abilities!]
+}
+
+type RolesModule {
+    name: AppModule
+    entities: [RoleEntity!]
+}
+enum AppModule {
+    ECOSYSTEM @enum(value: 1)
+    INVENTORY @enum(value: 2)
+    CRM @enum(value: 3)
+    SOCIAL @enum(value: 4)
+    WORKFLOW @enum(value: 5)
+    ACTION_ENGINE @enum(value: 6)
+}
+extend type Query @guard {
+    roles(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "title"])
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [Role!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@getAllRoles"
+            defaultCount: 25
+        )
+    hasRole(userId: ID!, role: Mixed!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@hasRole"
+        )
+    can(userId: ID!, permission: String): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RolePermissionQuery@can"
+        )
+    getAllAbilities(userId: ID!, companyId: ID): [String]
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilities"
+        )
+    getRoleAbilities(role: String!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilitiesByRoles"
+        )
+}
+
+input RoleInput {
+    name: String!
+    title: String
+    permissions: [RolePermissionsInput!]
+    template_id: ID
+}
+
+input RolePermissionsInput {
+    model_name: String!
+    permission: [String!]
+}
+
+extend type Mutation @guardByAdmin {
+    createRole(input: RoleInput!): Role
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@createRole"
+        )
+    updateRole(id: ID!, input: RoleInput): Role
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@updateRole"
+        )
+
+    deleteRole(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@deleteRole"
+        )
+
+    #assign role to the company and to the app
+    assignRoleToUser(userId: ID!, role: Mixed!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@assignRoleToUser"
+        )
+    removeRole(userId: ID!, role: Mixed!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@removeRoleFromUser"
+        )
+    givePermissionToUser(userId: ID!, permission: String!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToUser"
+        )
+    removePermissionToUser(userId: ID!, permission: String!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@removePermissionToUser"
+        )
+    givePermissionToRole(
+        role: String!
+        permission: String!
+        systemModule: String!
+    ): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToRole"
+        )
+    removePermissionToRole(
+        role: String!
+        permission: String!
+        systemModule: String!
+    ): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToRole"
+        )
+}

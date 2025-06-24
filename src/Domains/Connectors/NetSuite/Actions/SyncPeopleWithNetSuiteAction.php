@@ -30,7 +30,7 @@ class SyncPeopleWithNetSuiteAction
             return $this->updateExistingCustomer();
         }
 
-        $existingCustomer = $this->findExistingCustomer($this->people->getEmails()->count() > 0 ? $this->people->getEmails()->first()->email : '');
+        $existingCustomer = $this->findExistingCustomer($this->people->getEmails()->count() > 0 ? $this->people->getEmails()->first()->value : '');
 
         if ($existingCustomer) {
             // Update the found customer and store their ID
@@ -53,7 +53,7 @@ class SyncPeopleWithNetSuiteAction
         $customer->internalId = $this->people->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
         $customer->firstName = $this->people->firstname;
         $customer->lastName = $this->people->lastname;
-        $customer->phone = $this->people->getPhones()->count() > 0 ? $this->people->getPhones()->first()->phone : '';
+        $customer->phone = $this->people->getPhones()->count() > 0 ? $this->people->getPhones()->first()->value : '';
 
         $updateRequest = new UpdateRequest();
         $updateRequest->record = $customer;
@@ -81,6 +81,8 @@ class SyncPeopleWithNetSuiteAction
         $customer = new Customer();
         $customer->companyName = $this->people->name;
         $customer->isPerson = true;
+        $customer->firstName = $this->people->firstname;
+        $customer->lastName = $this->people->lastname;
         $customer->email = $this->people->user->email;
         $customer->phone = $this->people->user->phone;
 

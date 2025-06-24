@@ -14,7 +14,7 @@ trait HasNotificationSettings
     abstract public function getId(): mixed;
 
     /**
-     * Check if the user has the notification setting enable.
+     * Check if the user has the notification setting enabled for the specified channel.
      */
     public function isNotificationSettingEnable(
         NotificationTypes $type,
@@ -24,13 +24,15 @@ trait HasNotificationSettings
         $userNotificationSetting = NotificationSettingsRepository::getNotificationSettingsByType(
             $this,
             $app,
-            $type,
+            $type
         );
 
-        if ($userNotificationSetting) {
-            return $userNotificationSetting->isEnable() ? $userNotificationSetting->hasChannel($channel) : false;
+        // If no setting exists, notifications are enabled by default
+        if (! $userNotificationSetting) {
+            return true;
         }
 
-        return true;
+        // Setting exists: check if enabled and has the specified channel
+        return $userNotificationSetting->isEnable() && $userNotificationSetting->hasChannel($channel);
     }
 }

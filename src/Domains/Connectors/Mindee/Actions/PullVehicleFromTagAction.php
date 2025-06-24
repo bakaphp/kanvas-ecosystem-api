@@ -68,23 +68,27 @@ class PullVehicleFromTagAction
             files: $formattedImagesUrl,
             attributes: [
                 [
-                    'name' => 'Plate Number',
+                    'name' => 'vehiclePlate',
                     'value' => $this->vehicleTag->licensePlateNumber,
                 ],
                 [
-                    'name' => 'Make',
+                    'name' => 'vin',
+                    'value' => $this->vehicleTag->vehicleIdentificationNumber,
+                ],
+                [
+                    'name' => 'make',
                     'value' => $this->vehicleTag->make,
                 ],
                 [
-                    'name' => 'Model',
+                    'name' => 'model',
                     'value' => $this->vehicleTag->model,
                 ],
                 [
-                    'name' => 'Color',
+                    'name' => 'exteriorColor',
                     'value' => $this->vehicleTag->vehicleColor,
                 ],
                 [
-                    'name' => 'Previous Owner',
+                    'name' => 'previousOwner',
                      'value' => [
                         'name' => $this->vehicleTag->owner,
                         'id' => $this->vehicleTag->ownerId,

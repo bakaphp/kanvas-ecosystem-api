@@ -7,6 +7,7 @@ namespace Kanvas\Filesystem\Models;
 use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 
@@ -55,5 +56,10 @@ class FilesystemEntities extends BaseModel
     public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
+    }
+
+    public function createdAt(): Carbon
+    {
+        return ! empty($this->created_at) ? $this->created_at : now();
     }
 }

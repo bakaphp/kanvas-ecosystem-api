@@ -21,3 +21,18 @@ scalar Decimal @scalar(class: "App\\GraphQL\\Scalars\\DecimalScalar")
 scalar Money @scalar(class: "App\\GraphQL\\Scalars\\MoneyScalar")
 
 #import schemas-2025/*.graphql
+#import schemas-2025/Inventory/*.graphql
+#import schemas-2025/Ecosystem/*.graphql
+#import schemas-2025/Ecosystem/Filesystem/*.graphql
+#import schemas-2025/Connector/*.graphql
+#import schemas-2025/Inventory/Admin/*.graphql
+#import schemas-2025/Guild/*.graphql
+#import schemas-2025/Social/*.graphql
+#import schemas-2025/ContentEngine/*.graphql
+#import schemas-2025/Souk/*.graphql
+#import schemas-2025/Souk/Payments/*.graphql
+#import schemas-2025/ActionEngine/*.graphql
+#import schemas-2025/Ecosystem/Admin/*.graphql
+#import schemas-2025/WorkFlow/*.graphql
+#import schemas-2025/Subscription/*.graphql
+#import schemas-2025/Event/*.graphql

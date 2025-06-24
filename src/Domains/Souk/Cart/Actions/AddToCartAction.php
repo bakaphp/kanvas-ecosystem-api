@@ -25,7 +25,7 @@ class AddToCartAction
     public function execute(Cart $cart, array $items): array
     {
         $company = B2BConfigurationService::getConfiguredB2BCompany($this->app, $this->company);
-        $currentUserCompany = $company;
+        $currentUserCompany = $this->company; //this has to be the current user company, not the global b2b one
 
         //@todo send warehouse via header
         //$useCompanySpecificPrice = $app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false;

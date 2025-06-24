@@ -19,11 +19,10 @@ use League\Csv\Reader;
 
 class IndexCsvCommand extends Command
 {
-    protected $signature = 'kanvas:scrapper-search {app_id} {userId} {branch_id} {region_id} {url}';
+    protected $signature = 'kanvas:scrapper-index-csv {app_id} {userId} {branch_id} {region_id} {url}';
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -89,13 +88,17 @@ class IndexCsvCommand extends Command
                     [$product],
                     null
                 ));
-                $action->execute();
+                $response = $action->execute();
+                if (! $response) {
+                    throw new \Exception('No Product scrapper' . $asin);
+                }
                 $scrapperProducts = $app->get('scrapperProducts');
                 $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
                 $scrapperProducts[] = $asin;
                 $app->set('scrapperProducts', json_encode($scrapperProducts));
             } catch (\Throwable $e) {
                 $this->error('Error: ' . $e->getMessage());
+                $this->error('Trace: ' . $e->getTraceAsString());
                 $scrapperProducts = $app->get('failedScrapperProducts');
                 $scrapperProducts = $scrapperProducts ? $scrapperProducts : [];
                 $scrapperProducts[] = $asin;

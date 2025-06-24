@@ -33,7 +33,7 @@ class UpdatePipelineAction
         ]);
 
         //update stages
-
+        new AssociateStageToPipelineAction($this->pipeline, $this->pipelineData->stages)->execute();
         return $this->pipeline;
     }
 }

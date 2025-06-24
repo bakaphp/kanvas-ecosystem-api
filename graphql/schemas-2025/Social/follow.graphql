@@ -1,0 +1,54 @@
+type Following {
+    id: Int!
+    users_id: Int!
+    entity_namespace: String!
+    entity_id: Int!
+    entity: User
+}
+
+input FollowInput {
+    user_id: Int!
+    entity_id: Mixed!
+}
+
+extend type Query @guard {
+    isFollowing(user_id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@isFollowing"
+        )
+    getFollowers(user_id: ID!): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowersBuilder"
+            defaultCount: 25
+        )
+    getFollowing(user_id: ID!): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetUserFollowingBuilder"
+            defaultCount: 25
+        )
+    getFollowingEntity(user_id: ID!): [Following!]!
+        @paginate(
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"
+            defaultCount: 25
+        )
+    getTotalFollowers(user_id: ID!): Int!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getTotalFollowers"
+        )
+    getWhoToFollow(user_id: ID!, static_recommendation: Boolean!): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getWhoToFollow"
+            defaultCount: 25
+        )
+}
+
+extend type Mutation @guard {
+    userFollow(user_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Follows\\FollowManagementMutation@userFollow"
+        )
+    userUnFollow(user_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Follows\\FollowManagementMutation@userUnFollow"
+        )
+}

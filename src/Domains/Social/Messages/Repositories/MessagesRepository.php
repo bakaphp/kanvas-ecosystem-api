@@ -35,7 +35,7 @@ class MessagesRepository
         return array_values(array_unique($userPostsTags));
     }
 
-    public static function getMostPopularMesssageByTotalLikes(Apps $app, MessageType $messageType): Message| null
+    public static function getMostPopularMessageByTotalLikes(Apps $app, MessageType $messageType): Message| null
     {
         $popularMessage = Message::query()
             ->where('apps_id', $app->getId())

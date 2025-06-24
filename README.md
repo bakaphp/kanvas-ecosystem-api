@@ -1,6 +1,6 @@
 <br />
 <p align="center">
-    <img  src="https://kanvas.dev/images/kanvasL.svg" alt="Kanvas Logo" width="200" height="24"></a>
+<img src="https://cdn.prod.website-files.com/66c9f056ff6b7f7ba51cdf21/66ccb2a881e7036ab59136f2_Logo_Kanvas_3.png" alt="Kanvas Logo" style="width: 20%; height: auto;">
     <br />
     <br />
 </p>

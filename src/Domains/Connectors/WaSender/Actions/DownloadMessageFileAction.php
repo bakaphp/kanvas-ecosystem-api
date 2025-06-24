@@ -33,13 +33,18 @@ class DownloadMessageFileAction
         );
     }
 
-    public function execute(array $params = []): Filesystem
+    public function execute(array $params = []): ?Filesystem
     {
         /*  $mediaKey = 'SBqPa+ZHCoVLDdbSve+7sUbh+YDHyf+XoRuuvxdXj48=';
          $url = 'https://mmg.whatsapp.net/o1/v/t62.7118-24/f2/m231/AQMBvwf5EiyXOdUQvtUDTcmS4ke_uYG1VJplhYBV8CejeAVhezKVUmB-cjS8kSl69SH0DeZss_i1c9h3ft18D5v7WncL7VF1BXO3zFwjGQ?ccb=9-4&oh=01_Q5Aa1gF5H2Hatef7zk77Pi86h_nQGkPchoxSCFh_amWPEp7vvg&oe=684B23A9&_nc_sid=e6ed6c&mms3=true';
 
          decryptWhatsAppMedia($mediaKey, $url, DIR . '/decrypted_image.jpg');  */
         $mediaKey = $this->message->message['raw_data']['message']['imageMessage']['mediaKey'] ?? null;
+
+        if ($mediaKey === null) {
+            return null;
+        }
+
         $url = $this->message->message['raw_data']['message']['imageMessage']['url'] ?? null;
         $imageName = $this->message->message['message_id'] ?? null;
 

@@ -27,6 +27,7 @@ class VariantsWarehouses extends Data
         public bool $can_pre_order = false,
         public bool $is_coming_son = false,
         public bool $is_new = false,
+        public ?array $config = null
     ) {
     }
 
@@ -49,6 +50,7 @@ class VariantsWarehouses extends Data
             $request['can_pre_order'] ?? false,
             $request['is_coming_son'] ?? false,
             $request['is_new'] ?? false,
+            $request['config'] ?? null
         );
     }
 }
