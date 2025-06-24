@@ -18,6 +18,8 @@ use Throwable;
 
 trait ActivityIntegrationTrait
 {
+    protected ?StatusEnum $workflowStatus = null;
+
     public function getStatus(StatusEnum $status): ?Status
     {
         return Status::where('slug', $status->value)
@@ -109,7 +111,7 @@ trait ActivityIntegrationTrait
         try {
             // Execute the integration operation
             $response = $integrationOperation($entity, $app, $integrationCompany, $additionalParams);
-            $status = $this->getStatus(StatusEnum::CONNECTED);
+            $status = $this->getStatus($this->workflowStatus ?? StatusEnum::CONNECTED);
         } catch (Throwable $exception) {
             $status = $this->getStatus(StatusEnum::FAILED);
 
