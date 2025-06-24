@@ -28,7 +28,15 @@ class CalculateWarehouseQuantityActivity extends KanvasActivity implements Workf
             $variant = $order->items->first(function ($item) {
                 return $item->variant->product?->attributes
                 ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));
-            })->variant;
+            })?->variant;
+
+            if (! $variant) {
+                return [
+                    'order' => $order->getId(),
+                    'status' => 'success',
+                    'message' => 'No variant found',
+                ];
+            }
 
             $product = $variant->product;
             $channel = $variant->variantChannels()->first();

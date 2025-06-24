@@ -56,16 +56,15 @@ class OrderFinishExpiredCommand extends Command
             $variant = $order->items->first(function ($item) {
                 return $item->variant->product?->attributes
                 ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));
-            })->variant;
-            $channel = $variant->variantChannels()->first();
-
-            $variantWarehouse = $channel?->productVariantWarehouse()->first();
+            })?->variant;                
             // Mark order as completed
             $order->fulfill();
 
             // If the order is not related to another order. it means that is not an extension
             // but a main order, we can update the warehouse quantity when the order is finished
-            if (! $order->parent_id) {
+            if (! $order->parent_id && $variant) {
+                $channel = $variant->variantChannels()->first();
+                $variantWarehouse = $channel?->productVariantWarehouse()->first();
                 $available = $variantWarehouse->quantity + 1;
                 $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
                 $product = $variant->product;
