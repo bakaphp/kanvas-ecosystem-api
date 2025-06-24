@@ -141,6 +141,10 @@ class PortalPaymentProcessor
             $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
 
             if ($this->isValidEci($consumerData, $enrollmentData)) {
+                $payment->updateQuietly([
+                    'status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value,
+                ]);
+
                 return [
                     'status' => 'success',
                     'message' => 'Payer enrolled',
@@ -200,6 +204,10 @@ class PortalPaymentProcessor
             $consumerData = ConsumerAuthentication::from($validatedData['consumerAuthenticationInformation']);
 
             if ($this->isValidEci($consumerData, $validatedData)) {
+                $payment->updateQuietly([
+                    'status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value,
+                ]);
+
                 return [
                     'status' => 'success',
                     'message' => 'Payer enrolled',
@@ -248,6 +256,14 @@ class PortalPaymentProcessor
             '02',
             '05',
         ]);
+
+        $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
+        $isEciMissing = $enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value && ! $consumerData->eci;
+        $byPassEci = $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
+        // If the card brand is MASTERCARD and the ECI is missing, we consider the payment as successful
+        if ($cardBrand === 'MASTERCARD' && $isEciMissing && $byPassEci) {
+            return true;
+        }
 
         return $hasValidEci;
     }
