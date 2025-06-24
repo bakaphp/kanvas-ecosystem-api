@@ -115,7 +115,7 @@ class CreateEsimOrderAction
                 $query->whereRaw("JSON_EXTRACT(metadata, '$.esims[0].data.iccid') = ?", [$targetIccid])
                       ->orWhereRaw("JSON_EXTRACT(metadata, '$.data.iccid') = ?", [$targetIccid]);
             })->firstOrFail();
-                
+
             // Get the variant from the parent order
             $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
             $this->availableVariant = $parentProductIccid->variant;
@@ -162,7 +162,6 @@ class CreateEsimOrderAction
 
             // Get balance information
             $this->balanceInfo = $this->eSimService->getServiceBalance($this->serviceId);
-
         } catch (Exception $e) {
             throw new ValidationException('Failed to process refuel order: ' . $e->getMessage());
         }
