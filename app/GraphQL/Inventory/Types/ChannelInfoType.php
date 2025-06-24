@@ -17,7 +17,10 @@ class ChannelInfoType
         /**
          * @todo allow to change the channel by param or header, to support the multi region
          */
-        $defaultChannel = Channels::getDefault($variant->company, $variant->app);
+        $defaultChannel = $variant->channels()
+                            ->where('is_default', true)
+                            ->where('companies_id', $variant->company->getId())
+                            ->first();
         $defaultChannelInfo = $variant->variantChannels()->where('channels_id', $defaultChannel->getId())->first();
         $warehouseInfo = $defaultChannelInfo?->productVariantWarehouse()->first();
 
