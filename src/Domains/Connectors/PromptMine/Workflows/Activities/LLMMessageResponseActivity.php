@@ -43,12 +43,17 @@ class LLMMessageResponseActivity extends KanvasActivity
                 $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value;
 
                 if (! $isTypeImage) {
-                    $response = $this->generateResponse($message);
+                    // Use the new chat functionality for text responses
+                    $result = $this->generateChatResponse($message);
+                    $response = $result['response'];
+                    $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'nugget';
                 } else {
                     $response = $this->generateImageResponse($message);
+                    $chatHistory = []; // No chat history for images
                     $messageTypeKey = 'image';
                 }
+
                 if (empty($response)) {
                     return [
                         'result' => false,
@@ -65,6 +70,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                         'title' => $nuggetTitle,
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
+                        'chat_history' => $chatHistory, // Include chat history
                     ],
                     'reactions_count' => 0,
                     'comments_count' => 0,
@@ -108,27 +114,70 @@ class LLMMessageResponseActivity extends KanvasActivity
                     'message' => $message->toArray(),
                     'message_id' => $message->id,
                     'response' => $response,
+                    'chat_history' => $chatHistory,
                 ];
             },
             company: $company,
         );
     }
 
-    private function generateResponse(Message $message): string
+    private function generateChatResponse(Message $message): array
     {
-        //$prompt = $message->message; //$message->message['prompt'] ?? null;
         $prompt = $message->message['prompt'] ?? null;
 
         if (empty($prompt)) {
-            return '';
+            return ['response' => '', 'chat_history' => []];
         }
 
-        $response = Prism::text()
-            ->using(Provider::Gemini, 'gemini-2.0-flash')
-            ->withPrompt($prompt)
-            ->asText();
+        // Get AI model configuration from message
+        $aiModel = $message->message['ai_model'] ?? [
+            'key' => 'gemini',
+            'value' => 'gemini-2.0-flash',
+            'name' => 'Gemini 2.0 Flash'
+        ];
 
-        return str_replace(['```', 'json'], '', $response->text);
+        // Get existing chat history from parent message or create new conversation
+        $chatHistory = $this->getChatHistory($message);
+        
+        // Add the new user message to the conversation
+        $messages = $chatHistory;
+        $messages[] = [
+            'role' => 'user',
+            'content' => $prompt,
+        ];
+
+        // Use PromptMine client for chat response with AI model configuration
+        $promptClient = new PromptClient($message->app);
+        $apiResponse = $promptClient->generateChatResponse($messages, $aiModel);
+        
+        // Extract response text and update chat history
+        $responseText = $promptClient->extractChatResponseText($apiResponse);
+        $fullConversation = $promptClient->getFullConversation($messages, $apiResponse);
+
+        return [
+            'response' => str_replace(['```', 'json'], '', $responseText ?? ''),
+            'chat_history' => $fullConversation,
+            'ai_model_used' => $aiModel, // Include which model was used
+        ];
+    }
+
+    private function getChatHistory(Message $message): array
+    {
+        // Check if this message has a parent with chat history
+        if ($message->parent_id) {
+            $parentMessage = Message::find($message->parent_id);
+            if ($parentMessage && isset($parentMessage->message['chat_history'])) {
+                return $parentMessage->message['chat_history'];
+            }
+        }
+
+        // Check if current message already has chat history
+        if (isset($message->message['chat_history'])) {
+            return $message->message['chat_history'];
+        }
+
+        // Return empty array for new conversations
+        return [];
     }
 
     private function generateImageResponse(Message $message): string
