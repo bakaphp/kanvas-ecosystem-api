@@ -92,7 +92,9 @@ class CreateOrderFromCartAction
 
         $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
 
-        $currency = Currencies::getByCode($this->request['input']['currency'] ?? $this->region->currency);
+        $currency = isset($this->request['input']['currency'])
+        ? Currencies::getByCode($this->request['input']['currency'])
+        : $this->region->currency;
 
         $order = new Order(
             app: $this->app,

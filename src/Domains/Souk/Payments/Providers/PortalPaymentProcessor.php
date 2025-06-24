@@ -116,7 +116,7 @@ class PortalPaymentProcessor
         try {
             $enrollmentData = $this->client->checkPayerEnrollment(
                 PaymentDetail::from([
-                    'orderCode' => $orderInput->reference . '_' . $orderInput->id,
+                    'orderCode' => $orderInput->id,
                     'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
                     'orderInformation' => OrderInformation::from([
                         'currency' => 'DOP',
@@ -141,6 +141,10 @@ class PortalPaymentProcessor
             $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
 
             if ($this->isValidEci($consumerData, $enrollmentData)) {
+                $payment->updateQuietly([
+                    'status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value,
+                ]);
+
                 return [
                     'status' => 'success',
                     'message' => 'Payer enrolled',
@@ -200,6 +204,10 @@ class PortalPaymentProcessor
             $consumerData = ConsumerAuthentication::from($validatedData['consumerAuthenticationInformation']);
 
             if ($this->isValidEci($consumerData, $validatedData)) {
+                $payment->updateQuietly([
+                    'status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value,
+                ]);
+
                 return [
                     'status' => 'success',
                     'message' => 'Payer enrolled',
@@ -244,10 +252,20 @@ class PortalPaymentProcessor
             return false;
         }
 
-        return in_array($consumerData->eci, [
+        $hasValidEci = in_array($consumerData->eci, [
+            '02',
             '05',
-            '06',
         ]);
+
+        $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
+        $isEciMissing = $enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value && ! $consumerData->eci;
+        $byPassEci = $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
+        // If the card brand is MASTERCARD and the ECI is missing, we consider the payment as successful
+        if ($cardBrand === 'MASTERCARD' && $isEciMissing && $byPassEci) {
+            return true;
+        }
+
+        return $hasValidEci;
     }
 
     //  If the enrollment status is not AUTHENTICATION_SUCCESSFUL it means that the front needs to authenticate the payer
@@ -300,7 +318,6 @@ class PortalPaymentProcessor
             $order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:' . $intentId);
             $order->set(CustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $transactionId);
             $order->set(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
-            $order->checkPayments();
 
             return [
                 'status' => 'success',
@@ -475,7 +492,7 @@ class PortalPaymentProcessor
             if ($payment->refresh()->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
                 return [
                     'payment' => $payment->getId(),
-                    'status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+                    'status' => $enrollmentResult['status'],
                     'message' => 'Payment pending action for order ' . $order->id . '. Waiting for user.',
                     'data' => [
                         ...$enrollmentResult['data']->toArray(),
