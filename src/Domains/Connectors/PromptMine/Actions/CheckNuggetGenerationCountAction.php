@@ -32,6 +32,9 @@ class CheckNuggetGenerationCountAction
 
         if (($this->message->parent->total_children > $this->message->app->get('nugget-free-generation-limit'))
             || ($messageOrder && ! $messageOrder->entity->isCompleted())) {
+            $this->message->is_public = 0;
+            $this->message->is_deleted = 1;
+            $this->message->save();
             throw new Exception('You have reached the limit of nuggets you can generate for free');
         }
 
