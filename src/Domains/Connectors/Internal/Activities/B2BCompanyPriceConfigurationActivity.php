@@ -82,12 +82,12 @@ class B2BCompanyPriceConfigurationActivity extends KanvasActivity
                         'discount_percentage' => $discountedPricePercentage,
                         'processed_at' => now()->toISOString(),
                         'product_types_filter' => $productTypes,
-                    ]
+                    ],
                 ];
 
                 foreach ($variants as $variant) {
                     $results['summary']['total_variants']++;
-                    
+
                     try {
                         $variantWarehouses = $variant->variantWarehouses->first();
                         $variantChannelPrice = $variant->getPriceInfoFromDefaultChannel()->price;
@@ -98,6 +98,7 @@ class B2BCompanyPriceConfigurationActivity extends KanvasActivity
 
                         if ($variantChannelPrice <= 0) {
                             $results['summary']['skipped_zero_price']++;
+
                             continue;
                         }
 
@@ -106,7 +107,7 @@ class B2BCompanyPriceConfigurationActivity extends KanvasActivity
                             'discounted_price' => number_format($variantChannelPrice, 2, '.', ''),
                             'is_published' => 1,
                         ]);
-                        
+
                         (new AddVariantToChannelAction(
                             $variantWarehouses,
                             $channel,
@@ -114,7 +115,6 @@ class B2BCompanyPriceConfigurationActivity extends KanvasActivity
                         ))->execute();
 
                         $results['summary']['processed_successfully']++;
-                        
                     } catch (Exception $e) {
                         $results['summary']['errors']++;
                         report($e);
