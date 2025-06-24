@@ -17,6 +17,8 @@ use Kanvas\Inventory\Channels\DataTransferObject\Channels;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use NetSuite\Classes\InventoryItem;
 
 /**
  * This action handles the synchronization of the NetSuite Customer Items List,
@@ -94,33 +96,32 @@ class SyncNetSuiteCustomerItemsListAction
             try {
                 $warehouseOptions = $this->getWarehouseOptions($netsuiteProductInfo, $variantWarehouse, $defaultWarehouse);
 
-                $mapPrice =  (float) $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
-                $colorCode =  $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value);
+                $mapPrice = (float) $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
+                $colorCode = $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value);
 
                 $config = [
                     'map_price' => $mapPrice,
-                    ...(isset($warehouseOptions["minimum_quantity"]) && $setMinimumQuantity ? ["minimum_quantity" => $warehouseOptions["minimum_quantity"]] : []),
+                    ...(isset($warehouseOptions['minimum_quantity']) && $setMinimumQuantity ? ['minimum_quantity' => $warehouseOptions['minimum_quantity']] : []),
                 ];
 
-                if (isset($warehouseOptions["quantity"]) && $warehouseOptions["quantity"] !== null) {
-                    $variantWarehouse->quantity = $warehouseOptions["quantity"];
-                    $variantWarehouse->price = $warehouseOptions["price"] ?? 0;
+                if (isset($warehouseOptions['quantity']) && $warehouseOptions['quantity'] !== null) {
+                    $variantWarehouse->quantity = $warehouseOptions['quantity'];
+                    $variantWarehouse->price = $warehouseOptions['price'] ?? 0;
                 }
 
-                $variantWarehouse->config =  $config ?? null;
+                $variantWarehouse->config = $config ?? null;
                 $variantWarehouse->saveOrFail();
 
                 $variant->addAttributes($this->mainAppCompany->user, [
                     [
                         'name' => 'color_code',
                         'value' => $colorCode,
-                    ]
+                    ],
                 ]);
             } catch (Exception $e) {
                 //$config['minimum_quantity'] = 0;
                 $missed[] = $bardCodeId->item->name;
             }
-
 
             $addVariantToChannel = new AddVariantToChannelAction(
                 $variantWarehouse,
@@ -147,9 +148,13 @@ class SyncNetSuiteCustomerItemsListAction
         ];
     }
 
-    private function getWarehouseOptions($netsuiteProductInfo, $variantWarehouse = null, $defaultWarehouse = null)
-    {
+    private function getWarehouseOptions(
+        InventoryItem $netsuiteProductInfo,
+        ?VariantsWarehouses $variantWarehouse = null,
+        int|string|null $defaultWarehouse = null
+    ): array {
         $config = [];
+
         try {
             $config['quantity'] = $this->productService->getInventoryQuantityByLocation(
                 $netsuiteProductInfo,

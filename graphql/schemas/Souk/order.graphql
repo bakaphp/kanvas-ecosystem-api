@@ -153,6 +153,7 @@ input OrderCartInput {
     cartId: ID!
     parent_id: ID
     customer: OrderCustomerInput!
+    currency: String
     billing: OrderBillingInput
     shipping_address: AddressInput
     items: [OrderLineItemInput]
@@ -164,6 +165,7 @@ input OrderCartInput {
 input ExtendOrderInput {
     customer: OrderCustomerInput!
     billing: OrderBillingInput
+    currency: String
     shipping_address: AddressInput
     items: [OrderLineItemInput]
     order_type: String

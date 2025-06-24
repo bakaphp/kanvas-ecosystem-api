@@ -22,6 +22,7 @@ use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
+use Kanvas\Connectors\Internal\Activities\B2BCompanyPriceConfigurationActivity;
 use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
@@ -47,6 +48,7 @@ use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
+use Kanvas\Connectors\QuickBooks\Workflows\PushOrderToInvoiceActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
@@ -204,11 +206,13 @@ class KanvasWorkflowSynActionCommand extends Command
             PushOrderToNetsuiteActivity::class,
             CheckMessageContentActivity::class,
             B2BUpdateCompanyOrderActivity::class,
+            B2BCompanyPriceConfigurationActivity::class,
             CheckNuggetGenerationCountActivity::class,
             ExtendReservationActivity::class,
             PushLeadNotesActivity::class,
             PushLeadActivity::class,
             PushPeopleActivity::class,
+            PushOrderToInvoiceActivity::class,
         ];
 
         $createdActions = [];
