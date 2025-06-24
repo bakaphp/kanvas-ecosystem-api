@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -92,9 +93,11 @@ class CreateOrderFromCartAction
 
         $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
 
-        $currency = isset($this->request['input']['currency'])
-        ? Currencies::getByCode($this->request['input']['currency'])
-        : $this->region->currency;
+        try {
+            $currency = isset($this->request['input']['currency']) && ! empty($this->request['input']['currency']) ? Currencies::getByCode($this->request['input']['currency']) : $this->region->currency;
+        } catch (ModelNotFoundException $e) {
+            $currency = $this->region->currency;
+        }
 
         $order = new Order(
             app: $this->app,
