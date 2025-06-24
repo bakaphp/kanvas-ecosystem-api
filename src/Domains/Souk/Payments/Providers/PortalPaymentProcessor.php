@@ -258,12 +258,14 @@ class PortalPaymentProcessor
             '05',
         ]);
 
-        $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
-        $isEciMissing = $enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value && ! $consumerData->eci;
-        $byPassEci = $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
-        // If the card brand is MASTERCARD and the ECI is missing, we consider the payment as successful
-        if ($cardBrand === 'MASTERCARD' && $isEciMissing && $byPassEci) {
-            return true;
+        if (isset($enrollmentData['paymentInformation'])) {
+            $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
+            $isEciMissing = $enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value && ! $consumerData->eci;
+            $byPassEci = $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
+            // If the card brand is MASTERCARD and the ECI is missing, we consider the payment as successful
+            if ($cardBrand === 'MASTERCARD' && $isEciMissing && $byPassEci) {
+                return true;
+            }
         }
 
         return $hasValidEci;
