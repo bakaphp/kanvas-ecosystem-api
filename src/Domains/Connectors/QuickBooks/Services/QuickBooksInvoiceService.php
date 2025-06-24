@@ -6,10 +6,12 @@ namespace Kanvas\Connectors\QuickBooks\Services;
 
 use Baka\Contracts\AppInterface;
 use Exception;
+use Kanvas\Connectors\QuickBooks\Client;
 use Kanvas\Connectors\QuickBooks\Enums\ConfigurationEnum;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Connectors\QuickBooks\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use QuickBooksOnline\API\Data\IPPCustomer;
+use QuickBooksOnline\API\Data\IPPCustomField;
 use QuickBooksOnline\API\Data\IPPEmailAddress;
 use QuickBooksOnline\API\Data\IPPInvoice;
 use QuickBooksOnline\API\Data\IPPItem;
@@ -29,31 +31,7 @@ class QuickBooksInvoiceService
     public function __construct(AppInterface $app)
     {
         $this->app = $app;
-        $this->initializeDataService();
-    }
-
-    private function initializeDataService(): void
-    {
-        $clientId = $this->app->get(ConfigurationEnum::QUICKBOOKS_CLIENT_ID->value);
-        $clientSecret = $this->app->get(ConfigurationEnum::QUICKBOOKS_CLIENT_SECRET->value);
-        $accessToken = $this->app->get(ConfigurationEnum::QUICKBOOKS_ACCESS_TOKEN->value);
-        $refreshToken = $this->app->get(ConfigurationEnum::QUICKBOOKS_REFRESH_TOKEN->value);
-        $realmId = $this->app->get(ConfigurationEnum::QUICKBOOKS_REALM_ID->value);
-        $baseUrl = $this->app->get(ConfigurationEnum::QUICKBOOKS_BASE_URL->value) ?? 'Production';
-
-        if (empty($clientId) || empty($clientSecret) || empty($accessToken) || empty($realmId)) {
-            throw new ValidationException('QuickBooks credentials are not properly configured for app: ' . $this->app->name);
-        }
-
-        $this->dataService = DataService::Configure([
-            'auth_mode' => 'oauth2',
-            'ClientID' => $clientId,
-            'ClientSecret' => $clientSecret,
-            'accessTokenKey' => $accessToken,
-            'refreshTokenKey' => $refreshToken,
-            'QBORealmID' => $realmId,
-            'baseUrl' => $baseUrl,
-        ]);
+        $this->dataService = new Client($app)->getDataService();
     }
 
     /**
@@ -61,71 +39,65 @@ class QuickBooksInvoiceService
      */
     public function createInvoiceFromOrder(Order $order): ?IPPInvoice
     {
-        try {
-            // Get or create customer
-            $customer = $this->getOrCreateCustomer($order);
-
-            if (! $customer) {
-                throw new Exception('Failed to create or find customer');
-            }
-
-            // Create invoice lines from order items
-            $lines = $this->createInvoiceLines($order);
-
-            // Create the invoice
-            $invoice = new IPPInvoice();
-
-            // Set customer reference
-            $customerRef = new IPPReferenceType();
-            $customerRef->value = $customer->Id;
-            $customerRef->name = $customer->Name;
-            $invoice->CustomerRef = $customerRef;
-
-            // Set invoice properties
-            $invoice->DocNumber = (string) $order->getOrderNumber();
-            $invoice->TxnDate = $order->created_at->format('Y-m-d');
-            $invoice->DueDate = $order->created_at->addDays(30)->format('Y-m-d');
-            $invoice->Line = $lines;
-            $invoice->PrivateNote = "Generated from Kanvas Order #{$order->getOrderNumber()}";
-
-            // Set customer memo
-            $customerMemo = new IPPMemoRef();
-            $customerMemo->value = $order->customer_note ?? 'Thank you for your business!';
-            $invoice->CustomerMemo = $customerMemo;
-
-            // Add billing address if available
-            if ($order->billingAddress) {
-                $invoice->BillAddr = $this->formatAddress($order->billingAddress);
-            }
-
-            // Add shipping address if available and different from billing
-            if ($order->shippingAddress && $order->shipping_address_id !== $order->billing_address_id) {
-                $invoice->ShipAddr = $this->formatAddress($order->shippingAddress);
-            }
-
-            // Create the invoice in QuickBooks
-            $resultingInvoice = $this->dataService->Add($invoice);
-            $error = $this->dataService->getLastError();
-
-            if ($error) {
-                throw new Exception('QuickBooks Error: ' . $error->getResponseBody());
-            }
-
-            // Store QB invoice ID in order metadata
-            $order->addMetadata('quickbooks_invoice_id', $resultingInvoice->Id);
-            $order->addMetadata('quickbooks_invoice_number', $resultingInvoice->DocNumber);
-
-            return $resultingInvoice;
-        } catch (Exception $e) {
-            // Log the error
-            logger()->error('QuickBooks Invoice Creation Failed', [
-                'order_id' => $order->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            throw $e;
+        if ($order->get(CustomFieldEnum::QUICKBOOKS_INVOICE_ID->value)) {
+            // Invoice already exists, no need to create again
+            return $this->getInvoiceByOrder($order);
         }
+
+        // Get or create customer
+        $customer = $this->getOrCreateCustomer($order);
+
+        if (! $customer) {
+            throw new Exception('Failed to create or find customer');
+        }
+
+        // Create invoice lines from order items
+        $lines = $this->createInvoiceLines($order);
+
+        // Create the invoice
+        $invoice = new IPPInvoice();
+
+        // Set customer reference
+        $customerRef = new IPPReferenceType();
+        $customerRef->value = $customer->Id;
+        $customerRef->name = $customer->GivenName;
+        $invoice->CustomerRef = $customerRef;
+
+        // Set invoice properties
+        $invoice->DocNumber = (string) $order->getOrderNumber();
+        $invoice->TxnDate = $order->created_at->format('Y-m-d');
+        $invoice->DueDate = $order->created_at->addDays(30)->format('Y-m-d');
+        $invoice->Line = $lines;
+        $invoice->PrivateNote = "Generated from Kanvas Order #{$order->getOrderNumber()}";
+
+        // Set customer memo
+        $customerMemo = new IPPMemoRef();
+        $customerMemo->value = $order->customer_note ?? 'Thank you for your business!';
+        $invoice->CustomerMemo = $customerMemo;
+
+        // Add billing address if available
+        if ($order->billingAddress) {
+            $invoice->BillAddr = $this->formatAddress($order->billingAddress);
+        }
+
+        // Add shipping address if available and different from billing
+        if ($order->shippingAddress && $order->shipping_address_id !== $order->billing_address_id) {
+            $invoice->ShipAddr = $this->formatAddress($order->shippingAddress);
+        }
+
+        // Create the invoice in QuickBooks
+        $resultingInvoice = $this->dataService->Add($invoice);
+        $error = $this->dataService->getLastError();
+
+        if ($error) {
+            throw new Exception('QuickBooks Error: ' . $error->getResponseBody());
+        }
+
+        // Store QB invoice ID in order metadata
+        $order->set(CustomFieldEnum::QUICKBOOKS_INVOICE_ID->value, $resultingInvoice->Id);
+        $order->set(CustomFieldEnum::QUICKBOOKS_INVOICE_NUMBER->value, $resultingInvoice->DocNumber);
+
+        return $resultingInvoice;
     }
 
     /**
@@ -146,7 +118,7 @@ class QuickBooksInvoiceService
 
         // Create new customer
         $customer = new IPPCustomer();
-        $customer->Name = $customerName;
+        $customer->GivenName = $customerName;
         $customer->CompanyName = $order->people?->organizations?->first()?->name;
 
         // Set email
@@ -170,13 +142,17 @@ class QuickBooksInvoiceService
         }
 
         $resultingCustomer = $this->dataService->Add($customer);
+
+        $this->setCustomerCustomFields($resultingCustomer, [
+            'b2b' => 'true',
+        ]);
+
+        $order->people->set(CustomFieldEnum::QUICKBOOKS_CUSTOMER_ID->value, $resultingCustomer->Id);
+
         $error = $this->dataService->getLastError();
 
         if ($error) {
-            logger()->error('QuickBooks Customer Creation Failed', [
-                'order_id' => $order->id,
-                'error' => $error->getResponseBody(),
-            ]);
+            report(new Exception('QuickBooks Customer Creation Failed: ' . $error->getResponseBody()));
 
             return null;
         }
@@ -283,6 +259,14 @@ class QuickBooksInvoiceService
     }
 
     /**
+     * Get the item type to use for new items
+     */
+    private function getItemType(): string
+    {
+        return $this->app->get(ConfigurationEnum::QUICKBOOKS_DEFAULT_ITEM_TYPE->value) ?? 'Service';
+    }
+
+    /**
      * Get or create QuickBooks item for order item
      */
     private function getOrCreateItem($orderItem): ?IPPItem
@@ -295,42 +279,135 @@ class QuickBooksInvoiceService
             return $items[0];
         }
 
-        // Create new item
-        $item = new IPPItem();
-        $item->Name = $orderItem->product_name;
-        $item->Sku = $orderItem->product_sku;
-        $item->Type = 'Inventory'; // or "Service" based on your needs
-        $item->UnitPrice = $orderItem->unit_price_gross_amount;
-        $item->TrackQtyOnHand = true;
-        $item->QtyOnHand = 0;
-        $item->InvStartDate = date('Y-m-d');
+        // Create new item - try Inventory first, fallback to Service
+        return $this->createItemWithFallback($orderItem);
+    }
 
-        // Set account references
-        $incomeAccountRef = new IPPReferenceType();
-        $incomeAccountRef->value = $this->getIncomeAccountId();
-        $item->IncomeAccountRef = $incomeAccountRef;
+    /**
+     * Create item with fallback from Inventory to Service type
+     */
+    private function createItemWithFallback($orderItem): ?IPPItem
+    {
+        // First attempt: Create as Inventory item
+        $item = $this->createInventoryItem($orderItem);
+        if ($item) {
+            return $item;
+        }
 
-        $assetAccountRef = new IPPReferenceType();
-        $assetAccountRef->value = $this->getInventoryAssetAccountId();
-        $item->AssetAccountRef = $assetAccountRef;
+        // Fallback: Create as Service item
+        report('Failed to create Inventory item, falling back to Service item');
 
-        $expenseAccountRef = new IPPReferenceType();
-        $expenseAccountRef->value = $this->getCOGSAccountId();
-        $item->ExpenseAccountRef = $expenseAccountRef;
+        return $this->createServiceItem($orderItem);
+    }
 
-        $resultingItem = $this->dataService->Add($item);
-        $error = $this->dataService->getLastError();
+    /**
+     * Create inventory item
+     */
+    private function createInventoryItem($orderItem): ?IPPItem
+    {
+        try {
+            $item = new IPPItem();
+            $item->Name = $orderItem->product_name;
+            $item->Sku = $orderItem->product_sku;
+            $item->Type = 'Inventory';
+            $item->UnitPrice = $orderItem->unit_price_gross_amount;
+            $item->TrackQtyOnHand = true;
+            $item->QtyOnHand = 0;
+            $item->InvStartDate = date('Y-m-d');
 
-        if ($error) {
-            logger()->warning('QuickBooks Item Creation Failed', [
+            // Set account references
+            $incomeAccountRef = new IPPReferenceType();
+            $incomeAccountRef->value = $this->getIncomeAccountId();
+            $item->IncomeAccountRef = $incomeAccountRef;
+
+            $assetAccountRef = new IPPReferenceType();
+            $assetAccountRef->value = $this->getInventoryAssetAccountId();
+            $item->AssetAccountRef = $assetAccountRef;
+
+            $expenseAccountRef = new IPPReferenceType();
+            $expenseAccountRef->value = $this->getCOGSAccountId();
+            $item->ExpenseAccountRef = $expenseAccountRef;
+
+            $resultingItem = $this->dataService->Add($item);
+            $error = $this->dataService->getLastError();
+
+            if ($error) {
+                logger()->warning('QuickBooks Inventory Item Creation Failed', [
+                    'sku' => $orderItem->product_sku,
+                    'error' => $error->getResponseBody(),
+                ]);
+
+                return null;
+            }
+
+            return $resultingItem;
+        } catch (Exception $e) {
+            logger()->warning('QuickBooks Inventory Item Creation Exception', [
                 'sku' => $orderItem->product_sku,
-                'error' => $error->getResponseBody(),
+                'error' => $e->getMessage(),
             ]);
 
             return null;
         }
+    }
 
-        return $resultingItem;
+    /**
+     * Create service item (fallback)
+     */
+    private function createServiceItem($orderItem): ?IPPItem
+    {
+        try {
+            $item = new IPPItem();
+            $item->Name = $orderItem->product_name;
+            $item->Sku = $orderItem->product_sku;
+            $item->Type = $this->getItemType(); // Default to Service type
+            $item->UnitPrice = $orderItem->unit_price_gross_amount;
+            // Note: Service items don't need TrackQtyOnHand, AssetAccountRef, or ExpenseAccountRef
+
+            // Set income account reference
+            $incomeAccountRef = new IPPReferenceType();
+            $incomeAccountRef->value = $this->getIncomeAccountId();
+            $item->IncomeAccountRef = $incomeAccountRef;
+
+            $resultingItem = $this->dataService->Add($item);
+            $error = $this->dataService->getLastError();
+
+            if ($error) {
+                logger()->error('QuickBooks Service Item Creation Failed', [
+                    'sku' => $orderItem->product_sku,
+                    'error' => $error->getResponseBody(),
+                ]);
+
+                return null;
+            }
+
+            return $resultingItem;
+        } catch (Exception $e) {
+            report($e);
+
+            return null;
+        }
+    }
+
+    /**
+     * Set custom fields on customer using key-value pairs
+     */
+    private function setCustomerCustomFields(IPPCustomer $customer, array $fields): void
+    {
+        $customFieldObjects = [];
+
+        foreach ($fields as $key => $value) {
+            if ($value !== null && $value !== '') {
+                $customField = new IPPCustomField();
+                $customField->Name = $key;
+                $customField->StringValue = (string) $value;
+                $customFieldObjects[] = $customField;
+            }
+        }
+
+        if (! empty($customFieldObjects)) {
+            $customer->CustomField = $customFieldObjects;
+        }
     }
 
     /**
@@ -459,7 +536,7 @@ class QuickBooksInvoiceService
      */
     public function updateInvoiceStatus(Order $order): bool
     {
-        $invoiceId = $order->getMetadata('quickbooks_invoice_id');
+        $invoiceId = $order->get(CustomFieldEnum::QUICKBOOKS_INVOICE_ID->value);
 
         if (! $invoiceId) {
             return false;
@@ -482,20 +559,14 @@ class QuickBooksInvoiceService
             $error = $this->dataService->getLastError();
 
             if ($error) {
-                logger()->error('QuickBooks Invoice Update Failed', [
-                    'invoice_id' => $invoiceId,
-                    'error' => $error->getResponseBody(),
-                ]);
+                report(new Exception('QuickBooks Invoice Update Failed: ' . $error->getResponseBody()));
 
                 return false;
             }
 
             return true;
         } catch (Exception $e) {
-            logger()->error('QuickBooks Invoice Update Exception', [
-                'invoice_id' => $invoiceId,
-                'error' => $e->getMessage(),
-            ]);
+            report($e);
 
             return false;
         }
@@ -506,7 +577,7 @@ class QuickBooksInvoiceService
      */
     public function getInvoiceByOrder(Order $order): ?IPPInvoice
     {
-        $invoiceId = $order->getMetadata('quickbooks_invoice_id');
+        $invoiceId = $order->get(CustomFieldEnum::QUICKBOOKS_INVOICE_ID->value);
 
         if (! $invoiceId) {
             return null;
@@ -515,10 +586,7 @@ class QuickBooksInvoiceService
         try {
             return $this->dataService->findById('Invoice', $invoiceId);
         } catch (Exception $e) {
-            logger()->error('QuickBooks Get Invoice Failed', [
-                'invoice_id' => $invoiceId,
-                'error' => $e->getMessage(),
-            ]);
+            report($e);
 
             return null;
         }
@@ -539,10 +607,7 @@ class QuickBooksInvoiceService
             $email = $emailAddress ?? $order->getEmail();
 
             if (! $email) {
-                logger()->warning('No email address available for sending invoice', [
-                    'order_id' => $order->id,
-                    'invoice_id' => $invoice->Id,
-                ]);
+                report(new Exception('No email address available for sending invoice'));
 
                 return false;
             }
@@ -552,21 +617,14 @@ class QuickBooksInvoiceService
             $error = $this->dataService->getLastError();
 
             if ($error) {
-                logger()->error('QuickBooks Send Invoice Failed', [
-                    'invoice_id' => $invoice->Id,
-                    'email' => $email,
-                    'error' => $error->getResponseBody(),
-                ]);
+                report(new Exception('QuickBooks Send Invoice Failed: ' . $error->getResponseBody()));
 
                 return false;
             }
 
             return true;
         } catch (Exception $e) {
-            logger()->error('QuickBooks Send Invoice Exception', [
-                'invoice_id' => $invoice->Id ?? null,
-                'error' => $e->getMessage(),
-            ]);
+            report($e);
 
             return false;
         }

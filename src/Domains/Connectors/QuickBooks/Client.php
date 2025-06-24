@@ -42,6 +42,48 @@ class Client
             'QBORealmID' => $realmId,
             'baseUrl' => $baseUrl,
         ]);
+
+        $this->dataService->throwExceptionOnError(true);
+
+        $this->maybeRefreshTokens();
+    }
+
+    private function maybeRefreshTokens(): void
+    {
+        try {
+            $oauthHelper = $this->dataService->getOAuth2LoginHelper();
+            $newToken = $oauthHelper->refreshAccessTokenWithRefreshToken(
+                $this->app->get(ConfigurationEnum::QUICKBOOKS_REFRESH_TOKEN->value)
+            );
+
+            if ($newToken) {
+                $this->dataService->updateOAuth2Token($newToken);
+
+                $this->storeUpdatedTokens(
+                    $newToken->getAccessToken(),
+                    $newToken->getRefreshToken()
+                );
+            }
+        } catch (Exception $e) {
+            // You may want to log this
+            report($e);
+
+            throw new ValidationException('Unable to refresh QuickBooks tokens: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Persist the rotated tokens back to app configuration
+     */
+    private function storeUpdatedTokens(string $accessToken, string $refreshToken): void
+    {
+        $this->app->set(ConfigurationEnum::QUICKBOOKS_ACCESS_TOKEN->value, $accessToken);
+        $this->app->set(ConfigurationEnum::QUICKBOOKS_REFRESH_TOKEN->value, $refreshToken);
+    }
+
+    public function getDataService(): DataService
+    {
+        return $this->dataService;
     }
 
     /**
