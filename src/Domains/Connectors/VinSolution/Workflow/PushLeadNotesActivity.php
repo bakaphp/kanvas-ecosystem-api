@@ -8,7 +8,6 @@ use Exception;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\VinSolution\Actions\AddNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Actions\PushCoBuyerAction;
 use Kanvas\Connectors\VinSolution\Actions\PushCreditAppAction;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
@@ -77,7 +76,7 @@ class PushLeadNotesActivity extends KanvasActivity
             case ActionEnum::PAYOFF_FORM->value:
             case ActionEnum::ADD_TRADE->value:
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
-                    $tradeInAction = new AddNoteToLeadAction($lead, $message);
+                    $tradeInAction = new PushNoteToLeadAction($lead, $message);
                     $results['tradeIn'] = $tradeInAction->execute();
                 }
 

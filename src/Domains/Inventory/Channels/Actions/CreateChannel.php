@@ -12,21 +12,12 @@ use Kanvas\Inventory\Channels\Models\Channels;
 
 class CreateChannel
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         protected ChannelsDto $dto,
         protected UserInterface $user
     ) {
     }
 
-    /**
-     * execute.
-     *
-     */
     public function execute(): Channels
     {
         CompaniesRepository::userAssociatedToCompany(
