@@ -431,7 +431,6 @@ class PortalPaymentProcessor
         $order->updateQuietly([
             'payment_status' => PaymentStatusEnum::PAID->value,
         ]);
-        $order->checkPayments();
         $payment->addMetadata([
             'data' => [
                 ...$payment->metadata['data'],
@@ -439,6 +438,7 @@ class PortalPaymentProcessor
             ],
         ]);
         $payment->save();
+        $order->checkPayments();
 
         return [
             'status' => 'success',
