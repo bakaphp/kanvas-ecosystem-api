@@ -196,7 +196,7 @@ class PaymentMutation
 
                 return [
                     'status' => $enrollmentResult['status'],
-                    'message' => 'Payment pending action for order ' . $order->id . '. Waiting for user.',
+                    'message' => $enrollmentResult['message'],
                     'data' => $enrollmentResult['data'],
                 ];
             }
@@ -267,7 +267,7 @@ class PaymentMutation
             if (in_array($validationResult['status'], [PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
                 return [
                     'status' => $validationResult['status'],
-                    'message' => 'Payment pending action for order ' . $order->id . '. Waiting for user.',
+                    'message' => $validationResult['message'],
                     'data' => $validationResult['data'],
                 ];
             } elseif ($validationResult['status'] === PaymentStatusEnum::FAILED->value) {
