@@ -12,13 +12,14 @@ class TransactionLinkBuilder
     public function getLink(Order $order): string
     {
         $url = 'https://dashboard.stripe.com';
-        if (config('app.env') != 'production') {
+        if (app()->environment() !== 'production') {
             $url .= '/test';
         }
-        if ($order->checkout_token && strlen($order->checkout_token)) {
+        if ($order->checkout_token !== null && strlen($order->checkout_token)) {
             $paymentIntentId = explode('_secret_', $order->checkout_token)[0];
             $url .= "/payments/$paymentIntentId";
         }
+
         return $url;
     }
 }
