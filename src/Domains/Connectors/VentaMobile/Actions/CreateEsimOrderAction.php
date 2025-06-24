@@ -68,7 +68,7 @@ class CreateEsimOrderAction
         $this->validateOrder();
 
         $isRefuelOrder = (isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id'])) ||
-                        (isset($this->order->metadata['parent_order_iccid']) && ! empty($this->order->metadata['parent_order_iccid']));
+                        (isset($this->order->metadata['target_iccid']) && ! empty($this->order->metadata['target_iccid']));
         if ($isRefuelOrder) {
             $this->processRefuelOrder();
         } else {
@@ -101,14 +101,31 @@ class CreateEsimOrderAction
         if (isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id'])) {
             // Use parent_order_id to find the parent order
             $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
-            $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
-            $this->availableVariant = $parentProductIccid->variant;
-            $this->iccid = $this->availableVariant->sku;
+
+            // Get the specific ICCID from the refuel order metadata
+            $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
+
+            if ($targetIccid) {
+                // Use the specific ICCID provided by the frontend
+                $this->availableVariant = $this->findVariantByIccid($parentOrder, $targetIccid);
+                if (! $this->availableVariant) {
+                    throw new ValidationException("Variant not found for ICCID: {$targetIccid}");
+                }
+                $this->iccid = $targetIccid;
+            } else {
+                // Fall back to original behavior if no specific ICCID provided
+                $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
+                $this->availableVariant = $parentProductIccid->variant;
+                $this->iccid = $this->availableVariant->sku;
+            }
             $this->orderMetaData = $parentOrder->metadata ?? [];
-        } elseif (isset($this->order->metadata['parent_order_iccid']) && ! empty($this->order->metadata['parent_order_iccid'])) {
-            // Use parent_order_iccid to find the order that has this ICCID in its metadata
-            $this->iccid = $this->order->metadata['parent_order_iccid'];
-            $targetIccid = $this->iccid;
+        } else {
+            // No parent_order_id, try to find parent order using target_iccid
+            $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
+
+            if (! $targetIccid) {
+                throw new ValidationException('No parent order ID or target ICCID found for refuel order');
+            }
 
             // Search for an order that has this ICCID in its metadata
             $parentOrder = Order::where(function ($query) use ($targetIccid) {
@@ -116,13 +133,17 @@ class CreateEsimOrderAction
                       ->orWhereRaw("JSON_EXTRACT(metadata, '$.data.iccid') = ?", [$targetIccid]);
             })->firstOrFail();
 
-            // Get the variant from the parent order
-            $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
-            $this->availableVariant = $parentProductIccid->variant;
+            // Get the variant from the parent order that matches the target ICCID
+            $this->availableVariant = $this->findVariantByIccid($parentOrder, $targetIccid);
+            if (! $this->availableVariant) {
+                throw new ValidationException("Variant not found for ICCID: {$targetIccid}");
+            }
+            $this->iccid = $targetIccid;
             $this->orderMetaData = $parentOrder->metadata ?? [];
-        } else {
-            throw new ValidationException('No parent order ID or ICCID found for refuel order');
         }
+
+        $this->lpaCode = $this->availableVariant->getAttributeBySlug('lpa')?->value;
+        $this->imsi = $this->availableVariant->getAttributeBySlug('imsi')?->value;
 
         try {
             // Get service information
