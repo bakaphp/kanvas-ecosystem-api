@@ -109,7 +109,7 @@ class CreateEsimOrderAction
             // Use parent_order_iccid to find the order that has this ICCID in its metadata
             $this->iccid = $this->order->metadata['parent_order_iccid'];
             $targetIccid = $this->iccid;
-            
+
             // Search for an order that has this ICCID in its metadata
             $parentOrder = Order::where(function ($query) use ($targetIccid) {
                 $query->whereRaw("JSON_EXTRACT(metadata, '$.esims[0].data.iccid') = ?", [$targetIccid])
