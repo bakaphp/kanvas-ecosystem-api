@@ -26,7 +26,7 @@ class PaymentMethodMutation
             if ($input['processor']) {
                 $processor = app("payment.{$input['processor']}");
                 $input['brand'] = $this->guessCardBrand($input['number']);
-                $input['state'] = $input['country'] == 'DO' ? 'DN' : $input['state'];
+                // $input['state'] = $input['country'] == 'DO' ? 'DN' : $input['state'];
                 $paymentMethod = $processor->addCardFromRequest($input, $user);
             } else {
                 $paymentMethod = new PaymentMethod(

@@ -64,7 +64,7 @@ class PortalPaymentProcessor
                     customerId: "user_" . $payment->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
                     documentType: MerchantDocumentTypesEnum::DNI,
-                    documentNumber: $this->app->get(ConfigurationEnum::MERCHANT_DOCUMENT_NUMBER->value) ?? "",
+                    documentNumber: $payment->user->get('driver_license') ?? "",
                 )]
                 : [])
         ]);
@@ -100,7 +100,7 @@ class PortalPaymentProcessor
     {
         $merchantAuthentication = $this->setupMerchantAuthentication($payment);
         $payerAuthentication = $this->client->setupPayer(
-            "order_" . $payment->order->order_number,
+            $payment->order->id,
             $payment->paymentMethod->stripe_card_id,
             $merchantAuthentication
         );
@@ -252,7 +252,8 @@ class PortalPaymentProcessor
             return false;
         }
 
-        $hasValidEci = in_array($consumerData->eci, [
+        $eci = $consumerData->eci ?? $consumerData->eciRaw;
+        $hasValidEci = in_array($eci, [
             '02',
             '05',
         ]);
