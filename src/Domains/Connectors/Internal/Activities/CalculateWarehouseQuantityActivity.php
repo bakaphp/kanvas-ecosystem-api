@@ -53,18 +53,18 @@ class CalculateWarehouseQuantityActivity extends KanvasActivity implements Workf
         ];
     }
 
-    private function getActiveOrders($productVariantId, Apps $app): int
+    private function getActiveOrders(int|string $productVariantId, Apps $app): int
     {
         return Order::fromApp($app)
-        ->notDeleted()
-        ->whereNotFulfilled()
-        ->whereNotNull('metadata')
-        ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
-        ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) is not null")
-        ->orderBy('id', 'desc')
-        ->with('items')
-        ->whereHas('items', function ($query) use ($productVariantId) {
-            $query->where('variant_id', $productVariantId);
-        })->count();
+            ->notDeleted()
+            ->whereNotFulfilled()
+            ->whereNotNull('metadata')
+            ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) is not null")
+            ->orderBy('id', 'desc')
+            ->with('items')
+            ->whereHas('items', function ($query) use ($productVariantId) {
+                $query->where('variant_id', $productVariantId);
+            })->count();
     }
 }

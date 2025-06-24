@@ -10,11 +10,6 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 
 class CreatePriceHistoryAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         protected VariantsWarehouses $variantsWarehouses,
         protected Channels $channel,
@@ -22,10 +17,6 @@ class CreatePriceHistoryAction
     ) {
     }
 
-    /**
-     * execute.
-     *
-     */
     public function execute(): VariantChannelPriceHistory
     {
         return VariantChannelPriceHistory::firstOrCreate(
@@ -33,7 +24,7 @@ class CreatePriceHistoryAction
                 'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
                 'channels_id' => $this->channel->getId(),
                 'products_variants_id' => $this->variantsWarehouses->products_variants_id,
-                'price' => $this->price
+                'price' => $this->price,
             ],
             [
                 'from_date' => date('Y-m-d H:i:s'),

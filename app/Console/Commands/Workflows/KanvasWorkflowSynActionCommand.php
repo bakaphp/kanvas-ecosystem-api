@@ -22,6 +22,7 @@ use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
+use Kanvas\Connectors\Internal\Activities\B2BCompanyPriceConfigurationActivity;
 use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
@@ -198,7 +199,8 @@ class KanvasWorkflowSynActionCommand extends Command
             AddFundsToWalletActivity::class,
             PushOrderToNetsuiteActivity::class,
             CheckMessageContentActivity::class,
-            B2BUpdateCompanyOrderActivity::class
+            B2BUpdateCompanyOrderActivity::class,
+            B2BCompanyPriceConfigurationActivity::class,
         ];
 
         $createdActions = [];
