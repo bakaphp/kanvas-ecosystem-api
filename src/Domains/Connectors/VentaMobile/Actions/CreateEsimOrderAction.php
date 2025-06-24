@@ -69,7 +69,7 @@ class CreateEsimOrderAction
 
         $isRefuelOrder = (isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id'])) ||
                         (isset($this->order->metadata['target_iccid']) && ! empty($this->order->metadata['target_iccid'])) ||
-                        (isset($this->order->metadata['iccid']) && ! empty($this->order->metadata['iccid']));
+                        (isset($this->order->metadata['parent_order_iccid']) && ! empty($this->order->metadata['parent_order_iccid']));
         if ($isRefuelOrder) {
             $this->processRefuelOrder();
         } else {
@@ -104,7 +104,7 @@ class CreateEsimOrderAction
             $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
 
             // Get the specific ICCID from the refuel order metadata
-            $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
+            $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['parent_order_iccid'] ?? null;
 
             if ($targetIccid) {
                 // Use the specific ICCID provided by the frontend
@@ -122,7 +122,7 @@ class CreateEsimOrderAction
             $this->orderMetaData = $parentOrder->metadata ?? [];
         } else {
             // No parent_order_id, try to find parent order using target_iccid
-            $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
+            $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['parent_order_iccid'] ?? null;
 
             if (! $targetIccid) {
                 throw new ValidationException('No parent order ID or target ICCID found for refuel order');
