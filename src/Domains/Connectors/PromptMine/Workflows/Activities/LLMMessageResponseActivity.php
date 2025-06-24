@@ -133,12 +133,12 @@ class LLMMessageResponseActivity extends KanvasActivity
         $aiModel = $message->message['ai_model'] ?? [
             'key' => 'gemini',
             'value' => 'gemini-2.0-flash',
-            'name' => 'Gemini 2.0 Flash'
+            'name' => 'Gemini 2.0 Flash',
         ];
 
         // Get existing chat history from parent message or create new conversation
         $chatHistory = $this->getChatHistory($message);
-        
+
         // Add the new user message to the conversation
         $messages = $chatHistory;
         $messages[] = [
@@ -149,7 +149,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         // Use PromptMine client for chat response with AI model configuration
         $promptClient = new PromptClient($message->app);
         $apiResponse = $promptClient->generateChatResponse($messages, $aiModel);
-        
+
         // Extract response text and update chat history
         $responseText = $promptClient->extractChatResponseText($apiResponse);
         $fullConversation = $promptClient->getFullConversation($messages, $apiResponse);

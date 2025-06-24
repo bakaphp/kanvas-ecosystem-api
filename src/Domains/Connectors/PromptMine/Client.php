@@ -48,9 +48,9 @@ class Client
         // Extract provider and model from ai_model configuration
         $provider = $aiModel['key'] ?? 'gemini';
         $modelId = $aiModel['value'] ?? 'gemini-2.0-flash';
-        
+
         $endpoint = "/v2/chat/{$provider}/qa";
-        
+
         $data = [
             'messages' => $messages,
         ];
@@ -97,7 +97,7 @@ class Client
     public function extractChatHistory(array $messages, array $response): array
     {
         $history = [];
-        
+
         // Add all original messages to history
         foreach ($messages as $message) {
             $history[] = [
@@ -120,7 +120,7 @@ class Client
     public function getFullConversation(array $messages, array $response): array
     {
         $conversation = $this->extractChatHistory($messages, $response);
-        
+
         $responseText = $this->extractChatResponseText($response);
         if ($responseText) {
             $conversation[] = [
@@ -214,7 +214,7 @@ class Client
                 'json' => $data,
             ];
 
-            if (!empty($queryParams)) {
+            if (! empty($queryParams)) {
                 $options['query'] = $queryParams;
             }
 
