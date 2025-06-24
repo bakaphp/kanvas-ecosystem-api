@@ -92,6 +92,8 @@ class CreateOrderFromCartAction
 
         $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
 
+        $currency = Currencies::getByCode($this->request['input']['currency'] ?? $this->region->currency);
+
         $order = new Order(
             app: $this->app,
             region: $this->region,
@@ -110,7 +112,7 @@ class CreateOrderFromCartAction
             status: 'completed',
             orderNumber: '',
             shippingMethod: null,
-            currency: $this->region->currency,
+            currency: $currency,
             fulfillmentStatus: 'pending',
             items: $items,
             orderType: $this->request['input']['order_type'] ?? null,

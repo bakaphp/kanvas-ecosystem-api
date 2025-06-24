@@ -1043,4 +1043,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         return $this->getRoles()->toArray();
     }
+
+    public function getUnreadNotificationsCount(): int
+    {
+        return (int) Notifications::query()
+            ->where('users_id', $this->id)
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->where('read', StateEnums::NO->getValue())
+            ->where('apps_id', app(Apps::class)->id)
+            ->count();
+    }
 }

@@ -95,16 +95,24 @@ class UserMessage extends BaseModel
         $userId = $user->getId();
 
         return Message::query()
-                ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
-                ->join('users_follows', function ($join) use ($userId) {
+                ->join('users_follows', function ($join) use ($userId, $app) {
                     $join->on('messages.users_id', '=', 'users_follows.entity_id')
                         ->where('users_follows.users_id', '=', $userId)
-                        ->where('users_follows.entity_namespace', '=', Users::class);
+                        ->where('users_follows.entity_namespace', '=', Users::class)
+                        ->where('users_follows.is_deleted', '=', 0)
+                        ->where('users_follows.apps_id', '=', $app->getId()); // Add app filtering
+                })
+                ->leftJoin('user_messages', function ($join) use ($userId, $app) {
+                    $join->on('messages.uuid', '=', 'user_messages.messages_id') // Fix: use uuid instead of id
+                        ->where('user_messages.users_id', '=', $userId)
+                        ->where('user_messages.apps_id', '=', $app->getId())
+                        ->where('user_messages.is_deleted', '=', 0);
                 })
                 ->where('messages.is_deleted', 0)
-                ->where('user_messages.is_deleted', 0)
+                ->where('messages.apps_id', $app->getId())
                 ->where('messages.users_id', '<>', $userId)
-                ->select('messages.*');
+                ->select('messages.*')
+                ->distinct(); // Add distinct to prevent duplicates
     }
 
     /**
@@ -131,6 +139,7 @@ class UserMessage extends BaseModel
         int $limit = 25
     ): ?UserMessage {
         $offset = ($pageNumber - 1) * $limit;
+
         return self::fromApp($app)
             ->where('users_id', $user->getId())
             ->notDeleted()

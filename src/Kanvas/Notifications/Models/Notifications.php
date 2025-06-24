@@ -111,8 +111,8 @@ class Notifications extends BaseModel
         if (isset($args['whereSystemModule'])) {
             $systemModuleFilter = $args['whereSystemModule'];
             $query->whereHas('systemModule', function ($query) use ($systemModuleFilter, $app) {
-                if ($systemModuleFilter['name']) {
-                    $notificationSystemModule = SystemModulesRepository::getByName($systemModuleFilter['name'], $app);
+                if ($systemModuleFilter['slug']) {
+                    $notificationSystemModule = SystemModulesRepository::getBySlug($systemModuleFilter['slug'], $app);
                     $query->where('system_modules_id', $notificationSystemModule->getId());
 
                     if ($notificationSystemModule::class == Message::class && isset($systemModuleFilter['message_type_verb'])) {

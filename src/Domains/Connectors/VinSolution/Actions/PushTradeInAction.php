@@ -13,7 +13,7 @@ use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Social\Messages\Models\Message;
 
-class AddNoteToLeadAction
+class PushTradeInAction
 {
     public function __construct(
         protected ModelsLead $lead,

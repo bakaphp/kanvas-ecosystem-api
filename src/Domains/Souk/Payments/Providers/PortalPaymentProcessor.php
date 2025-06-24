@@ -60,7 +60,7 @@ class PortalPaymentProcessor
                 ? ['merchantDefinedInformation' => new MerchantDefinedInformation(
                     category: MerchantCategoryEnum::RETAIL,
                     cardIdentifier: $this->app->get(ConfigurationEnum::MERCHANT_IDENTIFIER->value) ?? "",
-                    platform: MerchantPlatformEnum::WEB,
+                    platform: MerchantPlatformEnum::MOBILE,
                     customerId: "user_" . $payment->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
                     documentType: MerchantDocumentTypesEnum::DNI,
@@ -187,7 +187,7 @@ class PortalPaymentProcessor
             $validatedData = $this->client->validatePayerAuthResult(
                 $transactionId,
                 PaymentDetail::from([
-                    'orderCode' =>  $order->reference . '_' . $order->id,
+                    'orderCode' =>  $order->id,
                     'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
                     'orderInformation' => OrderInformation::from([
                         'currency' => 'DOP',
@@ -322,7 +322,7 @@ class PortalPaymentProcessor
         $referenceId = $order->get('auth_session_id');
         $merchantAuthentication = $this->setupMerchantAuthentication($payment, includeDetails: true);
         $pamentData = PaymentDetail::from([
-            'orderCode' => $order->reference . '_' . $order->id,
+            'orderCode' => $order->id,
             'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
             'orderInformation' => OrderInformation::from([
                 'currency' => 'DOP',
@@ -330,8 +330,8 @@ class PortalPaymentProcessor
                 'billTo' => $this->setCustomerBillingAddress($payment, $order),
             ]),
             'deviceInformation' => DeviceInformation::from([
-                "ipAddress" => request()->ip(),
-                "fingerprintSessionId" => "visanetdr_0000000000000023e013b2-d21811eb-ae3f-e90c619c3f54"
+                "ipAddress" => $data['metadata']['data']['user_ip'] ?? request()->ip(),
+                "fingerprintSessionId" => $merchantAuthentication->id . $order->id
             ]),
             'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
                 "deviceChannel" => "BROWSER",
@@ -400,7 +400,7 @@ class PortalPaymentProcessor
         $capturePayment = $this->client->capturePayment(
             PaymentCaptureInput::from([
                 'transactionId' => $transactionId,
-                'orderCode' => $order->reference . '_' . $order->id,
+                'orderCode' => $order->id,
                 'currency' => 'DOP',
                 'totalAmount' => $order->getTotalAmount(),
             ]),
@@ -433,7 +433,7 @@ class PortalPaymentProcessor
         $reversePayment = $this->client->reversePayment(
             PaymentCaptureInput::from([
                 'transactionId' => $transactionId,
-                'orderCode' => $order->reference . '_' . $order->id,
+                'orderCode' => $order->id,
                 'currency' => 'DOP',
                 'totalAmount' => $order->getTotalAmount(),
             ]),

@@ -34,6 +34,7 @@ type User {
     apps: [App!]! @HasManyThrough
     photo: Filesystem @method(name: "getPhoto")
     social: UserSocialInfo @method(name: "getSocialInfo")
+    total_unread_notifications: Int! @method(name: "getUnreadNotificationsCount")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
