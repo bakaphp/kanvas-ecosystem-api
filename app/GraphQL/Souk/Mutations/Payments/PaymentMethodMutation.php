@@ -163,7 +163,7 @@ class PaymentMethodMutation
 
         // American Express
         if ($firstTwoDigits === '34' || $firstTwoDigits === '37') {
-            return 'amex';
+            return 'american express';
         }
 
         return null;
