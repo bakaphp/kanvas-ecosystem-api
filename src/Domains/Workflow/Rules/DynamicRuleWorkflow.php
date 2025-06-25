@@ -24,7 +24,11 @@ class DynamicRuleWorkflow extends Workflow
 
         $values = array_merge(
             $values,
-            $entity->toArray(),
+            $entity->toArray(), // For direct attribute access
+            [
+                'entity' => $entity, // Full entity object
+                strtolower(class_basename($entity)) => $entity, // Named access (e.g., 'order')
+            ],
             $params
         );
 
@@ -68,7 +72,6 @@ class DynamicRuleWorkflow extends Workflow
                 );
 
                 $activities[] = $activity->execute($entity, $app, $params);
-                //$activities[] = ActivityStub::make($activity->actionClass(), $entity, $app, $params);
             }
         }
 
