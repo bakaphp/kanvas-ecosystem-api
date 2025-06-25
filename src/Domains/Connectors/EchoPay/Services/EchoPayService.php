@@ -173,7 +173,7 @@ class EchoPayService
         ];
     }
 
-    public function setupPayer(string $orderCode, string $paymentInstrumentId, MerchantDetail $merchant): array
+    public function setupPayer(string|int $orderCode, string $paymentInstrumentId, MerchantDetail $merchant): array
     {
         $formData = [
             'payment' => [
@@ -233,8 +233,8 @@ class EchoPayService
 
         $response = $this->client->post(ConfigurationEnum::CHECK_PAYER_ENROLLMENT_PATH->value, $formData);
 
-        Log::info('echo pay enrollment data', $response['data']);
-
+        // Log::info('echo pay enrollment form data', $formData);
+        // Log::info('echo pay enrollment response', $response['data']);
         return [
             'clientReferenceInformation' => [
                 'code' => $response['data']['clientReferenceInformation']['code'],
