@@ -27,8 +27,12 @@ class CreatePaymentAction
             throw new \Exception('Payment method not found');
         }
 
-        if ($this->order->getPaidAmount() >= $this->order->getTotalAmount()) {
+        if ($this->order->isPaid()) {
             throw new \Exception('Order already paid');
+        }
+
+        if ($this->hasPendingPayments()) {
+            throw new \Exception('Order already has a pending payment');
         }
 
         $formData = [
@@ -47,6 +51,17 @@ class CreatePaymentAction
             'status' => OrderStatusEnum::PENDING->value,
         ]);
 
+        if ($formData['order_metadata']) {
+            $this->order->metadata = [
+                ...($this->order->metadata ?? []),
+                'data' => [
+                    ...($this->order->metadata['data'] ?? []),
+                    ...($formData['order_metadata']['data'] ?? []),
+                ],
+            ];
+            $this->order->saveQuietly();
+        }
+
         if ($this->runWorkflow) {
             $payment->fireWorkflow(
                 WorkflowEnum::CREATED->value,
@@ -58,5 +73,10 @@ class CreatePaymentAction
         }
 
         return $payment;
+    }
+
+    public function hasPendingPayments(): bool
+    {
+        return $this->order->payments()->where('status', PaymentStatusEnum::PENDING->value)->exists();
     }
 }
