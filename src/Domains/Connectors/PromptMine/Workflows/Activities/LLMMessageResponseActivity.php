@@ -42,6 +42,8 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value;
 
+                $promptChannel = $message->channels->first();
+
                 if (! $isTypeImage) {
                     // Use the new chat functionality for text responses
                     $result = $this->generateChatResponse($message);
@@ -98,8 +100,6 @@ class LLMMessageResponseActivity extends KanvasActivity
                         $app
                     ),
                 ))->execute();
-
-                $promptChannel = $message->channels->first();
 
                 if ($promptChannel && empty($promptChannel->title)) {
                     $promptChannel->name = $message->message['title'] ?? $nuggetTitle;
@@ -163,20 +163,23 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     private function getChatHistory(Message $message): array
     {
-        // Check if this message has a parent with chat history
-        if ($message->parent_id) {
-            $parentMessage = Message::find($message->parent_id);
-            if ($parentMessage && isset($parentMessage->message['chat_history'])) {
-                return $parentMessage->message['chat_history'];
-            }
+        $channel = $message->channels->first();
+
+        $previousMessage = $channel ? $channel->getPreviousMessage($message) : null;
+
+        if ($previousMessage === null) {
+            // If no previous message, return empty chat history
+            return [];
         }
 
-        // Check if current message already has chat history
-        if (isset($message->message['chat_history'])) {
-            return $message->message['chat_history'];
+        // Check if previous message has children and if the first child has chat history
+        $firstChild = $previousMessage->children()->first();
+
+        if ($firstChild && isset($firstChild->message['chat_history']) && is_array($firstChild->message['chat_history'])) {
+            return $firstChild->message['chat_history'];
         }
 
-        // Return empty array for new conversations
+        // Return empty array for new conversations or when no valid chat history is found
         return [];
     }
 

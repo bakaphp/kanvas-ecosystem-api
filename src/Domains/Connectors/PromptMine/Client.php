@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\PromptMine\Enums\ConfigurationEnum;
 
 class Client
