@@ -49,7 +49,7 @@ class PremiumPromptFlagActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity, $app) use ($messageData) {
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageData) {
                 $entity->setPremium();
 
                 $usersToNotify = UsersRepository::findUsersByArray($entity->app->get('owner_notification'), $app);

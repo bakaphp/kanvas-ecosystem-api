@@ -48,4 +48,18 @@ class AddAddressToCompanyAction
 
         return $address;
     }
+
+
+    public function fromNetSuite(array $address): CompaniesAddress
+    {
+        return $this->execute(new Address(
+            address: $address['addrtext_initialvalue'],
+            city: $address['city_initialvalue'],
+            state: $address['displaystate_initialvalue'],
+            zip: $address['zip_initialvalue'],
+            country: $address['country_initialvalue'],
+            county: $address['county_initialvalue'] ?? '',
+            address_2: $address['addrtext2_initialvalue'] ?? '',
+        ), isDefault: true);
+    }
 }

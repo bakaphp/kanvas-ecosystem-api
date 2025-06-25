@@ -11,6 +11,29 @@ type PaymentMethod {
     updated_at: String
 }
 
+type Payment {
+	id: ID!
+	apps_id: ID!
+    company: Company! @belongsTo
+	payable_id: ID!
+	payable_type: String!
+	uuid: String!
+	user: User! @belongsTo(relation: "user")
+	payment_method: PaymentMethod! @belongsTo(relation: "paymentMethod")
+	payment_date: String!
+	concept: String!
+	notes: String
+	number: String
+	amount: Money
+	currency: String
+	status: String
+	metadata: Mixed
+	created_at: String!
+	updated_at: String
+	is_deleted: Boolean!
+}
+
+
 input PaymentMethodInput{
     number: String!
     expiration_date: String!
@@ -23,6 +46,8 @@ input PaymentMethodInput{
     phone: String!
     zip_code: String!
     state: String!
+    firstname: String
+    lastname: String
 }
 
 input PaymentMethodUpdateInput{
@@ -42,6 +67,30 @@ input PaymentMethodUpdateInput{
 type PaymentIntentResult {
     paymentIntent: Mixed
     message: Mixed
+}
+
+type PaymentResult {
+    payment: Mixed
+    message: Mixed
+}
+
+input PaymentInput {
+    amount: Money!
+    payment_date: String
+    concept: String
+    payment_methods_id: ID
+}
+
+type PayerAuthResponse {
+  status: String!
+  message: String
+  data: Mixed
+}
+
+type PayerAuthStatus {
+  status: String!
+  message: String
+  data: Mixed
 }
 
 extend type Mutation @guard {
@@ -64,6 +113,22 @@ extend type Mutation @guard {
     makePaymentIntentFromOrder(orderID: ID!): PaymentIntentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
+        )
+    addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@addPaymentToOrder"
+        )
+    initiatePayerAuthentication(orderId: ID!): PayerAuthResponse!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@initiatePayerAuthentication"
+        )
+    completeDeviceData(orderId: ID!): PayerAuthStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@completeDeviceData"
+        )
+    validatePayerAuthResult(orderId: ID!): PayerAuthStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayerAuthResult"
         )
 }
 

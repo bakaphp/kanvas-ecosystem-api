@@ -28,6 +28,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Nevadskiy\Tree\AsTree;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -85,6 +86,7 @@ class Order extends BaseModel
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use AsTree;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -210,6 +212,12 @@ class Order extends BaseModel
     public function completed(): void
     {
         $this->status = 'completed';
+        $this->saveOrFail();
+    }
+
+    public function failed(): void
+    {
+        $this->status = 'failed';
         $this->saveOrFail();
     }
 
@@ -589,7 +597,7 @@ class Order extends BaseModel
             $totalPaid = $this->getPaidAmount();
             $totalDebt = $this->total_net_amount - $totalPaid;
             if ($totalDebt <= 0) {
-                $this->fulfill();
+                $this->completed();
 
                 $this->fireWorkflow(
                     WorkflowEnum::UPDATED->value,

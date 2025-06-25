@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
@@ -31,6 +32,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
+        $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
         #$schedule->command(ScoutMessageReindexCommand::class, [env('MESSAGE_REINDEX_SCOUT_APP_ID', '13'), env('MESSAGE_REINDEX_SCOUT_MESSAGE_TYPES_ID', '572')])->everyTenMinutes();
         #$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron
         #$schedule->command(ImportPromptsFromDocsCommand::class)->weeklyOn(1, '00:00');

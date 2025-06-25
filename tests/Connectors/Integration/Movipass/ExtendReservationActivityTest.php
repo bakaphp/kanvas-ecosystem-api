@@ -2,15 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\PasoRapido;
+namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
-use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
-use Kanvas\Connectors\PasoRapido\Enums\CustomFieldEnum;
-use Kanvas\Connectors\PasoRapido\Handlers\PasoRapidoHandler;
-use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -19,7 +15,7 @@ use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
-final class PasoRapidoOrderActivityTest extends TestCase
+final class ExtendReservationActivityTest extends TestCase
 {
     use HasIntegrationCompany;
     use InventoryCases;
@@ -31,16 +27,14 @@ final class PasoRapidoOrderActivityTest extends TestCase
         $company = $user->getCurrentCompany();
         $region = Regions::getDefault($company ?? $company, $app);
 
-        $app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_PASO_RAPIDO_CLIENT_ID'));
-        $app->set(ConfigurationEnum::SECRET->value, env('TEST_PASO_RAPIDO_SECRET'));
-
         $this->setIntegration(
             $app,
-            IntegrationsEnum::PASO_RAPIDO,
-            PasoRapidoHandler::class,
+            IntegrationsEnum::MOVIPASS,
+            MovipassHandler::class,
             $company,
             $user
         );
+
 
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct(attributes: [
@@ -80,14 +74,15 @@ final class PasoRapidoOrderActivityTest extends TestCase
             amount: 100
         );
 
-        $transactionId = "7478925724996114" . rand(100000, 999999);
+        $endDate = now('America/New_York')->addMinutes(30);
 
         $data = [
             'email' => fake()->email(),
             'region_id' => $region->getId(),
             'metadata' => [
                 'data' => [
-                    'paso_rapido_tag' => "317169",
+                    'start_at' => now('America/New_York')->toDateTimeString(),
+                    'end_at' => $endDate->toDateTimeString(),
                     'payment_methods_id' => "91",
                     'payment_date' => now()->toDateTimeString(),
                 ],
@@ -125,24 +120,62 @@ final class PasoRapidoOrderActivityTest extends TestCase
             'X-Kanvas-App' => $app->key,
         ]);
 
-        $order = $response->json()['data']['createDraftOrder'];
-        $order = Order::fromApp($app)->find($order['id']);
+        $mainOrderData = $response->json()['data']['createDraftOrder'];
 
-        $order->set(EnumsCustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $transactionId);
-        $order->set(CustomFieldEnum::PASO_RAPIDO_DNI->value, "1234567890");
+        $extendedEndAt = $endDate->addMinutes(31)->toDateTimeString();
+        $extendReservationResponse = $this->graphQL('
+            mutation extendOrder($id: ID!, $input: ExtendOrderInput!) {
+                extendOrder(id: $id, input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', [
+            'id' => $mainOrderData['id'],
+            'input' => [
+                'customer' => [
+                    'email' => fake()->email(),
+                ],
+                'order_type' => "paso_rapido",
+                'items' => [
+                    [
+                        'quantity' => 1,
+                        'variant_id' => $variantResponse['id'],
+                        'price' => 100,
+                    ],
+                ],
+                'metadata' => [
+                    'data' => [
+                        'start_at' => $endDate->addMinutes(1)->toDateTimeString(),
+                        'end_at' => $extendedEndAt
+                    ],
+                ],
+                'reference' => "recarga_paso_rapido",
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
 
-        $activity = new CreatePasoRapidoOrderActivity(
+        $mainOrder = Order::fromApp($app)->find($mainOrderData['id']);
+        $orderExtended = Order::fromApp($app)->find($extendReservationResponse->json()['data']['extendOrder']['order']['id']);
+
+        $activity = new ExtendReservationActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
             []
         );
 
-        $result = $activity->execute($order, $app, []);
-        $order->refresh();
-        $this->assertArrayHasKey('order', $result);
-        $this->assertArrayHasKey('tag', $result);
-        $this->assertNotNull($order->get(CustomFieldEnum::PASO_RAPIDO_PAYMENT_STATUS->value));
-        $this->assertNotNull($order->get(CustomFieldEnum::PASO_RAPIDO_PAYMENT_RESPONSE->value));
+        $orderExtended->status = 'completed';
+        $orderExtended->save();
+
+        $result = $activity->execute($orderExtended, $app, []);
+        $mainOrder->refresh();
+        $this->assertEquals($result['status'], 'success');
+        $this->assertEquals($result['message'], 'Reservation extended');
+        $this->assertEquals($mainOrder->fresh()->metadata['data']['end_at'], $extendedEndAt);
+        $this->assertEquals($orderExtended->status, 'completed');
     }
 }

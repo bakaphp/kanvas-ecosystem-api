@@ -32,6 +32,7 @@ class NetSuiteQuoteService
     /**
      * Create a NetSuite quote (estimate) from a Kanvas order
      */
+
     public function createQuoteFromOrder(Order $order, ?string $netsuiteCustomerId = null, bool $customRate = true): Estimate
     {
         $estimate = new Estimate();
@@ -62,8 +63,8 @@ class NetSuiteQuoteService
         $estimateItems = [];
         foreach ($order->items as $orderItem) {
             $estimateItem = new EstimateItem();
-
             $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($orderItem->variant->barcode ?? $orderItem->product_sku);
+
             // Set item reference (you may need to map SKU to NetSuite item internal ID)
             $itemRef = new RecordRef();
             $itemRef->name = $orderItem->product_sku;
@@ -155,6 +156,7 @@ class NetSuiteQuoteService
         $estimateRef->type = 'estimate';
         $getRequest->baseRef = $estimateRef;
 
+
         $getResponse = $this->service->get($getRequest);
 
         if (! $getResponse->readResponse->status->isSuccess) {
@@ -203,6 +205,7 @@ class NetSuiteQuoteService
     /**
      * Get quote by internal ID
      */
+
     public function getQuoteById(string|int $quoteInternalId): Estimate
     {
         $getRequest = new \NetSuite\Classes\GetRequest();
