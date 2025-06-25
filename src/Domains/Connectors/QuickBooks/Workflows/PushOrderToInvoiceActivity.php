@@ -34,8 +34,27 @@ class PushOrderToInvoiceActivity extends KanvasActivity
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::QUICKBOOKS,
-            integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) {
+            integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 $quickBooksInvoice = new QuickBooksInvoiceService($app);
+
+                /**
+                 * @todo Check if the order contains a valid product type.
+                 * This is a temporary solution to ensure that the order contains a valid product type.
+                 */
+                $hasProductType = false;
+                foreach ($order->items as $item) {
+                    if (! in_array($item->variant->product->products_types_id, $params['allowed_product_types'])) {
+                        continue;
+                    }
+                    $hasProductType = true;
+                }
+
+                if (! $hasProductType) {
+                    return [
+                        'result' => false,
+                        'message' => 'Order does not contain a valid product type.',
+                    ];
+                }
 
                 $quickbooksInvoice = $quickBooksInvoice->createInvoiceFromOrder($order);
 
