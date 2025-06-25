@@ -70,15 +70,17 @@ type PaymentIntentResult {
 }
 
 type PaymentResult {
-    payment: Mixed
+    payment: Payment
+    order: Order
     message: Mixed
 }
 
 input PaymentInput {
-    amount: Money!
+    payment_methods_id: ID!
+    amount: Money
+    order_metadata: Mixed
     payment_date: String
     concept: String
-    payment_methods_id: ID
 }
 
 type PayerAuthResponse {
@@ -114,7 +116,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
         )
-    addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentIntentResult!
+    addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@addPaymentToOrder"
         )

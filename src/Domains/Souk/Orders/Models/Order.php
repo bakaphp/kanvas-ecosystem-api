@@ -594,9 +594,7 @@ class Order extends BaseModel
     public function checkPayments(): void
     {
         if ($this && ($this->payments)) {
-            $totalPaid = $this->getPaidAmount();
-            $totalDebt = $this->total_net_amount - $totalPaid;
-            if ($totalDebt <= 0) {
+            if ($this->isPaid()) {
                 $this->completed();
 
                 $this->fireWorkflow(
@@ -608,6 +606,11 @@ class Order extends BaseModel
                 );
             }
         }
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->getPaidAmount() >= $this->total_net_amount;
     }
 
     public function getPaidAmount(): float
