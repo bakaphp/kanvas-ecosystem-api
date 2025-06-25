@@ -86,9 +86,12 @@ class RolesRepository
         return $roles;
     }
 
-    public static function getPermissions(string $roleName): SupportCollection 
+    public static function getPermissions(string $roleName, string $title): SupportCollection 
     {
-        $roles = Bouncer::role()->where('name', $roleName)->firstOrFail();
+        $roles = Bouncer::role()
+            ->where('name', $roleName)
+            ->orWhere('title', $title)
+            ->firstOrFail();
 
         return DB::table('permissions')
             ->leftJoin('abilities', 'permissions.ability_id', 'abilities.id')
