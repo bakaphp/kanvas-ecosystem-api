@@ -18,19 +18,17 @@ class PushOrderToInvoiceActivity extends KanvasActivity
         $this->overwriteAppService($app);
 
         $orderCompany = $order->company;
-        $b2bMainCompany = B2BConfigurationService::getConfiguredB2BCompany($app, $orderCompany);
+        $mainAppCompany = B2BConfigurationService::getConfiguredB2BCompany($app, $order->company);
 
         /**
-         * @todo for now we are not allowing to create an invoice for the same company as the B2B main company.
-         */
-        if ($b2bMainCompany->getId() === $orderCompany->getId()) {
+        * @todo for now we are not allowing to create an invoice for the same company as the B2B main company.
+        */
+        if ($mainAppCompany->getId() === $orderCompany->getId()) {
             return [
                 'result' => false,
                 'message' => 'Order company is the same as the B2B main company. No action taken.',
             ];
         }
-
-        $mainAppCompany = B2BConfigurationService::getConfiguredB2BCompany($app, $order->company);
 
         return $this->executeIntegration(
             entity: $order,
