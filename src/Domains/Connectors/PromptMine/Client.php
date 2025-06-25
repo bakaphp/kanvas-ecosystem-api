@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\PromptMine\Enums\ConfigurationEnum;
 
 class Client
@@ -49,7 +50,7 @@ class Client
         $provider = $aiModel['key'] ?? 'gemini';
         $modelId = $aiModel['value'] ?? 'gemini-2.0-flash';
 
-        $endpoint = "/v2/chat/{$provider}/qa";
+        $endpoint = "/{$this->apiEnv}/v2/chat/{$provider}/qa";
 
         $data = [
             'messages' => $messages,
@@ -59,7 +60,9 @@ class Client
             'modelId' => $modelId,
         ];
 
-        return $this->post($endpoint, $data, $queryParams);
+        $response = $this->post($endpoint, $data, $queryParams);
+
+        return $response;
     }
 
     /**
@@ -71,8 +74,8 @@ class Client
     public function extractChatResponseText(array $response): ?string
     {
         // The response should contain the assistant's message
-        if (isset($response['content'])) {
-            return $response['content'];
+        if (isset($response['responseText'])) {
+            return $response['responseText'];
         }
 
         // Fallback: look for common response patterns
