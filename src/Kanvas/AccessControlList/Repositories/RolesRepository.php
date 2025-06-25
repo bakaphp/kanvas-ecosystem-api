@@ -7,6 +7,7 @@ namespace Kanvas\AccessControlList\Repositories;
 use Baka\Contracts\AppInterface;
 use Bouncer;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -14,7 +15,7 @@ use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Silber\Bouncer\Database\Ability;
-use Illuminate\Support\Collection as SupportCollection;
+
 class RolesRepository
 {
     public static function getByMixedParamFromCompany(int|string $param, ?Companies $company = null, ?AppInterface $app = null): Role
@@ -86,7 +87,7 @@ class RolesRepository
         return $roles;
     }
 
-    public static function getPermissions(string $roleName): SupportCollection 
+    public static function getPermissions(string $roleName): SupportCollection
     {
         $roles = Bouncer::role()->where('name', $roleName)->firstOrFail();
 
