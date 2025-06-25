@@ -14,7 +14,7 @@ use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Silber\Bouncer\Database\Ability;
-
+use Illuminate\Support\Collection as SupportCollection;
 class RolesRepository
 {
     public static function getByMixedParamFromCompany(int|string $param, ?Companies $company = null, ?AppInterface $app = null): Role
@@ -84,6 +84,18 @@ class RolesRepository
             ->get();
         $roles =  self::mapPermissionsToStructure($abilities);
         return $roles;
+    }
+
+    public static function getPermissions(string $roleName): SupportCollection 
+    {
+        $roles = Bouncer::role()->where('name', $roleName)->firstOrFail();
+
+        return DB::table('permissions')
+            ->leftJoin('abilities', 'permissions.ability_id', 'abilities.id')
+            ->where('permissions.entity_type', 'roles')
+            ->where('permissions.entity_id', $roles->id)
+            ->select('abilities.title', 'abilities.entity_type')
+            ->get();
     }
 
     protected static function mapPermissionsToStructure($permissions): array
