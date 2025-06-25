@@ -35,7 +35,7 @@ class CreatePaymentAction
             throw new \Exception('Order already has a pending payment');
         }
 
-        $formData = [
+        $paymentFormData = [
             "amount" => $formData['amount'] ?? $this->order->getTotalAmount(),
             "payment_date" => $formData['payment_date'] ?? date("Y-m-d"),
             "concept" => $formData['concept'] ?? "Payment {$this->order->reference}",
@@ -46,18 +46,18 @@ class CreatePaymentAction
             'status' => PaymentStatusEnum::PENDING->value
         ];
 
-        $payment = $this->order->payments()->create($formData);
+        $payment = $this->order->payments()->create($paymentFormData);
         $this->order->updateQuietly([
             'status' => OrderStatusEnum::PENDING->value,
         ]);
 
-        if ($formData['order_metadata']) {
+        if (isset($formData['order_metadata'])) {
             $this->order->metadata = [
                 ...($this->order->metadata ?? []),
                 'data' => [
                     ...($this->order->metadata['data'] ?? []),
                     ...($formData['order_metadata']['data'] ?? []),
-                ],
+                ]
             ];
             $this->order->saveQuietly();
         }
@@ -71,7 +71,6 @@ class CreatePaymentAction
                 ]
             );
         }
-
         return $payment;
     }
 

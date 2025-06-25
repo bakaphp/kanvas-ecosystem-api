@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Souk\Payments\Actions\MakePaymentIntentAction;
