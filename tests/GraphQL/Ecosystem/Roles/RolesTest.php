@@ -139,7 +139,7 @@ class RolesTest extends TestCase
         ', variables: [
             'id' => $roleId,
             'input' => $input,
-        ],headers: [
+        ], headers: [
             AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
         ]);
         $response->assertJson([
