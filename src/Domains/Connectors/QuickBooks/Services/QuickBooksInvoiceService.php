@@ -11,6 +11,7 @@ use Kanvas\Connectors\QuickBooks\Enums\ConfigurationEnum;
 use Kanvas\Connectors\QuickBooks\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use QuickBooksOnline\API\Data\IPPCustomer;
+use QuickBooksOnline\API\Data\IPPCustomerType;
 use QuickBooksOnline\API\Data\IPPCustomField;
 use QuickBooksOnline\API\Data\IPPEmailAddress;
 use QuickBooksOnline\API\Data\IPPInvoice;
@@ -45,7 +46,7 @@ class QuickBooksInvoiceService
         }
 
         // Get or create customer
-        $customer = $this->getOrCreateCustomer($order);
+        $customer = $this->getOrCreateCustomerFromCompany($order); //$this->getOrCreateCustomer($order);
 
         if (! $customer) {
             throw new Exception('Failed to create or find customer');
@@ -98,6 +99,73 @@ class QuickBooksInvoiceService
         $order->set(CustomFieldEnum::QUICKBOOKS_INVOICE_NUMBER->value, $resultingInvoice->DocNumber);
 
         return $resultingInvoice;
+    }
+
+    private function getOrCreateCustomerFromCompany(Order $order): ?IPPCustomer
+    {
+        $customerEmail = $order->company->email;
+        $customerName = $order->company->name ?: 'Guest Customer';
+
+        // First, try to find existing customer by email
+        if ($customerEmail) {
+            $customers = $this->dataService->Query("SELECT * FROM Customer WHERE PrimaryEmailAddr = '{$customerEmail}'");
+            if (! empty($customers)) {
+                return $customers[0];
+            }
+        }
+
+        // Create new customer
+        $customer = new IPPCustomer();
+        $customer->GivenName = $customerName;
+        $customer->CompanyName = $order->company->name;
+
+        //@todo set customer type dynamically based on order type
+        $customerType = $this->getOrCreateCustomerType('B2B');
+
+        if ($customerType) {
+            $customerTypeRef = new IPPReferenceType();
+            $customerTypeRef->value = $customerType->Id;
+            $customerTypeRef->name = $customerType->Name;
+            $customer->CustomerTypeRef = $customerTypeRef;
+        }
+
+        // Set email
+        if ($customerEmail) {
+            $emailAddr = new IPPEmailAddress();
+            $emailAddr->Address = $customerEmail;
+            $customer->PrimaryEmailAddr = $emailAddr;
+        }
+
+        // Set phone
+        $phone = $order->getPhone();
+        if ($phone) {
+            $phoneNumber = new IPPTelephoneNumber();
+            $phoneNumber->FreeFormNumber = $phone;
+            $customer->PrimaryPhone = $phoneNumber;
+        }
+
+        // Add billing address if available
+        if ($order->billingAddress) {
+            $customer->BillAddr = $this->formatAddress($order->billingAddress);
+        }
+
+        $resultingCustomer = $this->dataService->Add($customer);
+
+        $this->setCustomerCustomFields($resultingCustomer, [
+            'b2b' => 'true',
+        ]);
+
+        $order->people->set(CustomFieldEnum::QUICKBOOKS_CUSTOMER_ID->value, $resultingCustomer->Id);
+
+        $error = $this->dataService->getLastError();
+
+        if ($error) {
+            report(new Exception('QuickBooks Customer Creation Failed: ' . $error->getResponseBody()));
+
+            return null;
+        }
+
+        return $resultingCustomer;
     }
 
     /**
@@ -158,6 +226,35 @@ class QuickBooksInvoiceService
         }
 
         return $resultingCustomer;
+    }
+
+    private function getOrCreateCustomerType(string $typeName): ?IPPCustomerType
+    {
+        // First, try to find existing customer type
+        $escapedTypeName = str_replace("'", "\'", $typeName);
+        $customerTypes = $this->dataService->Query("SELECT * FROM CustomerType WHERE Name = '{$escapedTypeName}'");
+
+        if (! empty($customerTypes)) {
+            return $customerTypes[0];
+        }
+
+        // Create new customer type if it doesn't exist
+        return $this->createCustomerType($typeName);
+    }
+
+    /**
+     * Create a new customer type
+     */
+    private function createCustomerType(string $name): ?IPPCustomerType
+    {
+        $customerType = new IPPCustomerType();
+        $customerType->Name = $name;
+        $customerType->Active = true;
+
+        $result = $this->dataService->Add($customerType);
+        $error = $this->dataService->getLastError();
+
+        return $result;
     }
 
     /**
