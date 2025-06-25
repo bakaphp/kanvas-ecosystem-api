@@ -59,7 +59,7 @@ class PortalPaymentProcessor
             ...($includeDetails
                 ? ['merchantDefinedInformation' => new MerchantDefinedInformation(
                     category: MerchantCategoryEnum::RETAIL,
-                    cardIdentifier: $this->app->get(ConfigurationEnum::MERCHANT_IDENTIFIER->value) ?? "",
+                    cardIdentifier: $this->app->get(ConfigurationEnum::MERCHANT_ID->value) ?? "",
                     platform: MerchantPlatformEnum::MOBILE,
                     customerId: "user_" . $payment->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
