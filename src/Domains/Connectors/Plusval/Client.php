@@ -99,6 +99,16 @@ class Client
         return $this->get('api/v2/ai/deals', $params);
     }
 
+    public function getProperties(string $phone, string $criteria): array
+    {
+        $params = [
+            'phone' => $phone,
+            'criteria' => $criteria,
+        ];
+
+        return $this->get('api/v2/ai/properties', $params);
+    }
+
     /**
      * Get the current API key
      */
