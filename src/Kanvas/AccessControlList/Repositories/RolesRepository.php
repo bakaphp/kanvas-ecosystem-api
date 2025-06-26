@@ -83,15 +83,18 @@ class RolesRepository
             ->orderBy('modules.id')
             ->select('abilities.*', 'abilities_modules.system_modules_id', 'permissions.entity_id as roleId', 'modules.id', 'modules.name')
             ->get();
-        $roles =  self::mapPermissionsToStructure($abilities);
+        $roles = self::mapPermissionsToStructure($abilities);
+
         return $roles;
     }
 
-    public static function getPermissions(string $roleName, string $title): SupportCollection
+    public static function getPermissions(string $roleName, ?string $title = null): SupportCollection
     {
         $roles = Bouncer::role()
             ->where('name', $roleName)
-            ->orWhere('title', $title)
+            ->when($title, function ($query) use ($title) {
+                $query->orWhere('title', $title);
+            })
             ->firstOrFail();
 
         return DB::table('permissions')
@@ -108,13 +111,13 @@ class RolesRepository
         foreach ($permissions as $permission) {
             $ability = [
                 'title' => $permission->title,
-                'roleId' => (bool) $permission->roleId
+                'roleId' => (bool) $permission->roleId,
             ];
             if (! isset($modules[$permission['name']])) {
                 $modules[$permission['name']] = [
                     'id' => $permission->id,
                     'name' => $permission->name,
-                    'systemModules' => []
+                    'systemModules' => [],
                 ];
             }
             $systemModule = $permission->entity_type;
@@ -122,17 +125,19 @@ class RolesRepository
                 $modules[$permission['name']]['systemModules'][] = [
                     'id' => $permission->system_modules_id,
                     'name' => $systemModule,
-                    'abilities' => [$ability]
+                    'abilities' => [$ability],
                 ];
+
                 continue;
             }
-            Log::debug("Ability", $ability);
+            Log::debug('Ability', $ability);
             $found = false;
             foreach ($modules[$permission['name']]['systemModules'] as $key => $systemModules) {
                 if ($systemModules['name'] == $systemModule) {
                     $systemModules['abilities'][] = $ability;
                     $modules[$permission['name']]['systemModules'][$key] = $systemModules;
                     $found = true;
+
                     break;
                 }
             }
@@ -140,10 +145,11 @@ class RolesRepository
                 $modules[$permission['name']]['systemModules'][] = [
                     'id' => $permission->system_modules_id,
                     'name' => $systemModule,
-                    'abilities' => [$ability]
+                    'abilities' => [$ability],
                 ];
             }
         }
+
         return $modules;
     }
 }
