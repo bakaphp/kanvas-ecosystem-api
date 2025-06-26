@@ -50,5 +50,4 @@ class TransitionOrderStateAction
             'message' => 'Order status transitioned successfully',
         ];
     }
-    
 }

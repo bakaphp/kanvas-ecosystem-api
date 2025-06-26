@@ -398,8 +398,8 @@ class OrderManagementMutation
 
         if (! $order) {
             return [
-                'error_code' => 'Order not found',
-                'error_message' => 'Order not found',
+                'status' => 'error',
+                'message' => 'Order not found',
             ];
         }
 
@@ -410,8 +410,8 @@ class OrderManagementMutation
 
         if (! $newOrderStatus) {
             return [
-                'error_code' => 'Order status not found',
-                'error_message' => 'Order status not found',
+                'status' => 'error',
+                'message' => 'Order status not found',
             ];
         }
 
@@ -421,12 +421,10 @@ class OrderManagementMutation
                 $newOrderStatus
             )->execute();
         } catch (Throwable $e) {
-            print_r($e->getMessage());
             return [
                 'status' => 'error',
                 'message' => $e->getMessage(),
             ];
         }
-
     }
 }

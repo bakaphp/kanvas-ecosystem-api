@@ -55,7 +55,6 @@ class OrderStatusTest extends OrderBase
 
     public function createStatuses(Apps $app, OrderTypes $orderType, array $statuses)
     {
-
         $savedStatuses = [];
         foreach ($statuses as $status) {
             $createdStatus = OrderStatus::firstOrCreate([
@@ -146,10 +145,8 @@ class OrderStatusTest extends OrderBase
             'X-Kanvas-App' => $this->apps->key,
         ]);
 
-        print_r($response->json());
         $this->assertEquals($response->json('data.orders.data.0.order_status.name'), 'Draft');
     }
-
 
     public function testOrderStatusTransition(): void
     {
