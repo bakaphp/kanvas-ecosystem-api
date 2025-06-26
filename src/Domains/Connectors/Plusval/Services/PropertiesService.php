@@ -65,7 +65,7 @@ class PropertiesService
             throw new ValidationException('Deal ID is required');
         }
 
-        if (empty($propertiesIds) || !is_array($propertiesIds)) {
+        if (empty($propertiesIds) || ! is_array($propertiesIds)) {
             throw new ValidationException('Properties IDs must be a non-empty array');
         }
 
