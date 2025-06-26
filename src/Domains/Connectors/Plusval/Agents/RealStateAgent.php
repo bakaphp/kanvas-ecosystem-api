@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Plusval\Agents;
 
 use Kanvas\Connectors\Plusval\Services\DealsService;
+use Kanvas\Connectors\Plusval\Services\PropertiesService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
 use NeuronAI\Tools\PropertyType;
