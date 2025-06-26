@@ -32,7 +32,6 @@ class RealStateAgent extends BaseAgent
                 )
             )
             ->setCallable(function (string $customerName) {
-
                 $agentPhone = $this->getAgentPhone();
                 if (empty($agentPhone)) {
                     return [
@@ -93,7 +92,6 @@ class RealStateAgent extends BaseAgent
                 )
             )
             ->setCallable(function (string $criteria) {
-
                 $agentPhone = $this->getAgentPhone();
                 if (empty($agentPhone)) {
                     return [

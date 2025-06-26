@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Plusval\Services;
 
-use Baka\Support\Str;
 use GuzzleHttp\Exception\GuzzleException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
