@@ -304,7 +304,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 }
 
                 try {
-                    if ($app->get('esim-send-email') || ($params['send_email']) && $params['send_email'] === true) {
+                    if ($app->get('esim-send-email') || (isset($params['send_email']) && $params['send_email'] === true)) {
                         $orderNotification = new NewOrderNotification($order, [
                             'app' => $order->app,
                             'company' => $order->company,
