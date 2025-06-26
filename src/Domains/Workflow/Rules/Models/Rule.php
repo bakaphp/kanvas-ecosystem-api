@@ -114,10 +114,10 @@ class Rule extends BaseModel
     /**
      * Format value for expression based on its type
      */
-    private function formatValue($value): string
+    private function formatValue(string|int|float|bool|null $value): string
     {
         // If it's numeric, don't quote it
-        if (is_numeric($value)) {
+        if (is_int($value) || is_float($value)) {
             return (string) $value;
         }
 
