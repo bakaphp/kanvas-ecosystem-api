@@ -6,88 +6,37 @@ namespace Kanvas\Notifications\Traits;
 
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Templates\Actions\RenderTemplateAction;
+use Kanvas\Templates\Repositories\TemplatesRepository;
 
 trait NotificationRenderTrait
 {
     protected ?string $templateName = null;
     protected ?string $pushTemplateName = null;
-
     public array $data = [];
 
     abstract public function getType(): NotificationTypes;
 
-    /**
-     * Notification message the user will get.
-     */
     public function message(): string
     {
-        $message = $this->data['message'] ?? '';
-        if (empty($message) && $this->getType()->hasEmailTemplate()) {
-            return $this->getEmailTemplate();
-        }
-
-        return $message;
+        return $this->data['message'] ?? $this->getEmailContentIfAvailable();
     }
 
     public function getEmailContent(): string
     {
-        if ($this->getType()->hasEmailTemplate()) {
-            return $this->getEmailTemplate();
-        }
-
-        return '';
+        return $this->getType()->hasEmailTemplate() ? $this->getEmailTemplate() : '';
     }
 
     public function getNotificationTitle(): ?string
     {
-        $title = $this->getType()->title;
+        $template = $this->findTemplateByName();
+        $title = $template?->subject ?? $this->getType()->title;
 
-        if (! $title) {
-            return null;
-        }
-
-        return Blade::render(
-            $title,
-            $this->getData()
-        );
+        return $title ? Blade::render($title, $this->getData()) : null;
     }
 
-    protected function getPushTemplate(): string
-    {
-        $templateName = $this->pushTemplateName ?? $this->templateName ?? $this->getType()->getPushTemplateName();
-
-        $renderTemplate = new RenderTemplateAction($this->app, $this->company);
-
-        return $renderTemplate->execute(
-            $templateName,
-            $this->getData()
-        );
-    }
-
-    /**
-     * Given the HTML for the current email notification
-     */
-    protected function getEmailTemplate(): string
-    {
-        if (! $this->getType()->hasEmailTemplate()) {
-            throw new Exception('This notification type does not have an email template');
-        }
-
-        $renderTemplate = new RenderTemplateAction($this->app, $this->company);
-
-        return $renderTemplate->execute(
-            $this->getTemplateName(),
-            $this->getData()
-        );
-    }
-
-    /**
-     * setTemplateName
-     *
-     * @param  mixed $name
-     */
     public function setTemplateName(string $name): self
     {
         $this->templateName = $name;
@@ -102,9 +51,6 @@ trait NotificationRenderTrait
         return $this;
     }
 
-    /**
-     * setData
-     */
     public function setData(array $data): self
     {
         $this->data = array_merge($this->data, $data);
@@ -112,19 +58,56 @@ trait NotificationRenderTrait
         return $this;
     }
 
-    /**
-     * getData.
-     */
     public function getData(): array
     {
         return $this->data;
     }
 
-    /*
-    * Get notification template Name
-    */
     public function getTemplateName(): string
     {
-        return $this->templateName === null ? $this->getType()->getTemplateName() : $this->templateName;
+        return $this->templateName ?? $this->getType()->getTemplateName();
+    }
+
+    protected function getPushTemplate(): string
+    {
+        $templateName = $this->pushTemplateName
+            ?? $this->templateName
+            ?? $this->getType()->getPushTemplateName();
+
+        return $this->renderTemplate($templateName);
+    }
+
+    protected function getEmailTemplate(): string
+    {
+        if (! $this->getType()->hasEmailTemplate()) {
+            throw new Exception('This notification type does not have an email template');
+        }
+
+        return $this->renderTemplate($this->getTemplateName());
+    }
+
+    protected function getEmailContentIfAvailable(): string
+    {
+        return $this->getType()->hasEmailTemplate() ? $this->getEmailTemplate() : '';
+    }
+
+    protected function findTemplateByName(): ?object
+    {
+        try {
+            return TemplatesRepository::getByName(
+                $this->getTemplateName(),
+                $this->app,
+                $this->company
+            );
+        } catch (ModelNotFoundException) {
+            return null;
+        }
+    }
+
+    protected function renderTemplate(string $templateName): string
+    {
+        $renderTemplate = new RenderTemplateAction($this->app, $this->company);
+
+        return $renderTemplate->execute($templateName, $this->getData());
     }
 }

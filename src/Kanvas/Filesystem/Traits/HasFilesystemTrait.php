@@ -108,7 +108,7 @@ trait HasFilesystemTrait
         return true;
     }
 
-    public function overWriteFiles(array $files, ?Apps $app = null): bool
+    public function overWriteFiles(array $files, ?Apps $app = null, bool $softDelete = false): bool
     {
         $existingFiles = $this->getFiles();
         $newFiles = collect($files);
@@ -119,8 +119,10 @@ trait HasFilesystemTrait
         });
 
         // Soft delete the files (or handle deletion as per your logic)
-        foreach ($filesToDelete as $fileDelete) {
-            $fileDelete->delete();
+        if ($softDelete) {
+            foreach ($filesToDelete as $fileDelete) {
+                $fileDelete->delete();
+            }
         }
 
         // Add or update new files

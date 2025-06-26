@@ -42,7 +42,6 @@ class EchoPayBase extends TestCase
             'id' => env('TEST_ECHO_PAY_MERCHANT_ID'),
             'key' => env('TEST_ECHO_PAY_MERCHANT_KEY'),
             'secretKey' => env('TEST_ECHO_PAY_MERCHANT_SECRET'),
-
         ];
     }
 

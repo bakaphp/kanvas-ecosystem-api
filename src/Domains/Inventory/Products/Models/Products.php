@@ -399,7 +399,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'is_published' => $this->is_published,
             'description' => $this->description,
             'short_description' => $this->short_description,
+            'product_type_slug' => $this->productsType?->slug ?? null,
             'attributes' => [],
+            'translations' => [
+                'name' => $this->getAllTranslationsAsString('name'),
+                'description' => $this->getAllTranslationsAsString('description'),
+            ],
             'apps_id' => $this->apps_id,
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
@@ -461,15 +466,31 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
         $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
-            $product['attributes'][$attribute['name']] = $attribute['value'];
+            $product['attributes'][$attribute['name']] = is_array($attribute['value'])
+                ? $attribute['value']
+                : (string) $attribute['value'];
         }
 
         $customFields = $this->getAllCustomFields();
         foreach ($customFields as $key => $value) {
-            $product['custom_fields'][$key] = $value;
+            $product['custom_fields'][$key] = is_array($value)
+                ? $value
+                : (string) $value;
         }
 
         return $product;
+    }
+
+    public function getAllTranslationsAsString(string $key): string
+    {
+        $translations = $this->getTranslations($key);
+
+        if (empty($translations)) {
+            return '';
+        }
+
+        // Join translations with a comma
+        return implode(', ', array_map(fn ($translation) => (string) $translation, $translations));
     }
 
     public function searchableAs(): string
@@ -502,7 +523,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name, description', // Use just 'message' instead of 'message.name'
+                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
             ]);
         }
 
@@ -668,6 +689,11 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'optional' => true,
                 ],
                 [
+                    'name' => 'product_type_slug',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'company',
                     'type' => 'object',
                 ],
@@ -733,6 +759,24 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'facet' => true,
                 ],
                 [
+                    'name' => 'translations',
+                    'type' => 'object',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'translations.name',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'translations.description',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
                     'name' => 'prices.*',
                     'type' => 'float',
                     'optional' => true,
@@ -779,7 +823,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         ];
     }
 
-    public static function getImportHandler(FilesystemImports $filesystemImport)
+    #[Override]
+    public static function getImportHandler(FilesystemImports $filesystemImport): mixed
     {
         return new ImportProductFromFilesystemAction($filesystemImport);
     }

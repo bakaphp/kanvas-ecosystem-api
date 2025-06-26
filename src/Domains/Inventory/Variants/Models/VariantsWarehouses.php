@@ -17,6 +17,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Models\VariantWarehouseStatusHistory;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Override;
 
 /**
  * Class Variants Warehouse.
@@ -53,6 +54,7 @@ class VariantsWarehouses extends BaseModel
 
     protected $guarded = [];
 
+    #[Override]
     protected function casts(): array
     {
         return [

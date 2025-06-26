@@ -1,0 +1,56 @@
+type ActivityLog {
+    id: ID!
+    log_name: String!
+    description: String
+    subject_type: String
+    event: String
+    entity_id: Int @rename(attribute: "subject_id")
+    causer_id: Int!
+    properties: Mixed
+    created_at: DateTime!
+}
+
+input ActivityLogInput {
+    system_module_uuid: String!
+    entity_id: Int!
+    log_name: String!
+    description: String
+    event: String
+    properties: Mixed
+}
+
+extend type Mutation @guard {
+    createActivityLog(input: ActivityLogInput!): ActivityLog!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\ActivityLog\\ActivityLogManagementMutation@createActivityLog"
+        )
+}
+
+extend type Query @guard {
+    getActivityLog(
+        system_module_uuid: String!
+        entity_id: Int!
+        where: _@whereConditions(
+            columns: [
+                "log_name",
+                "description",
+                "subject_type",
+                "subject_id"
+                "causer_id"
+                "event"
+                "batch_uuid"
+            ]
+        )
+        orderBy: _@orderBy(
+            columns: [
+                "id"
+                "created_at"
+                "updated_at"
+            ]
+        )
+    ): [ActivityLog!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\ActivityLog\\ActivityLogQuery@getAllActivityLogs"
+            defaultCount: 25
+        )
+}

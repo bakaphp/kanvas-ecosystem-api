@@ -15,5 +15,9 @@ class FilesystemImportObserver implements ShouldQueue
         $handler = $className::getImportHandler($filesystemImport);
 
         $handler->execute();
+
+        if ($filesystemImport->extra['deleteAfterUse']) {
+            $filesystemImport->filesystemMapper->softdelete();
+        };
     }
 }

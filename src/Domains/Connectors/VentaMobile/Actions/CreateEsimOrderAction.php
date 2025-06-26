@@ -49,12 +49,15 @@ class CreateEsimOrderAction
 
     public function __construct(
         protected Order $order,
-        ?Warehouses $warehouse = null
+        ?Warehouses $warehouse = null,
+        ?Variants $targetVariant = null
     ) {
         $this->warehouse = $warehouse ?? $this->order->region->defaultWarehouse;
         $this->eSimService = new ESimService($order->app, $order->company);
         $this->subscriberService = new SubscriberService($order->app, $order->company);
-        $this->orderVariant = $order->allItems()->first()->variant;
+
+        // Use the provided variant or fall back to the first order item's variant
+        $this->orderVariant = $targetVariant ?? $order->allItems()->first()->variant;
 
         // Get the extension ID from the variant attributes
         $this->extensionId = (int) ($this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $this->orderVariant->sku);
@@ -79,9 +82,14 @@ class CreateEsimOrderAction
 
     protected function validateOrder(): void
     {
+        // Remove the validation that prevents multiple eSim creation
+        // as we now want to allow multiple calls for different variants
+
+        // Only validate if this is the first eSim creation attempt
         $orderHasMetaData = $this->order->get(ESimCustomFieldEnum::ORDER_ESIM_METADATA->value);
 
-        if (! empty($orderHasMetaData)) {
+        // Allow creation if no metadata exists or if we're creating additional eSims
+        if (! empty($orderHasMetaData) && ! isset($orderHasMetaData['esims'])) {
             throw new ValidationException('Order already has eSim metadata');
         }
     }
@@ -90,9 +98,25 @@ class CreateEsimOrderAction
     {
         // Get parent order information
         $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
-        $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
-        $this->availableVariant = $parentProductIccid->variant;
-        $this->iccid = $this->availableVariant->sku;
+
+        // Get the specific ICCID from the refuel order metadata
+        $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
+
+        if ($targetIccid) {
+            // Use the specific ICCID provided by the frontend
+            $this->availableVariant = $this->findVariantByIccid($parentOrder, $targetIccid);
+            if (! $this->availableVariant) {
+                throw new ValidationException("Variant not found for ICCID: {$targetIccid}");
+            }
+            $this->iccid = $targetIccid;
+        } else {
+            // Fall back to original behavior if no specific ICCID provided
+            $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
+            $this->availableVariant = $parentProductIccid->variant;
+            $this->iccid = $this->availableVariant->sku;
+        }
+        $this->lpaCode = $this->availableVariant->getAttributeBySlug('lpa')?->value;
+        $this->imsi = $this->availableVariant->getAttributeBySlug('imsi')?->value;
 
         try {
             // Get service information
@@ -105,10 +129,12 @@ class CreateEsimOrderAction
             $service = $serviceInfo[0];
             $this->serviceId = $service['services_info']['id_service_inst'];
             $this->contractId = $service['id_contract_inst'];
+            $this->msisdn = $service['services_info']['msisdn'] ?? null;
+            $this->imsi = $service['services_info']['imsi'] ?? $this->imsi ?? null;
 
             // Check if we need to customize the data amount and validity period
             $dataAmount = FileSizeConverter::toBytes($this->orderVariant->getAttributeBySlug('data')?->value);
-            $validityDays = $this->orderVariant->getAttributeBySlug('esim_days')?->value;
+            $validityDays = $this->orderVariant->getAttributeBySlug('esim-days')?->value ?? $this->orderVariant->getAttributeBySlug('esim_days')?->value;
             $periodType = $this->orderVariant->getAttributeBySlug('period-type')?->value ?? 0;
 
             if ($dataAmount > 0 && $validityDays !== null) {
@@ -189,7 +215,7 @@ class CreateEsimOrderAction
 
         // Check if we need to customize the data amount and validity period
         $dataAmount = FileSizeConverter::toBytes($this->orderVariant->getAttributeBySlug('data')?->value);
-        $validityDays = $this->orderVariant->getAttributeBySlug('esim_days')?->value;
+        $validityDays = $this->orderVariant->getAttributeBySlug('esim-days')?->value ?? $this->orderVariant->getAttributeBySlug('esim_days')?->value;
         $periodType = $this->orderVariant->getAttributeBySlug('period-type')?->value ?? 0;
 
         if ($dataAmount > 0 && $validityDays !== null) {
@@ -217,14 +243,9 @@ class CreateEsimOrderAction
 
     protected function getAvailableVariant(): Variants
     {
-        // Check for previously assigned ICCID in failed orders
-        if ($this->order->allItems()->count() === 2) {
-            $lastVariant = $this->order->allItems()->latest()->first()->variant;
-
-            if ($lastVariant->product->productType->slug === ConfigurationEnum::ICCID_INVENTORY_PRODUCT_TYPE->value) {
-                return $lastVariant;
-            }
-        }
+        // For multiple eSim creation, we need to get a fresh ICCID each time
+        // Remove the logic that reuses existing variants from failed orders
+        // as we want each eSim to have its own unique ICCID
 
         $productTypeSlug = ConfigurationEnum::ICCID_INVENTORY_PRODUCT_TYPE->value;
         $productType = ProductsTypes::fromApp($this->order->app)
@@ -355,5 +376,20 @@ class CreateEsimOrderAction
             ),
             $this->orderMetaData['esimLabels'][0]['label'] ?? null,
         );
+    }
+
+    /**
+     * Find the variant that corresponds to a specific ICCID from the parent order
+     */
+    protected function findVariantByIccid(Order $parentOrder, string $iccid): ?Variants
+    {
+        // Look through all order items to find the one with matching ICCID (SKU)
+        foreach ($parentOrder->allItems()->get() as $item) {
+            if ((string) $item->variant->sku === $iccid || (string) $item->product_sku === $iccid) {
+                return $item->variant;
+            }
+        }
+
+        return null;
     }
 }

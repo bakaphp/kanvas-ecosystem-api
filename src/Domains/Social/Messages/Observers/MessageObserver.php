@@ -15,7 +15,7 @@ class MessageObserver
     public function creating(Message $message): void
     {
         //$messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
-        if ($message->app->get('message-image-type') && is_array($message->message) && $message->message['type'] === 'image-format') {
+        if ($message->app->get('message-image-type') && is_array($message->message) && isset($message->message['type']) && $message->message['type'] === 'image-format') {
             (new CheckMessagePostLimitAction(
                 message: $message,
                 getChildrenCount: true
@@ -26,26 +26,22 @@ class MessageObserver
             $checkJson = new MessageSchemaValidator($message, $message->messageType);
             $checkJson->validate();
         }
-
-        if ($message->app->get('check-free-generation-count')) {
-            //(new CheckNuggetGenerationCountAction($message))->execute();
-        }
     }
 
     public function saved(Message $message): void
     {
         // check if it has a parent, update parent total children
-        if ($message->parent_id) {
+        if ($message->parent_id && $message->parent) {
             $message->parent->increment('total_children');
+            $message->parent->searchable();
         }
     }
 
     public function created(Message $message): void
     {
-        /*         $message->fireWorkflow(WorkflowEnum::CREATED->value, true, [
-                    'app' => $message->app,
-                    'notification_name' => WorkflowEnum::CREATED->value . '-' . $message->messageType->name
-                ]); */
+        /*         if ($message->app->get('check-free-generation-count') && $message->app->get('free-generation-check-message-type') && $message->parent_id) {
+                    (new CheckNuggetGenerationCountAction($message))->execute();
+                } */
 
         $message->clearLightHouseCacheJob();
     }

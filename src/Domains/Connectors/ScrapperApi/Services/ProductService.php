@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ScrapperApi\Services;
 
 use Illuminate\Support\Str;
-use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
@@ -32,8 +31,8 @@ class ProductService
         $price = $this->calcDiscountPrice($product);
         $name = Str::limit($product['name'], 255);
         $product = [
-            'name' => TranslateToSpanishAction::execute($name) ?? $name,
-            'description' => TranslateToSpanishAction::execute($this->getDescription($product)) ?? $this->getDescription($product),
+            'name' => $name,
+            'description' => $this->getDescription($product),
             'price' => $amazonPrice,
             'discountPrice' => $amazonPrice,
             'slug' => Str::slug($product['asin']),
@@ -43,9 +42,7 @@ class ProductService
             'files' => $this->mapFilesystem(product: ['image' => $product['image'],'images' => $product['images']]),
             'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
             'isPublished' => true,
-            'categories' => [
-
-            ],
+            'categories' => $this->mapCategories($product),
             'warehouses' => [
                 [
                     'id' => $this->warehouse->id,
@@ -66,6 +63,14 @@ class ProductService
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
                     'value' => $this->calcWeight($product),
                 ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_BRAND->value,
+                    'data' => $product['brand'] ?? '',
+                ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_RATING->value,
+                    'data' => $product['average_rating'] ?? 0,
+                ],
             ],
             'custom_fields' => [
                 [
@@ -80,10 +85,40 @@ class ProductService
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
                     'data' => $this->calcWeight($product),
                 ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_BRAND->value,
+                    'data' => $product['brand'] ?? 'Locompro',
+                ],
+                [
+                    'name' => ScrapperConfigEnum::SCRAPPER_RATING->value,
+                    'data' => $product['average_rating'] ?? 0,
+                ],
             ],
         ];
 
         return $product;
+    }
+
+    public function mapCategories(array $product)
+    {
+        $categories = explode('›', $product['product_category']);
+        $mappedCategories = [];
+        foreach ($categories as $category) {
+            $category = trim($category);
+            if (empty($category)) {
+                continue;
+            }
+            $mappedCategories[] = [
+                'name' => $category,
+                'slug' => Str::slug($category),
+                'code' => Str::slug($category),
+                'position' => 0,
+            ];
+
+            break; // @todo: work with subcategories in the future
+        }
+
+        return $mappedCategories;
     }
 
     protected function mapFilesystem(array $product): array
@@ -103,22 +138,6 @@ class ProductService
         }
 
         return $files;
-    }
-
-    public function mapAttributes(array $product): array
-    {
-        $attributes = [];
-        if (! key_exists('attributes', $product)) {
-            return $attributes;
-        }
-        foreach ($product['attributes'] as $attribute) {
-            $attributes[] = [
-                'name' => $attribute['name'],
-                'value' => $attribute['value'],
-            ];
-        }
-
-        return $attributes;
     }
 
     public function calcWeight(array $product): float

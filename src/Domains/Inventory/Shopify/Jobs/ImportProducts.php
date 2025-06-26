@@ -11,6 +11,10 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Inventory\Shopify\Client;
 
+/**
+ * @deprecated
+ * This job is deprecated and will be removed in future versions.
+ */
 class ImportProducts implements ShouldQueue
 {
     use Dispatchable;
@@ -54,7 +58,7 @@ class ImportProducts implements ShouldQueue
         Query;
         $shopifyClient = Client::getClient('https://frederick-penalo.myshopify.com');
         $response = $shopifyClient->post('', [
-            'json' => ['query' => $graphQL]
+            'json' => ['query' => $graphQL],
         ]);
         dd(json_decode($response->getBody()->getContents()));
         // $data = $shopify->GraphQL->post($graphQL);

@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Roles;
 
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Tests\TestCase;
 
 class RolesTest extends TestCase
 {
     public function testCreateRole(): void
     {
+        $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
+
         $response = $this->graphQL(
-            "
+            '
             query {
                 kanvasModules {
                     id,
@@ -25,23 +31,29 @@ class RolesTest extends TestCase
                         }
                     }
                 }
-            }"
+            }',
+            [],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
         );
-        $modules = $response->json("data.kanvasModules");
-        $systemModules = $modules[0]["systemModules"];
-        $modelName = $systemModules[0]["model_name"];
-        $permissions = collect($modules[0]["systemModules"][0]["abilities"]);
-        $permissions = $permissions->pluck("name")->toArray();
+        $modules = $response->json('data.kanvasModules');
+        $systemModules = $modules[0]['systemModules'];
+        $modelName = $systemModules[0]['model_name'];
+        $permissions = collect($modules[0]['systemModules'][0]['abilities']);
+        $permissions = $permissions->pluck('name')->toArray();
         $permissions = [
-            "model_name" => $modelName,
-            "permission" => $permissions
+            'model_name' => $modelName,
+            'permission' => $permissions,
         ];
         $input = [
-            "name" => fake()->name,
-            "title" => fake()->name,
-            "permissions" => [$permissions]
+            'name' => fake()->name,
+            'title' => fake()->name,
+            'permissions' => [$permissions],
         ];
-        $this->graphQL('
+        $this->graphQL(
+            query: '
             mutation createRole($input: RoleInput!) {
                 createRole(input: $input) {
                     id
@@ -49,22 +61,29 @@ class RolesTest extends TestCase
                     title
                 }
             }
-        ', [
-            'input' => $input
-        ])->assertJson([
+        ',
+            variables: [
+            'input' => $input,
+        ],
+            headers: [
+            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+        ]
+        )->assertJson([
             'data' => [
                 'createRole' => [
                     'name' => $input['name'],
-                    'title' => $input['title']
-                ]
-            ]
+                    'title' => $input['title'],
+                ],
+            ],
         ]);
     }
 
     public function testUpdateRole(): void
     {
+        $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
         $response = $this->graphQL(
-            "
+            query: '
             query {
                 kanvasModules {
                     id,
@@ -78,23 +97,26 @@ class RolesTest extends TestCase
                         }
                     }
                 }
-            }"
+            }',
+            headers: [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
         );
-        $modules = $response->json("data.kanvasModules");
-        $systemModules = $modules[0]["systemModules"];
-        $modelName = $systemModules[0]["model_name"];
-        $permissions = collect($modules[0]["systemModules"][0]["abilities"]);
-        $permissions = $permissions->pluck("name")->toArray();
+        $modules = $response->json('data.kanvasModules');
+        $systemModules = $modules[0]['systemModules'];
+        $modelName = $systemModules[0]['model_name'];
+        $permissions = collect($modules[0]['systemModules'][0]['abilities']);
+        $permissions = $permissions->pluck('name')->toArray();
         $permissions = [
-            "model_name" => $modelName,
-            "permission" => $permissions
+            'model_name' => $modelName,
+            'permission' => $permissions,
         ];
         $input = [
-            "name" => fake()->name,
-            "title" => fake()->name,
-            "permissions" => [$permissions]
+            'name' => fake()->name,
+            'title' => fake()->name,
+            'permissions' => [$permissions],
         ];
-        $roleId = $this->graphQL('
+        $response = $this->graphQL('
             mutation createRole($input: RoleInput!) {
                 createRole(input: $input) {
                     id
@@ -103,27 +125,30 @@ class RolesTest extends TestCase
                 }
             }
         ', [
-            'input' => $input
-        ])->json('data.createRole.id');
-
+            'input' => $input,
+        ]);
+        $roleId = $response->json('data.createRole.id');
         $input['name'] = fake()->name;
-        $this->graphQL('
+        $response = $this->graphQL(query: '
             mutation updateRole($id: ID!, $input: RoleInput!) {
                 updateRole(id: $id, input: $input) {
                     name
                     title
                 }
             }
-        ', [
+        ', variables: [
             'id' => $roleId,
-            'input' => $input
-        ])->assertJson([
+            'input' => $input,
+        ], headers: [
+            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+        ]);
+        $response->assertJson([
                     'data' => [
                         'updateRole' => [
                             'name' => $input['name'],
-                            'title' => $input['title']
-                        ]
-                    ]
+                            'title' => $input['title'],
+                        ],
+                    ],
                 ]);
     }
 }

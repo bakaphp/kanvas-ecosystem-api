@@ -18,6 +18,7 @@ class WooCommerceImportProduct extends ProductImporter
                     'name' => $variant->name,
                     'sku' => $variant->sku,
                     'quantity' => (int)$variant->stock_quantity,
+                    'price' => (float)$product->price,
                     'source_id' => (string)$variant->id,
                 ];
             }
@@ -51,12 +52,9 @@ class WooCommerceImportProduct extends ProductImporter
             name: $product->name,
             slug: $product->slug,
             sku: $product->sku,
-            price: (float)$product->price,
-            discountPrice: (int)$product->sale_price,
             isPublished: $product->status == 'publish',
             sourceId: (string)$product->id,
             variants: $variants,
-            quantity: (int)$product->stock_quantity,
             description: $product->description,
             categories: $categories,
             position: 0,

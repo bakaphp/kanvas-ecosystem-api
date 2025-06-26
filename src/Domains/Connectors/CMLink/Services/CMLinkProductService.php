@@ -94,19 +94,7 @@ class CMLinkProductService
                             'data' => $sku,
                         ],
                     ],
-                    'categories' => [
-                        [
-                            'name' => 'cmlink',
-                            'code' => crc32('cmlink'),
-                            'is_published' => true,
-                            'position' => 1,
-                        ],[
-                            'name' => 'esim',
-                            'code' => crc32('esim'),
-                            'is_published' => true,
-                            'position' => 1,
-                        ],
-                    ],
+                    'categories' => [],
                     'productType' => [
                         'name' => ProductTypeEnum::getTypeByName($baseName)->value,
                         'weight' => 0,

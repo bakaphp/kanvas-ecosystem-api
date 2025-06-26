@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Third Party Services
@@ -45,7 +44,7 @@ return [
     'facebook' => [
         'client_id' => '',
         'client_secret' => '',
-        'redirect' => ''
+        'redirect' => '',
     ],
 
     'twitter-oauth-2' => [
@@ -53,7 +52,12 @@ return [
         'client_secret' => '',
         'redirect' => '',
     ],
-
+    'slack' => [
+        'notifications' => [
+            'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
+            'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
+        ],
+    ],
     'stripe' => [
     'key' => env('STRIPE_KEY'),
     'secret' => env('STRIPE_SECRET'),
@@ -67,10 +71,10 @@ return [
         'api_user' => env('SIGHTENGINE_API_USER'),
         'api_secret' => env('SIGHTENGINE_API_SECRET'),
         'image_moderation' => [
-            'api_url' => env('SIGHTENGINE_IMAGE_MODERATION_API_URL')
+            'api_url' => env('SIGHTENGINE_IMAGE_MODERATION_API_URL'),
         ],
         'text_moderation' => [
-            'api_url' => env('SIGHTENGINE_TEXT_MODERATION_API_URL')
-        ]
-    ]
+            'api_url' => env('SIGHTENGINE_TEXT_MODERATION_API_URL'),
+        ],
+    ],
 ];

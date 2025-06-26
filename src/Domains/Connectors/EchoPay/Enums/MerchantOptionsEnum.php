@@ -11,6 +11,6 @@ enum MerchantOptionsEnum: string
     case MERCHANT_PLATFORM = "3";
     case MERCHANT_CUSTOMER_ID = "4";
     case MERCHANT_TOKENIZATION = "27";
-    case MERCHANT_DOCUMENT_TYPE = "28";
-    case MERCHANT_DOCUMENT_NUMBER = "29";
+    case MERCHANT_DOCUMENT_TYPE = "29";
+    case MERCHANT_DOCUMENT_NUMBER = "30";
 }

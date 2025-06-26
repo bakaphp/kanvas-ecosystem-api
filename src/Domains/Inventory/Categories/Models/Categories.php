@@ -9,6 +9,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -65,6 +66,15 @@ class Categories extends BaseModel
         return $this->belongsToMany(Products::class, 'products_categories', 'categories_id', 'products_id');
     }
 
+    public function getProductsByTags(string $tag): Collection
+    {
+        return $this->products()
+             ->whereHas('tags', function ($query) use ($tag) {
+                 $query->where('name', $tag);
+             })
+             ->inRandomOrder()
+             ->get();
+    }
     /**
      * Get the total amount of products of a product type.
      */

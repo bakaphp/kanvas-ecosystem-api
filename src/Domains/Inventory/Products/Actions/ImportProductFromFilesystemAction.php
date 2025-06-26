@@ -41,6 +41,11 @@ class ImportProductFromFilesystemAction
                 $record
             );
 
+            if (isset($this->filesystemImports->filesystemMapper->configuration['channels_id'])) {
+                $variant['channels'][0]['channels_id'] = $this->filesystemImports->filesystemMapper->configuration['channels_id'];
+                $variant['channels'][0]['price'] = $variant['price'] ?? 0.0;
+                $variant['channels'][0]['discounted_price'] = $variant['discounted_price'] ?? 0.0;
+            }
             $listOfVariants[$variant['handler']][] = $variant;
         }
 
@@ -58,13 +63,13 @@ class ImportProductFromFilesystemAction
                 }
 
                 $productTypeId = $this->filesystemImports->filesystemMapper->configuration['product_type_id'];
-                $productType = $productTypeId ? ProductsTypesRepository::getById($productTypeId, $this->filesystemImports->company, $this->filesystemImports->app) : null;
+                $productType = $productTypeId ? ProductsTypesRepository::getById((int) $productTypeId, $this->filesystemImports->company, $this->filesystemImports->app) : null;
                 $listOfProducts[] = [
                     'name' => $variants[0]['product_name'],
                     'description' => $variants[0]['product_description'] ?? '',
                     'slug' => $variants[0]['productSlug'] ?? Str::slug($variants[0]['product_name']),
                     'sku' => $variants[0]['sku'],
-                    'status' => $variants[0]['status'],
+                    'status' => $variants[0]['status'] ?? null,
                     'customFields' => [],
                     'variants' => $variants,
                     'attributes' => $productAttributes,

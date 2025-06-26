@@ -1,0 +1,48 @@
+type ActionPipeline {
+    id: ID!
+    user: User! @belongsTo
+    company: Company! @belongsTo
+    stages: [ActionPipelineStage!]! @hasMany
+    name: String!
+    slug: String!
+    weight: Int!
+    is_default: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ActionPipelineStage {
+    id: ID!
+    pipeline: LeadPipeline! @belongsTo
+    name: String!
+    has_rotting_days: Int!
+    rotting_days: Int!
+    weight: Int!
+}
+
+extend type Query @guard {
+    actionPipelines(
+        where: _
+            @whereConditions(
+                columns: ["id", "companies_id", "slug", "weight", "is_default"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "weight"
+                    "slug"
+                    "name"
+                    "weight"
+                    "is_default"
+                ]
+            )
+    ): [ActionPipeline!]!
+        @paginate(
+            model: "Kanvas\\ActionEngine\\Pipelines\\Models\\Pipeline"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+}

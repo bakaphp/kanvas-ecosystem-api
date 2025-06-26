@@ -27,7 +27,7 @@ trait InventoryCases
     public function createProduct(array $data = [], array $attributes = []): TestResponse
     {
         if (empty($data)) {
-            $name = fake()->name;
+            $name = $data['name'] ?? fake()->name;
             $data = [
                 'name' => $name,
                 'description' => fake()->text,
@@ -132,7 +132,7 @@ trait InventoryCases
                     'price' => 100,
                     'discounted_price' => 10,
                     'is_published' => true,
-                ]
+                ],
             ];
         }
 
@@ -182,7 +182,7 @@ trait InventoryCases
             $data = [
                 'name' => fake()->name,
                 'slug' => Str::slug(fake()->name),
-                'short_slug' =>  Str::slug(fake()->name),
+                'short_slug' => Str::slug(fake()->name),
                 'is_default' => 1,
                 'currency_id' => 1,
             ];
@@ -289,7 +289,7 @@ trait InventoryCases
             new DataTransferObjectAttributes(
                 app: $app,
                 company: $company,
-                user : $user,
+                user: $user,
                 name: 'Default',
                 slug: 'default',
                 attributeType: null

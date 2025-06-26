@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
+use Baka\Support\Random;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
@@ -40,7 +41,7 @@ class SocialLoginAction
                     'firstname' => $this->socialUser->name,
                     'email' => $this->socialUser->email,
                     'password' => Str::random(11),
-                    'displayname' => $this->socialUser->nickname,
+                    'displayname' => Random::generateDisplayNameFromEmail($this->socialUser->email, $this->app),
                 ];
 
                 $branch = AuthenticationService::getAppDefaultAssignCompanyBranch($this->app);

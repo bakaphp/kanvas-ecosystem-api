@@ -7,6 +7,7 @@ namespace App\Console\Commands\Connectors\PromptMine;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\PromptMine\Notifications\FollowsRecommendationsPushNotication;
 use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
@@ -59,16 +60,16 @@ class PushFollowRecommendationNotificationCommand extends Command
             ->chunk(100, function ($users) use ($app, $via, $notificationMessages, $messageType) {
                 foreach ($users as $user) {
                     $recommendedUser = (new GenerateWhoToFollowRecommendationsAction($app))->execute($user);
-                    if ($recommendedUser->isEmpty()) {
+                    if (empty($recommendedUser)) {
                         continue;
                     }
                     $randomRecommendedUser = $recommendedUser->random();
                     $userMessagesCategories = MessagesRepository::getUserAllMessagesTags(
                         $randomRecommendedUser,
-                        $randomRecommendedUser->defaultCompany(),
-                        $messageType,
-                        $app
-                    )->toArray();
+                        Companies::find($randomRecommendedUser->defaultCompany()),
+                        $app,
+                        $messageType->getId(),
+                    );
                     $randomRecommendedUserTag =  $userMessagesCategories[array_rand($userMessagesCategories)];
                     $dynamicMessage = $notificationMessages[array_rand($notificationMessages)];
 

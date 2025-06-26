@@ -31,6 +31,24 @@ class ContactTypeSeeder extends Seeder
                 'users_id' => 1,
                 'name' => 'Cellphone',
             ],
+            [
+                'id' => 8,
+                'companies_id' => 0,
+                'users_id' => 1,
+                'name' => 'Work Phone',
+            ],
+            [
+                'id' => 9,
+                'companies_id' => 0,
+                'users_id' => 1,
+                'name' => 'Primary Email',
+            ],
+            [
+                'id' => 10,
+                'companies_id' => 0,
+                'users_id' => 1,
+                'name' => 'Secondary Email',
+            ],
         ]);
     }
 }

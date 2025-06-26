@@ -16,6 +16,16 @@ class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
 {
     public function execute(Order $order, AppInterface $app, array $params): array
     {
+        $subscriptionVariant = $order->allItems()->first()->variant;
+
+        // Check if the product is from the Dominican Republic first
+        //$productCountry = $subscriptionVariant->getAttributeBySlug('destination')?->value ?? '';
+        $productCountry = $subscriptionVariant->product->getAttributeBySlug('countries-code')?->value ?? $subscriptionVariant->product->getAttributeBySlug('destination')?->value ?? '';
+        if (! is_string($productCountry) || strtoupper($productCountry) !== 'DO') {
+            return []; // Skip execution if not from the Dominican Republic
+        }
+
+        // Proceed with other checks only if the product is from the Dominican Republic
         return $this->executeIntegration(
             entity: $order,
             app: $app,
@@ -52,18 +62,6 @@ class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
 
         if (! isset($beneficiaries['holder'])) {
             throw new ValidationException('Holder data is required in beneficiaries metadata');
-        }
-
-        $subscriptionVariant = $order->getSubscriptionVariant();
-
-        // Check if the product is from the Dominican Republic
-        $productCountry = $subscriptionVariant->getAttributeBySlug('destination-code')?->value ?? '';
-        if (strtoupper($productCountry) !== 'DO') {
-            return []; // Skip execution if not from the Dominican Republic
-        }
-
-        if (! isset($beneficiaryData['beneficiaries'])) {
-            throw new ValidationException('Beneficiaries data is required in order metadata');
         }
 
         return [

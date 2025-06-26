@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Products\Actions\CreateProductAction;
+use Kanvas\Inventory\Products\DataTransferObject\Product;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -64,30 +69,46 @@ class OrderTest extends TestCase
 
     public function testReturnOrderFromCart()
     {
-        $variantWarehouse = VariantsWarehouses::first();
-        $region = $variantWarehouse->warehouse->region;
-        $company = $region->company;
-        $user = $company->user;
-
-        // Prepare input data for the order
-        $data = [
-            'CreditCardInput' => [
-                'name' => fake()->name(),
-                'number' => fake()->creditCardNumber(null, false, ''),
-                'exp_month' => 12,
-                'exp_year' => 2026,
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+        $productData = new Product(
+            app: $app,
+            company: $company,
+            user: $user,
+            name: fake()->name(),
+            sku: fake()->unique()->word(),
+            warehouses: [[
+                'quantity' => 10,
+                'price' => 0.29,
             ],
-            'CreditCardBillingInput' => [
-                'address' => fake()->address(),
-                'address2' => fake()->address(),
-                'city' => fake()->city(),
-                'state' => 'MT',
-                'zip' => 59068,
-                'country' => 'US',
+            ]
+        );
+        $product = (new CreateProductAction($productData, $user))->execute();
+        $variant = $product->variants()->first();
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+        $channel = Channels::fromApp($app)->fromCompany($company)->first();
+        $variant->updatePriceInWarehouse($warehouse, 100);
+        $variant->updatePriceInChannel($channel, 100);
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value);
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value);
+        //$company->associateUserApp($user, $app, 1);
+        // Prepare input data for the order
+
+        $company->createAppWallet($app, ['name' => 'default'])->deposit(1000, [
+            'description' => 'Initial deposit for order testing',
+            'slug' => 'initial-deposit',
+        ]);
+        $data = [
+            'cartId' => 'default',
+
+            'customer' => [
+                'email' => $user->email,
+                'phone' => $user->phone,
             ],
             'items' => [
                 [
-                    'variant_id' => $variantWarehouse->variant->getId(),
+                    'variant_id' => $variant->getId(),
                     'quantity' => 2,
                 ],
             ],
@@ -96,7 +117,10 @@ class OrderTest extends TestCase
                 'address_2' => fake()->postcode(),
                 'city' => fake()->city(),
                 'state' => fake()->state(),
-            ]
+            ],
+            'metadata' => [
+                'user_company_id' => $company->getId(),
+            ],
         ];
 
         // Perform GraphQL mutation to create a draft order
@@ -104,16 +128,23 @@ class OrderTest extends TestCase
             mutation createOrderFromCart($input: OrderCartInput!) {
                 createOrderFromCart(input: $input) {
                     order {
-                    id
+                        id
+                    }
                 }
             }
         ', [
             'input' => $data,
-        ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
         ]);
 
-        $response->assertSuccessful();
+        $response->assertJson([
+              'data' => [
+                  'createOrderFromCart' => [
+                      'order' => [
+                          'id' => true, // Check if the order ID is returned
+                      ],
+                  ],
+              ],
+          ]);
     }
 
     public function testUpdateOrder()
@@ -134,7 +165,6 @@ class OrderTest extends TestCase
             warehouseData: $warehouseData
         )->json()['data']['createVariant'];
 
-
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $this->addVariantToChannel(
@@ -142,7 +172,6 @@ class OrderTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
@@ -195,8 +224,6 @@ class OrderTest extends TestCase
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
 
-
-
         $createOrderResponse = $response->json()['data']['createDraftOrder'];
 
         $extendedEndAt = $endDate->addMinutes(30)->toDateTimeString();
@@ -217,17 +244,17 @@ class OrderTest extends TestCase
                 }
             }
         ', [
-            "id" => $createOrderResponse['id'],
+            'id' => $createOrderResponse['id'],
             'input' => [
-                "items" => [
+                'items' => [
                     [
                         'variant_id' => $variantResponse['id'],
                         'quantity' => 2,
                     ],
                 ],
-                "metadata" => [
-                    "data" => [
-                        "end_at" => $extendedEndAt,
+                'metadata' => [
+                    'data' => [
+                        'end_at' => $extendedEndAt,
                     ],
                 ],
             ],
@@ -262,7 +289,6 @@ class OrderTest extends TestCase
             warehouseData: $warehouseData
         )->json()['data']['createVariant'];
 
-
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $this->addVariantToChannel(
@@ -270,7 +296,6 @@ class OrderTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
@@ -323,8 +348,6 @@ class OrderTest extends TestCase
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
 
-
-
         $createOrderResponse = $response->json()['data']['createDraftOrder'];
 
         $extendedEndAt = $endDate->addMinutes(30)->toDateTimeString();
@@ -345,11 +368,11 @@ class OrderTest extends TestCase
                 }
             }
         ', [
-            "id" => $createOrderResponse['id'],
+            'id' => $createOrderResponse['id'],
             'input' => [
-                "metadata" => [
-                    "data" => [
-                        "end_at" => $extendedEndAt,
+                'metadata' => [
+                    'data' => [
+                        'end_at' => $extendedEndAt,
                     ],
                 ],
             ],
@@ -384,7 +407,6 @@ class OrderTest extends TestCase
             warehouseData: $warehouseData
         )->json()['data']['createVariant'];
 
-
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $this->addVariantToChannel(
@@ -392,7 +414,6 @@ class OrderTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
@@ -445,8 +466,6 @@ class OrderTest extends TestCase
             'X-Kanvas-Location' => $company->branch->uuid,
         ]);
 
-
-
         $createOrderResponse = $response->json()['data']['createDraftOrder'];
 
         $extendedEndAt = $endDate->addMinutes(30)->toDateTimeString();
@@ -468,9 +487,9 @@ class OrderTest extends TestCase
                 }
             }
         ', [
-            "id" => $createOrderResponse['id'],
+            'id' => $createOrderResponse['id'],
             'input' => [
-                "fulfillment_status" => "fulfilled",
+                'fulfillment_status' => 'fulfilled',
             ],
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,
@@ -479,7 +498,7 @@ class OrderTest extends TestCase
         $orderData = $response->json()['data']['updateOrder']['order'];
         $order = Order::find($orderData['id']);
 
-        $this->assertEquals("fulfilled", $order->fulfillment_status);
+        $this->assertEquals('fulfilled', $order->fulfillment_status);
     }
 
     public function testCreateOrderWithDecimalQuantity()
@@ -500,7 +519,6 @@ class OrderTest extends TestCase
             warehouseData: $warehouseData
         )->json()['data']['createVariant'];
 
-
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $this->addVariantToChannel(
@@ -508,7 +526,6 @@ class OrderTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],

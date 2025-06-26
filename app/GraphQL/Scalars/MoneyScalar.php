@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Scalars;
 
+use Override;
+
 class MoneyScalar extends DecimalScalar
 {
     public string $name = 'Money';
@@ -11,15 +13,16 @@ class MoneyScalar extends DecimalScalar
     /**
      * Serialize the value to ensure it is a valid monetary value.
      */
+    #[Override]
     public function serialize($value): string
     {
         // Reuse Decimal logic
         $formattedDecimal = parent::serialize($value);
 
         // Additional logic for Money if needed (e.g., ensuring a positive value)
-        if ((float) $formattedDecimal < 0) {
-            throw new \InvalidArgumentException("Money cannot be negative: {$formattedDecimal}");
-        }
+        /*         if ((float) $formattedDecimal < 0) {
+                    throw new \InvalidArgumentException("Money cannot be negative: {$formattedDecimal}");
+                } */
 
         return $formattedDecimal;
     }
@@ -27,6 +30,7 @@ class MoneyScalar extends DecimalScalar
     /**
      * Parse the value from the client input.
      */
+    #[Override]
     public function parseValue($value): string
     {
         // Reuse Decimal logic
@@ -36,6 +40,7 @@ class MoneyScalar extends DecimalScalar
     /**
      * Parse the value from the GraphQL query AST.
      */
+    #[Override]
     public function parseLiteral($valueNode, ?array $variables = null): string
     {
         // Reuse Decimal logic

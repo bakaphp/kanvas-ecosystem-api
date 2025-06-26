@@ -10,5 +10,5 @@ interface EntityImportFilesystemInterface
 {
     public function getId(): mixed;
 
-    public static function getImportHandler(FilesystemImports $filesystemImport);
+    public static function getImportHandler(FilesystemImports $filesystemImport): mixed;
 }

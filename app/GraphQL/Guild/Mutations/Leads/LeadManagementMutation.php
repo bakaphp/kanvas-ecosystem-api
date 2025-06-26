@@ -15,6 +15,7 @@ use Kanvas\Guild\Leads\Actions\UpdateLeadAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadUpdateInput;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 
 class LeadManagementMutation
 {
@@ -139,5 +140,20 @@ class LeadManagementMutation
             user: $user,
             request: $request
         );
+    }
+
+    public function wonOrLost(mixed $root, array $req): ModelsLead
+    {
+        $leadStatus = LeadStatus::getByName($req['status']);
+        $lead = ModelsLead::getByIdFromCompanyApp(
+            id: (int) $req['id'],
+            company: auth()->user()->getCurrentCompany(),
+            app: app(Apps::class),
+        );
+        $lead->leads_status_id = $leadStatus->getId();
+        $lead->reason_lost = $req['reason_lost'] ?? '';
+        $lead->save();
+
+        return $lead;
     }
 }

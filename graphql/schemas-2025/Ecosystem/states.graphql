@@ -1,0 +1,29 @@
+type StateInput {
+    countries_id: ID!
+    name: String!
+    code: String!
+}
+extend type Query {
+    states(
+        where: _
+            @whereConditions(columns: ["name", "code", "id", "countries_id"])
+    ): [States!]!
+        @paginate(
+            defaultCount: 25
+            model: "\\Kanvas\\Locations\\Models\\States"
+        )
+    state(id: Int!): States @find(model: "\\Kanvas\\Locations\\Models\\States")
+}
+
+extend type Mutation @guardByAppKey {
+    createState(countries_id: Int!, name: String!, code: String!): States
+        @create(model: "\\Kanvas\\Locations\\Models\\States")
+    updateState(
+        id: Int!
+        countries_id: Int!
+        name: String!
+        code: String
+    ): States @update(model: "\\Kanvas\\Locations\\Models\\States")
+    deleteState(id: Int!): States
+        @delete(model: "\\Kanvas\\Locations\\Models\\States")
+}
