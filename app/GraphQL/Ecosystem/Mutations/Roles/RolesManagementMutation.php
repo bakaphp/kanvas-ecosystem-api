@@ -192,7 +192,7 @@ class RolesManagementMutation
             $input['title'] ?? null
         );
         $title = key_exists('title', $input) ? $input['title'] : null;
-        $permissions = RolesRepository::getPermissions($input['name'],$title);
+        $permissions = RolesRepository::getPermissions($input['name'], $title);
         $role = $role->execute(auth()->user()->getCurrentCompany());
         foreach ($permissions as $permission) {
             Bouncer::disallow($input['name'])->to($permission->title, $permission->entity_type);
