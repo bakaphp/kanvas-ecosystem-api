@@ -192,12 +192,12 @@ class RolesManagementMutation
             $input['title'] ?? null
         );
 
+        $permissions = RolesRepository::getPermissions($input['name'], $input['title']);
         $role = $role->execute(auth()->user()->getCurrentCompany());
-        if ($role->abilities) {
-            Bouncer::disallow($role)->to($role->abilities->pluck('name')->toArray());
+        foreach ($permissions as $permission) {
+            Bouncer::disallow($input['name'])->to($permission->title, $permission->entity_type);
         }
         $permissions = $input['permissions'];
-
         (new BulkAllowRoleToPermissionAction(
             app(Apps::class),
             $role,

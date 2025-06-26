@@ -240,7 +240,7 @@ class PaymentTest extends TestCase
         $response->assertJson([
             'data' => [
                 'createPaymentMethod' => [
-                    'payment_methods_brand' => 'amex',
+                    'payment_methods_brand' => 'american express',
                 ],
             ],
         ]);

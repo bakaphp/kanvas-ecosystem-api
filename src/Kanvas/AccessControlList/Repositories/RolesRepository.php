@@ -7,6 +7,7 @@ namespace Kanvas\AccessControlList\Repositories;
 use Baka\Contracts\AppInterface;
 use Bouncer;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -84,6 +85,21 @@ class RolesRepository
             ->get();
         $roles =  self::mapPermissionsToStructure($abilities);
         return $roles;
+    }
+
+    public static function getPermissions(string $roleName, string $title): SupportCollection
+    {
+        $roles = Bouncer::role()
+            ->where('name', $roleName)
+            ->orWhere('title', $title)
+            ->firstOrFail();
+
+        return DB::table('permissions')
+            ->leftJoin('abilities', 'permissions.ability_id', 'abilities.id')
+            ->where('permissions.entity_type', 'roles')
+            ->where('permissions.entity_id', $roles->id)
+            ->select('abilities.title', 'abilities.entity_type')
+            ->get();
     }
 
     protected static function mapPermissionsToStructure($permissions): array
