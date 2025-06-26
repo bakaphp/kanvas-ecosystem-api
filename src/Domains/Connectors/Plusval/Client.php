@@ -99,6 +99,11 @@ class Client
         return $this->get('api/v2/ai/deals', $params);
     }
 
+    /**
+     * Get properties by phone number and search criteria (id, name, title, address, description, notes or owner name)
+     *
+     * @throws GuzzleException
+     */
     public function getProperties(string $phone, string $criteria): array
     {
         $params = [
@@ -107,6 +112,22 @@ class Client
         ];
 
         return $this->get('api/v2/ai/properties', $params);
+    }
+
+    /**
+     * Send properties to a deal
+     *
+     * @throws GuzzleException
+     */
+    public function sendProperties(string $phone, int $dealId, array $propertiesIds): array
+    {
+        $data = [
+            'phone' => $phone,
+            'deal_id' => $dealId,
+            'properties_ids' => $propertiesIds,
+        ];
+
+        return $this->post('api/v2/ai/properties/send', $data);
     }
 
     /**

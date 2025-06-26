@@ -82,12 +82,12 @@ class RealStateAgent extends BaseAgent
             }),
             Tool::make(
                 'get_properties_information',
-                'I can get properties by id, name, title, address, description, notes or client name. When you ask for properties, I will call this method to retrieve properties based on the criteria you provide.'
+                'I can get properties by id, name, title, address, description, notes or owner name. When you ask for properties, I will call this method to retrieve properties based on the criteria you provide.'
             )->addProperty(
                 new ToolProperty(
                     name: 'criteria',
                     type: PropertyType::STRING,
-                    description: 'The criteria to filter properties. This can be a property ID, name, title, address, description, notes, or client name.',
+                    description: 'The criteria to filter properties. This can be a property ID, name, title, address, description, notes or owner name.',
                     required: true
                 )
             )
@@ -137,6 +137,68 @@ class RealStateAgent extends BaseAgent
                         'agent_phone' => $agentPhone,
                         'criteria' => $criteria,
                         'properties' => [],
+                    ];
+                }
+            }),
+            Tool::make(
+                'send_properties_to_deal',
+                'I can send properties to a deal. When you ask to send properties, I will call this method with the necessary information.'
+            )->addProperty(
+                new ToolProperty(
+                    name: 'deal_id',
+                    type: PropertyType::INTEGER,
+                    description: 'The ID of the deal to which properties will be sent.',
+                    required: true
+                ),
+                new ToolProperty(
+                    name: 'properties_ids',
+                    type: PropertyType::ARRAY,
+                    description: 'An array of property IDs to send to the deal.',
+                    required: true
+                )
+            )
+            ->setCallable(function (int $dealId, array $propertiesIds) {
+                $agentPhone = $this->getAgentPhone();
+                if (empty($agentPhone)) {
+                    return [
+                        'status' => 'error',
+                        'message' => 'No phone number found for agent. Please add a phone number to your profile.',
+                        'properties' => [],
+                    ];
+                }
+
+                try {
+                    // Initialize the Plusval properties service
+                    $propertiesService = new PropertiesService($this->app, $this->entity->company);
+
+                    // Send properties to the deal
+                    $response = $propertiesService->sendPropertiesToDeal($agentPhone, $dealId, $propertiesIds);
+
+                    // Process the API response
+                    if ($response['status'] === 'success') {
+                        return [
+                            'status' => 'success',
+                            'message' => 'Properties sent to deal successfully.',
+                            'agent_phone' => $agentPhone,
+                            'deal_id' => $dealId,
+                            'properties_ids' => $propertiesIds,
+                        ];
+                    } else {
+                        return [
+                            'status' => 'error',
+                            'message' => 'Error sending properties to deal: ' . $response['message'],
+                            'agent_phone' => $agentPhone,
+                            'deal_id' => $dealId,
+                            'properties_ids' => $propertiesIds,
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    return [
+                        'status' => 'error',
+                        'message' => 'Error sending properties to deal: ' . $e->getMessage(),
+                        'agent_phone' => $agentPhone,
+                        'deal_id' => $dealId,
+                        'properties_ids' => $propertiesIds,
                     ];
                 }
             })
@@ -221,9 +283,11 @@ class RealStateAgent extends BaseAgent
             $city = $property['city'] ?? [];
             $sector = $property['sector'] ?? [];
             $propertyType = $property['property_type'] ?? [];
+            $action = $property['action'] ?? [];
 
             return [
                 'property_id' => $property['id'],
+                'property_action' => $action['name'] ?? null,
                 'property_name' => $property['name'],
                 'property_title' => $property['title'],
                 'property_subtitle' => $property['subtitle'],
@@ -249,7 +313,7 @@ class RealStateAgent extends BaseAgent
                     'email' => $user['email'] ?? null,
                     'position' => $user['position'] ?? null,
                 ],
-                'client' => [
+                'owner' => [
                     'name' => $client['fullname'] ?? null,
                     'email' => $client['email'] ?? null,
                     'cellphone' => $client['celphone'] ?? null,
