@@ -154,7 +154,8 @@ class Client
             $model = 'ideogram/v2';
         }
 
-        $endpoint = "/{$this->apiEnv}/image/{$baseProvider}/{$key}";
+        #$endpoint = "/{$this->apiEnv}/image/{$baseProvider}/{$key}";
+        $endpoint = "/{$this->apiEnv}/image/{$baseProvider}";
 
         $data = [
             'model' => $model, // Use the full model path directly
