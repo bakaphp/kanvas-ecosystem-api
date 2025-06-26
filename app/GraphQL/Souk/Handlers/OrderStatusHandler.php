@@ -22,7 +22,7 @@ class OrderStatusHandler extends WhereConditionsHandler
             $this->operator->applyConditions($orderStatusQuery, $whereConditions, $boolean);
         }
 
-        $builder->whereHas('orderType', function ($query) use ($orderStatusQuery) {
+        $builder->whereHas('orderStatus', function ($query) use ($orderStatusQuery) {
             $query->mergeConstraintsFrom($orderStatusQuery);
         });
     }

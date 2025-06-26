@@ -387,7 +387,7 @@ extend type Query @guard {
             )
         orderStatus: _
             @whereConditions(
-                columns: ["name"]
+                columns: ["name", "slug", "order_type_id", "id"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
             )
         hasAddress: _
