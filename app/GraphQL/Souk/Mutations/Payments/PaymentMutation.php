@@ -112,13 +112,15 @@ class PaymentMutation
             return [
                 'status' => 'error',
                 'message' => $e->getMessage(),
+                "order" => $order,
             ];
         }
 
         return [
+            "status" => "success",
             "payment" => $payment,
             "order" => $order,
-            "message" => "message",
+            "message" => "Payment added to order",
         ];
     }
 
