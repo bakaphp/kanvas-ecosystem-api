@@ -20,7 +20,8 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
-
+use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Categories\Models\Categories;
 class ModulesRepositories
 {
     public static function getAbilitiesByModule(): array
@@ -75,6 +76,16 @@ class ModulesRepositories
                     'edit',
                     'delete',
                 ],
+                Status::class => [
+                    'create',
+                    'edit',
+                    'delete'
+                ],
+                Categories::class => [
+                    'create',
+                    'edit',
+                    'delete'
+                ]
             ],
             ModuleEnum::CRM->value => [
                 People::class => [
