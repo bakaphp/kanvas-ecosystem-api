@@ -45,4 +45,30 @@ class PropertiesService
 
         return $this->client->getProperties($agentPhone, $criteria);
     }
+
+    /**
+     * Send properties to a deal
+     *
+     * @param string $agentPhone Agent's phone number (e.g., "+1 809-864-6241")
+     * @param int $dealId Deal ID to which properties will be sent
+     * @param array $propertiesIds Array of property IDs to send
+     * @throws GuzzleException
+     * @throws ValidationException
+     */
+    public function sendPropertiesToDeal(string $agentPhone, int $dealId, array $propertiesIds): array
+    {
+        if (empty($agentPhone)) {
+            throw new ValidationException('Agent phone number is required');
+        }
+
+        if (empty($dealId)) {
+            throw new ValidationException('Deal ID is required');
+        }
+
+        if (empty($propertiesIds) || !is_array($propertiesIds)) {
+            throw new ValidationException('Properties IDs must be a non-empty array');
+        }
+
+        return $this->client->sendProperties($agentPhone, $dealId, $propertiesIds);
+    }
 }
