@@ -29,7 +29,7 @@ class LLMMessageResponseActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $company = $message->company;
+        $company = $this->getCompany($app, $message->company);
 
         return $this->executeIntegration(
             entity: $message,
