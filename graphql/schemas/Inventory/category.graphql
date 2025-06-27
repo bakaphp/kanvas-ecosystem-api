@@ -23,12 +23,15 @@ type Category {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     children: [Category!] @hasMany(type: PAGINATOR) @cacheRedis
-    products: [Product!] @belongsToMany(relation: "products", type: PAGINATOR) @cacheRedis
-    productsTags(tag: String!): [Product!]! @cacheRedis
-    @paginate(
-        defaultCount: 4
-        builder: "App\\GraphQL\\Inventory\\Builders\\Categories\\GetProductByTag@getProductsByTag"
-    )
+    products: [Product!]
+        @belongsToMany(relation: "products", type: PAGINATOR)
+        @cacheRedis
+    productsTags(tag: String!): [Product!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 4
+            builder: "App\\GraphQL\\Inventory\\Builders\\Categories\\GetProductByTag@getProductsByTag"
+        )
 }
 
 input CategoryInput {
