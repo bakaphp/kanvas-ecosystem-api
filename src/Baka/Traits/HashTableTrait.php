@@ -232,9 +232,14 @@ trait HashTableTrait
      */
     protected function formatSettingsOutput(array $settings, bool $onlyPublicSettings = false, bool $publicFormat = false): array
     {
-        // For Redis cached data, we don't have is_public info, so we return as-is for now
-        // This could be enhanced to store public status in Redis as well
-        return $settings;
+        // If no filtering or formatting is needed, return as-is
+        if (! $onlyPublicSettings && ! $publicFormat) {
+            return $settings;
+        }
+
+        // Since Redis doesn't currently store is_public info, we need to fallback to DB
+        // for public filtering. This keeps the existing Redis format intact.
+        return $this->getAllSettings($onlyPublicSettings, $publicFormat, false);
     }
 
     /**
