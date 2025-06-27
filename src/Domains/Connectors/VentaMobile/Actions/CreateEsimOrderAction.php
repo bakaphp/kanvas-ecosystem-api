@@ -98,50 +98,29 @@ class CreateEsimOrderAction
 
     protected function processRefuelOrder(): void
     {
-        // Get parent order information
-        if (isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id'])) {
-            // Use parent_order_id to find the parent order
-            $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
+        $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
+        $findOrderByIccid = ! isset($this->order->metadata['parent_order_id']) && $targetIccid !== null;
 
-            // Get the specific ICCID from the refuel order metadata
-            $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['parent_order_iccid'] ?? null;
+        $parentOrder = ! $findOrderByIccid ? Order::getById($this->order->metadata['parent_order_id']) : $this->findOrderByIccid($targetIccid);
 
-            if ($targetIccid) {
-                // Use the specific ICCID provided by the frontend
-                $this->availableVariant = $this->findVariantByIccid($parentOrder, $targetIccid);
-                if (! $this->availableVariant) {
-                    throw new ValidationException("Variant not found for ICCID: {$targetIccid}");
-                }
-                $this->iccid = $targetIccid;
-            } else {
-                // Fall back to original behavior if no specific ICCID provided
-                $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
-                $this->availableVariant = $parentProductIccid->variant;
-                $this->iccid = $this->availableVariant->sku;
-            }
-            $this->orderMetaData = $parentOrder->metadata ?? [];
-        } else {
-            // No parent_order_id, try to find parent order using target_iccid
-            $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['parent_order_iccid'] ?? null;
+        if (! $parentOrder) {
+            throw new ValidationException('Parent order not found for refuel order');
+        }
 
-            if (! $targetIccid) {
-                throw new ValidationException('No parent order ID or target ICCID found for refuel order');
-            }
-
-            // Search for an order that has this ICCID in its metadata
-            $parentOrder = Order::where(function ($query) use ($targetIccid) {
-                $query->whereRaw("JSON_EXTRACT(metadata, '$.esims[0].data.iccid') = ?", [$targetIccid])
-                      ->orWhereRaw("JSON_EXTRACT(metadata, '$.data.iccid') = ?", [$targetIccid]);
-            })->firstOrFail();
-
-            // Get the variant from the parent order that matches the target ICCID
+        if ($targetIccid !== null && ! empty($targetIccid)) {
+            // Use the specific ICCID provided by the frontend
             $this->availableVariant = $this->findVariantByIccid($parentOrder, $targetIccid);
             if (! $this->availableVariant) {
                 throw new ValidationException("Variant not found for ICCID: {$targetIccid}");
             }
             $this->iccid = $targetIccid;
-            $this->orderMetaData = $parentOrder->metadata ?? [];
+        } else {
+            // Fall back to original behavior if no specific ICCID provided
+            $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
+            $this->availableVariant = $parentProductIccid->variant;
+            $this->iccid = $this->availableVariant->sku;
         }
+        $this->orderMetaData = $parentOrder->metadata ?? [];
 
         $this->lpaCode = $this->availableVariant->getAttributeBySlug('lpa')?->value;
         $this->imsi = $this->availableVariant->getAttributeBySlug('imsi')?->value;
@@ -417,5 +396,15 @@ class CreateEsimOrderAction
         }
 
         return null;
+    }
+
+    protected function findOrderByIccid(string $iccid): ?Order
+    {
+        // Search for an order that contains the specified ICCID in its items
+        return Order::query()
+            ->whereHas('items', function ($query) use ($iccid) {
+                $query->where('product_sku', $iccid);
+            })
+            ->first();
     }
 }
