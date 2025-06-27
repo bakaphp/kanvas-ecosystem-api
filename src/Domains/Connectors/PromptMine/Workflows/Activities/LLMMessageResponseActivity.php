@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -210,5 +214,21 @@ class LLMMessageResponseActivity extends KanvasActivity
             ->generate();
 
         return str_replace(['```', 'json'], '', $response->text);
+    }
+
+    /**
+     * Get the company for this workflow
+     */
+    protected function getCompany(AppInterface $app, Model $entity): object
+    {
+        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+
+        try {
+            $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
+
+            return $branch->company;
+        } catch (ModelNotFoundException $e) {
+            return $entity->company;
+        }
     }
 }
