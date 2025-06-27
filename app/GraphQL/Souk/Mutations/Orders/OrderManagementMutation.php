@@ -17,10 +17,12 @@ use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartAction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartWalletAction;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Actions\UpdateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
@@ -376,6 +378,52 @@ class OrderManagementMutation
             return [
                 'error_code' => $response->getMessages()->getMessage()[0]->getCode(),
                 'error_message' => $response->getMessages()->getMessage()[0]->getText(),
+            ];
+        }
+    }
+
+    public function transitionOrderStatus(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+
+        $input = $request['input'];
+
+        $order = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $input['order_id'],
+            'companies_id' => $company->getId(),
+        ])->first();
+
+        if (! $order) {
+            return [
+                'status' => 'error',
+                'message' => 'Order not found',
+            ];
+        }
+
+        $newOrderStatus = OrderStatus::where([
+            'apps_id' => $app->getId(),
+            'slug' => $input['status_slug'],
+        ])->first();
+
+        if (! $newOrderStatus) {
+            return [
+                'status' => 'error',
+                'message' => 'Order status not found',
+            ];
+        }
+
+        try {
+            return new TransitionOrderStateAction(
+                $order,
+                $newOrderStatus
+            )->execute();
+        } catch (Throwable $e) {
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
             ];
         }
     }

@@ -588,15 +588,16 @@ class Order extends BaseModel
         ]);
 
         $this->order_types_id = $orderType->id;
+        if ($orderType->defaultStatus) {
+            $this->order_status_id = $orderType->defaultStatus->id;
+        }
         $this->saveOrFail();
     }
 
     public function checkPayments(): void
     {
         if ($this && ($this->payments)) {
-            $totalPaid = $this->getPaidAmount();
-            $totalDebt = $this->total_net_amount - $totalPaid;
-            if ($totalDebt <= 0) {
+            if ($this->isPaid()) {
                 $this->completed();
 
                 $this->fireWorkflow(
@@ -610,6 +611,11 @@ class Order extends BaseModel
         }
     }
 
+    public function isPaid(): bool
+    {
+        return $this->getPaidAmount() >= $this->total_net_amount;
+    }
+
     public function getPaidAmount(): float
     {
         $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
@@ -620,5 +626,10 @@ class Order extends BaseModel
     public function orderType(): BelongsTo
     {
         return $this->belongsTo(OrderTypes::class, 'order_types_id', 'id');
+    }
+
+    public function orderStatus(): BelongsTo
+    {
+        return $this->belongsTo(OrderStatus::class, 'order_status_id', 'id');
     }
 }

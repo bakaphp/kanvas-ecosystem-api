@@ -59,12 +59,12 @@ class PortalPaymentProcessor
             ...($includeDetails
                 ? ['merchantDefinedInformation' => new MerchantDefinedInformation(
                     category: MerchantCategoryEnum::RETAIL,
-                    cardIdentifier: $this->app->get(ConfigurationEnum::MERCHANT_IDENTIFIER->value) ?? "",
+                    cardIdentifier: $this->app->get(ConfigurationEnum::MERCHANT_ID->value) ?? "",
                     platform: MerchantPlatformEnum::MOBILE,
                     customerId: "user_" . $payment->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
                     documentType: MerchantDocumentTypesEnum::DNI,
-                    documentNumber: $this->app->get(ConfigurationEnum::MERCHANT_DOCUMENT_NUMBER->value) ?? "",
+                    documentNumber: (string) ($payment->user->get('driver_license') ?? ""),
                 )]
                 : [])
         ]);
@@ -100,7 +100,7 @@ class PortalPaymentProcessor
     {
         $merchantAuthentication = $this->setupMerchantAuthentication($payment);
         $payerAuthentication = $this->client->setupPayer(
-            "order_" . $payment->order->order_number,
+            $payment->order->id,
             $payment->paymentMethod->stripe_card_id,
             $merchantAuthentication
         );
@@ -252,17 +252,20 @@ class PortalPaymentProcessor
             return false;
         }
 
-        $hasValidEci = in_array($consumerData->eci, [
+        $eci = $consumerData->eci ?? $consumerData->eciRaw;
+        $hasValidEci = in_array($eci, [
             '02',
             '05',
         ]);
 
-        $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
-        $isEciMissing = $enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value && ! $consumerData->eci;
-        $byPassEci = $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
-        // If the card brand is MASTERCARD and the ECI is missing, we consider the payment as successful
-        if ($cardBrand === 'MASTERCARD' && $isEciMissing && $byPassEci) {
-            return true;
+        if (isset($enrollmentData['paymentInformation'])) {
+            $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
+            $isEciMissing = $enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value && ! $consumerData->eci;
+            $byPassEci = $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
+            // If the card brand is MASTERCARD and the ECI is missing, we consider the payment as successful
+            if ($cardBrand === 'MASTERCARD' && $isEciMissing && $byPassEci) {
+                return true;
+            }
         }
 
         return $hasValidEci;
@@ -428,7 +431,6 @@ class PortalPaymentProcessor
         $order->updateQuietly([
             'payment_status' => PaymentStatusEnum::PAID->value,
         ]);
-        $order->checkPayments();
         $payment->addMetadata([
             'data' => [
                 ...$payment->metadata['data'],
@@ -436,6 +438,7 @@ class PortalPaymentProcessor
             ],
         ]);
         $payment->save();
+        $order->checkPayments();
 
         return [
             'status' => 'success',

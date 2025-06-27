@@ -57,6 +57,8 @@ enum AppEnums implements EnumsInterface
     case DEFAULT_APP_JWT_TOKEN_NAME;
     case CSV_DATE_FORMAT;
     case DEFAULT_PUBLIC_SEARCH_USER_ID;
+    case CACHE_SEARCH;
+    case CACHE_SEARCH_TTL;
 
     #[Override]
     public function getValue(): mixed
@@ -110,6 +112,8 @@ enum AppEnums implements EnumsInterface
             self::DEFAULT_COMPANY_LOCALE => 'default_company_locale',
             self::DEFAULT_APP_LOCALE => 'default_app_locale',
             self::KANVAS_IDENTIFIER => 'X-Kanvas-Identifier',
+            self::CACHE_SEARCH => 'cache_search',
+            self::CACHE_SEARCH_TTL => 'cache_search_ttl',
         };
     }
 

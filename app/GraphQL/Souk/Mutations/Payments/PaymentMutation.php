@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Souk\Payments\Actions\MakePaymentIntentAction;
@@ -74,23 +73,54 @@ class PaymentMutation
             'id' => $orderId,
         ])->first();
 
-        if ($order->isFulfilled()) {
-            throw new ValidationException('Order is already fulfilled');
+        if (! $order) {
+            return [
+                'status' => 'error',
+                'message' => 'Order not found',
+            ];
         }
 
-        if ($order->isCompleted()) {
-            throw new ValidationException('Order is already completed');
+        if ($order->isFulfilled()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already fulfilled',
+            ];
+        }
+
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+            ];
         }
 
         $formData = $request['input'];
 
-        if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {
+        $paymentMethodId = $formData['payment_methods_id'] ?? $order->metadata['data']['payment_methods_id'] ?? null;
+
+        if (! $paymentMethodId) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment method not found',
+            ];
+        }
+
+        try {
+            $formData['amount'] = $formData['amount'] ?? $order->getTotalAmount();
             $payment = new CreatePaymentAction($order)->execute($formData);
+        } catch (Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                "order" => $order,
+            ];
         }
 
         return [
+            "status" => "success",
             "payment" => $payment,
-            "message" => "message",
+            "order" => $order,
+            "message" => "Payment added to order",
         ];
     }
 
