@@ -43,7 +43,7 @@ class SearchCacheDirective extends BaseDirective implements FieldMiddleware
             }
             if ($app->get(AppEnums::CACHE_SEARCH->getValue())) {
                 $key = $this->getKey($app, $args['search']);
-                $seconds = $app->get(AppEnums::CACHE_SEARCH_TTL->getValue(), 60);
+                $seconds = (int)$app->get(AppEnums::CACHE_SEARCH_TTL->getValue(), 60);
 
                 return Cache::remember($key, $seconds, fn () => $resolver($root, $args, $context, $info));
             }
