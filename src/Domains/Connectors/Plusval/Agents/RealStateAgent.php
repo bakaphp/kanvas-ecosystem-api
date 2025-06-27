@@ -141,23 +141,24 @@ class RealStateAgent extends BaseAgent
                 }
             }),
             Tool::make(
-                'send_property_to_deal',
-                'I can send one property to a deal. When you ask to send a property, I will call this method with the necessary information.'
+                'send_properties_to_deal',
+                'I can send properties to a deal. When you ask to send properties, I will call this method with the necessary information.'
             )->addProperty(
                 new ToolProperty(
                     name: 'dealId',
                     type: PropertyType::INTEGER,
-                    description: 'The ID of the deal to which the property will be sent.',
+                    description: 'The ID of the deal to which the properties will be sent.',
                     required: true
-                ),
+                )
+            )->addProperty(
                 new ToolProperty(
-                    name: 'propertyId',
-                    type: PropertyType::INTEGER,
-                    description: 'The ID of the property to send to the deal.',
+                    name: 'propertiesIds',
+                    type: PropertyType::ARRAY,
+                    description: 'An array of property IDs to send to the deal.',
                     required: true
                 )
             )
-            ->setCallable(function (int $dealId, int $propertyId) {
+            ->setCallable(function (int $dealId, array $propertiesIds) {
                 $agentPhone = $this->getAgentPhone();
                 if (empty($agentPhone)) {
                     return [
@@ -172,16 +173,16 @@ class RealStateAgent extends BaseAgent
                     $propertiesService = new PropertiesService($this->app, $this->entity->company);
 
                     // Send properties to the deal
-                    $response = $propertiesService->sendPropertiesToDeal($agentPhone, $dealId, [$propertyId]);
+                    $response = $propertiesService->sendPropertiesToDeal($agentPhone, $dealId, $propertiesIds);
 
                     // Process the API response
                     if ($response['status'] === 'success') {
                         return [
                             'status' => 'success',
-                            'message' => 'Property sent to deal successfully.',
+                            'message' => 'Properties sent to deal successfully.',
                             'agent_phone' => $agentPhone,
                             'deal_id' => $dealId,
-                            'property_id' => $propertyId,
+                            'properties_ids' => $propertiesIds,
                         ];
                     } else {
                         return [
@@ -189,7 +190,7 @@ class RealStateAgent extends BaseAgent
                             'message' => 'Error sending properties to deal: ' . $response['message'],
                             'agent_phone' => $agentPhone,
                             'deal_id' => $dealId,
-                            'property_id' => $propertyId,
+                            'properties_ids' => $propertiesIds,
                         ];
                     }
                 } catch (\Exception $e) {
@@ -198,7 +199,7 @@ class RealStateAgent extends BaseAgent
                         'message' => 'Error sending properties to deal: ' . $e->getMessage(),
                         'agent_phone' => $agentPhone,
                         'deal_id' => $dealId,
-                        'property_id' => $propertyId,
+                        'properties_ids' => $propertiesIds,
                     ];
                 }
             })
