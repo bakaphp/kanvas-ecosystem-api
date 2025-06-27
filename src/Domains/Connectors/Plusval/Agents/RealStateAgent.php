@@ -145,13 +145,14 @@ class RealStateAgent extends BaseAgent
                 'I can send properties to a deal. When you ask to send properties, I will call this method with the necessary information.'
             )->addProperty(
                 new ToolProperty(
-                    name: 'deal_id',
+                    name: 'dealId',
                     type: PropertyType::INTEGER,
-                    description: 'The ID of the deal to which properties will be sent.',
+                    description: 'The ID of the deal to which the properties will be sent.',
                     required: true
-                ),
+                )
+            )->addProperty(
                 new ToolProperty(
-                    name: 'properties_ids',
+                    name: 'propertiesIds',
                     type: PropertyType::ARRAY,
                     description: 'An array of property IDs to send to the deal.',
                     required: true
