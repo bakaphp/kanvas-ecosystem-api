@@ -38,7 +38,7 @@ class CheckMessagePostLimitAction
         );
 
         if ($messageCount >= $this->message->app->get('message-post-limit')) {
-            throw new Exception('You have reached the limit of messages you can post in a day');
+            throw new Exception('Your daily limit has been reached.');
         }
     }
 }
