@@ -28,17 +28,18 @@ class CreateNuggetMessageAction
             'message_types_id' => MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app)->getId(),
             'message' => [
                 'title' => $this->messageData['title'],
-                "type" => $this->messageData['type'],
+                'type' => $this->messageData['type'],
                 $messageTypeValue => $this->messageData[$messageTypeValue],
             ],
             'is_public' => $this->messageData['is_public'] ?? 1,
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         $nuggetMessage->addTags($this->parentMessage->tags->pluck('name')->toArray());
-        $this->parentMessage->total_children++;
-        $this->parentMessage->save();
+
+        /*  $this->parentMessage->total_children++;
+         $this->parentMessage->save(); */
         return $nuggetMessage;
     }
 }
