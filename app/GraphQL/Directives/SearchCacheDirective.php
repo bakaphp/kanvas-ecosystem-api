@@ -38,14 +38,16 @@ class SearchCacheDirective extends BaseDirective implements FieldMiddleware
         $app = app(Apps::class);
 
         $fieldValue->wrapResolver(fn (callable $resolver) => function (mixed $root, array $args, GraphQLContext $context, ResolveInfo $info) use ($resolver, $app): mixed {
-            if (! key_exists('search', $args)) {
+            if (! isset($args['search']) || $args['search'] === null || trim($args['search']) === '') {
                 return $resolver($root, $args, $context, $info);
             }
             if ($app->get(AppEnums::CACHE_SEARCH->getValue())) {
                 $key = $this->getKey($app, $args['search']);
                 $seconds = $app->get(AppEnums::CACHE_SEARCH_TTL->getValue(), 60);
+
                 return Cache::remember($key, $seconds, fn () => $resolver($root, $args, $context, $info));
             }
+
             return $resolver($root, $args, $context, $info);
         });
     }
