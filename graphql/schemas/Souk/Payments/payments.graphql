@@ -150,13 +150,13 @@ extend type Query {
         @paginate(
             defaultCount: 25 
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
-            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            scopes: ["fromApp", "fromUser", "notDeleted"]
         )
     
     paymentMethod(id: ID!): PaymentMethod!
         @find(
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
-            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            scopes: [ "fromApp", "fromUser", "notDeleted"]
         )
 }
 
