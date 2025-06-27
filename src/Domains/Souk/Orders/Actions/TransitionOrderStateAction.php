@@ -51,8 +51,8 @@ class TransitionOrderStateAction
             true,
             [
                 'app' => $this->order->app,
-                'from_status' => $currentOrderStatus,
-                'to_status' => $this->newOrderStatus,
+                'from_status' => $currentOrderStatus->slug,
+                'to_status' => $this->newOrderStatus->slug,
             ]
         );
 
