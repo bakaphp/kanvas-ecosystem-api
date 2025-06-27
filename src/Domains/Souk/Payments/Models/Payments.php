@@ -55,6 +55,7 @@ class Payments extends BaseModel
     {
         $this->metadata = [
             ...($this->metadata ?? []),
+            ...($metadata ?? []),
             'data' => [
                 ...($this->metadata['data'] ?? []),
                 ...($metadata['data'] ?? []),
