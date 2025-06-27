@@ -6,6 +6,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -63,6 +64,9 @@ class ProcessPaymentAction
         $bankTransaction = explode(':', $intentId)[1];
         if ($this->order->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value)) {
             $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
+            if ($orderStatus = $this->order->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
+                new TransitionOrderStateAction($this->order, $orderStatus)->execute(true);
+            }
         } else {
             $reason = $result['message'];
             $response = $paymentProcessor->reversePayment($this->payment, $this->order, $bankTransaction, $reason);

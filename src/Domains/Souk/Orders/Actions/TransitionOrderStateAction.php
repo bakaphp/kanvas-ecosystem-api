@@ -15,11 +15,17 @@ class TransitionOrderStateAction
     ) {
     }
 
-    public function execute(): array
+    public function execute(bool $processQuietly = false): array
     {
         $currentOrderStatus = $this->order->orderStatus;
 
         if (! $currentOrderStatus) {
+            if ($processQuietly) {
+                return [
+                    'status' => 'error',
+                    'message' => "Order status not found for order {$this->order->orderType->name}",
+                ];
+            }
             throw new Exception("Order status not found for order {$this->order->orderType->name}");
         }
 
@@ -29,11 +35,16 @@ class TransitionOrderStateAction
             ->first();
 
         if (! $orderStatusTransitions) {
+            if ($processQuietly) {
+                return [
+                    'status' => 'error',
+                    'message' => "The status {$this->newOrderStatus->name} is not a valid transition from {$currentOrderStatus->name}",
+                ];
+            }
             throw new Exception("The status {$this->newOrderStatus->name} is not a valid transition from {$currentOrderStatus->name}");
         }
 
-        $this->order->order_status_id = $this->newOrderStatus->id;
-        $this->order->save();
+        $this->order->updateQuietly(['order_status_id' => $this->newOrderStatus->id]);
 
         $this->order->fireWorkflow(
             WorkflowEnum::STATUS_TRANSITION->value,
