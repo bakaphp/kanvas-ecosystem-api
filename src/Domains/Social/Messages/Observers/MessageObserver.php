@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Observers;
 
-use Kanvas\Connectors\PromptMine\Actions\CheckNuggetGenerationCountAction;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
@@ -28,21 +27,12 @@ class MessageObserver
         }
     }
 
-    public function saved(Message $message): void
+    public function created(Message $message): void
     {
-        // check if it has a parent, update parent total children
         if ($message->parent_id && $message->parent) {
             $message->parent->increment('total_children');
             $message->parent->searchable();
         }
-    }
-
-    public function created(Message $message): void
-    {
-        /*         if ($message->app->get('check-free-generation-count') && $message->app->get('free-generation-check-message-type') && $message->parent_id) {
-                    (new CheckNuggetGenerationCountAction($message))->execute();
-                } */
-
         $message->clearLightHouseCacheJob();
     }
 
