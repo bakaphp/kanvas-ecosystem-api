@@ -70,6 +70,7 @@ type PaymentIntentResult {
 }
 
 type PaymentResult {
+    status: String
     payment: Payment
     order: Order
     message: Mixed

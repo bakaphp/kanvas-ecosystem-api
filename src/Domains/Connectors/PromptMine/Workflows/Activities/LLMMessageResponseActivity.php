@@ -188,7 +188,18 @@ class LLMMessageResponseActivity extends KanvasActivity
         $promptClient = new PromptClient($message->app);
         $prompt = $message->message['prompt'] ?? null;
 
-        return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
+        $provider = (string) ($message->message['ai_model']['key'] ?? 'dalle3');
+        $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
+
+        //return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
+        return (string) $promptClient->extractImageUrl(
+            $promptClient->generateImage(
+                provider: $provider,
+                model: $model,
+                prompt: $prompt,
+                key: 'text-to-image'
+            )
+        );
     }
 
     private function generateTitleByPrompt(string $prompt): string
