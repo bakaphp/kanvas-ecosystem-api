@@ -35,8 +35,8 @@ class PaymentMutation
         $paymentIntent = new MakePaymentIntentAction($payment);
 
         return [
-            "paymentIntent" => $paymentIntent->execute(),
-            "message" => "message",
+            'paymentIntent' => $paymentIntent->execute(),
+            'message' => 'message',
         ];
     }
 
@@ -58,8 +58,8 @@ class PaymentMutation
         $paymentIntent = new MakePaymentIntentAction($payment);
 
         return [
-            "paymentIntent" => $paymentIntent->execute(),
-            "message" => "message",
+            'paymentIntent' => $paymentIntent->execute(),
+            'message' => 'message',
         ];
     }
 
@@ -112,19 +112,19 @@ class PaymentMutation
             return [
                 'status' => 'error',
                 'message' => $e->getMessage(),
-                "order" => $order,
+                'order' => $order,
             ];
         }
 
         return [
-            "status" => "success",
-            "payment" => $payment,
-            "order" => $order,
-            "message" => "Payment added to order",
+            'status' => 'success',
+            'payment' => $payment,
+            'order' => $order,
+            'message' => 'Payment added to order',
         ];
     }
 
-    public function initiatePayerAuthentication($_, array $request)
+    public function initiatePayerAuthentication($_, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
@@ -171,7 +171,6 @@ class PaymentMutation
         $payment->status = PaymentStatusEnum::WAITING_DEVICE_DATA;
         $payment->save();
 
-
         return [
             'message' => 'Waiting for device data',
             'status' => 'waiting_device_data',
@@ -183,7 +182,7 @@ class PaymentMutation
         ];
     }
 
-    public function completeDeviceData($_, array $request)
+    public function completeDeviceData($_, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
@@ -222,7 +221,7 @@ class PaymentMutation
             $enrollmentResult = $paymentProcessor->completeDeviceData($payment);
 
             if ($enrollmentResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
-                $order->set("authorization_data", json_encode($enrollmentResult['data']));
+                $order->set('authorization_data', json_encode($enrollmentResult['data']));
 
                 return [
                     'status' => $enrollmentResult['status'],
@@ -258,7 +257,7 @@ class PaymentMutation
         }
     }
 
-    public function validatePayerAuthResult($_, array $request)
+    public function validatePayerAuthResult($_, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
