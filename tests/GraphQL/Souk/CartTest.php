@@ -246,7 +246,7 @@ class CartTest extends TestCase
         $region = $variantWarehouse->warehouse->region;
         $company = $region->company;
         $uuid = Str::uuid();
-        
+
         // First, add an item to cart with initial attributes
         $this->graphQL(
             /** @lang GraphQL */
@@ -326,7 +326,7 @@ class CartTest extends TestCase
         $region = $variantWarehouse->warehouse->region;
         $company = $region->company;
         $uuid = Str::uuid();
-        
+
         // First, add an item to cart
         $this->graphQL(
             /** @lang GraphQL */
@@ -396,7 +396,7 @@ class CartTest extends TestCase
         $region = $variantWarehouse->warehouse->region;
         $company = $region->company;
         $uuid = Str::uuid();
-        
+
         // First, add an item to cart
         $this->graphQL(
             /** @lang GraphQL */
