@@ -418,7 +418,8 @@ class OrderManagementMutation
         try {
             return new TransitionOrderStateAction(
                 $order,
-                $newOrderStatus
+                $newOrderStatus,
+                $user
             )->execute();
         } catch (Throwable $e) {
             return [
