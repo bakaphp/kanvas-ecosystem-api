@@ -40,9 +40,21 @@ class CartManagementMutation
             return [];
         }
 
-        $cart->update($request['variant_id'], [
+        $updateData = [
             'quantity' => $request['quantity'],
-        ]);
+        ];
+
+        // Only handle attributes if they are provided in the request
+        if (isset($request['attributes']) && ! empty($request['attributes'])) {
+            // Get current item to preserve existing attributes
+            $currentItem = $cart->get($request['variant_id']);
+            $existingAttributes = $currentItem['attributes'] ?? [];
+
+            // Merge existing attributes with new ones (new ones take precedence)
+            $updateData['attributes'] = array_merge($existingAttributes, $request['attributes']);
+        }
+
+        $cart->update($request['variant_id'], $updateData);
 
         return $cart->getContent()->toArray();
     }
