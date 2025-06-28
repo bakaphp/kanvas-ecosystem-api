@@ -26,6 +26,7 @@ class TransitionOrderStateAction
                     'message' => "Order status not found for order {$this->order->orderType->name}",
                 ];
             }
+
             throw new Exception("Order status not found for order {$this->order->orderType->name}");
         }
 
@@ -41,6 +42,7 @@ class TransitionOrderStateAction
                     'message' => "The status {$this->newOrderStatus->name} is not a valid transition from {$currentOrderStatus->name}",
                 ];
             }
+
             throw new Exception("The status {$this->newOrderStatus->name} is not a valid transition from {$currentOrderStatus->name}");
         }
 
