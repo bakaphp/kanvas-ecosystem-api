@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Payments;
 
-use Exception;
+use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\Actions\CreatePaymentMethodAction;
 use Kanvas\Payments\Actions\UpdatePaymentMethodAction;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
@@ -52,8 +53,9 @@ class PaymentMethodMutation
                     ]
                 );
             }
+
             return new CreatePaymentMethodAction($paymentMethod)->execute();
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
+        } catch (RequestException $e) {
             if ($e->hasResponse()) {
                 $response = $e->getResponse();
                 $errorMessage = json_decode((string) $response->getBody())->message;
@@ -65,7 +67,7 @@ class PaymentMethodMutation
                 $errorMessage = implode(', ', $errorMessage);
             }
 
-            throw new Exception($errorMessage);
+            throw new ValidationException($errorMessage);
         }
     }
 
@@ -81,7 +83,7 @@ class PaymentMethodMutation
         ])->first();
 
         if (! $paymentMethod) {
-            throw new Exception('Payment method not found');
+            throw new ValidationException('Payment method not found');
         }
 
         if ($paymentMethod->processor) {
@@ -124,7 +126,7 @@ class PaymentMethodMutation
         ])->first();
 
         if (! $paymentMethod) {
-            throw new Exception('Payment method not found');
+            throw new ValidationException('Payment method not found');
         }
 
         if ($paymentMethod->processor) {
