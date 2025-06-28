@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  * FilesystemEntities Model.
@@ -28,7 +29,14 @@ use Kanvas\SystemModules\Models\SystemModules;
 class FilesystemEntities extends BaseModel
 {
     use UuidTrait;
-    use Cachable;
+    //use Cachable;
+    use QueryCacheable;
+
+    public $cacheFor = 604800; //1 week
+    public $cacheTags = ['filesystemEntity'];
+    public $cachePrefix = 'filesystemEntity_';
+    public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
 
     protected $table = 'filesystem_entities';
     protected $touches = ['filesystem'];

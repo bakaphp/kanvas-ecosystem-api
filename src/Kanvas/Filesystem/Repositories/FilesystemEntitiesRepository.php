@@ -75,7 +75,7 @@ class FilesystemEntitiesRepository
      *
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getFileFromEntityByNamBuilder(Model $entity, string $name): Builder
+    public static function getFileFromEntityByNameBuilder(Model $entity, string $name): Builder
     {
         $app = $entity->app ?? app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
@@ -100,7 +100,7 @@ class FilesystemEntitiesRepository
 
     public static function getFileFromEntityByName(Model $entity, string $name): ?FilesystemEntities
     {
-        return self::getFileFromEntityByNamBuilder($entity, $name)->orderBy('filesystem_entities.id', 'DESC')->first();
+        return self::getFileFromEntityByNameBuilder($entity, $name)->orderBy('filesystem_entities.id', 'DESC')->first();
     }
 
     /**
