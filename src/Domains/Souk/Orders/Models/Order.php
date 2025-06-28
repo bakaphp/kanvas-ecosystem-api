@@ -154,7 +154,7 @@ class Order extends BaseModel
         return (float) $this->total_gross_amount;
     }
 
-    public function getSubTotalAmount(): floats
+    public function getSubTotalAmount(): float
     {
         return (float) $this->total_net_amount;
     }
