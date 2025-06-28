@@ -2,6 +2,7 @@
 
 namespace Kanvas\Souk\Payments\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -33,7 +34,7 @@ class Payments extends BaseModel
     protected $guarded = [];
 
     protected $casts = [
-        'metadata' => 'array',
+        'metadata' => Json::class,
     ];
 
     public function paymentMethod(): BelongsTo

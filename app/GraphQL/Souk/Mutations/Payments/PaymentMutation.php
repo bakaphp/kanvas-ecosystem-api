@@ -168,7 +168,7 @@ class PaymentMutation
         $payment->order->set('access_token', $consumerAuthenticationInformation['accessToken']);
         $payment->order->set('payment_status', 'waiting_device_data');
 
-        $payment->status = PaymentStatusEnum::WAITING_DEVICE_DATA;
+        $payment->status = PaymentStatusEnum::WAITING_DEVICE_DATA->value;
         $payment->save();
 
         return [
