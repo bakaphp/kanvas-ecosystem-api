@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Http\Testing\File;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
@@ -239,17 +238,5 @@ trait HasFilesystemTrait
         });
 
         return $files;
-    }
-
-    public function invalidateEntityFileCache(): void
-    {
-        $systemModule = SystemModulesRepository::getByModelName($this::class);
-
-        Cache::tags([
-            'filesystem_entities',
-            'filesystem',
-            "entity_{$this->getKey()}",
-            "system_module_{$systemModule->getKey()}",
-        ])->flush();
     }
 }
