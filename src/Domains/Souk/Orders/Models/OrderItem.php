@@ -34,6 +34,7 @@ use Override;
  * @property string|null $currency
  * @property string|null $translated_variant_name
  * @property string $variant_name
+ * @property array|null $metadata
  * @property bool $is_public
  * @property bool $is_deleted
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -109,5 +110,28 @@ class OrderItem extends BaseModel
     public function isPublic(): bool
     {
         return $this->is_public;
+    }
+
+    public function addMetadata(string $key, mixed $value): void
+    {
+        $metadata = $this->metadata ?? [];
+
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
+        $metadata[$key] = $value;
+
+        $this->metadata = $metadata;
+        $this->saveOrFail();
+    }
+
+    public function getMetadata(string $key): mixed
+    {
+        if ($this->metadata === null) {
+            return null;
+        }
+
+        return $this->metadata[$key] ?? null;
     }
 }
