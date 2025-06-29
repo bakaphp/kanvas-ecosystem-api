@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  * Class Attributes.
@@ -24,11 +25,17 @@ class VariantWarehouseStatusHistory extends BaseModel
     use HasCompositePrimaryKeyTrait;
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
+    use QueryCacheable;
 
     protected $table = 'products_variants_warehouse_status_history';
     protected $guarded = [];
     protected $primaryKey = ['products_variants_warehouse_id', 'status_id'];
     protected $forceDeleting = true;
+
+    public $cacheFor = 86400; //1 day
+    public $cacheTags = ['variantWarehouseStatusHistory'];
+    public $cachePrefix = 'variantWarehouseStatusHistory_';
+    public $cacheDriver = 'redis';
 
     /**
      * Get the user that owns the Variants.
