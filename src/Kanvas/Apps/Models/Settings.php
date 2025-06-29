@@ -17,7 +17,6 @@ use Override;
  * @property string $name
  * @property string $value
  */
-
 class Settings extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
