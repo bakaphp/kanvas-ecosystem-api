@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
@@ -60,5 +61,10 @@ class Payments extends BaseModel
                 ...($metadata['data'] ?? []),
             ],
         ];
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', PaymentStatusEnum::PENDING->value);
     }
 }
