@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Baka\Support\Str;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Exceptions\ConfigurationException;
@@ -69,27 +70,49 @@ trait HashTableTrait
         if (! is_object($this->settingsModel)) {
             throw new ConfigurationException(
                 '
-                ModelSettingsTrait need to have a settings model configure,
-                check the model setting exists for this class' . get_class($this)
+            ModelSettingsTrait need to have a settings model configure,
+            check the model setting exists for this class' . get_class($this)
             );
         }
 
         // Set in Redis first
         $this->setInRedis($key, $value);
 
-        //if we don't find it we create it
-        if (empty($this->settingsModel = $this->getSettingsByKey($key))) {
-            /**
-             * @todo this is stupid look for a better solution
-             */
-            $this->createSettingsModel();
-            $this->settingsModel->{$this->getSettingsPrimaryKey()} = $this->getKey();
-        }
+        // Use updateOrCreate to handle duplicates gracefully
+        $settingsModelClass = get_class($this->settingsModel);
+        $primaryKey = $this->getSettingsPrimaryKey();
+
         $value = Str::isJson($value) ? json_decode($value, true) : $value;
-        $this->settingsModel->name = $key;
-        $this->settingsModel->value = $value;
-        $this->settingsModel->is_public = (int) $isPublic;
-        $this->settingsModel->save();
+
+        try {
+            $settingsModelClass::updateOrCreate(
+                [
+                    $primaryKey => $this->getKey(),
+                    'name' => $key,
+                ],
+                [
+                    'value' => $value,
+                    'is_public' => (int) $isPublic,
+                    'is_deleted' => 0, // Assuming you have soft deletes
+                ]
+            );
+        } catch (Exception $e) {
+            // Fallback: try to find existing and update
+            $existing = $settingsModelClass::where($primaryKey, $this->getKey())
+                ->where('name', $key)
+                ->first();
+
+            if ($existing) {
+                $existing->update([
+                    'value' => $value,
+                    'is_public' => (int) $isPublic,
+                ]);
+            } else {
+                // If still fails, there might be a race condition
+                // Log and return false or throw a more specific exception
+                throw $e;
+            }
+        }
 
         return true;
     }
