@@ -8,6 +8,7 @@ use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
+use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  * Filesystem Model.
@@ -29,7 +30,14 @@ use Kanvas\Models\BaseModel;
 class Filesystem extends BaseModel
 {
     use UuidTrait;
-    use Cachable;
+    //use Cachable;
+    use QueryCacheable;
+
+    public $cacheFor = 604800; //1 week
+    public $cacheTags = ['filesystem'];
+    public $cachePrefix = 'filesystem_';
+    public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
 
     protected $table = 'filesystem';
     protected $fillable = [

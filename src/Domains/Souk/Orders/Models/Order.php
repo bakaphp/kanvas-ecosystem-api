@@ -142,7 +142,7 @@ class Order extends BaseModel
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
-        if (! $user->isAppOwner()) {
+        if (! $user->isAppOwner() && ! $user->can('view-all-orders')) {
             return $query->where('users_id', $user->getId());
         }
 

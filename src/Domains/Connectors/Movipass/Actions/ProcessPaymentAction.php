@@ -22,7 +22,7 @@ class ProcessPaymentAction
     ) {
     }
 
-    public function execute(ConsumerAuthentication $consumerData)
+    public function execute(ConsumerAuthentication $consumerData): array
     {
         $paymentProcessor = new PortalPaymentProcessor(
             $this->app,
@@ -65,7 +65,11 @@ class ProcessPaymentAction
         if ($this->order->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value)) {
             $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
             if ($orderStatus = $this->order->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
-                new TransitionOrderStateAction($this->order, $orderStatus)->execute(true);
+                new TransitionOrderStateAction(
+                    $this->order,
+                    $orderStatus,
+                    $this->order->user
+                )->execute(true);
             }
         } else {
             $reason = $result['message'];
