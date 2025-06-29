@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
+use Override;
 
 /**
  * AppsSettings Class.
@@ -30,14 +31,19 @@ class Settings extends BaseModel
 
     protected $primaryKey = ['apps_id', 'name'];
 
+    protected $fillable = [
+        'apps_id',
+        'name',
+        'value',
+        'is_public',
+        'is_deleted',
+    ];
+
     protected $casts = [
         'value' => Json::class,
     ];
 
-    /**
-     * Apps relationship.
-     *
-     */
+    #[Override]
     public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
