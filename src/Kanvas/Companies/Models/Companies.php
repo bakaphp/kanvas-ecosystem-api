@@ -103,6 +103,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     public $cacheTags = ['companies'];
     public $cachePrefix = 'companies_';
     public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
 
     /**
      * Create a new factory instance for the model.

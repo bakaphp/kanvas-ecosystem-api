@@ -27,6 +27,7 @@ class OrderItem extends Data
         public readonly float $discount,
         public readonly Currencies $currency,
         public readonly int $quantityShipped = 0,
+        public readonly ?array $metadata = null,
     ) {
     }
 
@@ -51,7 +52,8 @@ class OrderItem extends Data
             tax: 0, // @todo get from region
             discount: 0,
             currency: $region->currency,
-            quantityShipped: $request['quantity_shipped'] ?? 0
+            quantityShipped: $request['quantity_shipped'] ?? 0,
+            metadata: $request['metadata'] ?? [],
         );
     }
 

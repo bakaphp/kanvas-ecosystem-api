@@ -68,8 +68,8 @@ use Spatie\LaravelData\DataCollection;
  * @property float|null $weight
  * @property string|null $checkout_token
  * @property string|null $currency
- * @property string|null $metadata
- * @property string|null $private_metadata
+ * @property array|null $metadata
+ * @property array|null $private_metadata
  * @property string|null $estimate_shipping_date
  * @property string|null $shipped_date
  * @property string|null $payment_gateway_names

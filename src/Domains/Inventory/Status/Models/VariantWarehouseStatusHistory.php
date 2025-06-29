@@ -36,6 +36,7 @@ class VariantWarehouseStatusHistory extends BaseModel
     public $cacheTags = ['variantWarehouseStatusHistory'];
     public $cachePrefix = 'variantWarehouseStatusHistory_';
     public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
 
     /**
      * Get the user that owns the Variants.

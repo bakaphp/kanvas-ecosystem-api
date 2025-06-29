@@ -24,6 +24,14 @@ class CompaniesSettings extends BaseModel
 
     protected $primaryKey = ['companies_id', 'name'];
 
+    protected $fillable = [
+        'companies_id',
+        'name',
+        'value',
+        'is_public',
+        'is_deleted',
+    ];
+
     protected $casts = [
         'value' => Json::class,
     ];
