@@ -19,6 +19,7 @@ class ExtendReservationActivity extends KanvasActivity implements WorkflowActivi
     public function execute(Model $order, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
+
         return $this->executeIntegration(
             entity: $order,
             app: $app,
