@@ -93,7 +93,6 @@ trait HashTableTrait
                 [
                     'value' => $value,
                     'is_public' => (int) $isPublic,
-                    'is_deleted' => 0, // Assuming you have soft deletes
                 ]
             );
         } catch (Exception $e) {
