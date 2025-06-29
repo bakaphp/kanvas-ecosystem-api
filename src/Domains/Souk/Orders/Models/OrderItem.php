@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -84,6 +85,7 @@ class OrderItem extends BaseModel
             'is_public' => 'boolean',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
+            'metadata' => Json::class,
         ];
     }
 

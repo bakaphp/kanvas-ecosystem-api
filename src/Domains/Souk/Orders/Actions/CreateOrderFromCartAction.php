@@ -157,6 +157,22 @@ class CreateOrderFromCartAction
                 continue;
             }
 
+            // Get the product's default attributes to exclude them from metadata
+            $productAttributes = $variant->product->attributes
+                ? $variant->product->attributes->pluck('name')->toArray()
+                : [];
+
+            // Filter out product attributes from cart attributes, keeping only custom attributes
+            $customAttributes = [];
+            if (isset($lineItem['attributes']) && is_array($lineItem['attributes'])) {
+                foreach ($lineItem['attributes'] as $attributeName => $attributeValue) {
+                    // Only include attributes that are NOT part of the product's default attributes
+                    if (! in_array($attributeName, $productAttributes)) {
+                        $customAttributes[$attributeName] = $attributeValue;
+                    }
+                }
+            }
+
             $orderItems[] = new OrderItem(
                 app: $app,
                 variant: $variant,
@@ -167,7 +183,8 @@ class CreateOrderFromCartAction
                 tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),
                 currency: Currencies::getByCode('USD'),
-                quantityShipped: 0
+                quantityShipped: 0,
+                metadata: $customAttributes, // Only custom attributes, not product attributes
             );
         }
 
