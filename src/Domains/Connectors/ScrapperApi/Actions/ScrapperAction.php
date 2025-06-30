@@ -6,18 +6,18 @@ namespace Kanvas\Connectors\ScrapperApi\Actions;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\ScrapperApi\Jobs\ScrapperJob;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Laravel\Octane\Facades\Octane;
-use Kanvas\Enums\AppEnums;
-use Kanvas\Connectors\ScrapperApi\Jobs\ScrapperJob;
+
 /**
  * Class ScrapperAction.
  */
 class ScrapperAction
 {
-
     public function __construct(
         public AppInterface $app,
         public Users $user,
@@ -37,7 +37,8 @@ class ScrapperAction
         $importerProducts = 0;
         $limit = (int) $this->app->get('limit-product-scrapper');
         $firstGroup = array_slice($results, 0, $limit);
-        $secondGroup = array_slice($results, $limit);        $app = $this->app;
+        $secondGroup = array_slice($results, $limit);
+        $app = $this->app;
         $user = $this->user;
         $companyBranch = $this->companyBranch;
         $region = $this->region;
