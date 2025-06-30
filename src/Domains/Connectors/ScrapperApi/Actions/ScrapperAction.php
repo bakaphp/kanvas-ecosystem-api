@@ -10,13 +10,13 @@ use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Laravel\Octane\Facades\Octane;
-
+use Kanvas\Enums\AppEnums;
+use Kanvas\Connectors\ScrapperApi\Jobs\ScrapperJob;
 /**
  * Class ScrapperAction.
  */
 class ScrapperAction
 {
-    public ?string $uuid = null;
 
     public function __construct(
         public AppInterface $app,
@@ -24,39 +24,46 @@ class ScrapperAction
         public CompaniesBranches $companyBranch,
         protected Regions $region,
         public string $search,
-        ?string $uuid = null
+        public ?string $uuid = null
     ) {
-        $this->uuid = $uuid;
+        $this->uuid = $uuid ?? app(AppEnums::KANVAS_IDENTIFIER->getValue());
     }
 
     public function execute(): array
     {
-        logger()->info('Start search');
         $repository = new ScrapperRepository($this->app);
         $results = $repository->getSearch($this->search);
         $scrapperProducts = 0;
         $importerProducts = 0;
         $limit = (int) $this->app->get('limit-product-scrapper');
-        $results = array_slice($results, 0, $limit);
-        $app = $this->app;
+        $firstGroup = array_slice($results, 0, $limit);
+        $secondGroup = array_slice($results, $limit);        $app = $this->app;
         $user = $this->user;
         $companyBranch = $this->companyBranch;
         $region = $this->region;
         $uuid = $this->uuid;
         $classConcurrently = [];
-        foreach ($results as $result) {
+        foreach ($firstGroup as $result) {
             $action = (new ScrapperProcessorAction(
                 $app,
                 $user,
                 $companyBranch,
                 $region,
                 [$result],
-                $uuid
+                null
             ));
             $classConcurrently[] = fn () => $action->execute();
         }
         $resultsOctane = Octane::concurrently($classConcurrently, 60000);
         sleep(4);
+        ScrapperJob::dispatch(
+            $app,
+            $user,
+            $companyBranch,
+            $region,
+            $secondGroup,
+            $uuid
+        );
         return [
             'scrapperProducts' => $scrapperProducts,
             'importerProducts' => $importerProducts,

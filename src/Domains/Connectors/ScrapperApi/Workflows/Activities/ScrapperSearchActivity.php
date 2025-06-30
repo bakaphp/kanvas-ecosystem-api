@@ -14,9 +14,10 @@ use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\KanvasActivity;
-use Throwable;
 
 use function Sentry\captureException;
+
+use Throwable;
 
 class ScrapperSearchActivity extends KanvasActivity
 {
@@ -37,7 +38,7 @@ class ScrapperSearchActivity extends KanvasActivity
                 Users::getById($params['user']),
                 CompaniesBranches::getById($params['companyBranch']),
                 Regions::getById($params['region']),
-                $params['search']
+                $params['search'],
             );
             $action->execute();
             $this->setRecentlySearched($app, $word);
@@ -47,6 +48,9 @@ class ScrapperSearchActivity extends KanvasActivity
             ];
         } catch (Throwable $e) {
             captureException($e);
+
+            dump($e->getMessage());
+
             return [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

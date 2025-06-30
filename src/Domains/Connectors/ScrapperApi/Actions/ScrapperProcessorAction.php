@@ -94,48 +94,7 @@ class ScrapperProcessorAction
 
                     continue;
                 }
-
-                if ($this->app->get('ScrapperApi-Index-Shopify')) {
-                    $metafields = $this->getMetaFields(product: $product);
-                    $shopifyProductId = $product->getShopifyId($warehouse->regions);
-                    if (! $shopifyProductId) {
-                        $shopifyProduct = (new CreateProductGraphql(
-                            $this->app,
-                            $this->companyBranch,
-                            $warehouse,
-                            $product,
-                            $metafields
-                        ))->execute();
-                    } else {
-                        $shopifyProduct = (new UpdateProductGraphql(
-                            $this->app,
-                            $this->companyBranch,
-                            $warehouse,
-                            $product,
-                            $metafields
-                        ))->execute();
-                    }
-                    $variants = (new CreateProductVariantGraphql(
-                        $this->app,
-                        $this->companyBranch,
-                        $warehouse,
-                        $product
-                    ))->execute();
-                    $images = (new ImagesGraphql(
-                        $this->app,
-                        $this->companyBranch,
-                        $warehouse,
-                        $product
-                    ))->execute();
-
-                    (new SaveCustomFieldDataAction(
-                        $warehouse,
-                        $product,
-                        $this->region,
-                        $originalName
-                    ))->execute();
-                }
-
+                
                 if ($this->uuid) {
                     ProductScrapperEvent::dispatch(
                         $this->app,
