@@ -13,16 +13,14 @@ use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Connectors\ScrapperApi\Events\ProductScrapperEvent;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Connectors\ScrapperApi\Services\ProductVariantService;
-use Kanvas\Connectors\Shopify\Actions\CreateProductGraphql;
-use Kanvas\Connectors\Shopify\Actions\CreateProductVariantGraphql;
-use Kanvas\Connectors\Shopify\Actions\ImagesGraphql;
-use Kanvas\Connectors\Shopify\Actions\UpdateProductGraphql;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
+
+use function Sentry\captureException;
 
 class ScrapperProcessorAction
 {
@@ -89,12 +87,11 @@ class ScrapperProcessorAction
                     )->execute();
                     $product->searchable();
                 } catch (\Exception $e) {
-                    Log::error($e->getMessage());
-                    Log::debug($e->getTraceAsString());
+                    captureException($e);
 
                     continue;
                 }
-                
+
                 if ($this->uuid) {
                     ProductScrapperEvent::dispatch(
                         $this->app,
@@ -115,6 +112,7 @@ class ScrapperProcessorAction
             $product->save();
             $productList[] = $product;
         }
+
         return $productList;
     }
 

@@ -49,8 +49,6 @@ class ScrapperSearchActivity extends KanvasActivity
         } catch (Throwable $e) {
             captureException($e);
 
-            dump($e->getMessage());
-
             return [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
