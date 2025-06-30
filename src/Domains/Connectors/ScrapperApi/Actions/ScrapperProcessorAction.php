@@ -13,10 +13,6 @@ use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Connectors\ScrapperApi\Events\ProductScrapperEvent;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Connectors\ScrapperApi\Services\ProductVariantService;
-use Kanvas\Connectors\Shopify\Actions\CreateProductGraphql;
-use Kanvas\Connectors\Shopify\Actions\CreateProductVariantGraphql;
-use Kanvas\Connectors\Shopify\Actions\ImagesGraphql;
-use Kanvas\Connectors\Shopify\Actions\UpdateProductGraphql;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
@@ -94,7 +90,7 @@ class ScrapperProcessorAction
 
                     continue;
                 }
-                
+
                 if ($this->uuid) {
                     ProductScrapperEvent::dispatch(
                         $this->app,
