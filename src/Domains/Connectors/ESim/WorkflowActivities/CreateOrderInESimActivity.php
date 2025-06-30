@@ -169,8 +169,12 @@ class CreateOrderInESimActivity extends KanvasActivity
                             $response['label'] = array_shift($esimExtraInfoDetails[$variant->id]['labels']);
                         }
 
-                        if (empty($response['label']) && isset($item->metadata['esimLabels'][$i]['label'])) {
-                            $response['label'] = $item->metadata['esimLabels'][$i]['label'];
+                        if (empty($response['label']) && isset($item->metadata['eSimDetails'][$i]['label'])) {
+                            $response['label'] = $item->metadata['eSimDetails'][$i]['label'];
+                        }
+
+                        if (isset($item->metadata['eSimDetails'][$i])) {
+                            $response['eSimDetails'] = $item->metadata['eSimDetails'][$i];
                         }
 
                         $sku = null;
