@@ -80,13 +80,6 @@ class PaymentMutation
             ];
         }
 
-        if ($order->isFulfilled()) {
-            return [
-                'status' => 'error',
-                'message' => 'Order is already fulfilled',
-            ];
-        }
-
         if ($order->isPaid()) {
             return [
                 'status' => 'error',

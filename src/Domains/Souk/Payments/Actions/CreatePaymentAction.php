@@ -32,7 +32,7 @@ class CreatePaymentAction
         }
 
         if ($this->hasPendingPayments()) {
-            throw new \Exception('Order already has a pending payment');
+            $this->order->payments()->pending()->delete();
         }
 
         $paymentFormData = [

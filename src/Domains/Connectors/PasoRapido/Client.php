@@ -57,7 +57,6 @@ class Client
 
         $body = json_decode($result->getBody()->getContents());
 
-
         return $body->autorizacion;
     }
 
