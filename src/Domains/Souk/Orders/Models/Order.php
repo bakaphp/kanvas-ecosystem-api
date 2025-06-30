@@ -187,6 +187,7 @@ class Order extends BaseModel
         $orderItem->tax_rate = 0;
         $orderItem->currency = $item->currency->code;
         $orderItem->variant_name = $item->variant->name;
+        $orderItem->metadata = $item->metadata;
         $orderItem->saveOrFail();
 
         return $orderItem;

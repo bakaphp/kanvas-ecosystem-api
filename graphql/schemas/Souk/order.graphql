@@ -207,6 +207,7 @@ input OrderLineItemInput {
     variant_id: ID!
     quantity: Float!
     price: Money
+    metadata: Mixed
 }
 
 input PaymentInput {

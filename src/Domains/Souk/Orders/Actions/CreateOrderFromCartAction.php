@@ -152,11 +152,6 @@ class CreateOrderFromCartAction
         foreach ($cartContent as $lineItem) {
             $variant = Variants::getById($lineItem['id']);
 
-            //this shouldn't happen but just in case
-            if (! $variant) {
-                continue;
-            }
-
             // Get the product's default attributes to exclude them from metadata
             $productAttributes = $variant->product->attributes
                 ? $variant->product->attributes->pluck('name')->toArray()
@@ -184,7 +179,7 @@ class CreateOrderFromCartAction
                 discount: (float) ($lineItem['total_discount'] ?? 0),
                 currency: Currencies::getByCode('USD'),
                 quantityShipped: 0,
-                metadata: $customAttributes, // Only custom attributes, not product attributes
+                metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
             );
         }
 

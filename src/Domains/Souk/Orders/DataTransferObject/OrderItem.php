@@ -53,7 +53,7 @@ class OrderItem extends Data
             discount: 0,
             currency: $region->currency,
             quantityShipped: $request['quantity_shipped'] ?? 0,
-            metadata: $request['metadata'] ?? [],
+            metadata: $request['attributes'] ?? $request['metadata'] ?? null,
         );
     }
 
