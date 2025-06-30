@@ -47,6 +47,7 @@ class ProcessWorkflowEventAction
         }
 
         $lastSyncWorkflow = null;
+        $params['currentEventTypeName'] = strtolower($event);
 
         $rules->each(function ($rule) use (&$lastSyncWorkflow, $params) {
             $workflow = $rule->runAsync()
