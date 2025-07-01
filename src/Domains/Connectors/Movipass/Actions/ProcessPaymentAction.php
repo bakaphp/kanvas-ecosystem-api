@@ -55,7 +55,7 @@ class ProcessPaymentAction
             $response = $createPasoRapidoOrderAction->execute();
 
             $result['message'] = $response['message'];
-            $result['data'] = $response['data'];
+            $result['data'] = $response['data'] ?? [];
         } else {
             $this->order->set(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
         }
