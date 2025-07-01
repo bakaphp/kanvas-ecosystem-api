@@ -67,7 +67,9 @@ class CreateEsimOrderAction
     {
         $this->validateOrder();
 
-        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+        $isRefuelOrder = (isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id'])) ||
+                        (isset($this->order->metadata['target_iccid']) && ! empty($this->order->metadata['target_iccid'])) ||
+                        (isset($this->order->metadata['parent_order_iccid']) && ! empty($this->order->metadata['parent_order_iccid']));
         if ($isRefuelOrder) {
             $this->processRefuelOrder();
         } else {
@@ -96,13 +98,16 @@ class CreateEsimOrderAction
 
     protected function processRefuelOrder(): void
     {
-        // Get parent order information
-        $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
-
-        // Get the specific ICCID from the refuel order metadata
         $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
+        $findOrderByIccid = ! isset($this->order->metadata['parent_order_id']) && $targetIccid !== null;
 
-        if ($targetIccid) {
+        $parentOrder = ! $findOrderByIccid ? Order::getById($this->order->metadata['parent_order_id']) : $this->findOrderByIccid($targetIccid);
+
+        if (! $parentOrder) {
+            throw new ValidationException('Parent order not found for refuel order');
+        }
+
+        if ($targetIccid !== null && ! empty($targetIccid)) {
             // Use the specific ICCID provided by the frontend
             $this->availableVariant = $this->findVariantByIccid($parentOrder, $targetIccid);
             if (! $this->availableVariant) {
@@ -115,6 +120,8 @@ class CreateEsimOrderAction
             $this->availableVariant = $parentProductIccid->variant;
             $this->iccid = $this->availableVariant->sku;
         }
+        $this->orderMetaData = $parentOrder->metadata ?? [];
+
         $this->lpaCode = $this->availableVariant->getAttributeBySlug('lpa')?->value;
         $this->imsi = $this->availableVariant->getAttributeBySlug('imsi')?->value;
 
@@ -156,8 +163,6 @@ class CreateEsimOrderAction
 
             // Get balance information
             $this->balanceInfo = $this->eSimService->getServiceBalance($this->serviceId);
-
-            $this->orderMetaData = $parentOrder->metadata ?? [];
         } catch (Exception $e) {
             throw new ValidationException('Failed to process refuel order: ' . $e->getMessage());
         }
@@ -391,5 +396,15 @@ class CreateEsimOrderAction
         }
 
         return null;
+    }
+
+    protected function findOrderByIccid(string $iccid): ?Order
+    {
+        // Search for an order that contains the specified ICCID in its items
+        return Order::query()
+            ->whereHas('items', function ($query) use ($iccid) {
+                $query->where('product_sku', $iccid);
+            })
+            ->first();
     }
 }

@@ -169,8 +169,12 @@ class CreateOrderInESimActivity extends KanvasActivity
                             $response['label'] = array_shift($esimExtraInfoDetails[$variant->id]['labels']);
                         }
 
-                        if (empty($response['label']) && isset($item->metadata['esimLabels'][$i]['label'])) {
-                            $response['label'] = $item->metadata['esimLabels'][$i]['label'];
+                        if (empty($response['label']) && isset($item->metadata['eSimDetails'][$i]['label'])) {
+                            $response['label'] = $item->metadata['eSimDetails'][$i]['label'];
+                        }
+
+                        if (isset($item->metadata['eSimDetails'][$i])) {
+                            $response['eSimDetails'] = $item->metadata['eSimDetails'][$i];
                         }
 
                         $sku = null;
@@ -312,6 +316,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                         $orderNotification = new NewOrderNotification($order, [
                             'app' => $order->app,
                             'company' => $order->company,
+                            'isRefuelOrder' => $isRefuelOrder ?? false,
                             'subject' => $language === 'en' ? 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use' : 'Tu eSIM de ' . ucfirst($order->app->name) . ' está lista para usar',
                         ]);
                         $orderNotification->channels = ['mail'];

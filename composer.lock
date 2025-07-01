@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.348.1",
+            "version": "3.348.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c384263bebbfcdd0f59b459e630851f59080955f"
+                "reference": "6acc8e4f8b7468e604d6f0442284937398c2959a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c384263bebbfcdd0f59b459e630851f59080955f",
-                "reference": "c384263bebbfcdd0f59b459e630851f59080955f",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/6acc8e4f8b7468e604d6f0442284937398c2959a",
+                "reference": "6acc8e4f8b7468e604d6f0442284937398c2959a",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.348.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.348.2"
             },
-            "time": "2025-06-27T19:02:10+00:00"
+            "time": "2025-06-30T18:12:03+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -2775,7 +2775,7 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.400.0",
+            "version": "v0.401.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
@@ -2813,7 +2813,7 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.400.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.401.0"
             },
             "time": "2025-06-04T17:28:44+00:00"
         },
@@ -4227,16 +4227,16 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.15.8",
+            "version": "3.15.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "9f563eeded9ef5686c4a2e76ff5ba6cd50df98a2"
+                "reference": "6544817949a24d927e9908088bfcb55433a4dba2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/9f563eeded9ef5686c4a2e76ff5ba6cd50df98a2",
-                "reference": "9f563eeded9ef5686c4a2e76ff5ba6cd50df98a2",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/6544817949a24d927e9908088bfcb55433a4dba2",
+                "reference": "6544817949a24d927e9908088bfcb55433a4dba2",
                 "shasum": ""
             },
             "require": {
@@ -4275,27 +4275,27 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.15.8"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.15.9"
             },
-            "time": "2025-06-19T12:13:16+00:00"
+            "time": "2025-07-01T08:07:10+00:00"
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.14.15",
+            "version": "1.14.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "2b5a5bd0266511fef62b39b45a7718cea44584ce"
+                "reference": "20c5733db3c48fabc77bfd9b74f842275e9cee8c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/2b5a5bd0266511fef62b39b45a7718cea44584ce",
-                "reference": "2b5a5bd0266511fef62b39b45a7718cea44584ce",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/20c5733db3c48fabc77bfd9b74f842275e9cee8c",
+                "reference": "20c5733db3c48fabc77bfd9b74f842275e9cee8c",
                 "shasum": ""
             },
             "require": {
                 "guzzlehttp/guzzle": "^7.0",
-                "inspector-apm/inspector-php": "^3.15.5",
+                "inspector-apm/inspector-php": "^3.15.9",
                 "php": "^8.1",
                 "psr/http-message": "^1.0|^2.0",
                 "psr/log": "^1.0|^2.0|^3.0"
@@ -4331,6 +4331,9 @@
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
             "authors": [
                 {
                     "name": "Valerio Barbera",
@@ -4340,9 +4343,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.14.15"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.14.19"
             },
-            "time": "2025-06-25T15:47:43+00:00"
+            "time": "2025-07-01T15:29:56+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -6869,16 +6872,16 @@
         },
         {
             "name": "mll-lab/graphql-php-scalars",
-            "version": "v6.4.0",
+            "version": "v6.4.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/mll-lab/graphql-php-scalars.git",
-                "reference": "664ce3de2f2fb0c57f9fc127d5c75b4601290ae1"
+                "url": "https://github.com/mll-lab/graphql-php-scalars",
+                "reference": "a8acdfedfc0559fdefef7c880f534a2bb398635b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mll-lab/graphql-php-scalars/zipball/664ce3de2f2fb0c57f9fc127d5c75b4601290ae1",
-                "reference": "664ce3de2f2fb0c57f9fc127d5c75b4601290ae1",
+                "url": "https://api.github.com/repos/mll-lab/graphql-php-scalars/zipball/a8acdfedfc0559fdefef7c880f534a2bb398635b",
+                "reference": "a8acdfedfc0559fdefef7c880f534a2bb398635b",
                 "shasum": ""
             },
             "require": {
@@ -6922,11 +6925,7 @@
                 "graphql",
                 "php"
             ],
-            "support": {
-                "issues": "https://github.com/mll-lab/graphql-php-scalars/issues",
-                "source": "https://github.com/mll-lab/graphql-php-scalars/tree/v6.4.0"
-            },
-            "time": "2025-02-14T11:22:27+00:00"
+            "time": "2025-06-30T08:55:19+00:00"
         },
         {
             "name": "mll-lab/laravel-graphiql",
@@ -8981,16 +8980,16 @@
         },
         {
             "name": "phpseclib/phpseclib",
-            "version": "3.0.45",
+            "version": "3.0.46",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpseclib/phpseclib.git",
-                "reference": "bd81b90d5963c6b9d87de50357585375223f4dd8"
+                "reference": "56483a7de62a6c2a6635e42e93b8a9e25d4f0ec6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/bd81b90d5963c6b9d87de50357585375223f4dd8",
-                "reference": "bd81b90d5963c6b9d87de50357585375223f4dd8",
+                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/56483a7de62a6c2a6635e42e93b8a9e25d4f0ec6",
+                "reference": "56483a7de62a6c2a6635e42e93b8a9e25d4f0ec6",
                 "shasum": ""
             },
             "require": {
@@ -9071,7 +9070,7 @@
             ],
             "support": {
                 "issues": "https://github.com/phpseclib/phpseclib/issues",
-                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.45"
+                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.46"
             },
             "funding": [
                 {
@@ -9087,7 +9086,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-06-22T22:54:43+00:00"
+            "time": "2025-06-26T16:29:55+00:00"
         },
         {
             "name": "phpstan/phpdoc-parser",
