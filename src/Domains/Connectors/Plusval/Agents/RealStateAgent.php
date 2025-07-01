@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Types\BaseAgent;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\ArrayProperty;
 use Override;
 
 class RealStateAgent extends BaseAgent
@@ -151,11 +152,16 @@ class RealStateAgent extends BaseAgent
                     required: true
                 )
             )->addProperty(
-                new ToolProperty(
+                new ArrayProperty(
                     name: 'propertiesIds',
-                    type: PropertyType::ARRAY,
                     description: 'An array of property IDs to send to the deal.',
-                    required: true
+                    required: true,
+                    items: new ToolProperty(
+                        name: 'propertyId',
+                        type: PropertyType::INTEGER,
+                        description: 'A property ID',
+                        required: true
+                    )
                 )
             )->setCallable(function (int $dealId, array $propertiesIds) {
                 $agentPhone = $this->getAgentPhone();
@@ -325,7 +331,7 @@ class RealStateAgent extends BaseAgent
                     'client_type' => $client['client_type'] ?? null,
                     'property_interest' => $client['finding'] ?? null,
                     'price_range' => $client['price'] ?? null,
-                    'estimated_value' => $client['value'] ?? null,
+                    'estimated_value' => $client['value'] => null,
                     'contact_frequency_days' => $client['contact_days'] ?? null,
                     'is_business' => $client['is_business'] ?? false,
                     'business_name' => $client['business_name'] ?? null,
