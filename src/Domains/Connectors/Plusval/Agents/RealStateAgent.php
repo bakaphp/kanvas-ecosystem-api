@@ -331,7 +331,7 @@ class RealStateAgent extends BaseAgent
                     'client_type' => $client['client_type'] ?? null,
                     'property_interest' => $client['finding'] ?? null,
                     'price_range' => $client['price'] ?? null,
-                    'estimated_value' => $client['value'] => null,
+                    'estimated_value' => $client['value'] ?? null,
                     'contact_frequency_days' => $client['contact_days'] ?? null,
                     'is_business' => $client['is_business'] ?? false,
                     'business_name' => $client['business_name'] ?? null,
