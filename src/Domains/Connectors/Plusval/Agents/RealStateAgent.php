@@ -8,7 +8,6 @@ use Kanvas\Connectors\Plusval\Services\DealsService;
 use Kanvas\Connectors\Plusval\Services\PropertiesService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
-use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -141,6 +140,7 @@ class RealStateAgent extends BaseAgent
                 }
             }),
 
+            // Simplified third tool to debug the issue
             Tool::make(
                 'send_properties_to_deal',
                 'I can send properties to a deal. When you ask to send properties, I will call this method with the necessary information.'
@@ -152,18 +152,13 @@ class RealStateAgent extends BaseAgent
                     required: true
                 )
             )->addProperty(
-                new ArrayProperty(
-                    name: 'propertiesIds',
-                    description: 'An array of property IDs to send to the deal.',
-                    required: true,
-                    items: new ToolProperty(
-                        name: 'propertyId',
-                        type: PropertyType::INTEGER,
-                        description: 'A property ID',
-                        required: true
-                    )
+                new ToolProperty(
+                    name: 'propertyIds',
+                    type: PropertyType::STRING,
+                    description: 'Comma-separated list of property IDs to send to the deal (e.g., "1,2,3").',
+                    required: true
                 )
-            )->setCallable(function (int $dealId, array $propertiesIds) {
+            )->setCallable(function (int $dealId, string $propertyIds) {
                 $agentPhone = $this->getAgentPhone();
                 if (empty($agentPhone)) {
                     return [
@@ -173,12 +168,15 @@ class RealStateAgent extends BaseAgent
                     ];
                 }
 
+                // Convert comma-separated string to array
+                $propertiesIdsArray = array_map('intval', explode(',', $propertyIds));
+
                 try {
                     // Initialize the Plusval properties service
                     $propertiesService = new PropertiesService($this->app, $this->entity->company);
 
                     // Send properties to the deal
-                    $response = $propertiesService->sendPropertiesToDeal($agentPhone, $dealId, $propertiesIds);
+                    $response = $propertiesService->sendPropertiesToDeal($agentPhone, $dealId, $propertiesIdsArray);
 
                     // Process the API response
                     if ($response['status'] === 'success') {
@@ -187,7 +185,7 @@ class RealStateAgent extends BaseAgent
                             'message' => 'Properties sent to deal successfully.',
                             'agent_phone' => $agentPhone,
                             'deal_id' => $dealId,
-                            'properties_ids' => $propertiesIds,
+                            'properties_ids' => $propertiesIdsArray,
                         ];
                     } else {
                         return [
@@ -195,7 +193,7 @@ class RealStateAgent extends BaseAgent
                             'message' => 'Error sending properties to deal: ' . $response['message'],
                             'agent_phone' => $agentPhone,
                             'deal_id' => $dealId,
-                            'properties_ids' => $propertiesIds,
+                            'properties_ids' => $propertiesIdsArray,
                         ];
                     }
                 } catch (\Exception $e) {
@@ -204,7 +202,7 @@ class RealStateAgent extends BaseAgent
                         'message' => 'Error sending properties to deal: ' . $e->getMessage(),
                         'agent_phone' => $agentPhone,
                         'deal_id' => $dealId,
-                        'properties_ids' => $propertiesIds,
+                        'properties_ids' => $propertiesIdsArray,
                     ];
                 }
             }),
