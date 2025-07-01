@@ -14,7 +14,7 @@ class MergePdf
     protected int $totalFiles = 0;
     protected string $apiKey;
 
-    public function __construct(AppInterface $app, ...$files)
+    public function __construct(AppInterface $app, string ...$files)
     {
         $this->files = $files;
         $this->totalFiles = count($files);
