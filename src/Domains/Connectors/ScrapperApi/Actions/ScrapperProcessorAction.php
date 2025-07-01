@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Connectors\ScrapperApi\Events\ProductScrapperEvent;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
@@ -46,20 +47,34 @@ class ScrapperProcessorAction
         $channels = Channels::getDefault($this->companyBranch->company);
         $repository = new ScrapperRepository($this->app);
         $service = new ProductVariantService($channels, $warehouse, $this->user);
+
+        $productVariantService = new ProductVariantService(
+            $channels,
+            $warehouse,
+            $this->user,
+        );
         foreach ($this->results as $i => $result) {
             try {
+                if (! isset($result['asin']) || empty($result['asin'])) {
+                    Log::warning('No ASIN found for product', ['result' => $result]);
+
+                    continue;
+                }
+                Products::withTrashed()
+                    ->where('slug', $result['asin'])
+                    ->update([
+                        'is_deleted' => 0,
+                    ]);
                 $product = $repository->getByAsin($result['asin']);
                 $product = array_merge($product, $result);
                 if (empty($product['price']) && empty($product['original_price']['price'])) {
                     continue;
                 }
                 $originalName = $product['name'];
+                $originalDescription = $service->getDescription($product);
+
                 $mappedProduct = $service->mapProduct($product);
-                if (isset($product['customization_options'])) {
-                    $mappedProduct['variants'] = $service->mapVariant($product);
-                } else {
-                    $mappedProduct['variants'] = $mappedProduct;
-                }
+                $mappedProduct['variants'] = $productVariantService->mapVariant($product);
 
                 try {
                     $product = (
@@ -72,6 +87,7 @@ class ScrapperProcessorAction
                             true
                         )
                     )->execute();
+                    $product->searchable();
                 } catch (\Exception $e) {
                     Log::error($e->getMessage());
                     Log::debug($e->getTraceAsString());
@@ -135,9 +151,11 @@ class ScrapperProcessorAction
 
                 continue;
             }
+            $product->setTranslation('name', 'es', TranslateToSpanishAction::execute($originalName) ?? $originalName);
+            $product->setTranslation('description', 'es', TranslateToSpanishAction::execute($originalDescription) ?? $originalDescription);
+            $product->save();
             $productList[] = $product;
         }
-
         return $productList;
     }
 

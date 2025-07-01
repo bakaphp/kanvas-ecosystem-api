@@ -66,7 +66,11 @@ class ScoutProductIndexProcessCommand extends Command
     public function reindex(Apps $app)
     {
         $this->info('Reindex scout index for products App ' . $app->name);
-        $products = Products::fromApp($app)->where('is_published', 1)->where('is_deleted', 0)->cursor();
+        $products = Products::fromApp($app)
+                    ->where('is_published', 1)
+                    ->where('is_deleted', 0)
+                    ->orderBy('id', 'DESC')
+                    ->cursor();
 
         $i = 0;
         //need to iterate so custom index take effect

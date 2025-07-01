@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Channels\Models\Channel;
@@ -53,7 +54,8 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
  *  @property int $companies_id
  *  @property int $users_id
  *  @property int $message_types_id
- *  @property string $message
+ *  @property string|array $message
+ *  @property string $slug
  *  @property int $reactions_count
  *  @property int $comments_count
  *  @property int $total_liked
@@ -130,7 +132,7 @@ class Message extends BaseModel
         return $this->hasOne(AppModuleMessage::class, 'message_id');
     }
 
-    public function users()
+    public function users(): BelongsToMany
     {
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
@@ -161,6 +163,23 @@ class Message extends BaseModel
         return is_array($value) ? $value : [];
     }
 
+    public function addMessage(array $message): void
+    {
+        $this->message = array_merge($this->getMessage(), $message);
+        $this->saveOrFail();
+    }
+
+    public function addEntity(Model $entity): void
+    {
+        $this->appModuleMessage()->create([
+            'entity_id' => $entity->getId(),
+            'apps_id' => $this->apps_id,
+            'message_types_id' => $this->message_types_id,
+            'companies_id' => $this->companies_id,
+            'system_modules' => get_class($entity),
+        ]);
+    }
+
     public function entity(): ?Model
     {
         if (! $this->appModuleMessage) {
@@ -170,6 +189,20 @@ class Message extends BaseModel
         $legacyClassMap = SystemModules::convertLegacySystemModules($this->appModuleMessage->system_modules);
 
         return $legacyClassMap::getById($this->appModuleMessage->entity_id);
+    }
+
+    public function engagement(): HasOne
+    {
+        return $this->hasOne(
+            Engagement::class,
+            'message_id',
+            'id'
+        );
+    }
+
+    public function getEngagement(): Engagement
+    {
+        return $this->engagement()->firstOrFail();
     }
 
     #[Override]
@@ -337,8 +370,66 @@ class Message extends BaseModel
         ->count();
     }
 
+    public function toSearchableArray(): array
+    {
+        $this->loadMissing(['user', 'messageType']);
+
+        $data = [
+            'objectID' => $this->uuid,
+            ...$this->toArray(),
+            'user' => [
+                'id' => $this->users_id,
+                'name' => trim(($this->user->firstname ?? '') . ' ' . ($this->user->lastname ?? '')),
+                'displayname' => $this->user->displayname,
+            ],
+            'message_type' => $this->messageType ? [
+                'id' => $this->messageType->id,
+                'name' => $this->messageType->name,
+                'verb' => $this->messageType->verb,
+            ] : null,
+        ];
+
+        // Add parent reference for child messages
+        if ($this->parent_id) {
+            $data['parent'] = [
+                'id' => $this->parent_id,
+                'uuid' => $this->parent?->uuid,
+            ];
+        }
+
+        // Add children summary for parent messages
+        if (! $this->parent_id) {
+            $data['children'] = $this->getSearchableChildrenSummary();
+            $data['has_children'] = $this->total_children > 0;
+        }
+
+        return $data;
+    }
+
+    private function getSearchableChildrenSummary(): array
+    {
+        return $this->children()
+            ->where('is_public', 1)
+            ->select(['id', 'uuid', 'message', 'created_at', 'users_id'])
+            ->with('user:id,firstname,lastname,displayname')
+            ->limit(5) // Increased from 3 for better context
+            ->get()
+            ->map(fn ($child) => [
+                'id' => $child->id,
+                'uuid' => $child->uuid,
+                'message' => $child->message,
+                'created_at' => $child->created_at->toIso8601String(),
+                'user' => [
+                    'id' => $child->users_id,
+                    'name' => trim(($child->user->firstname ?? '') . ' ' . ($child->user->lastname ?? '')),
+                    'displayname' => $child->user->displayname,
+                ],
+            ])->toArray();
+    }
+
     /**
      * The Typesense schema to be created for the Message model.
+     * @psalm-suppress MissingTemplateParam
      */
     public function typesenseCollectionSchema(): array
     {
@@ -351,7 +442,7 @@ class Message extends BaseModel
                 ],
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'uuid',

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleFactory;
+use Override;
 
 /**
  * @param int $id
@@ -58,6 +59,7 @@ class Rule extends BaseModel
         return $this->is_async;
     }
 
+    #[Override]
     protected static function newFactory()
     {
         return RuleFactory::new();
@@ -66,11 +68,8 @@ class Rule extends BaseModel
     /**
      * Get the expression conditional to run the rule.
      *
-     * [expression] => created_at > created_at_Variable
-     * [value] => Array
-     *   (
-     *       [created_at_Variable] => 2020-01-01
-     *   )
+     * [expression] => id > 0 and order.items.count() > 2
+     * [value] => Array (empty since values are resolved dynamically)
      */
     public function getExpressionCondition(): array
     {
@@ -94,8 +93,9 @@ class Rule extends BaseModel
                 // Handle array operators
                 $condition = sprintf('%s %s [%s]', $attribute, $operator, implode(', ', array_map(fn ($v) => "'$v'", $value)));
             } else {
-                // Replace placeholders directly
-                $condition = sprintf("%s %s '%s'", $attribute, $operator, $value);
+                // Check if value should be quoted (strings) or not (numbers, booleans)
+                $formattedValue = $this->formatValue($value);
+                $condition = sprintf('%s %s %s', $attribute, $operator, $formattedValue);
             }
 
             // Replace the pattern placeholder
@@ -107,7 +107,31 @@ class Rule extends BaseModel
 
         return [
             'expression' => $pattern,
-            'values' => $values, // Values are no longer used in the expression
+            'values' => $values, // Values are resolved dynamically in DynamicRuleWorkflow
         ];
+    }
+
+    /**
+     * Format value for expression based on its type
+     */
+    private function formatValue(string|int|float|bool|null $value): string
+    {
+        // If it's numeric, don't quote it
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        // If it's a boolean, convert to string
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        // If it's null
+        if ($value === null) {
+            return 'null';
+        }
+
+        // Everything else gets quoted (strings)
+        return "'" . addslashes($value) . "'";
     }
 }

@@ -19,8 +19,9 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Models\FilesystemMapper as ModelsFilesystemMapper;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\SystemModules\Services\SystemModulesServices;
 use League\Csv\Reader;
 
 class FilesystemMapperMutation
@@ -32,6 +33,29 @@ class FilesystemMapperMutation
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
         $systemModule = SystemModules::getById($req['system_module_id'], $app);
+
+        $mapperDto = FilesystemMapper::viaRequest(
+            $app,
+            $branch,
+            $user,
+            $systemModule,
+            $req
+        );
+
+        return (new CreateFilesystemMapperAction($mapperDto))->execute();
+    }
+
+    public function createMapper(mixed $root, array $req): ModelsFilesystemMapper
+    {
+        $req = $req['input'];
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $systemModule = SystemModules::where('id', $req['system_module_id'])
+                                        ->notDeleted()
+                                        ->firstOrFail();
+
+        SystemModulesServices::validateFields($systemModule, $req['mapping']);
 
         $mapperDto = FilesystemMapper::viaRequest(
             $app,
@@ -88,7 +112,11 @@ class FilesystemMapperMutation
         //$filesystem = Filesystem::getByIdFromCompanyApp($input['filesystem_id'], $company, $app);
         $filesystem = Filesystem::getById($input['filesystem_id'], $app);
         $mapper = ModelsFilesystemMapper::getByIdFromCompanyApp($input['filesystem_mapper_id'], $company, $app);
-        $regions = Regions::getByIdFromCompanyApp($input['regions_id'], $company, $app);
+
+        $regions = $req['regionId'] ?? null
+            ? Regions::getByIdFromCompanyApp($input['regions_id'], $company, $app)
+            : Regions::getDefault($company, $app);
+
         $dto = FilesystemImport::from([
             'app' => $app,
             'users' => $user,

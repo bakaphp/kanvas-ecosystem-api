@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -19,8 +20,10 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Locations\Models\Countries;
+use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
@@ -53,6 +56,7 @@ class People extends BaseModel
     use SocialInteractionsTrait;
     use Notifiable;
     use HasLightHouseCache;
+    use LikableTrait;
 
     protected $table = 'peoples';
     protected $guarded = [];
@@ -236,6 +240,15 @@ class People extends BaseModel
         );
     }
 
+    public function addDefaultAddress(DataTransferObjectAddress $address): Address
+    {
+        $address = $this->addAddress($address);
+        $address->is_default = 1;
+        $address->saveOrFail();
+
+        return $address;
+    }
+
     public function addEmail(string $email): Contact
     {
         return Contact::updateOrCreate(
@@ -256,6 +269,136 @@ class People extends BaseModel
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
             ]
         );
+    }
+
+    public function addCellPhone(string $phone): Contact
+    {
+        return Contact::updateOrCreate(
+            [
+                'peoples_id' => $this->id,
+                'value' => $phone,
+                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+            ]
+        );
+    }
+
+    public static function findByEmailOrCreate(
+        string $email,
+        Companies $company,
+        Users $user,
+        ?string $name = null,
+        ?Apps $app = null
+    ): self {
+        $app = $app ?? app(Apps::class);
+
+        // Try to find existing person by email
+        $person = self::whereHas('contacts', function ($query) use ($email) {
+            $query->where('value', $email)
+                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId());
+        })->where('apps_id', $app->getId())
+          ->first();
+
+        if (! $person) {
+            // Create new person if not found
+            $person = new self();
+            $person->apps_id = $app->getId();
+            $person->companies_id = $company->getId();
+            $person->users_id = $user->getId();
+            $person->name = $name ?? explode('@', $email)[0];
+
+            // Extract name parts if provided
+            if ($name) {
+                $nameParts = explode(' ', trim($name));
+                $person->firstname = $nameParts[0] ?? '';
+                $person->lastname = count($nameParts) > 1 ? end($nameParts) : '';
+                if (count($nameParts) > 2) {
+                    $person->middlename = implode(' ', array_slice($nameParts, 1, -1));
+                }
+            }
+
+            $person->save();
+
+            // Add email contact
+            $person->addEmail($email);
+        }
+
+        return $person;
+    }
+
+    public static function findByPhoneOrCreate(
+        string $phone,
+        Companies $company,
+        Users $user,
+        ?string $name = null,
+        ?Apps $app = null
+    ): self {
+        $app = $app ?? app(Apps::class);
+
+        // Try to find existing person by phone (using regex to match digits only)
+        $person = self::whereHas('contacts', function ($query) use ($phone) {
+            $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
+                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId());
+        })->where('apps_id', $app->getId())
+          ->first();
+
+        if (! $person) {
+            // Create new person if not found
+            $person = new self();
+            $person->apps_id = $app->getId();
+            $person->companies_id = $company->getId();
+            $person->users_id = $user->getId();
+            $person->name = $name ?? 'Unknown';
+
+            // Extract name parts if provided
+            if ($name) {
+                $nameParts = explode(' ', trim($name));
+                $person->firstname = $nameParts[0] ?? '';
+                $person->lastname = count($nameParts) > 1 ? end($nameParts) : '';
+                if (count($nameParts) > 2) {
+                    $person->middlename = implode(' ', array_slice($nameParts, 1, -1));
+                }
+            }
+
+            $person->save();
+
+            // Add phone contact
+            $person->addPhone($phone);
+        }
+
+        return $person;
+    }
+
+    /**
+     * Get person by email.
+     */
+    public static function getByEmail(string $email, ?Apps $app = null): ?self
+    {
+        $app = $app ?? app(Apps::class);
+
+        return self::whereHas('contacts', function ($query) use ($email) {
+            $query->where('value', $email)
+                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId());
+        })->where('apps_id', $app->getId())
+          ->where('is_deleted', 0)
+          ->first();
+    }
+
+    /**
+     * Get person by phone matching (strips non-numeric characters for comparison).
+     */
+    public static function getByPhoneMatchingValue(string $phone, ?Apps $app = null): ?self
+    {
+        $app = $app ?? app(Apps::class);
+
+        return self::whereHas('contacts', function ($query) use ($phone) {
+            $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
+                  ->whereIn('contacts_types_id', [
+                      ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+                      ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+                  ]);
+        })->where('apps_id', $app->getId())
+          ->where('is_deleted', 0)
+          ->first();
     }
 
     #[Override]

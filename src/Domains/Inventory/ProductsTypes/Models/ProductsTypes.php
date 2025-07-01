@@ -127,7 +127,11 @@ class ProductsTypes extends BaseModel
         return $this->attributes()
                             ->where('to_variant', 1)
                             ->where('products_types_attributes.is_deleted', 0)
-                            ->get();
+                            ->get()
+                            ->map(function ($attribute) {
+                                $attribute->is_required = $attribute->pivot->is_required ?? false;
+                                return $attribute;
+                            });
     }
 
     public static function newFactory()

@@ -18,6 +18,8 @@ use Throwable;
 
 trait ActivityIntegrationTrait
 {
+    protected ?StatusEnum $workflowStatus = null;
+
     public function getStatus(StatusEnum $status): ?Status
     {
         return Status::where('slug', $status->value)
@@ -77,6 +79,15 @@ trait ActivityIntegrationTrait
         $company = $company ?? $entity->company;
         $region = $region ?? Regions::getDefault($company ?? $entity->company, $app);
 
+        if (! $region) {
+            return [
+                'error' => 'No region configured for this company',
+                'integration' => $integration->value,
+                'company' => $company?->getId() ?? 'no company',
+                'entity_id' => $entity->getId(),
+            ];
+        }
+
         $integrationCompany = $this->getIntegrationCompany(
             $integration,
             $region,
@@ -86,6 +97,7 @@ trait ActivityIntegrationTrait
         if (! $integrationCompany) {
             return [
                 'error' => 'No integration configured for this company',
+                'region' => $region->getId(),
                 'integration' => $integration->value,
                 'company' => $company?->getId() ?? 'no company',
                 'entity_id' => $entity->getId(),
@@ -99,7 +111,7 @@ trait ActivityIntegrationTrait
         try {
             // Execute the integration operation
             $response = $integrationOperation($entity, $app, $integrationCompany, $additionalParams);
-            $status = $this->getStatus(StatusEnum::CONNECTED);
+            $status = $this->getStatus($this->workflowStatus ?? StatusEnum::CONNECTED);
         } catch (Throwable $exception) {
             $status = $this->getStatus(StatusEnum::FAILED);
 
@@ -122,6 +134,7 @@ trait ActivityIntegrationTrait
                 'company' => $company?->getId() ?? 'no company',
                 'integration' => $integration->value,
                 'entity_id' => $entity->getId(),
+                'trace' => $exception->getTraceAsString(),
             ];
         }
 

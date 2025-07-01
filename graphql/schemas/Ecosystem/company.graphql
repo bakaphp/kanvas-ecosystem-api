@@ -28,6 +28,11 @@ type Company {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
+    addresses: [CompanyAddress!]!
+        @paginate(
+           builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\AddressManagementQuery@getAllCompanyAddress"
+           defaultCount: 25
+        )
     country_code: String
     created_at: DateTime
     updated_at: DateTime
@@ -267,6 +272,11 @@ extend type Query @guard {
     companyUsers(
         where: _ @whereConditions(columnsEnum: CompanyUserColumn)
         orderBy: _ @orderBy(columnsEnum: CompanyUserColumn)
+        userRole: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\Handlers\\UserRoleHandler"
+            )
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyUsers"

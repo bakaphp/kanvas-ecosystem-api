@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -15,13 +16,14 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
+use Kanvas\Users\Actions\SendUserNotificationAction;
 use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromCartAction
@@ -37,6 +39,7 @@ class CreateOrderFromCartAction
         protected ?CreditCardBilling $billingAddress,
         protected ?Address $shippingAddress,
         protected ?array $request,
+        protected ?ModelsOrder $parent = null,
     ) {
     }
 
@@ -45,7 +48,7 @@ class CreateOrderFromCartAction
         if ($this->billingAddress !== null) {
             $billing = $this->people->addAddress(new Address(
                 address: $this->billingAddress->address,
-                address_2: null,
+                address_2: $this->billingAddress->address2,
                 city: $this->billingAddress->city,
                 state: $this->billingAddress->state,
                 country: $this->billingAddress->country,
@@ -57,7 +60,7 @@ class CreateOrderFromCartAction
         if ($this->shippingAddress !== null) {
             $shipping = $this->people->addAddress(new Address(
                 address: $this->shippingAddress->address,
-                address_2: null,
+                address_2: $this->shippingAddress->address_2,
                 city: $this->shippingAddress->city,
                 state: $this->shippingAddress->state,
                 country: $this->shippingAddress->country,
@@ -90,6 +93,12 @@ class CreateOrderFromCartAction
 
         $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
 
+        try {
+            $currency = isset($this->request['input']['currency']) && ! empty($this->request['input']['currency']) ? Currencies::getByCode($this->request['input']['currency']) : $this->region->currency;
+        } catch (ModelNotFoundException $e) {
+            $currency = $this->region->currency;
+        }
+
         $order = new Order(
             app: $this->app,
             region: $this->region,
@@ -108,17 +117,28 @@ class CreateOrderFromCartAction
             status: 'completed',
             orderNumber: '',
             shippingMethod: null,
-            currency: $this->region->currency,
+            currency: $currency,
             fulfillmentStatus: 'pending',
             items: $items,
+            orderType: $this->request['input']['order_type'] ?? null,
             metadata: $this->request['input']['metadata'] ?? [],
             weight: 0.0,
             checkoutToken: '',
             paymentGatewayName: ['manual'],
             languageCode: null,
+            reference: $this->request['input']['reference'] ?? '',
+            paymentStatus: 'unpaid',
+            parent: $this->parent,
         );
 
         $order = (new CreateOrderAction($order))->execute();
+
+        //@todo remove this we already have it on create order action
+        new SendUserNotificationAction(
+            $order->app,
+            $this->company,
+            $order->user
+        )->execute('admin-new-order', $order->toArray());
 
         $this->cart->clear();
 
@@ -132,9 +152,20 @@ class CreateOrderFromCartAction
         foreach ($cartContent as $lineItem) {
             $variant = Variants::getById($lineItem['id']);
 
-            //this shouldn't happen but just in case
-            if (! $variant) {
-                continue;
+            // Get the product's default attributes to exclude them from metadata
+            $productAttributes = $variant->product->attributes
+                ? $variant->product->attributes->pluck('name')->toArray()
+                : [];
+
+            // Filter out product attributes from cart attributes, keeping only custom attributes
+            $customAttributes = [];
+            if (isset($lineItem['attributes']) && is_array($lineItem['attributes'])) {
+                foreach ($lineItem['attributes'] as $attributeName => $attributeValue) {
+                    // Only include attributes that are NOT part of the product's default attributes
+                    if (! in_array($attributeName, $productAttributes)) {
+                        $customAttributes[$attributeName] = $attributeValue;
+                    }
+                }
             }
 
             $orderItems[] = new OrderItem(
@@ -147,7 +178,8 @@ class CreateOrderFromCartAction
                 tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),
                 currency: Currencies::getByCode('USD'),
-                quantityShipped: 0
+                quantityShipped: 0,
+                metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
             );
         }
 

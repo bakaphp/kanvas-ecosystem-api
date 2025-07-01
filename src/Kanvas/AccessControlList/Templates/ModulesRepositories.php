@@ -10,12 +10,16 @@ use Kanvas\Enums\ModuleEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Rotations\Models\Rotation;
 use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
 
@@ -26,74 +30,94 @@ class ModulesRepositories
         return [
             ModuleEnum::ECOSYSTEM->value => [
                 Apps::class => [
-                    'create-apps',
-                    'edit-apps',
-                    'delete-apps',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
                 Companies::class => [
-                    'create-companies',
-                    'edit-companies',
-                    'delete-companies',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
                 Users::class => [
-                    'create-users',
-                    'edit-users',
-                    'delete-users',
-                    'invite users',
+                    'create',
+                    'edit',
+                    'delete',
+                    'invite',
                 ],
             ],
             ModuleEnum::INVENTORY->value => [
                 Products::class => [
-                    'create-products',
-                    'edit-products',
-                    'delete-products',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
                 ProductsTypes::class => [
-                    'create-products types',
-                    'edit-products types',
-                    'delete-products types',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
                 Regions::class => [
-                    'create-regions',
-                    'edit-regions',
-                    'delete-regions',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
                 Warehouses::class => [
-                    'create-warehouses',
-                    'edit-warehouses',
-                    'delete-warehouses',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
                 Channels::class => [
-                    'create-channels',
-                    'edit-channels',
-                    'delete-channels',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
                 Attributes::class => [
-                    'create-attributes',
-                    'edit-attributes',
-                    'delete-attributes',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
+                Status::class => [
+                    'create',
+                    'edit',
+                    'delete'
+                ],
+                Categories::class => [
+                    'create',
+                    'edit',
+                    'delete'
+                ]
             ],
             ModuleEnum::CRM->value => [
                 People::class => [
-                    'create-people',
-                    'edit-people',
-                    'delete-people',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
                 Lead::class => [
-                    'create-leads',
-                    'edit-leads',
-                    'delete-leads',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
                 LeadReceiver::class => [
-                    'create-lead receiver',
-                    'edit-lead receiver',
-                    'delete-lead receiver',
+                    'create',
+                    'edit',
+                    'delete',
                 ],
                 Rotation::class => [
-                    'create-rotation',
-                    'edit-rotation',
-                    'delete-rotation',
+                    'create',
+                    'edit',
+                    'delete',
+                ],
+                LeadType::class => [
+                    'create',
+                    'edit',
+                    'delete',
+                ],
+                Pipeline::class => [
+                    'create',
+                    'edit',
+                    'delete',
                 ],
             ]
         ];

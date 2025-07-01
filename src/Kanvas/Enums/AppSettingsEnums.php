@@ -20,6 +20,7 @@ enum AppSettingsEnums implements EnumsInterface
     case ONBOARDING_EVENT_SETUP;
     case ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY;
     case GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY;
+    case KANVAS_APP_MAIN_COMPANY_ID;
     case GLOBAL_APP_IMAGES;
     case ONE_SIGNAL_APP_ID;
     case ONE_SIGNAL_REST_API_KEY;
@@ -57,6 +58,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::ONBOARDING_EVENT_SETUP => 'onboarding_event_setup',
             self::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY => 'admin_user_registration_assign_current_company',
             self::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY => 'global_user_registration_assign_global_company',
+            self::KANVAS_APP_MAIN_COMPANY_ID => 'kanvas_app_main_company_id',
             self::GLOBAL_APP_IMAGES => 'global_app_images',
             self::ONE_SIGNAL_APP_ID => 'one_signal_app_id',
             self::ONE_SIGNAL_REST_API_KEY => 'one_signal_rest_api_key',

@@ -6,6 +6,7 @@ namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
@@ -16,7 +17,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class MessageReportNotificationActivity extends KanvasActivity
 {
-    public $tries = 1;
+    public $tries = 2;
 
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
@@ -34,6 +35,12 @@ class MessageReportNotificationActivity extends KanvasActivity
                 'message_id' => $message->getId(),
                 'message' => 'No message id found in the report',
             ];
+        }
+
+        try {
+            $company = $app->getAppCompany();
+        } catch (ModelNotFoundException $e) {
+            $company = $message->company;
         }
 
         return $this->executeIntegration(
@@ -67,11 +74,11 @@ class MessageReportNotificationActivity extends KanvasActivity
 
                 return [
                     'result' => true,
-                    'message' => 'New report from ' . $message->user->getName(),
+                    'message' => 'New report from ' . $message->user->displayname,
                     'message_id' => $message->getId(),
                 ];
             },
-            company: $message->company,
+            company: $company
         );
     }
 }

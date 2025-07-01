@@ -20,14 +20,15 @@ class SendLeadEmailsAction
 {
     public function __construct(
         private Lead $lead,
-        private string $emailTemplate
+        private string $emailTemplate,
+        private mixed $channels = ['mail']
     ) {
     }
 
     public function execute(
         array $payload,
         array $users,
-        LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL
+        LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL,
     ): void {
         $userTemplate = 'user-' . $this->emailTemplate;
         $leadTemplate = 'lead-' . $this->emailTemplate;
@@ -99,7 +100,8 @@ class SendLeadEmailsAction
         ], [
             'template' => $emailTemplateName,
         ])->name);
-        $notification->channels = ['mail'];
+
+        $notification->channels = $this->channels;
 
         if ($entity instanceof Users) {
             $entity->notify($notification);

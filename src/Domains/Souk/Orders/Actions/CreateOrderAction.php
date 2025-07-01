@@ -15,6 +15,7 @@ use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\Souk\Orders\Notifications\NewOrderStoreOwnerNotification;
 use Kanvas\Souk\Orders\Validations\UniqueOrderNumber;
+use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -77,9 +78,19 @@ class CreateOrderAction
             $order->metadata = $this->orderData->metadata;
             $order->payment_gateway_names = $this->orderData->paymentGatewayName;
             $order->language_code = $this->orderData->languageCode;
+            $order->reference = $this->orderData->reference;
+            $order->parent_id = $this->orderData->parent?->getId() ?? null;
             $order->saveOrFail();
 
+            if ($this->orderData->orderType) {
+                $order->setOrderType($this->orderData->orderType);
+            }
+
             $order->addItems($this->orderData->items);
+
+            if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {
+                new CreatePaymentAction($order)->execute($order->metadata['data']);
+            }
 
             // Run after commit
             DB::afterCommit(function () use ($order) {
@@ -98,7 +109,7 @@ class CreateOrderAction
                         'app' => $this->orderData->app,
                         'company' => $this->orderData->company,
                     ]));
-                } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
                     // Handle notification failure
                 }
 
@@ -106,18 +117,18 @@ class CreateOrderAction
                     /**
                      * @todo move to workflow
                      */
-                    /*  UserRoleNotificationService::notify(
-                         RolesEnums::ADMIN->value,
-                         new NewOrderStoreOwnerNotification(
-                             $order,
-                             [
-                                 'app' => $this->orderData->app,
-                                 'company' => $this->orderData->company,
-                             ]
-                         ),
-                         $this->orderData->app
-                     ); */
-                } catch (ModelNotFoundException $e) {
+                    UserRoleNotificationService::notify(
+                        RolesEnums::OWNER->value,
+                        new NewOrderStoreOwnerNotification(
+                            $order,
+                            [
+                                'app' => $this->orderData->app,
+                                'company' => $this->orderData->company,
+                            ]
+                        ),
+                        $this->orderData->app
+                    );
+                } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
                     // Handle admin notification failure
                 }
             });

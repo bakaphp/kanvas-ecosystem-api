@@ -8,7 +8,6 @@ use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\IPlus\Client;
 use Kanvas\Connectors\IPlus\DataTransferObject\IPlus;
 use Kanvas\Connectors\IPlus\Services\IPlusSetupService;
-use League\OAuth2\Client\Token\AccessTokenInterface;
 use Override;
 
 class IPlusHandler extends BaseIntegration
@@ -27,6 +26,6 @@ class IPlusHandler extends BaseIntegration
         IPlusSetupService::setup($iPlus);
 
         //test connection
-        return (new Client($this->app, $this->company))->getValidAccessToken() instanceof AccessTokenInterface;
+        return ! empty(new Client($this->app, $this->company)->getValidAccessToken());
     }
 }

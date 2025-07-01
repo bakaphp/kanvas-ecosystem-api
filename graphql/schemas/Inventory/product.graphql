@@ -14,6 +14,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     warranty_terms: String
     upc: String
     system_module: SystemModule! @method(name: "getSystemModule")
+    total_variants: Int @method(name: "getTotalVariants")
     status: Status
     files: [Filesystem!]!
         @cacheRedis
@@ -29,10 +30,15 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     attributes: [ProductAttribute!]!
         @method(name: "visibleAttributes")
         @cacheRedis
-    variants(includeUnpublished: Boolean = false): [Variant!]!
+    variants(includeUnpublished: Boolean = false, limit: Int): [Variant!]!
         @HasMany
         @builder(
             method: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"
+        )
+    variantsPaginate(includeUnpublished: Boolean = false): [Variant!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilderPaginate@getVariants"
         )
     integrations: [IntegrationsEntityReference!]!
         @method(name: "getEntityIntegrationsSummary")
@@ -192,6 +198,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
         )
+    duplicateProduct(id: ID!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@duplicateProduct"
+        )
     updateProductAttributeTranslations(
         product_id: ID!
         attribute_id: ID!
@@ -224,6 +234,7 @@ extend type Query @guard {
                     "is_published"
                     "rating"
                     "users_id"
+                    "status_id"
                 ]
             )
         hasVariants: _
@@ -271,7 +282,8 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
             defaultCount: 25
-        )
+        ) 
+        @searchCache
     productsExport: EntityExport
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"

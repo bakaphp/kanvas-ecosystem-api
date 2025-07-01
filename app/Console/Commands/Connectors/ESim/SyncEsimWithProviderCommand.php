@@ -21,6 +21,7 @@ use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Support\FileSizeConverter;
 use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Connectors\VentaMobile\Services\ESimService as VentaMobileESimService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Templates\Blank;
@@ -64,13 +65,15 @@ class SyncEsimWithProviderCommand extends Command
         $eSimService = new ESimService($app);
         $easyActivationOrderService = new OrderService($app);
         $cmLinkCustomerService = new CustomerService($app, $company);
+        $ventaMobileService = new VentaMobileESimService($app, $company);
 
         foreach ($messages as $message) {
             $this->processMessage(
                 $message,
                 $eSimService,
                 $easyActivationOrderService,
-                $cmLinkCustomerService
+                $cmLinkCustomerService,
+                $ventaMobileService
             );
         }
     }
@@ -79,7 +82,8 @@ class SyncEsimWithProviderCommand extends Command
         Message $message,
         ESimService $eSimService,
         OrderService $easyActivationOrderService,
-        CustomerService $cmLinkCustomerService
+        CustomerService $cmLinkCustomerService,
+        VentaMobileESimService $ventaMobileService
     ): void {
         $iccid = $message->message['data']['iccid'] ?? null;
         $bundle = $message->message['data']['plan'] ?? null;
@@ -123,7 +127,8 @@ class SyncEsimWithProviderCommand extends Command
                 $bundle,
                 $eSimService,
                 $easyActivationOrderService,
-                $cmLinkCustomerService
+                $cmLinkCustomerService,
+                $ventaMobileService
             );
             if (empty($response)) {
                 return;
@@ -142,7 +147,8 @@ class SyncEsimWithProviderCommand extends Command
         ?string $bundle,
         ESimService $eSimService,
         OrderService $easyActivationOrderService,
-        CustomerService $cmLinkCustomerService
+        CustomerService $cmLinkCustomerService,
+        VentaMobileESimService $ventaMobileService
     ): ?array {
         switch ($network) {
             case strtolower(ProviderEnum::E_SIM_GO->value):
@@ -171,6 +177,19 @@ class SyncEsimWithProviderCommand extends Command
                     $cmLinkCustomerService,
                 );
 
+            case strtolower(ProviderEnum::VENTA_MOBILE->value):
+                $serviceInfoArr = $ventaMobileService->getServiceByIccid($iccid);
+                if (empty($serviceInfoArr)) {
+                    return null;
+                }
+                $serviceInfo = $serviceInfoArr[0];
+                $serviceId = $serviceInfo['services_info']['id_service_inst'] ?? null;
+                if (! $serviceId) {
+                    return null;
+                }
+                $balance = $ventaMobileService->getServiceBalance($serviceId);
+                return $this->formatVentaMobileResponse($message, $serviceInfo, $balance);
+
             default:
                 return null;
         }
@@ -180,21 +199,25 @@ class SyncEsimWithProviderCommand extends Command
     {
         $firstInstallTimestamp = $iccidStatus['firstInstalledDateTime'] ?? null;
         $installDate = $firstInstallTimestamp
-            ? (new DateTime())->setTimestamp($firstInstallTimestamp / 1000)
+            ? (new DateTime())->setTimestamp((int) ($firstInstallTimestamp / 1000))
             : null;
 
-        return [
+        $esimStatus = [
             ...$response,
             'bundleState' => IccidStatusEnum::getStatus($iccidStatus['profileStatus']),
             'installed_date' => $installDate?->format('Y-m-d H:i:s'),
             'expiration_date' => null,
             'phone_number' => null,
         ];
+        // Notifications for EsimGo
+        $isValidState = in_array(strtolower($esimStatus['bundleState']), ['released', 'installed', 'active', 'enabled', 'enable']);
+        $this->checkAndSendNotifications($message, $esimStatus, $isValidState);
+        return $esimStatus;
     }
 
     private function formatEasyActivationResponse(Message $message, array $response): array
     {
-        return [
+        $esimStatus = [
             ...$response,
             'bundleState' => strtolower($response['esim_status']),
             'installed_date' => null,
@@ -203,6 +226,10 @@ class SyncEsimWithProviderCommand extends Command
                 : null,
             'phone_number' => null,
         ];
+        // Notifications for EasyActivation
+        $isValidState = in_array(strtolower($esimStatus['bundleState']), ['released', 'installed', 'active', 'enabled', 'enable']);
+        $this->checkAndSendNotifications($message, $esimStatus, $isValidState);
+        return $esimStatus;
     }
 
     private function formatCmLinkResponse(Message $message, array $response, CustomerService $cmLinkCustomerService): array
@@ -365,29 +392,35 @@ class SyncEsimWithProviderCommand extends Command
         $esimStatusArray = $esimStatus->toArray();
         // Check and send notifications if needed
         $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
+
         return $esimStatusArray;
     }
 
     /**
      * Check if notifications should be sent for a specific ESim and send them if needed
-     *
      */
     private function checkAndSendNotifications(Message $message, array $esimStatus, bool $isValidState): void
     {
-        // If the ESim is not in an valid state, don't send notifications
+        // If the ESim is not in a valid state, don't send notifications
         if (! $isValidState) {
             return;
         }
 
         // Get the source associated with the message
         $source = $message->message['order']['metadata']['source'] ?? null;
-
-        // Only send notifications for mobile orders
         if ($source !== 'mobile') {
             return;
         }
 
         $notifyUser = $message->user;
+        if (! $notifyUser) {
+            return;
+        }
+
+        // Check for required esimStatus fields
+        if (! isset($esimStatus['unlimited'], $esimStatus['initialQuantity'], $esimStatus['remainingQuantity'])) {
+            return;
+        }
 
         if ($esimStatus['unlimited']) {
             $dataNotification = [
@@ -406,15 +439,15 @@ class SyncEsimWithProviderCommand extends Command
      */
     private function checkDataUsageThresholds(array $esimStatus, Users $notifyUser, Message $message): void
     {
-        $initialQuantity = $esimStatus['initialQuantity'];
-        $remainingQuantity = $esimStatus['remainingQuantity'];
-
-        if ($initialQuantity <= 0) {
+        if (! isset($esimStatus['initialQuantity'], $esimStatus['remainingQuantity'])) {
             return;
         }
-
+        $initialQuantity = $esimStatus['initialQuantity'];
+        $remainingQuantity = $esimStatus['remainingQuantity'];
+        if (! is_numeric($initialQuantity) || ! is_numeric($remainingQuantity) || $initialQuantity <= 0) {
+            return;
+        }
         $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
-
         if ($usedPercentage >= 70 && $usedPercentage < 75 && $message->get('sent_70') != true) {
             $this->sendPushNotification(
                 $notifyUser,
@@ -426,7 +459,6 @@ class SyncEsimWithProviderCommand extends Command
             );
             $message->set('sent_70', true);
         }
-
         if ($usedPercentage >= 90 && $usedPercentage < 95 && $message->get('sent_90') != true) {
             $this->sendPushNotification(
                 $notifyUser,
@@ -442,14 +474,19 @@ class SyncEsimWithProviderCommand extends Command
 
     /**
      * Check if unlimited plan is about to expire and send notification
-     *
      */
     private function checkUnlimitedPlanExpiration(array $esimStatus, Users $notifyUser, Message $message): void
     {
-        $expirationDate = Carbon::parse($esimStatus['expirationDate'] ?? $esimStatus['expiration_date']);
+        $expirationDate = $esimStatus['expirationDate'] ?? $esimStatus['expiration_date'] ?? null;
+        if (! $expirationDate) {
+            return;
+        }
+        try {
+            $expirationDate = Carbon::parse($expirationDate);
+        } catch (\Exception $e) {
+            return;
+        }
         $hoursLeft = now()->diffInHours($expirationDate);
-
-        // Notify when around 22 hours are left (between 20-24 hours)
         if ($hoursLeft >= 20 && $hoursLeft <= 24 && $message->get('sent_unlimited') != true) {
             $this->sendPushNotification(
                 $notifyUser,
@@ -465,20 +502,18 @@ class SyncEsimWithProviderCommand extends Command
 
     /**
      * Check if unlimited plan is about to expire and send notification
-     *
      */
     private function checkUnlimitedPlanUsage(array $esimStatus, Users $notifyUser, Message $message, array $dataNotification): void
     {
-        $initialQuantity = $esimStatus['initialQuantity'];
-        $remainingQuantity = $esimStatus['remainingQuantity'];
-
-        if ($initialQuantity <= 0) {
+        if (! isset($esimStatus['initialQuantity'], $esimStatus['remainingQuantity'])) {
             return;
         }
-
+        $initialQuantity = $esimStatus['initialQuantity'];
+        $remainingQuantity = $esimStatus['remainingQuantity'];
+        if (! is_numeric($initialQuantity) || ! is_numeric($remainingQuantity) || $initialQuantity <= 0) {
+            return;
+        }
         $usedPercentage = (($initialQuantity - $remainingQuantity) / $initialQuantity) * 100;
-
-        // Notify when around 100% of plan is used
         if ($usedPercentage >= 100 && $message->get('sent_unlimited_usage') != true) {
             $this->sendPushNotification(
                 $notifyUser,
@@ -561,5 +596,65 @@ class SyncEsimWithProviderCommand extends Command
             $message->setPublic();
             $this->info("Message ID: {$message->id} has been set to public.");
         }
+    }
+
+    private function formatVentaMobileResponse(Message $message, array $serviceInfo, array $balance): array
+    {
+        $orderCreationDate = $message->appModuleMessage->entity->created_at ?? null;
+        $activationDate = $orderCreationDate ? Carbon::parse($orderCreationDate)->format('Y-m-d H:i:s') : '';
+
+        $variant = $message->appModuleMessage->entity->items()->first()->variant;
+        $planDays = $variant->getAttributeBySlug('esim-days')?->value ?? $variant->getAttributeBySlug('esim_days')?->value ?? 0;
+        $expirationDate = $activationDate && $planDays > 0
+            ? Carbon::parse($activationDate)->addDays((int) $planDays)->format('Y-m-d H:i:s')
+            : '';
+
+        $status = 'unknown';
+        if ($expirationDate) {
+            $expiration = Carbon::parse($expirationDate);
+            $status = $expiration->isFuture() ? 'enable' : 'expired';
+        }
+
+        $phoneNumber = $serviceInfo['services_info']['msisdn'] ?? null;
+        $variant = $message->appModuleMessage->entity->items()->first()->variant;
+
+        $totalData = $variant->getAttributeBySlug('data')?->value ?? 0;
+        $totalBytesData = FileSizeConverter::toBytes($totalData);
+        $remainingData = $totalBytesData;
+
+        if (! empty($balance)) {
+            foreach ($balance as $bal) {
+                // The 'value' field contains the remaining data in bytes
+                if (isset($bal['value']) && is_numeric($bal['value'])) {
+                    $remainingData = (float)$bal['value'];
+                    break;
+                }
+            }
+        }
+
+        $esimStatus = new ESimStatus(
+            id: (string) ($serviceInfo['services_info']['id_service_inst'] ?? ''),
+            callTypeGroup: 'data',
+            initialQuantity: $totalBytesData,
+            remainingQuantity: $remainingData,
+            assignmentDateTime: $activationDate,
+            assignmentReference: (string) ($serviceInfo['services_info']['id_service_inst'] ?? ''),
+            bundleState: 'active', //$status,
+            unlimited: false,
+            phoneNumber: $phoneNumber,
+            expirationDate: $expirationDate,
+            imei: $message->message['data']['imei_number'] ?? null,
+            esimStatus: $status,
+            message: $serviceInfo['services_info']['description'] ?? null,
+            installedDate: $activationDate,
+            activationDate: $activationDate,
+            spentMessage: null,
+        );
+
+        $esimStatusArray = $esimStatus->toArray();
+        // Notifications for VentaMobile
+        $isValidState = in_array(strtolower($esimStatusArray['esim_status']), ['released', 'installed', 'active', 'enabled', 'enable']);
+        $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
+        return $esimStatusArray;
     }
 }

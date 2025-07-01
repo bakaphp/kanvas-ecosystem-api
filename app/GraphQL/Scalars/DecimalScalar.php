@@ -10,6 +10,7 @@ use GraphQL\Language\AST\FloatValueNode;
 use GraphQL\Language\AST\IntValueNode;
 use GraphQL\Language\AST\Node;
 use GraphQL\Type\Definition\ScalarType;
+use Override;
 
 class DecimalScalar extends ScalarType
 {
@@ -24,6 +25,7 @@ class DecimalScalar extends ScalarType
      *
      * @throws InvariantViolation
      */
+    #[Override]
     public function serialize($value): string
     {
         if ($value === null) {
@@ -40,6 +42,7 @@ class DecimalScalar extends ScalarType
      *
      * @throws Error
      */
+    #[Override]
     public function parseValue($value): string
     {
         if ($value === null) {
@@ -56,6 +59,7 @@ class DecimalScalar extends ScalarType
      *
      * @throws Error
      */
+    #[Override]
     public function parseLiteral(Node $valueNode, ?array $variables = null): string
     {
         if ($valueNode === null) {

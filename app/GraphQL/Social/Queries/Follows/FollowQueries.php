@@ -16,10 +16,10 @@ class FollowQueries
     public function isFollowing(mixed $root, array $request): bool
     {
         $app = app(Apps::class);
-        $whoIsFollowing = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
-        $user = auth()->user();
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
+        $authedUser = auth()->user();
 
-        return $user->isFollowing($whoIsFollowing);
+        return $authedUser->isFollowing($user);
     }
 
     public function getTotalFollowers(mixed $root, array $request): int

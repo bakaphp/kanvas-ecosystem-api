@@ -22,11 +22,15 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Prism;
+use Throwable;
 
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -155,7 +159,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity): array
     {
         // Step 1: Submit the image for processing
-        $submitResponse = $this->submitImage($fileUrl, $imageFilter);
+        $submitResponse = $this->submitImage($fileUrl, $imageFilter, $entity->message['prompt'] ?? '');
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -335,12 +339,23 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         array $params = [],
         ?string $requestId = null
     ): array {
-        $title = $entity->message['title'] ?? 'New Process Image';
+        // Lets generate a new title using ai if no title is set
+        try {
+            if (empty($entity->message['title']) && $entity->message['prompt']) {
+                $title = $this->generateTitleByPrompt($entity->message['prompt']);
+            } else {
+                $title = $entity->message['title'];
+            }
+        } catch (Throwable $e) {
+            report($e);
+            $title = $entity->message['prompt'];
+        }
 
+        $totalDelivery = 0;
         // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
         $createNuggetMessage = (new CreateNuggetMessageAction(
-            parentMessage: $entity,
+            parentMessage: $entity->parent_id ? $entity->parent : $entity,
             messageData: [
                 'title' => $title,
                 'type' => 'image-format',
@@ -359,6 +374,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $params['via'] ?? ['database']
         );
 
+        $title = trim($title);
         try {
             // Send notification to the user
             $newMessageNotification = new ImageProcessingPushNotification(
@@ -373,6 +389,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 ],
             );
             $entity->user->notify($newMessageNotification);
+
+            $totalDelivery = new DistributeMessagesToUsersAction($entity, $this->app)->execute();
         } catch (InternalServerErrorException $e) {
             report($e);
 
@@ -385,6 +403,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
         $result = [
             'message' => 'Image processed successfully',
+            'total_delivery' => $totalDelivery,
             'result' => true,
             'user_id' => $entity->user->getId(),
             'message_data' => $entity->message,
@@ -404,7 +423,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
         //turn type to prompt
         $entity->message_types_id = MessageType::fromApp($entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
-        $entity->disableWorkflows();
+        //$entity->disableWorkflows();
         $entity->update();
 
         return $result;
@@ -413,7 +432,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $imageUrl, string $imageFilter): array
+    protected function submitImage(string $imageUrl, string $imageFilter, string $prompt): array
     {
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
@@ -421,6 +440,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             'operation' => 'submit',
             'image_url' => $imageUrl,
             'model' => 'fal-ai/' . $imageFilter,
+            'prompt' => $prompt,
         ]);
 
         return $response->json();
@@ -503,5 +523,15 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         return null;
+    }
+
+    private function generateTitleByPrompt(string $prompt): string
+    {
+        $response = Prism::text()
+            ->using(Provider::Gemini, 'gemini-2.0-flash')
+            ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
+            ->generate();
+
+        return str_replace(['```', 'json'], '', $response->text);
     }
 }

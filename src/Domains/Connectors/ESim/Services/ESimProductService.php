@@ -101,14 +101,7 @@ class ESimProductService
                     'data' => $destination['id'],
                 ],
             ],
-            'categories' => [
-                [
-                    'name' => $category,
-                    'code' => crc32($category),
-                    'is_published' => true,
-                    'position' => 1,
-                ],
-            ],
+            'categories' => [],
             'productType' => [
                  'name' => $productType,
                  'weight' => 0,

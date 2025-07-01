@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Repositories;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
@@ -15,9 +16,10 @@ class FilesystemEntitiesRepository
 {
     /**
      * Get a filesystem entity.
+     *
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false): FilesystemEntities
+    public static function getByIdAndEntity(int $id, Model $entity, bool $isDeleted = false): FilesystemEntities
     {
         $app = $entity->app ?? app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class);
@@ -30,16 +32,17 @@ class FilesystemEntitiesRepository
         // }
 
         return FilesystemEntities::where('id', $id)
-                                ->where('system_modules_id', $systemModule->getKey())
-                                ->where('is_deleted', StateEnums::NO->getValue())
-                                ->whereRaw(
-                                    "filesystem_id in (SELECT s.id from filesystem s WHERE s.apps_id = {$app->getKey()})"
-                                )
-                                ->firstOrFail();
+            ->where('system_modules_id', $systemModule->getKey())
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->whereRaw(
+                "filesystem_id in (SELECT s.id from filesystem s WHERE s.apps_id = {$app->getKey()})"
+            )
+            ->firstOrFail();
     }
 
     /**
      * Get files for the given entity.
+     *
      * @psalm-suppress MixedReturnStatement
      *
      * @return Collection<int, FilesystemEntities>
@@ -50,71 +53,103 @@ class FilesystemEntitiesRepository
         $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
 
         return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
-                    ->where('filesystem_entities.entity_id', '=', $entity->getKey())
-                    ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
-                    ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
-                    ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
-                    ->select(
-                        'filesystem_entities.*',
-                        'filesystem.url',
-                        'filesystem.path',
-                        'filesystem.name',
-                        'filesystem.apps_id',
-                        'filesystem.users_id',
-                        'filesystem.size',
-                        'filesystem.file_type'
-                    )
-                    ->get();
+            ->where('filesystem_entities.entity_id', '=', $entity->getKey())
+            ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
+            ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
+            ->select(
+                'filesystem_entities.*',
+                'filesystem.url',
+                'filesystem.path',
+                'filesystem.name',
+                'filesystem.apps_id',
+                'filesystem.users_id',
+                'filesystem.size',
+                'filesystem.file_type'
+            )
+            ->get();
     }
 
     /**
+     * Get file from entity by name.
+     *
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getFileFromEntityByName(Model $entity, string $name): ?FilesystemEntities
+    public static function getFileFromEntityByNameBuilder(Model $entity, string $name): Builder
     {
         $app = $entity->app ?? app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
 
         return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
-                    ->where('filesystem_entities.entity_id', '=', $entity->getKey())
-                    ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
-                    ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
-                    ->where('filesystem_entities.field_name', '=', $name)
-                    ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
-                    ->select(
-                        'filesystem_entities.*',
-                        'filesystem.url',
-                        'filesystem.path',
-                        'filesystem.name',
-                        'filesystem.apps_id',
-                        'filesystem.users_id',
-                        'filesystem.size',
-                        'filesystem.file_type'
-                    )
-                    ->first();
+            ->where('filesystem_entities.entity_id', '=', $entity->getKey())
+            ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
+            ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('filesystem_entities.field_name', '=', $name)
+            ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
+            ->select(
+                'filesystem_entities.*',
+                'filesystem.url',
+                'filesystem.path',
+                'filesystem.name',
+                'filesystem.apps_id',
+                'filesystem.users_id',
+                'filesystem.size',
+                'filesystem.file_type'
+            );
     }
 
+    public static function getFileFromEntityByName(Model $entity, string $name): ?FilesystemEntities
+    {
+        return self::getFileFromEntityByNameBuilder($entity, $name)->orderBy('filesystem_entities.id', 'DESC')->first();
+    }
+
+    /**
+     * Get file from entity by ID.
+     */
+    public static function getFileFromEntityByIdBuilder(int $id): ?FilesystemEntities
+    {
+        return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
+            ->where('filesystem_entities.id', '=', $id)
+            ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
+            ->select(
+                'filesystem_entities.*',
+                'filesystem.url',
+                'filesystem.path',
+                'filesystem.name',
+                'filesystem.apps_id',
+                'filesystem.users_id',
+                'filesystem.size',
+                'filesystem.file_type'
+            )
+            ->first();
+    }
+
+    /**
+     * Get file from entity by ID.
+     */
     public static function getFileFromEntityById(int $id): ?FilesystemEntities
     {
         return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
-                    ->where('filesystem_entities.id', '=', $id)
-                    ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
-                    ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
-                    ->select(
-                        'filesystem_entities.*',
-                        'filesystem.url',
-                        'filesystem.path',
-                        'filesystem.name',
-                        'filesystem.apps_id',
-                        'filesystem.users_id',
-                        'filesystem.size',
-                        'filesystem.file_type'
-                    )
-                    ->first();
+            ->where('filesystem_entities.id', '=', $id)
+            ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
+            ->select(
+                'filesystem_entities.*',
+                'filesystem.url',
+                'filesystem.path',
+                'filesystem.name',
+                'filesystem.apps_id',
+                'filesystem.users_id',
+                'filesystem.size',
+                'filesystem.file_type'
+            )
+            ->first();
     }
 
     /**
      * Given the entity delete all related files.
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public static function deleteAllFilesFromEntity(Model $entity): int

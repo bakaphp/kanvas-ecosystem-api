@@ -6,6 +6,9 @@ namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Guild\Leads\Observers\LeadTypeObserver;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
@@ -23,6 +26,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $updated_at
  * @property int $is_deleted
  */
+#[ObservedBy([LeadTypeObserver::class])]
 class LeadType extends BaseModel
 {
     use NoAppRelationshipTrait;
@@ -30,6 +34,11 @@ class LeadType extends BaseModel
 
     protected $table = 'leads_types';
     protected $guarded = [];
+
+    public function leads(): HasMany
+    {
+        return $this->hasMany(Lead::class, 'leads_types_id');
+    }
 
     public function isActive(): bool
     {

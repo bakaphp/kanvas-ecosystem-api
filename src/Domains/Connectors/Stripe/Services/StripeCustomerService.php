@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People as ModelsPeople;
@@ -17,7 +18,7 @@ class StripeCustomerService
     public function __construct(
         protected AppInterface $app,
     ) {
-        $this->stripe = new StripeClient($this->app->get('stripe_secret_key'));
+        $this->stripe = new StripeClient($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
     }
 
     public function getOrCreateCustomerByPerson(ModelsPeople $people): \Stripe\Customer

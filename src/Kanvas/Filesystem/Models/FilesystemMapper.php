@@ -46,14 +46,17 @@ class FilesystemMapper extends BaseModel
         'companies_branches_id',
         'system_modules_id',
         'name',
+        'description',
         'file_header',
         'mapping',
         'is_default',
+        'configuration'
     ];
 
     protected $casts = [
         'file_header' => Json::class,
         'mapping' => Json::class,
+        'configuration' => Json::class
     ];
 
     /**

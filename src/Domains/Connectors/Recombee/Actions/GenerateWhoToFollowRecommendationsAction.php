@@ -10,18 +10,20 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
+use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Users\Models\Users;
 
 class GenerateWhoToFollowRecommendationsAction
 {
     public function __construct(
         protected AppInterface $app,
-        protected CompanyInterface $company
+        protected ?CompanyInterface $company = null
     ) {
     }
 
     public function execute(UserInterface $user, int $pageSize = 10, string $scenario = ScenariosEnum::USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS->value): Builder
     {
+        $socialConnection = config('database.connections.social.database');
         $recommendationService = new RecombeeUserRecommendationService($this->app);
 
         $response = $recommendationService->getUserToUserRecommendation($user, $pageSize, $scenario);
@@ -32,8 +34,17 @@ class GenerateWhoToFollowRecommendationsAction
             ->filter()
             ->toArray();
 
+        $followedIds = UsersFollows::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('is_deleted', 0)
+            ->where('entity_namespace', Users::class)
+            ->where('users_id', $user->getId())
+            ->pluck('entity_id');
+
         return Users::query()
-                ->whereIn('id', $entityIds)
-                ->where('is_deleted', 0);
+            ->whereNotIn('id', $followedIds)
+            ->whereIn('id', $entityIds)
+            ->where('id', '!=', $user->getId())
+            ->where('is_deleted', 0);
     }
 }

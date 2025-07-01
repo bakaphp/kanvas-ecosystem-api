@@ -23,6 +23,8 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
+use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
@@ -30,6 +32,7 @@ use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
+use Kanvas\Inventory\Products\Actions\ImportProductFromFilesystemAction;
 use Kanvas\Inventory\Products\Builders\ProductSortAttributeBuilder;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\Products\Observers\ProductsObserver;
@@ -72,7 +75,7 @@ use Override;
  * @property bool $is_deleted
  */
 #[ObservedBy(ProductsObserver::class)]
-class Products extends BaseModel implements EntityIntegrationInterface
+class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface
 {
     use UuidTrait;
     use SlugTrait;
@@ -396,7 +399,12 @@ class Products extends BaseModel implements EntityIntegrationInterface
             'is_published' => $this->is_published,
             'description' => $this->description,
             'short_description' => $this->short_description,
+            'product_type_slug' => $this->productsType?->slug ?? null,
             'attributes' => [],
+            'translations' => [
+                'name' => $this->getAllTranslationsAsString('name'),
+                'description' => $this->getAllTranslationsAsString('description'),
+            ],
             'apps_id' => $this->apps_id,
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
@@ -458,15 +466,31 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
         $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
-            $product['attributes'][$attribute['name']] = $attribute['value'];
+            $product['attributes'][$attribute['name']] = is_array($attribute['value'])
+                ? $attribute['value']
+                : (string) $attribute['value'];
         }
 
         $customFields = $this->getAllCustomFields();
         foreach ($customFields as $key => $value) {
-            $product['custom_fields'][$key] = $value;
+            $product['custom_fields'][$key] = is_array($value)
+                ? $value
+                : (string) $value;
         }
 
         return $product;
+    }
+
+    public function getAllTranslationsAsString(string $key): string
+    {
+        $translations = $this->getTranslations($key);
+
+        if (empty($translations)) {
+            return '';
+        }
+
+        // Join translations with a comma
+        return implode(', ', array_map(fn ($translation) => (string) $translation, $translations));
     }
 
     public function searchableAs(): string
@@ -499,7 +523,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name, description', // Use just 'message' instead of 'message.name'
+                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
             ]);
         }
 
@@ -627,6 +651,16 @@ class Products extends BaseModel implements EntityIntegrationInterface
             : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
     }
 
+    public function getTotalVariants(): int
+    {
+        return (int) ($this->get('total_variants') ?? 0);
+    }
+
+    public function setTotalVariants(): void
+    {
+        $this->set('total_variants', Variants::where('products_id', $this->getId())->count());
+    }
+
     /**
      * The Typesense schema to be created.
      */
@@ -652,6 +686,11 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 [
                     'name' => 'files',
                     'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'product_type_slug',
+                    'type' => 'string',
                     'optional' => true,
                 ],
                 [
@@ -720,6 +759,24 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'facet' => true,
                 ],
                 [
+                    'name' => 'translations',
+                    'type' => 'object',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'translations.name',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'translations.description',
+                    'type' => 'string',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
                     'name' => 'prices.*',
                     'type' => 'float',
                     'optional' => true,
@@ -764,5 +821,11 @@ class Products extends BaseModel implements EntityIntegrationInterface
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
+    }
+
+    #[Override]
+    public static function getImportHandler(FilesystemImports $filesystemImport): mixed
+    {
+        return new ImportProductFromFilesystemAction($filesystemImport);
     }
 }

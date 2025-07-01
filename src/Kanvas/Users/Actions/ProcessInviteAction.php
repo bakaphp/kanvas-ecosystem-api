@@ -49,12 +49,14 @@ class ProcessInviteAction
 
             $company = $invite->company;
             #$branch = $invite->branch;
-
+            $app = app(Apps::class);
             $company->associateUserApp(
                 $user,
-                app(Apps::class),
+                $app,
                 StateEnums::YES->getValue(),
             );
+
+            new SendUserNotificationAction($app, $company, $user)->execute('admin-new-user', $company->toArray());
 
             $invite->softDelete();
             DB::commit();

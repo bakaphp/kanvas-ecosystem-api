@@ -7,6 +7,9 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -24,11 +27,21 @@ class PremiumPromptFlagActivity extends KanvasActivity implements WorkflowActivi
         $this->overwriteAppService($app);
 
         $messageData = $entity->message;
-        $company = $entity->company;
+        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+
+        try {
+            $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
+            $company = $branch->company;
+        } catch (ModelNotFoundException $e) {
+            $company = $entity->company;
+        }
 
         if (! isset($messageData['price']) || ! isset($messageData['price']['sku']) || ! isset($messageData['price']['price'])) {
             return [
+                'result' => false,
+                'message_id' => $entity->getId(),
                 'message' => 'Not a premium prompt request',
+                'messageData' => $messageData,
             ];
         }
 
@@ -36,7 +49,7 @@ class PremiumPromptFlagActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity, $app) use ($messageData) {
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageData) {
                 $entity->setPremium();
 
                 $usersToNotify = UsersRepository::findUsersByArray($entity->app->get('owner_notification'), $app);
@@ -57,6 +70,9 @@ class PremiumPromptFlagActivity extends KanvasActivity implements WorkflowActivi
                 Notification::send($usersToNotify, $notification);
 
                 return [
+                    'result' => true,
+                    'message_id' => $entity->getId(),
+                    'messageData' => $messageData,
                     'message' => 'Premium prompt flagged - ' . $messageData['title'],
                 ];
             },

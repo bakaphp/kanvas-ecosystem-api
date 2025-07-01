@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\NetSuite;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\AddAddressToCompanyAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncCompanyWithNetSuiteAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
@@ -20,6 +21,23 @@ use Tests\TestCase;
 
 final class CustomerTest extends TestCase
 {
+    public function getPayload(): array
+    {
+        return [
+            'sublists' => [
+                'addressbook' => [
+                    'line 1' => [
+                        'addrtext_initialvalue' => '123 Main St',
+                        'city_initialvalue' => 'Anytown',
+                        'displaystate_initialvalue' => 'CA',
+                        'zip_initialvalue' => '12345',
+                        'country_initialvalue' => 'US'
+                    ]
+                ]
+            ]
+        ];
+    }
+
     public function testSetup()
     {
         $app = app(Apps::class);
@@ -38,6 +56,8 @@ final class CustomerTest extends TestCase
 
         $this->assertTrue($result);
     }
+
+
 
     public function testSynCompanyWithNetSuite()
     {
@@ -75,6 +95,23 @@ final class CustomerTest extends TestCase
         $result = $syncCompany->execute($companyIdToSync);
 
         $this->assertEquals($result->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value), $companyIdToSync);
+    }
+
+    public function testSyncNetSuiteCompanyAddress()
+    {
+        $company = Companies::first();
+        $app = app(Apps::class);
+        $payload = $this->getPayload();
+        $addressData = $payload['sublists']['addressbook']['line 1'];
+        $addAddressAction = new AddAddressToCompanyAction($company, $app->keys()->firstOrFail()->user, $app);
+        $address = $addAddressAction->fromNetSuite($addressData);
+
+        $this->assertEquals($address->is_default, true);
+        $this->assertEquals($address->address, $addressData['addrtext_initialvalue']);
+        $this->assertEquals($address->city, $addressData['city_initialvalue']);
+        $this->assertEquals($address->state, $addressData['displaystate_initialvalue']);
+        $this->assertEquals($address->zip, $addressData['zip_initialvalue']);
+        $this->assertEquals(strtolower($address->country->code), strtolower($addressData['country_initialvalue']));
     }
 
     public function testSyncNetSuiteCustomerWithPeople()

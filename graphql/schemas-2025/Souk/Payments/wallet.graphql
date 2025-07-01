@@ -1,0 +1,28 @@
+type WalletResult {
+    balance: Money
+    message: Mixed
+    data: Mixed
+}
+
+type WalletTransaction {
+    id: ID!
+    uuid: String!
+    type: String!
+    amount: Money! @method(name: "getAmountFloatAttribute")
+    confirmed: Boolean!
+    status: String!
+    meta: Mixed
+    created_at: DateTimeTz
+}
+
+extend type Query @guard {
+    getWalletBalance(tag: String!): WalletResult
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getBalance"
+        )
+    getWalletTransactions(tag: String!): [WalletTransaction!]!
+        @paginate(
+            builder: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getTransactions"
+            defaultCount: 25
+        )
+}

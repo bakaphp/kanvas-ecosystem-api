@@ -68,6 +68,7 @@ class Setup
         'Won',
         'Bad',
         'Duplicate',
+        'Lost',
     ];
 
     public array $addressType = [

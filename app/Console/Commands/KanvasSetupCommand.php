@@ -55,7 +55,7 @@ class KanvasSetupCommand extends Command
             'kanvas:filesystem-setup',
             'kanvas:create-workflow-status',
             'kanvas:update-abilities',
-            'kanvas:update-abilities-templates',
+            'kanvas:create-attribute-types'
         ];
 
         foreach ($commands as $command) {

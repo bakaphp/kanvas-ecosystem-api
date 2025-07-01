@@ -16,6 +16,16 @@ class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
     public function execute(): array
     {
         $integrationCompanyId = $this->receiver->configuration['integration_company_id'];
+        $storeDomain = $this->webhookRequest->payload['shop'] ?? null;
+
+        if (! empty($storeDomain)) {
+            $domainIntegrationId = $this->receiver->configuration[$storeDomain] ?? null;
+        }
+
+        if ($domainIntegrationId !== null) {
+            $integrationCompanyId = $domainIntegrationId;
+        }
+
         $integrationCompany = IntegrationsCompany::getById($integrationCompanyId);
 
         $warehouses = Warehouses::where('regions_id', $integrationCompany->region_id)

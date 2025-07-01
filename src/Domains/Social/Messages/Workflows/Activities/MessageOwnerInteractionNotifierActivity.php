@@ -15,7 +15,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class MessageOwnerInteractionNotifierActivity extends KanvasActivity
 {
-    public $tries = 1;
+    public $tries = 2;
 
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
@@ -25,6 +25,12 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
         $pushTemplate = $params['push_template'] ?? null;
         $interaction = $params['interaction'] ?? null;
         $userInteraction = $params['user_interaction'] ?? null;
+
+        try {
+            $company = $app->getAppCompany();
+        } catch (ModelNotFoundException $e) {
+            $company = $message->company;
+        }
 
         return $this->executeIntegration(
             entity: $message,
@@ -125,7 +131,7 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
                     'message_id' => $message->getId(),
                 ];
             },
-            company: $message->company,
+            company: $company,
         );
     }
 }

@@ -19,7 +19,7 @@ class AddressManagementQuery
     {
         $companiesId = auth()->user()->currentCompanyId();
 
-        return CompaniesAddress::select(
+        $query = CompaniesAddress::select(
             'companies_address.id', // User ID
             'companies_address.is_default',
             'companies_address.fullname',
@@ -54,9 +54,19 @@ class AddressManagementQuery
             'countries',
             'countries.id',
             'companies_address.countries_id'
-        )
-        ->where('companies_address.companies_id', $companiesId)
-        ->where('companies_address.is_deleted', StateEnums::NO->getValue())
+        );
+
+        $query->when(isset($root->companies_id), function ($query) use ($root) {
+            $query->where('companies_address.companies_id', $root->companies_id);
+        });
+
+        $query->when(! isset($root->companies_id), function ($query) use ($companiesId) {
+            $query->where('companies_address.companies_id', $companiesId);
+        });
+
+        $query->where('companies_address.is_deleted', StateEnums::NO->getValue())
         ->groupBy('companies_address.id');
+
+        return $query;
     }
 }

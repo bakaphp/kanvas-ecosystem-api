@@ -10,11 +10,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Currencies\Models\Currencies;
-use Kanvas\Inventory\Attributes\Actions\CreateAttributeType;
-use Kanvas\Inventory\Attributes\DataTransferObject\AttributesType;
-use Kanvas\Inventory\Attributes\Enums\AttributeTypeEnum;
 use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\Attributes\Models\AttributesTypes as ModelAttributesTypes;
 use Kanvas\Inventory\Categories\Actions\CreateCategory;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as Category;
 use Kanvas\Inventory\Categories\Models\Categories;
@@ -149,47 +145,11 @@ class Setup
 
         $defaultStatus = $createDefaultStatus->execute();
 
-        $createDefaultAttributeType = new CreateAttributeType(
-            new AttributesType(
-                $this->company,
-                $this->app,
-                ucfirst(AttributeTypeEnum::INPUT->value),
-                AttributeTypeEnum::INPUT->value,
-                true
-            ),
-            $this->user
-        );
-
-        (new CreateAttributeType(
-            new AttributesType(
-                $this->company,
-                $this->app,
-                ucfirst(AttributeTypeEnum::CHECKBOX->value),
-                AttributeTypeEnum::CHECKBOX->value,
-                false
-            ),
-            $this->user
-        ))->execute();
-
-        (new CreateAttributeType(
-            new AttributesType(
-                $this->company,
-                $this->app,
-                ucfirst(AttributeTypeEnum::JSON->value),
-                AttributeTypeEnum::JSON->value,
-                false
-            ),
-            $this->user
-        ))->execute();
-
-        $defaultAttributeType = $createDefaultAttributeType->execute();
-
         return $defaultCategory instanceof Categories &&
             $defaultChannel instanceof ModelsChannels &&
             $defaultRegion instanceof Regions &&
             $defaultWarehouse instanceof ModelsWarehouses &&
             $defaultProductType instanceof ModelsProductsTypes &&
-            $defaultStatus instanceof ModelsStatus &&
-            $defaultAttributeType instanceof ModelAttributesTypes;
+            $defaultStatus instanceof ModelsStatus;
     }
 }

@@ -25,7 +25,7 @@ class AddToCartAction
     public function execute(Cart $cart, array $items): array
     {
         $company = B2BConfigurationService::getConfiguredB2BCompany($this->app, $this->company);
-        $currentUserCompany = $company;
+        $currentUserCompany = $this->company; //this has to be the current user company, not the global b2b one
 
         //@todo send warehouse via header
         //$useCompanySpecificPrice = $app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false;
@@ -43,16 +43,22 @@ class AddToCartAction
                                   : $variant->getPriceInfoFromDefaultChannel()->price;
               */
             $variantPrice = $variantPriceService->getPrice($variant, $channelId);
+
+            // Get attributes from existing cart item if it exists, otherwise from product
+            $attributes = $cart->has($variant->getId())
+                ? $cart->get($variant->getId())['attributes']
+                : ($variant->product->attributes ? $variant->product->attributes->map(function ($attribute) {
+                    return [
+                        $attribute->name => $attribute->value,
+                    ];
+                })->collapse()->all() : []);
+
             $cart->add([
                 'id' => $variant->getId(),
                 'name' => $variant->name,
                 'price' => $variantPrice, //@todo modify to use channel instead of warehouse
                 'quantity' => $item['quantity'],
-                'attributes' => $variant->product->attributes ? $variant->product->attributes->map(function ($attribute) {
-                    return [
-                        $attribute->name => $attribute->value,
-                    ];
-                })->collapse()->all() : [],
+                'attributes' => $attributes,
                 //'associatedModel' => $Product,
             ]);
         }

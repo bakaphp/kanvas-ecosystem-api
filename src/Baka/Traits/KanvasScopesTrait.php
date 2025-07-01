@@ -11,4 +11,5 @@ trait KanvasScopesTrait
     use NotDeletedScopesTrait;
     use IsPublicScopesTrait;
     use KanvasUsersScopesTrait;
+    use PublicAppScopeTrait;
 }

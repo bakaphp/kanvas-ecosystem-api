@@ -1,0 +1,231 @@
+type Variant {
+    id: ID!
+    uuid: String!
+    slug: String!
+    products_id: Int!
+    name: String!
+    description: String
+    short_description: String
+    html_description: String
+    sku: String
+    ean: String
+    barcode: String
+    serial_number: String
+    status: Status
+    rating: Float
+    weight: Float
+    is_published: Boolean
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    files: [Filesystem]
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    interactions(visitor: VisitorEntityInput!): Interactions
+        @method(name: "getEntitySocialInteractions")
+    user_interactions: Mixed! @method(name: "getUserSocialInteractions") @guard
+    product: Product
+    warehouses: [WarehouseVariantRelationship!]!
+        @hasMany(relation: "variantWarehouses")
+    attributes: [VariantsAttributes!]! @method(name: "visibleAttributes") @cacheRedis
+    companies: Company! @belongsTo(relation: "company")
+    channels(currencyCode: String): [VariantChannelRelationship!]!
+        @BelongsToMany(relation: "channels")
+    channel(currencyCode: String): VariantPricingInfo
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price"
+        )
+    metadata: Mixed
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Types\\MetadataType@linkedStores"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    inventory_quantity: Int @method(name: "getTotalQuantity")
+}
+
+type VariantPricingInfo {
+    price: Money!
+    discounted_price: Money!
+    quantity: Int!
+    is_best_seller: Boolean
+    is_on_sale: Boolean
+    is_on_promotion: Boolean
+    is_coming_soon: Boolean
+    config: Mixed
+}
+
+type VariantAttributesValue {
+    variant: Variant!
+    attribute: Attributes!
+    translation(languageCode: String!): AttributeValueTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    value: Mixed
+}
+
+#@deprecated(reason: "Use the ProductAttributesInput type instead")
+input VariantsAttributesInput {
+    id: ID
+    name: String!
+    value: Mixed
+}
+
+input VariantsInput {
+    products_id: ID
+    name: String!
+    description: String
+    short_description: String
+    html_description: String
+    sku: String!
+    ean: String
+    barcode: String
+    serial_number: String
+    is_published: Boolean
+    files: [FilesystemInputUrl!]
+    slug: String
+    discountPrice: Float
+    status: StatusReferenceInput
+    price: Float
+    weight: Float
+    source_id: Mixed
+    attributes: [VariantsAttributesInput!]
+    warehouses: [WarehouseReferenceInput!]
+    channels: [VariantChannelReferenceInput!]
+    custom_fields: [CustomFieldEntityInput!]
+}
+
+input VariantsUpdateInput {
+    products_id: ID
+    name: String!
+    description: String
+    short_description: String
+    html_description: String
+    files: [FilesystemInputUrl!]
+    status: StatusReferenceInput
+    sku: String!
+    ean: String
+    barcode: String
+    attributes: [VariantsAttributesInput!]
+    serial_number: String
+    is_published: Boolean
+    weight: Float
+    warehouses: [WarehouseReferenceInput!]
+    channels: [VariantChannelReferenceInput!]
+    custom_fields: [CustomFieldEntityInput!]
+}
+
+input VariantTranslationInput {
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+}
+
+extend type Mutation @guard {
+    createVariant(input: VariantsInput!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@create"
+        )
+    updateVariant(input: VariantsUpdateInput!, id: ID!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update"
+        )
+    updateVariantTranslations(
+        id: ID!
+        input: VariantTranslationInput!
+        code: String
+    ): Variant!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantTranslation"
+        )
+    updateVariantAttributeTranslations(
+        variant_id: ID!
+        attribute_id: ID!
+        code: String!
+        value: Mixed
+    ): VariantAttributesValue!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantAttributeTranslation"
+        )
+    uploadFileToVariant(id: ID!, file: Upload!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\VariantMediaMutation@attachFileToVariant"
+        )
+    deleteVariant(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@delete"
+        )
+    addAttributeToVariant(
+        id: ID!
+        attributes_id: ID!
+        input: VariantsAttributesInput!
+    ): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addAttribute"
+        )
+    removeAttributeToVariant(id: ID!, attributes_id: ID!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeAttribute"
+        )
+}
+
+extend type Query @guard {
+    variants(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "products_id"
+                    "name"
+                    "slug"
+                    "status_id"
+                    "companies_id"
+                    "uuid"
+                    "sku"
+                    "serial_number"
+                    "is_published"
+                    "rating"
+                ]
+            )
+        hasAttributesValues: _
+            @whereHasConditions(
+                relation: "attributeValues"
+                columns: ["products_variants_id", "value", "attributes_id"]
+            )
+        hasChannel: _
+            @whereHasConditions(
+                relation: "channels"
+                columns: ["uuid"]
+                handler: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@getHasChannel"
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "products_id"
+                    "status_id"
+                    "is_published"
+                    "weight"
+                    "rating"
+                ]
+            )
+    ): [Variant!]!
+        @paginate(
+            defaultCount: 25
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@getVariants"
+        )
+}

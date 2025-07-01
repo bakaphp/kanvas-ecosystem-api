@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Variants\Models;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Kanvas\Inventory\Models\BaseModel;
+use Override;
 
 /**
  * Class Variants Price History.
@@ -28,6 +29,7 @@ class VariantsWarehousesPriceHistory extends BaseModel
     protected $guarded = [];
     protected $forceDeleting = true;
 
+    #[Override]
     protected function casts(): array
     {
         return [

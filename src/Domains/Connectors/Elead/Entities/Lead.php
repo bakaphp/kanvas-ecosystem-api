@@ -248,7 +248,7 @@ class Lead
             throw new ELeadException($response['message']);
         }
 
-        if (! isset($response['totalItems']) && $response['totalItems'] == 0) {
+        if (! isset($response['totalItems']) || $response['totalItems'] == 0) {
             throw new ELeadException('No Lead Found for this customer ' . $customerId);
         }
 
@@ -270,7 +270,7 @@ class Lead
             '/sales/v2/elead/opportunities/searchDelta?dateFrom=' . $from . '&page=' . $page . '&pageSize=' . $limit
         );
 
-        if (! isset($response['totalItems']) && $response['totalItems'] == 0) {
+        if (! isset($response['totalItems']) || $response['totalItems'] == 0) {
             throw new ELeadException('No Lead Found on this date ' . $from);
         }
 
@@ -287,7 +287,7 @@ class Lead
             '/sales/v2/elead/opportunities/search?dateFrom=' . $from . '&page=' . $page . '&pageSize=' . $limit
         );
 
-        if (! isset($response['totalItems']) && $response['totalItems'] == 0) {
+        if (! isset($response['totalItems']) || $response['totalItems'] == 0) {
             throw new ELeadException('No Lead Found on this date ' . $from);
         }
 

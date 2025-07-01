@@ -10,6 +10,7 @@ use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\AbilityEnum;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Exceptions\InternalServerErrorException;
+use Kanvas\Users\Models\UserAddress;
 use Kanvas\Users\Models\Users;
 
 class UserManagement
@@ -48,6 +49,44 @@ class UserManagement
 
             if ($customFields) {
                 $this->user->setAll($customFields, true);
+            }
+
+            if (isset($data['addresses'])) {
+                foreach ($data['addresses'] as $addressData) {
+                    $existingAddress = UserAddress::where('users_id', $this->user->getId())
+                        ->where('address', $addressData['address'])
+                        ->where('city', $addressData['city'])
+                        ->where('state', $addressData['state'])
+                        ->where('zip', $addressData['zip'])
+                        ->where('apps_id', $this->app->getId())
+                        ->first();
+
+                    if ($existingAddress) {
+                        if (! isset($addressData['id']) || $existingAddress->id != $addressData['id']) {
+                            continue;
+                        }
+                    }
+
+                    $attributes = [
+                        'address' => $addressData['address'],
+                        'city' => $addressData['city'],
+                        'state' => $addressData['state'],
+                        'zip' => $addressData['zip'],
+                        'is_default' => $addressData['is_default'] ?? false,
+                        'apps_id' => $this->app->getId(),
+                        'country_id' => $addressData['country_id'],
+                        'users_id' => $this->user->getId(),
+                    ];
+
+                    if (isset($addressData['id'])) {
+                        UserAddress::where('id', $addressData['id'])
+                            ->where('users_id', $this->user->getId())
+                            ->where('apps_id', $this->app->getId())
+                            ->update($attributes);
+                    } else {
+                        UserAddress::create($attributes);
+                    }
+                }
             }
 
             if ($files) {

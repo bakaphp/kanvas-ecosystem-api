@@ -1,0 +1,31 @@
+type Price {
+    id: ID!
+    apps_plans_id: ID! @belongsTo(relation: "plan")
+    stripe_id: String
+    amount: Money!
+    currency: String!
+    interval: String!
+    is_active: Boolean
+    is_default: Boolean
+    created_at: String
+    updated_at: String
+}
+
+input PriceInput {
+    apps_plans_id: ID
+    amount: Float!
+    currency: String!
+    interval: String!
+    is_default: Boolean
+}
+
+input PriceUpdateInput {
+    is_active: Boolean
+}
+
+extend type Mutation @guard {
+    createPrice(input: PriceInput!): Price!
+        @field(resolver: "App\\GraphQL\\Subscription\\Mutations\\Prices\\PriceMutation@create")
+    updatePrice(id: ID!, input: PriceUpdateInput!): Price!
+        @field(resolver: "App\\GraphQL\\Subscription\\Mutations\\Prices\\PriceMutation@update")
+}

@@ -48,7 +48,7 @@ class IdVerificationService
         $ocMatch = false;
 
         // Extract nested data safely with null coalescing
-        $facial = $verificationData['idcheck']['data']['facial']['data'] ?? [];
+        $facial = $verificationData['facial']['data'] ?? [];
         $ocrMatch = $verificationData['ocr_match']['data'] ?? [];
         $idCheck = $verificationData['idcheck']['data'] ?? [];
         $ipqsAddress = $verificationData['ipqs']['addressDetails']['data'] ?? [];
@@ -89,17 +89,41 @@ class IdVerificationService
         ];
 
         $ocrFailedFields = [];
+        $allFieldsFailed = true; // Assume all fields failed initially
         foreach ($ocrMatchFields as $field) {
-            // Check if the field is present and is explicitly false (not null)
-            if (isset($ocrMatch[$field]) && $ocrMatch[$field] === false) {
-                $hasOcrFailure = true;
-                $ocrFailedFields[] = $field;
+            // Check if the field is present
+            if (isset($ocrMatch[$field])) {
+                if ($ocrMatch[$field] === false) {
+                    // Field failed, add to failed fields
+                    $ocrFailedFields[] = $field;
+                } else {
+                    // At least one field passed, so not all fields failed
+                    $allFieldsFailed = false;
+                }
+            } else {
+                // Field is not present, so we can't say all fields failed
+                $allFieldsFailed = false;
             }
         }
 
-        if ($hasOcrFailure) {
+        // Only mark as failure if ALL fields failed (and we have at least one field)
+        if ($allFieldsFailed && ! empty($ocrFailedFields)) {
             $failures[] = 'OCR verification failed: ' . implode(', ', $ocrFailedFields);
             $failureGroups[] = 'OCR mismatch';
+        }
+
+        // Also add flags for any individual OCR field that fails
+        if (! empty($ocrFailedFields)) {
+            // Convert field names to readable format
+            $readableFailedFields = array_map(function ($field) {
+                $readable = str_replace(['is', 'Match'], '', $field);
+
+                return trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
+            }, $ocrFailedFields);
+
+            $flags[] = 'OCR verification issues: ' . implode(', ', $readableFailedFields);
+            $flagGroups[] = 'OCR mismatch';
+            $flagNotice = true; // Ensure it triggers a flag status
         }
 
         // Count total matches for reporting purposes (even though we're using the new rule)
@@ -145,7 +169,7 @@ class IdVerificationService
         }
 
         // Skip IPQS validation if in showroom mode or IPQS address data is empty
-        $skipIpqsValidation = $isShowRoom || empty($ipqsAddress);
+        $skipIpqsValidation = empty($ipqsAddress);
 
         if (! $skipIpqsValidation) {
             // BEHAVIOR RISKS - NEW RULE (remove failure conditions, only keep flag)
@@ -169,16 +193,20 @@ class IdVerificationService
             }
 
             // Add score-based flags (no failures for risk scores now)
-            if ($scoresAbove75 >= 2) {
+            $flagGroupScores = [];
+            if ($scoresAbove75 >= 1) {
                 $flags[] = 'Multiple risk scores >= 75';
                 if ($riskScore >= 75) {
                     $flags[] = 'Risk score';
+                    $flagGroupScores[] = 'Risk score';
                 }
                 if ($fraudScore >= 75) {
                     $flags[] = 'Fraud score';
+                    $flagGroupScores[] = 'Fraud score';
                 }
                 if ($fraudChance >= 75) {
                     $flags[] = 'Fraud chance';
+                    $flagGroupScores[] = 'Fraud chance';
                 }
                 $flagGroups[] = 'behavior risk';
                 $flagNotice = true;
@@ -256,7 +284,8 @@ class IdVerificationService
 
         if (empty($failures)) {
             // Always make sure expired IDs are flagged
-            if ($isExpired || count($flags) >= 2 || $flagNotice) {
+            //if ($isExpired || count($flags) >= 2 || $flagNotice) {
+            if ($isExpired || ($flagNotice && count($flagGroupScores) >= 2)) {
                 // Create message using flag groups
                 $flagReasons = [];
                 foreach ($flaggedGroups as $group) {

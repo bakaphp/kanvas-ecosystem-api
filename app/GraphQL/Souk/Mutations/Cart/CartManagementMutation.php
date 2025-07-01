@@ -40,9 +40,21 @@ class CartManagementMutation
             return [];
         }
 
-        $cart->update($request['variant_id'], [
+        $updateData = [
             'quantity' => $request['quantity'],
-        ]);
+        ];
+
+        // Only handle attributes if they are provided in the request
+        if (isset($request['attributes']) && ! empty($request['attributes'])) {
+            // Get current item to preserve existing attributes
+            $currentItem = $cart->get($request['variant_id']);
+            $existingAttributes = $currentItem['attributes'] ?? [];
+
+            // Merge existing attributes with new ones (new ones take precedence)
+            $updateData['attributes'] = array_merge($existingAttributes, $request['attributes']);
+        }
+
+        $cart->update($request['variant_id'], $updateData);
 
         return $cart->getContent()->toArray();
     }
@@ -70,23 +82,55 @@ class CartManagementMutation
         $isDevelopment = App::environment('development');
 
         /**
-         * @todo for the love of god move this to a specific module
+         * @todo FOR THE LOVE OF GOD!! MOVE this to a specific module
          */
         if (! empty($discountCodes) && $app->get('temp-use-discount-codes')) {
-            if (strtolower($discountCodes[0]) !== 'app15') {
+            $validDiscountCodes = [
+                'aeroambupromoq2',
+                'pdlc10',
+            ];
+
+            if (! in_array(strtolower($discountCodes[0]), $validDiscountCodes, true)) {
                 throw new ModelNotFoundException('Discount code not found');
             }
 
-            $tenPercentOff = new CartCondition([
-              'name' => 'APP15',
-              'type' => 'discount',
-              'target' => 'subtotal',
-              'value' => '-15%',
-              'minimum' => 1,
-              'order' => 1,
-            ]);
+            if (strtolower($discountCodes[0]) === 'aeroambupromoq2') {
+                $discountVariantId = $app->get('temp-discount-variant-id') ?? [];
+                $discountVariant = null;
+                foreach ($cart->getContent() as $item) {
+                    if (in_array($item->id, $discountVariantId)) {
+                        $discountVariant = $item;
 
-            $cart->condition($tenPercentOff);
+                        break;
+                    }
+                }
+
+                if ($discountVariant !== null) {
+                    $itemPrice = $app->get('temp-discount-variant-price') ?? '1.00';
+
+                    $tenPercentOff = new CartCondition([
+                      'name' => 'aeroambupromoq2',
+                      'type' => 'discount',
+                      'target' => 'subtotal',
+                      'value' => '-' . $itemPrice,
+                      'minimum' => 1,
+                      'order' => 1,
+                    ]);
+
+                    $cart->condition($tenPercentOff);
+                }
+            } elseif (strtolower($discountCodes[0]) === 'pdlc10') {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'pdlc10',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-10%',
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($fifteenPercentOff);
+            }
         }
 
         $cartService = new CartService($cart);

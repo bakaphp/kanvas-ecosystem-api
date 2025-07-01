@@ -171,6 +171,7 @@ class RolesManagementMutation
             $permissions,
             key_exists('template_id', $input) ? SilberRole::find($input['template_id']) : null
         ))->execute();
+
         return KanvasRole::find($role->id);
     }
 
@@ -191,13 +192,13 @@ class RolesManagementMutation
             $input['name'] ?? null,
             $input['title'] ?? null
         );
-
+        $title = key_exists('title', $input) ? $input['title'] : null;
+        $permissions = RolesRepository::getPermissions($input['name'], $title);
         $role = $role->execute(auth()->user()->getCurrentCompany());
-        (new DisallowAllPermissionOnRoleAction(
-            $role
-        ))->execute();
+        foreach ($permissions as $permission) {
+            Bouncer::disallow($input['name'])->to($permission->title, $permission->entity_type);
+        }
         $permissions = $input['permissions'];
-
         (new BulkAllowRoleToPermissionAction(
             app(Apps::class),
             $role,

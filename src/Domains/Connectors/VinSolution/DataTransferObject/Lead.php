@@ -61,14 +61,10 @@ class Lead extends DataTransferObjectLead
         $leadOwner = self::getSalesRep($customer->dealerTeam);
 
         if ($leadOwner['UserId']) {
-            $userConfig = UserConfig::findFirst([
-                'conditions' => 'name LIKE :name: AND value = :value:',
-                'bind' => [
-                    'name' => CustomFieldEnum::USER->value . '_' . $company->getId() . '%', // Add % for LIKE
-                    'value' => $leadOwner['UserId'],
-                ],
-                'order' => 'users_id DESC',
-            ]);
+            $userConfig = UserConfig::where('name', 'LIKE', CustomFieldEnum::USER->value . '_' . $company->getId() . '%')
+                ->where('value', $leadOwner['UserId'])
+                ->orderBy('users_id', 'DESC')
+                ->first();
 
             if ($userConfig) {
                 $leadOwnerId = $userConfig->users_id;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Http\UploadedFile;
+use Kanvas\Apps\Models\Apps;
 use Tests\TestCase;
 
 class FilesystemTest extends TestCase
@@ -43,6 +44,96 @@ class FilesystemTest extends TestCase
                     ],
                 ],
             ]);
+    }
+    public function testDeleteFile(): void
+    {
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+                mutation ($file: Upload!) {
+                    upload(file: $file)
+                    { 
+                        uuid, 
+                        name, 
+                        url 
+                    } 
+                }
+            ',
+            'variables' => [
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('avatar.jpg'),
+        ];
+
+        $response = $this->multipartGraphQL($operations, $map, $file)->json();
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation(
+                $uuid: String!
+            ){
+                deleteFile(
+                    uuid: $uuid
+                ) 
+            }',
+            [
+                'uuid' => $response['data']['upload']['uuid'],
+            ]
+        )->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'deleteFile' => true,
+            ],
+        ]);
+    }
+
+    public function testUploadFileOriginalName(): void
+    {
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+                mutation ($file: Upload!) {
+                    upload(file: $file)
+                    { 
+                        uuid, 
+                        name, 
+                        url 
+                    } 
+                }
+            ',
+            'variables' => [
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('avatar.jpg'),
+        ];
+
+        $app = app(Apps::class);
+        $app->set('filesystem-preserve-original-filename', true);
+
+        $response = $this->multipartGraphQL($operations, $map, $file);
+
+        $response->assertJson([
+                'data' => [
+                    'upload' => [
+                        'name' => 'avatar.jpg',
+                    ],
+                ],
+            ]);
+
+        $this->assertStringContainsString(
+            'avatar',
+            $response->json('data.upload.url')
+        );
     }
 
     public function testMultiUploadFile(): void
@@ -294,5 +385,51 @@ class FilesystemTest extends TestCase
                 ],
             ]
         )->assertSuccessful();
+    }
+
+    public function testCreateFileSystem(): void
+    {
+        // Test creating a filesystem entry from a URL
+        $response = $this->graphQL(/** @lang GraphQL */ '
+        mutation ($input: FilesystemInputUrl!) {
+            createFileSystem(input: $input) {
+                uuid,
+                name,
+                url,
+                type,
+                size
+            }
+        }
+    ', [
+            'input' => [
+                'url' => 'https://example.com/api/webhooks/upload/test-document.pdf',
+                'name' => 'Test Document',
+                'attributes' => [
+                    'description' => 'Test file created from URL',
+                    'category' => 'document',
+                ],
+            ],
+        ]);
+
+        $response->assertSuccessful()
+            ->assertJsonStructure([
+                'data' => [
+                    'createFileSystem' => [
+                        'uuid',
+                        'name',
+                        'url',
+                        'type',
+                        'size',
+                    ],
+                ],
+            ])
+            ->assertJson([
+                'data' => [
+                    'createFileSystem' => [
+                        'name' => 'Test Document',
+                        'url' => 'https://example.com/api/webhooks/upload/test-document.pdf',
+                    ],
+                ],
+            ]);
     }
 }

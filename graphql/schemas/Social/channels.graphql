@@ -11,9 +11,11 @@ type SocialChannel {
     entity_namespace: String!
     entity_id: ID!
     last_message_id: ID
+    title: String
     messages: [Message!]! @belongsToMany
     users: [User!]! @belongsToMany
     systemModule: SystemModule! @belongsTo
+    created_at: DateTime!
 }
 
 input SocialChannelInput {
@@ -39,6 +41,20 @@ input AttachUserInput {
     roles_id: UsersRolesChannel!
 }
 
+enum ChannelColumns {
+    ID @enum(value: "channels.id")
+    NAME @enum(value: "channels.name")
+    SLUG @enum(value: "channels.slug")
+    DESCRIPTION @enum(value: "channels.description")
+    ENTITY_NAMESPACE @enum(value: "channels.entity_namespace")
+    ENTITY_ID @enum(value: "channels.entity_id")
+    CREATED_AT @enum(value: "channels.created_at")
+    UPDATED_AT @enum(value: "channels.updated_at")
+    LAST_MESSAGE_ID @enum(value: "channels.last_message_id")
+    TITLE @enum(value: "channels.title")
+    UUID @enum(value: "channels.uuid")
+}
+
 extend type Query {
     socialChannels(
         where: _
@@ -52,6 +68,7 @@ extend type Query {
                     "entity_id"
                 ]
             )
+        orderBy: _ @orderBy(columnsEnum: ChannelColumns)
     ): [SocialChannel!]!
         @paginate(
             defaultCount: 25

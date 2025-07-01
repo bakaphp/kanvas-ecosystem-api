@@ -153,6 +153,174 @@ class LeadTest extends TestCase
         ]);
     }
 
+    public function testWonLead()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $title = fake()->title();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+                'custom_fields' => [],
+            ],
+            'organization' => [
+                'name' => fake()->company(),
+                'address' => fake()->address(),
+            ],
+            'custom_fields' => [
+                [
+                    'name' => 'test',
+                    'data' => 'test',
+                ],
+            ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: LeadInput!) {
+                createLead(input: $input) {                
+                    id
+                }
+            }
+        ', [
+            'input' => $input,
+        ]);
+        $leadId = $response->json('data.createLead.id');
+        $this->graphQL('
+            mutation($id: ID!) {
+                leadWonOrLost(id: $id, status: Won) {
+                    id
+                    title
+                    status {
+                        name
+                    }
+                }
+            }', [
+            'id' => $leadId,
+        ])->assertJson([
+            'data' => [
+                'leadWonOrLost' => [
+                    'id' => $leadId,
+                    'title' => $title,
+                    'status' => [
+                        'name' => 'Won',
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testLostLead()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $title = fake()->title();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+                'custom_fields' => [],
+            ],
+            'organization' => [
+                'name' => fake()->company(),
+                'address' => fake()->address(),
+            ],
+            'custom_fields' => [
+                [
+                    'name' => 'test',
+                    'data' => 'test',
+                ],
+            ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: LeadInput!) {
+                createLead(input: $input) {                
+                    id
+                }
+            }
+        ', [
+            'input' => $input,
+        ]);
+        $leadId = $response->json('data.createLead.id');
+        $this->graphQL('
+            mutation($id: ID!) {
+                leadWonOrLost(id: $id, status: Lost, reason_lost: "Not answer") {
+                    id
+                    title
+                    reason_lost
+                    status {
+                        name
+                    }
+                }
+            }', [
+            'id' => $leadId,
+        ])->assertJson([
+            'data' => [
+                'leadWonOrLost' => [
+                    'id' => $leadId,
+                    'title' => $title,
+                    'reason_lost' => 'Not answer',
+                    'status' => [
+                        'name' => 'Lost',
+                    ],
+                ],
+            ],
+        ]);
+    }
+
     public function testCreateLeadWithDirectFileUpload(): void
     {
         $user = auth()->user();

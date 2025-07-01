@@ -313,6 +313,11 @@ class Users extends Authenticatable implements KanvasModelInterface, UserInterfa
         return $this->belongsTo(Countries::class, 'country_id');
     }
 
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(UserAddress::class, 'users_id');
+    }
+
     public function getMainRoleAttribute(): string
     {
         $role = Roles::where('scope', RolesEnums::getScope(app(Apps::class)))->first();
@@ -850,13 +855,14 @@ class Users extends Authenticatable implements KanvasModelInterface, UserInterfa
     public function toSearchableArray(): array
     {
         return [
-            'id' => $this->getId(),
+            'id' => (string) $this->getId(),
             'firstname' => $this->firstname,
             'lastname' => $this->lastname,
             'displayname' => $this->displayname,
             'email' => $this->email,
             'apps' => $this->apps->pluck('id')->toArray(),
             'companies' => $this->companies->pluck('id')->toArray(),
+            'created_at' => $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString(),
         ];
     }
 
@@ -895,7 +901,7 @@ class Users extends Authenticatable implements KanvasModelInterface, UserInterfa
             'fields' => [
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'firstname',
@@ -1037,5 +1043,20 @@ class Users extends Authenticatable implements KanvasModelInterface, UserInterfa
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,
         ];
+    }
+
+    public function getRolesToArray(): array
+    {
+        return $this->getRoles()->toArray();
+    }
+
+    public function getUnreadNotificationsCount(): int
+    {
+        return (int) Notifications::query()
+            ->where('users_id', $this->id)
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->where('read', StateEnums::NO->getValue())
+            ->where('apps_id', app(Apps::class)->id)
+            ->count();
     }
 }

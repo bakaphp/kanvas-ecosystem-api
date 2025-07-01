@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\NetSuite\Webhooks;
 
+use Kanvas\Companies\Actions\AddAddressToCompanyAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
@@ -26,8 +27,17 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
             ];
         }
 
+        $payload = $this->webhookRequest->payload;
         $syncCompanyWithNetSuite = new SyncNetSuiteCustomerWithCompanyAction($this->receiver->app, $this->receiver->company);
         $company = $syncCompanyWithNetSuite->execute($netSuiteCompanyId);
+
+        $user = $this->receiver->app->keys()->firstOrFail()->user;
+
+        if (isset($payload['sublists']['addressbook']['line 1'])) {
+            $addAddressAction = new AddAddressToCompanyAction($company, $user, $this->receiver->app);
+            $addressData = $payload['sublists']['addressbook']['line 1'];
+            $addAddressAction->fromNetSuite($addressData);
+        }
 
         //update or create customer own channel price list
         $mainCompanyId = $this->receiver->app->get('B2B_MAIN_COMPANY_ID');

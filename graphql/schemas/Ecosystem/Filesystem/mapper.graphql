@@ -3,6 +3,7 @@ type FilesystemMapper {
     users: User!
     company: Company!
     name: String!
+    description: String
     file_header: Mixed!
     mapping: Mixed!
     configuration: Mixed
@@ -12,8 +13,23 @@ type FilesystemMapper {
     updated_at: DateTime
 }
 
+type FilesystemImportHistory {
+    id: ID!
+    user: User!
+    company: Company!
+    results: Mixed
+    exception: Mixed
+    status: String
+    filesystem: Filesystem
+    filesystem_mapper: FilesystemMapper @belongsTo(relation: "filesystemMapper")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
 input FilesystemMapperInput {
     name: String!
+    description: String
+    has_header: Boolean
     system_module_id: ID!
     file_header: Mixed!
     mapping: Mixed!
@@ -22,7 +38,7 @@ input FilesystemMapperInput {
 }
 
 input FilesystemImportInput {
-    regions_id: ID!
+    regions_id: ID
     filesystem_mapper_id: ID!
     filesystem_id: ID!
     extra: Mixed
@@ -38,6 +54,7 @@ type FileSystemImport {
 input UpdateFilesystemImportInput {
     mapper_id: ID!
     name: String!
+    description: String
     file_header: Mixed!
     mapping: Mixed!
     configuration: Mixed
@@ -47,6 +64,10 @@ type Mutation @guard {
     createFilesystemMapper(input: FilesystemMapperInput!): FilesystemMapper!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@create"
+        )
+    createImportMapper(input: FilesystemMapperInput!): FilesystemMapper!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@createMapper"
         )
     updateFilesystemMapper(
         input: UpdateFilesystemImportInput!
@@ -89,6 +110,27 @@ extend type Query @guard {
     ): [FilesystemMapper!]!
         @paginate(
             model: "Kanvas\\Filesystem\\Models\\FilesystemMapper"
+            scopes: ["fromCompany", "notDeleted", "fromApp"]
+            defaultCount: 25
+        )
+
+    filesystemImportHistory(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "filesystem_mapper_id"
+                    "status"
+                ]
+            )
+        hasSystemModule: _ @whereHasConditions(relation: "filesystemMapper.systemModule", columns: ["id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [FilesystemImportHistory!]!
+        @paginate(
+            model: "Kanvas\\Filesystem\\Models\\FilesystemImports"
             scopes: ["fromCompany", "notDeleted", "fromApp"]
             defaultCount: 25
         )

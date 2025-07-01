@@ -1,0 +1,38 @@
+extend type Query {
+    cities(
+        orderBy: _ @orderBy(columns: ["id", "created_at", "name"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "name"
+                    "latitude"
+                    "longitude"
+                    "id"
+                    "states_id"
+                    "country_id"
+                ]
+            )
+    ): [Cities!]!
+        @paginate(defaultCount: 25, model: "Kanvas\\Locations\\Models\\Cities")
+    city(id: Int!): Cities @find(model: "Kanvas\\Locations\\Models\\Cities")
+}
+
+extend type Mutation @guardByAppKey {
+    createCities(
+        name: String!
+        latitude: Float!
+        longitude: Float!
+        states_id: ID!
+        countries_id: ID!
+    ): Cities @create(model: "Kanvas\\Locations\\Models\\Cities")
+    updateCities(
+        id: ID!
+        name: String
+        latitude: Float
+        longitude: Float
+        states_id: ID
+        countries_id: ID
+    ): Cities @update(model: "Kanvas\\Locations\\Models\\Cities")
+    deleteCities(id: ID!): Cities
+        @delete(model: "Kanvas\\Locations\\Models\\Cities")
+}

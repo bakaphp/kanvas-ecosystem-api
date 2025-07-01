@@ -1,0 +1,89 @@
+type Status {
+    id: ID!
+    name: String!
+    translation(languageCode: String!): ProductTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    company: Company! @belongsTo(relation: "company")
+    is_default: Boolean
+    is_published: Boolean
+    slug: String!
+}
+type StatusHistoryRelationship {
+    id: ID!
+    name: String
+    from_date: String!
+}
+
+type StatusTranslation {
+    name: String
+    language: LanguageDisplay!
+}
+
+input StatusInput {
+    name: String!
+    is_default: Boolean
+    is_published: Boolean
+    company_id: ID
+}
+input StatusReferenceInput {
+    id: ID!
+    name: String
+}
+
+extend type Mutation @guard {
+    createStatus(input: StatusInput!): Status!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@create"
+        )
+    updateStatus(id: ID!, input: StatusInput!): Status!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@update"
+        )
+    updateStatusTranslations(
+        id: ID!
+        input: TranslationInput!
+        code: String!
+    ): Status!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@updateStatusTranslation"
+        )
+    deleteStatus(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    status(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "is_default"
+                    "is_published"
+                    "companies_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "is_default"
+                    "is_published"
+                    "name"
+                ]
+            )
+    ): [Status!]!
+        @paginate(
+            model: "Kanvas\\Inventory\\Status\\Models\\Status"
+            scopes: ["fromApp", "fromCompany"]
+            defaultCount: 25
+        )
+}

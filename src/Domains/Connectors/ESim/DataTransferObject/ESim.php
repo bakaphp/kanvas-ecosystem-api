@@ -20,6 +20,10 @@ class ESim extends Data
         public readonly int $quantity,
         public readonly float $pricePerUnit,
         public readonly string $type,
+
+        /**
+         * this is the variant sku
+         */
         public readonly string $plan,
         public readonly string $smdpAddress,
         public readonly string $matchingId,

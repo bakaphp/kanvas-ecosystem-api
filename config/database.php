@@ -313,6 +313,34 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
+        'intelligence' => [
+            'driver' => 'mysql',
+            'read' => [
+                'host' => [
+                    env('DB_INTELLIGENCE_HOST_READ', env('DB_INTELLIGENCE_HOST', '127.0.0.1')),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_INTELLIGENCE_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => false,
+            'port' => env('DB_INTELLIGENCE_PORT', '3306'),
+            'database' => env('DB_INTELLIGENCE_DATABASE', 'event'),
+            'username' => env('DB_INTELLIGENCE_USERNAME', 'kanvas'),
+            'password' => env('DB_INTELLIGENCE_PASSWORD', ''),
+            'unix_socket' => env('DB_INTELLIGENCE_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_520_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => 'InnoDB',
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
         'third_party' => [
             'driver' => 'mysql',
             'read' => [

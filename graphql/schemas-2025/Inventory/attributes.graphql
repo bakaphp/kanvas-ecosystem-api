@@ -1,0 +1,125 @@
+input AttributeInput {
+    name: String!
+    values: [AttributesValueInput!]
+    slug: String
+    is_visible: Boolean
+    is_searchable: Boolean
+    is_filtrable: Boolean
+    attribute_type: AttributeTypeReferenceInput
+}
+
+input AttributeUpdateInput {
+    name: String
+    slug: String
+    values: [AttributesValueInput!]
+    is_visible: Boolean
+    is_searchable: Boolean
+    is_filtrable: Boolean
+}
+
+input AttributesValueInput {
+    value: Mixed!
+}
+
+input UpdateAttributesValueInput {
+    id: ID!
+    value: Mixed!
+}
+
+input AttributeTranslationInput {
+    name: String
+}
+
+input AttributeValueTranslationInput {
+    id: ID!
+    value: Mixed!
+}
+
+type Attributes {
+    id: ID!
+    uuid: String
+    name: String
+    translation(languageCode: String!): AttributeTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    slug: String
+    created_at: String
+    updated_at: String
+    companies: [Company]
+    is_visible: Boolean
+    is_searchable: Boolean
+    is_filtrable: Boolean
+    is_required: Boolean
+    values: [AttributesValue!] @hasMany(relation: "defaultValues")
+    attribute_type: AttributesType @belongsTo(relation: "attributeType")
+}
+
+type AttributesValue {
+    id: ID!
+    translation(languageCode: String!): AttributeValueTranslation
+        @field(
+            resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
+        )
+    value: Mixed
+}
+
+type AttributeTranslation {
+    name: String
+    language: LanguageDisplay!
+}
+
+type AttributeValueTranslation {
+    value: Mixed
+    language: LanguageDisplay!
+}
+
+type ProductAttribute {
+    id: ID!
+    name: String!
+    slug: String!
+    value: Mixed
+}
+
+type VariantsAttributes {
+    id: ID!
+    name: String!
+    slug: String!
+    value: Mixed
+}
+
+extend type Mutation @guard {
+    createAttribute(input: AttributeInput!): Attributes!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@create"
+        )
+    updateAttribute(id: ID!, input: AttributeUpdateInput!): Attributes!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@update"
+        )
+    updateAttributeTranslations(
+        id: ID!
+        input: AttributeTranslationInput!
+        code: String!
+        values: [AttributeValueTranslationInput]
+    ): Attributes!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@updateAttributeTranslation"
+        )
+    deleteAttribute(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@delete"
+        )
+}
+extend type Query @guard {
+    attributes(
+        search: String @search
+        where: _ @whereConditions(columns: ["uuid", "id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [Attributes!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Inventory\\Attributes\\Models\\Attributes"
+            scopes: ["fromApp", "fromCompany"]
+        )
+}
