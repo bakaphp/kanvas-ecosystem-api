@@ -25,7 +25,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
         $subscriptionVariant = $order->allItems()->first()->variant;
 
         // Check if the product is from the Dominican Republic
-        $productCountry = $subscriptionVariant->product->getAttributeBySlug('countries-code')?->value ?? 
+        $productCountry = $subscriptionVariant->product->getAttributeBySlug('countries-code')?->value ??
                          $subscriptionVariant->product->getAttributeBySlug('destination')?->value ?? '';
         if (! is_string($productCountry) || strtoupper($productCountry) !== 'DO') {
             return [];
@@ -56,7 +56,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
                     // Process each aeroAmbulancia plan within the order item
                     foreach ($aeroPlans as $planData) {
                         $beneficiaries = $this->formatB2BBeneficiaries($planData);
-                        
+
                         // Only create subscription if beneficiaries data is valid
                         if (! empty($beneficiaries)) {
                             $result = $subscriptionService->createNewSubscription(
@@ -93,11 +93,11 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
         // Process each order item to find aeroAmbulancia plans
         foreach ($order->allItems()->get() as $orderItem) {
             $itemMetadata = $orderItem->metadata ?? [];
-            
+
             if (isset($itemMetadata['eSimDetails']) && is_array($itemMetadata['eSimDetails'])) {
                 $aeroPlans = array_filter($itemMetadata['eSimDetails'], function ($detail) {
                     // Check if aeroAmbulance exists and has valid titular data
-                    return isset($detail['aeroAmbulance']['titular']) && 
+                    return isset($detail['aeroAmbulance']['titular']) &&
                            is_array($detail['aeroAmbulance']['titular']);
                 });
 
@@ -131,7 +131,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
     protected function formatB2BBeneficiaries(array $planData): array
     {
         $aeroData = $planData['aeroAmbulance'] ?? [];
-        
+
         // Return empty array if no titular data is present (optional plan)
         if (! isset($aeroData['titular']) || ! is_array($aeroData['titular'])) {
             return [];
