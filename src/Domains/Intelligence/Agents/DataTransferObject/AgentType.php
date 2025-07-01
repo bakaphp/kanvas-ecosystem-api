@@ -14,7 +14,7 @@ class AgentType extends Data
         public string $name,
         public ?string $description = null,
         public ?string $config = null,
-        public string $role,
+        public ?string $role = null,
         public bool $is_active = true,
         public bool $is_published = false,
         public bool $is_multi_agent = false,
