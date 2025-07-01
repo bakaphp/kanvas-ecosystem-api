@@ -240,7 +240,7 @@ return [
             'App\\GraphQL\\Inventory\\Mutations',
             'App\\GraphQL\\Event\\Mutations',
             'App\\GraphQL\\Workflow\\Mutations',
-            'App\\GraphQL\\Intelligence\\Mutations'     
+            'App\\GraphQL\\Intelligence\\Mutations'
         ],
         'subscriptions' => [
             // 'App\\GraphQL\\Ecosystem\\Subscriptions',

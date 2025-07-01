@@ -18,7 +18,7 @@ class AgentType extends Data
         public bool $is_active = true,
         public bool $is_published = false,
         public bool $is_multi_agent = false,
-        public ?string $multi_agent_list = null ,
+        public ?string $multi_agent_list = null,
     ) {
     }
 }
