@@ -248,7 +248,7 @@ class CreateEsimOrderAction
     {
         // Search for an order that contains the specified ICCID in its items
         return Order::query()
-            ->whereHas('items', function ($query) use ($iccid) {
+            ->whereHas('allItems', function ($query) use ($iccid) {
                 $query->where('product_sku', $iccid);
             })
             ->first();
