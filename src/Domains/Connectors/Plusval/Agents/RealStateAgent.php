@@ -8,6 +8,7 @@ use Kanvas\Connectors\Plusval\Services\DealsService;
 use Kanvas\Connectors\Plusval\Services\PropertiesService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -136,6 +137,74 @@ class RealStateAgent extends BaseAgent
                         'agent_phone' => $agentPhone,
                         'criteria' => $criteria,
                         'properties' => [],
+                    ];
+                }
+            }),
+
+            Tool::make(
+                'send_properties_to_deal',
+                'I can send properties to a deal. When you ask to send properties, I will call this method with the necessary information.'
+            )->addProperty(
+                new ToolProperty(
+                    name: 'dealId',
+                    type: PropertyType::INTEGER,
+                    description: 'The ID of the deal to which the properties will be sent.',
+                    required: true
+                )
+            )->addProperty(
+                new ArrayProperty(
+                    name: 'propertiesIds',
+                    description: 'An array of property IDs to send to the deal.',
+                    required: true,
+                    items: new ToolProperty(
+                        name: 'propertyId',
+                        type: PropertyType::INTEGER,
+                        description: 'A property ID',
+                        required: true
+                    )
+                )
+            )->setCallable(function (int $dealId, array $propertiesIds) {
+                $agentPhone = $this->getAgentPhone();
+                if (empty($agentPhone)) {
+                    return [
+                        'status' => 'error',
+                        'message' => 'No phone number found for agent. Please add a phone number to your profile.',
+                        'properties' => [],
+                    ];
+                }
+
+                try {
+                    // Initialize the Plusval properties service
+                    $propertiesService = new PropertiesService($this->app, $this->entity->company);
+
+                    // Send properties to the deal
+                    $response = $propertiesService->sendPropertiesToDeal($agentPhone, $dealId, $propertiesIds);
+
+                    // Process the API response
+                    if ($response['status'] === 'success') {
+                        return [
+                            'status' => 'success',
+                            'message' => 'Properties sent to deal successfully.',
+                            'agent_phone' => $agentPhone,
+                            'deal_id' => $dealId,
+                            'properties_ids' => $propertiesIds,
+                        ];
+                    } else {
+                        return [
+                            'status' => 'error',
+                            'message' => 'Error sending properties to deal: ' . $response['message'],
+                            'agent_phone' => $agentPhone,
+                            'deal_id' => $dealId,
+                            'properties_ids' => $propertiesIds,
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    return [
+                        'status' => 'error',
+                        'message' => 'Error sending properties to deal: ' . $e->getMessage(),
+                        'agent_phone' => $agentPhone,
+                        'deal_id' => $dealId,
+                        'properties_ids' => $propertiesIds,
                     ];
                 }
             }),
