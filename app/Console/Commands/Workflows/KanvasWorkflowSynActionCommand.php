@@ -35,6 +35,7 @@ use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\PushOrderToNetsuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
@@ -209,6 +210,7 @@ class KanvasWorkflowSynActionCommand extends Command
             B2BCompanyPriceConfigurationActivity::class,
             CheckNuggetGenerationCountActivity::class,
             ExtendReservationActivity::class,
+            SyncMovipassImpoundActivity::class,
             PushLeadNotesActivity::class,
             PushLeadActivity::class,
             PushPeopleActivity::class,
