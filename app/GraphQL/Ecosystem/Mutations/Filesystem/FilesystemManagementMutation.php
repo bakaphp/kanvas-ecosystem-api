@@ -288,6 +288,10 @@ class FilesystemManagementMutation
                 }
             }
 
+            if (empty($files)) {
+                throw new Exception('No valid files to merge');
+            }
+
             $mergePDF = new MergePdf($app, ...$files);
             $mergeFileName = tempnam(sys_get_temp_dir(), 'mergefile-') . '.pdf';
 
