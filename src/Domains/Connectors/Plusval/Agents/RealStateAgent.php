@@ -8,10 +8,10 @@ use Kanvas\Connectors\Plusval\Services\DealsService;
 use Kanvas\Connectors\Plusval\Services\PropertiesService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
-use NeuronAI\Tools\ArrayProperty;
 use Override;
 
 class RealStateAgent extends BaseAgent
