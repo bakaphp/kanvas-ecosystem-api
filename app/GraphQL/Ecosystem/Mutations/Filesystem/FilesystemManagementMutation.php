@@ -271,7 +271,11 @@ class FilesystemManagementMutation
             $files = [];
             foreach ($request['files'] as $fileId) {
                 try {
-                    $fileUrl = FileSystem::getById($fileId, $app)->url;
+                    $fileUrl = FilesystemEntities::getById($fileId)->filesystem()->where('apps_id', $app->getId())
+                        ->where('companies_id', $company->getId())
+                        ->firstOrFail()
+                        ->url;
+
                     if (Str::contains($fileUrl, 'jpg')
                         || Str::contains($fileUrl, 'png')
                         || Str::contains($fileUrl, 'jpeg')
