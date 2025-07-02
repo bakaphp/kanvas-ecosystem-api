@@ -16,12 +16,6 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
 {
     public function execute(Order $order, AppInterface $app, array $params): array
     {
-        // Check if the source is B2B from order metadata
-        $source = $order->getMetadata('source');
-        if (! is_string($source) || strtoupper($source) !== 'B2B') {
-            return [];
-        }
-
         $subscriptionVariant = $order->allItems()->first()->variant;
 
         // Check if the product is from the Dominican Republic
