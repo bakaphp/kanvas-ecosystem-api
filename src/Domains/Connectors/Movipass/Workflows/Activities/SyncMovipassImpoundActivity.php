@@ -22,9 +22,19 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::MOVIPASS,
+            additionalParams: $params,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
+                if ($order->orderType->name !== OrderTypeEnum::IMPOUND_LOT->value) {
+                    return [
+                        'order' => $order->getId(),
+                        'status' => 'success',
+                        'message' => 'Order is not an impound lot',
+                    ];
+                }
+
                 $eventName = $additionalParams['currentEventTypeName'] ?? null;
-                if ($eventName == WorkflowEnum::CREATED->value && $order->orderType->name === OrderTypeEnum::IMPOUND_LOT->value) {
+
+                if ($eventName == WorkflowEnum::CREATED->value) {
                     // lets add the order number to the reference field if the order number is not already set
                     if ($order->reference && ! str_contains($order->reference, "#" . $order->order_number)) {
                         $order->reference = $order->reference . ' - #' . $order->order_number;

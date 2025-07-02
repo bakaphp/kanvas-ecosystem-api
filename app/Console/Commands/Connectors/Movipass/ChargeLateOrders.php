@@ -64,5 +64,3 @@ class ChargeLateOrders extends Command
         $this->chargeLateOrders($app, $appTimeZone);
     }
 }
-
-
