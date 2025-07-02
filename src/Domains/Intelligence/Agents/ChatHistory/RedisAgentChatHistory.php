@@ -42,6 +42,12 @@ class RedisAgentChatHistory extends AbstractChatHistory
         $this->init();
     }
 
+    #[Override]
+    public function removeOldMessage(int $index): ChatHistoryInterface
+    {
+        return $this;
+    }
+
     protected function init(): void
     {
         // First try to load from Redis for speed
@@ -164,7 +170,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
     /**
      * Remove the oldest message from the history
      */
-    #[Override]
     public function removeOldestMessage(): ChatHistoryInterface
     {
         // Mark history as dirty

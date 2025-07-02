@@ -26,6 +26,16 @@ class DraftOrderManagementMutation
 
         $region = Regions::getByIdFromCompanyApp($request['input']['region_id'], $branch->company, $app);
 
+        $log = activity('create-order-from-draft')
+         ->causedBy($user)
+         ->withProperties([
+             'request_data' => $request,
+             'user_id' => $user->id,
+             'apps_id' => $app->getId(),
+             'companies_id' => $branch->company->getId(),
+         ])
+         ->log('User attempted to create order from draft');
+
         $draftOrder = DraftOrder::viaRequest(
             $app,
             $branch,
@@ -34,6 +44,13 @@ class DraftOrderManagementMutation
             $request
         );
 
-        return (new CreateDraftOrderAction($draftOrder))->execute();
+        $order = new CreateDraftOrderAction($draftOrder)->execute();
+
+        $log->subject_type = get_class($order);
+        $log->subject_id = $order->id;
+        $log->description = 'User successfully created order from draft';
+        $log->save();
+
+        return $order;
     }
 }

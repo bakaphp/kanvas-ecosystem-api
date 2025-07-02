@@ -14,7 +14,7 @@ class MergePdf
     protected int $totalFiles = 0;
     protected string $apiKey;
 
-    public function __construct(AppInterface $app, ...$files)
+    public function __construct(AppInterface $app, string ...$files)
     {
         $this->files = $files;
         $this->totalFiles = count($files);
@@ -64,7 +64,7 @@ class MergePdf
         $curl = curl_init();
 
         curl_setopt_array($curl, [
-            CURLOPT_URL => 'https://api.pspdfkit.com/build',
+            CURLOPT_URL => 'https://api.nutrient.io/build',
             CURLOPT_CUSTOMREQUEST => 'POST',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',

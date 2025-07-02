@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;

@@ -8,6 +8,7 @@ use Kanvas\Connectors\Plusval\Services\DealsService;
 use Kanvas\Connectors\Plusval\Services\PropertiesService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -30,8 +31,7 @@ class RealStateAgent extends BaseAgent
                     description: 'The name of the customer to retrieve information for. This should be the full name of the customer, e.g., "Juan Perez".',
                     required: true
                 )
-            )
-            ->setCallable(function (string $customerName) {
+            )->setCallable(function (string $customerName) {
                 $agentPhone = $this->getAgentPhone();
                 if (empty($agentPhone)) {
                     return [
@@ -80,6 +80,7 @@ class RealStateAgent extends BaseAgent
                     ];
                 }
             }),
+
             Tool::make(
                 'get_properties_information',
                 'I can get properties by id, name, title, address, description, notes or owner name. When you ask for properties, I will call this method to retrieve properties based on the criteria you provide.'
@@ -90,8 +91,7 @@ class RealStateAgent extends BaseAgent
                     description: 'The criteria to filter properties. This can be a property ID, name, title, address, description, notes or owner name.',
                     required: true
                 )
-            )
-            ->setCallable(function (string $criteria) {
+            )->setCallable(function (string $criteria) {
                 $agentPhone = $this->getAgentPhone();
                 if (empty($agentPhone)) {
                     return [
@@ -140,6 +140,7 @@ class RealStateAgent extends BaseAgent
                     ];
                 }
             }),
+
             Tool::make(
                 'send_properties_to_deal',
                 'I can send properties to a deal. When you ask to send properties, I will call this method with the necessary information.'
@@ -151,14 +152,18 @@ class RealStateAgent extends BaseAgent
                     required: true
                 )
             )->addProperty(
-                new ToolProperty(
+                new ArrayProperty(
                     name: 'propertiesIds',
-                    type: PropertyType::ARRAY,
                     description: 'An array of property IDs to send to the deal.',
-                    required: true
+                    required: true,
+                    items: new ToolProperty(
+                        name: 'propertyId',
+                        type: PropertyType::INTEGER,
+                        description: 'A property ID',
+                        required: true
+                    )
                 )
-            )
-            ->setCallable(function (int $dealId, array $propertiesIds) {
+            )->setCallable(function (int $dealId, array $propertiesIds) {
                 $agentPhone = $this->getAgentPhone();
                 if (empty($agentPhone)) {
                     return [
@@ -202,7 +207,7 @@ class RealStateAgent extends BaseAgent
                         'properties_ids' => $propertiesIds,
                     ];
                 }
-            })
+            }),
         ];
     }
 
