@@ -792,7 +792,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $app = app(Apps::class);
         $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
 
-        return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
+        return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId, true) : null);
     }
 
     public function getSocialInfo(): array
