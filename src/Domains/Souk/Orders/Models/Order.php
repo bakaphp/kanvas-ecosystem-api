@@ -638,7 +638,7 @@ class Order extends BaseModel
     {
         $total = OrderItem::query()->where(["order_id" =>  $this->id])
         ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
-        sum(unit_price_gross_amount - unit_price_net_amount) as discount')->get();
+        sum(unit_price_gross_amount - unit_price_net_amount) as discount, count(*) as count')->get();
 
         $discount = $total[0]['discount'] ?? 0;
         $orderTotal =  ($total[0]['price'] ?? 0);

@@ -41,11 +41,20 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                     }
 
                     // lets store the charge data
+                    $variant = $order->items->first(function ($item) {
+                        return $item->variant->product?->attributes
+                        ->contains(fn ($attribute) => in_array($attribute->slug, ['late_fee_variant_id']) && ! empty($attribute->value));
+                    })?->variant;
+
                     $order->metadata = [
                         ...$order->metadata ?? [],
                         'data' => [
                             ...$order->metadata['data'] ?? [],
                             'terms_and_conditions' => true,
+                            ...$variant ? [
+                                'late_fee_variant_id' => $variant->id,
+                                'late_fee_grace_days' => 1
+                            ] : [],
                         ],
                     ];
 

@@ -40,35 +40,44 @@ class GenerateOrderLateFee
             })
             ->get();
 
-        $this->addLateFee($lateOrders);
+        $this->addLateFee($lateOrders, $timeZonedNow);
 
         return $lateOrders;
     }
 
-    public function addLateFee(Collection $orders): void
+    public function addLateFee(Collection $orders, string $timeZonedNow): void
     {
         $completeOrders = Order::whereIn('id', $orders->pluck('id'))->get();
-        $orders->each(function ($order) use ($completeOrders) {
+        $orders->each(function ($order) use ($completeOrders, $timeZonedNow) {
             $completeOrder = $completeOrders->where('id', $order->id)->first();
             $lateFee = Variants::find($completeOrder->metadata["data"]["late_fee_variant_id"]);
+            $lateFeePrice = $lateFee->getPriceInfoFromDefaultChannel()->price;
+
+            $dayDiffs = $completeOrder->created_at->diffInDays(now());
+
+            if ($dayDiffs <= 0) {
+                return;
+            }            
 
             if ($hasLateFee = $completeOrder->items()->where('variant_id', $lateFee->id)?->first()) {
-                $hasLateFee->quantity += 1;
+                $hasLateFee->quantity = $dayDiffs;
             } else {
                 $orderItem = OrderItem::viaRequest($this->apps, $completeOrder->company, $completeOrder->region, [
                     'variant_id' => $lateFee->id,
-                    'quantity' => 1,
-                    'price' => $lateFee->price,
+                    'quantity' => $dayDiffs,
+                    'price' => $lateFeePrice,
                 ]);
 
                 $completeOrder->addItem($orderItem);
             }
+
             $completeOrder->metadata = [
                 "data" => [
                     ...$completeOrder->metadata["data"],
-                    "late_fee_charged_at" => now()->toDateTimeString(),
+                    "late_fee_charged_at" => $timeZonedNow,
                 ]
             ];
+
             $completeOrder->calculateTotal();
         });
     }

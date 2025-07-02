@@ -421,7 +421,7 @@ class OrderExpirableTest extends TestCase
         $lateFeeProductResponse = $this->createProduct(attributes: [
             [
                 'name' => 'late_fee',
-                'value' => 400
+                'value' => 100
             ]
         ])->json()['data']['createProduct'];
 
@@ -429,12 +429,8 @@ class OrderExpirableTest extends TestCase
 
         $productResponse = $this->createProduct(attributes: [
             [
-                'name' => 'late_fee',
-                'value' => [
-                    'variant_id' => $lateFee->variants()->first()->id,
-                    'amount' => 400,
-                    'grace_days' => 1
-                ]
+                'name' => 'late_fee_variant_id',
+                'value' => $lateFee->variants()->first()->id
             ],
         ])->json()['data']['createProduct'];
 
@@ -477,9 +473,7 @@ class OrderExpirableTest extends TestCase
             quantity: 1,
             metadata: [
                 'data' => [
-                    'start_at' => $rightNow,
                     'late_fee_variant_id' => $lateFee->variants()->first()->id,
-                    'late_fee_amount' => 400,
                     'late_fee_grace_days' => 1
                 ]
             ],
@@ -496,9 +490,17 @@ class OrderExpirableTest extends TestCase
         );
 
         $reservation2->completed();
-
-        $lateOrders = new GenerateOrderLateFee($this->apps)->execute($rightNow, 1, [$reservation1->getId(), $reservation2->getId()]);
-
+        $total = $reservation1->getTotalAmount();
+        $totalItems = $reservation1->items;
+        $reservation1->created_at = now()->subDays(2);
+        $reservation1->save();
+        
+        $lateOrders = new GenerateOrderLateFee($this->apps)->execute($rightNow, [$reservation1->getId(), $reservation2->getId()]);
+        $order = $reservation1->fresh();
+        
+        $this->assertCount(1, $totalItems);
         $this->assertEquals(1, $lateOrders->count());
+        $this->assertCount(2, $order->items);
+        $this->assertEquals($order->getTotalAmount(), $total + 200);
     }
 }
