@@ -15,7 +15,7 @@ class GenerateOrderLateFee
     ) {
     }
 
-    public function execute(string $timeZonedNow, int $graceDays, array $orderIds = []): Collection
+    public function execute(string $timeZonedNow, array $orderIds = []): Collection
     {
         $lateOrders = Order::query()
             ->fromApp($this->apps)
@@ -47,7 +47,6 @@ class GenerateOrderLateFee
 
     public function addLateFee(Collection $orders): void
     {
-
         $completeOrders = Order::whereIn('id', $orders->pluck('id'))->get();
         $orders->each(function ($order) use ($completeOrders) {
             $completeOrder = $completeOrders->where('id', $order->id)->first();

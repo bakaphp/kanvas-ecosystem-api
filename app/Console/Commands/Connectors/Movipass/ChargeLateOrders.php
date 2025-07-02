@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Souk;
+namespace App\Console\Commands\Connectors\Movipass;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
+use Kanvas\Connectors\Movipass\Actions\GenerateOrderLateFee;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 
 class ChargeLateOrders extends Command
@@ -19,14 +20,14 @@ class ChargeLateOrders extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-souk:charge-late-orders {app_id?}';
+    protected $signature = 'kanvas:movipass-charge-late-orders {app_id?}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Charge late fees for orders';
+    protected $description = 'Charge late fees for movipass orders';
 
     public function handle(): void
     {
@@ -49,13 +50,8 @@ class ChargeLateOrders extends Command
 
     protected function chargeLateOrders($app, $appTimeZone): void
     {
-        $getLateOrders = new GetLateOrders($app);
-        $getLateOrders->execute(
-            now($appTimeZone)->toDateTimeString(),
-            [
-                $app->get(ConfigurationEnum::GRACE_PERIOD_DAYS->value),
-            ]
-        );
+        $getLateOrders = new GenerateOrderLateFee($app);
+        $getLateOrders->execute(now($appTimeZone)->toDateTimeString());
     }
 
     protected function checkApps($appsId): void
