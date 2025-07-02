@@ -155,25 +155,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
                 // Pass the titular's ambulanceVariantId to dependents since they share the same plan
                 $transformedDependent = $this->transformPersonData($dependent, false, $ambulanceVariantId);
 
-                // Add relationship mapping
-                $relationshipMap = [
-                    'Wife' => 2,
-                    'Husband' => 2,
-                    'Spouse' => 2,
-                    'Son' => 3,
-                    'Daughter' => 3,
-                    'Child' => 3,
-                    'Father' => 4,
-                    'Mother' => 4,
-                    'Parent' => 4,
-                    'Brother' => 5,
-                    'Sister' => 5,
-                    'Sibling' => 5,
-                    'Other' => 6,
-                ];
-
                 $relationship = $dependent['relationship'] ?? 'Other';
-                //$transformedDependent['holderRelationship'] = $relationshipMap[$relationship] ?? 6;
                 $transformedDependent['holderRelationship'] = (int) $relationship;
 
                 $dependents[] = $transformedDependent;
