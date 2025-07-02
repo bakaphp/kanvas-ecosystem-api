@@ -119,7 +119,7 @@ class Notifications extends BaseModel
                         $notificationSystemModule = SystemModulesRepository::getBySlug($systemModuleSlug, $app);
                         $systemModuleIds[] = $notificationSystemModule->getId();
                         if ($notificationSystemModule->model_name == Message::class && isset($systemModuleFilter['message_type_verb'])) {
-                            $query->getQuery()->join($socialDb .'.messages', 'messages.id', '=', 'notifications.entity_id');
+                            $query->getQuery()->join($socialDb . '.messages', 'messages.id', '=', 'notifications.entity_id');
 
                             $messageType = MessagesTypesRepository::getByVerb($systemModuleFilter['message_type_verb'], $app);
                             $query->where($socialDb . '.messages.message_types_id', $messageType->getId());
