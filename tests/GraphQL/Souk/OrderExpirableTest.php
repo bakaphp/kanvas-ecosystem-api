@@ -17,7 +17,6 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
-use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -74,7 +73,6 @@ class OrderExpirableTest extends TestCase
             ],
         ];
 
-        
         // Perform GraphQL mutation to create a draft order
         $response = $this->graphQL('
             mutation createDraftOrder($input: DraftOrderInput!) {
@@ -87,7 +85,7 @@ class OrderExpirableTest extends TestCase
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
         ]);
-        
+
         $order = Order::find($response->json('data.createDraftOrder.id'));
 
         return $order;
@@ -440,7 +438,6 @@ class OrderExpirableTest extends TestCase
             ],
         ])->json()['data']['createProduct'];
 
-       
         $product = Products::find($productResponse['id']);
 
         $this->addVariantToChannel(
@@ -476,7 +473,7 @@ class OrderExpirableTest extends TestCase
         $rightNow = now($timezone)->toDateTimeString();
 
         $reservation1 = $this->createDraftOrder(
-            variantId:  $product->variants()->first()->id,
+            variantId: $product->variants()->first()->id,
             quantity: 1,
             metadata: [
                 'data' => [
@@ -503,8 +500,5 @@ class OrderExpirableTest extends TestCase
         $lateOrders = new GenerateOrderLateFee($this->apps)->execute($rightNow, 1, [$reservation1->getId(), $reservation2->getId()]);
 
         $this->assertEquals(1, $lateOrders->count());
-
-         
-    
     }
 }
