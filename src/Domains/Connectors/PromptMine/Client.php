@@ -138,18 +138,27 @@ class Client
     /**
      * Generate an image using text-to-image model.
      *
-     * @param string $provider The AI provider (e.g., 'fal-ai', 'openai', 'stability-ai')
-     * @param string $model The model to use (e.g., 'ideogram/v2', 'dall-e-3')
+     * @param string $provider The AI provider (e.g., 'fal-ai/text-to-image', 'openai', 'stability-ai')
+     * @param string $model The model to use (e.g., 'fal-ai/flux-pro/kontext/text-to-image', 'dall-e-3')
      * @param string $prompt The text prompt for image generation
      * @param string $key The API endpoint identifier (default: 'text-to-image')
      * @return array The API response containing image data
      */
     public function generateImage(string $provider, string $model, string $prompt, string $key = 'text-to-image'): array
     {
-        $endpoint = "/{$this->apiEnv}/image/{$provider}/{$key}";
+        // Extract the base provider from the provider string (e.g., 'fal-ai' from 'fal-ai/text-to-image')
+        $baseProvider = explode('/', $provider)[0];
+
+        if (empty($baseProvider)) {
+            $baseProvider = 'fal-ai'; // Default to fal-ai if no provider is specified
+            $model = 'ideogram/v2';
+        }
+
+        #$endpoint = "/{$this->apiEnv}/image/{$baseProvider}/{$key}";
+        $endpoint = "/{$this->apiEnv}/image/{$baseProvider}";
 
         $data = [
-            'model' => $provider . '/' . $model,
+            'model' => $model, // Use the full model path directly
             'prompt' => $prompt,
         ];
 

@@ -37,7 +37,7 @@ class Client
         $this->appToken = $this->getAccessToken();
 
         $this->client = new GuzzleClient([
-            'base_uri' => ConfigurationEnum::SANDBOX_URL->value,
+            'base_uri' => $this->baseUrl,
             'headers' => [
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->appToken,

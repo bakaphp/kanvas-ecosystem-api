@@ -152,7 +152,7 @@ class OrderManagementMutation
         $orderId = (int) $request['id'];
         $orderData = $request['input'];
 
-        if (! $user->isAdmin()) {
+        if (! $user->isAdmin() && ! $app->get('ALLOW_USERS_UPDATE_ORDERS')) {
             throw new ValidationException('User is not authorized to update this order');
         }
 
@@ -418,7 +418,8 @@ class OrderManagementMutation
         try {
             return new TransitionOrderStateAction(
                 $order,
-                $newOrderStatus
+                $newOrderStatus,
+                $user
             )->execute();
         } catch (Throwable $e) {
             return [

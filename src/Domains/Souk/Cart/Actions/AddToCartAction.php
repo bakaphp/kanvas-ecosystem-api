@@ -43,16 +43,22 @@ class AddToCartAction
                                   : $variant->getPriceInfoFromDefaultChannel()->price;
               */
             $variantPrice = $variantPriceService->getPrice($variant, $channelId);
+
+            // Get attributes from existing cart item if it exists, otherwise from product
+            $attributes = $cart->has($variant->getId())
+                ? $cart->get($variant->getId())['attributes']
+                : ($variant->product->attributes ? $variant->product->attributes->map(function ($attribute) {
+                    return [
+                        $attribute->name => $attribute->value,
+                    ];
+                })->collapse()->all() : []);
+
             $cart->add([
                 'id' => $variant->getId(),
                 'name' => $variant->name,
                 'price' => $variantPrice, //@todo modify to use channel instead of warehouse
                 'quantity' => $item['quantity'],
-                'attributes' => $variant->product->attributes ? $variant->product->attributes->map(function ($attribute) {
-                    return [
-                        $attribute->name => $attribute->value,
-                    ];
-                })->collapse()->all() : [],
+                'attributes' => $attributes,
                 //'associatedModel' => $Product,
             ]);
         }

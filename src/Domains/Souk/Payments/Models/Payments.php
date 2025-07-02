@@ -2,11 +2,13 @@
 
 namespace Kanvas\Souk\Payments\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
@@ -33,7 +35,7 @@ class Payments extends BaseModel
     protected $guarded = [];
 
     protected $casts = [
-        'metadata' => 'array',
+        'metadata' => Json::class,
     ];
 
     public function paymentMethod(): BelongsTo
@@ -55,10 +57,16 @@ class Payments extends BaseModel
     {
         $this->metadata = [
             ...($this->metadata ?? []),
+            ...($metadata ?? []),
             'data' => [
                 ...($this->metadata['data'] ?? []),
                 ...($metadata['data'] ?? []),
             ],
         ];
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', PaymentStatusEnum::PENDING->value);
     }
 }

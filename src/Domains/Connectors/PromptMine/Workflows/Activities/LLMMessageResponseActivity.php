@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -25,7 +29,7 @@ class LLMMessageResponseActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $company = $message->company;
+        $company = $this->getCompany($app, $message->company);
 
         return $this->executeIntegration(
             entity: $message,
@@ -188,7 +192,18 @@ class LLMMessageResponseActivity extends KanvasActivity
         $promptClient = new PromptClient($message->app);
         $prompt = $message->message['prompt'] ?? null;
 
-        return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
+        $provider = (string) ($message->message['ai_model']['key'] ?? 'dalle3');
+        $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
+
+        //return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
+        return (string) $promptClient->extractImageUrl(
+            $promptClient->generateImage(
+                provider: $provider,
+                model: $model,
+                prompt: $prompt,
+                key: 'text-to-image'
+            )
+        );
     }
 
     private function generateTitleByPrompt(string $prompt): string
@@ -199,5 +214,21 @@ class LLMMessageResponseActivity extends KanvasActivity
             ->generate();
 
         return str_replace(['```', 'json'], '', $response->text);
+    }
+
+    /**
+     * Get the company for this workflow
+     */
+    protected function getCompany(AppInterface $app, Model $entity): object
+    {
+        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+
+        try {
+            $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
+
+            return $branch->company;
+        } catch (ModelNotFoundException $e) {
+            return $entity->company;
+        }
     }
 }

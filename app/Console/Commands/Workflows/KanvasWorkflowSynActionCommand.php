@@ -6,6 +6,7 @@ namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
+use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2BSubscriptionActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
@@ -35,7 +36,7 @@ use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
-use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassStatusActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\PushOrderToNetsuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
@@ -174,6 +175,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ShopifyCompanyConfigWebhookJob::class,
             PullUserInformationActivity::class,
             GenerateMessageTagsWithAiActivity::class,
+            CreateAeroAmbulanciaB2BSubscriptionActivity::class,
             CreateAeroAmbulanciaSubscriptionActivity::class,
             PushUserInteractionToEventActivity::class,
             PushMessageToItemActivity::class,
@@ -210,7 +212,7 @@ class KanvasWorkflowSynActionCommand extends Command
             B2BCompanyPriceConfigurationActivity::class,
             CheckNuggetGenerationCountActivity::class,
             ExtendReservationActivity::class,
-            SyncMovipassStatusActivity::class,
+            SyncMovipassImpoundActivity::class,
             PushLeadNotesActivity::class,
             PushLeadActivity::class,
             PushPeopleActivity::class,
