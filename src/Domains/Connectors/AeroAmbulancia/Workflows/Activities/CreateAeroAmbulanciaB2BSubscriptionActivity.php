@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\AeroAmbulancia\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Carbon\Carbon;
 use Kanvas\Connectors\AeroAmbulancia\Services\AeroAmbulanciaSubscriptionService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
@@ -196,7 +197,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
         }
 
         if ($planDuration && isset($transformed['activationDate'])) {
-            $activationDate = \Carbon\Carbon::createFromFormat('d-m-Y', $transformed['activationDate']);
+            $activationDate = Carbon::createFromFormat('d-m-Y', $transformed['activationDate']);
             $expirationDate = $activationDate->copy()->addDays($planDuration);
             $transformed['expirationDate'] = $expirationDate->format('d-m-Y');
         }
@@ -219,7 +220,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
 
             foreach ($formats as $format) {
                 try {
-                    $carbonDate = \Carbon\Carbon::createFromFormat($format, $date);
+                    $carbonDate = Carbon::createFromFormat($format, $date);
 
                     return $carbonDate->format('d-m-Y');
                 } catch (\Exception $e) {
@@ -228,7 +229,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
             }
 
             // If no format works, try parsing with Carbon's automatic detection
-            $carbonDate = \Carbon\Carbon::parse($date);
+            $carbonDate = Carbon::parse($date);
 
             return $carbonDate->format('d-m-Y');
         } catch (\Exception $e) {
