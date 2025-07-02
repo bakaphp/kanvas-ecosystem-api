@@ -113,7 +113,6 @@ class Notifications extends BaseModel
             $systemModuleFilter = $args['whereSystemModule'];
             $query->whereHas('systemModule', function ($query) use ($systemModuleFilter, $app, $socialDb) {
                 if ($systemModuleFilter['slugs']) {
-
                     $systemModuleIds = [];
                     foreach ($systemModuleFilter['slugs'] as $systemModuleSlug) {
                         $notificationSystemModule = SystemModulesRepository::getBySlug($systemModuleSlug, $app);
