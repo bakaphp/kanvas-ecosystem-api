@@ -128,10 +128,9 @@ class FilesystemEntitiesRepository
     /**
      * Get file from entity by ID.
      */
-    public static function getFileFromEntityById(int $id, bool $disableCache = false): ?FilesystemEntities
+    public static function getFileFromEntityById(int $id): ?FilesystemEntities
     {
-        $query = FilesystemEntities::query()
-            ->join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
+        return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
             ->where('filesystem_entities.id', '=', $id)
             ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
             ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
@@ -144,8 +143,7 @@ class FilesystemEntitiesRepository
                 'filesystem.users_id',
                 'filesystem.size',
                 'filesystem.file_type'
-            );
-        return $disableCache ? $query->disableCache()->first() : $query->first();
+            )->first();
     }
 
     /**
