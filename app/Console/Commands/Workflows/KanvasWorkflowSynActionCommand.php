@@ -6,6 +6,7 @@ namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
+use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2BSubscriptionActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
@@ -173,6 +174,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ShopifyCompanyConfigWebhookJob::class,
             PullUserInformationActivity::class,
             GenerateMessageTagsWithAiActivity::class,
+            CreateAeroAmbulanciaB2BSubscriptionActivity::class,
             CreateAeroAmbulanciaSubscriptionActivity::class,
             PushUserInteractionToEventActivity::class,
             PushMessageToItemActivity::class,
