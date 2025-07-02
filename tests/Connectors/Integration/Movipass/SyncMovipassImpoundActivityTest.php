@@ -6,10 +6,9 @@ namespace Tests\Connectors\Integration\EchoPay;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
-use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
-use Kanvas\Connectors\EchoPay\Handlers\EchoPayHandler;
-use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
+use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -19,7 +18,7 @@ use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
-final class ProcessPaymentActivityTest extends TestCase
+final class SyncMovipassImpoundActivityTest extends TestCase
 {
     use HasIntegrationCompany;
     use InventoryCases;
@@ -32,25 +31,13 @@ final class ProcessPaymentActivityTest extends TestCase
         $company = $user->getCurrentCompany();
         $region = Regions::getDefault($company ?? $company, $app);
 
-        $orderTypeName = 'paso_rapido';
+        $orderTypeName = 'impound_lot';
 
-        $app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
-        $app->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
-        $app->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
-        $app->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
-        $app->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
-        $app->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
-
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_SERVICE_KEY'));
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value, env('TEST_ECHO_PAY_CHANNEL_CODE'));
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value, env('TEST_ECHO_PAY_SERVICE_CODE'));
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value, env('TEST_ECHO_PAY_SERVICE_TYPE_ID'));
-        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_CONTRACT->value, env('TEST_ECHO_PAY_CONTRACT'));
 
         $this->setIntegration(
             $app,
-            IntegrationsEnum::ECHO_PAY,
-            EchoPayHandler::class,
+            IntegrationsEnum::MOVIPASS,
+            MovipassHandler::class,
             $company,
             $user
         );
@@ -99,12 +86,9 @@ final class ProcessPaymentActivityTest extends TestCase
             'customer' => [
                 'email' => fake()->email(),
             ],
-            'order_type' => $orderTypeName,
+            'order_type' => OrderTypeEnum::IMPOUND_LOT->value,
             'metadata' => [
                 'data' => [
-                    'paso_rapido_tag' => '317169',
-                    'payment_methods_id' => $paymentMethod['id'],
-                    'payment_date' => now()->toDateTimeString(),
                 ],
             ],
             'items' => [
@@ -114,7 +98,7 @@ final class ProcessPaymentActivityTest extends TestCase
                     'price' => 100,
                 ],
             ],
-            'reference' => 'Recarga de paso rapido 2',
+            'reference' => 'Charge for impound lot',
         ];
 
         // Perform GraphQL mutation to create a draft order
@@ -137,18 +121,17 @@ final class ProcessPaymentActivityTest extends TestCase
 
         $order = Order::fromApp($app)->find($order['id']);
 
-        $activity = new ProcessPaymentActivity(
+        $activity = new SyncMovipassImpoundActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
             []
         );
 
-        $payment = $order->payments()->first();
-        $result = $activity->execute($payment, $app, []);
+        $result = $activity->execute($order, $app, []);
         $order->refresh();
-        $this->assertArrayHasKey('status', $result);
-        $this->assertArrayHasKey('message', $result);
-        $this->assertArrayHasKey('data', $result);
+        $this->assertEquals($result['status'], 'success');
+        $this->assertEquals($result['message'], 'Order synced correctly');
+        $this->assertEquals($order->reference, 'Charge for impound lot - #' . $order->order_number);
     }
 }
