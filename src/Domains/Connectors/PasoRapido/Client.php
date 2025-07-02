@@ -48,7 +48,7 @@ class Client
     public function getAccessToken(): string
     {
         $client = new GuzzleClient();
-        $result = $client->post(self::SANDBOX_URL . ConfigurationEnum::AUTHORIZATION_PATH->value, [
+        $result = $client->post($this->baseUrl . ConfigurationEnum::AUTHORIZATION_PATH->value, [
             'json' => [
                 'username' => $this->clientId,
                 'password' => $this->secret,
@@ -56,7 +56,6 @@ class Client
         ]);
 
         $body = json_decode($result->getBody()->getContents());
-
 
         return $body->autorizacion;
     }

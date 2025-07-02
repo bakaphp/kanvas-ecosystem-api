@@ -37,7 +37,7 @@ class ScrapperSearchActivity extends KanvasActivity
                 Users::getById($params['user']),
                 CompaniesBranches::getById($params['companyBranch']),
                 Regions::getById($params['region']),
-                $params['search']
+                $params['search'],
             );
             $action->execute();
             $this->setRecentlySearched($app, $word);
@@ -47,6 +47,7 @@ class ScrapperSearchActivity extends KanvasActivity
             ];
         } catch (Throwable $e) {
             captureException($e);
+
             return [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

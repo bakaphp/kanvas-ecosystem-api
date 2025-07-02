@@ -38,6 +38,7 @@ type Order {
     updated_at: String
     order_type: OrderType @belongsTo(relation: "orderType")
     parent: Order @belongsTo(relation: "parent")
+    order_status: OrderStatus @belongsTo(relation: "orderStatus")
     payment_status: String
     payments: [Payment!] @hasMany(relation: "payments")
     transaction_link: String!
@@ -81,6 +82,17 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+}
+
+type OrderStatus {
+    id: ID!
+    name: String!
+    slug: String!
+    order_type_id: ID!
+    order_type: OrderType! @belongsTo(relation: "orderType")
+    is_default: Boolean!
+    is_final: Boolean!
+    metadata: Mixed
 }
 
 type PaymentResult {
@@ -195,6 +207,7 @@ input OrderLineItemInput {
     variant_id: ID!
     quantity: Float!
     price: Money
+    metadata: Mixed
 }
 
 input PaymentInput {
@@ -260,6 +273,16 @@ input PaymentCustomFieldInput {
     dropdown_options: [String!]
 }
 
+input TransitionOrderStatusInput {
+    order_id: ID!
+    status_slug: String!
+}
+
+type OrderStatusTransitionResult {
+    status: String!
+    message: Mixed
+}
+
 extend type Mutation @guard {
     # @deprecated(reason: "Use createOrderFromCart instead")
     createOrder(input: OrderInput!): Mixed!
@@ -322,6 +345,10 @@ extend type Mutation @guard {
     #    @field(
     #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@assignPaymentToOrder"
     #    )
+    transitionOrderStatus(input: TransitionOrderStatusInput!): OrderStatusTransitionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
+        )
 }
 
 extend type Mutation @guardByAppKey {
@@ -358,6 +385,11 @@ extend type Query @guard {
             @whereConditions(
                 columns: ["name"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_type_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
             )
         hasAddress: _
             @whereConditions(

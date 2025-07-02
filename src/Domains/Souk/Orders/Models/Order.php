@@ -68,8 +68,8 @@ use Spatie\LaravelData\DataCollection;
  * @property float|null $weight
  * @property string|null $checkout_token
  * @property string|null $currency
- * @property string|null $metadata
- * @property string|null $private_metadata
+ * @property array|null $metadata
+ * @property array|null $private_metadata
  * @property string|null $estimate_shipping_date
  * @property string|null $shipped_date
  * @property string|null $payment_gateway_names
@@ -142,7 +142,7 @@ class Order extends BaseModel
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
-        if (! $user->isAppOwner()) {
+        if (! $user->isAppOwner() && ! $user->can('view-all-orders')) {
             return $query->where('users_id', $user->getId());
         }
 
@@ -187,6 +187,7 @@ class Order extends BaseModel
         $orderItem->tax_rate = 0;
         $orderItem->currency = $item->currency->code;
         $orderItem->variant_name = $item->variant->name;
+        $orderItem->metadata = $item->metadata;
         $orderItem->saveOrFail();
 
         return $orderItem;
@@ -588,15 +589,16 @@ class Order extends BaseModel
         ]);
 
         $this->order_types_id = $orderType->id;
+        if ($orderType->defaultStatus) {
+            $this->order_status_id = $orderType->defaultStatus->id;
+        }
         $this->saveOrFail();
     }
 
     public function checkPayments(): void
     {
         if ($this && ($this->payments)) {
-            $totalPaid = $this->getPaidAmount();
-            $totalDebt = $this->total_net_amount - $totalPaid;
-            if ($totalDebt <= 0) {
+            if ($this->isPaid()) {
                 $this->completed();
 
                 $this->fireWorkflow(
@@ -610,6 +612,11 @@ class Order extends BaseModel
         }
     }
 
+    public function isPaid(): bool
+    {
+        return $this->getPaidAmount() >= $this->total_net_amount;
+    }
+
     public function getPaidAmount(): float
     {
         $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
@@ -620,5 +627,10 @@ class Order extends BaseModel
     public function orderType(): BelongsTo
     {
         return $this->belongsTo(OrderTypes::class, 'order_types_id', 'id');
+    }
+
+    public function orderStatus(): BelongsTo
+    {
+        return $this->belongsTo(OrderStatus::class, 'order_status_id', 'id');
     }
 }

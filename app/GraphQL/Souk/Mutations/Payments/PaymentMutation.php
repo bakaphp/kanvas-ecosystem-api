@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Souk\Payments\Actions\MakePaymentIntentAction;
@@ -36,8 +35,8 @@ class PaymentMutation
         $paymentIntent = new MakePaymentIntentAction($payment);
 
         return [
-            "paymentIntent" => $paymentIntent->execute(),
-            "message" => "message",
+            'paymentIntent' => $paymentIntent->execute(),
+            'message' => 'message',
         ];
     }
 
@@ -59,8 +58,8 @@ class PaymentMutation
         $paymentIntent = new MakePaymentIntentAction($payment);
 
         return [
-            "paymentIntent" => $paymentIntent->execute(),
-            "message" => "message",
+            'paymentIntent' => $paymentIntent->execute(),
+            'message' => 'message',
         ];
     }
 
@@ -74,27 +73,51 @@ class PaymentMutation
             'id' => $orderId,
         ])->first();
 
-        if ($order->isFulfilled()) {
-            throw new ValidationException('Order is already fulfilled');
+        if (! $order) {
+            return [
+                'status' => 'error',
+                'message' => 'Order not found',
+            ];
         }
 
-        if ($order->isCompleted()) {
-            throw new ValidationException('Order is already completed');
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+            ];
         }
 
         $formData = $request['input'];
 
-        if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {
+        $paymentMethodId = $formData['payment_methods_id'] ?? $order->metadata['data']['payment_methods_id'] ?? null;
+
+        if (! $paymentMethodId) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment method not found',
+            ];
+        }
+
+        try {
+            $formData['amount'] = $formData['amount'] ?? $order->getTotalAmount();
             $payment = new CreatePaymentAction($order)->execute($formData);
+        } catch (Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'order' => $order,
+            ];
         }
 
         return [
-            "payment" => $payment,
-            "message" => "message",
+            'status' => 'success',
+            'payment' => $payment,
+            'order' => $order,
+            'message' => 'Payment added to order',
         ];
     }
 
-    public function initiatePayerAuthentication($_, array $request)
+    public function initiatePayerAuthentication($_, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
@@ -138,9 +161,8 @@ class PaymentMutation
         $payment->order->set('access_token', $consumerAuthenticationInformation['accessToken']);
         $payment->order->set('payment_status', 'waiting_device_data');
 
-        $payment->status = PaymentStatusEnum::WAITING_DEVICE_DATA;
+        $payment->status = PaymentStatusEnum::WAITING_DEVICE_DATA->value;
         $payment->save();
-
 
         return [
             'message' => 'Waiting for device data',
@@ -153,7 +175,7 @@ class PaymentMutation
         ];
     }
 
-    public function completeDeviceData($_, array $request)
+    public function completeDeviceData($_, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
@@ -192,7 +214,7 @@ class PaymentMutation
             $enrollmentResult = $paymentProcessor->completeDeviceData($payment);
 
             if ($enrollmentResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
-                $order->set("authorization_data", json_encode($enrollmentResult['data']));
+                $order->set('authorization_data', json_encode($enrollmentResult['data']));
 
                 return [
                     'status' => $enrollmentResult['status'],
@@ -228,7 +250,7 @@ class PaymentMutation
         }
     }
 
-    public function validatePayerAuthResult($_, array $request)
+    public function validatePayerAuthResult($_, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];

@@ -70,15 +70,18 @@ type PaymentIntentResult {
 }
 
 type PaymentResult {
-    payment: Mixed
+    status: String
+    payment: Payment
+    order: Order
     message: Mixed
 }
 
 input PaymentInput {
-    amount: Money!
+    payment_methods_id: ID!
+    amount: Money
+    order_metadata: Mixed
     payment_date: String
     concept: String
-    payment_methods_id: ID
 }
 
 type PayerAuthResponse {
@@ -114,7 +117,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
         )
-    addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentIntentResult!
+    addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@addPaymentToOrder"
         )
@@ -147,13 +150,13 @@ extend type Query {
         @paginate(
             defaultCount: 25 
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
-            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            scopes: ["fromApp", "fromUser", "notDeleted"]
         )
     
     paymentMethod(id: ID!): PaymentMethod!
         @find(
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
-            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            scopes: [ "fromApp", "fromUser", "notDeleted"]
         )
 }
 

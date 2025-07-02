@@ -9,6 +9,8 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
+use Override;
+use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  * AppPlan Model.
@@ -28,6 +30,7 @@ use Kanvas\Users\Models\Users;
 class AppKey extends BaseModel
 {
     use UuidTrait;
+    use QueryCacheable;
 
     /**
      * The table associated with the model.
@@ -47,6 +50,12 @@ class AppKey extends BaseModel
     public $incrementing = false;
     protected $keyType = 'string';
 
+    public $cacheFor = 86400; //1 day
+    public $cacheTags = ['appkeys'];
+    public $cachePrefix = 'appkeys_';
+    public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
+
     /**
      * Boot function from laravel.
      *
@@ -59,6 +68,7 @@ class AppKey extends BaseModel
         });
     }
 
+    #[Override]
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id', 'id');

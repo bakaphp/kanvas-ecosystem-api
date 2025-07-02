@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
+use Baka\Helpers\MergePdf;
+use Baka\Support\Str;
+use Baka\Validations\Pdf;
+use Exception;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -254,5 +259,67 @@ class FilesystemManagementMutation
         }
 
         return false;
+    }
+
+    public function mergeFiles(mixed $rootValue, array $request): Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        if (count($request['files']) > 0) {
+            $files = [];
+            foreach ($request['files'] as $fileId) {
+                try {
+                    $fileUrl = FilesystemEntities::getById($fileId)->filesystem()->where('apps_id', $app->getId())
+                        ->where('companies_id', $company->getId())
+                        ->firstOrFail()
+                        ->url;
+
+                    if (Str::contains($fileUrl, 'jpg')
+                        || Str::contains($fileUrl, 'png')
+                        || Str::contains($fileUrl, 'jpeg')
+                        || Str::contains($fileUrl, 'pdf')) {
+                        if (Str::contains($fileUrl, 'pdf')) {
+                            if (Pdf::isValidFile($fileUrl)) {
+                                $files[] = $fileUrl;
+                            }
+                        } else {
+                            $files[] = $fileUrl;
+                        }
+                    }
+                } catch (Exception $e) {
+                }
+            }
+
+            if (empty($files)) {
+                throw new Exception('No valid files to merge');
+            }
+
+            $mergePDF = new MergePdf($app, ...$files);
+            $mergeFileName = tempnam(sys_get_temp_dir(), 'mergefile-') . '.pdf';
+
+            $mergePDF->merge($mergeFileName);
+
+            // Create an UploadedFile from the temporary merged PDF
+            $uploadedFile = new UploadedFile(
+                $mergeFileName,                      // Path to the file
+                'merged_file.pdf',                   // Original file name
+                'application/pdf',                   // MIME type
+                null,                               // Error (null means no error)
+                true                                // Mark it as a test file (will not delete original file)
+            );
+
+            // Use FilesystemServices to upload the merged file
+            $filesystemService = new FilesystemServices($app, $company);
+            $uploadedFilesystem = $filesystemService->upload($uploadedFile, $user);
+
+            // Clean up the temporary file
+            unlink($mergeFileName);
+
+            return $uploadedFilesystem;
+        }
+
+        throw new Exception('No files to merge');
     }
 }

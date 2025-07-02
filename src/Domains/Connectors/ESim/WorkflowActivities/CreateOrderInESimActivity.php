@@ -62,7 +62,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $allEsimResponses = [];
                 $woocommerceResponse = ['web order' => true]; // Default for non-mobile orders
                 $woocommerceSent = false; // Flag to track if WooCommerce order was sent
-                $language = 'es';
+                $language = $order->metadata['language'] ?? $params['language'] ?? 'en';
 
                 foreach ($order->items as $item) {
                     $variant = $item->variant;
@@ -167,6 +167,14 @@ class CreateOrderInESimActivity extends KanvasActivity
 
                         if (isset($esimExtraInfoDetails[$variant->id]['labels']) && ! empty($esimExtraInfoDetails[$variant->id]['labels'])) {
                             $response['label'] = array_shift($esimExtraInfoDetails[$variant->id]['labels']);
+                        }
+
+                        if (empty($response['label']) && isset($item->metadata['eSimDetails'][$i]['label'])) {
+                            $response['label'] = $item->metadata['eSimDetails'][$i]['label'];
+                        }
+
+                        if (isset($item->metadata['eSimDetails'][$i])) {
+                            $response['eSimDetails'] = $item->metadata['eSimDetails'][$i];
                         }
 
                         $sku = null;
@@ -304,10 +312,11 @@ class CreateOrderInESimActivity extends KanvasActivity
                 }
 
                 try {
-                    if ($app->get('esim-send-email')) {
+                    if ($app->get('esim-send-email') || (isset($params['send_email']) && $params['send_email'] === true)) {
                         $orderNotification = new NewOrderNotification($order, [
                             'app' => $order->app,
                             'company' => $order->company,
+                            'isRefuelOrder' => $isRefuelOrder ?? false,
                             'subject' => $language === 'en' ? 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use' : 'Tu eSIM de ' . ucfirst($order->app->name) . ' está lista para usar',
                         ]);
                         $orderNotification->channels = ['mail'];

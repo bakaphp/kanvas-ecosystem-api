@@ -7,6 +7,7 @@ namespace Baka\Exceptions;
 use Exception;
 use GraphQL\Error\ClientAware;
 use GraphQL\Error\ProvidesExtensions;
+use Override;
 
 class LightHouseCustomException extends Exception implements ClientAware, ProvidesExtensions
 {
@@ -22,6 +23,7 @@ class LightHouseCustomException extends Exception implements ClientAware, Provid
     /**
      * Returns true when exception message is safe to be displayed to a client.
      */
+    #[Override]
     public function isClientSafe(): bool
     {
         return true;

@@ -43,6 +43,7 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
                 $publishedFromChat = false;
                 /**
                  * @todo move this someplace else, not good having 2 logics in the same activity
+                 * move this to its own activity / workflow
                  */
                 if ($entity instanceof Message) {
                     $messageData = $entity->message;
@@ -59,6 +60,12 @@ class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityIn
                             'is_posted' => true,
                             'posted_message_id' => $entity->getId(),
                         ]);
+
+                        if (! empty($messageFromChat->message['image'])) {
+                            $entity->addMessage([
+                                'image' => $messageFromChat->message['image'],
+                            ]);
+                        }
                     }
                 }
 
