@@ -9,6 +9,7 @@ use Kanvas\Connectors\AeroAmbulancia\Services\AeroAmbulanciaSubscriptionService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -17,6 +18,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
     public function execute(Order $order, AppInterface $app, array $params): array
     {
         $subscriptionVariant = $order->allItems()->first()->variant;
+        $mainAppCompany = B2BConfigurationService::getConfiguredB2BCompany($app, $order->company);
 
         // Check if the product is from the Dominican Republic
         $productCountry = $subscriptionVariant->product->getAttributeBySlug('countries-code')?->value ??
@@ -68,7 +70,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
 
                 return $results;
             },
-            company: $order->company,
+            company: $mainAppCompany,
         );
     }
 
