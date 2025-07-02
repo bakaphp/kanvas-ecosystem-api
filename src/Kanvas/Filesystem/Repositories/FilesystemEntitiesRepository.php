@@ -121,8 +121,7 @@ class FilesystemEntitiesRepository
                 'filesystem.users_id',
                 'filesystem.size',
                 'filesystem.file_type'
-            )
-            ->first();
+            )->first();
     }
 
     /**
