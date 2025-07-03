@@ -69,6 +69,9 @@ class PropertiesService
             throw new ValidationException('Properties IDs must be a non-empty array');
         }
 
+        // Clean and format phone number if needed
+        $agentPhone = PhoneHelper::formatPhoneNumber($agentPhone);
+
         return $this->client->sendProperties($agentPhone, $dealId, $propertiesIds);
     }
 }
