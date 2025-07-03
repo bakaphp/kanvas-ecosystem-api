@@ -634,7 +634,7 @@ class Order extends BaseModel
         return $this->belongsTo(OrderStatus::class, 'order_status_id', 'id');
     }
 
-    public function calculateTotal()
+    public function calculateTotal(): void
     {
         $total = OrderItem::query()->where(["order_id" =>  $this->id])
         ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
