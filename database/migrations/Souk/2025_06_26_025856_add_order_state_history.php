@@ -17,6 +17,7 @@ return new class () extends Migration {
             $table->id();
             $table->bigInteger('apps_id')->index();
             $table->bigInteger('companies_id')->nullable()->index();
+            $table->bigInteger('order_id')->index();
             $table->foreignId('transition_id')->constrained('order_status_transitions');
             $table->foreignId('from_status_id')->constrained('order_statuses');
             $table->foreignId('to_status_id')->constrained('order_statuses');
