@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Notification;
@@ -181,5 +182,108 @@ class OrderLateFeeTest extends TestCase
         $this->assertEquals(1, $lateOrders->count());
         $this->assertCount(2, $order->items);
         $this->assertEquals($order->getTotalAmount(), $total + 100);
+    }
+
+    public function testOrderLateFeeWithMultipleLateFees(): void
+    {
+        Notification::fake();
+        $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+        $lateFeeProductResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late_fee',
+                'value' => 100
+            ]
+        ])->json()['data']['createProduct'];
+
+        $lateFee = Products::find($lateFeeProductResponse['id']);
+
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late_fee_variant_id',
+                'value' => $lateFee->variants()->first()->id
+            ],
+        ])->json()['data']['createProduct'];
+
+        $product = Products::find($productResponse['id']);
+
+        $this->addVariantToChannel(
+            variantId: (string) $lateFee->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ]
+        );
+
+        $this->addVariantToChannel(
+            variantId: (string) $product->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $lateFee->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $product->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $timezone = "America/New_York";
+        Date::setTestNow(now()->startOfSecond());
+        $rightNow = CarbonImmutable::now($timezone);
+
+        $reservation1 = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $rightNow->subDays(32)->toDateTimeString(),
+                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $rightNow->subDays(31)->startOfDay()->toDateTimeString()
+                ]
+            ],
+        );
+
+        $reservation2 = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $rightNow->subDays(62)->toDateTimeString(),
+                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $rightNow->subDays(61)->startOfDay()->toDateTimeString()
+                ]
+            ],
+        );
+
+        $reservation3 = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $rightNow->subDays(61)->toDateTimeString(),
+                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $rightNow->subDays(60)->startOfDay()->toDateTimeString()
+                ]
+            ],
+        );
+
+
+        $total = $reservation1->getTotalAmount();
+
+        $lateOrders = new GenerateOrderLateFee($this->apps)->execute($rightNow->toDateTimeString(), [$reservation1->getId(), $reservation2->getId(), $reservation3->getId()]);
+        $order = $reservation1->fresh();
+
+        $this->assertCount(3, $lateOrders);
+        $this->assertCount(2, $order->items);
+        $this->assertEquals($total + 200, $order->getTotalAmount()); // 1 day + 30 days
+        $this->assertEquals($total + 300, $reservation2->fresh()->getTotalAmount()); // 1 day + 60 days
+        $this->assertEquals($total + 200, $reservation3->fresh()->getTotalAmount()); // 1 day + 59 days
     }
 }
