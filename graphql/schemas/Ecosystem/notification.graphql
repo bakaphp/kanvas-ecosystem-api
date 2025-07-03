@@ -67,7 +67,7 @@ input NotificationTypeFilterInput {
 }
 
 input SystemModuleFilterInput {
-    slug: String
+    slugs: [String!]
     message_type_verb: String
 }
 

@@ -95,6 +95,7 @@ class Notifications extends BaseModel
     public function scopeAllNotifications(Builder $query, array $args): Builder
     {
         $app = app(Apps::class);
+        $socialDb = config('database.connections.social.database');
         if (isset($args['whereType'])) {
             $notificationTypeFilter = $args['whereType'];
             $query->whereHas('types', function ($query) use ($notificationTypeFilter) {
@@ -110,17 +111,20 @@ class Notifications extends BaseModel
 
         if (isset($args['whereSystemModule'])) {
             $systemModuleFilter = $args['whereSystemModule'];
-            $query->whereHas('systemModule', function ($query) use ($systemModuleFilter, $app) {
-                if ($systemModuleFilter['slug']) {
-                    $notificationSystemModule = SystemModulesRepository::getBySlug($systemModuleFilter['slug'], $app);
-                    $query->where('system_modules_id', $notificationSystemModule->getId());
+            $query->whereHas('systemModule', function ($query) use ($systemModuleFilter, $app, $socialDb) {
+                if ($systemModuleFilter['slugs']) {
+                    $systemModuleIds = [];
+                    foreach ($systemModuleFilter['slugs'] as $systemModuleSlug) {
+                        $notificationSystemModule = SystemModulesRepository::getBySlug($systemModuleSlug, $app);
+                        $systemModuleIds[] = $notificationSystemModule->getId();
+                        if ($notificationSystemModule->model_name == Message::class && isset($systemModuleFilter['message_type_verb'])) {
+                            $query->getQuery()->join($socialDb . '.messages', 'messages.id', '=', 'notifications.entity_id');
 
-                    if ($notificationSystemModule::class == Message::class && isset($systemModuleFilter['message_type_verb'])) {
-                        $query->getQuery()->join('messages', 'messages.id', '=', 'notifications.entity_id');
-
-                        $messageType = MessagesTypesRepository::getByVerb($systemModuleFilter['message_type_verb'], $app);
-                        $query->where('messages.message_type_id', $messageType->getId());
+                            $messageType = MessagesTypesRepository::getByVerb($systemModuleFilter['message_type_verb'], $app);
+                            $query->where($socialDb . '.messages.message_types_id', $messageType->getId());
+                        }
                     }
+                    $query->whereIn('system_modules_id', $systemModuleIds);
                 }
             });
         }
