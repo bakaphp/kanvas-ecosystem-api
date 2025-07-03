@@ -29,15 +29,16 @@ class ProductScrapperEvent implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
+        $product = Products::getById($this->product->getId());
         return [
-            'kanvas_product_id' => $this->product->getId(),
+            'kanvas_product_id' => $product->getId(),
             'shopify_product_id' => $this->shopifyProductId,
-            'sku' => $this->product->variants()->first()->sku,
-            'title' => $this->product->name,
-            'image' => $this->product->getFiles()[0]->url,
+            'sku' => $product->variants()->first()->sku,
+            'title' => $product->name,
+            'image' => $product->getFiles()[0]->url,
             'price' => $this->price,
-            'slug' => $this->product->slug,
-            'images' => $this->product->getFiles(),
+            'slug' => $product->slug,
+            'images' => $product->getFiles(),
             'discounted_price' => 0,
         ];
     }
