@@ -25,7 +25,7 @@ class GenerateOrderLateFee
                 JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.late_fee_grace_start_at')),
                 ?
                 )
-                AS late_fee_grace_days,
+                AS days_late,
                 id,
                 metadata
             ", [$timeZonedNow])
@@ -59,11 +59,11 @@ class GenerateOrderLateFee
             $lateFeePrice = $lateFee->getPriceInfoFromDefaultChannel()->price;
 
             if ($hasLateFee = $completeOrder->items()->where('variant_id', $lateFee->id)?->first()) {
-                $hasLateFee->quantity = $dayDiffs;
+                $hasLateFee->quantity = $order->days_late;
             } else {
                 $orderItem = OrderItem::viaRequest($this->apps, $completeOrder->company, $completeOrder->region, [
                     'variant_id' => $lateFee->id,
-                    'quantity' => $dayDiffs,
+                    'quantity' => $order->days_late,
                     'price' => $lateFeePrice,
                 ]);
 

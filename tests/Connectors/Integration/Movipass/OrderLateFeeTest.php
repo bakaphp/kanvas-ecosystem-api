@@ -180,6 +180,6 @@ class OrderLateFeeTest extends TestCase
         $this->assertCount(1, $totalItems);
         $this->assertEquals(1, $lateOrders->count());
         $this->assertCount(2, $order->items);
-        $this->assertEquals($order->getTotalAmount(), $total + 200);
+        $this->assertEquals($order->getTotalAmount(), $total + 100);
     }
 }

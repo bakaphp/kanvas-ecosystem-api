@@ -2,13 +2,13 @@
 
 namespace Kanvas\Connectors\Movipass\Enums;
 
-class MovipassOrderStatusEnum
+enum MovipassOrderStatusEnum: string
 {
-    public const IN_TRANSIT = 'in_transit';
-    public const PENDING = 'pending';
-    public const AWAITING_DELIVERY_CONFIRMATION = 'awaiting_delivery_confirmation';
-    public const DELIVERED = 'delivered';
-    public const PAID = 'paid';
-    public const RELEASED = 'released';
-    public const CANCELLED = 'cancelled';
+    case IN_TRANSIT = 'in_transit';
+    case PENDING = 'pending';
+    case AWAITING_DELIVERY_CONFIRMATION = 'awaiting_delivery_confirmation';
+    case DELIVERED = 'delivered';
+    case PAID = 'paid';
+    case RELEASED = 'released';
+    case CANCELLED = 'cancelled';
 }

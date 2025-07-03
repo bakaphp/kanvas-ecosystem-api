@@ -4,6 +4,7 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -66,7 +67,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                 if ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {
                     $toStatus = $params['to_status'] ?? null;
 
-                    if ($toStatus === 'released') {
+                    if ($toStatus === MovipassOrderStatusEnum::RELEASED->value) {
                         $order->fulfill();
                     }
                 }
