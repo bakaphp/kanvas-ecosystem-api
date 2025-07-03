@@ -11,7 +11,7 @@ use Kanvas\Apps\Models\Settings;
 use Kanvas\Connectors\Movipass\Actions\GenerateOrderLateFee;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 
-class ChargeLateOrders extends Command
+class ChargeLateOrdersCommand extends Command
 {
     use KanvasJobsTrait;
 
