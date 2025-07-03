@@ -10,9 +10,11 @@ use Nuwave\Lighthouse\Schema\Directives\BaseDirective;
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
 use Nuwave\Lighthouse\Support\Contracts\FieldMiddleware;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Override;
 
 class SearchCacheDirective extends BaseDirective implements FieldMiddleware
 {
+    #[Override]
     public static function definition(): string
     {
         return /** @lang GraphQL */ '
@@ -33,6 +35,7 @@ class SearchCacheDirective extends BaseDirective implements FieldMiddleware
         ';
     }
 
+    #[Override]
     public function handleField(FieldValue $fieldValue): void
     {
         $app = app(Apps::class);

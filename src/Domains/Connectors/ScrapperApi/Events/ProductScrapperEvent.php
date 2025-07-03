@@ -10,6 +10,7 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Kanvas\Inventory\Products\Models\Products;
+use Override;
 
 class ProductScrapperEvent implements ShouldBroadcast
 {
@@ -35,11 +36,13 @@ class ProductScrapperEvent implements ShouldBroadcast
             'title' => $this->product->name,
             'image' => $this->product->getFiles()[0]->url,
             'price' => $this->price,
+            'slug' => $this->product->slug,
             'images' => $this->product->getFiles(),
-            'discounted_price' => 0
+            'discounted_price' => 0,
         ];
     }
 
+    #[Override]
     public function broadcastOn(): Channel
     {
         return new Channel('app-' . $this->app->getId() . '-scrapper-' . $this->uuid);
