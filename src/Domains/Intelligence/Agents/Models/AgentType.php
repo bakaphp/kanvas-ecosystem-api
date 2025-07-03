@@ -9,7 +9,6 @@ use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Intelligence\Models\BaseModel;
-
 class AgentType extends BaseModel
 {
     use SoftDeletesTrait;

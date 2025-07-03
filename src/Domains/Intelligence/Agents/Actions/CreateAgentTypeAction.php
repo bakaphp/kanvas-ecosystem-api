@@ -17,8 +17,7 @@ class CreateAgentTypeAction
 
     public function execute(): AgentTypeModel
     {
-        return AgentTypeModel::create([
-            'uuid' => Str::uuid()->toString(),
+        return AgentTypeModel::updateOrCreate([
             'apps_id' => $this->agentType->app->id,
             'name' => $this->agentType->name,
             'description' => $this->agentType->description,
