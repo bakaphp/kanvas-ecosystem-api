@@ -46,6 +46,8 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                         ->contains(fn ($attribute) => in_array($attribute->slug, ['late_fee_variant_id']) && ! empty($attribute->value));
                     })?->variant;
 
+                    $graceStartAt = now('America/New_York')->startOfDay()->addDays(1);
+
                     $order->metadata = [
                         ...$order->metadata ?? [],
                         'data' => [
@@ -53,7 +55,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                             'terms_and_conditions' => true,
                             ...$variant ? [
                                 'late_fee_variant_id' => $variant->id,
-                                'late_fee_grace_days' => 1
+                                'late_fee_grace_start_at' => $graceStartAt->toDateTimeString()
                             ] : [],
                         ],
                     ];

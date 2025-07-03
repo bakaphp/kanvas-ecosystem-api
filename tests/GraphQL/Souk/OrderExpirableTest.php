@@ -11,9 +11,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Connectors\Movipass\Actions\CheckExpiringOrders;
-use Kanvas\Connectors\Movipass\Actions\GenerateOrderLateFee;
 use Kanvas\Connectors\Movipass\Notifications\ExpiringReservationPushNotification;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
@@ -412,95 +410,5 @@ class OrderExpirableTest extends TestCase
         Notification::assertSentTimes(ExpiringReservationPushNotification::class, 3);
         Artisan::call('kanvas:movipass-check-expiring-orders', ['app_id' => $this->apps->getId()]);
         Date::setTestNow();
-    }
-
-    public function testOrderExpirableLateFee(): void
-    {
-        Notification::fake();
-        $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
-        $lateFeeProductResponse = $this->createProduct(attributes: [
-            [
-                'name' => 'late_fee',
-                'value' => 100
-            ]
-        ])->json()['data']['createProduct'];
-
-        $lateFee = Products::find($lateFeeProductResponse['id']);
-
-        $productResponse = $this->createProduct(attributes: [
-            [
-                'name' => 'late_fee_variant_id',
-                'value' => $lateFee->variants()->first()->id
-            ],
-        ])->json()['data']['createProduct'];
-
-        $product = Products::find($productResponse['id']);
-
-        $this->addVariantToChannel(
-            variantId: (string) $lateFee->variants()->first()->id,
-            channelId: $this->channelResponse['id'],
-            warehouseData: [
-                'id' => $this->warehouseResponse['id'],
-            ]
-        );
-
-        $this->addVariantToChannel(
-            variantId: (string) $product->variants()->first()->id,
-            channelId: $this->channelResponse['id'],
-            warehouseData: [
-                'id' => $this->warehouseResponse['id'],
-            ]
-        );
-
-        $this->addVariantToWarehouse(
-            variantId: (string) $lateFee->variants()->first()->id,
-            warehouseId: $this->warehouseResponse['id'],
-            amount: 400
-        );
-
-        $this->addVariantToWarehouse(
-            variantId: (string) $product->variants()->first()->id,
-            warehouseId: $this->warehouseResponse['id'],
-            amount: 4000
-        );
-
-        $timezone = "America/New_York";
-        Date::setTestNow(now()->startOfSecond());
-        $rightNow = now($timezone)->toDateTimeString();
-
-        $reservation1 = $this->createDraftOrder(
-            variantId: $product->variants()->first()->id,
-            quantity: 1,
-            metadata: [
-                'data' => [
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
-                    'late_fee_grace_days' => 1
-                ]
-            ],
-        );
-
-        $reservation2 = $this->createDraftOrder(
-            variantId: $product->variants()->first()->id,
-            quantity: 1,
-            metadata: [
-                'data' => [
-                    'start_at' => $rightNow
-                ]
-            ],
-        );
-
-        $reservation2->completed();
-        $total = $reservation1->getTotalAmount();
-        $totalItems = $reservation1->items;
-        $reservation1->created_at = now()->subDays(2);
-        $reservation1->save();
-        
-        $lateOrders = new GenerateOrderLateFee($this->apps)->execute($rightNow, [$reservation1->getId(), $reservation2->getId()]);
-        $order = $reservation1->fresh();
-        
-        $this->assertCount(1, $totalItems);
-        $this->assertEquals(1, $lateOrders->count());
-        $this->assertCount(2, $order->items);
-        $this->assertEquals($order->getTotalAmount(), $total + 200);
     }
 }

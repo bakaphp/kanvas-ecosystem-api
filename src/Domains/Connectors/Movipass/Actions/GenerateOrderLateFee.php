@@ -22,8 +22,8 @@ class GenerateOrderLateFee
             ->selectRaw("
                 TIMESTAMPDIFF(
                 DAY,
-                ?,
-                JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.late_fee_last_charged_at'))
+                JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.late_fee_grace_start_at')),
+                ?
                 )
                 AS late_fee_grace_days,
                 id,
@@ -34,10 +34,15 @@ class GenerateOrderLateFee
             ->whereNotNull('metadata')
             ->whereRaw("JSON_VALID(metadata)")
             ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
-            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.late_fee_grace_days')) is not null")
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.late_fee_grace_start_at')) is not null")
             ->when($orderIds, function ($query) use ($orderIds) {
                 $query->whereIn('id', $orderIds);
             })
+            ->whereRaw("TIMESTAMPDIFF(
+                DAY,
+                JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.late_fee_grace_start_at')),
+                ?
+            ) >= 1", [$timeZonedNow])
             ->get();
 
         $this->addLateFee($lateOrders, $timeZonedNow);
@@ -52,12 +57,6 @@ class GenerateOrderLateFee
             $completeOrder = $completeOrders->where('id', $order->id)->first();
             $lateFee = Variants::find($completeOrder->metadata["data"]["late_fee_variant_id"]);
             $lateFeePrice = $lateFee->getPriceInfoFromDefaultChannel()->price;
-
-            $dayDiffs = $completeOrder->created_at->diffInDays(now());
-
-            if ($dayDiffs <= 0) {
-                return;
-            }            
 
             if ($hasLateFee = $completeOrder->items()->where('variant_id', $lateFee->id)?->first()) {
                 $hasLateFee->quantity = $dayDiffs;
