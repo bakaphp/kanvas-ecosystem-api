@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
-use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\DataTransferObject\AgentType;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
 
