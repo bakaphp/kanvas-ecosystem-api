@@ -9,13 +9,12 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use League\Csv\Reader;
 
 class ImportVariantsFromCsvCommand extends Command
@@ -24,7 +23,7 @@ class ImportVariantsFromCsvCommand extends Command
 
     private Apps $app;
 
-    protected $signature = 'kanvas:import-variants-from-csv 
+    protected $signature = 'kanvas:import-variants-from-csv
                             {csv_file : Path to the CSV file}
                             {app_id : Application ID}
                             {company_id : Company ID}
@@ -58,7 +57,10 @@ class ImportVariantsFromCsvCommand extends Command
         } else {
             $warehouse = Warehouses::getDefault($company);
             if (! $warehouse) {
-                $this->error('No default warehouse found for company. Please specify --warehouse_id or create a default warehouse.');
+                $this->error(
+                    'No default warehouse found for company. Please specify --warehouse_id or create a default warehouse.'
+                );
+
                 return 1;
             }
         }
@@ -68,7 +70,10 @@ class ImportVariantsFromCsvCommand extends Command
         } else {
             $channel = Channels::getDefault($company);
             if (! $channel) {
-                $this->error('No default channel found for company. Please specify --channel_id or create a default channel.');
+                $this->error(
+                    'No default channel found for company. Please specify --channel_id or create a default channel.'
+                );
+
                 return 1;
             }
         }
@@ -97,23 +102,23 @@ class ImportVariantsFromCsvCommand extends Command
 
         try {
             foreach ($records as $record) {
-                $this->line("Processing record: " . json_encode($record));
-                
+                $this->line('Processing record: ' . json_encode($record));
+
                 if ($this->isEmptyRecord($record)) {
                     continue;
                 }
 
                 $result = $this->processRecord($record, $company, $warehouse, $channel, $provider, $dryRun);
-                
+
                 $processed++;
-                
+
                 if ($result['status'] === 'created') {
                     $created++;
                 } elseif ($result['status'] === 'updated') {
                     $updated++;
                 } elseif ($result['status'] === 'error') {
                     $errors++;
-                    $this->error("Error processing record: " . $result['message']);
+                    $this->error('Error processing record: ' . $result['message']);
                 }
 
                 if ($processed % 10 === 0) {
@@ -123,10 +128,10 @@ class ImportVariantsFromCsvCommand extends Command
 
             if ($dryRun) {
                 DB::rollBack();
-                $this->info("DRY RUN completed - no changes were made");
+                $this->info('DRY RUN completed - no changes were made');
             } else {
                 DB::commit();
-                $this->info("Import completed successfully");
+                $this->info('Import completed successfully');
             }
 
             $this->table(
@@ -138,10 +143,10 @@ class ImportVariantsFromCsvCommand extends Command
                     ['Errors', $errors],
                 ]
             );
-
         } catch (\Exception $e) {
             DB::rollBack();
-            $this->error("Import failed: " . $e->getMessage());
+            $this->error('Import failed: ' . $e->getMessage());
+
             return 1;
         }
 
@@ -157,7 +162,7 @@ class ImportVariantsFromCsvCommand extends Command
         $internalProduct = trim($record['internal-product'] ?? '');
         $cmlinkFatherSku = trim($record['cmlink-father-sku'] ?? '');
         $price = trim($record['Price Simlimites'] ?? '');
-        
+
         if (empty($internalProduct) ||
             empty($cmlinkFatherSku) ||
             empty($price) ||
@@ -172,8 +177,14 @@ class ImportVariantsFromCsvCommand extends Command
     /**
      * Process a single CSV record
      */
-    protected function processRecord(array $record, Companies $company, Warehouses $warehouse, Channels $channel, string $provider, bool $dryRun): array
-    {
+    protected function processRecord(
+        array $record,
+        Companies $company,
+        Warehouses $warehouse,
+        Channels $channel,
+        string $provider,
+        bool $dryRun
+    ): array {
         try {
             $country = trim($record['pais'] ?? '');
             $network = trim($record['network'] ?? '');
@@ -188,7 +199,10 @@ class ImportVariantsFromCsvCommand extends Command
             $product = $this->findExistingProduct($internalProduct, $company);
 
             if (! $product) {
-                return ['status' => 'error', 'message' => "Product not found for ID: {$internalProduct} or not numeric"];
+                return [
+                    'status' => 'error',
+                    'message' => "Product not found for ID: {$internalProduct} or not numeric",
+                ];
             }
 
             $this->line("Found product: {$product->name} (ID: {$product->getId()})");
@@ -197,20 +211,34 @@ class ImportVariantsFromCsvCommand extends Command
             $parentVariant = $this->findParentVariant($cmlinkFatherSku, $company);
 
             if (! $parentVariant) {
-                return ['status' => 'error', 'message' => "Parent variant not found for cmlink-father-sku: {$cmlinkFatherSku}"];
+                return [
+                    'status' => 'error',
+                    'message' => "Parent variant not found for cmlink-father-sku: {$cmlinkFatherSku}",
+                ];
             }
 
             $this->line("Found parent variant: {$parentVariant->name} (SKU: {$parentVariant->sku})");
 
             // Copy variant from parent, keeping the same SKU but for the new product
-            $variant = $this->copyVariantFromParent($parentVariant, $product, $country, $network, $days, $dataGb, $dataMb, $price, $warehouse, $channel, $dryRun);
+            $variant = $this->copyVariantFromParent(
+                $parentVariant,
+                $product,
+                $country,
+                $network,
+                $days,
+                $dataGb,
+                $dataMb,
+                $price,
+                $warehouse,
+                $channel,
+                $dryRun
+            );
 
             if ($variant) {
                 return ['status' => 'created', 'variant' => $variant];
             } else {
                 return ['status' => 'error', 'message' => 'Failed to copy variant from parent'];
             }
-
         } catch (\Exception $e) {
             return ['status' => 'error', 'message' => $e->getMessage()];
         }
@@ -221,7 +249,7 @@ class ImportVariantsFromCsvCommand extends Command
      */
     protected function findExistingProduct(string $internalProduct, Companies $company): ?Products
     {
-        if (empty($internalProduct) || !is_numeric($internalProduct)) {
+        if (empty($internalProduct) || ! is_numeric($internalProduct)) {
             return null;
         }
 
@@ -257,16 +285,16 @@ class ImportVariantsFromCsvCommand extends Command
      * Copy variant from parent variant to new product
      */
     protected function copyVariantFromParent(
-        Variants $parentVariant, 
-        Products $targetProduct, 
+        Variants $parentVariant,
+        Products $targetProduct,
         string $country,
         string $network,
         int $days,
         float $dataGb,
         int $dataMb,
         float $price,
-        Warehouses $warehouse, 
-        Channels $channel, 
+        Warehouses $warehouse,
+        Channels $channel,
         bool $dryRun
     ): ?Variants {
         if ($dryRun) {
@@ -288,7 +316,7 @@ class ImportVariantsFromCsvCommand extends Command
 
         // Create new variant copying from parent with unique SKU
         $uniqueSku = 'CMLINK-' . $parentVariant->sku;
-        
+
         $variant = new Variants();
         $variant->products_id = $targetProduct->getId();
         $variant->name = $parentVariant->name;
@@ -316,12 +344,12 @@ class ImportVariantsFromCsvCommand extends Command
      * Copy all attributes from parent variant to new variant with CSV data
      */
     protected function copyVariantAttributesWithCsvData(
-        Variants $parentVariant, 
-        Variants $targetVariant, 
-        int $days, 
-        float $dataGb, 
-        int $dataMb, 
-        string $country, 
+        Variants $parentVariant,
+        Variants $targetVariant,
+        int $days,
+        float $dataGb,
+        int $dataMb,
+        string $country,
         string $network
     ): void {
         // Get all attributes from parent variant
@@ -342,13 +370,13 @@ class ImportVariantsFromCsvCommand extends Command
      * Update existing variant with CSV data using attributes
      */
     protected function updateVariantWithCsvData(
-        Variants $variant, 
-        float $price, 
-        int $days, 
-        float $dataGb, 
-        int $dataMb, 
-        string $country, 
-        string $network, 
+        Variants $variant,
+        float $price,
+        int $days,
+        float $dataGb,
+        int $dataMb,
+        string $country,
+        string $network,
         Channels $channel
     ): void {
         // Update variant price
@@ -392,12 +420,12 @@ class ImportVariantsFromCsvCommand extends Command
      * Map CSV data to existing variant attributes
      */
     protected function mapCsvDataToAttributes(
-        Variants $variant, 
-        string $fatherSku, 
-        int $days, 
-        float $dataGb, 
-        int $dataMb, 
-        string $country, 
+        Variants $variant,
+        string $fatherSku,
+        int $days,
+        float $dataGb,
+        int $dataMb,
+        string $country,
         string $network
     ): void {
         // Map CSV data to existing attribute names based on the variant structure
@@ -412,7 +440,7 @@ class ImportVariantsFromCsvCommand extends Command
         ];
 
         // Add father SKU only if provided (for new variants, not updates)
-        if (!empty($fatherSku)) {
+        if (! empty($fatherSku)) {
             $attributeMapping['CMLink Father SKU'] = $fatherSku;
         }
 
