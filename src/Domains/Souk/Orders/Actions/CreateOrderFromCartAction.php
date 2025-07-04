@@ -46,7 +46,7 @@ class CreateOrderFromCartAction
 
     public function execute(): ModelsOrder
     {
-        $paymentIntentId = $this->request['input']['metadata']['paymentIntent']['client_secret'] 
+        $paymentIntentId = $this->request['input']['metadata']['paymentIntent']['client_secret']
             ?? $this->request['payment_intent_id']
             ?? null;
 
