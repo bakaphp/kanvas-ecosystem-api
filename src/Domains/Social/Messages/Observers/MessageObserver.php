@@ -20,8 +20,7 @@ class MessageObserver
                 && is_array($message->message) 
                 && isset($message->message['type']) 
                 && $message->message['type'] === 'image-format'
-                && MessagesTypesRepository::getById($message->message_types_id, $message->app)->verb == $message->app->get('image-generation-limit-message-type-verb') 
-                ) {
+                && MessagesTypesRepository::getById($message->message_types_id, $message->app)->verb == $message->app->get('image-generation-limit-message-type-verb') ) {
             Log::info('Checking Message Post Limit');
             (new CheckMessagePostLimitAction(
                 message: $message,
