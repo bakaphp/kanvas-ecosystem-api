@@ -2,6 +2,7 @@
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
@@ -64,12 +65,21 @@ class ProcessPaymentAction
         $bankTransaction = explode(':', $intentId)[1];
         if ($this->order->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value)) {
             $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
-            if ($orderStatus = $this->order->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
-                new TransitionOrderStateAction(
+            try {
+                if ($orderStatus = $this->order->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
+                    new TransitionOrderStateAction(
+                        $this->order,
+                        $orderStatus,
+                        $this->payment->user
+                    )->execute(true);
+                }
+                new SendPaymentReceiptAction(
                     $this->order,
-                    $orderStatus,
-                    $this->order->user
-                )->execute(true);
+                    $this->payment,
+                    $this->payment->user
+                )->execute();
+            } catch (Exception $e) {
+                report($e);
             }
         } else {
             $reason = $result['message'];
