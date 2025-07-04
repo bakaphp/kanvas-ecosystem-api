@@ -17,10 +17,11 @@ class Agent extends BaseModel
     use UuidTrait;
     protected $fillable = [
         'uuid',
-        'app_id',
-        'company_id',
+        'apps_id',
+        'companies_id',
         'agent_type_id',
         'user_id',
+        'name',
         'description',
         'config',
         'company_task_list_id',

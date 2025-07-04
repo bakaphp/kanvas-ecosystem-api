@@ -1,0 +1,64 @@
+type AgentAi {
+    id: ID!
+    company: [Company!]! @belongsTo
+    user: [User!]! @belongsTo
+    type: AgentType! @belongsTo
+    model: AgentModel! @belongsTo
+    companyTaskList: TaskList! @belongsTo
+    uuid: String!
+    name: String!
+    description: String
+    config: JSON
+    role: String
+    agent_model_id: ID
+    is_active: Boolean!
+}
+
+type AgentModel {
+    id: ID!
+    name: String!
+    config: JSON
+    is_active: Boolean!
+    is_published: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input AgentAiInput {
+    agent_type_id: Int!
+    name: String!
+    agent_model_id: Int
+    description: String
+    config: String
+    role: String
+    is_active: Boolean
+    company_task_list_id: Int
+}
+
+extend type Mutation @guard {
+    createAgent(input: AgentAiInput!): AgentAi!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@create"
+        )
+    updateAgent(id: ID!, input: AgentAiInput!): AgentAi!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@update"
+        )
+    deleteAgent(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    agentsAi(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "description", "is_active"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [AgentAi!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\Agent"
+            defaultCount: 25
+            scopes: ["fromCompany", "fromApp"]
+        )
+}

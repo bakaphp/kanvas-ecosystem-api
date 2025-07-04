@@ -8,7 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
-
+use Kanvas\ActionEngine\Tasks\Factories\TaskListFactory;
 /**
  * Class Tasks.
  *
@@ -34,5 +34,10 @@ class TaskList extends BaseModel
     public function tasks(): HasMany
     {
         return $this->hasMany(TaskListItem::class, 'task_list_id')->orderBy('weight');
+    }
+
+    public static function newFactory()
+    {
+        return TaskListFactory::new();
     }
 }
