@@ -379,6 +379,7 @@ extend type Query @guard {
                     "reference"
                     "order_types_id"
                     "parent_id"
+                    "created_at"
                 ]
             )
         orderType: _
