@@ -101,7 +101,7 @@ class QuickBooksInvoiceService
         return $resultingInvoice;
     }
 
-    private function getOrCreateCustomerFromCompany(Order $order): ?IPPCustomer
+    public function getOrCreateCustomerFromCompany(Order $order): ?IPPCustomer
     {
         $customerEmail = $order->company->email;
         $customerName = $order->company->name ?: 'Guest Customer';
