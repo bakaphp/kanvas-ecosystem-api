@@ -15,7 +15,7 @@ use Kanvas\Users\Models\Users;
 
 class SendPaymentReceiptAction
 {
-    private mixed $channels = ['mail'];
+    private array $channels = ['mail'];
     public function __construct(
         private Order $order,
         private Payments $payment,
