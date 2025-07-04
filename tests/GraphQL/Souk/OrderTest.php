@@ -15,11 +15,13 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
 class OrderTest extends TestCase
 {
     use InventoryCases;
+    use PaymentCases;
 
     public function testCreateDraftOrder()
     {
@@ -99,6 +101,17 @@ class OrderTest extends TestCase
             'description' => 'Initial deposit for order testing',
             'slug' => 'initial-deposit',
         ]);
+        $items = [
+            [
+                'variant_id' => $variant->getId(),
+                'amount' => 1,
+                'quantity' => 1,
+            ]
+        ];
+
+        $paymentIntentId = $this->createTestPaymentIntent($items[0], $app)->id;
+        unset($items[0]['amount']);
+
         $data = [
             'cartId' => 'default',
 
@@ -106,12 +119,7 @@ class OrderTest extends TestCase
                 'email' => $user->email,
                 'phone' => $user->phone,
             ],
-            'items' => [
-                [
-                    'variant_id' => $variant->getId(),
-                    'quantity' => 2,
-                ],
-            ],
+            'items' => $items,
             'shipping_address' => [
                 'address' => fake()->address(),
                 'address_2' => fake()->postcode(),
@@ -120,6 +128,9 @@ class OrderTest extends TestCase
             ],
             'metadata' => [
                 'user_company_id' => $company->getId(),
+                'paymentIntent' => [
+                    'client_secret' => $paymentIntentId
+                ]
             ],
         ];
 
@@ -582,5 +593,90 @@ class OrderTest extends TestCase
         $order = Order::find($orderData['id']);
 
         $this->assertEquals(2.5, $order->items[0]->quantity);
+    }
+
+    public function testInvalidOrder()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+        $productData = new Product(
+            app: $app,
+            company: $company,
+            user: $user,
+            name: fake()->name(),
+            sku: fake()->unique()->word(),
+            warehouses: [[
+                'quantity' => 10,
+                'price' => 0.29,
+            ],
+            ]
+        );
+        $product = (new CreateProductAction($productData, $user))->execute();
+        $variant = $product->variants()->first();
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+        $channel = Channels::fromApp($app)->fromCompany($company)->first();
+        $variant->updatePriceInWarehouse($warehouse, 100);
+        $variant->updatePriceInChannel($channel, 100);
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value);
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value);
+        //$company->associateUserApp($user, $app, 1);
+        // Prepare input data for the order
+
+        $company->createAppWallet($app, ['name' => 'default'])->deposit(1000, [
+            'description' => 'Initial deposit for order testing',
+            'slug' => 'initial-deposit',
+        ]);
+        $items = [
+            [
+                'variant_id' => $variant->getId(),
+                'amount' => 1,
+                'quantity' => 1,
+            ]
+        ]; 
+
+        $paymentIntentId = $this->createTestFailingPaymentIntent($items[0], $app)->id;
+        unset($items[0]['amount']);
+
+        $data = [
+            'cartId' => 'default',
+
+            'customer' => [
+                'email' => $user->email,
+                'phone' => $user->phone,
+            ],
+            'items' => $items,
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ],
+            'metadata' => [
+                'user_company_id' => $company->getId(),
+                'paymentIntent' => [
+                    'client_secret' => $paymentIntentId
+                ]
+            ],
+        ];
+
+        // Perform GraphQL mutation to create a draft order
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => $data,
+        ]);
+
+        $response->assertJsonFragment([
+            'extensions' => [
+                'reason' => 'requires_payment_method'
+            ]
+        ]);
     }
 }
