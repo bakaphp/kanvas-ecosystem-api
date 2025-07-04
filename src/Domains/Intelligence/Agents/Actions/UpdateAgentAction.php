@@ -1,12 +1,14 @@
 <?php
+
 declare(strict_types=1);
+
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentModel;
 
-class UpdateAgentAction {
-
+class UpdateAgentAction
+{
     public function __construct(
         public Agent $agent,
         public AgentModel $agentModel
