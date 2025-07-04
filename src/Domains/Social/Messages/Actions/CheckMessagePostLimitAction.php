@@ -30,7 +30,7 @@ class CheckMessagePostLimitAction
      */
     public function execute()
     {
-        Log::info("Checking...");
+        Log::info("Checking with message type $this->messageTypeId");
         $messageCount = Message::getUserMessageCountInTimeFrame(
             $this->message->user->getId(),
             $this->message->app,
@@ -38,6 +38,9 @@ class CheckMessagePostLimitAction
             $this->messageTypeId,
             $this->getChildrenCount
         );
+
+        $messageLimit = $this->message->app->get('message-post-limit');
+        Log:info("Message Count for today: $messageCount of $messageLimit");
 
         if ($messageCount >= $this->message->app->get('message-post-limit')) {
             throw new Exception('Your daily limit has been reached.');
