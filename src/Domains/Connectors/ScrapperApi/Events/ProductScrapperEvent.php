@@ -24,12 +24,14 @@ class ProductScrapperEvent implements ShouldBroadcast
         protected Products $product,
         protected float $price,
         protected ?string $shopifyProductId = null,
+        protected ?string $searchText = null
     ) {
     }
 
     public function broadcastWith(): array
     {
         $product = Products::getById($this->product->getId());
+
         return [
             'kanvas_product_id' => $product->getId(),
             'shopify_product_id' => $this->shopifyProductId,
@@ -47,6 +49,10 @@ class ProductScrapperEvent implements ShouldBroadcast
     #[Override]
     public function broadcastOn(): Channel
     {
+        if (! empty($this->searchText)) {
+            return new Channel('app-' . $this->app->getId() . '-scrapper-' . md5(trim($this->searchText)));
+        }
+
         return new Channel('app-' . $this->app->getId() . '-scrapper-' . $this->uuid);
     }
 

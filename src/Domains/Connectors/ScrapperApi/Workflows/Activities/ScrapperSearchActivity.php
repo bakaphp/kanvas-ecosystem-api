@@ -14,9 +14,10 @@ use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\KanvasActivity;
-use Throwable;
 
 use function Sentry\captureException;
+
+use Throwable;
 
 class ScrapperSearchActivity extends KanvasActivity
 {
