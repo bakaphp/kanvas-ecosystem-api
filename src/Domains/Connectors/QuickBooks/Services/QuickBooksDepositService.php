@@ -41,6 +41,11 @@ class QuickBooksDepositService
             return $this->getDepositByOrder($creditOrder);
         }
 
+        // Validate amount
+        if ($creditOrder->total_amount <= 0) {
+            throw new Exception('Credit order amount must be greater than zero');
+        }
+
         // Get or create customer (reuse from invoice service)
         $invoiceService = new QuickBooksInvoiceService($this->app);
         $customer = $invoiceService->getOrCreateCustomerFromCompany($creditOrder);
@@ -61,13 +66,15 @@ class QuickBooksDepositService
         // Set credit memo properties
         $creditMemo->DocNumber = 'CREDIT-' . $creditOrder->getOrderNumber();
         $creditMemo->TxnDate = $creditOrder->created_at->format('Y-m-d');
-        $creditMemo->TotalAmt = $creditOrder->total_amount;
+        $creditMemo->TotalAmt = (float) $creditOrder->total_amount;
         $creditMemo->PrivateNote = "Credit purchase from Kanvas Order #{$creditOrder->getOrderNumber()}";
 
-        // Create line item for the credit
+        // Create line item for the credit - similar to invoice structure
+        $lineAmount = (float) $creditOrder->total_amount;
+
         $line = new IPPLine();
         $line->LineNum = 1;
-        $line->Amount = $creditOrder->total_amount;
+        $line->Amount = $lineAmount;
         $line->DetailType = 'SalesItemLineDetail';
         $line->Description = 'Customer Credit Purchase';
 
@@ -76,13 +83,15 @@ class QuickBooksDepositService
 
         // Get or create a credit item
         $creditItem = $this->getOrCreateCreditItem();
+
+        // Set item reference
         $itemRef = new IPPReferenceType();
         $itemRef->value = $creditItem->Id;
         $itemRef->name = $creditItem->Name;
         $salesItemLineDetail->ItemRef = $itemRef;
 
         $salesItemLineDetail->Qty = 1;
-        $salesItemLineDetail->UnitPrice = $creditOrder->total_amount;
+        $salesItemLineDetail->UnitPrice = $lineAmount;
 
         $line->SalesItemLineDetail = $salesItemLineDetail;
         $creditMemo->Line = [$line];
@@ -268,7 +277,8 @@ class QuickBooksDepositService
     private function getOrCreateCreditItem()
     {
         try {
-            $items = $this->dataService->Query("SELECT * FROM Item WHERE Name = 'Customer Credit'");
+            // Try to find existing credit item
+            $items = $this->dataService->Query("SELECT * FROM Item WHERE Name = 'Customer Credit' AND Active = true");
 
             if (! empty($items)) {
                 return $items[0];
@@ -296,7 +306,28 @@ class QuickBooksDepositService
         } catch (Exception $e) {
             report($e);
 
-            throw new Exception('Could not create or find credit item');
+            // Return a fallback service item if credit item creation fails
+            return $this->getFallbackServiceItem();
+        }
+    }
+
+    /**
+     * Get a fallback service item if credit item creation fails
+     */
+    private function getFallbackServiceItem()
+    {
+        try {
+            $items = $this->dataService->Query("SELECT * FROM Item WHERE Type = 'Service' AND Active = true");
+
+            if (! empty($items)) {
+                return $items[0];
+            }
+
+            throw new Exception('No service items found in QuickBooks');
+        } catch (Exception $e) {
+            report($e);
+
+            throw new Exception('Could not find any service items for credit memo');
         }
     }
 
