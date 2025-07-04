@@ -510,7 +510,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         $app->fireWorkflow(
             event: WorkflowEnum::SEARCH->value,
             params: [
-                'search' => $query,
+                'search' => trim($query),
             ]
         );
 
