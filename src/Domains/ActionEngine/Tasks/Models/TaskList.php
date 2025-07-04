@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Tasks\Factories\TaskListFactory;
+
 /**
  * Class Tasks.
  *
