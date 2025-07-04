@@ -101,7 +101,7 @@ class OrderLateFeeTest extends TestCase
 
         $productResponse = $this->createProduct(attributes: [
             [
-                'name' => 'late_fee_variant_id',
+                'name' => 'late-fee-variant-id',
                 'value' => $lateFee->variants()->first()->id
             ],
         ])->json()['data']['createProduct'];
@@ -148,7 +148,7 @@ class OrderLateFeeTest extends TestCase
             metadata: [
                 'data' => [
                     'start_at' => $rightNow->subDays(2)->toDateTimeString(),
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
                     'late_fee_grace_start_at' => $rightNow->startOfDay()->addDays(1)->toDateTimeString()
                 ]
             ],
@@ -163,7 +163,7 @@ class OrderLateFeeTest extends TestCase
                     'late_fee_charged_at' => null,
                     'note' => 'test',
                     'start_at' => $yesterday->toDateTimeString(),
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
                     'late_fee_grace_start_at' => $yesterday->startOfDay()->addDays(1)->toDateTimeString()
                 ]
             ],
@@ -199,7 +199,7 @@ class OrderLateFeeTest extends TestCase
 
         $productResponse = $this->createProduct(attributes: [
             [
-                'name' => 'late_fee_variant_id',
+                'name' => 'late-fee-variant-id',
                 'value' => $lateFee->variants()->first()->id
             ],
         ])->json()['data']['createProduct'];
@@ -244,7 +244,7 @@ class OrderLateFeeTest extends TestCase
             metadata: [
                 'data' => [
                     'start_at' => $rightNow->subDays(32)->toDateTimeString(),
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
                     'late_fee_grace_start_at' => $rightNow->subDays(31)->startOfDay()->toDateTimeString()
                 ]
             ],
@@ -256,7 +256,7 @@ class OrderLateFeeTest extends TestCase
             metadata: [
                 'data' => [
                     'start_at' => $rightNow->subDays(62)->toDateTimeString(),
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
                     'late_fee_grace_start_at' => $rightNow->subDays(61)->startOfDay()->toDateTimeString()
                 ]
             ],
@@ -268,7 +268,7 @@ class OrderLateFeeTest extends TestCase
             metadata: [
                 'data' => [
                     'start_at' => $rightNow->subDays(61)->toDateTimeString(),
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
                     'late_fee_grace_start_at' => $rightNow->subDays(60)->startOfDay()->toDateTimeString()
                 ]
             ],
