@@ -12,6 +12,7 @@ use Kanvas\Connectors\QuickBooks\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use QuickBooksOnline\API\Data\IPPCreditMemo;
 use QuickBooksOnline\API\Data\IPPCustomer;
+use QuickBooksOnline\API\Data\IPPIntuitEntity;
 use QuickBooksOnline\API\Data\IPPLine;
 use QuickBooksOnline\API\Data\IPPLinkedTxn;
 use QuickBooksOnline\API\Data\IPPPayment;
@@ -96,18 +97,6 @@ class QuickBooksDepositService
 
         $line->SalesItemLineDetail = $salesItemLineDetail;
         $creditMemo->Line = [$line];
-
-        // Debug logging
-        logger()->info('Creating credit memo', [
-            'order_id' => $creditOrder->id,
-            'customer_id' => $customer->Id,
-            'total_gross_amount' => $creditOrder->total_gross_amount,
-            'total_net_amount' => $creditOrder->total_net_amount,
-            'order_amount' => $orderAmount,
-            'line_amount' => $line->Amount,
-            'item_id' => $creditItem->Id,
-            'item_name' => $creditItem->Name,
-        ]);
 
         // Create the credit memo in QuickBooks
         $resultingCreditMemo = $this->dataService->Add($creditMemo);
@@ -287,7 +276,7 @@ class QuickBooksDepositService
     /**
      * Get or create credit item for credit memos
      */
-    private function getOrCreateCreditItem()
+    private function getOrCreateCreditItem(): IPPIntuitEntity
     {
         try {
             // Try to find existing credit item
@@ -331,7 +320,7 @@ class QuickBooksDepositService
     /**
      * Get a fallback service item if credit item creation fails
      */
-    private function getFallbackServiceItem()
+    private function getFallbackServiceItem(): IPPIntuitEntity
     {
         try {
             $items = $this->dataService->Query("SELECT * FROM Item WHERE Type = 'Service' AND Active = true");
