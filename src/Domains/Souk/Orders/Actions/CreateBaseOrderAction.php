@@ -44,7 +44,6 @@ class CreateBaseOrderAction
 
     public function execute(): ModelsOrder
     {
-
         if ($this->billingAddress !== null) {
             $billing = $this->people->addAddress(new Address(
                 address: $this->billingAddress->address,
