@@ -14,6 +14,7 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Tests\Connectors\Traits\HasStripeConfiguration;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
@@ -22,6 +23,7 @@ class OrderTest extends TestCase
 {
     use InventoryCases;
     use PaymentCases;
+    use HasStripeConfiguration;
 
     public function testCreateDraftOrder()
     {
@@ -86,6 +88,7 @@ class OrderTest extends TestCase
             ],
             ]
         );
+        $this->setupStripeConfiguration($app);
         $product = (new CreateProductAction($productData, $user))->execute();
         $variant = $product->variants()->first();
         $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
@@ -612,6 +615,7 @@ class OrderTest extends TestCase
             ],
             ]
         );
+        $this->setupStripeConfiguration($app);
         $product = (new CreateProductAction($productData, $user))->execute();
         $variant = $product->variants()->first();
         $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
