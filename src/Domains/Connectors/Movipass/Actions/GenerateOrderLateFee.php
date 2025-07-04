@@ -55,7 +55,7 @@ class GenerateOrderLateFee
         $completeOrders = Order::whereIn('id', $orders->pluck('id'))->get();
         $orders->each(function ($order) use ($completeOrders, $timeZonedNow) {
             $completeOrder = $completeOrders->where('id', $order->id)->first();
-            $lateFee = Variants::find($completeOrder->metadata["data"]["late_fee_variant_id"]);
+            $lateFee = Variants::find($completeOrder->metadata["data"]["late-fee-variant-id"]);
             $lateFeePrice = $lateFee->getPriceInfoFromDefaultChannel()->price;
 
             $feeCount = max(1, ceil($order->days_late / 30));
