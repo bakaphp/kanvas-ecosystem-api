@@ -53,7 +53,7 @@ class AgentTypeManagementMutation
 
     public function delete(mixed $root, array $req): bool
     {
-        $agentTypeModel = AgentTypeModel::getById($req['id'], app(Apps::class));
+        $agentTypeModel = AgentTypeModel::findOrFail($req['id'], app(Apps::class));
 
         return $agentTypeModel->delete();
     }
