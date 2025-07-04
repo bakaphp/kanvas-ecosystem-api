@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Stripe\Services\StripePaymentService;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
@@ -106,18 +105,6 @@ class OrderManagementMutation
                     'error_message' => 'Cart is empty',
                 ],
             ];
-        }
-
-        if (! isset($request['input']['metadata']['paymentIntent'])) {
-            throw new ValidationException('Payment Intent not provided');
-        }
-
-        $stripe = new StripePaymentService($app);
-        $stripeIntent = $request['input']['metadata']['paymentIntent']['client_secret'];
-        $validation = $stripe->validatePaymentIntent($stripeIntent);
-
-        if (! $validation['valid']) {
-            throw new ValidationException($validation['error'], $validation['status']);
         }
 
         $log = activity('create-order-from-cart')

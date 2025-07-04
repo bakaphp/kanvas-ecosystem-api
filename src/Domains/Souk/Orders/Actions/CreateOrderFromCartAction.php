@@ -10,7 +10,9 @@ use Baka\Users\Contracts\UserInterface;
 use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Stripe\Services\StripePaymentService;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\AddressType;
@@ -44,6 +46,21 @@ class CreateOrderFromCartAction
 
     public function execute(): ModelsOrder
     {
+        $paymentIntentId = $this->request['input']['metadata']['paymentIntent']['client_secret'] 
+            ?? $this->request['payment_intent_id'] 
+            ?? null;
+
+        if (!$paymentIntentId) {
+            throw new ValidationException('Payment Intent not provided');
+        }
+        $stripe = new StripePaymentService($this->app);
+        $stripeIntent = $this->request['input']['metadata']['paymentIntent']['client_secret'];
+        $validation = $stripe->validatePaymentIntent($stripeIntent);
+
+        if (! $validation['valid']) {
+            throw new ValidationException($validation['error'], $validation['status']);
+        }
+
         if ($this->billingAddress !== null) {
             $billing = $this->people->addAddress(new Address(
                 address: $this->billingAddress->address,
