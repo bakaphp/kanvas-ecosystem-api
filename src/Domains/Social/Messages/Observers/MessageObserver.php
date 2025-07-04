@@ -16,11 +16,13 @@ class MessageObserver
     public function creating(Message $message): void
     {
         //$messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
-        if ($message->app->get('message-image-type') 
-                && is_array($message->message) 
-                && isset($message->message['type']) 
-                && $message->message['type'] === 'image-format'
-                && MessagesTypesRepository::getById($message->message_types_id, $message->app)->verb == $message->app->get('image-generation-limit-message-type-verb') ) {
+        if (
+            $message->app->get('message-image-type')
+            && is_array($message->message)
+            && isset($message->message['type'])
+            && $message->message['type'] === 'image-format'
+            && MessagesTypesRepository::getById($message->message_types_id, $message->app)->verb == $message->app->get('image-generation-limit-message-type-verb')
+        ) {
             Log::info('Checking Message Post Limit');
             (new CheckMessagePostLimitAction(
                 message: $message,
