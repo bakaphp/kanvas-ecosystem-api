@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Actions;
 
 use Exception;
-use Kanvas\Social\Messages\Models\Message;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Social\Messages\Models\Message;
 
 class CheckMessagePostLimitAction
 {
