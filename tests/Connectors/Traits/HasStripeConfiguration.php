@@ -16,7 +16,7 @@ trait HasStripeConfiguration
             if (! getenv('TEST_STRIPE_SECRET_KEY')) {
                 throw new Exception('Missing Stripe Test Keys');
             }
-            $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
+            $app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
         }
     }
 }
