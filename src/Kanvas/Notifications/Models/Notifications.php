@@ -173,7 +173,6 @@ class Notifications extends BaseModel
             $systemModule = $this->systemModule()->firstOrFail();
             $modelName = $systemModule->model_name;
             $entity = $modelName::getById($this->entity_id);
-            
             if ($entity instanceof Message && is_null($entity->parent_id)) {
                 return $entity->children;
             }
