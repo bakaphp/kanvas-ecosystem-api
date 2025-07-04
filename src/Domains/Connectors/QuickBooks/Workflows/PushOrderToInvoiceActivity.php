@@ -21,6 +21,7 @@ class PushOrderToInvoiceActivity extends KanvasActivity
         $orderCompany = $order->company;
         $mainAppCompany = B2BConfigurationService::getConfiguredB2BCompany($app, $order->company);
 
+        sleep(100); // Simulate a delay for the integration process
         /**
         * @todo for now we are not allowing to create an invoice for the same company as the B2B main company.
         */
