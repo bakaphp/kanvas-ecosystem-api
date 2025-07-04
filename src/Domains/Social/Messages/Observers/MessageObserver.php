@@ -19,7 +19,8 @@ class MessageObserver
             Log::info('Checking Message Post Limit');
             (new CheckMessagePostLimitAction(
                 message: $message,
-                getChildrenCount: true
+                getChildrenCount: true,
+                messageTypeId: $message->message_types_id
             ))->execute();
         }
 
