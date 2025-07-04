@@ -9,9 +9,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -54,32 +56,21 @@ final class SyncMovipassImpoundActivityTest extends TestCase
             'id' => $warehouseResponse['id'],
         ];
 
-        $variantResponse = $this->createVariant(
-            productId: $productResponse['id'],
-            warehouseData: $warehouseData,
-            attributes: [
-                [
-                    'name' => 'timezone',
-                    'value' => 'America/New_York',
-                ],
-            ]
-        )->json()['data']['createVariant'];
+        $product = Products::fromApp($app)->find($productResponse['id']);
 
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $this->addVariantToChannel(
-            variantId: $variantResponse['id'],
+            variantId: (string) $product->variants->first()->id,
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
 
         $this->addVariantToWarehouse(
-            variantId: $variantResponse['id'],
+            variantId: (string) $product->variants->first()->id,
             warehouseId: $warehouseResponse['id'],
             amount: 100
         );
-
-        $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
 
         $data = [
             'cartId' => 0,
@@ -88,12 +79,11 @@ final class SyncMovipassImpoundActivityTest extends TestCase
             ],
             'order_type' => OrderTypeEnum::IMPOUND_LOT->value,
             'metadata' => [
-                'data' => [
-                ],
+                'data' => [],
             ],
             'items' => [
                 [
-                    'variant_id' => $variantResponse['id'],
+                    'variant_id' => (string) $product->variants->first()->id,
                     'quantity' => 1,
                     'price' => 100,
                 ],
@@ -118,7 +108,6 @@ final class SyncMovipassImpoundActivityTest extends TestCase
         ]);
 
         $order = $response->json('data.createOrderFromCart.order');
-
         $order = Order::fromApp($app)->find($order['id']);
 
         $activity = new SyncMovipassImpoundActivity(
@@ -128,7 +117,9 @@ final class SyncMovipassImpoundActivityTest extends TestCase
             []
         );
 
-        $result = $activity->execute($order, $app, []);
+        $result = $activity->execute($order, $app, [
+            'currentEventTypeName' => WorkflowEnum::CREATED->value,
+        ]);
         $order->refresh();
         $this->assertEquals($result['status'], 'success');
         $this->assertEquals($result['message'], 'Order synced correctly');

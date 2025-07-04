@@ -68,11 +68,23 @@ class TransitionOrderStateAction
             true,
             [
                 'app' => $this->order->app,
-                'from_status' => $currentOrderStatus,
-                'to_status' => $this->newOrderStatus,
+                'from_status' => $currentOrderStatus->slug,
+                'to_status' => $this->newOrderStatus->slug,
                 'who' => $this->user,
             ]
         );
+
+
+        activity('change-order-status')
+            ->causedBy($this->user)
+            ->performedOn($this->order)
+            ->withProperties([
+                'order_metadata' => $this->order->metadata,
+                'from_status' => $currentOrderStatus->slug,
+                'to_status' => $this->newOrderStatus->slug,
+                'who' => $this->user,
+            ])
+            ->log('User changed order status');
 
         return [
             'status' => 'success',

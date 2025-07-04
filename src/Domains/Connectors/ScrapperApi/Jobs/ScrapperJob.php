@@ -22,8 +22,6 @@ class ScrapperJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public $queue = "scrapper-queue";
-
     public function __construct(
         public AppInterface $app,
         public Users $user,
@@ -32,6 +30,7 @@ class ScrapperJob implements ShouldQueue
         public array $results,
         public ?string $uuid = null
     ) {
+        $this->queue = 'scrapper-queue';
     }
 
     public function handle()
