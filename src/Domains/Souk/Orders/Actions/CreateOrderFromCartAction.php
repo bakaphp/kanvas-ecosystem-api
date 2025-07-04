@@ -47,10 +47,10 @@ class CreateOrderFromCartAction
     public function execute(): ModelsOrder
     {
         $paymentIntentId = $this->request['input']['metadata']['paymentIntent']['client_secret'] 
-            ?? $this->request['payment_intent_id'] 
+            ?? $this->request['payment_intent_id']
             ?? null;
 
-        if (!$paymentIntentId) {
+        if (! $paymentIntentId) {
             throw new ValidationException('Payment Intent not provided');
         }
         $stripe = new StripePaymentService($this->app);
