@@ -37,7 +37,7 @@ class UserManagementQuery
             'users_associated_apps.two_step_phone_number',
             'users_associated_apps.is_active',
             'users_associated_apps.user_active',
-            'users_associated_apps.user_role',
+            'users_associated_company.user_role',
             'users_associated_apps.displayname',
             'users_associated_apps.phone_verified_at',
             'users_associated_apps.email_verified_at',

@@ -51,6 +51,7 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Override;
+use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  * Companies Model.
@@ -86,6 +87,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     use AddressTraitRelationship;
     use CanPayFloat;
     use HasWalletsTrait;
+    use QueryCacheable;
 
     protected $table = 'companies';
 
@@ -96,6 +98,12 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     public const DELETED_AT = 'is_deleted';
 
     protected $guarded = ['files', 'users_id', 'custom_fields'];
+
+    public $cacheFor = 86400; //1 day
+    public $cacheTags = ['companies'];
+    public $cachePrefix = 'companies_';
+    public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
 
     /**
      * Create a new factory instance for the model.

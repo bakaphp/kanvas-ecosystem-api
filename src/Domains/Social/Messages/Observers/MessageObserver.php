@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Observers;
 
-use Kanvas\Connectors\PromptMine\Actions\CheckNuggetGenerationCountAction;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class MessageObserver
@@ -15,10 +16,17 @@ class MessageObserver
     public function creating(Message $message): void
     {
         //$messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
-        if ($message->app->get('message-image-type') && is_array($message->message) && isset($message->message['type']) && $message->message['type'] === 'image-format') {
+        if (
+            $message->app->get('message-image-type')
+            && is_array($message->message)
+            && isset($message->message['type'])
+            && $message->message['type'] === 'image-format'
+            && MessagesTypesRepository::getById($message->message_types_id, $message->app)->verb == $message->app->get('image-generation-limit-message-type-verb')
+        ) {
+            Log::info('Checking Message Post Limit');
             (new CheckMessagePostLimitAction(
                 message: $message,
-                getChildrenCount: true
+                messageTypeId: $message->message_types_id
             ))->execute();
         }
 
@@ -28,20 +36,12 @@ class MessageObserver
         }
     }
 
-    public function saved(Message $message): void
-    {
-        // check if it has a parent, update parent total children
-        if ($message->parent_id && $message->parent) {
-            $message->parent->increment('total_children');
-        }
-    }
-
     public function created(Message $message): void
     {
-        /*         if ($message->app->get('check-free-generation-count') && $message->app->get('free-generation-check-message-type') && $message->parent_id) {
-                    (new CheckNuggetGenerationCountAction($message))->execute();
-                } */
-
+        if ($message->parent_id && $message->parent) {
+            $message->parent->increment('total_children');
+            $message->parent->searchable();
+        }
         $message->clearLightHouseCacheJob();
     }
 

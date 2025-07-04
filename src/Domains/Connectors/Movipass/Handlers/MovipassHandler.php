@@ -23,6 +23,7 @@ class MovipassHandler extends BaseIntegration
         $notificationEmailTemplate = $this->data['notificationEmailTemplate'] ?? ConfigurationEnum::NOTIFICATION_EMAIL_TEMPLATE->value;
         $lowBalancePushTemplate = $this->data['lowBalancePushTemplate'] ?? ConfigurationEnum::LOW_BALANCE_PUSH_TEMPLATE->value;
         $lowBalanceEmailTemplate = $this->data['lowBalanceEmailTemplate'] ?? ConfigurationEnum::LOW_BALANCE_EMAIL_TEMPLATE->value;
+        $gracePeriodDays = $this->data['gracePeriodDays'] ?? 1;
 
         if (empty($baseUrl) || empty($clientId) || empty($secret)) {
             return false;
@@ -34,6 +35,7 @@ class MovipassHandler extends BaseIntegration
         $this->app->set(ConfigurationEnum::NOTIFICATION_EMAIL_TEMPLATE_FIELD->value, $notificationEmailTemplate);
         $this->app->set(ConfigurationEnum::LOW_BALANCE_PUSH_TEMPLATE_FIELD->value, $lowBalancePushTemplate);
         $this->app->set(ConfigurationEnum::LOW_BALANCE_EMAIL_TEMPLATE_FIELD->value, $lowBalanceEmailTemplate);
+        $this->app->set(ConfigurationEnum::GRACE_PERIOD_DAYS->value, $gracePeriodDays);
 
         return true;
     }

@@ -67,6 +67,17 @@ class SystemModulesRepository
     }
 
     /**
+     * Get by slug
+     */
+    public static function getBySlug(string $slug, ?AppInterface $app = null): SystemModules
+    {
+        $app = $app === null ? app(Apps::class) : $app;
+        return SystemModules::where('slug', $slug)
+                                    ->where('apps_id', $app->getKey())
+                                    ->firstOrFail();
+    }
+
+    /**
      * Get the entity from the input
      */
     public static function getEntityFromInput(SystemModuleInputInterface $entityInput, Users $user, bool $useCompanyReference = true): Model

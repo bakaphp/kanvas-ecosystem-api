@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
@@ -122,7 +123,7 @@ final class ExtendReservationActivityTest extends TestCase
 
         $mainOrderData = $response->json()['data']['createDraftOrder'];
 
-
+        $extendedEndAt = $endDate->addMinutes(31)->toDateTimeString();
         $extendReservationResponse = $this->graphQL('
             mutation extendOrder($id: ID!, $input: ExtendOrderInput!) {
                 extendOrder(id: $id, input: $input) {
@@ -148,7 +149,7 @@ final class ExtendReservationActivityTest extends TestCase
                 'metadata' => [
                     'data' => [
                         'start_at' => $endDate->addMinutes(1)->toDateTimeString(),
-                        'end_at' => $endDate->addMinutes(31)->toDateTimeString(),
+                        'end_at' => $extendedEndAt
                     ],
                 ],
                 'reference' => "recarga_paso_rapido",
@@ -175,6 +176,7 @@ final class ExtendReservationActivityTest extends TestCase
         $mainOrder->refresh();
         $this->assertEquals($result['status'], 'success');
         $this->assertEquals($result['message'], 'Reservation extended');
+        $this->assertEquals($mainOrder->fresh()->metadata['data']['end_at'], $extendedEndAt);
         $this->assertEquals($orderExtended->status, 'completed');
     }
 }

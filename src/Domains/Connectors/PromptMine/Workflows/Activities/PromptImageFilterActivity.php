@@ -374,6 +374,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $params['via'] ?? ['database']
         );
 
+        $title = trim($title);
         try {
             // Send notification to the user
             $newMessageNotification = new ImageProcessingPushNotification(

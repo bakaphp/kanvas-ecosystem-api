@@ -17,10 +17,12 @@ use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartAction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartWalletAction;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Actions\UpdateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
@@ -150,7 +152,7 @@ class OrderManagementMutation
         $orderId = (int) $request['id'];
         $orderData = $request['input'];
 
-        if (! $user->isAdmin()) {
+        if (! $user->isAdmin() && ! $app->get('ALLOW_USERS_UPDATE_ORDERS')) {
             throw new ValidationException('User is not authorized to update this order');
         }
 
@@ -377,6 +379,44 @@ class OrderManagementMutation
                 'error_code' => $response->getMessages()->getMessage()[0]->getCode(),
                 'error_message' => $response->getMessages()->getMessage()[0]->getText(),
             ];
+        }
+    }
+
+    public function transitionOrderStatus(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+
+        $input = $request['input'];
+
+        $order = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $input['order_id'],
+            'companies_id' => $company->getId(),
+        ])->first();
+
+        if (! $order) {
+            throw new ValidationException('Order not found');
+        }
+
+        $newOrderStatus = OrderStatus::where([
+            'apps_id' => $app->getId(),
+            'slug' => $input['status_slug'],
+        ])->first();
+
+        if (! $newOrderStatus) {
+            throw new ValidationException('Order status not found');
+        }
+
+        try {
+            return new TransitionOrderStateAction(
+                $order,
+                $newOrderStatus,
+                $user
+            )->execute();
+        } catch (Throwable $e) {
+            throw new ValidationException($e->getMessage());
         }
     }
 }

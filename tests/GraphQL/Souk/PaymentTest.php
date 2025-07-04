@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Handlers\EchoPayHandler;
+use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Tests\Connectors\Traits\HasIntegrationCompany;
@@ -67,6 +68,33 @@ class PaymentTest extends TestCase
         ]);
 
         $response->assertSuccessful();
+    }
+
+    public function testCreatePaymentMethodWithFirstnameAndLastname()
+    {
+        // Perform GraphQL mutation to create a payment method
+        $response = $this->graphQL('
+            mutation createPaymentMethod($input: PaymentMethodInput!) {
+                createPaymentMethod(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                ...$this->getCardData(),
+                'firstname' => 'Juan',
+                'lastname' => 'Pérez',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $paymentMethodData = $response->json('data.createPaymentMethod');
+        $paymentMethod = PaymentMethods::find($paymentMethodData['id']);
+
+        $response->assertSuccessful();
+        $this->assertEquals('Juan', $paymentMethod->getMetadata('firstname'));
+        $this->assertEquals('Pérez', $paymentMethod->getMetadata('lastname'));
     }
 
     public function testListPaymentMethods()
@@ -212,7 +240,7 @@ class PaymentTest extends TestCase
         $response->assertJson([
             'data' => [
                 'createPaymentMethod' => [
-                    'payment_methods_brand' => 'amex',
+                    'payment_methods_brand' => 'american express',
                 ],
             ],
         ]);

@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Payments;
 
-use Exception;
+use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\Actions\CreatePaymentMethodAction;
 use Kanvas\Payments\Actions\UpdatePaymentMethodAction;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
@@ -25,6 +26,8 @@ class PaymentMethodMutation
             // TODO: move this to a provider to avoid hardcoding here
             if ($input['processor']) {
                 $processor = app("payment.{$input['processor']}");
+                $input['brand'] = $this->guessCardBrand($input['number']);
+                // $input['state'] = $input['country'] == 'DO' ? 'DN' : $input['state'];
                 $paymentMethod = $processor->addCardFromRequest($input, $user);
             } else {
                 $paymentMethod = new PaymentMethod(
@@ -33,7 +36,7 @@ class PaymentMethodMutation
                     company: $company,
                     instrument_identifier_id: $input['instrument_identifier_id'] ?? '',
                     payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
-                    payment_methods_brand: $input['brand'] ?? $this->guessCardBrand($input['number']),
+                    payment_methods_brand: $this->guessCardBrand($input['number']),
                     stripe_card_id: $input['stripe_card_id'] ?? '',
                     expiration_date: $input['expiration_date'],
                     zip_code: $input['zip_code'],
@@ -45,11 +48,14 @@ class PaymentMethodMutation
                         'phone' => $input['phone'],
                         'zip_code' => $input['zip_code'],
                         'state' => $input['state'],
+                        'firstname' => $input['firstname'] ?? null,
+                        'lastname' => $input['lastname'] ?? null,
                     ]
                 );
             }
+
             return new CreatePaymentMethodAction($paymentMethod)->execute();
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
+        } catch (RequestException $e) {
             if ($e->hasResponse()) {
                 $response = $e->getResponse();
                 $errorMessage = json_decode((string) $response->getBody())->message;
@@ -61,7 +67,7 @@ class PaymentMethodMutation
                 $errorMessage = implode(', ', $errorMessage);
             }
 
-            throw new Exception($errorMessage);
+            throw new ValidationException($errorMessage);
         }
     }
 
@@ -77,7 +83,7 @@ class PaymentMethodMutation
         ])->first();
 
         if (! $paymentMethod) {
-            throw new Exception('Payment method not found');
+            throw new ValidationException('Payment method not found');
         }
 
         if ($paymentMethod->processor) {
@@ -120,7 +126,7 @@ class PaymentMethodMutation
         ])->first();
 
         if (! $paymentMethod) {
-            throw new Exception('Payment method not found');
+            throw new ValidationException('Payment method not found');
         }
 
         if ($paymentMethod->processor) {
@@ -159,7 +165,7 @@ class PaymentMethodMutation
 
         // American Express
         if ($firstTwoDigits === '34' || $firstTwoDigits === '37') {
-            return 'amex';
+            return 'american express';
         }
 
         return null;

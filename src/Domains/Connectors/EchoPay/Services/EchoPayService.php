@@ -93,6 +93,8 @@ class EchoPayService
                 'phone' => $request['phone'],
                 'zip_code' => $request['zip_code'],
                 'state' => $request['state'],
+                'firstname' => $request['firstname'] ?? null,
+                'lastname' => $request['lastname'] ?? null,
             ]
         );
     }
@@ -171,7 +173,7 @@ class EchoPayService
         ];
     }
 
-    public function setupPayer(string $orderCode, string $paymentInstrumentId, MerchantDetail $merchant): array
+    public function setupPayer(string|int $orderCode, string $paymentInstrumentId, MerchantDetail $merchant): array
     {
         $formData = [
             'payment' => [
@@ -231,8 +233,8 @@ class EchoPayService
 
         $response = $this->client->post(ConfigurationEnum::CHECK_PAYER_ENROLLMENT_PATH->value, $formData);
 
-        Log::info('echo pay enrollment data', $response['data']);
-
+        // Log::info('echo pay enrollment form data', $formData);
+        // Log::info('echo pay enrollment response', $response['data']);
         return [
             'clientReferenceInformation' => [
                 'code' => $response['data']['clientReferenceInformation']['code'],
@@ -245,6 +247,7 @@ class EchoPayService
                 "strongAuthentication" => $response['data']['consumerAuthenticationInformation']['strongAuthentication'] ?? null,
                 "authenticationStatusMsg" => $response['data']['consumerAuthenticationInformation']['authenticationStatusMsg'] ?? null,
                 "eci" => $response['data']['consumerAuthenticationInformation']['eci'] ?? null,
+                "accessToken" => $response['data']['consumerAuthenticationInformation']['accessToken'] ?? null,
                 "token" => $response['data']['consumerAuthenticationInformation']['token'] ?? null,
                 "cavv" => $response['data']['consumerAuthenticationInformation']['cavv'] ?? null,
                 "paresStatus" => $response['data']['consumerAuthenticationInformation']['paresStatus'] ?? null,
@@ -255,6 +258,13 @@ class EchoPayService
                 "acsTransactionId" => $response['data']['consumerAuthenticationInformation']['acsTransactionId'] ?? null,
                 "ucafCollectionIndicator" => $response['data']['consumerAuthenticationInformation']['ucafCollectionIndicator'] ?? "",
                 "ucafAuthenticationData" => $response['data']['consumerAuthenticationInformation']['ucafAuthenticationData'] ?? "",
+                "challengeRequired" => $response['data']['consumerAuthenticationInformation']['challengeRequired'] ?? "",
+                "acsUrl" => $response['data']['consumerAuthenticationInformation']['acsUrl'] ?? "",
+                "acsReferenceNumber" => $response['data']['consumerAuthenticationInformation']['acsReferenceNumber'] ?? "",
+                "stepUpUrl" => $response['data']['consumerAuthenticationInformation']['stepUpUrl'] ?? "",
+                "pareq" => $response['data']['consumerAuthenticationInformation']['pareq'] ?? "",
+                "veresEnrolled" => $response['data']['consumerAuthenticationInformation']['veresEnrolled'] ?? "",
+                "acsOperatorID" => $response['data']['consumerAuthenticationInformation']['acsOperatorID'] ?? "",
             ]),
             "errorInformation" => isset($response['data']['errorInformation']) ? [
                 "reason" => $response['data']['errorInformation']['reason'],
@@ -300,10 +310,45 @@ class EchoPayService
             'merchant' => $merchant->toArray(),
         ]);
 
+        $consumerInformation = $response['data']['consumerAuthenticationInformation'] ?? null;
+
         return [
-            'consumerAuthenticationInformation' => ConsumerAuthentication::from($response['data']['consumerAuthenticationInformation']),
+            'clientReferenceInformation' => [
+                'code' => $response['data']['clientReferenceInformation']['code'],
+            ],
+            "consumerAuthenticationInformation" => ConsumerAuthentication::from([
+                "indicator" => $consumerInformation['ecommerceIndicator'] ?? $consumerInformation['indicator'] ?? null,
+                "authenticationTransactionId" => $consumerInformation['authenticationTransactionId'] ?? null,
+                "eciRaw" => $consumerInformation['eciRaw'] ?? null,
+                "authenticationResult" => $consumerInformation['authenticationResult'] ?? null,
+                "strongAuthentication" => $consumerInformation['strongAuthentication'] ?? null,
+                "authenticationStatusMsg" => $consumerInformation['authenticationStatusMsg'] ?? null,
+                "eci" => $consumerInformation['eci'] ?? null,
+                "accessToken" => $consumerInformation['accessToken'] ?? null,
+                "token" => $consumerInformation['token'] ?? null,
+                "cavv" => $consumerInformation['cavv'] ?? null,
+                "paresStatus" => $consumerInformation['paresStatus'] ?? null,
+                "xid" => $consumerInformation['xid'] ?? null,
+                "directoryServerTransactionId" => $consumerInformation['directoryServerTransactionId'] ?? null,
+                "threeDSServerTransactionId" => $consumerInformation['threeDSServerTransactionId'] ?? null,
+                "specificationVersion" => $consumerInformation['specificationVersion'] ?? null,
+                "acsTransactionId" => $consumerInformation['acsTransactionId'] ?? null,
+                "ucafCollectionIndicator" => $consumerInformation['ucafCollectionIndicator'] ?? "",
+                "ucafAuthenticationData" => $consumerInformation['ucafAuthenticationData'] ?? "",
+                "challengeRequired" => $consumerInformation['challengeRequired'] ?? "",
+                "acsUrl" => $consumerInformation['acsUrl'] ?? "",
+                "acsReferenceNumber" => $consumerInformation['acsReferenceNumber'] ?? "",
+                "stepUpUrl" => $consumerInformation['stepUpUrl'] ?? "",
+                "pareq" => $consumerInformation['pareq'] ?? "",
+                "veresEnrolled" => $consumerInformation['veresEnrolled'] ?? "",
+                "acsOperatorID" => $consumerInformation['acsOperatorID'] ?? "",
+            ]),
+            "errorInformation" => isset($response['data']['errorInformation']) ? [
+                "reason" => $response['data']['errorInformation']['reason'],
+                "message" => $response['data']['errorInformation']['message']
+            ] : null,
             'id' => $response['data']['id'],
-            'status' => $response['data']['status'],
+            'status' => $response['data']['status']
         ];
     }
 
@@ -417,6 +462,36 @@ class EchoPayService
             ]
         ];
         $response = $this->client->post(ConfigurationEnum::CAPTURE_PAYMENT_PATH->value, $formData);
+
+        return $response['data'];
+    }
+
+    public function reversePayment(
+        PaymentCaptureInput $payment,
+        MerchantDetail $merchant,
+        string $reason = "test"
+    ): array {
+        $formData = [
+            'transactionId' => $payment->transactionId,
+            'payment' => [
+                'clientReferenceInformation' => [
+                    'code' => $payment->orderCode,
+                ],
+                'reversalInformation' => [
+                    'amountDetails' => [
+                        'currency' => $payment->currency,
+                        'totalAmount' => $payment->totalAmount,
+                    ],
+                    "reason" => $reason,
+                ],
+            ],
+            'merchant' => [
+                'id' => $merchant->id,
+                'key' => $merchant->key,
+                'secretKey' => $merchant->secretKey,
+            ]
+        ];
+        $response = $this->client->post(ConfigurationEnum::REVERSAL_PAYMENT_PATH->value, $formData);
 
         return $response['data'];
     }

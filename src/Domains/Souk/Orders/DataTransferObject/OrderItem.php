@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
@@ -26,6 +27,7 @@ class OrderItem extends Data
         public readonly float $discount,
         public readonly Currencies $currency,
         public readonly int $quantityShipped = 0,
+        public readonly ?array $metadata = null,
     ) {
     }
 
@@ -38,7 +40,7 @@ class OrderItem extends Data
         }
 
         $warehouse = $region->warehouses()->firstOrFail(); //@todo get product warehouse with  stock
-        $price = isset($request['price']) ? (float) $request['price'] : $variant->getPrice($warehouse);
+        $price = (float) ($request['price'] ?? $variant->getPrice($warehouse, Channels::getDefault($company, $app)));
 
         return new self(
             app: $app,
@@ -50,7 +52,8 @@ class OrderItem extends Data
             tax: 0, // @todo get from region
             discount: 0,
             currency: $region->currency,
-            quantityShipped: $request['quantity_shipped'] ?? 0
+            quantityShipped: $request['quantity_shipped'] ?? 0,
+            metadata: $request['attributes'] ?? $request['metadata'] ?? null,
         );
     }
 

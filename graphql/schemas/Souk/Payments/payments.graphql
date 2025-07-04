@@ -46,6 +46,8 @@ input PaymentMethodInput{
     phone: String!
     zip_code: String!
     state: String!
+    firstname: String
+    lastname: String
 }
 
 input PaymentMethodUpdateInput{
@@ -68,15 +70,30 @@ type PaymentIntentResult {
 }
 
 type PaymentResult {
-    payment: Mixed
+    status: String
+    payment: Payment
+    order: Order
     message: Mixed
 }
 
 input PaymentInput {
-    amount: Money!
+    payment_methods_id: ID!
+    amount: Money
+    order_metadata: Mixed
     payment_date: String
     concept: String
-    payment_methods_id: ID
+}
+
+type PayerAuthResponse {
+  status: String!
+  message: String
+  data: Mixed
+}
+
+type PayerAuthStatus {
+  status: String!
+  message: String
+  data: Mixed
 }
 
 extend type Mutation @guard {
@@ -100,9 +117,21 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
         )
-    addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentIntentResult!
+    addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@addPaymentToOrder"
+        )
+    initiatePayerAuthentication(orderId: ID!): PayerAuthResponse!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@initiatePayerAuthentication"
+        )
+    completeDeviceData(orderId: ID!): PayerAuthStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@completeDeviceData"
+        )
+    validatePayerAuthResult(orderId: ID!): PayerAuthStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayerAuthResult"
         )
 }
 
@@ -121,13 +150,13 @@ extend type Query {
         @paginate(
             defaultCount: 25 
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
-            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            scopes: ["fromApp", "fromUser", "notDeleted"]
         )
     
     paymentMethod(id: ID!): PaymentMethod!
         @find(
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
-            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            scopes: [ "fromApp", "fromUser", "notDeleted"]
         )
 }
 

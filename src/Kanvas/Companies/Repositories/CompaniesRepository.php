@@ -75,6 +75,10 @@ class CompaniesRepository
             return new UsersAssociatedCompanies();
         }
 
+        if ($user->isAdmin()) {
+            return new UsersAssociatedCompanies();
+        }
+
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
                                 ->where('companies_id', $company->getKey())
@@ -93,6 +97,10 @@ class CompaniesRepository
     public static function userAssociatedToCompanyAndBranch(Companies $company, CompaniesBranches $branch, Users $user): UsersAssociatedCompanies
     {
         if ($user->isAppOwner()) {
+            return new UsersAssociatedCompanies();
+        }
+
+        if ($user->isAdmin()) {
             return new UsersAssociatedCompanies();
         }
 
