@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\QuickBooks\Workflows;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Connectors\QuickBooks\Services\QuickBooksDepositService;
 use Kanvas\Connectors\QuickBooks\Services\QuickBooksInvoiceService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Services\B2BConfigurationService;
@@ -36,27 +37,22 @@ class PushOrderToInvoiceActivity extends KanvasActivity
             integration: IntegrationsEnum::QUICKBOOKS,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 $quickBooksInvoice = new QuickBooksInvoiceService($app);
+                $quickBookDeposit = new QuickBooksDepositService($app);
 
                 /**
                  * @todo Check if the order contains a valid product type.
                  * This is a temporary solution to ensure that the order contains a valid product type.
                  */
-                $hasProductType = false;
+                $isCreditProductType = false;
                 foreach ($order->items as $item) {
-                    if (! in_array($item->variant->product->products_types_id, $params['allowed_product_types'])) {
-                        continue;
+                    if (in_array($item->variant->product->products_types_id, $params['credit_product_type'])) {
+                        $isCreditProductType = true;
+
+                        break;
                     }
-                    $hasProductType = true;
                 }
 
-                if (! $hasProductType) {
-                    return [
-                        'result' => false,
-                        'message' => 'Order does not contain a valid product type.',
-                    ];
-                }
-
-                $quickbooksInvoice = $quickBooksInvoice->createInvoiceFromOrder($order);
+                $quickbooksInvoice = $isCreditProductType ? $quickBookDeposit->createDepositFromCreditOrder($order) : $quickBooksInvoice->createInvoiceFromOrder($order);
 
                 return [
                     'result' => $quickbooksInvoice,
