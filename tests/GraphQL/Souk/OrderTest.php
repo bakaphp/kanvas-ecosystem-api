@@ -633,7 +633,7 @@ class OrderTest extends TestCase
                 'amount' => 1,
                 'quantity' => 1,
             ]
-        ]; 
+        ];
 
         $paymentIntentId = $this->createTestFailingPaymentIntent($items[0], $app)->id;
         unset($items[0]['amount']);

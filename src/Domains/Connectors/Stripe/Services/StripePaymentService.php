@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
-use Stripe\StripeClient;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Connectors\Stripe\Utils\StripePaymentValidation;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Stripe\StripeClient;
 use Throwable;
 
 class StripePaymentService
@@ -39,7 +39,7 @@ class StripePaymentService
 
             $statusValidation = $this->validatePaymentStatus($intent->status);
 
-            if(!$statusValidation['can_process']) {
+            if(! $statusValidation['can_process']) {
                 return [
                     'valid' => false,
                     'status' => $intent->status,
@@ -53,7 +53,6 @@ class StripePaymentService
                 'status' => $intent->status,
                 'payment_intent' => $intent
             ];
-
         } catch (Throwable $e) {
             throw new ValidationException($e->getMessage());
         }

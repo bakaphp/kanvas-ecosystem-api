@@ -26,14 +26,14 @@ class StripePaymentValidation
         return in_array($status, self::VALID_PAYMENT_STATUSES);
     }
 
-        public function isInvalid(string $status): bool
+    public function isInvalid(string $status): bool
     {
         return in_array($status, self::INVALID_PAYMENT_STATUSES);
     }
 
     public function getStatusMessage(string $status): string
     {
-        return match($status) {
+        return match ($status) {
             'succeeded' => 'Payment completed successfully',
             'requires_capture' => 'Payment authorized, ready to capture',
             'requires_payment_method' => 'No payment method attached',

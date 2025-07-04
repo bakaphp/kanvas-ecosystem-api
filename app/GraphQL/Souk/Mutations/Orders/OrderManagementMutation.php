@@ -108,7 +108,7 @@ class OrderManagementMutation
             ];
         }
 
-        if (!isset($request['input']['metadata']['paymentIntent'])) {
+        if (! isset($request['input']['metadata']['paymentIntent'])) {
             throw new ValidationException('Payment Intent not provided');
         }
 
@@ -116,7 +116,7 @@ class OrderManagementMutation
         $stripeIntent = $request['input']['metadata']['paymentIntent']['client_secret'];
         $validation = $stripe->validatePaymentIntent($stripeIntent);
 
-        if (!$validation['valid']) {
+        if (! $validation['valid']) {
             throw new ValidationException($validation['error'], $validation['status']);
         }
 
