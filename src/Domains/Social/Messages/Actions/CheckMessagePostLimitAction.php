@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Actions;
 
 use Exception;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Social\Messages\Models\Message;
 
 class CheckMessagePostLimitAction
@@ -29,6 +30,7 @@ class CheckMessagePostLimitAction
      */
     public function execute()
     {
+        Log::info("Checking...");
         $messageCount = Message::getUserMessageCountInTimeFrame(
             $this->message->user->getId(),
             $this->message->app,
