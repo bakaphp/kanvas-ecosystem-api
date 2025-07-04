@@ -41,8 +41,9 @@ class QuickBooksDepositService
             return $this->getDepositByOrder($creditOrder);
         }
 
-        // Validate amount
-        if ($creditOrder->total_amount <= 0) {
+        // Validate amount using the Order model's method
+        $orderAmount = $creditOrder->getTotalAmount();
+        if ($orderAmount <= 0) {
             throw new Exception('Credit order amount must be greater than zero');
         }
 
@@ -66,11 +67,11 @@ class QuickBooksDepositService
         // Set credit memo properties
         $creditMemo->DocNumber = 'CREDIT-' . $creditOrder->getOrderNumber();
         $creditMemo->TxnDate = $creditOrder->created_at->format('Y-m-d');
-        $creditMemo->TotalAmt = (float) $creditOrder->total_amount;
+        $creditMemo->TotalAmt = (float) $orderAmount;
         $creditMemo->PrivateNote = "Credit purchase from Kanvas Order #{$creditOrder->getOrderNumber()}";
 
         // Create line item for the credit - similar to invoice structure
-        $lineAmount = (float) $creditOrder->total_amount;
+        $lineAmount = (float) $orderAmount;
 
         $line = new IPPLine();
         $line->LineNum = 1;
@@ -95,6 +96,18 @@ class QuickBooksDepositService
 
         $line->SalesItemLineDetail = $salesItemLineDetail;
         $creditMemo->Line = [$line];
+
+        // Debug logging
+        logger()->info('Creating credit memo', [
+            'order_id' => $creditOrder->id,
+            'customer_id' => $customer->Id,
+            'total_gross_amount' => $creditOrder->total_gross_amount,
+            'total_net_amount' => $creditOrder->total_net_amount,
+            'order_amount' => $orderAmount,
+            'line_amount' => $line->Amount,
+            'item_id' => $creditItem->Id,
+            'item_name' => $creditItem->Name,
+        ]);
 
         // Create the credit memo in QuickBooks
         $resultingCreditMemo = $this->dataService->Add($creditMemo);
@@ -134,7 +147,7 @@ class QuickBooksDepositService
             throw new Exception('No available credits found for customer');
         }
 
-        $amountToApply = $amountToApply ?? $esimOrder->total_amount;
+        $amountToApply = $amountToApply ?? $esimOrder->getTotalAmount();
 
         return $this->applyCreditToInvoice($invoiceId, $availableCredits, $amountToApply, $customer);
     }
@@ -299,6 +312,10 @@ class QuickBooksDepositService
             $error = $this->dataService->getLastError();
 
             if ($error) {
+                logger()->error('Failed to create credit item', [
+                    'error' => $error->getResponseBody(),
+                ]);
+
                 throw new Exception('Failed to create credit item: ' . $error->getResponseBody());
             }
 
@@ -393,8 +410,9 @@ class QuickBooksDepositService
     public function hasInsufficientCredit(Order $order): bool
     {
         $availableCredit = $this->getCustomerCreditBalance($order);
+        $orderAmount = $order->getTotalAmount();
 
-        return $availableCredit < $order->total_amount;
+        return $availableCredit < $orderAmount;
     }
 
     /**
