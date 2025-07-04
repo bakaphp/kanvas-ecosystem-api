@@ -44,7 +44,7 @@ class Attributes extends BaseModel
     use CascadeSoftDeletes;
     use DatabaseSearchableTrait;
     use HasTranslationsDefaultFallback;
-    // use QueryCacheable;
+    //use QueryCacheable;
 
     public $table = 'attributes';
     public $translatable = ['name'];
