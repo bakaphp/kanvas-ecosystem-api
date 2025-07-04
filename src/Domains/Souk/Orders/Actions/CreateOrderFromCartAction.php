@@ -10,7 +10,6 @@ use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 
 class CreateOrderFromCartAction extends CreateBaseOrderAction
 {
-
     public function execute(): ModelsOrder
     {
         $paymentIntentId = $this->request['input']['metadata']['paymentIntent']['client_secret']
