@@ -39,7 +39,7 @@ class StripePaymentService
 
             $statusValidation = $this->validatePaymentStatus($intent->status);
 
-            if(! $statusValidation['can_process']) {
+            if (! $statusValidation['can_process']) {
                 return [
                     'valid' => false,
                     'status' => $intent->status,

@@ -8,12 +8,12 @@ use Stripe\StripeClient;
 
 class StripePaymentValidation
 {
-    const VALID_PAYMENT_STATUSES = [
+    public const VALID_PAYMENT_STATUSES = [
         'succeeded',
         'requires_capture',
     ];
 
-    const INVALID_PAYMENT_STATUSES = [
+    public const INVALID_PAYMENT_STATUSES = [
         'requires_payment_method',
         'requires_confirmation',
         'canceled',
