@@ -12,6 +12,7 @@ use Kanvas\Connectors\QuickBooks\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use QuickBooksOnline\API\Data\IPPCreditMemo;
 use QuickBooksOnline\API\Data\IPPCustomer;
+use QuickBooksOnline\API\Data\IPPIntuitEntity;
 use QuickBooksOnline\API\Data\IPPLine;
 use QuickBooksOnline\API\Data\IPPLinkedTxn;
 use QuickBooksOnline\API\Data\IPPPayment;
@@ -41,8 +42,9 @@ class QuickBooksDepositService
             return $this->getDepositByOrder($creditOrder);
         }
 
-        // Validate amount
-        if ($creditOrder->total_amount <= 0) {
+        // Validate amount using the Order model's method
+        $orderAmount = $creditOrder->getTotalAmount();
+        if ($orderAmount <= 0) {
             throw new Exception('Credit order amount must be greater than zero');
         }
 
@@ -66,11 +68,11 @@ class QuickBooksDepositService
         // Set credit memo properties
         $creditMemo->DocNumber = 'CREDIT-' . $creditOrder->getOrderNumber();
         $creditMemo->TxnDate = $creditOrder->created_at->format('Y-m-d');
-        $creditMemo->TotalAmt = (float) $creditOrder->total_amount;
+        $creditMemo->TotalAmt = (float) $orderAmount;
         $creditMemo->PrivateNote = "Credit purchase from Kanvas Order #{$creditOrder->getOrderNumber()}";
 
         // Create line item for the credit - similar to invoice structure
-        $lineAmount = (float) $creditOrder->total_amount;
+        $lineAmount = (float) $orderAmount;
 
         $line = new IPPLine();
         $line->LineNum = 1;
@@ -134,7 +136,7 @@ class QuickBooksDepositService
             throw new Exception('No available credits found for customer');
         }
 
-        $amountToApply = $amountToApply ?? $esimOrder->total_amount;
+        $amountToApply = $amountToApply ?? $esimOrder->getTotalAmount();
 
         return $this->applyCreditToInvoice($invoiceId, $availableCredits, $amountToApply, $customer);
     }
@@ -274,7 +276,7 @@ class QuickBooksDepositService
     /**
      * Get or create credit item for credit memos
      */
-    private function getOrCreateCreditItem()
+    private function getOrCreateCreditItem(): IPPIntuitEntity
     {
         try {
             // Try to find existing credit item
@@ -299,6 +301,10 @@ class QuickBooksDepositService
             $error = $this->dataService->getLastError();
 
             if ($error) {
+                logger()->error('Failed to create credit item', [
+                    'error' => $error->getResponseBody(),
+                ]);
+
                 throw new Exception('Failed to create credit item: ' . $error->getResponseBody());
             }
 
@@ -314,7 +320,7 @@ class QuickBooksDepositService
     /**
      * Get a fallback service item if credit item creation fails
      */
-    private function getFallbackServiceItem()
+    private function getFallbackServiceItem(): IPPIntuitEntity
     {
         try {
             $items = $this->dataService->Query("SELECT * FROM Item WHERE Type = 'Service' AND Active = true");
@@ -393,8 +399,9 @@ class QuickBooksDepositService
     public function hasInsufficientCredit(Order $order): bool
     {
         $availableCredit = $this->getCustomerCreditBalance($order);
+        $orderAmount = $order->getTotalAmount();
 
-        return $availableCredit < $order->total_amount;
+        return $availableCredit < $orderAmount;
     }
 
     /**
