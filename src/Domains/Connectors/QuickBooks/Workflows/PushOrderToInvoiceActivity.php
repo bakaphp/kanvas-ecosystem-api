@@ -61,6 +61,7 @@ class PushOrderToInvoiceActivity extends KanvasActivity
                 return [
                     'result' => $quickbooksInvoice,
                     'id' => $quickbooksInvoice->Id,
+                    'type' => $isCreditProductType ? 'deposit' : 'invoice',
                     'message' => 'Invoice created successfully',
                 ];
             },
