@@ -10,12 +10,13 @@ use Kanvas\Connectors\QuickBooks\Client;
 use Kanvas\Connectors\QuickBooks\Enums\ConfigurationEnum;
 use Kanvas\Connectors\QuickBooks\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use QuickBooksOnline\API\Data\IPPCreditMemo;
 use QuickBooksOnline\API\Data\IPPCustomer;
 use QuickBooksOnline\API\Data\IPPLine;
 use QuickBooksOnline\API\Data\IPPLinkedTxn;
 use QuickBooksOnline\API\Data\IPPPayment;
-use QuickBooksOnline\API\Data\IPPPaymentMethod;
 use QuickBooksOnline\API\Data\IPPReferenceType;
+use QuickBooksOnline\API\Data\IPPSalesItemLineDetail;
 use QuickBooksOnline\API\DataService\DataService;
 
 class QuickBooksDepositService
@@ -30,12 +31,13 @@ class QuickBooksDepositService
     }
 
     /**
-     * Create a QuickBooks customer payment (unapplied) from a credit purchase Order
+     * Create a QuickBooks credit memo from a credit purchase Order
+     * Credit memos represent customer credits that can be applied to future invoices
      */
-    public function createDepositFromCreditOrder(Order $creditOrder): ?IPPPayment
+    public function createDepositFromCreditOrder(Order $creditOrder): ?IPPCreditMemo
     {
         if ($creditOrder->get(CustomFieldEnum::QUICKBOOKS_DEPOSIT_ID->value)) {
-            // Payment already exists, return existing
+            // Credit memo already exists, return existing
             return $this->getDepositByOrder($creditOrder);
         }
 
@@ -44,58 +46,64 @@ class QuickBooksDepositService
         $customer = $invoiceService->getOrCreateCustomerFromCompany($creditOrder);
 
         if (! $customer) {
-            throw new Exception('Failed to create or find customer for deposit');
+            throw new Exception('Failed to create or find customer for credit memo');
         }
 
-        // Create an unapplied payment (customer deposit)
-        $payment = new IPPPayment();
+        // Create credit memo for customer credits
+        $creditMemo = new IPPCreditMemo();
 
         // Set customer reference
         $customerRef = new IPPReferenceType();
         $customerRef->value = $customer->Id;
         $customerRef->name = $customer->CompanyName ?: $customer->GivenName;
-        $payment->CustomerRef = $customerRef;
+        $creditMemo->CustomerRef = $customerRef;
 
-        // Set payment properties
-        $payment->TxnDate = $creditOrder->created_at->format('Y-m-d');
-        $payment->TotalAmt = $creditOrder->total_amount;
-        $payment->PrivateNote = "Credit purchase from Kanvas Order #{$creditOrder->getOrderNumber()}";
+        // Set credit memo properties
+        $creditMemo->DocNumber = 'CREDIT-' . $creditOrder->getOrderNumber();
+        $creditMemo->TxnDate = $creditOrder->created_at->format('Y-m-d');
+        $creditMemo->TotalAmt = $creditOrder->total_amount;
+        $creditMemo->PrivateNote = "Credit purchase from Kanvas Order #{$creditOrder->getOrderNumber()}";
 
-        // Set payment method if available
-        $paymentMethod = $this->getOrCreatePaymentMethod($creditOrder->payment_method ?? 'Credit Card');
-        if ($paymentMethod) {
-            $paymentMethodRef = new IPPReferenceType();
-            $paymentMethodRef->value = $paymentMethod->Id;
-            $paymentMethodRef->name = $paymentMethod->Name;
-            $payment->PaymentMethodRef = $paymentMethodRef;
-        }
+        // Create line item for the credit
+        $line = new IPPLine();
+        $line->LineNum = 1;
+        $line->Amount = $creditOrder->total_amount;
+        $line->DetailType = 'SalesItemLineDetail';
+        $line->Description = 'Customer Credit Purchase';
 
-        // Set deposit to account (Undeposited Funds or direct to bank)
-        $depositAccountRef = new IPPReferenceType();
-        $depositAccountRef->value = $this->getUndepositedFundsAccountId();
-        $payment->DepositToAccountRef = $depositAccountRef;
+        // Create sales item line detail
+        $salesItemLineDetail = new IPPSalesItemLineDetail();
 
-        // Leave Line empty for unapplied payment (customer credit)
-        // When this payment is applied to an invoice later, the line will be created
-        $payment->Line = [];
+        // Get or create a credit item
+        $creditItem = $this->getOrCreateCreditItem();
+        $itemRef = new IPPReferenceType();
+        $itemRef->value = $creditItem->Id;
+        $itemRef->name = $creditItem->Name;
+        $salesItemLineDetail->ItemRef = $itemRef;
 
-        // Create the payment in QuickBooks
-        $resultingPayment = $this->dataService->Add($payment);
+        $salesItemLineDetail->Qty = 1;
+        $salesItemLineDetail->UnitPrice = $creditOrder->total_amount;
+
+        $line->SalesItemLineDetail = $salesItemLineDetail;
+        $creditMemo->Line = [$line];
+
+        // Create the credit memo in QuickBooks
+        $resultingCreditMemo = $this->dataService->Add($creditMemo);
         $error = $this->dataService->getLastError();
 
         if ($error) {
-            throw new Exception('QuickBooks Payment Error: ' . $error->getResponseBody());
+            throw new Exception('QuickBooks Credit Memo Error: ' . $error->getResponseBody());
         }
 
-        // Store QB payment ID in order metadata
-        $creditOrder->set(CustomFieldEnum::QUICKBOOKS_DEPOSIT_ID->value, $resultingPayment->Id);
-        $creditOrder->set(CustomFieldEnum::QUICKBOOKS_DEPOSIT_AMOUNT->value, $resultingPayment->TotalAmt);
+        // Store QB credit memo ID in order metadata
+        $creditOrder->set(CustomFieldEnum::QUICKBOOKS_DEPOSIT_ID->value, $resultingCreditMemo->Id);
+        $creditOrder->set(CustomFieldEnum::QUICKBOOKS_DEPOSIT_AMOUNT->value, $resultingCreditMemo->TotalAmt);
 
-        return $resultingPayment;
+        return $resultingCreditMemo;
     }
 
     /**
-     * Apply customer payment to an invoice (for eSIM purchases)
+     * Apply customer credit memo to an invoice (for eSIM purchases)
      */
     public function applyDepositToInvoice(Order $esimOrder, ?float $amountToApply = null): bool
     {
@@ -105,45 +113,45 @@ class QuickBooksDepositService
             throw new Exception('No QuickBooks invoice found for eSIM order');
         }
 
-        // Find available customer payments
+        // Find available customer credit memos
         $customer = $this->getCustomerFromOrder($esimOrder);
         if (! $customer) {
-            throw new Exception('Customer not found for payment application');
+            throw new Exception('Customer not found for credit application');
         }
 
-        $availablePayments = $this->getAvailableDepositsForCustomer($customer->Id);
+        $availableCredits = $this->getAvailableCreditsForCustomer($customer->Id);
 
-        if (empty($availablePayments)) {
-            throw new Exception('No available payments found for customer');
+        if (empty($availableCredits)) {
+            throw new Exception('No available credits found for customer');
         }
 
         $amountToApply = $amountToApply ?? $esimOrder->total_amount;
 
-        return $this->applyPaymentToInvoice($invoiceId, $availablePayments, $amountToApply);
+        return $this->applyCreditToInvoice($invoiceId, $availableCredits, $amountToApply, $customer);
     }
 
     /**
-     * Get available payments (customer credits) for a customer
+     * Get available credit memos for a customer
      */
-    private function getAvailableDepositsForCustomer(string $customerId): array
+    private function getAvailableCreditsForCustomer(string $customerId): array
     {
         try {
-            // Get unapplied payments for the customer
-            $payments = $this->dataService->Query("SELECT * FROM Payment WHERE CustomerRef = '{$customerId}'");
+            // Get credit memos for the customer
+            $creditMemos = $this->dataService->Query("SELECT * FROM CreditMemo WHERE CustomerRef = '{$customerId}'");
 
-            // Filter payments that still have available balance (unapplied amount)
-            $availablePayments = [];
-            foreach ($payments as $payment) {
-                $appliedAmount = $this->getAppliedPaymentAmount($payment->Id);
-                $availableAmount = $payment->TotalAmt - $appliedAmount;
+            // Filter credit memos that still have available balance
+            $availableCredits = [];
+            foreach ($creditMemos as $creditMemo) {
+                $appliedAmount = $this->getAppliedCreditAmount($creditMemo->Id);
+                $availableAmount = $creditMemo->TotalAmt - $appliedAmount;
 
                 if ($availableAmount > 0) {
-                    $payment->AvailableAmount = $availableAmount;
-                    $availablePayments[] = $payment;
+                    $creditMemo->AvailableAmount = $availableAmount;
+                    $availableCredits[] = $creditMemo;
                 }
             }
 
-            return $availablePayments;
+            return $availableCredits;
         } catch (Exception $e) {
             report($e);
 
@@ -152,22 +160,28 @@ class QuickBooksDepositService
     }
 
     /**
-     * Get the amount already applied from a payment
+     * Get the amount already applied from a credit memo
      */
-    private function getAppliedPaymentAmount(string $paymentId): float
+    private function getAppliedCreditAmount(string $creditMemoId): float
     {
         try {
-            // Get the payment details to see applied lines
-            $payment = $this->dataService->findById('Payment', $paymentId);
-
-            if (! $payment || ! $payment->Line) {
-                return 0;
-            }
+            // Query for payments that reference this credit memo
+            $payments = $this->dataService->Query('SELECT * FROM Payment');
 
             $appliedAmount = 0;
-            foreach ($payment->Line as $line) {
-                if (isset($line->Amount)) {
-                    $appliedAmount += $line->Amount;
+            foreach ($payments as $payment) {
+                if (! $payment->Line) {
+                    continue;
+                }
+
+                foreach ($payment->Line as $line) {
+                    if (isset($line->LinkedTxn)) {
+                        foreach ($line->LinkedTxn as $linkedTxn) {
+                            if ($linkedTxn->TxnType === 'CreditMemo' && $linkedTxn->TxnId === $creditMemoId) {
+                                $appliedAmount += $line->Amount;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -180,52 +194,64 @@ class QuickBooksDepositService
     }
 
     /**
-     * Apply payment to invoice by updating the payment with invoice line
+     * Apply credit memo to invoice by creating a payment
      */
-    private function applyPaymentToInvoice(string $invoiceId, array $payments, float $amountToApply): bool
+    private function applyCreditToInvoice(string $invoiceId, array $credits, float $amountToApply, IPPCustomer $customer): bool
     {
         try {
-            // For now, use the first available payment
-            // In a more complex scenario, you might want to use multiple payments
-            $payment = $payments[0];
+            // For now, use the first available credit
+            $creditMemo = $credits[0];
 
-            if ($payment->AvailableAmount < $amountToApply) {
-                throw new Exception('Insufficient payment balance');
+            if ($creditMemo->AvailableAmount < $amountToApply) {
+                throw new Exception('Insufficient credit balance');
             }
 
-            // Get the payment to update
-            $existingPayment = $this->dataService->findById('Payment', $payment->Id);
+            // Create a payment that applies the credit memo to the invoice
+            $payment = new IPPPayment();
 
-            if (! $existingPayment) {
-                throw new Exception('Payment not found for update');
-            }
+            // Set customer reference
+            $customerRef = new IPPReferenceType();
+            $customerRef->value = $customer->Id;
+            $customerRef->name = $customer->CompanyName ?: $customer->GivenName;
+            $payment->CustomerRef = $customerRef;
 
-            // Create payment line to link to invoice
-            $line = new IPPLine();
-            $line->Amount = $amountToApply;
+            $payment->TxnDate = date('Y-m-d');
+            $payment->TotalAmt = $amountToApply;
+            $payment->PrivateNote = 'Applied credit memo to invoice';
 
-            // Create linked transaction reference
-            $linkedTxn = new IPPLinkedTxn();
-            $linkedTxn->TxnId = $invoiceId;
-            $linkedTxn->TxnType = 'Invoice';
+            // Create payment lines
+            $lines = [];
 
-            // Set LinkedTxn on the line
-            $line->LinkedTxn = [$linkedTxn];
+            // Line 1: Apply to invoice (positive amount)
+            $invoiceLine = new IPPLine();
+            $invoiceLine->Amount = $amountToApply;
 
-            // Add the line to the existing payment
-            $existingLines = $existingPayment->Line ?? [];
-            $existingLines[] = $line;
-            $existingPayment->Line = $existingLines;
+            $invoiceLinkedTxn = new IPPLinkedTxn();
+            $invoiceLinkedTxn->TxnId = $invoiceId;
+            $invoiceLinkedTxn->TxnType = 'Invoice';
+            $invoiceLine->LinkedTxn = [$invoiceLinkedTxn];
 
-            // Mark as sparse update
-            $existingPayment->sparse = true;
+            $lines[] = $invoiceLine;
 
-            // Update the payment
-            $updatedPayment = $this->dataService->Update($existingPayment);
+            // Line 2: Use credit memo (negative amount)
+            $creditLine = new IPPLine();
+            $creditLine->Amount = -$amountToApply; // Negative because we're using the credit
+
+            $creditLinkedTxn = new IPPLinkedTxn();
+            $creditLinkedTxn->TxnId = $creditMemo->Id;
+            $creditLinkedTxn->TxnType = 'CreditMemo';
+            $creditLine->LinkedTxn = [$creditLinkedTxn];
+
+            $lines[] = $creditLine;
+
+            $payment->Line = $lines;
+
+            // Create the payment
+            $resultingPayment = $this->dataService->Add($payment);
             $error = $this->dataService->getLastError();
 
             if ($error) {
-                throw new Exception('Failed to apply payment: ' . $error->getResponseBody());
+                throw new Exception('Failed to apply credit: ' . $error->getResponseBody());
             }
 
             return true;
@@ -237,40 +263,40 @@ class QuickBooksDepositService
     }
 
     /**
-     * Get or create payment method
+     * Get or create credit item for credit memos
      */
-    private function getOrCreatePaymentMethod(string $methodName): ?IPPPaymentMethod
+    private function getOrCreateCreditItem()
     {
         try {
-            $escapedMethodName = str_replace("'", "\'", $methodName);
-            $paymentMethods = $this->dataService->Query("SELECT * FROM PaymentMethod WHERE Name = '{$escapedMethodName}'");
+            $items = $this->dataService->Query("SELECT * FROM Item WHERE Name = 'Customer Credit'");
 
-            if (! empty($paymentMethods)) {
-                return $paymentMethods[0];
+            if (! empty($items)) {
+                return $items[0];
             }
 
-            // Create new payment method
-            $paymentMethod = new IPPPaymentMethod();
-            $paymentMethod->Name = $methodName;
-            $paymentMethod->Active = true;
+            // Create new credit item
+            $item = new \QuickBooksOnline\API\Data\IPPItem();
+            $item->Name = 'Customer Credit';
+            $item->Type = 'Service';
+            $item->Active = true;
 
-            $result = $this->dataService->Add($paymentMethod);
+            // Set income account reference
+            $incomeAccountRef = new IPPReferenceType();
+            $incomeAccountRef->value = $this->getIncomeAccountId();
+            $item->IncomeAccountRef = $incomeAccountRef;
+
+            $result = $this->dataService->Add($item);
             $error = $this->dataService->getLastError();
 
             if ($error) {
-                logger()->warning('Failed to create payment method', [
-                    'method' => $methodName,
-                    'error' => $error->getResponseBody(),
-                ]);
-
-                return null;
+                throw new Exception('Failed to create credit item: ' . $error->getResponseBody());
             }
 
             return $result;
         } catch (Exception $e) {
             report($e);
 
-            return null;
+            throw new Exception('Could not create or find credit item');
         }
     }
 
@@ -295,18 +321,18 @@ class QuickBooksDepositService
     }
 
     /**
-     * Get payment by order
+     * Get credit memo by order
      */
-    public function getDepositByOrder(Order $order): ?IPPPayment
+    public function getDepositByOrder(Order $order): ?IPPCreditMemo
     {
-        $paymentId = $order->get(CustomFieldEnum::QUICKBOOKS_DEPOSIT_ID->value);
+        $creditMemoId = $order->get(CustomFieldEnum::QUICKBOOKS_DEPOSIT_ID->value);
 
-        if (! $paymentId) {
+        if (! $creditMemoId) {
             return null;
         }
 
         try {
-            return $this->dataService->findById('Payment', $paymentId);
+            return $this->dataService->findById('CreditMemo', $creditMemoId);
         } catch (Exception $e) {
             report($e);
 
@@ -325,9 +351,9 @@ class QuickBooksDepositService
             return 0;
         }
 
-        $deposits = $this->getAvailableDepositsForCustomer($customer->Id);
+        $credits = $this->getAvailableCreditsForCustomer($customer->Id);
 
-        return array_sum(array_column($deposits, 'AvailableAmount'));
+        return array_sum(array_column($credits, 'AvailableAmount'));
     }
 
     /**
@@ -343,8 +369,8 @@ class QuickBooksDepositService
     /**
      * Helper methods to get account IDs from app configuration
      */
-    private function getUndepositedFundsAccountId(): string
+    private function getIncomeAccountId(): string
     {
-        return $this->app->get(ConfigurationEnum::QUICKBOOKS_UNDEPOSITED_FUNDS_ACCOUNT_ID->value) ?? '4'; // Undeposited Funds account
+        return $this->app->get(ConfigurationEnum::QUICKBOOKS_INCOME_ACCOUNT_ID->value) ?? '1';
     }
 }
