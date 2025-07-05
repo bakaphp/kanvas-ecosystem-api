@@ -66,7 +66,7 @@ class CalculateCustomTaxAction
                 ->asText();
 
             // Parse the response to extract tax information
-            return $this->parseCustomTaxResponse($response);
+            return $this->parseCustomTaxResponse($response->text);
         } catch (Exception $e) {
             // Log the error and return default values
             report($e);
