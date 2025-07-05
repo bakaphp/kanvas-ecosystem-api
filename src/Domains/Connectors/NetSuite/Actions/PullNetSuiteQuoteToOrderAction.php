@@ -194,7 +194,7 @@ class PullNetSuiteQuoteToOrderAction
         }
 
         // Recalculate order totals after item updates
-        $order->calculateTotals();
+        $order->calculateTotal();
     }
 
     /**
