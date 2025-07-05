@@ -25,14 +25,28 @@ class AddCostToCartAction
             return;
         }
 
-        $fees = array_map(function ($item) {
+        // Check if cart subtotal is over $200 USD for custom tax calculation
+        $cartSubtotal = $this->cart->getSubTotal();
+        $shouldCalculateCustomTax = $cartSubtotal > 200;
+
+        $fees = array_map(function ($item) use ($shouldCalculateCustomTax) {
             $variant = Variants::getById($item['id']);
             $calc = (new CalculateShippingCostAction($this->app, $variant, (float) $item['quantity']))->execute();
 
-            // Calculate custom tax using the new action
-            $customTaxCalc = (new CalculateCustomTaxAction($this->app, $variant, (float) $item['quantity'], $item))->execute();
-            $calc['customTax'] = $customTaxCalc['customTax'];
-            $calc['customTaxInfo'] = $customTaxCalc;
+            // Calculate custom tax only if cart value is over $200 USD
+            if ($shouldCalculateCustomTax) {
+                $customTaxCalc = (new CalculateCustomTaxAction($this->app, $variant, (float) $item['quantity'], $item))->execute();
+                $calc['customTax'] = $customTaxCalc['customTax'];
+                $calc['customTaxInfo'] = $customTaxCalc;
+            } else {
+                $calc['customTax'] = 0;
+                $calc['customTaxInfo'] = [
+                    'customTax' => 0,
+                    'arancelCode' => null,
+                    'countryOrigin' => 'US',
+                    'calculation' => 'Custom tax not calculated - cart value under $200 USD',
+                ];
+            }
 
             return $calc;
         }, $this->cart->getContent()->toArray());
