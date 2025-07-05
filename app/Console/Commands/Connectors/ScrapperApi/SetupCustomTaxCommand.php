@@ -56,7 +56,7 @@ class SetupCustomTaxCommand extends Command
                     ['Product Name', $variant->product->name],
                     ['Variant Name', $variant->name],
                     ['SKU', $variant->sku],
-                    ['Price', '$' . number_format($variant->getPriceInfoFromDefaultChannel()->price, 2) . ' USD'],
+                    ['Price', '$' . number_format((float) $variant->getPriceInfoFromDefaultChannel()->price, 2) . ' USD'],
                     ['Weight', ($variant->getAttributeByName('weight_unit')?->value ?? 1) . 'g'],
                     ['Quantity', $quantity],
                 ]
