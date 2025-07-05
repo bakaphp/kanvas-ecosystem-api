@@ -38,6 +38,7 @@ use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsP
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
+use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteQuoteWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\PushOrderToNetsuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
@@ -217,6 +218,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PushLeadActivity::class,
             PushPeopleActivity::class,
             PushOrderToInvoiceActivity::class,
+            PullNetSuiteQuoteWebhookJob::class,
         ];
 
         $createdActions = [];
