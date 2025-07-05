@@ -186,10 +186,10 @@ class PullNetSuiteQuoteToOrderAction
 
             if ($orderItem) {
                 // Update existing order item
-                $this->updateExistingOrderItem($orderItem, $quantity, $rate, $description);
+                $this->updateExistingOrderItem($orderItem, (float) $quantity, (float) $rate, $description);
             } else {
                 // Try to add new order item (only if variant exists)
-                $this->addNewOrderItem($order, $sku, $quantity, $rate, $description);
+                $this->addNewOrderItem($order, $sku, (float) $quantity, (float) $rate, $description);
             }
         }
 
