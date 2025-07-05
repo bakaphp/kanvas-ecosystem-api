@@ -316,23 +316,31 @@ class PullNetSuiteQuoteToOrderAction
      */
     protected function findOrderByNetSuiteQuoteId(string|int $netsuiteQuoteId): ?Order
     {
+        // Convert to string for consistent searching
+        $quoteIdString = (string) $netsuiteQuoteId;
+        $quoteIdInt = (int) $netsuiteQuoteId;
+
         // First try to find by custom field
-        $orderByCustomField = Order::fromApp($this->app)
-            ->fromCompany($this->company)
-            ->whereHas('customFields', function ($query) use ($netsuiteQuoteId) {
-                $query->where('name', CustomFieldEnum::NET_SUITE_QUOTE_ID->value)
-                      ->where('value', $netsuiteQuoteId);
-            })
-            ->first();
+        $orderByCustomField = Order::getByCustomField(
+            CustomFieldEnum::NET_SUITE_QUOTE_ID->value,
+            $quoteIdString,
+            $this->company
+        );
 
         if ($orderByCustomField) {
             return $orderByCustomField;
         }
 
-        // Fallback to metadata search
+        // Fallback to metadata search with proper null/empty checks
         return Order::fromApp($this->app)
             ->fromCompany($this->company)
-            ->whereJsonContains('metadata->netsuite_quote_id', $netsuiteQuoteId)
+            ->whereNotNull('metadata')
+            ->where('metadata', '!=', '{}')
+            ->where('metadata', '!=', '[]')
+            ->where(function ($query) use ($quoteIdString, $quoteIdInt) {
+                $query->whereRaw("JSON_EXTRACT(metadata, '$.netsuite_quote_id') = ?", [$quoteIdString])
+                      ->orWhereRaw("JSON_EXTRACT(metadata, '$.netsuite_quote_id') = ?", [$quoteIdInt]);
+            })
             ->first();
     }
 

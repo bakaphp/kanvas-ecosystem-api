@@ -38,6 +38,7 @@ class PullNetSuiteQuoteWebhookJob extends ProcessWebhookJob
                 $updatedOrder = $pullNetSuiteQuote->execute($quoteId);
                 $successMessage = 'NetSuite Quote Synced';
             } catch (Exception $e) {
+                report($e);
                 $successMessage = 'NetSuite Quote Sync Failed: ' . $e->getMessage();
             }
         }
