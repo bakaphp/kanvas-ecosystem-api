@@ -636,17 +636,17 @@ class Order extends BaseModel
 
     public function calculateTotal(): void
     {
-        $total = OrderItem::query()->where(["order_id" =>  $this->id])
+        $total = OrderItem::query()->where(['order_id' => $this->id])
         ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
         sum(unit_price_gross_amount - unit_price_net_amount) as discount, count(*) as count')->get();
 
         $discount = $total[0]['discount'] ?? 0;
-        $orderTotal =  ($total[0]['price'] ?? 0);
-        $this->total_gross_amount = $orderTotal + $discount;
-        $this->total_net_amount = $orderTotal;
-        $this->shipping_price_gross_amount = $this->shipping_price_gross_amount;
-        $this->shipping_price_net_amount = $this->shipping_price_net_amount;
-        $this->discount_amount = $discount;
+        $orderTotal = ($total[0]['price'] ?? 0);
+        $this->total_gross_amount = (float) $orderTotal + (float) $discount;
+        $this->total_net_amount = (float) $orderTotal;
+        $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
+        $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
+        $this->discount_amount = (float) $discount;
         $this->saveOrFail();
     }
 }
