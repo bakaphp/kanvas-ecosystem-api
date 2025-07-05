@@ -104,8 +104,14 @@ class CalculateCustomTaxAction
             $countryOrigin = trim($matches[1]);
         }
 
-        // Extract total taxes in USD and RD$
+        // Extract total taxes in USD and RD$ - Updated to handle table format
+        // Try original format first
         if (preg_match('/Total Impuestos\s+\$([0-9,]+\.?[0-9]*)\s+RD\$([0-9,]+\.?[0-9]*)/', $response, $matches)) {
+            $totalTaxesUSD = (float) str_replace(',', '', $matches[1]);
+            $totalTaxesRD = (float) str_replace(',', '', $matches[2]);
+        }
+        // Try table format with pipes
+        elseif (preg_match('/\|\s*Total Impuestos\s*\|\s*\$([0-9,]+\.?[0-9]*)\s*\|\s*RD\$([0-9,]+\.?[0-9]*)\s*\|/', $response, $matches)) {
             $totalTaxesUSD = (float) str_replace(',', '', $matches[1]);
             $totalTaxesRD = (float) str_replace(',', '', $matches[2]);
         }
@@ -118,21 +124,32 @@ class CalculateCustomTaxAction
             'isc' => 0,
         ];
 
-        // Parse tax breakdown
+        // Parse tax breakdown - Updated to handle table format
+        // Arancel
         if (preg_match('/Arancel \(([0-9]+)%\)\s+\$([0-9,]+\.?[0-9]*)\s+RD\$([0-9,]+\.?[0-9]*)/', $response, $matches)) {
+            $taxes['arancel'] = (float) str_replace(',', '', $matches[2]);
+        } elseif (preg_match('/\|\s*Arancel \(([0-9]+)%\)\s*\|\s*\$([0-9,]+\.?[0-9]*)\s*\|\s*RD\$([0-9,]+\.?[0-9]*)\s*\|/', $response, $matches)) {
             $taxes['arancel'] = (float) str_replace(',', '', $matches[2]);
         }
 
+        // ITBIS
         if (preg_match('/ITBIS \(18%\)\s+\$([0-9,]+\.?[0-9]*)\s+RD\$([0-9,]+\.?[0-9]*)/', $response, $matches)) {
+            $taxes['itbis'] = (float) str_replace(',', '', $matches[1]);
+        } elseif (preg_match('/\|\s*ITBIS \(18%\)\s*\|\s*\$([0-9,]+\.?[0-9]*)\s*\|\s*RD\$([0-9,]+\.?[0-9]*)\s*\|/', $response, $matches)) {
             $taxes['itbis'] = (float) str_replace(',', '', $matches[1]);
         }
 
+        // Tasa Aduanal
         if (preg_match('/Tasa Aduanal \(3%\)\s+\$([0-9,]+\.?[0-9]*)\s+RD\$([0-9,]+\.?[0-9]*)/', $response, $matches)) {
+            $taxes['tasaAduanal'] = (float) str_replace(',', '', $matches[1]);
+        } elseif (preg_match('/\|\s*Tasa Aduanal \(3%\)\s*\|\s*\$([0-9,]+\.?[0-9]*)\s*\|\s*RD\$([0-9,]+\.?[0-9]*)\s*\|/', $response, $matches)) {
             $taxes['tasaAduanal'] = (float) str_replace(',', '', $matches[1]);
         }
 
         // Check for ISC or CO2 taxes
         if (preg_match('/\[([^\]]+)\]\s+\$([0-9,]+\.?[0-9]*)\s+RD\$([0-9,]+\.?[0-9]*)/', $response, $matches)) {
+            $taxes['isc'] = (float) str_replace(',', '', $matches[2]);
+        } elseif (preg_match('/\|\s*\[([^\]]+)\]\s*\|\s*\$([0-9,]+\.?[0-9]*)\s*\|\s*RD\$([0-9,]+\.?[0-9]*)\s*\|/', $response, $matches)) {
             $taxes['isc'] = (float) str_replace(',', '', $matches[2]);
         }
 
