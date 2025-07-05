@@ -24,29 +24,40 @@ class AddCostToCartAction
         if (! $this->app->get(ShippingCostEnum::LOCOMPRO_COST->value)) {
             return;
         }
+
         $fees = array_map(function ($item) {
             $variant = Variants::getById($item['id']);
             $calc = (new CalculateShippingCostAction($this->app, $variant, (float) $item['quantity']))->execute();
+
+            // Calculate custom tax using the new action
+            $customTaxCalc = (new CalculateCustomTaxAction($this->app, $variant, (float) $item['quantity'], $item))->execute();
+            $calc['customTax'] = $customTaxCalc['customTax'];
+            $calc['customTaxInfo'] = $customTaxCalc;
 
             return $calc;
         }, $this->cart->getContent()->toArray());
 
         $fee = collect($fees);
         $total = $fee->sum('total');
+        $customTaxTotal = $fee->sum('customTax');
+
+        // Add 15% service fee to shipping only, not custom tax
         $total = $total + $total * 0.15;
+
         $this->cart->removeCartCondition('Shipping');
         $condition = new CartCondition([
             'name' => 'Shipping',
             'type' => 'shipping',
             'target' => 'subtotal',
-            'value' => '+' . $total,
+            'value' => '+' . ($total + $customTaxTotal),
             'attributes' => [
                 'Shipping Cost' => $fee->sum('shippingCost'),
                 'Other Fees' => $fee->sum('otherFee'),
                 'Service Fee' => $fee->sum('serviceFee'),
                 'Pounds' => $fee->sum('pounds'),
                 'Last Mile' => 0,
-                'Custom Tax' => 0,
+                'Custom Tax' => $customTaxTotal,
+                //'Custom Tax Details' => $fee->where('customTaxInfo.customTax', '>', 0)->pluck('customTaxInfo')->toArray(),
             ],
         ]);
         $this->cart->condition([$condition]);
