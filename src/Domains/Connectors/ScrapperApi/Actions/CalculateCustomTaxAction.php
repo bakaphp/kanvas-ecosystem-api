@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ScrapperApi\Enums\ShippingCostEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -66,7 +67,7 @@ class CalculateCustomTaxAction
 
             // Parse the response to extract tax information
             return $this->parseCustomTaxResponse($response);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Log the error and return default values
             report($e);
 
