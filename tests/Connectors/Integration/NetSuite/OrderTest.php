@@ -6,7 +6,7 @@ namespace Tests\Connectors\Integration\NetSuite;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteAction;
+use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteQuoteAction;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
@@ -123,7 +123,7 @@ final class OrderTest extends TestCase
         $order = $this->createDraftOrder();
 
         // Create the action
-        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
+        $pushAction = new PushOrderToNetSuiteQuoteAction($this->apps, $this->company);
 
         // Push order to NetSuite with an existing NetSuite customer ID
         $result = $pushAction->execute(
@@ -146,7 +146,7 @@ final class OrderTest extends TestCase
         $order = $this->createDraftOrder();
 
         // Create the action
-        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
+        $pushAction = new PushOrderToNetSuiteQuoteAction($this->apps, $this->company);
 
         // Push order to NetSuite without specifying a customer
         $result = $pushAction->execute(
@@ -171,7 +171,7 @@ final class OrderTest extends TestCase
             $order = $this->createDraftOrder();
 
             // Create the action
-            $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
+            $pushAction = new PushOrderToNetSuiteQuoteAction($this->apps, $this->company);
 
             // // Update the existing quote
             $result = $pushAction->updateQuote($order);
@@ -190,7 +190,7 @@ final class OrderTest extends TestCase
             $order = $this->createDraftOrder();
 
             // Create the action
-            $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
+            $pushAction = new PushOrderToNetSuiteQuoteAction($this->apps, $this->company);
 
             // Convert the quote to a sales order
             $result = $pushAction->convertQuoteToSalesOrder($order);
@@ -209,7 +209,7 @@ final class OrderTest extends TestCase
         $order = $this->createDraftOrder();
 
         // Create the action
-        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
+        $pushAction = new PushOrderToNetSuiteQuoteAction($this->apps, $this->company);
         $result = $pushAction->execute(
             order: $order,
             netsuiteCustomerId: null,
@@ -230,7 +230,7 @@ final class OrderTest extends TestCase
     {
         $order = $this->createDraftOrder();
 
-        $pushAction = new PushOrderToNetSuiteAction($this->apps, $this->company);
+        $pushAction = new PushOrderToNetSuiteQuoteAction($this->apps, $this->company);
         $result = $pushAction->execute(
             order: $order,
             netsuiteCustomerId: null,
