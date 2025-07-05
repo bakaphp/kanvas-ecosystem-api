@@ -224,10 +224,8 @@ class PullNetSuiteQuoteToOrderAction
             $updated = true;
         }
 
-        // Recalculate line totals
+        // Save the order item if updated (remove the total calculations)
         if ($updated) {
-            $orderItem->total_gross_amount = $quantity * $rate;
-            $orderItem->total_net_amount = $quantity * $rate; // Adjust based on your tax logic
             $orderItem->saveOrFail();
         }
     }
