@@ -9,7 +9,11 @@ use Baka\Contracts\CompanyInterface;
 use Exception;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteQuoteService;
+use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Orders\DataTransferObject\OrderItem as DataTransferObjectOrderItem;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderItem;
 use NetSuite\Classes\Estimate;
 
 class PullNetSuiteQuoteToOrderAction
@@ -162,8 +166,8 @@ class PullNetSuiteQuoteToOrderAction
      */
     protected function updateOrderItems(Order $order, array $netsuiteItems): void
     {
-        // This is a basic implementation - you may want to make this more sophisticated
-        // based on your business logic for handling item updates
+        // Track which items we've processed
+        $processedSkus = [];
 
         foreach ($netsuiteItems as $netsuiteItem) {
             if (! isset($netsuiteItem->item) || ! isset($netsuiteItem->item->name)) {
@@ -173,35 +177,138 @@ class PullNetSuiteQuoteToOrderAction
             $sku = $netsuiteItem->item->name;
             $quantity = $netsuiteItem->quantity ?? 0;
             $rate = $netsuiteItem->rate ?? 0;
+            $description = $netsuiteItem->description ?? $sku;
+
+            $processedSkus[] = $sku;
 
             // Find corresponding order item by SKU
             $orderItem = $order->items->where('product_sku', $sku)->first();
 
             if ($orderItem) {
-                $updated = false;
-
-                // Update quantity if different
-                if ($orderItem->quantity != $quantity) {
-                    $orderItem->quantity = $quantity;
-                    $updated = true;
-                }
-
-                // Update price if different (with tolerance for floating point comparison)
-                $currentPrice = $orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount ?? 0;
-                if (abs($currentPrice - $rate) > 0.01) {
-                    $orderItem->unit_price_gross_amount = $rate;
-                    $orderItem->unit_price_net_amount = $rate; // Adjust based on your tax logic
-                    $updated = true;
-                }
-
-                if ($updated) {
-                    $orderItem->saveOrFail();
-                }
+                // Update existing order item
+                $this->updateExistingOrderItem($orderItem, $quantity, $rate, $description);
+            } else {
+                // Try to add new order item (only if variant exists)
+                $this->addNewOrderItem($order, $sku, $quantity, $rate, $description);
             }
         }
 
         // Recalculate order totals after item updates
         $order->calculateTotals();
+    }
+
+    /**
+     * Update an existing order item
+     */
+    protected function updateExistingOrderItem(OrderItem $orderItem, float $quantity, float $rate, string $description): void
+    {
+        $updated = false;
+
+        // Update quantity if different
+        if ($orderItem->quantity != $quantity) {
+            $orderItem->quantity = $quantity;
+            $updated = true;
+        }
+
+        // Update price if different (with tolerance for floating point comparison)
+        $currentPrice = $orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount ?? 0;
+        if (abs($currentPrice - $rate) > 0.01) {
+            $orderItem->unit_price_gross_amount = $rate;
+            $orderItem->unit_price_net_amount = $rate; // Adjust based on your tax logic
+            $updated = true;
+        }
+
+        // Update description if different
+        if ($orderItem->product_name !== $description) {
+            $orderItem->product_name = $description;
+            $updated = true;
+        }
+
+        // Recalculate line totals
+        if ($updated) {
+            $orderItem->total_gross_amount = $quantity * $rate;
+            $orderItem->total_net_amount = $quantity * $rate; // Adjust based on your tax logic
+            $orderItem->saveOrFail();
+        }
+    }
+
+    /**
+     * Add a new order item from NetSuite quote (only if variant exists)
+     */
+    protected function addNewOrderItem(
+        Order $order,
+        string $sku,
+        float $quantity,
+        float $rate,
+        string $description
+    ): void {
+        // Try to find the variant/product in the system
+        $variant = $this->findVariantBySku($sku);
+
+        if (! $variant) {
+            // Log that we couldn't find the product but don't create the item
+            report(new Exception("Product with SKU '{$sku}' not found in Kanvas system when adding from NetSuite quote. Skipping item."));
+
+            return;
+        }
+
+        // Get the currency model
+        $currency = $this->getCurrencyModel($order->currency ?? 'USD');
+
+        // Create OrderItemDto
+        $orderItemDto = new DataTransferObjectOrderItem(
+            app: $this->app,
+            variant: $variant,
+            name: $variant->name,
+            sku: $sku,
+            quantity: $quantity,
+            price: $rate,
+            discount: 0, // Adjust based on your logic
+            tax: 0, // Adjust based on your logic
+            currency: $currency,
+            metadata: ['source' => 'netsuite_quote']
+        );
+
+        // Use the existing addItem method
+        $order->addItem($orderItemDto);
+    }
+
+    /**
+     * Find variant by SKU in the system
+     */
+    protected function findVariantBySku(string $sku): ?Variants
+    {
+        // Try to find by SKU first
+        $variant = Variants::fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('sku', $sku)
+            ->first();
+
+        if (! $variant) {
+            // Try to find by barcode as fallback
+            $variant = Variants::fromApp($this->app)
+                ->fromCompany($this->company)
+                ->where('barcode', $sku)
+                ->first();
+        }
+
+        return $variant;
+    }
+
+    /**
+     * Get currency model
+     */
+    protected function getCurrencyModel(string $currencyCode): Currencies
+    {
+        // Get the currency from the database
+        $currency = Currencies::where('code', $currencyCode)->first();
+
+        // If not found, create a default one or use a fallback
+        if (! $currency) {
+            $currency = Currencies::getBaseCurrency();
+        }
+
+        return $currency;
     }
 
     /**
