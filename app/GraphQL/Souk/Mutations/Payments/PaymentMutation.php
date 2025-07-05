@@ -67,6 +67,7 @@ class PaymentMutation
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderID'];
+        $user = auth()->user();
 
         $order = Order::where([
             'apps_id' => $app->getId(),
@@ -100,7 +101,7 @@ class PaymentMutation
 
         try {
             $formData['amount'] = $formData['amount'] ?? $order->getTotalAmount();
-            $payment = new CreatePaymentAction($order)->execute($formData);
+            $payment = new CreatePaymentAction($order, $user)->execute($formData);
         } catch (Exception $e) {
             return [
                 'status' => 'error',
@@ -179,6 +180,7 @@ class PaymentMutation
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
+        $user = auth()->user();
 
         $payment = Payments::where([
             'apps_id' => $app->getId(),

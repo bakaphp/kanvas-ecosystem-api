@@ -5,6 +5,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Exception;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
+use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -48,28 +49,29 @@ class TransitionOrderStateAction
             throw new Exception("The status {$this->newOrderStatus->name} is not a valid transition from {$currentOrderStatus->name}");
         }
 
-        $log = activity('change-order-status')
-           ->causedBy($this->user)
-           ->withProperties([
-               'order' => $this->order->toArray(),
-               'new_order_status' => $this->newOrderStatus->toArray(),
-           ])
-           ->log('User changed order status');
-
         $this->order->updateQuietly(['order_status_id' => $this->newOrderStatus->id]);
-
-        $log->subject_type = get_class($this->order);
-        $log->subject_id = $this->order->id;
-        $log->description = 'User successfully changed order status';
-        $log->saveOrFail();
+        // Insert into order_transitions_history
+        OrderTransitionHistory::create([
+            'apps_id' => $this->order->apps_id,
+            'companies_id' => $this->order->companies_id,
+            'transition_id' => $orderStatusTransitions->id,
+            'order_id' => $this->order->id,
+            'from_status_id' => $currentOrderStatus->id,
+            'to_status_id' => $this->newOrderStatus->id,
+            'description' => 'Order status changed from ' . $currentOrderStatus->slug . ' to ' . $this->newOrderStatus->slug,
+            'metadata' => is_array($this->order->metadata) ? json_encode($this->order->metadata) : $this->order->metadata,
+            'is_deleted' => false,
+            'changed_at' => now(),
+            'changed_by' => $this->user->getId(),
+        ]);
 
         $this->order->fireWorkflow(
             WorkflowEnum::STATUS_TRANSITION->value,
             true,
             [
                 'app' => $this->order->app,
-                'from_status' => $currentOrderStatus,
-                'to_status' => $this->newOrderStatus,
+                'from_status' => $currentOrderStatus->slug,
+                'to_status' => $this->newOrderStatus->slug,
                 'who' => $this->user,
             ]
         );

@@ -254,8 +254,9 @@ class OrderService
         $clientDetails = $this->getClientDetails();
         $clientDetails['imei_number'] = $imeiNumber;
 
-        return $this->client->post('/api/v2/airalo/refuel/order', [
+        return $this->client->post('/api/v1/airalo/recharge', [
             'iccid' => $targetIccid,
+            'package_id' => $esimPlan->value,
             'plan' => $esimPlan->value,
             'type' => 'sim',
             'description' => '1 ' . $esimPlan->value . ' refuel',

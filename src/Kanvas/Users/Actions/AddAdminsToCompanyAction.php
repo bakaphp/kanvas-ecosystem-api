@@ -44,7 +44,7 @@ class AddAdminsToCompanyAction
                     app: $this->app
                 );
 
-                $addUserCompanyAction->execute($admins, $role->getId());
+                $addUserCompanyAction->execute($admins, $role->id);
             } catch (Exception $e) {
                 captureException($e);
             }

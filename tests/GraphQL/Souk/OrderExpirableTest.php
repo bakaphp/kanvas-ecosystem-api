@@ -46,7 +46,7 @@ class OrderExpirableTest extends TestCase
 
     public function createDraftOrder(
         array $metadata,
-        string $variantId,
+        string|int $variantId,
         int $quantity = 1,
     ): Order {
         $data = [

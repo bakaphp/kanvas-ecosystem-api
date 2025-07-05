@@ -397,10 +397,7 @@ class OrderManagementMutation
         ])->first();
 
         if (! $order) {
-            return [
-                'status' => 'error',
-                'message' => 'Order not found',
-            ];
+            throw new ValidationException('Order not found');
         }
 
         $newOrderStatus = OrderStatus::where([
@@ -409,10 +406,7 @@ class OrderManagementMutation
         ])->first();
 
         if (! $newOrderStatus) {
-            return [
-                'status' => 'error',
-                'message' => 'Order status not found',
-            ];
+            throw new ValidationException('Order status not found');
         }
 
         try {
@@ -422,10 +416,7 @@ class OrderManagementMutation
                 $user
             )->execute();
         } catch (Throwable $e) {
-            return [
-                'status' => 'error',
-                'message' => $e->getMessage(),
-            ];
+            throw new ValidationException($e->getMessage());
         }
     }
 }
