@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\EchoPay;
+namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;

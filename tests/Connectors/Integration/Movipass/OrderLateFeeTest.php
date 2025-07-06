@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\GraphQL\Souk;
+namespace Tests\Connectors\Integration\Movipass;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;

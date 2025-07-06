@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.348.2",
+            "version": "3.349.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "6acc8e4f8b7468e604d6f0442284937398c2959a"
+                "reference": "63cc727845f077d17cb94791deb327249e1626ce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/6acc8e4f8b7468e604d6f0442284937398c2959a",
-                "reference": "6acc8e4f8b7468e604d6f0442284937398c2959a",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/63cc727845f077d17cb94791deb327249e1626ce",
+                "reference": "63cc727845f077d17cb94791deb327249e1626ce",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.348.2"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.349.2"
             },
-            "time": "2025-06-30T18:12:03+00:00"
+            "time": "2025-07-03T18:08:27+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -4041,16 +4041,16 @@
         },
         {
             "name": "imdhemy/appstore-iap",
-            "version": "1.9.0",
+            "version": "1.9.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/imdhemy/appstore-iap.git",
-                "reference": "27453653f08fb559a21ccf27867a719038117924"
+                "reference": "ffa194aa6d238f3843d7ff81ef036f54ce9990a3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/imdhemy/appstore-iap/zipball/27453653f08fb559a21ccf27867a719038117924",
-                "reference": "27453653f08fb559a21ccf27867a719038117924",
+                "url": "https://api.github.com/repos/imdhemy/appstore-iap/zipball/ffa194aa6d238f3843d7ff81ef036f54ce9990a3",
+                "reference": "ffa194aa6d238f3843d7ff81ef036f54ce9990a3",
                 "shasum": ""
             },
             "require": {
@@ -4090,22 +4090,22 @@
             "description": "PHP Appstore In-App Purchase implementation",
             "support": {
                 "issues": "https://github.com/imdhemy/appstore-iap/issues",
-                "source": "https://github.com/imdhemy/appstore-iap/tree/1.9.0"
+                "source": "https://github.com/imdhemy/appstore-iap/tree/1.9.1"
             },
-            "time": "2025-06-03T13:00:22+00:00"
+            "time": "2025-07-02T08:50:41+00:00"
         },
         {
             "name": "imdhemy/google-play-billing",
-            "version": "1.8.0",
+            "version": "1.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/imdhemy/google-play-billing.git",
-                "reference": "0fc2f71e9354b50de7263b399e9ff5d8d04b6cce"
+                "reference": "77655a51d2e778e161c6c475da0a7b752df32a8e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/imdhemy/google-play-billing/zipball/0fc2f71e9354b50de7263b399e9ff5d8d04b6cce",
-                "reference": "0fc2f71e9354b50de7263b399e9ff5d8d04b6cce",
+                "url": "https://api.github.com/repos/imdhemy/google-play-billing/zipball/77655a51d2e778e161c6c475da0a7b752df32a8e",
+                "reference": "77655a51d2e778e161c6c475da0a7b752df32a8e",
                 "shasum": ""
             },
             "require": {
@@ -4144,9 +4144,9 @@
             "description": "Google Play Billing",
             "support": {
                 "issues": "https://github.com/imdhemy/google-play-billing/issues",
-                "source": "https://github.com/imdhemy/google-play-billing/tree/1.8.0"
+                "source": "https://github.com/imdhemy/google-play-billing/tree/1.8.1"
             },
-            "time": "2025-06-25T13:13:53+00:00"
+            "time": "2025-07-02T08:41:17+00:00"
         },
         {
             "name": "imdhemy/laravel-purchases",
@@ -4227,16 +4227,16 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.15.9",
+            "version": "3.15.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "6544817949a24d927e9908088bfcb55433a4dba2"
+                "reference": "3840b3c2270338ff3e50b8221bde0dc5adfc6c1f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/6544817949a24d927e9908088bfcb55433a4dba2",
-                "reference": "6544817949a24d927e9908088bfcb55433a4dba2",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/3840b3c2270338ff3e50b8221bde0dc5adfc6c1f",
+                "reference": "3840b3c2270338ff3e50b8221bde0dc5adfc6c1f",
                 "shasum": ""
             },
             "require": {
@@ -4275,22 +4275,22 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.15.9"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.15.10"
             },
-            "time": "2025-07-01T08:07:10+00:00"
+            "time": "2025-07-03T17:27:12+00:00"
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.14.19",
+            "version": "1.15.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "20c5733db3c48fabc77bfd9b74f842275e9cee8c"
+                "reference": "8810a849e91b8eeb246c640ddd106d1ebfbce373"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/20c5733db3c48fabc77bfd9b74f842275e9cee8c",
-                "reference": "20c5733db3c48fabc77bfd9b74f842275e9cee8c",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/8810a849e91b8eeb246c640ddd106d1ebfbce373",
+                "reference": "8810a849e91b8eeb246c640ddd106d1ebfbce373",
                 "shasum": ""
             },
             "require": {
@@ -4343,9 +4343,9 @@
             "description": "PHP AI Framework with built-in observability.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.14.19"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.15.3"
             },
-            "time": "2025-07-01T15:29:56+00:00"
+            "time": "2025-07-05T21:18:19+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -15810,16 +15810,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.6.3",
+            "version": "8.6.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "0adab66d4ebb0fa2780ad3c9332f495cc78b44c6"
+                "reference": "d8c69844909eb73f1870a2398f6b87309ea29918"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/0adab66d4ebb0fa2780ad3c9332f495cc78b44c6",
-                "reference": "0adab66d4ebb0fa2780ad3c9332f495cc78b44c6",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/d8c69844909eb73f1870a2398f6b87309ea29918",
+                "reference": "d8c69844909eb73f1870a2398f6b87309ea29918",
                 "shasum": ""
             },
             "require": {
@@ -15856,7 +15856,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2025-06-12T10:34:08+00:00"
+            "time": "2025-07-03T09:44:09+00:00"
         },
         {
             "name": "typesense/laravel-scout-typesense-driver",
@@ -16350,16 +16350,16 @@
         },
         {
             "name": "webonyx/graphql-php",
-            "version": "v15.20.0",
+            "version": "v15.20.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webonyx/graphql-php.git",
-                "reference": "60feb7ad5023c0ef411efbdf9792d3df5812e28f"
+                "reference": "10fc7f1b4a87a39f68579f6dee55ccd8e39a75e4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/60feb7ad5023c0ef411efbdf9792d3df5812e28f",
-                "reference": "60feb7ad5023c0ef411efbdf9792d3df5812e28f",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/10fc7f1b4a87a39f68579f6dee55ccd8e39a75e4",
+                "reference": "10fc7f1b4a87a39f68579f6dee55ccd8e39a75e4",
                 "shasum": ""
             },
             "require": {
@@ -16372,13 +16372,13 @@
                 "amphp/http-server": "^2.1",
                 "dms/phpunit-arraysubset-asserts": "dev-master",
                 "ergebnis/composer-normalize": "^2.28",
-                "friendsofphp/php-cs-fixer": "3.73.1",
+                "friendsofphp/php-cs-fixer": "3.76.0",
                 "mll-lab/php-cs-fixer-config": "5.11.0",
                 "nyholm/psr7": "^1.5",
                 "phpbench/phpbench": "^1.2",
                 "phpstan/extension-installer": "^1.1",
-                "phpstan/phpstan": "2.1.8",
-                "phpstan/phpstan-phpunit": "2.0.4",
+                "phpstan/phpstan": "2.1.17",
+                "phpstan/phpstan-phpunit": "2.0.6",
                 "phpstan/phpstan-strict-rules": "2.0.4",
                 "phpunit/phpunit": "^9.5 || ^10.5.21 || ^11",
                 "psr/http-message": "^1 || ^2",
@@ -16412,7 +16412,7 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
-                "source": "https://github.com/webonyx/graphql-php/tree/v15.20.0"
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.20.1"
             },
             "funding": [
                 {
@@ -16420,7 +16420,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2025-03-21T08:45:04+00:00"
+            "time": "2025-07-04T07:47:56+00:00"
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
@@ -17182,16 +17182,16 @@
         },
         {
             "name": "myclabs/deep-copy",
-            "version": "1.13.1",
+            "version": "1.13.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/myclabs/DeepCopy.git",
-                "reference": "1720ddd719e16cf0db4eb1c6eca108031636d46c"
+                "reference": "faed855a7b5f4d4637717c2b3863e277116beb36"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/myclabs/DeepCopy/zipball/1720ddd719e16cf0db4eb1c6eca108031636d46c",
-                "reference": "1720ddd719e16cf0db4eb1c6eca108031636d46c",
+                "url": "https://api.github.com/repos/myclabs/DeepCopy/zipball/faed855a7b5f4d4637717c2b3863e277116beb36",
+                "reference": "faed855a7b5f4d4637717c2b3863e277116beb36",
                 "shasum": ""
             },
             "require": {
@@ -17230,7 +17230,7 @@
             ],
             "support": {
                 "issues": "https://github.com/myclabs/DeepCopy/issues",
-                "source": "https://github.com/myclabs/DeepCopy/tree/1.13.1"
+                "source": "https://github.com/myclabs/DeepCopy/tree/1.13.3"
             },
             "funding": [
                 {
@@ -17238,7 +17238,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-04-29T12:36:36+00:00"
+            "time": "2025-07-05T12:25:42+00:00"
         },
         {
             "name": "nunomaduro/collision",
@@ -17851,16 +17851,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "12.2.5",
+            "version": "12.2.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "b71849b29f7a8d7574e4401873cb8b539896613f"
+                "reference": "638644c62a58f04974da115f98981c9b48564021"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/b71849b29f7a8d7574e4401873cb8b539896613f",
-                "reference": "b71849b29f7a8d7574e4401873cb8b539896613f",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/638644c62a58f04974da115f98981c9b48564021",
+                "reference": "638644c62a58f04974da115f98981c9b48564021",
                 "shasum": ""
             },
             "require": {
@@ -17928,7 +17928,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.2.5"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.2.6"
             },
             "funding": [
                 {
@@ -17952,7 +17952,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-06-27T04:37:55+00:00"
+            "time": "2025-07-04T06:00:16+00:00"
         },
         {
             "name": "sebastian/cli-parser",
