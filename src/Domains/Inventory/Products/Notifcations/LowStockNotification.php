@@ -18,9 +18,5 @@ class LowStockNotification extends Notification
         //$this->setType(EnumsEmailTemplateEnum::BLANK->value);
         $this->setTemplateName(EmailTemplateEnum::LOW_STOCK->value);
         $this->setData($data);
-
-        if (! $this->app->get(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value)) {
-            $this->channels = [];
-        }
     }
 }
