@@ -60,12 +60,11 @@ class ProductsRepository
     }
 
     public static function getLowStockProducts(
-        AppInterface $app, 
-        CompanyInterface $company, 
-        int $lowStockThreshold = 200, 
+        AppInterface $app,
+        CompanyInterface $company,
+        int $lowStockThreshold = 200,
         ?int $productTypeId = null
-    ): Builder
-    {
+    ): Builder {
         $query = Products::from('products as p')
             ->withoutGlobalScopes() // Disable global scopes
             ->join('products_variants as v', 'p.id', '=', 'v.products_id')
@@ -80,7 +79,7 @@ class ProductsRepository
                     CONCAT(v.name, ' (SKU: ', v.sku, ') - Qty: ', pvw.quantity) 
                     SEPARATOR ' | '
                 ) as variants_breakdown"),
-                DB::raw("GROUP_CONCAT(DISTINCT w.name SEPARATOR ', ') as warehouses")
+                DB::raw("GROUP_CONCAT(DISTINCT w.name SEPARATOR ', ') as warehouses"),
             ])
             ->where('p.is_deleted', '=', 0)
             ->where('v.is_deleted', '=', 0)
