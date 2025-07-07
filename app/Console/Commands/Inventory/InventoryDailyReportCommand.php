@@ -159,7 +159,7 @@ class InventoryDailyReportCommand extends Command
 
             // Send to company owners/admins
             UserRoleNotificationService::notify(
-                RolesEnums::OWNER->value,
+                RolesEnums::INVENTORY_MANAGER->value,
                 $notification,
                 $app
             );
