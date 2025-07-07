@@ -16,9 +16,10 @@ class NewFollowerNotification extends Notification
     public function __construct(
         Users $user,
         array $data,
+        ?string $notificationTypeName = null
     ) {
         parent::__construct($user, $data);
-        $this->setType(EmailTemplateEnum::BLANK->value);
+        $this->setType($notificationTypeName ?? EmailTemplateEnum::BLANK->value);
         $this->setTemplateName(NotificationTemplateEnum::EMAIL_NEW_FOLLOWER->value);
         $this->setPushTemplateName(NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value);
         $this->setInteraction(InteractionEnum::FOLLOW->getValue());

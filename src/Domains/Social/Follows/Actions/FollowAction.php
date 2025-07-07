@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Notifications\Enums\NotificationTypesEnum;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Follows\Notifications\NewFollowerNotification;
 use Kanvas\Users\Models\Users;
@@ -79,7 +80,9 @@ class FollowAction
                     'destination_id' => $this->user->getId(),
                     'destination_type' => 'USER',
                     'destination_event' => 'FOLLOWING',
-                ]));
+                ],
+                NotificationTypesEnum::NEW_FOLLOWER->value
+            ));
             } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
             }
         }
