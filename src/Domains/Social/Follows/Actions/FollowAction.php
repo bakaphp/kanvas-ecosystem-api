@@ -63,28 +63,29 @@ class FollowAction
         if ($this->entity instanceof UserInterface) {
             try {
                 $this->entity->notify(new NewFollowerNotification(
-                    $this->user, [
-                    'app' => $this->app,
-                    'company' => $this->company,
-                    'user_followed' => [
-                        'id' => $this->user->getId(),
-                        'displayname' => $this->user->displayname,
-                        'photo' => $this->user->photo,
+                    $this->user,
+                    [
+                        'app' => $this->app,
+                        'company' => $this->company,
+                        'user_followed' => [
+                            'id' => $this->user->getId(),
+                            'displayname' => $this->user->displayname,
+                            'photo' => $this->user->photo,
+                        ],
+                        'user_following' => [
+                            'id' => $this->entity->getId(),
+                            'displayname' => $this->entity->displayname,
+                            'photo' => $this->entity->photo,
+                        ],
+                        'title' => 'New Follower',
+                        'message' => sprintf('You’ve got a new follower! %s is now following you ', $this->user->displayname),
+                        'destination_id' => $this->user->getId(),
+                        'destination_type' => 'USER',
+                        'destination_event' => 'FOLLOWING',
                     ],
-                    'user_following' => [
-                        'id' => $this->entity->getId(),
-                        'displayname' => $this->entity->displayname,
-                        'photo' => $this->entity->photo,
-                    ],
-                    'title' => 'New Follower',
-                    'message' => sprintf('You’ve got a new follower! %s is now following you ', $this->user->displayname),
-                    'destination_id' => $this->user->getId(),
-                    'destination_type' => 'USER',
-                    'destination_event' => 'FOLLOWING',
-                ],
-                NotificationTypesEnum::NEW_FOLLOWER->value
-            ));
-            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                    NotificationTypesEnum::NEW_FOLLOWER->value
+                ));
+            } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
             }
         }
 
