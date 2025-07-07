@@ -7,11 +7,15 @@ namespace App\Console\Commands\Inventory;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Console\Command;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Products\Notifications\LowStockNotification;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Users\Models\UserCompanyApps;
+use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class InventoryDailyReportCommand extends Command
@@ -23,14 +27,14 @@ class InventoryDailyReportCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-inventory:daily-report {app_id?} {company_id?}';
+    protected $signature = 'kanvas-inventory:daily-report {app_id?} {company_id?} {--low-stock-threshold=200} {--product-type-id=} {--skip-expiration} {--skip-low-stock}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Send daily report to the inventory module';
+    protected $description = 'Send daily inventory report including expiration and low stock notifications';
 
     public function handle(): void
     {
@@ -55,9 +59,18 @@ class InventoryDailyReportCommand extends Command
 
     protected function processCompany(AppInterface $app, CompanyInterface $company): void
     {
-        $this->info('Sending Inventory Daily Report - ' . $company->name . ' - ' . date('Y-m-d'));
-        $this->unPublishProductsByExpirationDate($app, $company);
-        //$this->publishProductsByExpirationDate($app, $company);
+        $this->info('Processing Inventory Daily Report - ' . $company->name . ' - ' . date('Y-m-d'));
+
+        // Process expiration date notifications (existing functionality)
+        if (! $this->option('skip-expiration')) {
+            $this->unPublishProductsByExpirationDate($app, $company);
+            //$this->publishProductsByExpirationDate($app, $company);
+        }
+
+        // Process low stock notifications (new functionality)
+        if (! $this->option('skip-low-stock')) {
+            $this->checkLowStockProducts($app, $company);
+        }
 
         $company->fireWorkflow(
             WorkflowEnum::UPDATED->value,
@@ -87,6 +100,73 @@ class InventoryDailyReportCommand extends Command
             $product->publish();
             $this->info('Product ' . $product->id . ' has been published');
             //@todo send report to the company
+        }
+    }
+
+    protected function checkLowStockProducts(AppInterface $app, CompanyInterface $company): void
+    {
+        $lowStockThreshold = (int) $this->option('low-stock-threshold');
+        $productTypeId = $this->option('product-type-id') ? (int) $this->option('product-type-id') : null;
+
+        $lowStockProducts = ProductsRepository::getLowStockProducts(
+            $app,
+            $company,
+            $lowStockThreshold,
+            $productTypeId
+        )->get();
+
+        if ($lowStockProducts->isEmpty()) {
+            $this->info('No low stock products found for company ' . $company->name);
+
+            return;
+        }
+
+        $this->info('Found ' . $lowStockProducts->count() . ' products with low stock for company ' . $company->name);
+
+        // Send low stock notification
+        $this->sendLowStockNotification($app, $company, $lowStockProducts, $lowStockThreshold);
+
+        // Log each low stock product
+        foreach ($lowStockProducts as $product) {
+            $this->warn('Low stock: ' . $product->product_name . ' - Stock: ' . $product->total_stock_quantity);
+        }
+    }
+
+    protected function sendLowStockNotification(
+        AppInterface $app,
+        CompanyInterface $company,
+        $lowStockProducts,
+        int $lowStockThreshold
+    ): void {
+        try {
+            // Check if company has low stock notifications enabled
+            if (! $company->get('low_stock_notifications_enabled')) {
+                $this->info('Low stock notifications are disabled for company ' . $company->name);
+
+                return;
+            }
+
+            $notification = new LowStockNotification(
+                $company,
+                [
+                    'products' => $lowStockProducts,
+                    'lowStockThreshold' => $lowStockThreshold,
+                    'company' => $company,
+                    'app' => $app,
+                    'user' => null, // Will be set per user in the notification service
+                ]
+            );
+
+            // Send to company owners/admins
+            UserRoleNotificationService::notify(
+                RolesEnums::OWNER->value,
+                $notification,
+                $app
+            );
+
+            $this->info('Low stock notification sent to company owners for ' . $company->name);
+        } catch (Exception $e) {
+            $this->error('Failed to send low stock notification for company ' . $company->name . ': ' . $e->getMessage());
         }
     }
 }
