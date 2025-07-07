@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Observers;
 
-use Illuminate\Support\Facades\Log;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
@@ -21,9 +20,8 @@ class MessageObserver
             && is_array($message->message)
             && isset($message->message['type'])
             && $message->message['type'] === 'image-format'
-            && MessagesTypesRepository::getById($message->message_types_id, $message->app)->verb == $message->app->get('image-generation-limit-message-type-verb')
+            && $message->messageType->verb == $message->app->get('image-generation-limit-message-type-verb')
         ) {
-            Log::info('Checking Message Post Limit');
             (new CheckMessagePostLimitAction(
                 message: $message,
                 messageTypeId: $message->message_types_id
