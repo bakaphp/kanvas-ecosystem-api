@@ -62,7 +62,8 @@ class FollowAction
         //if ($userFollowed->wasRecentlyCreated && $this->entity instanceof UserInterface) {
         if ($this->entity instanceof UserInterface) {
             try {
-                $this->entity->notify(new NewFollowerNotification($this->user, [
+                $this->entity->notify(new NewFollowerNotification(
+                    $this->user, [
                     'app' => $this->app,
                     'company' => $this->company,
                     'user_followed' => [
