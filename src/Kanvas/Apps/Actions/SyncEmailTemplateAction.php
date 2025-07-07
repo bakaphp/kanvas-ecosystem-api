@@ -100,7 +100,7 @@ class SyncEmailTemplateAction
             'name' => $templates[0]['name'],
             'template' => $templates[0]['template'],
             'user' => $this->user,
-            'is_system' => true
+            'is_system' => true,
         ]);
 
         $action = new CreateTemplateAction($dto);
@@ -115,7 +115,7 @@ class SyncEmailTemplateAction
                 'name' => $template['name'],
                 'template' => $template['template'],
                 'user' => $this->user,
-                'is_system' => true
+                'is_system' => true,
             ]);
             $action = new CreateTemplateAction($dto);
             $action->execute(
