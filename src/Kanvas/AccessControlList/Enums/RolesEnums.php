@@ -16,6 +16,7 @@ enum RolesEnums: string
     case AGENT = 'Agents';
     case DEVELOPER = 'Developer';
     case MANAGER = 'Managers';
+    case INVENTORY_MANAGER = 'InventoryManager';
 
     case KEY_MAP = 'roles:abilities';
 
@@ -39,6 +40,7 @@ enum RolesEnums: string
             'agent', 'agents' => self::AGENT,
             'developer', 'developers' => self::DEVELOPER,
             'manager', 'managers' => self::MANAGER,
+            'inventorymanager', 'inventory_manager' => self::INVENTORY_MANAGER,
             default => self::ADMIN
         };
 
@@ -54,6 +56,7 @@ enum RolesEnums: string
             self::AGENT->value,
             self::DEVELOPER->value,
             self::MANAGER->value,
+            self::INVENTORY_MANAGER->value,
         ];
 
         return in_array($value, $values);
