@@ -14,10 +14,16 @@ class MessageObserver
     public function creating(Message $message): void
     {
         //$messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
-        if ($message->app->get('message-image-type') && is_array($message->message) && isset($message->message['type']) && $message->message['type'] === 'image-format') {
+        if (
+            $message->app->get('message-image-type')
+            && is_array($message->message)
+            && isset($message->message['type'])
+            && $message->message['type'] === 'image-format'
+            && $message->messageType->verb == $message->app->get('image-generation-limit-message-type-verb')
+        ) {
             (new CheckMessagePostLimitAction(
                 message: $message,
-                getChildrenCount: true
+                messageTypeId: $message->message_types_id
             ))->execute();
         }
 

@@ -357,7 +357,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $createNuggetMessage = (new CreateNuggetMessageAction(
             parentMessage: $entity->parent_id ? $entity->parent : $entity,
             messageData: [
-                'title' => $title,
+                'title' => trim($title),
                 'type' => 'image-format',
                 'image' => $cdnImageUrl,
             ],

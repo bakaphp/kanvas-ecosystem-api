@@ -89,7 +89,7 @@ class CreateOrderAction
             $order->addItems($this->orderData->items);
 
             if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {
-                new CreatePaymentAction($order)->execute($order->metadata['data']);
+                new CreatePaymentAction($order, $this->orderData->user)->execute($order->metadata['data']);
             }
 
             // Run after commit

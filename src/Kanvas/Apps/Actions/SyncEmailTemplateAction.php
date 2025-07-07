@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\File;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Enums\EmailTemplateEnum as LeadsEnumsEmailTemplateEnum;
+use Kanvas\Inventory\Products\Enums\EmailTemplateEnum as ProductsEnumsEmailTemplateEnum;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Notifications\Templates\Invite;
@@ -88,6 +89,9 @@ class SyncEmailTemplateAction
             ],[
                 'name' => EnumsNotificationTemplateEnum::PUSH_NEW_INTERACTION_MESSAGE->value,
                 'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
+            ],[
+                'name' => ProductsEnumsEmailTemplateEnum::LOW_STOCK->value,
+                'template' => File::get(resource_path('views/emails/lowStock.blade.php')),
             ],
         ];
 
@@ -96,7 +100,7 @@ class SyncEmailTemplateAction
             'name' => $templates[0]['name'],
             'template' => $templates[0]['template'],
             'user' => $this->user,
-            'is_system' => true
+            'is_system' => true,
         ]);
 
         $action = new CreateTemplateAction($dto);
@@ -111,7 +115,7 @@ class SyncEmailTemplateAction
                 'name' => $template['name'],
                 'template' => $template['template'],
                 'user' => $this->user,
-                'is_system' => true
+                'is_system' => true,
             ]);
             $action = new CreateTemplateAction($dto);
             $action->execute(

@@ -9,6 +9,7 @@ type Notification {
     types(filter: NotificationTypeFilterInput): NotificationType!
     entity_id: String!
     entity(fields: JSON): Mixed @method(name: "getEntityData")
+    entity_children(fields: JSON): Mixed @method(name: "getEntityChildrenData")
     content: String
     read: Int!
     content_group: String
@@ -67,7 +68,7 @@ input NotificationTypeFilterInput {
 }
 
 input SystemModuleFilterInput {
-    slug: String
+    slugs: [String!]
     message_type_verb: String
 }
 
