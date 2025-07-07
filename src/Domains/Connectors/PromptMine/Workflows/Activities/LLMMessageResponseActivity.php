@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
@@ -195,14 +197,23 @@ class LLMMessageResponseActivity extends KanvasActivity
         $provider = (string) ($message->message['ai_model']['key'] ?? 'dalle3');
         $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
 
-        //return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
-        return (string) $promptClient->extractImageUrl(
-            $promptClient->generateImage(
+        try {
+            $generateImage = $promptClient->generateImage(
                 provider: $provider,
                 model: $model,
                 prompt: $prompt,
                 key: 'text-to-image'
-            )
+            );
+        } catch (ClientException $e) {
+            $errorBody = $e->getResponse()->getBody()->getContents();
+            $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
+
+            return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
+        }
+
+        //return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
+        return (string) $promptClient->extractImageUrl(
+            $generateImage
         );
     }
 
@@ -213,7 +224,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
             ->generate();
 
-        return str_replace(['```', 'json'], '', $response->text);
+        return trim(str_replace(['```', 'json'], '', $response->text));
     }
 
     /**
