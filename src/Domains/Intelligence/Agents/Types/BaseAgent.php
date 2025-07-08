@@ -11,6 +11,8 @@ use Kanvas\Intelligence\Agents\ChatHistory\RedisAgentChatHistory;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\Chat\History\AbstractChatHistory;
+use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\Anthropic\Anthropic;
 use NeuronAI\Providers\Gemini\Gemini;
@@ -41,6 +43,7 @@ class BaseAgent extends RAG
         $this->entity = $entity;
         $this->app = $agent->app;
         $this->company = $agent->company;
+        $this->externalReferenceId = $externalReferenceId;
     }
 
     #[Override]
@@ -99,35 +102,6 @@ class BaseAgent extends RAG
         return $this->vectorStore();
     }
 
-    /*     #[Override]
-        protected function searchDocuments(string $question): array
-        {
-            $embedding = $this->getEmbeddingsProvider()->embedText($question);
-
-            // ✅ Custom filter logic here
-            $docs = $this->getVectorStore()->similaritySearch(
-                $embedding,
-                ['user_id' => '2']
-            );
-
-            $retrievedDocs = [];
-            foreach ($docs as $doc) {
-                $retrievedDocs[\md5($doc->content)] = $doc;
-            }
-
-            return \array_values($retrievedDocs);
-        } */
-
-    /*     #[Override]
-        protected function chatHistory(): AbstractChatHistory
-        {
-            return new FileChatHistory(
-                directory: storage_path('chat'),
-                key: '2',
-                contextWindow: 50000
-            );
-        }
-     */
     #[Override]
     protected function chatHistory(): AbstractChatHistory
     {
@@ -145,6 +119,59 @@ class BaseAgent extends RAG
             externalReferenceId: $this->externalReferenceId,
             contextWindow: 50000
         );
+    }
+
+    /**
+     * Chat with the agent using existing conversation context
+     * This method automatically loads and maintains chat history
+     */
+    public function chatWithHistory(string|UserMessage $message): Message
+    {
+        // Get chat history instance
+        $chatHistory = $this->chatHistory();
+
+        // Get existing messages from chat history
+        $existingMessages = $chatHistory->getAll();
+
+        if (!empty($existingMessages)) {
+            // Add the new message to existing conversation
+            $existingMessages[] = $message instanceof UserMessage ? $message : new UserMessage($message);
+
+            // Use the chat method with message history
+            return $this->chat($existingMessages);
+        } else {
+            // No existing history, start new conversation
+            return $this->chat($message);
+        }
+    }
+
+    /**
+     * Clear the chat history for this agent-entity combination
+     */
+    public function clearChatHistory(): void
+    {
+        $chatHistory = $this->chatHistory();
+        $chatHistory->clear();
+    }
+
+    /**
+     * Get the current chat history
+     */
+    public function getChatHistory(): array
+    {
+        $chatHistory = $this->chatHistory();
+        return $chatHistory->getAll();
+    }
+
+    /**
+     * Refresh chat history from database
+     */
+    public function refreshChatHistory(): void
+    {
+        $chatHistory = $this->chatHistory();
+        if ($chatHistory instanceof RedisAgentChatHistory) {
+            $chatHistory->refresh();
+        }
     }
 
     #[Override]
