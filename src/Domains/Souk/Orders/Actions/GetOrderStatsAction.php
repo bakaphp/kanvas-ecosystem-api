@@ -50,6 +50,7 @@ class GetOrderStatsAction
         $initialSubQuery = OrderTransitionHistory::query()
             ->selectRaw("order_id, MIN(changed_at) as initial_date")
             ->whereBetween('changed_at', [$start, $end])
+            ->where('apps_id', $this->app->id)
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('name', $this->initialStates);
             })
@@ -59,6 +60,7 @@ class GetOrderStatsAction
         $finalSubQuery = OrderTransitionHistory::query()
             ->selectRaw("order_id, MAX(changed_at) as final_date")
             ->whereBetween('changed_at', [$start, $end])
+            ->where('apps_id', $this->app->id)
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('name', $this->finalStates);
             })
@@ -88,25 +90,35 @@ class GetOrderStatsAction
      */
     private function getOrdersInPeriod($start, $end): array
     {
-        return OrderTransitionHistory::query()
-            ->selectRaw("order_statuses.name as state, COUNT(*) as count, DATE(changed_at) as date")
-            ->whereBetween('changed_at', [$start, $end])
-            ->groupBy('date', 'to_status_id')
-            ->orderBy('date')
-            ->with('toStatus')
-            ->when(! empty($this->currentCountStates), function ($query) {
-                $query->whereHas('toStatus', function ($query) {
-                    $query->whereIn('name', $this->currentCountStates);
-                });
-            })
-            ->join('order_statuses', 'order_transitions_history.to_status_id', '=', 'order_statuses.id')
-            ->get()
-            ->map(fn ($item) => [
-                'date' => $item->date,
-                'state' => $item->state ?? 'Unknown',
-                'count' => (int) $item->count,
-            ])
-            ->toArray();
+        return DB::connection('commerce')->query()
+        ->fromSub(function ($query) use ($start, $end) {
+            $query->from('order_transitions_history')
+                ->selectRaw('
+                    order_transitions_history.id,
+                    order_transitions_history.order_id,
+                    order_transitions_history.to_status_id,
+                    DATE(order_transitions_history.changed_at) as date,
+                    order_transitions_history.is_deleted,
+                    ROW_NUMBER() OVER (PARTITION BY order_id, DATE(changed_at) ORDER BY changed_at DESC) as rn
+                ')
+                ->whereBetween('changed_at', [$start, $end])
+                ->where('order_transitions_history.apps_id', $this->app->id);
+        }, 'latest_transitions')
+        ->join('order_statuses', 'latest_transitions.to_status_id', '=', 'order_statuses.id')
+        ->where('latest_transitions.rn', 1)
+        ->when(! empty($this->currentCountStates), function ($query) {
+            $query->whereIn('order_statuses.name', $this->currentCountStates);
+        })
+        ->selectRaw('order_statuses.name as state, COUNT(*) as count, latest_transitions.date')
+        ->groupBy('order_statuses.name', 'latest_transitions.date')
+        ->orderBy('latest_transitions.date')
+        ->get()
+        ->map(fn ($item) => [
+            'date' => $item->date,
+            'state' => $item->state ?? 'Unknown',
+            'count' => (int) $item->count,
+        ])
+        ->toArray();
     }
 
     private function getCurrentCount(): int
@@ -136,6 +148,7 @@ class GetOrderStatsAction
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
             ->orderBy('date')
+            ->where('apps_id', $this->app->id)
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('name', $this->finalStates);
             })
