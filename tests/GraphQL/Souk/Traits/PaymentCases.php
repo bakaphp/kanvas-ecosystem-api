@@ -6,6 +6,7 @@ use Baka\Contracts\AppInterface;
 use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Services\StripePaymentService;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Stripe\PaymentIntent;
 
 trait PaymentCases
@@ -90,5 +91,10 @@ trait PaymentCases
         ];
 
         return $stripePaymentService->paymentIntents->create($params);
+    }
+
+    public function setAllowNoPaymentStatus(bool $status, AppInterface $app): void
+    {
+        $app->set(ConfigurationEnum::ALLOW_NO_PAYMENT_ORDER->value, $status);
     }
 }
