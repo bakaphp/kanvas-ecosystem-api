@@ -31,9 +31,9 @@ class CalculateShippingCostAction
         $customService = (float)($this->app->get(ShippingCostEnum::CUSTOM_SERVICE->value) ?? 0.15);
         $airportFee = (float)($this->app->get(ShippingCostEnum::AIRPORT_FEE->value) ?? 0.07);
         $insurance = match (true) {
-            $price <= 100 => $price * 0.013,
-            $price <= 200 => $price * 0.0160,
-            $price > 300 => $price * 0.30,
+            $price < 200 => $price * 0.013,
+            $price >= 200 => $price * 0.016,
+            //$price > 300 => $price * 0.30,
         };
         $localTransfer = (float)($this->app->get(ShippingCostEnum::LOCAL_TRANSFER->value) ?? 0.00);
         $paymentFee = (float)($this->app->get(ShippingCostEnum::PAYMENT_FEE->value) ?? 0.029);
