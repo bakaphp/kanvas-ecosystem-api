@@ -137,7 +137,7 @@ class AeroAmbulanciaSubscriptionService
             'documentNumber' => $beneficiaryData['documentNumber'],
             'firstName' => $beneficiaryData['firstname'],
             'lastName' => $beneficiaryData['lastname'],
-            'email' => $people->getEmails()->first()?->value,
+            'email' => isset($beneficiaryData['email']) && ! empty($beneficiaryData['email']) && filter_var($beneficiaryData['email'], FILTER_VALIDATE_EMAIL) ? $beneficiaryData['email'] : $people->getEmails()->first()?->value,
             'phoneNumber' => $phoneNumber,
             'sex' => $beneficiaryData['gender'],
             'birthdate' => Carbon::createFromFormat('d-m-Y', $beneficiaryData['birthDate'])->format('Y-m-d'),
