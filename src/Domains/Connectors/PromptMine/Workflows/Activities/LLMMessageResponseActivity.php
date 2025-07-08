@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
@@ -230,7 +231,7 @@ class LLMMessageResponseActivity extends KanvasActivity
     /**
      * Get the company for this workflow
      */
-    protected function getCompany(AppInterface $app, Model $entity): object
+    protected function getCompany(AppInterface $app, Model $entity): Companies
     {
         $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
 
