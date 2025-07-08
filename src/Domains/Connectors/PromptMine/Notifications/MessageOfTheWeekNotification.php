@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
+use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
 use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
@@ -17,7 +18,7 @@ class MessageOfTheWeekNotification extends Notification
         array $via
     ) {
         parent::__construct($user, $data);
-        $this->setType(EmailTemplateEnum::BLANK->value);
+        $this->setType(NotificationTypesEnum::MESSAGE_OF_THE_WEEK->value);
         $this->setPushTemplateName(NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value);
         $this->setData($data);
         $this->setFromUser($user);
