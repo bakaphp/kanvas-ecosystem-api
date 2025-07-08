@@ -34,16 +34,24 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($slugField, $useAI, $backupField) {
-                // If no slug field is configured, check if slug already exists
-                if ($slugField === null) {
-                    return $this->handleExistingSlug($message, $app);
-                }
-
                 $messageData = is_array($message->message) ? $message->message : (Str::isJson($message->message) ? json_decode($message->message, true) : []);
                 $fieldToSlug = $messageData[$slugField] ?? $messageData[$backupField] ?? null;
 
-                if (empty($messageData) && $fieldToSlug === null) {
-                    return ['No data found to generate slug for message ' . $message->id];
+                // If no slug field is configured OR fieldToSlug is null/empty, check if slug already exists
+                if ($slugField === null || empty($fieldToSlug)) {
+                    // If message already has a slug, validate and potentially improve it
+                    if (! empty($message->slug)) {
+                        return $this->handleExistingSlug($message, $app);
+                    }
+
+                    // No slug field and no existing slug, return error or generate from message data
+                    if ($slugField === null) {
+                        return ['No field configured to generate slug'];
+                    }
+
+                    if (empty($messageData) && $fieldToSlug === null) {
+                        return ['No data found to generate slug for message ' . $message->id];
+                    }
                 }
 
                 try {
