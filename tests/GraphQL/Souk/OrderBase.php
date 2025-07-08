@@ -7,7 +7,6 @@ namespace Tests\GraphQL\Souk;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Regions\Models\Regions;
-use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\GraphQL\Souk\Traits\PaymentCases;

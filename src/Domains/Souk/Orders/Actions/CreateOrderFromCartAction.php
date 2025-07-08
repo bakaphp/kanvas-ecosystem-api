@@ -13,7 +13,7 @@ class CreateOrderFromCartAction extends CreateBaseOrderAction
 {
     public function execute(): ModelsOrder
     {
-        if (!$this->app->get(ConfigurationEnum::ALLOW_NO_PAYMENT_ORDER->value)) {
+        if (! $this->app->get(ConfigurationEnum::ALLOW_NO_PAYMENT_ORDER->value)) {
             $paymentIntentId = $this->request['input']['metadata']['paymentIntent']['client_secret']
                 ?? $this->request['payment_intent_id']
                 ?? null;
