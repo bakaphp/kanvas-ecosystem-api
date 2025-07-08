@@ -8,7 +8,6 @@ use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
-use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
 
 class ImageProcessingPushNotification extends CustomMessageNotification

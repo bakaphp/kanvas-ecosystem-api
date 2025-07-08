@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\PromptMine\Notifications;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
 use Kanvas\Notifications\Notification;
 use Kanvas\Social\Enums\InteractionEnum;
-use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
 
 class FollowsRecommendationsPushNotication extends Notification
