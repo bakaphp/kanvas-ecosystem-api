@@ -11,7 +11,7 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class OrderStatsQuery
 {
-    public function getOrderStats(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo)
+    public function getOrderStats(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();

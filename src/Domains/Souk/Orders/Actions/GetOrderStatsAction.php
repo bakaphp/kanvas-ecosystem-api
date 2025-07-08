@@ -18,7 +18,7 @@ class GetOrderStatsAction
     ) {
     }
 
-    public function execute(?string $date, ?string $startDate, ?string $endDate, ?string $timezone = 'UTC')
+    public function execute(?string $date, ?string $startDate, ?string $endDate, ?string $timezone = 'UTC'): array
     {
         if ($date && (! $startDate || ! $endDate)) {
             $start = Carbon::parse($date, $timezone)->startOfDay()->timezone('UTC');
