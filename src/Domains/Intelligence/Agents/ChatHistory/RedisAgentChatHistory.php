@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\ChatHistory;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -71,12 +72,8 @@ class RedisAgentChatHistory extends AbstractChatHistory
 
                     return;
                 }
-            } catch (\Exception $e) {
-                // If Redis data is corrupted, fall back to database
-                \Log::warning('Redis chat history corrupted, falling back to database', [
-                    'error' => $e->getMessage(),
-                    'agent_id' => $this->agent->id,
-                ]);
+            } catch (Exception $e) {
+                report($e);
             }
         }
 
@@ -145,11 +142,8 @@ class RedisAgentChatHistory extends AbstractChatHistory
                 self::REDIS_EXPIRATION,
                 json_encode($serializedMessages)
             );
-        } catch (\Exception $e) {
-            \Log::error('Failed to update Redis chat history', [
-                'error' => $e->getMessage(),
-                'agent_id' => $this->agent->id,
-            ]);
+        } catch (Exception $e) {
+            report($e);
         }
     }
 
@@ -201,11 +195,35 @@ class RedisAgentChatHistory extends AbstractChatHistory
         // Update Redis immediately for fast access
         $this->updateRedis();
 
-        // Note: We don't call saveToDatabase here because the AbstractChatHistory
-        // already handles persistence through other mechanisms
-        // Adding our own database saving would cause duplication
+        // Save to database as backup in case Redis fails
+        $this->saveToDatabase($message);
 
         return $this;
+    }
+
+    protected function saveToDatabase(Message $message): void
+    {
+        // Determine if this is a user or assistant message
+        $isUserMessage = $message->getRole() === 'user';
+
+        // Create a new history record
+        AgentHistory::create([
+            'agent_id' => $this->agent->id,
+            'companies_id' => $this->agent->companies_id,
+            'apps_id' => $this->agent->apps_id,
+            'entity_namespace' => $this->entityNamespace,
+            'entity_id' => $this->entityId,
+            'context' => $this->getContext(),
+            'external_reference' => $this->externalReferenceId ? ['id' => $this->externalReferenceId] : null,
+            'input' => $isUserMessage ? [
+                'role' => $message->getRole(),
+                'content' => $message->getContent(),
+            ] : null,
+            'output' => ! $isUserMessage ? [
+                'role' => $message->getRole(),
+                'content' => $message->getContent(),
+            ] : null,
+        ]);
     }
 
     protected function getContext(): string
