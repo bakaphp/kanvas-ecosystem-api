@@ -634,6 +634,11 @@ class Order extends BaseModel
         return $this->belongsTo(OrderStatus::class, 'order_status_id', 'id');
     }
 
+    public function orderTransitionHistory(): HasMany
+    {
+        return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
+    }
+
     public function calculateTotal(): void
     {
         $total = OrderItem::query()->where(['order_id' => $this->id])
