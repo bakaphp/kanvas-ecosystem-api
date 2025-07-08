@@ -140,7 +140,7 @@ class Client
         $data = [
             'phone' => $phone,
         ];
-        
+
         return $this->get('api/v2/ai/profile', $data);
     }
 
