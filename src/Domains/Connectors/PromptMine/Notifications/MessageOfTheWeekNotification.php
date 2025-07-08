@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
-use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTemplateEnum;
+use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
 use Kanvas\Notifications\Notification;
 use Kanvas\Users\Models\Users;
 
