@@ -7,13 +7,16 @@ namespace Tests\GraphQL\Souk;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
 class OrderBase extends TestCase
 {
     use InventoryCases;
+    use PaymentCases;
 
     protected $variant;
     protected $region;
@@ -33,6 +36,7 @@ class OrderBase extends TestCase
 
         $this->warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
         $this->channelResponse = $this->createChannel()->json()['data']['createChannel'];
+        $this->setAllowNoPaymentStatus(true, $this->apps);
     }
 
     public function createDraftOrder(
