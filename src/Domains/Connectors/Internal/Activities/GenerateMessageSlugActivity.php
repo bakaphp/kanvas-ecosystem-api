@@ -8,6 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -28,6 +32,7 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
         $slugField = $params['field'] ?? null;
         $useAI = $params['use_ai'] ?? false;
         $backupField = $params['backup_field'] ?? null;
+        $company = $this->getCompany($app, $message);
 
         return $this->executeIntegration(
             entity: $message,
@@ -79,7 +84,7 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
                     'slug' => $message->slug,
                 ];
             },
-            company: $message->company,
+            company: $company
         );
     }
 
@@ -144,5 +149,18 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
 
         // If not unique, append message ID
         return $baseSlug . '-' . $message->getId();
+    }
+
+    protected function getCompany(AppInterface $app, Model $entity): Companies
+    {
+        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+
+        try {
+            $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
+
+            return $branch->company;
+        } catch (ModelNotFoundException $e) {
+            return $entity->company;
+        }
     }
 }
