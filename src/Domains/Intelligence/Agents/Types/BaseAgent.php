@@ -133,7 +133,7 @@ class BaseAgent extends RAG
         // Get existing messages from chat history
         $existingMessages = $chatHistory->getAll();
 
-        if (!empty($existingMessages)) {
+        if (! empty($existingMessages)) {
             // Add the new message to existing conversation
             $existingMessages[] = $message instanceof UserMessage ? $message : new UserMessage($message);
 
@@ -160,6 +160,7 @@ class BaseAgent extends RAG
     public function getChatHistory(): array
     {
         $chatHistory = $this->chatHistory();
+
         return $chatHistory->getAll();
     }
 
