@@ -182,6 +182,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
             'activationDate' => $this->formatDateForService($personData['activationDate'] ?? date('Y-m-d')),
             'phoneNumber' => $this->cleanPhoneNumber($personData['phone'] ?? ''),
             'preferredLanguage' => $personData['language'] ?? 'es',
+            'email' => $personData['email'] ?? '',
             'ambulanceVariantId' => $ambulanceVariantId, // Required for all beneficiaries
         ];
 

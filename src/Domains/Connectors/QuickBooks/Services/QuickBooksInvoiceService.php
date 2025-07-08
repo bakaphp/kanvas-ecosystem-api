@@ -6,9 +6,11 @@ namespace Kanvas\Connectors\QuickBooks\Services;
 
 use Baka\Contracts\AppInterface;
 use Exception;
+use Kanvas\Companies\Models\CompaniesAddress;
 use Kanvas\Connectors\QuickBooks\Client;
 use Kanvas\Connectors\QuickBooks\Enums\ConfigurationEnum;
 use Kanvas\Connectors\QuickBooks\Enums\CustomFieldEnum;
+use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Souk\Orders\Models\Order;
 use QuickBooksOnline\API\Data\IPPCustomer;
 use QuickBooksOnline\API\Data\IPPCustomerType;
@@ -145,8 +147,8 @@ class QuickBooksInvoiceService
         }
 
         // Add billing address if available
-        if ($order->billingAddress) {
-            $customer->BillAddr = $this->formatAddress($order->billingAddress);
+        if ($order->company->addresses()->first()) {
+            $customer->BillAddr = $this->formatAddress($order->company->addresses()->first());
         }
 
         $resultingCustomer = $this->dataService->Add($customer);
@@ -510,7 +512,7 @@ class QuickBooksInvoiceService
     /**
      * Format address for QuickBooks
      */
-    private function formatAddress($address): IPPPhysicalAddress
+    private function formatAddress(CompaniesAddress|Address $address): IPPPhysicalAddress
     {
         $qbAddress = new IPPPhysicalAddress();
         $qbAddress->Line1 = $address->address;
