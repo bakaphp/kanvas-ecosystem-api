@@ -11,7 +11,7 @@ use Kanvas\Connectors\Plusval\Client;
 use Kanvas\Connectors\Plusval\Helpers\PhoneHelper;
 use Kanvas\Exceptions\ValidationException;
 
-class DealsService
+class ProfileService
 {
     protected Client $client;
 
@@ -23,26 +23,21 @@ class DealsService
     }
 
     /**
-    * Get deals by agent phone number and customer name
-    *
-    * @param string $agentPhone Agent's phone number (e.g., "+1 809-864-6241")
-    * @param string $customerName Customer name (e.g., "Juan Perez")
-    * @throws GuzzleException
-    * @throws ValidationException
-    */
-    public function getDealsByAgentPhoneAndCustomerName(string $agentPhone, string $customerName): array
+     * Get profile by agent phone number
+     *
+     * @param string $agentPhone Agent's phone number (e.g., "+1 809-864-6241")
+     * @throws GuzzleException
+     * @throws ValidationException
+     */
+    public function getProfileByPhone(string $agentPhone): array
     {
         if (empty($agentPhone)) {
             throw new ValidationException('Agent phone number is required');
         }
 
-        if (empty($customerName)) {
-            throw new ValidationException('Customer name is required');
-        }
-
         // Clean and format phone number if needed
         $agentPhone = PhoneHelper::formatPhoneNumber($agentPhone);
 
-        return $this->client->getDeals($agentPhone, $customerName);
+        return $this->client->getProfile($agentPhone);
     }
 }

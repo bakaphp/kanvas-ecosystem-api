@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Plusval\Agents;
 
 use Kanvas\Connectors\Plusval\Services\DealsService;
+use Kanvas\Connectors\Plusval\Services\ProfileService;
 use Kanvas\Connectors\Plusval\Services\PropertiesService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
@@ -205,6 +206,52 @@ class RealStateAgent extends BaseAgent
                         'agent_phone' => $agentPhone,
                         'deal_id' => $dealId,
                         'properties_ids' => $propertiesIds,
+                    ];
+                }
+            }),
+
+            Tool::make(
+                'get_profile_information',
+                'I can get the agent profile information. When you ask for the agent profile, I will call this method to retrieve the agent\'s profile information.'
+            )->setCallable(function () {
+                $agentPhone = $this->getAgentPhone();
+                if (empty($agentPhone)) {
+                    return [
+                        'status' => 'error',
+                        'message' => 'No phone number found for agent. Please add a phone number to your profile.',
+                        'profile' => [],
+                    ];
+                }
+
+                try {
+                    // Initialize the Plusval profile service
+                    $profileService = new ProfileService($this->app, $this->entity->company);
+
+                    // Get the agent's profile by phone number
+                    $response = $profileService->getProfileByPhone($agentPhone);
+
+                    // Process the API response
+                    if (isset($response['results']['profile']) && ! empty($response['results']['profile'])) {
+                        return [
+                            'status' => 'success',
+                            'message' => 'Agent profile retrieved successfully.',
+                            'agent_phone' => $agentPhone,
+                            'profile' => $response['results']['profile'],
+                        ];
+                    } else {
+                        return [
+                            'status' => 'no_results',
+                            'message' => "No profile found for agent with phone: {$agentPhone}",
+                            'agent_phone' => $agentPhone,
+                            'profile' => [],
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    return [
+                        'status' => 'error',
+                        'message' => 'Error retrieving agent profile: ' . $e->getMessage(),
+                        'agent_phone' => $agentPhone,
+                        'profile' => [],
                     ];
                 }
             }),
