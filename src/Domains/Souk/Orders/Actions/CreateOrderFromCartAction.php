@@ -15,15 +15,14 @@ class CreateOrderFromCartAction extends CreateBaseOrderAction
     {
         if (! $this->app->get(ConfigurationEnum::ALLOW_NO_PAYMENT_ORDER->value)) {
             $paymentIntentId = $this->request['input']['metadata']['paymentIntent']['client_secret']
-                ?? $this->request['payment_intent_id']
+                ?? $this->request['input']['payment_intent_id']
                 ?? null;
 
             if (! $paymentIntentId) {
                 throw new ValidationException('Payment Intent not provided');
             }
             $stripe = new StripePaymentService($this->app);
-            $stripeIntent = $this->request['input']['metadata']['paymentIntent']['client_secret'];
-            $validation = $stripe->validatePaymentIntent($stripeIntent);
+            $validation = $stripe->validatePaymentIntent($paymentIntentId);
 
             if (! $validation['valid']) {
                 throw new ValidationException($validation['error'], $validation['status']);
