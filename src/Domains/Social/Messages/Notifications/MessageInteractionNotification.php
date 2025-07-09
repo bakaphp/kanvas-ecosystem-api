@@ -17,7 +17,7 @@ class MessageInteractionNotification extends Notification
         array $via
     ) {
         parent::__construct($message, $data);
-        $this->setType(EmailTemplateEnum::BLANK->value);
+        $this->setType($data['interaction'] ?? EmailTemplateEnum::BLANK->value);
         $this->setTemplateName($data['email_template'] ?? NotificationTemplateEnum::EMAIL_NEW_INTERACTION_MESSAGE->value);
         $this->setPushTemplateName($data['push_template'] ?? NotificationTemplateEnum::PUSH_NEW_INTERACTION_MESSAGE->value);
         $this->setData($data);
