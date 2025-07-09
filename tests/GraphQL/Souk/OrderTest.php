@@ -603,6 +603,7 @@ class OrderTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
+        $this->setAllowNoPaymentStatus(false, $app);
         $productData = new Product(
             app: $app,
             company: $company,
