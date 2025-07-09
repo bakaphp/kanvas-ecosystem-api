@@ -2,19 +2,18 @@ input CreateMessageTypeInput {
     languages_id: Int!
     name: String!
     verb: String!
-    template: String!
-    templates_plura: String!
+    template: String
+    templates_plura: String
 }
 
 type MessageType {
     id: Int!
     languages_id: Int!
-    apps_id: Int!
     uuid: String!
     name: String!
     verb: String!
-    template: String!
-    templates_plura: String!
+    template: String
+    templates_plura: String
 }
 
 extend type Query {
@@ -24,7 +23,6 @@ extend type Query {
                 columns: [
                     "id"
                     "languages_id"
-                    "apps_id"
                     "uuid"
                     "name"
                     "verb"
@@ -32,7 +30,7 @@ extend type Query {
                     "templates_plura"
                 ]
             )
-            orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
     ): [MessageType!]!
         @paginate(
             model: "Kanvas\\Social\\MessagesTypes\\Models\\MessageType"
