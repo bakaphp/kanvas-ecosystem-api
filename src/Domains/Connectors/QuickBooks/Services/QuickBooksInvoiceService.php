@@ -122,14 +122,14 @@ class QuickBooksInvoiceService
         $customer->CompanyName = $order->company->name;
 
         //@todo set customer type dynamically based on order type
-        $customerType = $this->getOrCreateCustomerType('B2B');
+        /*   $customerType = $this->getOrCreateCustomerType('B2B');
 
-        if ($customerType) {
-            $customerTypeRef = new IPPReferenceType();
-            $customerTypeRef->value = $customerType->Id;
-            $customerTypeRef->name = $customerType->Name;
-            $customer->CustomerTypeRef = $customerTypeRef;
-        }
+          if ($customerType) {
+              $customerTypeRef = new IPPReferenceType();
+              $customerTypeRef->value = $customerType->Id;
+              $customerTypeRef->name = $customerType->Name;
+              $customer->CustomerTypeRef = $customerTypeRef;
+          } */
 
         // Set email
         if ($customerEmail) {
