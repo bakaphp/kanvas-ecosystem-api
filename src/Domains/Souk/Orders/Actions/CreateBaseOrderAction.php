@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -92,6 +93,12 @@ class CreateBaseOrderAction
 
         $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
 
+        try {
+            $currency = isset($this->request['input']['currency']) && ! empty($this->request['input']['currency']) ? Currencies::getByCode($this->request['input']['currency']) : $this->region->currency;
+        } catch (ModelNotFoundException $e) {
+            $currency = $this->region->currency;
+        }
+
         $order = new Order(
             app: $this->app,
             region: $this->region,
@@ -110,7 +117,7 @@ class CreateBaseOrderAction
             status: 'completed',
             orderNumber: '',
             shippingMethod: null,
-            currency: $this->region->currency,
+            currency: $currency,
             fulfillmentStatus: 'pending',
             items: $items,
             orderType: $this->request['input']['order_type'] ?? null,
@@ -145,9 +152,20 @@ class CreateBaseOrderAction
         foreach ($cartContent as $lineItem) {
             $variant = Variants::getById($lineItem['id']);
 
-            //this shouldn't happen but just in case
-            if (! $variant) {
-                continue;
+            // Get the product's default attributes to exclude them from metadata
+            $productAttributes = $variant->product->attributes
+                ? $variant->product->attributes->pluck('name')->toArray()
+                : [];
+
+            // Filter out product attributes from cart attributes, keeping only custom attributes
+            $customAttributes = [];
+            if (isset($lineItem['attributes']) && is_array($lineItem['attributes'])) {
+                foreach ($lineItem['attributes'] as $attributeName => $attributeValue) {
+                    // Only include attributes that are NOT part of the product's default attributes
+                    if (! in_array($attributeName, $productAttributes)) {
+                        $customAttributes[$attributeName] = $attributeValue;
+                    }
+                }
             }
 
             $orderItems[] = new OrderItem(
@@ -160,7 +178,8 @@ class CreateBaseOrderAction
                 tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),
                 currency: Currencies::getByCode('USD'),
-                quantityShipped: 0
+                quantityShipped: 0,
+                metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
             );
         }
 
