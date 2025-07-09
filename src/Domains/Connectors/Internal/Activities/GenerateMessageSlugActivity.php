@@ -127,7 +127,15 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
             ->withPrompt('Generate a concise, URL-friendly slug based on this prompt: ' . $text . '. Only return the slug in lowercase, separated by hyphens. Do not include quotes, suggestions, or extra text.')
             ->asText();
 
-        return str_replace(['```', 'json'], '', $response->text);
+        // Clean the response by removing unwanted characters and formatting
+        $cleanedResponse = str_replace(['```', 'json', '"', "'"], '', $response->text);
+        $cleanedResponse = trim($cleanedResponse);
+
+        // Remove newlines and normalize whitespace
+        $cleanedResponse = preg_replace('/\s+/', ' ', $cleanedResponse);
+
+        // Use simpleSlug to ensure proper URL-friendly format
+        return Str::simpleSlug(Str::limit($cleanedResponse, 190, ''));
     }
 
     private function ensureUniqueSlug(string $baseSlug, Model $message, AppInterface $app): string
