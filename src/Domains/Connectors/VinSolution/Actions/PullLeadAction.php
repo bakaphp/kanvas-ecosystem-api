@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\VinSolution\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
@@ -27,64 +28,65 @@ class PullLeadAction
 
     public function execute(?ModelsLead $lead = null, ?int $leadId = null): array
     {
-        $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
+        return DB::transaction(function () use ($lead, $leadId) {
+            $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
 
-        $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
+            $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
 
-        if (! $vinUserId) {
-            throw new VinSolutionException(
-                'User not found in VinSolution',
+            if (! $vinUserId) {
+                throw new VinSolutionException(
+                    'User not found in VinSolution',
+                );
+            }
+
+            $user = Dealer::getUser(
+                $vinCompany,
+                $vinUserId,
+                $this->app,
             );
-        }
 
-        $user = Dealer::getUser(
-            $vinCompany,
-            $vinUserId,
-            $this->app,
-        );
-        $vinLead = Lead::getAll(
-            $vinCompany,
-            $user,
-            [
-                'leadId' => $leadId === null ? $lead->get(CustomFieldEnum::LEADS->value) : $leadId,
-            ]
-        );
-
-        if (! empty($vinLead['Leads'])) {
-            $vinLead = DataTransferObjectLead::fromVinLeadArray(
-                $vinLead['Leads'][0],
+            $vinLead = Lead::getAll(
                 $vinCompany,
                 $user,
-                $this->app,
-                $this->company,
-                $this->user
+                [
+                    'leadId' => $leadId === null ? $lead->get(CustomFieldEnum::LEADS->value) : $leadId,
+                ]
             );
 
-            $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
+            if (! empty($vinLead['Leads'])) {
+                $vinLead = DataTransferObjectLead::fromVinLeadArray(
+                    $vinLead['Leads'][0],
+                    $vinCompany,
+                    $user,
+                    $this->app,
+                    $this->company,
+                    $this->user
+                );
 
-            /*  return [
-                 $lead,
-             ]; */
-            return [
-                [
-                    'id' => $lead->id,
-                    'uuid' => $lead->uuid,
-                    'people_id' => $lead->people->id,
-                    'firstname' => $lead->people->firstname,
-                    'middlename' => $lead->people->middlename,
-                    'lastname' => $lead->people->lastname,
-                    'email' => $lead->people?->getEmails()->first()?->value,
-                    'phone' => $lead->people?->getPhones()->first()?->value,
-                    'status' => $lead->status()?->first()?->name,
-                    'lead_type' => $lead->type?->name,
-                    'owner' => $lead->owner?->name ,
-                    'owner_id' => $lead->leads_owner_id,
-                    'custom_fields' => $lead->getAllCustomFields(),
-                    'rank' => 1,
-                ],
-            ];
-        }
+                $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
+                //$lead->searchable();
 
-        return [];
+                return [
+                    [
+                        'id' => $lead->id,
+                        'uuid' => $lead->uuid,
+                        'people_id' => $lead->people->id,
+                        'firstname' => $lead->people->firstname,
+                        'middlename' => $lead->people->middlename,
+                        'lastname' => $lead->people->lastname,
+                        'email' => $lead->people?->getEmails()->first()?->value,
+                        'phone' => $lead->people?->getPhones()->first()?->value,
+                        'status' => $lead->status()?->first()?->name,
+                        'lead_type' => $lead->type?->name,
+                        'owner' => $lead->owner?->name ,
+                        'owner_id' => $lead->leads_owner_id,
+                        'custom_fields' => $lead->getAllCustomFields(),
+                        'rank' => 1,
+                    ],
+                ];
+            }
+
+            return [];
+        });
     }
 }
