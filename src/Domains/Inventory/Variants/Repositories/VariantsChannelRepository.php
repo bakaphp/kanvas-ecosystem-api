@@ -43,7 +43,7 @@ class VariantsChannelRepository
         // Use EXISTS subqueries instead of multiple JOINs for better performance
         $attributeCount = count($attributes);
         if ($attributeCount > 0) {
-            $query->whereExists(function ($subQuery) use ($attributes) {
+            $query->whereExists(function ($subQuery) use ($attributes, $attributeCount) {
                 $subQuery->select(DB::raw(1))
                     ->from('products_variants_attributes as pva')
                     ->join('attributes as a', 'pva.attributes_id', '=', 'a.id')
