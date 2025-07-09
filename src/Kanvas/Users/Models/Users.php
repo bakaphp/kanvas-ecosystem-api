@@ -810,6 +810,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'is_following' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isFollowing($this, $app) : false,
             'is_blocked' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isBlocked($this, $app) : false,
             'total_list' => 0,
+            'unread_notifications' => $this->getUnreadNotificationsCount()
         ];
     }
 
