@@ -67,7 +67,7 @@ class ImportProductFromFilesystemAction
                 $listOfProducts[] = [
                     'name' => $variants[0]['product_name'],
                     'description' => $variants[0]['product_description'] ?? '',
-                    'slug' => $variants[0]['productSlug'] ?? Str::slug($variants[0]['product_name']),
+                    'slug' => $variants[0]['product_slug'] ?? Str::slug($variants[0]['product_name']),
                     'sku' => $variants[0]['sku'],
                     'status' => $variants[0]['status'] ?? null,
                     'customFields' => [],
