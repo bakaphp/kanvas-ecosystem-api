@@ -19,6 +19,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Override;
 use Throwable;
 use TypeError;
 use ValueError;
@@ -39,6 +40,7 @@ class CreateCreditScoreFromMessageActivity extends CreateCreditScoreFromLeadActi
      * @throws EloquentModelNotFoundException
      * @throws Throwable
      */
+    #[Override]
     public function execute(Model $message, Apps $app, array $params): array
     {
         $this->overWriteAppPermissionService($app);
@@ -53,6 +55,7 @@ class CreateCreditScoreFromMessageActivity extends CreateCreditScoreFromLeadActi
 
                 $engagement = Engagement::fromApp($app)->where('message_id', $message->getId())->firstOrFail();
                 $lead = $engagement->lead;
+                $lead->refresh();
                 $messageData = $this->extractMessageData($engagement->message);
 
                 if (! $messageData) {
@@ -78,8 +81,10 @@ class CreateCreditScoreFromMessageActivity extends CreateCreditScoreFromLeadActi
                     //'iframe_url_digital_jacket' => $creditApplicant['iframe_url_digital_jacket'],
                     'pdf' => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
                     'message_id' => $parentMessage->getId(),
-                    'message' => 'Credit score created successfully',
+                    'message' => 'Credit score created successfully messages',
                     'lead_id' => $lead->getId(),
+                    'lead' => $lead->toArray(),
+                    'people' => $lead->people->toArray(),
                 ];
             },
             company: $message->company,

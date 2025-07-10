@@ -50,6 +50,7 @@ class PullLeadAction
                 $user,
                 [
                     'leadId' => $leadId === null ? $lead->get(CustomFieldEnum::LEADS->value) : $leadId,
+                    'app' => $this->app
                 ]
             );
 
