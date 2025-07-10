@@ -102,7 +102,7 @@ class ImportProductFromFilesystemAction
             $targetKey = ($key === 'variant_name') ? 'name' : $key;
 
             if ($key === 'attributes' && is_array($value)) {
-                $result[$targetKey] = $this->mapper($value, $data);
+                $result[$targetKey] = $this->mapAttributes($value, $data);
                 continue;
             }
 
@@ -132,5 +132,30 @@ class ImportProductFromFilesystemAction
     {
         $service = (new FilesystemServices($this->filesystemImports->app));
         return $service->getFileLocalPath($filesystem);
+    }
+
+    private function mapAttributes(array $attributeTemplate, array $data): array
+    {
+        $mappedAttributes = $this->mapper($attributeTemplate, $data);
+        $result = [];
+
+        foreach ($mappedAttributes as $attributeData) {
+            if (! is_array($attributeData)) {
+                continue;
+            }
+
+            $fromProduct = $attributeData['fromProduct'] ?? false;
+
+            foreach ($attributeData as $key => $value) {
+                if ($key !== 'fromProduct') {
+                    $result[] = [
+                        'fromProduct' => $fromProduct,
+                        'name' => $key,
+                        'value' => $value
+                    ];
+                }
+            }
+        }
+        return $result;
     }
 }
