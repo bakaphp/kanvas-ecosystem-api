@@ -52,7 +52,7 @@ class GetOrderStatsAction
             ->whereBetween('changed_at', [$start, $end])
             ->where('apps_id', $this->app->id)
             ->whereHas('toStatus', function ($query) {
-                $query->whereIn('name', $this->initialStates);
+                $query->whereIn('slug', $this->initialStates);
             })
             ->groupBy('order_id')
             ->getQuery();
@@ -62,7 +62,7 @@ class GetOrderStatsAction
             ->whereBetween('changed_at', [$start, $end])
             ->where('apps_id', $this->app->id)
             ->whereHas('toStatus', function ($query) {
-                $query->whereIn('name', $this->finalStates);
+                $query->whereIn('slug', $this->finalStates);
             })
             ->groupBy('order_id')
             ->getQuery();
@@ -107,17 +107,24 @@ class GetOrderStatsAction
         ->join('order_statuses', 'latest_transitions.to_status_id', '=', 'order_statuses.id')
         ->where('latest_transitions.rn', 1)
         ->when(! empty($this->currentCountStates), function ($query) {
-            $query->whereIn('order_statuses.name', $this->currentCountStates);
+            $query->whereIn('order_statuses.slug', $this->currentCountStates);
         })
-        ->selectRaw('order_statuses.name as state, COUNT(*) as count, latest_transitions.date')
-        ->groupBy('order_statuses.name', 'latest_transitions.date')
+        ->selectRaw('order_statuses.slug as state, COUNT(*) as count, latest_transitions.date')
+        ->groupBy('order_statuses.slug', 'latest_transitions.date')
         ->orderBy('latest_transitions.date')
         ->get()
-        ->map(fn ($item) => [
-            'date' => $item->date,
-            'state' => $item->state ?? 'Unknown',
-            'count' => (int) $item->count,
-        ])
+        ->groupBy('date')
+        ->map(function ($dateGroup) {
+            return [
+                'date' => $dateGroup->first()->date,
+                'total' => $dateGroup->sum('count'),
+                'states' => $dateGroup->map(fn ($item) => [
+                    'state' => $item->state ?? 'Unknown',
+                    'count' => (int) $item->count,
+                ])->toArray(),
+            ];
+        })
+        ->values()
         ->toArray();
     }
 
@@ -125,7 +132,7 @@ class GetOrderStatsAction
     {
         return Order::query()
             ->where('apps_id', $this->app->id)
-            ->whereHas('orderStatus', fn ($q) => $q->whereIn('name', $this->currentCountStates))
+            ->whereHas('orderStatus', fn ($q) => $q->whereIn('slug', $this->currentCountStates))
             ->count();
     }
 
@@ -138,7 +145,7 @@ class GetOrderStatsAction
             ->orderBy('date')
             ->where('apps_id', $this->app->id)
             ->whereHas('toStatus', function ($query) {
-                $query->whereIn('name', $this->initialStates);
+                $query->whereIn('slug', $this->initialStates);
             })
             ->get()
             ->keyBy('date');
@@ -150,7 +157,7 @@ class GetOrderStatsAction
             ->orderBy('date')
             ->where('apps_id', $this->app->id)
             ->whereHas('toStatus', function ($query) {
-                $query->whereIn('name', $this->finalStates);
+                $query->whereIn('slug', $this->finalStates);
             })
             ->get()
             ->keyBy('date');
