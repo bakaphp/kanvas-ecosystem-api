@@ -58,6 +58,22 @@ class Channels extends BaseModel
      */
     public function unPublishAllVariants(): bool
     {
+        $dontUnPublishVariantsId = $this->company->get('dont_unpublish_variants', []);
+
+        // If we have variants that shouldn't be unpublished, filter them out
+        if (! empty($dontUnPublishVariantsId)) {
+            Variants::fromCompany($this->company)
+                ->whereNotIn('id', $dontUnPublishVariantsId)
+                ->chunkById(100, function ($variants) {
+                    $variants->unsearchable();
+                }, $column = 'id');
+
+            return $this->availableProducts()
+                ->whereNotIn('variants_id', $dontUnPublishVariantsId)
+                ->update(['is_published' => 0]) > 0;
+        }
+
+        // Original behavior when no variants to exclude
         Variants::fromCompany($this->company)->chunkById(100, function ($variants) {
             $variants->unsearchable();
         }, $column = 'id');

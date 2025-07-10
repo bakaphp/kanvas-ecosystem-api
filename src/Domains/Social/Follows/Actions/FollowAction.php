@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Notifications\Enums\NotificationTypesEnum;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Follows\Notifications\NewFollowerNotification;
 use Kanvas\Users\Models\Users;
@@ -61,26 +62,30 @@ class FollowAction
         //if ($userFollowed->wasRecentlyCreated && $this->entity instanceof UserInterface) {
         if ($this->entity instanceof UserInterface) {
             try {
-                $this->entity->notify(new NewFollowerNotification($this->user, [
-                    'app' => $this->app,
-                    'company' => $this->company,
-                    'user_followed' => [
-                        'id' => $this->user->getId(),
-                        'displayname' => $this->user->displayname,
-                        'photo' => $this->user->photo,
+                $this->entity->notify(new NewFollowerNotification(
+                    $this->user,
+                    [
+                        'app' => $this->app,
+                        'company' => $this->company,
+                        'user_followed' => [
+                            'id' => $this->user->getId(),
+                            'displayname' => $this->user->displayname,
+                            'photo' => $this->user->photo,
+                        ],
+                        'user_following' => [
+                            'id' => $this->entity->getId(),
+                            'displayname' => $this->entity->displayname,
+                            'photo' => $this->entity->photo,
+                        ],
+                        'title' => 'New Follower',
+                        'message' => sprintf('You’ve got a new follower! %s is now following you ', $this->user->displayname),
+                        'destination_id' => $this->user->getId(),
+                        'destination_type' => 'USER',
+                        'destination_event' => 'FOLLOWING',
                     ],
-                    'user_following' => [
-                        'id' => $this->entity->getId(),
-                        'displayname' => $this->entity->displayname,
-                        'photo' => $this->entity->photo,
-                    ],
-                    'title' => 'New Follower',
-                    'message' => sprintf('You’ve got a new follower! %s is now following you ', $this->user->displayname),
-                    'destination_id' => $this->user->getId(),
-                    'destination_type' => 'USER',
-                    'destination_event' => 'FOLLOWING',
-                ]));
-            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                    NotificationTypesEnum::NEW_FOLLOWER->value
+                ));
+            } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
             }
         }
 

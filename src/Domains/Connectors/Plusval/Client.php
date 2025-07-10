@@ -131,6 +131,20 @@ class Client
     }
 
     /**
+     * Get profile by phone number
+     *
+     * @throws GuzzleException
+     */
+    public function getProfile(string $phone): array
+    {
+        $data = [
+            'phone' => $phone,
+        ];
+
+        return $this->get('api/v2/ai/profile', $data);
+    }
+
+    /**
      * Get the current API key
      */
     public function getApiKey(): string

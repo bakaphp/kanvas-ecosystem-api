@@ -87,6 +87,7 @@ class Order extends BaseModel
     use HasShopifyCustomField;
     use HasTagsTrait;
     use AsTree;
+    use HasTagsTrait;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -632,6 +633,11 @@ class Order extends BaseModel
     public function orderStatus(): BelongsTo
     {
         return $this->belongsTo(OrderStatus::class, 'order_status_id', 'id');
+    }
+
+    public function orderTransitionHistory(): HasMany
+    {
+        return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
     }
 
     public function calculateTotal(): void
