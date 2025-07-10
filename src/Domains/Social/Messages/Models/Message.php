@@ -323,6 +323,11 @@ class Message extends BaseModel
         $this->saveOrFail();
     }
 
+    public function isPremium(): bool
+    {
+        return (bool) $this->is_premium;
+    }
+
     public function setNotPremium(): void
     {
         $this->is_premium = 0;
