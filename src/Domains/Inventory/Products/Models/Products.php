@@ -681,7 +681,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'name' => 'name',
                     'type' => 'string',
                     'sort' => true,
-                    'facet' => true,
+                    // 'facet' => true,
                 ],
                 [
                     'name' => 'files',
@@ -816,6 +816,20 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                ],
+                [
+                    "name" => "embedding",
+                    "type" => "float[]",
+                    "embed" => [
+                      "from" => [
+                        "name",
+                        "description",
+                      ],
+                      "model_config" => [
+                          "model_name" => "openai/text-embedding-ada-0021",
+                          "api_key" => "AIzaSyCoApzD--BjMleQTaqd5WbNzWclvDJkDi4"
+                      ]
+                  ]
                 ],
             ],
             'default_sorting_field' => 'created_at',
