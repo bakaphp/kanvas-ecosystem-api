@@ -117,7 +117,7 @@ class GetOrderStatsAction
         ->map(function ($dateGroup) {
             return [
                 'date' => $dateGroup->first()->date,
-                'total' => $dateGroup->sum('count'),
+                'count' => $dateGroup->sum('count'),
                 'states' => $dateGroup->map(fn ($item) => [
                     'state' => $item->state ?? 'Unknown',
                     'count' => (int) $item->count,
