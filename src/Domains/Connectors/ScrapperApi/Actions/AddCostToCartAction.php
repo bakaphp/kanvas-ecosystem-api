@@ -58,6 +58,38 @@ class AddCostToCartAction
         // Add 15% service fee to shipping only, not custom tax
         $total = $total + $total * 0.15;
 
+        // Collect detailed tax breakdown
+        $customTaxDetails = $fee->where('customTaxInfo.customTax', '>', 0)
+            ->pluck('customTaxInfo')
+            ->map(function ($taxInfo) {
+                return [
+                    'productName' => $taxInfo['productName'] ?? '',
+                    'arancelCode' => $taxInfo['arancelCode'] ?? null,
+                    'countryOrigin' => $taxInfo['countryOrigin'] ?? 'US',
+                    'customTax' => $taxInfo['customTax'] ?? 0,
+                    'customTaxRD' => $taxInfo['customTaxRD'] ?? 0,
+                    'arancel' => $taxInfo['arancel'] ?? 0,
+                    'arancelRD' => $taxInfo['arancelRD'] ?? 0,
+                    'arancelRate' => $taxInfo['arancelRate'] ?? 0,
+                    'itbis' => $taxInfo['itbis'] ?? 0,
+                    'itbisRD' => $taxInfo['itbisRD'] ?? 0,
+                    'itbisRate' => $taxInfo['itbisRate'] ?? 18,
+                    'tasaAduanal' => $taxInfo['tasaAduanal'] ?? 0,
+                    'tasaAduanalRD' => $taxInfo['tasaAduanalRD'] ?? 0,
+                    'tasaAduanalRate' => $taxInfo['tasaAduanalRate'] ?? 3,
+                    'isc' => $taxInfo['isc'] ?? 0,
+                    'iscRD' => $taxInfo['iscRD'] ?? 0,
+                    'iscDescription' => $taxInfo['iscDescription'] ?? '',
+                ];
+            })
+            ->toArray();
+
+        // Calculate totals for each tax component
+        $totalArancel = $fee->sum('customTaxInfo.arancel');
+        $totalItbis = $fee->sum('customTaxInfo.itbis');
+        $totalTasaAduanal = $fee->sum('customTaxInfo.tasaAduanal');
+        $totalIsc = $fee->sum('customTaxInfo.isc');
+
         $this->cart->removeCartCondition('Shipping');
         $condition = new CartCondition([
             'name' => 'Shipping',
@@ -71,7 +103,13 @@ class AddCostToCartAction
                 'Pounds' => $fee->sum('pounds'),
                 'Last Mile' => 0,
                 'Custom Tax' => $customTaxTotal,
-                //'Custom Tax Details' => $fee->where('customTaxInfo.customTax', '>', 0)->pluck('customTaxInfo')->toArray(),
+                'Custom Tax Details' => $customTaxDetails,
+                'Tax Breakdown' => [
+                    'Total Arancel' => $totalArancel,
+                    'Total ITBIS' => $totalItbis,
+                    'Total Tasa Aduanal' => $totalTasaAduanal,
+                    'Total ISC' => $totalIsc,
+                ],
             ],
         ]);
         $this->cart->condition([$condition]);
