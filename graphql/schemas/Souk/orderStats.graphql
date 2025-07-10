@@ -31,7 +31,7 @@ type DailyTurnover {
 
 type OrderStateCount {
   date: String!
-  state: Mixed!
+  states: Mixed!
   count: Int!
 }
 
