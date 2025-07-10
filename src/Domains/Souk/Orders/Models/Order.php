@@ -87,7 +87,6 @@ class Order extends BaseModel
     use HasShopifyCustomField;
     use HasTagsTrait;
     use AsTree;
-    use HasTagsTrait;
 
     protected $table = 'orders';
     protected $guarded = [];
