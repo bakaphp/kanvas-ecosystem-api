@@ -29,6 +29,7 @@ class SendPaymentReceiptAction
         $payload = [
             'order' => $this->order,
             'payment' => $this->payment,
+            'paymentMethod' => $this->payment->paymentMethod,
             'user' => $this->user,
         ];
 
