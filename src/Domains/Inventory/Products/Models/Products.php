@@ -23,6 +23,7 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -520,7 +521,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
-
         if ($query->model->isTypesense()) {
             $query->options([
                 'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
@@ -666,7 +666,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
      */
     public function typesenseCollectionSchema(): array
     {
-        return [
+        $schema = [
             'name' => $this->searchableAs(),
             'fields' => [
                 [
@@ -681,7 +681,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'name' => 'name',
                     'type' => 'string',
                     'sort' => true,
-                    'facet' => true,
+                    // 'facet' => true,
                 ],
                 [
                     'name' => 'files',
@@ -821,6 +821,24 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
+        if ($this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->value)) {
+            $schema['fields'][] = [
+                'name' => 'embedding',
+                'type' => 'float[]',
+                'embed' => [
+                    'from' => [
+                        'name',
+                        'description',
+                    ],
+                    'model_config' => [
+                        'model_name' => 'openai/text-embedding-3-small',
+                        'api_key' => $this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->value),
+                    ],
+                ],
+            ];
+        }
+
+        return $schema;
     }
 
     #[Override]

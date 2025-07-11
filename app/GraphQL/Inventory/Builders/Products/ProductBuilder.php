@@ -53,6 +53,7 @@ class ProductBuilder
         if (! empty($args['nearByLocation'])) {
             $query->filterByNearLocation($args['nearByLocation']);
         }
+
         return $query;
     }
 
@@ -78,5 +79,22 @@ class ProductBuilder
 
             throw new Exception('Error exporting products: ' . $e->getMessage());
         }
+    }
+
+    public function productSemanticSearch(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): array {
+        $user = auth()->user();
+
+        $results = Products::search($args['query'])
+                    ->semantic();
+        $results = array_map(function ($hit) {
+            return $hit['document'];
+        }, $results['hits']);
+
+        return $results ?? [];
     }
 }
