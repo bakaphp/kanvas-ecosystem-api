@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Macros;
 
 use Baka\Search\SearchEngineResolver;
-use Laravel\Scout\Builder;
-use Typesense\Client;
 use Kanvas\Apps\Models\Apps;
+use Laravel\Scout\Builder;
+
 class ScoutMacros
 {
     public static function register()
