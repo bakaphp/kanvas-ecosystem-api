@@ -101,7 +101,7 @@ class ProductBuilder
 
         // @todo Improve
         return Products::whereIn('id', $ids)
-            ->orderByRaw('FIELD(id, '.implode(',', $ids).')')
+            ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')')
             ->get();
     }
 }
