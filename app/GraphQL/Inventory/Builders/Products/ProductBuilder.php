@@ -7,6 +7,7 @@ namespace App\GraphQL\Inventory\Builders\Products;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Actions\ExportProductsAction;
@@ -86,7 +87,7 @@ class ProductBuilder
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ) {
+    ): Collection {
         $results = Products::search($args['query'])
                     ->semantic([
                         'per_page' => 25,
