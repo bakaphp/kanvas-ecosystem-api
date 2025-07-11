@@ -86,16 +86,15 @@ class ProductBuilder
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ): array {
+    ) {
         $results = Products::search($args['query'])
                     ->semantic([
                         'per_page' => 25,
                     ]);
-
-        $results = array_map(function ($hit) {
-            return $hit['document'];
-        }, $results['hits']);
-
-        return $results ?? [];
+        $hits = collect($results['hits']);
+        $ids = $hits->pluck('document.id')->toArray();
+        // @todo Improve performance of this query
+        return Products::whereIn('id', $ids)
+            ->get();
     }
 }
