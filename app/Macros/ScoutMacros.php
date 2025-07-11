@@ -10,7 +10,7 @@ use Typesense\Client;
 use Kanvas\Apps\Models\Apps;
 class ScoutMacros
 {
-    public static function register()
+    public static function register(): void
     {
         Builder::macro('semantic', function (array $options = []) {
             /** @var Builder $builder */
