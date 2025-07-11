@@ -288,4 +288,10 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"
         )
+    productSemanticSearch(
+        query: String!
+    ): [Product!]!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@productSemanticSearch"
+        )
 }

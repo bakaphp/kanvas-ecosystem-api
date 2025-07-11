@@ -74,6 +74,15 @@ class SearchEngineResolver
 
     protected function createTypesenseEngine(array $searchSettings): EnginesTypesenseEngine
     {
+        $client = self::getTypesenseClient($searchSettings);
+        $maxItemsPerPage = $searchSettings['typesense_max_items_per_page'] ?? 1000;
+
+        // Assuming the constructor takes a client and a chunk size
+        return new EnginesTypesenseEngine($client, $maxItemsPerPage);
+    }
+
+    public static function getTypesenseClient(array $searchSettings): TypesenseClient
+    {
         $apiKey = $searchSettings['typesense_api_key'] ?? config('scout.typesense.api_key');
         $defaultNode = config('scout.typesense.nodes')[0] ?? [];
         $nodes = $searchSettings['typesense_nodes'] ?? [
@@ -88,16 +97,11 @@ class SearchEngineResolver
         $connectionTimeout = $searchSettings['typesense_timeout']
             ?? config('scout.typesense.connection_timeout_seconds', 2);
 
-        $config = [
+        return new TypesenseClient([
             'api_key' => $apiKey,
             'nodes' => $nodes,
             'connection_timeout_seconds' => $connectionTimeout,
-        ];
-        $maxItemsPerPage = $searchSettings['typesense_max_items_per_page'] ?? 1000;
-        $client = new TypesenseClient($config);
-
-        // Assuming the constructor takes a client and a chunk size
-        return new EnginesTypesenseEngine($client, $maxItemsPerPage);
+        ]);
     }
 
     protected function createMeiliSearchEngine(array $searchSettings): MeilisearchEngine
