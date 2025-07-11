@@ -87,10 +87,11 @@ class ProductBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): array {
-        $user = auth()->user();
-
         $results = Products::search($args['query'])
-                    ->semantic();
+                    ->semantic([
+                        'per_page' => 25,
+                    ]);
+
         $results = array_map(function ($hit) {
             return $hit['document'];
         }, $results['hits']);

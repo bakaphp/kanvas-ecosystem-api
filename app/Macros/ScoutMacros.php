@@ -7,6 +7,7 @@ namespace App\Macros;
 use Baka\Search\SearchEngineResolver;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Builder;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class ScoutMacros
 {
@@ -24,6 +25,15 @@ class ScoutMacros
             $fields = method_exists($model, 'typesenseQueryFields')
                 ? implode(',', $model->typesenseQueryFields())
                 : 'embedding';
+
+            $app = app(Apps::class);
+
+            $app->fireWorkflow(
+                event: WorkflowEnum::SEARCH->value,
+                params: [
+                    'search' => trim($query),
+                ]
+            );
 
             return $client->collections[$collection]->documents->search(array_merge([
                 'q' => $query,
