@@ -69,8 +69,8 @@ class ProcessPaymentAction
                 if ($orderStatus = $this->order->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
                     new TransitionOrderStateAction(
                         $this->order,
-                        $orderStatus,
-                        $this->payment->user
+                        $this->payment->user,
+                        $orderStatus
                     )->execute(true);
                 }
                 new SendPaymentReceiptAction(
