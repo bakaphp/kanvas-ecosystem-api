@@ -8,4 +8,5 @@ enum UserConfigEnum: string
 {
     case USER_INTERACTIONS = 'user-interactions';
     case TWO_FACTOR_AUTH_30_DAYS = 'two_fact_validate_in_thirty';
+    case USER_NOTIFICATION_COUNT = 'user_notification_count';
 }

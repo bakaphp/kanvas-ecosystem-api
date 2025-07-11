@@ -243,7 +243,7 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: php artisan test --parallel --processes=3 --dont-report-useless-tests 
+        run: php artisan test --parallel --processes=6 --dont-report-useless-tests 
 
       - name: Upload artifacts
         uses: actions/upload-artifact@master
