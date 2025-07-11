@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
+use Kanvas\ActionEngine\Tasks\WorkflowActivity\ChecklistUpdateStatusFromLeadActivity;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2BSubscriptionActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
@@ -221,6 +222,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PushOrderToInvoiceActivity::class,
             PullNetSuiteQuoteWebhookJob::class,
             PremiumPromptApprovalWebhookJob::class,
+            ChecklistUpdateStatusFromLeadActivity::class,
         ];
 
         $createdActions = [];

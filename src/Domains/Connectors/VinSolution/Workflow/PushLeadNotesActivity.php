@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\VinSolution\Workflow;
 use Exception;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\ActionEngine\Tasks\Actions\SetTaskEngagementStatusFromMessageAction;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Actions\PushCoBuyerAction;
 use Kanvas\Connectors\VinSolution\Actions\PushCreditAppAction;
@@ -50,6 +51,14 @@ class PushLeadNotesActivity extends KanvasActivity
                     lead: $lead,
                     message: $message,
                 );
+
+                new SetTaskEngagementStatusFromMessageAction(
+                    message: $message,
+                    lead: $lead,
+                    user: $message->user,
+                    app: $app,
+                    company: $lead->company,
+                )->execute();
 
                 $results = $this->processVinSolutionMessage($message, $lead);
 
