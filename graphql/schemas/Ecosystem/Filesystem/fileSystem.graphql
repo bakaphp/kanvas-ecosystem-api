@@ -72,7 +72,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@uploadCsv"
         )
-    mergeFiles(files: [ID!]!): Filesystem!
+    mergeFiles(files: [ID!]!): Filesystem
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@mergeFiles"
         )

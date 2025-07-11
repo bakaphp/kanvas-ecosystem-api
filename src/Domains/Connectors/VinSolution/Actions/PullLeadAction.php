@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
+use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\VinSolution\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
@@ -14,8 +15,10 @@ use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Connectors\VinSolution\Vehicles\Interest;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Throwable;
 
 class PullLeadAction
 {
@@ -50,13 +53,14 @@ class PullLeadAction
                 $user,
                 [
                     'leadId' => $leadId === null ? $lead->get(CustomFieldEnum::LEADS->value) : $leadId,
-                    'app' => $this->app
+                    'app' => $this->app,
                 ]
             );
 
             if (! empty($vinLead['Leads'])) {
+                $currentLead = $vinLead['Leads'][0];
                 $vinLead = DataTransferObjectLead::fromVinLeadArray(
-                    $vinLead['Leads'][0],
+                    $currentLead,
                     $vinCompany,
                     $user,
                     $this->app,
@@ -66,6 +70,15 @@ class PullLeadAction
 
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
                 //$lead->searchable();
+
+                $vehicleOfInterest = current(Interest::getByLeadId(
+                    $vinCompany,
+                    $user,
+                    $currentLead['LeadId']
+                )->items);
+                $this->getVehicleOfInterest($vehicleOfInterest, $lead);
+
+                $lead->refresh();
 
                 return [
                     [
@@ -89,5 +102,62 @@ class PullLeadAction
 
             return [];
         });
+    }
+
+    private function getVehicleOfInterest(array $vehicleOfInterest, ModelsLead $lead): void
+    {
+        try {
+            if (
+                ! empty($vehicleOfInterest) &&
+                isset($vehicleOfInterest['year']) &&
+                $vehicleOfInterest['year'] > 0
+            ) {
+                $inventoryType = strtolower($vehicleOfInterest['inventoryType'] ?? '');
+                $isUnknown = $inventoryType === 'unknown';
+
+                if (! $isUnknown) {
+                    $vehicleOfInterest['isNew'] = $inventoryType === 'new';
+
+                    if (! empty($vehicleOfInterest['autoEntity']['inventoryType'])) {
+                        $vehicleOfInterest['isNew'] = strtolower($vehicleOfInterest['autoEntity']['inventoryType']) === 'n';
+                    }
+                }
+
+                $lead->set(CustomFieldEnum::VEHICLE_OF_INTEREST->value, $vehicleOfInterest);
+            }
+
+            if (
+                ! empty($vehicleOfInterest) &&
+                $lead->company->get('enable_vehicle_checklist') &&
+                isset($vehicleOfInterest['year']) &&
+                $vehicleOfInterest['year'] > 0 &&
+                isset($vehicleOfInterest['inventoryType'])
+            ) {
+                $isNew = strtolower($vehicleOfInterest['inventoryType']) === 'new' ? 1 : 0;
+                $taskListNames = [
+                    0 => 'Used Vehicle Checklist',
+                    1 => 'New Vehicle Checklist',
+                ];
+
+                $taskList = TaskList::fromCompany($lead->companies)
+                    ->fromApp($this->app)
+                    ->where('name', $taskListNames[$isNew])
+                    ->first();
+
+                $checkListStatus = $lead->get('check_list_status');
+                $canChangeStatus = empty($checkListStatus) || ($checkListStatus['mode'] ?? '') === 'automatic';
+
+                $activeTaskListId = $taskList && $canChangeStatus
+                    ? $taskList->getId()
+                    : $lead->companies->get('default_checklist_id');
+
+                $lead->set('check_list_status', [
+                    'mode' => 'automatic',
+                    'activeTaskListId' => $activeTaskListId,
+                ]);
+            }
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }
