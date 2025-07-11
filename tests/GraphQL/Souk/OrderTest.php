@@ -14,12 +14,16 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Tests\Connectors\Traits\HasStripeConfiguration;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
 class OrderTest extends TestCase
 {
     use InventoryCases;
+    use PaymentCases;
+    use HasStripeConfiguration;
 
     public function testCreateDraftOrder()
     {
@@ -84,6 +88,7 @@ class OrderTest extends TestCase
             ],
             ]
         );
+        $this->setupStripeConfiguration($app);
         $product = (new CreateProductAction($productData, $user))->execute();
         $variant = $product->variants()->first();
         $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
@@ -99,6 +104,17 @@ class OrderTest extends TestCase
             'description' => 'Initial deposit for order testing',
             'slug' => 'initial-deposit',
         ]);
+        $items = [
+            [
+                'variant_id' => $variant->getId(),
+                'amount' => 1,
+                'quantity' => 1,
+            ]
+        ];
+
+        $paymentIntentId = $this->createTestPaymentIntent($items[0], $app)->id;
+        unset($items[0]['amount']);
+
         $data = [
             'cartId' => 'default',
 
@@ -106,12 +122,7 @@ class OrderTest extends TestCase
                 'email' => $user->email,
                 'phone' => $user->phone,
             ],
-            'items' => [
-                [
-                    'variant_id' => $variant->getId(),
-                    'quantity' => 2,
-                ],
-            ],
+            'items' => $items,
             'shipping_address' => [
                 'address' => fake()->address(),
                 'address_2' => fake()->postcode(),
@@ -120,6 +131,9 @@ class OrderTest extends TestCase
             ],
             'metadata' => [
                 'user_company_id' => $company->getId(),
+                'paymentIntent' => [
+                    'client_secret' => $paymentIntentId
+                ]
             ],
         ];
 

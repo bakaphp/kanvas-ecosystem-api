@@ -12,7 +12,7 @@ use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Users\Repositories\UsersRepository;
 use Override;
 
-class CreateOrderFromCartWalletAction extends CreateOrderFromCartAction
+class CreateOrderFromCartWalletAction extends CreateBaseOrderAction
 {
     #[Override]
     public function execute(): Order
