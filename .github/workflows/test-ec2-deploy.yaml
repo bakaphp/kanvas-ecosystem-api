@@ -45,13 +45,13 @@ jobs:
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
-            docker stop queue-scrapper
+            docker restart queue-scrapper
             docker stop queue-scrapper-worker-1
             docker stop queue-scrapper-worker-2
             docker stop queue-scrapper-worker-3
             docker stop queue-scrapper-worker-4
-            docker stop queue
-            docker stop queue-imports
+            docker restart queue
+            docker restart queue-imports
             docker stop queue-notifications
             docker stop queue-social
             docker stop laravel-scheduler
@@ -59,10 +59,10 @@ jobs:
             docker stop queue-sync-shopify-queue-worker-1
             docker stop queue-sync-shopify-queue-worker-1
             docker stop queue-sync-shopify-queue-worker-2
-            docker stop queue-scout-worker-1
+            docker restart queue-scout-worker-1
             docker stop queue-scout-worker-2
             docker stop queue-scout-worker-3
-            docker stop queue-workflow-1
+            docker restart queue-workflow-1
             docker stop queue-workflow-2
             docker stop queue-workflow-3
             docker stop batch-logger-queue
