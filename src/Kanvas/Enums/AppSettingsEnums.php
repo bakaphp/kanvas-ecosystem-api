@@ -44,9 +44,6 @@ enum AppSettingsEnums implements EnumsInterface
     case ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME;
     case OPEN_AI_EMBEDDING_KEY;
 
-    case OPEN_AI_EMBEDDING_KEY;
-
-
     #[Override]
     public function getValue(): mixed
     {
