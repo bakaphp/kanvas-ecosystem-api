@@ -61,7 +61,6 @@ class DynamicRuleWorkflow extends Workflow
             $activity = $workflowActivity->activity;
 
             if ($rule->runAsync()) {
-                $entity->refresh(); // Ensure the entity is up-to-date before passing it to the activity
                 $activities[] = yield ActivityStub::make($activity->actionClass(), $entity, $app, $params);
             } else {
                 $activityClass = $activity->actionClass();
