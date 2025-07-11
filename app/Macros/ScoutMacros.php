@@ -6,8 +6,8 @@ namespace App\Macros;
 
 use Baka\Search\SearchEngineResolver;
 use Kanvas\Apps\Models\Apps;
-use Laravel\Scout\Builder;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Laravel\Scout\Builder;
 
 class ScoutMacros
 {
