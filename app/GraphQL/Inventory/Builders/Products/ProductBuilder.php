@@ -91,10 +91,17 @@ class ProductBuilder
                     ->semantic([
                         'per_page' => 25,
                     ]);
-        $hits = collect($results['hits']);
-        $ids = $hits->pluck('document.id')->toArray();
-        // @todo Improve performance of this query
+
+        // @todo Improve vector distance filtering
+        $hits = collect($results['hits'])
+        ->filter(fn ($hit) => $hit['vector_distance'] < 0.8)
+        ->pluck('document');
+
+        $ids = $hits->pluck('id')->toArray();
+
+        // @todo Improve
         return Products::whereIn('id', $ids)
+            ->orderByRaw('FIELD(id, '.implode(',', $ids).')')
             ->get();
     }
 }
