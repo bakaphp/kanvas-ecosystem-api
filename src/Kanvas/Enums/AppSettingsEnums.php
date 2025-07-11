@@ -42,9 +42,7 @@ enum AppSettingsEnums implements EnumsInterface
     case USE_LEGACY_ROLES;
     case DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE;
     case ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME;
-
     case OPEN_AI_EMBEDDING_KEY;
-
 
     #[Override]
     public function getValue(): mixed

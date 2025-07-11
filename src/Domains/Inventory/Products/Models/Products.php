@@ -821,7 +821,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
-        if ($this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->value)) {
+        if ($this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue())) {
             $schema['fields'][] = [
                 'name' => 'embedding',
                 'type' => 'float[]',
@@ -832,7 +832,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     ],
                     'model_config' => [
                         'model_name' => 'openai/text-embedding-3-small',
-                        'api_key' => $this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->value),
+                        'api_key' => $this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue()),
                     ],
                 ],
             ];
