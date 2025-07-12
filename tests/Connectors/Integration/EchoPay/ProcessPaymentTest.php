@@ -51,6 +51,8 @@ final class ProcessPaymentTest extends TestCase
             $user
         );
 
+        $this->setAllowNoPaymentStatus(true, $app);
+
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct(attributes: [
             [
@@ -247,6 +249,8 @@ final class ProcessPaymentTest extends TestCase
             $company,
             $user
         );
+
+        $this->setAllowNoPaymentStatus(true, $app);
 
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct(attributes: [
