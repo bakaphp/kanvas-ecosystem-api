@@ -40,6 +40,8 @@ class MessageObserver
             $message->parent->searchable();
         }
         $message->clearLightHouseCacheJob();
+
+        $message->user->getAppProfile($message->app)->increment('total_messages_count');
     }
 
     public function updated(Message $message): void
