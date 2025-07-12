@@ -28,7 +28,7 @@ class UserAppRepository
             })
             ->with([
                 'companies', // Eager load companies relationship
-                'roles'      // Eager load roles relationship  
+                'roles',      // Eager load roles relationship
             ]);
     }
 }
