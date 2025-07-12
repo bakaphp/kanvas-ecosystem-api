@@ -25,6 +25,10 @@ class UserAppRepository
                     ->from('users_associated_company')
                     ->whereRaw('users_associated_company.users_id = users.id')
                     ->where('users_associated_company.companies_id', '>', 0);
-            });
+            })
+            ->with([
+                'companies', // Eager load companies relationship
+                'roles'      // Eager load roles relationship  
+            ]);
     }
 }
