@@ -146,6 +146,7 @@ class Apps extends BaseModel implements AppInterface
         $user = $user ?? Auth::user();
 
         return $this->keys()
+            ->with('user') // Eager load the user relationship
             ->where('users_id', $user->getId())
             ->get();
     }
