@@ -83,6 +83,7 @@ class CreateMessageAction
                     entity_id: $message->getId(),
                     entity_namespace: Message::class,
                     name: $this->messageInput->channel_slug,
+                    description: $this->messageInput->channel_slug,
                     slug: $this->messageInput->channel_slug,
                 ))->execute()->addMessage($message, $message->user);
             }
