@@ -59,7 +59,7 @@ jobs:
             docker stop queue-sync-shopify-queue-worker-1
             docker stop queue-sync-shopify-queue-worker-1
             docker stop queue-sync-shopify-queue-worker-2
-            docker stop queue-scout-worker-1
+            docker restart queue-scout-worker-1
             docker stop queue-scout-worker-2
             docker stop queue-scout-worker-3
             docker restart queue-workflow-1

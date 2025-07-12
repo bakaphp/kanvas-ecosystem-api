@@ -14,11 +14,13 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
 class OrderPaymentLinkTest extends TestCase
 {
     use InventoryCases;
+    use PaymentCases;
 
     protected function createOrderForPaymentTest(): Order
     {
@@ -26,6 +28,7 @@ class OrderPaymentLinkTest extends TestCase
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
 
+        $this->setAllowNoPaymentStatus(true, $app);
         // Create product and variant
         $productData = new Product(
             app: $app,
