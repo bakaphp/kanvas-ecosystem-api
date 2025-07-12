@@ -15,7 +15,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     upc: String
     system_module: SystemModule! @method(name: "getSystemModule")
     total_variants: Int @method(name: "getTotalVariants")
-    status: Status
+    status: Status @belongsTo
     files: [Filesystem!]!
         @cacheRedis
         @paginate(

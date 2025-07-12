@@ -196,7 +196,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         //We need to manually query product attribute by this relation so the translate can work for both.
         $query = $this->hasMany(ProductsAttributes::class, 'products_id')
             ->join('attributes', 'products_attributes.attributes_id', '=', 'attributes.id')
-            ->select('products_attributes.*', 'attributes.*');
+            ->select('products_attributes.*', 'attributes.*')
+            ->with('attribute'); // Add this line to eager load the attribute relationship
 
         foreach ($conditions as $column => $value) {
             $query->where("attributes.$column", $value);
