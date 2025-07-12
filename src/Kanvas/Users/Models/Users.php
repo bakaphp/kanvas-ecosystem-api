@@ -1041,6 +1041,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function getRolesToArray(): array
     {
+        // Check if roles are already loaded to avoid N+1
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->toArray();
+        }
+
+        // If not loaded, load them efficiently
         return $this->getRoles()->toArray();
     }
 
