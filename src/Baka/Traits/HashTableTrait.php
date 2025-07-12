@@ -197,11 +197,16 @@ trait HashTableTrait
             $this->getSettingsRedisPrimaryKey(),
         );
 
+        $result = [];
         foreach ($fields as $key => $value) {
-            $fields[$key] = Str::jsonToArray($value);
+            // Skip cached null markers
+            if ($value === '__NULL__') {
+                continue;
+            }
+            $result[$key] = Str::jsonToArray($value);
         }
 
-        return $fields;
+        return $result;
     }
 
     /**
@@ -269,12 +274,20 @@ trait HashTableTrait
      */
     public function get(string $key, mixed $defaultValue = null): mixed
     {
-        // Try Redis first
-        if ($value = $this->getFromRedis($key)) {
-            return $value;
+        $redisKey = $this->getSettingsRedisPrimaryKey();
+        $value = Redis::hGet($redisKey, $key);
+
+        // If key exists in Redis
+        if ($value !== false) {
+            // Handle cached "not found" state
+            if ($value === '__NULL__') {
+                return $defaultValue;
+            }
+
+            return Str::jsonToArray($value);
         }
 
-        // Fallback to database
+        // Key doesn't exist in Redis, check database
         $this->createSettingsModel();
         $setting = $this->getSettingsByKey($key);
 
@@ -284,6 +297,9 @@ trait HashTableTrait
 
             return $setting->value;
         }
+
+        // Cache the "not found" state to prevent future database queries
+        Redis::hSet($redisKey, $key, '__NULL__');
 
         return $defaultValue;
     }
