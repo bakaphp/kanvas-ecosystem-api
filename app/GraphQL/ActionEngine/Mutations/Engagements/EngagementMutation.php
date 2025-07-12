@@ -221,6 +221,7 @@ class EngagementMutation
             entity_namespace: Lead::class,
             name: $lead->uuid,
             slug: $lead->uuid,
+            description: $lead->uuid,
         ))->execute();
 
         $engagementMessage = new EngagementMessage(
@@ -388,6 +389,7 @@ class EngagementMutation
             entity_id: $lead->getId(),
             entity_namespace: Lead::class,
             name: $lead->uuid,
+            description: $lead->uuid,
             slug: $lead->uuid,
         ))->execute();
         if ($channel) {
