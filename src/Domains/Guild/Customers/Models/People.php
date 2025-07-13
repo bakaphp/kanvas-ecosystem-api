@@ -603,6 +603,7 @@ class People extends BaseModel
             event: WorkflowEnum::SEARCH->value,
             params: [
                 'search' => trim($query),
+                'search_type' => 'people',
                 'user' => $user instanceof UserInterface ? $user : null,
                 'company' => $user instanceof UserInterface ? $user->getCurrentCompany() : null,
             ]

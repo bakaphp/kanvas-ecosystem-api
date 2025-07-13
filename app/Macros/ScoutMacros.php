@@ -31,6 +31,7 @@ class ScoutMacros
             $app->fireWorkflow(
                 event: WorkflowEnum::SEARCH->value,
                 params: [
+                    'search_type' => 'product',
                     'search' => trim($query),
                 ]
             );
