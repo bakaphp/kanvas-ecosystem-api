@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Actions\CheckNuggetGenerationCountAction;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Kanvas\Exceptions\ModelNotFoundException;
-use Illuminate\Database\Eloquent\Model;
-use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Companies\Models\Companies;
 
 class CheckNuggetGenerationCountActivity extends KanvasActivity
 {
