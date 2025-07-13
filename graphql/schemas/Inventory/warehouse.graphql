@@ -48,6 +48,7 @@ input WarehouseInputUpdate {
     is_default: Boolean
     is_published: Int
 }
+
 extend type Mutation @guard {
     createWarehouse(input: WarehouseInput!): Warehouse!
         @field(
