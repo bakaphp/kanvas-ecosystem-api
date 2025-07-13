@@ -8,8 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
+use Baka\Users\Contracts\UserInterface;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -139,11 +141,14 @@ class Apps extends BaseModel implements AppInterface
         return (int) $totalCompanies;
     }
 
-    public function userKeys(): HasMany
+    public function getUserKeys(?UserInterface $user = null): Collection
     {
-        return $this->hasMany(AppKey::class, 'apps_id')
-            ->where('users_id', auth()->id())
-            ->with('user');
+        $user = $user ?? Auth::user();
+
+        return $this->keys()
+            ->with('user') // Eager load the user relationship
+            ->where('users_id', $user->getId())
+            ->get();
     }
 
     /**
