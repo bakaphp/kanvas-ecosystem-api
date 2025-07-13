@@ -166,7 +166,13 @@ class MessageManagementMutation
             throw new AuthenticationException('You are not allowed to delete this message');
         }
 
-        return $message->softDelete();
+        $deleteStatus = $message->delete();
+
+        if ($deleteStatus && $message->searchable()) {
+            $message->unsearchable();
+        }
+
+        return $deleteStatus;
     }
 
     public function deleteMultiple(mixed $root, array $request): bool
