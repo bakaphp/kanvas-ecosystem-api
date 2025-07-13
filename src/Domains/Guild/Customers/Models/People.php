@@ -597,19 +597,21 @@ class People extends BaseModel
     public static function search($query = '', $callback = null)
     {
         $app = app(Apps::class);
+        $user = auth()->user();
 
         $app->fireWorkflow(
             event: WorkflowEnum::SEARCH->value,
             params: [
                 'search' => trim($query),
+                'user' => $user instanceof UserInterface ? $user : null,
+                'company' => $user instanceof UserInterface ? $user->getCurrentCompany() : null,
             ]
         );
 
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
-        $user = auth()->user();
 
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
-            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
         }
 
         if ($query->model->isTypesense()) {
