@@ -1,6 +1,6 @@
 type PaymentMethod {
     id: ID!
-    payment_ending_numbers: String 
+    payment_ending_numbers: String
     payment_methods_brand: String
     stripe_card_id: String
     expiration_date: String
@@ -12,29 +12,28 @@ type PaymentMethod {
 }
 
 type Payment {
-	id: ID!
-	apps_id: ID!
+    id: ID!
+    apps_id: ID!
     company: Company! @belongsTo
-	payable_id: ID!
-	payable_type: String!
-	uuid: String!
-	user: User! @belongsTo(relation: "user")
-	payment_method: PaymentMethod! @belongsTo(relation: "paymentMethod")
-	payment_date: String!
-	concept: String!
-	notes: String
-	number: String
-	amount: Money
-	currency: String
-	status: String
-	metadata: Mixed
-	created_at: String!
-	updated_at: String
-	is_deleted: Boolean!
+    payable_id: ID!
+    payable_type: String!
+    uuid: String!
+    user: User! @belongsTo(relation: "user")
+    payment_method: PaymentMethod! @belongsTo(relation: "paymentMethod")
+    payment_date: String!
+    concept: String!
+    notes: String
+    number: String
+    amount: Money
+    currency: String
+    status: String
+    metadata: Mixed
+    created_at: String!
+    updated_at: String
+    is_deleted: Boolean!
 }
 
-
-input PaymentMethodInput{
+input PaymentMethodInput {
     number: String!
     expiration_date: String!
     brand: String
@@ -50,7 +49,7 @@ input PaymentMethodInput{
     lastname: String
 }
 
-input PaymentMethodUpdateInput{
+input PaymentMethodUpdateInput {
     number: String
     expiration_date: String
     brand: String
@@ -85,15 +84,15 @@ input PaymentInput {
 }
 
 type PayerAuthResponse {
-  status: String!
-  message: String
-  data: Mixed
+    status: String!
+    message: String
+    data: Mixed
 }
 
 type PayerAuthStatus {
-  status: String!
-  message: String
-  data: Mixed
+    status: String!
+    message: String
+    data: Mixed
 }
 
 extend type Mutation @guard {
@@ -101,7 +100,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@createPaymentMethod"
         )
-    updatePaymentMethod(id: ID!, input: PaymentMethodUpdateInput!): PaymentMethod!
+    updatePaymentMethod(
+        id: ID!
+        input: PaymentMethodUpdateInput!
+    ): PaymentMethod!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@updatePaymentMethod"
         )
@@ -140,23 +142,19 @@ extend type Query {
         orderBy: PaymentMethodOrderByInput
         where: _
             @whereConditions(
-                columns: [
-                    "id"
-                    "payment_methods_brand"
-                    "users_id"
-                ]
+                columns: ["id", "payment_methods_brand", "users_id"]
             )
     ): [PaymentMethod!]!
         @paginate(
-            defaultCount: 25 
+            defaultCount: 25
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
             scopes: ["fromApp", "fromUser", "notDeleted"]
         )
-    
+
     paymentMethod(id: ID!): PaymentMethod!
         @find(
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
-            scopes: [ "fromApp", "fromUser", "notDeleted"]
+            scopes: ["fromApp", "fromUser", "notDeleted"]
         )
 }
 
