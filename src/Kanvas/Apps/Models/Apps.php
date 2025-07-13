@@ -141,12 +141,17 @@ class Apps extends BaseModel implements AppInterface
         return (int) $totalCompanies;
     }
 
+    public function userKeys(): HasMany
+    {
+        return $this->hasMany(AppKey::class, 'apps_id')
+            ->where('users_id', auth()->id());
+    }
+
     public function getUserKeys(?UserInterface $user = null): Collection
     {
         $user = $user ?? Auth::user();
 
         return $this->keys()
-            ->with('user') // Eager load the user relationship
             ->where('users_id', $user->getId())
             ->get();
     }
