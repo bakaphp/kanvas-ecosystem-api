@@ -116,6 +116,10 @@ class IntegrationsMutation
 
         $subject = $integrationWorkflow->entity()->first();
 
+        if ($integrationWorkflow->rules?->type === null) {
+            return false;
+        }
+
         $subject->fireWorkflow(
             $integrationWorkflow->rules->type->name,
             true
