@@ -12,9 +12,9 @@ type Category {
             resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
         )
     is_published: Boolean!
-    companies: Company!
+    companies: Company! @belongsTo(relation: "company")
     weight: Int
-    users: User!
+    users: User! @belongsTo(relation: "user")
     total_products: Int! @method(name: "getTotalProducts")
     files: [Filesystem!]!
         @cacheRedis
