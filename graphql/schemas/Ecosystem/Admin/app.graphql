@@ -16,7 +16,7 @@ type App {
     total_system_modules: Int! @count(relation: "systemModules")
     systemModules: [SystemModule!]! @belongsToMany
     domain_based: Boolean
-    secrets: [AppKey]! @method(name: "getUserKeys")
+    secrets: [AppKey]! @hasMany(relation: "userKeys")
     created_at: String!
     updated_at: String!
 }
