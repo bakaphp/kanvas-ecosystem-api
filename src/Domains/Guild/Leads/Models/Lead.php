@@ -536,6 +536,7 @@ class Lead extends BaseModel
         $app->fireWorkflow(
             event: WorkflowEnum::SEARCH->value,
             params: [
+                'search_type' => 'lead',
                 'search' => trim($query),
             ]
         );
