@@ -14,6 +14,7 @@ use Kanvas\Connectors\VinSolution\Actions\PullPeopleAction as ActionsPullPeopleA
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -41,18 +42,26 @@ class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInter
 
         //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
 
-        if ($isElead) {
-            return new PullPeopleAction($app, $company, $user)->execute($params);
-        } elseif ($isVinSolutions) {
-            return new ActionsPullPeopleAction(
-                $app,
-                $company,
-                $user
-            )->execute(
-                email: $params['email'] ?? null,
-            );
-        }
+        return $this->executeIntegration(
+            entity: $entity,
+            app: $app,
+            integration: IntegrationsEnum::SALESASSIST,
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($params, $company, $user, $isElead, $isVinSolutions) {
+                if ($isElead) {
+                    return new PullPeopleAction($app, $company, $user)->execute($params);
+                } elseif ($isVinSolutions) {
+                    return new ActionsPullPeopleAction(
+                        $app,
+                        $company,
+                        $user
+                    )->execute(
+                        email: $params['email'] ?? null,
+                    );
+                }
 
-        return [];
+                return [];
+            },
+            company: $company,
+        );
     }
 }
