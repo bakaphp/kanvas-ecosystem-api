@@ -45,10 +45,7 @@ type WorkflowIntegrationsHistory {
     workflow: Workflow
     response: Mixed
     exception: Mixed
-    trigger: String
-        @method(
-            name: "getTrigger"
-        )
+    trigger: String @method(name: "getTrigger")
     created_at: DateTime
 }
 
@@ -146,5 +143,4 @@ extend type Query @guard {
             scopes: ["fromApp", "notDeleted", "fromCompany"]
             defaultCount: 25
         )
-    
 }
