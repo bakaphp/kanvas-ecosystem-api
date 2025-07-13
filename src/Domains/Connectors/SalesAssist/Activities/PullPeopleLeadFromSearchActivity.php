@@ -16,7 +16,6 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
@@ -42,21 +41,13 @@ class PullPeopleLeadFromSearchActivity extends KanvasActivity
             return [];
         }
 
-        return $this->executeIntegration(
-            entity: $apps,
-            app: $app,
-            integration: IntegrationsEnum::SALESASSIST,
-            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($searchText, $user, $isElead, $isVinSolutions) {
-                if ($isElead) {
-                    return $this->searchEleadLeads($searchText, $user);
-                } elseif ($isVinSolutions) {
-                    return $this->searchVinSolutionLeads($searchText, $user);
-                }
+        if ($isElead) {
+            return $this->searchEleadLeads($searchText, $user);
+        } elseif ($isVinSolutions) {
+            return $this->searchVinSolutionLeads($searchText, $user);
+        }
 
-                return [];
-            },
-            company: $company,
-        );
+        return [];
     }
 
     /**

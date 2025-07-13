@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -14,7 +13,6 @@ use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadActio
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -43,31 +41,23 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
         //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
 
-        return $this->executeIntegration(
-            entity: $entity,
-            app: $app,
-            integration: IntegrationsEnum::SALESASSIST,
-            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($params, $company, $user, $isElead, $isVinSolutions, $leadId) {
-                if ($isElead) {
-                    return new PullLeadAction(
-                        $app,
-                        $company,
-                        $user
-                    )->execute($params, $entity->id > 0 ? $entity : null);
-                } elseif ($isVinSolutions) {
-                    return new ActionsPullLeadAction(
-                        $app,
-                        $company,
-                        $user
-                    )->execute(
-                        lead: $entity->id > 0 ? $entity : null,
-                        leadId: (int) $leadId,
-                    );
-                }
+        if ($isElead) {
+            return new PullLeadAction(
+                $app,
+                $company,
+                $user
+            )->execute($params, $entity->id > 0 ? $entity : null);
+        } elseif ($isVinSolutions) {
+            return new ActionsPullLeadAction(
+                $app,
+                $company,
+                $user
+            )->execute(
+                lead: $entity->id > 0 ? $entity : null,
+                leadId: (int) $leadId,
+            );
+        }
 
-                return [];
-            },
-            company: $company,
-        );
+        return [];
     }
 }
