@@ -33,7 +33,8 @@ class AgentManagementMutation
             is_active: $input['is_active'],
             description: $input['description'],
             config: $input['config'],
-            task: $task
+            task: $task,
+            communicationChannel: $input['communication_channels'] ?? []
         );
 
         return new CreateAgentAction($agentDTO)->execute();
@@ -58,7 +59,8 @@ class AgentManagementMutation
             is_active: $input['is_active'],
             description: $input['description'],
             config: $input['config'],
-            task: $task
+            task: $task,
+            communicationChannel: $input['communication_channels'] ?? []
         );
 
         return new UpdateAgentAction($agentDTO, $agent)->execute();

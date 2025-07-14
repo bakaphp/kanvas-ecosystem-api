@@ -26,7 +26,7 @@ class CreateDefaultChannelCommand extends Command
         $appId = $this->argument('app_id');
         $app = Apps::getById($appId);
         $this->overwriteAppService($app);
-        $this->info('Creating default communication channel for app: ' . $app->getName());
+        $this->info('Creating default communication channel for app: ' . $app->name);
         $channel = new CommunicationChannel(
             app: $app,
             name: 'Default Channel',

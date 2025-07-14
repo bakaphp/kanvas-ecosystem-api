@@ -33,6 +33,13 @@ input AgentAiInput {
     role: String
     is_active: Boolean
     company_task_list_id: Int
+    communication_channels: [CommunicationChannelPivot!]
+}
+
+input CommunicationChannelPivot {
+    communication_channel_id: Int!
+    entry_point: String
+    config: String
 }
 
 extend type Mutation @guard {

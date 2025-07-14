@@ -24,6 +24,7 @@ class Agent extends Data
         public ?string $description = null,
         public ?string $config = null,
         public ?TaskList $task = null,
+        public array $communicationChannel = []
     ) {
     }
 }

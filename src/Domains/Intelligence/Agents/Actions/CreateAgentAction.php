@@ -16,7 +16,7 @@ class CreateAgentAction
 
     public function execute(): AgentModel
     {
-        return AgentModel::updateOrCreate([
+        $agent = AgentModel::updateOrCreate([
             'apps_id' => $this->agent->app->id,
             'companies_id' => $this->agent->company->id,
             'user_id' => $this->agent->user->id,
@@ -29,5 +29,12 @@ class CreateAgentAction
             'config' => $this->agent->config,
             'company_task_list_id' => $this->agent->task?->id ?? null,
         ]);
+
+        if ($this->agent->communicationChannel) {
+            dump($this->agent->communicationChannel);
+            $agent->communicationChannels()->sync($this->agent->communicationChannel);
+        }
+
+        return $agent;
     }
 }

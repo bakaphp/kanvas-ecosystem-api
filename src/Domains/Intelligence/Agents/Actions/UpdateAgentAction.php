@@ -27,6 +27,7 @@ class UpdateAgentAction
             'agent_model_id' => $this->agent->agentModel->id,
             'company_task_list_id' => $this->agent->task?->id ?? null,
         ]);
+        $this->agentModel->communicationChannels()->sync($this->agent->communicationChannel);
 
         return $this->agentModel;
     }

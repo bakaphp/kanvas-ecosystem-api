@@ -62,7 +62,14 @@ class AgentTest extends TestCase
                 'role' => 'test-role',
                 'agent_model_id' => $agentModel,
                 'is_active' => true  ,
-                'company_task_list_id' => $taskListId ,
+                'company_task_list_id' => $taskListId,
+                'communication_channels' => [
+                    [
+                        'communication_channel_id' => 1,
+                        'entry_point' => 'test',
+                        'config' => json_encode(['key' => 'value']),
+                    ],
+                ],
             ],
         ];
 

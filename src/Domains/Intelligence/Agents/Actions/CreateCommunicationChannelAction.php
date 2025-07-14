@@ -17,7 +17,7 @@ class CreateCommunicationChannelAction
     public function execute(): CommunicationChannelModel
     {
         $channel = CommunicationChannelModel::create([
-            'app_id' => $this->communicationChannel->app->getId(),
+            'apps_id' => $this->communicationChannel->app->getId(),
             'name' => $this->communicationChannel->name,
             'description' => $this->communicationChannel->description,
             'handler' => $this->communicationChannel->handler,
