@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Follows\Models\UsersFollows;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 
 class GenerateWhoToFollowRecommendationsAction
@@ -23,9 +24,8 @@ class GenerateWhoToFollowRecommendationsAction
 
     public function execute(UserInterface $user, int $pageSize = 10, string $scenario = ScenariosEnum::USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS->value): Builder
     {
-        $socialConnection = config('database.connections.social.database');
+        $usersSystemModule = SystemModulesRepository::getByModelName(Users::class, $this->app);
         $recommendationService = new RecombeeUserRecommendationService($this->app);
-
         $response = $recommendationService->getUserToUserRecommendation($user, $pageSize, $scenario);
 
         $entityIds = collect($response['recomms'])
@@ -42,9 +42,18 @@ class GenerateWhoToFollowRecommendationsAction
             ->pluck('entity_id');
 
         return Users::query()
-            ->whereNotIn('id', $followedIds)
-            ->whereIn('id', $entityIds)
-            ->where('id', '!=', $user->getId())
-            ->where('is_deleted', 0);
+            ->join(
+                "filesystem_entities",
+                "filesystem_entities.entity_id",
+                '=',
+                'users.id'
+            )
+            ->whereNotIn('users.id', $followedIds)
+            ->whereIn('users.id', $entityIds)
+            ->where('users.id', '!=', $user->getId())
+            ->where('users.is_deleted', 0)
+            ->where('filesystem_entities.system_modules_id', $usersSystemModule->getId())
+            ->where('filesystem_entities.field_name', 'photo');
+
     }
 }
