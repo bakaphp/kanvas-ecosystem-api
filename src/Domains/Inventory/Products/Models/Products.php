@@ -55,9 +55,9 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
+use Override;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
-use Override;
 
 /**
  * Class Products.
@@ -128,7 +128,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     {
         return LogOptions::defaults()
         ->useLogName($this->getActivityLogName())
-        ->setDescriptionForEvent(fn(string $eventName) => "This product has been {$eventName}")
+        ->setDescriptionForEvent(fn (string $eventName) => "This product has been {$eventName}")
         ->logOnly(['*'])
         ->dontLogIfAttributesChangedOnly(['created_at','updated_at','published_at'])
         ->logOnlyDirty();
@@ -137,7 +137,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function getActivities(): Collection
     {
         return Activity::forSubject($this)
-                ->where('log_name',$this->getActivityLogName())
+                ->where('log_name', $this->getActivityLogName())
                 ->get();
     }
 

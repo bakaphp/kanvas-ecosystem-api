@@ -47,9 +47,9 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Override;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
-use Override;
 
 /**
  * Class Attributes.
@@ -137,7 +137,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
     }
 
-        public function getActivityLogName(): string
+    public function getActivityLogName(): string
     {
         return 'variant-' . $this->companies_id . '-' . $this->apps_id;
     }
@@ -146,7 +146,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     {
         return LogOptions::defaults()
         ->useLogName($this->getActivityLogName())
-        ->setDescriptionForEvent(fn(string $eventName) => "This variant has been {$eventName}")
+        ->setDescriptionForEvent(fn (string $eventName) => "This variant has been {$eventName}")
         ->logOnly(['*'])
         ->dontLogIfAttributesChangedOnly(['created_at','updated_at','published_at'])
         ->logOnlyDirty();
@@ -155,7 +155,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public function getActivities(): Collection
     {
         return Activity::forSubject($this)
-                ->where('log_name',$this->getActivityLogName())
+                ->where('log_name', $this->getActivityLogName())
                 ->get();
     }
 
