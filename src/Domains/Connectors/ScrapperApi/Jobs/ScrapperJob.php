@@ -28,7 +28,8 @@ class ScrapperJob implements ShouldQueue
         public CompaniesBranches $companyBranch,
         protected Regions $region,
         public array $results,
-        public ?string $uuid = null
+        public ?string $uuid = null,
+        public ?string $searchText = null,
     ) {
         $this->queue = 'scrapper-queue';
     }
@@ -41,7 +42,8 @@ class ScrapperJob implements ShouldQueue
             $this->companyBranch,
             $this->region,
             $this->results,
-            $this->uuid
+            $this->uuid,
+            $this->searchText
         )->execute();
     }
 }

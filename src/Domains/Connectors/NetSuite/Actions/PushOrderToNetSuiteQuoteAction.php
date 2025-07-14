@@ -13,7 +13,7 @@ use Kanvas\Connectors\NetSuite\Services\NetSuiteQuoteService;
 use Kanvas\Souk\Orders\Models\Order;
 use NetSuite\Classes\Estimate;
 
-class PushOrderToNetSuiteAction
+class PushOrderToNetSuiteQuoteAction
 {
     protected NetSuiteQuoteService $quoteService;
     protected NetSuiteCustomerService $customerService;

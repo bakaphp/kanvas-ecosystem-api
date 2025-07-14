@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\VinSolution\DataTransferObject\People;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
@@ -25,39 +26,44 @@ class PullPeopleAction
 
     public function execute(?string $email = null, ?string $phone = null): array
     {
-        $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
+        return DB::transaction(function () use ($email, $phone) {
+            $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
 
-        $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
+            $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
 
-        if (! $vinUserId) {
-            throw new VinSolutionException(
-                'User not found in VinSolution',
+            if (! $vinUserId) {
+                throw new VinSolutionException(
+                    'User not found in VinSolution',
+                );
+            }
+
+            $user = Dealer::getUser(
+                $vinCompany,
+                $vinUserId,
+                $this->app,
             );
-        }
+            $vinContact = Contact::getAll(
+                $vinCompany,
+                $user,
+                '',
+                [
+                    'email' => $email,
+                ]
+            );
 
-        $user = Dealer::getUser(
-            $vinCompany,
-            $vinUserId,
-            $this->app,
-        );
-        $vinContact = Contact::getAll(
-            $vinCompany,
-            $user,
-            '',
-            [
-                'email' => $email,
-            ]
-        );
+            if (! empty($vinContact)) {
+                $vinContact = new Contact($vinContact[0]);
+                $peopleDto = People::fromContact($vinContact, $this->app, $this->company, $this->user);
 
-        if (! empty($vinContact)) {
-            $vinContact = new Contact($vinContact[0]);
-            $peopleDto = People::fromContact($vinContact, $this->app, $this->company, $this->user);
+                $people = new SyncPeopleByThirdPartyCustomFieldAction($peopleDto)->execute();
+                $people->searchable();
 
-            return [
-                new SyncPeopleByThirdPartyCustomFieldAction($peopleDto)->execute(),
-            ];
-        }
+                return [
+                    $people,
+                ];
+            }
 
-        return [];
+            return [];
+        });
     }
 }

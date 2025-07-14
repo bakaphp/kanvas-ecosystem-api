@@ -23,6 +23,7 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -49,7 +50,6 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Override;
@@ -196,7 +196,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         //We need to manually query product attribute by this relation so the translate can work for both.
         $query = $this->hasMany(ProductsAttributes::class, 'products_id')
             ->join('attributes', 'products_attributes.attributes_id', '=', 'attributes.id')
-            ->select('products_attributes.*', 'attributes.*');
+            ->select('products_attributes.*', 'attributes.*')
+            ->with('attribute'); // Add this line to eager load the attribute relationship
 
         foreach ($conditions as $column => $value) {
             $query->where("attributes.$column", $value);
@@ -507,20 +508,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     {
         $app = app(Apps::class);
 
-        $app->fireWorkflow(
-            event: WorkflowEnum::SEARCH->value,
-            params: [
-                'search' => $query,
-            ]
-        );
-
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
         if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
-
         if ($query->model->isTypesense()) {
             $query->options([
                 'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
@@ -666,7 +659,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
      */
     public function typesenseCollectionSchema(): array
     {
-        return [
+        $schema = [
             'name' => $this->searchableAs(),
             'fields' => [
                 [
@@ -681,7 +674,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'name' => 'name',
                     'type' => 'string',
                     'sort' => true,
-                    'facet' => true,
+                    // 'facet' => true,
                 ],
                 [
                     'name' => 'files',
@@ -821,6 +814,24 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
+        if ($this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue())) {
+            $schema['fields'][] = [
+                'name' => 'embedding',
+                'type' => 'float[]',
+                'embed' => [
+                    'from' => [
+                        'name',
+                        'description',
+                    ],
+                    'model_config' => [
+                        'model_name' => 'openai/text-embedding-3-small',
+                        'api_key' => $this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue()),
+                    ],
+                ],
+            ];
+        }
+
+        return $schema;
     }
 
     #[Override]

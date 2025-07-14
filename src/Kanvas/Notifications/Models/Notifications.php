@@ -165,6 +165,24 @@ class Notifications extends BaseModel
     }
 
     /**
+     * Get entity children if it is a instance of Messages and has parent_id NULL
+     */
+    public function getEntityChildrenData(): mixed
+    {
+        try {
+            $systemModule = $this->systemModule()->firstOrFail();
+            $modelName = $systemModule->model_name;
+            $entity = $modelName::getById($this->entity_id);
+            if ($entity instanceof Message && $entity->parent_id === null && $entity->total_children > 0) {
+                return $entity->children;
+            }
+        } catch (Throwable $e) {
+        }
+
+        return null;
+    }
+
+    /**
      * Mark the notification as read.
      */
     public function markAsRead(): void

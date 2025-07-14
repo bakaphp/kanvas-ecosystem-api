@@ -1,14 +1,15 @@
 type Notification {
     id: ID!
-    users: User!
-    fromUsers: User
-    companies: Company
-    systemModule: SystemModule
-    interaction: Interaction
+    users: User! @belongsTo
+    fromUsers: User @belongsTo
+    companies: Company @belongsTo
+    systemModule: SystemModule @belongsTo
+    interaction: Interaction @belongsTo
     interaction_id: Int
-    types(filter: NotificationTypeFilterInput): NotificationType!
+    types(filter: NotificationTypeFilterInput): NotificationType! @belongsTo
     entity_id: String!
     entity(fields: JSON): Mixed @method(name: "getEntityData")
+    entity_children(fields: JSON): Mixed @method(name: "getEntityChildrenData")
     content: String
     read: Int!
     content_group: String
@@ -18,9 +19,9 @@ type Notification {
 
 type NotificationType {
     id: ID!
-    systemModule: SystemModule!
-    parent: NotificationType
-    channel: NotificationChannel
+    systemModule: SystemModule! @belongsTo
+    parent: NotificationType @belongsTo
+    channel: NotificationChannel @belongsTo
     name: String!
     key: String!
     verb: String

@@ -53,10 +53,17 @@ class UpdatePeopleAction
         $this->people->syncTags($this->peopleData->tags);
 
         if ($this->peopleData->contacts->count()) {
+            // Deduplicate incoming contacts and filter out empty values
+            $deduplicatedContacts = $this->peopleData->contacts
+                ->toCollection()
+                ->filter(fn ($contact) => ! empty($contact->value))
+                ->unique(fn ($contact) => $contact->value . '_' . $contact->contacts_types_id)
+                ->values();
+
             $contactsToSave = [];
             $keepValues = [];
 
-            foreach ($this->peopleData->contacts as $contact) {
+            foreach ($deduplicatedContacts as $contact) {
                 // Try to find by value (unique identifier)
                 if (isset($contact->id) && $contact->id > 0) {
                     $existingContact = $this->people->contacts()
@@ -79,9 +86,9 @@ class UpdatePeopleAction
                 } else {
                     // New contact to be saved
                     $contactsToSave[] = new Contact([
-                    'contacts_types_id' => $contact->contacts_types_id,
-                    'value' => $contact->value,
-                    'weight' => $contact->weight,
+                        'contacts_types_id' => $contact->contacts_types_id,
+                        'value' => $contact->value,
+                        'weight' => $contact->weight,
                     ]);
                     $keepValues[] = $contact->value;
                 }
@@ -101,9 +108,24 @@ class UpdatePeopleAction
         }
 
         if ($this->peopleData->address->count()) {
+            // Deduplicate incoming addresses and filter out empty/invalid addresses
+            $deduplicatedAddresses = $this->peopleData->address
+                ->toCollection()
+                ->filter(fn ($address) => ! empty($address->address))
+                ->unique(function ($address) {
+                    // Create unique key based on main address fields
+                    return $address->address . '_' .
+                           ($address->address_2 ?? '') . '_' .
+                           ($address->city ?? '') . '_' .
+                           ($address->state ?? '') . '_' .
+                           ($address->zip ?? '') . '_' .
+                           ($address->country_id ?? 0);
+                })
+                ->values();
+
             $addresses = [];
 
-            foreach ($this->peopleData->address as $address) {
+            foreach ($deduplicatedAddresses as $address) {
                 $existingAddress = $this->people->address()->where('address', $address->address)
                     ->where('city', $address->city)
                     ->where('state', $address->state)

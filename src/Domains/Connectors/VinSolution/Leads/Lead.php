@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Leads;
 
+use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\VinSolution\Client;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Dealers\User;
@@ -41,7 +42,8 @@ class Lead
      */
     public static function getAll(Dealer $dealer, User $user, array $params = []): array
     {
-        $client = new Client($dealer->id, $user->id);
+        $app = isset($params['app']) && $params['app'] instanceof AppInterface ? $params['app'] : null;
+        $client = new Client($dealer->id, $user->id, $app);
         $client->useDigitalShowRoomKey();
 
         $data = [];
@@ -59,7 +61,8 @@ class Lead
 
     public static function getAllV2(Dealer $dealer, User $user, array $params = []): array
     {
-        $client = new Client($dealer->id, $user->id);
+        $app = isset($params['app']) && $params['app'] instanceof AppInterface ? $params['app'] : null;
+        $client = new Client($dealer->id, $user->id, $app);
 
         $data = [];
         $data['DealerId'] = $dealer->id;

@@ -51,7 +51,8 @@ class ScrapperAction
                 $companyBranch,
                 $region,
                 [$result],
-                null
+                null,
+                $this->search
             ));
             $classConcurrently[] = fn () => $action->execute();
         }
@@ -63,12 +64,14 @@ class ScrapperAction
             $companyBranch,
             $region,
             $secondGroup,
-            $uuid
+            $uuid,
+            $this->search
         );
+
         return [
             'scrapperProducts' => $scrapperProducts,
             'importerProducts' => $importerProducts,
-            'results' => $results
+            'results' => $results,
         ];
     }
 }

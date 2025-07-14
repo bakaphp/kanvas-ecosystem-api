@@ -35,6 +35,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
             integration: IntegrationsEnum::AERO_AMBULANCIA,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 sleep(30);
+                $order->refresh();
                 $data = $this->getB2BActivityData($order, $params);
 
                 // Skip execution if no valid aeroAmbulancia plans found
@@ -182,6 +183,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
             'activationDate' => $this->formatDateForService($personData['activationDate'] ?? date('Y-m-d')),
             'phoneNumber' => $this->cleanPhoneNumber($personData['phone'] ?? ''),
             'preferredLanguage' => $personData['language'] ?? 'es',
+            'email' => $personData['email'] ?? '',
             'ambulanceVariantId' => $ambulanceVariantId, // Required for all beneficiaries
         ];
 

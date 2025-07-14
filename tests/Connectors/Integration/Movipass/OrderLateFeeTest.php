@@ -2,14 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Tests\GraphQL\Souk;
+namespace Tests\Connectors\Integration\Movipass;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\GenerateOrderLateFee;
+use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
@@ -101,7 +103,7 @@ class OrderLateFeeTest extends TestCase
 
         $productResponse = $this->createProduct(attributes: [
             [
-                'name' => 'late_fee_variant_id',
+                'name' => 'late-fee-variant-id',
                 'value' => $lateFee->variants()->first()->id
             ],
         ])->json()['data']['createProduct'];
@@ -148,7 +150,7 @@ class OrderLateFeeTest extends TestCase
             metadata: [
                 'data' => [
                     'start_at' => $rightNow->subDays(2)->toDateTimeString(),
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
                     'late_fee_grace_start_at' => $rightNow->startOfDay()->addDays(1)->toDateTimeString()
                 ]
             ],
@@ -163,7 +165,7 @@ class OrderLateFeeTest extends TestCase
                     'late_fee_charged_at' => null,
                     'note' => 'test',
                     'start_at' => $yesterday->toDateTimeString(),
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
                     'late_fee_grace_start_at' => $yesterday->startOfDay()->addDays(1)->toDateTimeString()
                 ]
             ],
@@ -188,6 +190,7 @@ class OrderLateFeeTest extends TestCase
     {
         Notification::fake();
         $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+        $this->apps->set(EnumsConfigurationEnum::GRACE_PERIOD_DAYS->value, '1');
         $lateFeeProductResponse = $this->createProduct(attributes: [
             [
                 'name' => 'late_fee',
@@ -199,7 +202,7 @@ class OrderLateFeeTest extends TestCase
 
         $productResponse = $this->createProduct(attributes: [
             [
-                'name' => 'late_fee_variant_id',
+                'name' => 'late-fee-variant-id',
                 'value' => $lateFee->variants()->first()->id
             ],
         ])->json()['data']['createProduct'];
@@ -244,7 +247,7 @@ class OrderLateFeeTest extends TestCase
             metadata: [
                 'data' => [
                     'start_at' => $rightNow->subDays(32)->toDateTimeString(),
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
                     'late_fee_grace_start_at' => $rightNow->subDays(31)->startOfDay()->toDateTimeString()
                 ]
             ],
@@ -256,7 +259,7 @@ class OrderLateFeeTest extends TestCase
             metadata: [
                 'data' => [
                     'start_at' => $rightNow->subDays(62)->toDateTimeString(),
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
                     'late_fee_grace_start_at' => $rightNow->subDays(61)->startOfDay()->toDateTimeString()
                 ]
             ],
@@ -268,7 +271,7 @@ class OrderLateFeeTest extends TestCase
             metadata: [
                 'data' => [
                     'start_at' => $rightNow->subDays(61)->toDateTimeString(),
-                    'late_fee_variant_id' => $lateFee->variants()->first()->id,
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
                     'late_fee_grace_start_at' => $rightNow->subDays(60)->startOfDay()->toDateTimeString()
                 ]
             ],
@@ -277,7 +280,14 @@ class OrderLateFeeTest extends TestCase
 
         $total = $reservation1->getTotalAmount();
 
-        $lateOrders = new GenerateOrderLateFee($this->apps)->execute($rightNow->toDateTimeString(), [$reservation1->getId(), $reservation2->getId(), $reservation3->getId()]);
+        $lateOrders = new GenerateOrderLateFee($this->apps)
+            ->execute(
+                timeZonedNow: $rightNow->toDateTimeString(),
+                orderIds: [$reservation1->getId(), $reservation2->getId(), $reservation3->getId()],
+                addLateFee: false,
+            );
+
+        Artisan::call('kanvas:movipass-charge-late-orders');
         $order = $reservation1->fresh();
 
         $this->assertCount(3, $lateOrders);

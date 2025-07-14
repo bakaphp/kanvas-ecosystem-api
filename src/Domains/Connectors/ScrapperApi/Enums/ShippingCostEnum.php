@@ -16,4 +16,7 @@ enum ShippingCostEnum: string
     case SERVICE_FEE = 'service_fee';
     case SHIPPING_MARGIN = 'shipping_margin';
     case LOCOMPRO_COST = 'locompro_cost';
+    case CUSTOM_TAX_PROMPT = 'custom_tax_prompt';
+    case CUSTOM_TAX_ENABLED = 'custom_tax_enabled';
+    case CUSTOM_TAX_PDF_URL = 'custom_tax_pdf_url';
 }

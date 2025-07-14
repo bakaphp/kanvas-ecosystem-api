@@ -20,7 +20,7 @@ type VariantChannel {
         )
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
-    product: Product
+    product: Product @belongsTo(relation: "product")
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]! @hasMany(relation: "attributes")
@@ -29,6 +29,7 @@ type ChannelsPricesHistoryRelationship {
     price: Money!
     from_date: String!
 }
+
 type VariantChannelRelationship {
     channels_id: ID! @rename(attribute: "id")
     name: String

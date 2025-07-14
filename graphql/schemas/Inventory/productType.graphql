@@ -10,7 +10,7 @@ type ProductType {
         @field(
             resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
         )
-    companies: Company!
+    companies: Company! @belongsTo(relation: "company")
     is_published: Boolean
     total_products: Int! @method(name: "getTotalProducts")
     products_attributes: [Attributes!]! @method(name: "getProductsAttributes")

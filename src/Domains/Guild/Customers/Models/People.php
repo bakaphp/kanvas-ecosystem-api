@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Customers\Models;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
@@ -24,6 +25,7 @@ use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
@@ -50,8 +52,9 @@ use Override;
 class People extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
-    use HasTagsTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }    use HasTagsTrait;
     use CanUseWorkflow;
     use SocialInteractionsTrait;
     use Notifiable;
@@ -589,5 +592,35 @@ class People extends BaseModel
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $app->fireWorkflow(
+            event: WorkflowEnum::SEARCH->value,
+            params: [
+                'search' => trim($query),
+                'search_type' => 'people',
+                'user' => $user instanceof UserInterface ? $user : null,
+                'company' => $user instanceof UserInterface ? $user->getCurrentCompany() : null,
+            ]
+        );
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+            ]);
+        }
+
+        return $query;
     }
 }

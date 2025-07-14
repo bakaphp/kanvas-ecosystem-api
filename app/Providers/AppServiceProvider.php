@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Macros\ScoutMacros;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -36,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Sanctum::usePersonalAccessTokenModel(Sessions::class);
         Cashier::useCustomerModel(AppsStripeCustomer::class);
-
+        ScoutMacros::register();
         RateLimiter::for('graphql', function (Request $request) {
             $userId = $request->user()?->id;
 

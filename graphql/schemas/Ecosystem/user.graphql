@@ -97,6 +97,7 @@ type UserSocialInfo {
     total_lists: Int
     is_following: Boolean
     is_blocked: Boolean
+    unread_notifications: Int
 }
 
 type UserContactsMatchesFindings {

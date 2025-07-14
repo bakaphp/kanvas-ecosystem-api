@@ -114,9 +114,15 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     public function setType(string $type): void
     {
-        $this->type = NotificationTypes::where('apps_id', $this->app->getId())
-            ->where('name', $type)
-            ->firstOrFail();
+        $this->type = NotificationTypes::firstOrCreate([
+            'apps_id' => $this->app->getId(),
+            'name' => $type,
+            'is_deleted' => 0,
+        ], [
+            'key' => $type,
+            'template' => $type,
+            'system_modules_id' => SystemModulesRepository::getByModelName(static::class, $this->app)->getId(),
+        ]);
     }
 
     #[Override]

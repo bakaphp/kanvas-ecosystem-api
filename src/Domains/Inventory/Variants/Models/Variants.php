@@ -254,7 +254,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         //We need to manually query product attribute by this relation so the translate can work for both.
         $query = $this->hasMany(VariantsAttributes::class, 'products_variants_id')
             ->join('attributes', 'products_variants_attributes.attributes_id', '=', 'attributes.id')
-            ->select('products_variants_attributes.*', 'attributes.*');
+            ->select('products_variants_attributes.*', 'attributes.*')
+            ->with('attribute'); // Add this line to eager load the attribute relationship
 
         foreach ($conditions as $column => $value) {
             $query->where("attributes.$column", $value);
