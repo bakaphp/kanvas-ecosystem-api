@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
+use Kanvas\Activities\Contracts\ActivityLogInterface;
+use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
@@ -53,6 +55,8 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Override;
 
 /**
@@ -76,7 +80,7 @@ use Override;
  * @property bool $is_deleted
  */
 #[ObservedBy(ProductsObserver::class)]
-class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface
+class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface, ActivityLogInterface
 {
     use UuidTrait;
     use SlugTrait;
@@ -94,6 +98,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use CanUseWorkflow;
     use HasRating;
     use HasTranslationsDefaultFallback;
+    use LogsActivity;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -112,6 +117,28 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function getGraphTypeName(): string
     {
         return 'Product';
+    }
+
+    public function getActivityLogName(): string
+    {
+        return 'product-' . $this->companies_id . '-' . $this->apps_id;
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+        ->useLogName($this->getActivityLogName())
+        ->setDescriptionForEvent(fn(string $eventName) => "This product has been {$eventName}")
+        ->logOnly(['*'])
+        ->dontLogIfAttributesChangedOnly(['created_at','updated_at','published_at'])
+        ->logOnlyDirty();
+    }
+
+    public function getActivities(): Collection
+    {
+        return Activity::forSubject($this)
+                ->where('log_name',$this->getActivityLogName())
+                ->get();
     }
 
     /**
