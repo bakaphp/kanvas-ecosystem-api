@@ -67,7 +67,7 @@ class CreateAppsAction
             'app' => $app->key,
         ]);
         Artisan::call('kanvas:agent:create-default-channel', [
-            'app' => $app->id,
+            'app_id' => $app->id,
         ]);
 
         return $app;
