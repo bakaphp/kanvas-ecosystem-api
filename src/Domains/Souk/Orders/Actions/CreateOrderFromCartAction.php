@@ -8,9 +8,11 @@ use Kanvas\Connectors\Stripe\Services\StripePaymentService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Override;
 
 class CreateOrderFromCartAction extends CreateBaseOrderAction
 {
+    #[Override]
     public function execute(): ModelsOrder
     {
         if (! $this->app->get(ConfigurationEnum::ALLOW_NO_PAYMENT_ORDER->value)) {
