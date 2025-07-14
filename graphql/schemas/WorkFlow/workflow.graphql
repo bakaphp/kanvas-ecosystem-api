@@ -41,13 +41,7 @@ extend type Mutation @guardByAppKey {
 
 extend type Query @guard {
     actions(
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "name"
-                ]
-            )
+        where: _ @whereConditions(columns: ["id", "name"])
         orderBy: _ @orderBy(columns: ["id", "name", "created_at"])
     ): [WorkflowAction!]!
         @paginate(
