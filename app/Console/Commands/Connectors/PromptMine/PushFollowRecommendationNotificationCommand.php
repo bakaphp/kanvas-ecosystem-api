@@ -59,7 +59,7 @@ class PushFollowRecommendationNotificationCommand extends Command
             ->where('is_deleted', 0)
             ->chunk(100, function ($users) use ($app, $via, $notificationMessages, $messageType) {
                 foreach ($users as $user) {
-                    $recommendedUser = (new GenerateWhoToFollowRecommendationsAction($app))->execute($user);
+                    $recommendedUser = (new GenerateWhoToFollowRecommendationsAction($app))->execute($user)->get();
                     if (empty($recommendedUser)) {
                         continue;
                     }
