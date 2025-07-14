@@ -54,6 +54,5 @@ class GenerateWhoToFollowRecommendationsAction
             ->where('users.is_deleted', 0)
             ->where('filesystem_entities.system_modules_id', $usersSystemModule->getId())
             ->where('filesystem_entities.field_name', 'photo');
-
     }
 }
