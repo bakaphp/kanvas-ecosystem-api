@@ -22,7 +22,8 @@ class ProcessInviteAction
      * @return void
      */
     public function __construct(
-        protected CompleteInviteInput $userInvite
+        protected CompleteInviteInput $userInvite,
+        protected ?Users $user = null
     ) {
     }
 
@@ -45,7 +46,7 @@ class ProcessInviteAction
         DB::beginTransaction();
 
         try {
-            $user = (new CreateUserAction($dto))->execute();
+            $user = $this->user ?? (new CreateUserAction($dto))->execute();
 
             $company = $invite->company;
             #$branch = $invite->branch;
