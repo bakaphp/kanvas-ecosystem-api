@@ -155,7 +155,7 @@ class Notifications extends BaseModel
 
         try {
             $systemModule = $this->systemModule()->firstOrFail();
-            $modelName = $systemModule->model_name;
+            $modelName = SystemModules::convertLegacySystemModules($systemModule->model_name);
 
             /**
              * @todo cache
