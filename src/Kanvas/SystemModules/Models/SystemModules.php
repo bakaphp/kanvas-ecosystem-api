@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use InvalidArgumentException;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -103,6 +104,7 @@ class SystemModules extends BaseModel
             'Gewaer\\Models\\Messages' => Message::class,
             'Gewaer\\Models\\Companies' => Companies::class,
             'Kanvas\\Packages\\Social\\Models\\Messages' => Message::class,
+            'Gewaer\Domains\Engagements\Models\Engagements' => Engagement::class,
             // 'Kanvas\Guild\Activities\Models\Activities' => Message::class,
         ];
 
@@ -116,6 +118,7 @@ class SystemModules extends BaseModel
             People::class => 'Gewaer\\Models\\Peoples\\Peoples',
             Message::class => 'Gewaer\\Models\\Messages',
             Companies::class => 'Gewaer\\Models\\Companies',
+            Engagement::class => 'Gewaer\Domains\Engagements\Models\Engagements',
             // Message::class => 'Kanvas\Packages\Social\Models\Messages',
             // Message::class => 'Kanvas\Guild\Activities\Models\Activities',
         ];
@@ -154,6 +157,7 @@ class SystemModules extends BaseModel
             Companies::class => 'company',
             CompaniesBranches::class => 'branch',
             Regions::class => 'region',
+            Engagement::class => 'engagement',
         ];
 
         return $internalMapping[$namespace] ?? throw new InvalidArgumentException('Namespace ' . $namespace . ' not found');
