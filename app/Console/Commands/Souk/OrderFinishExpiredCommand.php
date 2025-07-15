@@ -94,11 +94,11 @@ class OrderFinishExpiredCommand extends Command
         ->notDeleted()
         ->whereNotFulfilled()
         ->whereNotNull('metadata')
+        ->whereRaw('JSON_VALID(metadata)')  // Add JSON validation
         ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
         ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) is not null")
         ->orderBy('id', 'desc')
         ->with('items');
-
 
         $ordersInProgress = $query->get();
         $this->info('Found ' . $ordersInProgress->count() . ' orders in progress to finish for app ' . $app->name . ' at ' . $endTime);
