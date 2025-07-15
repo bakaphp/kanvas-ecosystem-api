@@ -77,7 +77,7 @@ class LeadObserver
                         (string)$lead->getKey(),
                         Lead::class,
                         'Default Channel',
-                        $lead->description ?? '',
+                        $lead->description ?? $lead->uuid->toString(),
                         $lead->uuid->toString()
                     )
                 )
