@@ -345,7 +345,16 @@ class CreateOrderInESimActivity extends KanvasActivity
             $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
             $woocommerceResponse = $woocommerceOrder->execute($providerValue);
 
-            $orderCommerceId = $woocommerceResponse['order']['id'];
+            $orderCommerceId = $woocommerceResponse['order']['id'] ?? null;
+
+            if ($orderCommerceId === null) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Error sending order to commerce',
+                    'response' => $woocommerceResponse,
+                ];
+            }
+
             $order->set(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value, $woocommerceResponse['order']['id']);
 
             $stripe = new StripeClient($order->app->get(EnumsConfigurationEnum::STRIPE_SECRET_KEY->value));
