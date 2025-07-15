@@ -26,7 +26,7 @@ class ProductService
         $amazonPrice = $product['price'];
         $name = Str::limit($product['name'], 255);
         $discountPrice = str_replace('$', '', $product['pricing']);
-        $listPrice = key_exists('list_price', $product['list_price']) ? str_replace('$', '', $product['list_price']) : $discountPrice;
+        $listPrice = key_exists('list_price', $product) ? str_replace('$', '', $product['list_price']) : $discountPrice;
         $product = [
             'name' => $name,
             'description' => $this->getDescription($product),
