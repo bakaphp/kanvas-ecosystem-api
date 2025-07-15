@@ -28,8 +28,8 @@ class ProductService
         $product = [
             'name' => $name,
             'description' => $this->getDescription($product),
-            'price' => str_replace('$','',$product['list_price']),
-            'discountPrice' => str_replace('$','',$product['pricing']),
+            'price' => str_replace('$', '', $product['list_price']),
+            'discountPrice' => str_replace('$', '', $product['pricing']),
             'slug' => Str::slug($product['asin']),
             'sku' => $product['asin'],
             'source' => 'amazon',
