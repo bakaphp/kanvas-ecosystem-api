@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Actions;
 
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Intelligence\Sessions\Models\Session;
 
 class CreateContentSessionAction
 {

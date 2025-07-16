@@ -7,8 +7,9 @@ namespace Kanvas\Intelligence\Sessions\DataTransferObject;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Spatie\LaravelData\Data;
 use Kanvas\Social\Channels\Models\Channel;
+use Spatie\LaravelData\Data;
+
 class Session extends Data
 {
     public function __construct(

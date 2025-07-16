@@ -6,6 +6,7 @@ namespace App\GraphQL\Intelligence\Queries;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Sessions\Models\Session;
+
 class AgentSessionQuery
 {
     public function getSessionInfo(mixed $root, array $request): array

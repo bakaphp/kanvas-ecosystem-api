@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\WaSender\Workflows;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
