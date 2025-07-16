@@ -7,6 +7,7 @@ namespace App\GraphQL\Ecosystem\Queries\ActivityLog;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\Activitylog\Models\Activity;
 
 class ActivityLogQuery
@@ -21,6 +22,16 @@ class ActivityLogQuery
         $module = $systemModules->model_name;
 
         $entity = $module::getById($query['entity_id'], $app);
+
+        if (method_exists($entity, 'fireWorkflow')) {
+            $entity->fireWorkflow(
+                WorkflowEnum::PULL->value,
+                true,
+                [
+                  'app' => $app,
+                ]
+            );
+        }
 
         return Activity::query()
             ->where('subject_type', $module)
