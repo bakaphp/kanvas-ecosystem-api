@@ -117,18 +117,18 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
 
                 //we need to return a index array because of the way frontend handles async
                 return [[
-                    'scores'                 => $creditApplicant['scores'],
-                    'iframe_url'             => $creditApplicant['iframe_url'],
-                    'iframe_url_signed'      => $creditApplicant['iframe_url_signed'],
+                    'scores' => $creditApplicant['scores'],
+                    'iframe_url' => $creditApplicant['iframe_url'],
+                    'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
                     'iframe_url_digital_jacket' => $creditApplicant['digital_jacket_url'],
-                    'pull_credit_pass'       => $creditApplicant['pull_credit_pass'],
-                    'pdf'                    => (!empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem)
+                    'pull_credit_pass' => $creditApplicant['pull_credit_pass'],
+                    'pdf' => (! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem)
                         ? $creditApplicant['pdf']->url
                         : null,
-                    'engagement_message_id'  => $engagement->message->getId(),
-                    'message_id'             => $parentMessage->getId(),
-                    'message'                => 'Credit score created successfully',
-                    'lead_id'                => $lead->getId(),
+                    'engagement_message_id' => $engagement->message->getId(),
+                    'message_id' => $parentMessage->getId(),
+                    'message' => 'Credit score created successfully',
+                    'lead_id' => $lead->getId(),
                     // 'lead'                => $lead->toArray(),
                     // 'people'              => $lead->people->toArray(),
                 ]];
