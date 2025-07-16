@@ -178,8 +178,6 @@ class OfacClientScreeningAction
             'slug' => 'ofac',
             'entity_uuid' => $this->lead->uuid,
             'pipelines_stages_id' => $stage->getId(),
-        ], [
-            'status' => ActionStatusEnum::SUBMITTED->value,
         ]);
 
         return $engagement;
