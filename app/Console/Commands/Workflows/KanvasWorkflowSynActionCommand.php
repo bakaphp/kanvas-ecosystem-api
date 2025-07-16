@@ -43,6 +43,7 @@ use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteQuoteWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\PushOrderToNetsuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
+use Kanvas\Connectors\Ofac\Activities\OfacScreeningActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
@@ -227,6 +228,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ChecklistUpdateStatusFromLeadActivity::class,
             PullPeopleLeadFromSearchActivity::class,
             GenerateLeadLinkedFieldActivity::class,
+            OfacScreeningActivity::class,
         ];
 
         $createdActions = [];
