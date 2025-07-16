@@ -7,8 +7,8 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 use Baka\Contracts\AppInterface;
 use Exception;
 use GuzzleHttp\Client as GuzzleClient;
-use GuzzleHttp\Exception\GuzzleException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Spatie\Activitylog\Models\Activity;
 
@@ -18,68 +18,64 @@ class GenerateLeadLinkedFieldActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $linkedField = Activity::where('subject_type', Lead::class)
-            ->where('subject_id', $lead->id)
-            ->where('log_name', 'linkedfield')
-            ->latest()
-            ->first();
+        return $this->executeIntegration(
+            entity: $lead,
+            app: $app,
+            integration: IntegrationsEnum::INTERNAL,
+            integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
+                $linkedField = Activity::where('subject_type', Lead::class)
+                    ->where('subject_id', $lead->id)
+                    ->where('log_name', 'linkedfield')
+                    ->latest()
+                    ->first();
 
-        $hasLinkedField = $linkedField && $linkedField->properties->isNotEmpty();
+                $hasLinkedField = $linkedField && $linkedField->properties->isNotEmpty();
 
-        try {
-            // Get existing data from the linkedfield activity log
-            $existingData = $hasLinkedField ? $linkedField->properties->toArray() : [];
+                // Get existing data from the linkedfield activity log
+                $existingData = $hasLinkedField ? $linkedField->properties->toArray() : [];
 
-            // Make HTTP call to fetch new linked field data
-            $newData = $this->fetchLinkedFieldData($lead, $app);
+                // Make HTTP call to fetch new linked field data
+                $newData = $this->fetchLinkedFieldData($lead, $app);
 
-            if (empty($newData)) {
+                if (empty($newData)) {
+                    return [
+                        'error' => 'Failed to fetch linked field data from API',
+                        'lead_uuid' => $lead->uuid,
+                    ];
+                }
+
+                // Merge data with existing taking priority
+                $mergedData = array_merge($newData, $existingData);
+
+                // Update or create the activity log entry
+                if ($linkedField) {
+                    $linkedField->update([
+                        'properties' => $mergedData,
+                    ]);
+                } else {
+                    Activity::create([
+                        'log_name' => 'linkedfield',
+                        'description' => 'Lead linked field data',
+                        'subject_type' => Lead::class,
+                        'subject_id' => $lead->id,
+                        'causer_type' => get_class($app),
+                        'causer_id' => $app->getId(),
+                        'properties' => $mergedData,
+                    ]);
+                }
+
                 return [
-                    'error' => 'Failed to fetch linked field data from API',
+                    'success' => true,
                     'lead_uuid' => $lead->uuid,
+                    'company_uuid' => $lead->company->uuid,
+                    'merged_fields_count' => count($mergedData),
+                    'new_fields_count' => count($newData),
+                    'existing_fields_count' => count($existingData),
+                    'updated_at' => now()->toISOString(),
                 ];
-            }
-
-            // Merge data with existing taking priority
-            $mergedData = array_merge($newData, $existingData);
-
-            // Update or create the activity log entry
-            if ($linkedField) {
-                $linkedField->update([
-                    'properties' => $mergedData,
-                ]);
-            } else {
-                Activity::create([
-                    'log_name' => 'linkedfield',
-                    'description' => 'Lead linked field data',
-                    'subject_type' => Lead::class,
-                    'subject_id' => $lead->id,
-                    'causer_type' => get_class($app),
-                    'causer_id' => $app->getId(),
-                    'properties' => $mergedData,
-                ]);
-            }
-
-            return [
-                'success' => true,
-                'lead_uuid' => $lead->uuid,
-                'company_uuid' => $lead->company->uuid,
-                'merged_fields_count' => count($mergedData),
-                'new_fields_count' => count($newData),
-                'existing_fields_count' => count($existingData),
-                'updated_at' => now()->toISOString(),
-            ];
-        } catch (GuzzleException $e) {
-            return [
-                'error' => 'HTTP request failed: ' . $e->getMessage(),
-                'lead_uuid' => $lead->uuid,
-            ];
-        } catch (\Exception $e) {
-            return [
-                'error' => 'An error occurred: ' . $e->getMessage(),
-                'lead_uuid' => $lead->uuid,
-            ];
-        }
+            },
+            company: $lead->company,
+        );
     }
 
     /**
