@@ -25,7 +25,7 @@ class ActivityLogQuery
 
         if (method_exists($entity, 'fireWorkflow')) {
             $entity->fireWorkflow(
-                WorkflowEnum::PULL->value,
+                WorkflowEnum::FETCH->value,
                 true,
                 [
                   'app' => $app,
