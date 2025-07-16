@@ -17,7 +17,6 @@ class CreateContentSessionAction
 
     public function execute(): array
     {
-        dump($this->entityNamespace, $this->entityId);
         switch ($this->entityNamespace) {
             case People::class:
                 $people = People::getById($this->entityId);
