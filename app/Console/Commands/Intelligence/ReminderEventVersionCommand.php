@@ -34,7 +34,7 @@ class ReminderEventVersionCommand extends Command
                     'start_date' => $starDate,
                     'title' => $name,
                     'invite' => $this->getContacts($eventVersion),
-                    'google_meet'=> true,
+                    'google_meet' => true,
                     'llm_message' => "[TRIGGER] please send a reminder to the people for this event called $name at $starDate"
                 ],
             ];
@@ -47,7 +47,6 @@ class ReminderEventVersionCommand extends Command
                 'session_id' => 'app_' . $eventVersion->app->getId(),
                 'content' => $content,
             ]);
-            
         }
     }
 
