@@ -80,7 +80,7 @@ class OfacClientScreeningAction
         $pdfFile = PdfService::generatePdfFromTemplate(
             $this->app,
             $this->message->user,
-            'ofac', // Template name - should exist in resources/views/templates/
+            'ofac-v2', // Template name - should exist in resources/views/templates/
             $this->message,
             [
                 'ofac' => $ofacResponse,
