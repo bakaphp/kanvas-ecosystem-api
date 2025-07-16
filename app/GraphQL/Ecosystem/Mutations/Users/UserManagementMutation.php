@@ -120,7 +120,8 @@ class UserManagementMutation
                 $request['email_template'] ?? null,
                 $request['custom_fields'] ?? []
             ),
-            auth()->user()
+            auth()->user(),
+            (bool) $userAssociation
         );
 
         $invite = $invite->execute();
