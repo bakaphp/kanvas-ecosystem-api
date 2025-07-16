@@ -251,8 +251,9 @@ class EngagementMutation
             preFill: [],
             via: $via,
             product_id: $data['product_id'] ?? null,
-            channel_id: $channel ? (string) $channel->uuid : null,
+            channel_id: isset($data['channel_id']) && ! empty($data['channel_id']) ? (string) $data['channel_id'] : ($channel ? (string) $channel->uuid : null),
         );
+        
         $messageInput = [
             'message' => $engagementMessage->toArray(),
             'reactions_count' => 0,
