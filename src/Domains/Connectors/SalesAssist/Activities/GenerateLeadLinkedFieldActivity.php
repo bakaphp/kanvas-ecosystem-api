@@ -102,7 +102,6 @@ class GenerateLeadLinkedFieldActivity extends KanvasActivity
             ],
         ]);
 
-        // Build the URL with lead UUID and company UUID
         /**
          * @todo move this logic inside this activity
          */
