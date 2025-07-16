@@ -96,7 +96,7 @@ class SetTaskEngagementStatusFromMessageAction
 
         // Special handling for certain verbs
         if (in_array($verb, ['sold-car-verification', 'payoff-verification', 'mileage-confirmation'])) {
-            return $messageData['checklistId'] ?? $this->lead->companies->get('default_checklist_id');
+            return $messageData['checklistId'] ?? $this->lead->company->get('default_checklist_id');
         }
 
         // Check parent message for checklist ID
@@ -107,7 +107,7 @@ class SetTaskEngagementStatusFromMessageAction
             return (int) $parentChecklistId;
         }
 
-        return $this->lead->companies->get('default_checklist_id');
+        return $this->lead->company->get('default_checklist_id');
     }
 
     protected function applyDataConditions(Builder $query, array $data): Builder
