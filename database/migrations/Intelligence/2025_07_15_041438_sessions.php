@@ -16,16 +16,16 @@ return new class () extends Migration {
             $table->unsignedBigInteger('apps_id');
             $table->unsignedBigInteger('companies_id');
             $table->unsignedBigInteger('channel_id')->nullable();
-            $table->unsignedBigInteger('agents_id');
+            $table->unsignedBigInteger('agents_id')->nullable();
             $table->string('uuid');
             $table->string('canal_id')->nullable();
             $table->string('entity_namespace');
-            $table->string('entity_id');
-            $table->string('content');
+            $table->unsignedBigInteger('entity_id');
+            $table->text('user');
+            $table->text('content');
             $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
-            $table->timestamps();
         });
     }
 

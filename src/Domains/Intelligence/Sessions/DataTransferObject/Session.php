@@ -14,14 +14,14 @@ class Session extends Data
     public function __construct(
         public Apps $app,
         public Companies $company,
-        public Agent $agent,
         public Channel $channel,
         public string $entity_namespace,
         public string $entity_id,
-        public string $session_id,
-        public string $content,
+        public array $user,
         public ?string $canal_id = null,
         public ?int $communication_channels_id = null,
+        public array $content = [],
+        public ?Agent $agent = null,
     ) {
     }
 }

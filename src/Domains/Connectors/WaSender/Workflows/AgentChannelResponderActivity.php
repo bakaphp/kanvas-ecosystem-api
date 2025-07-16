@@ -7,6 +7,9 @@ namespace Kanvas\Connectors\WaSender\Workflows;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentModel;
+use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
+use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -25,6 +28,22 @@ class AgentChannelResponderActivity extends KanvasActivity
         $defaultAgentId = $params['agent_id'] ?? null;
         $allowedChannels = $params['channelId'] ?? [];
         $channelAgentMapping = $params['channelAgentMapping'] ?? [];
+
+        $sessionDto = Session::from([
+            'app' => $app,
+            'company' => $channel->company,
+            'channel' => $channel,
+            'entity_namespace' => get_class($message->getEntity()),
+            'entity_id' => $message->getEntity()->getId(),
+            'canal_id' => $message->message['chat_jid'],
+            'user' => [
+                'name' => $message->getEntity()->getName(),
+                'id' => $message->getEntity()->getId(),
+                'email' => $message->getEntity()->getEmails()->first()?->value,
+            ],
+            'agent' => Agent::getById($defaultAgentId, $app),
+        ]);
+        new CreateSessionAction($sessionDto)->execute();
 
         return $this->executeIntegration(
             entity: $channel,

@@ -14,15 +14,22 @@ class CreateSessionAction
 
     public function execute(): SessionModel
     {
+        $content = $this->session->content ? [] : new CreateContentSessionAction(
+            $this->session->entity_namespace,
+            $this->session->entity_id
+        )->execute();
+
         return SessionModel::updateOrCreate([
             'apps_id' => $this->session->app->getId(),
             'companies_id' => $this->session->company->getId(),
-            'communication_channels_id' => $this->session->communication_channels_id,
-            'agents_id' => $this->session->agent->getId(),
+            'channel_id' => $this->session->channel->getId(),
+            'agents_id' => $this->session->agent?->getId(),
             'canal_id' => $this->session->canal_id,
             'entity_namespace' => $this->session->entity_namespace,
             'entity_id' => $this->session->entity_id,
-            'content' => $this->session->content,
+            'user' => $this->session->user,
+            'content' => $content,
+            'uuid' => $this->session->channel->slug,
         ]);
     }
 }
