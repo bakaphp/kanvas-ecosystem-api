@@ -2,7 +2,7 @@ type AgentAi {
     id: ID!
     company: [Company!]! @belongsTo
     user: [User!]! @belongsTo
-    type: AgentType! @belongsTo
+    type: agentType! @belongsTo
     model: AgentAiModel! @belongsTo
     companyTaskList: TaskList! @belongsTo
     uuid: String!
