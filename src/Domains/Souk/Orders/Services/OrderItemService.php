@@ -65,7 +65,7 @@ class OrderItemService
 
             $validOrderItems[] = [
                 ...$orderItem,
-                'variant_id' => $variant->id
+                'variant_id' => $variant->id,
             ];
         }
 
@@ -88,15 +88,7 @@ class OrderItemService
             $warehouse = $channel?->productVariantWarehouse()->first();
             $currentStock = $warehouse?->quantity ?? 0;
 
-            if ($currentStock < $orderItem['quantity']) {
-                $errors[] = 'Not enough stock for product ' . $variant->name;
-                continue;
-            }
-
-            if ($minimumOrderQuantity > $orderItem['quantity']) {
-                $errors[] = 'Minimum order quantity for product ' . $variant->name . ' is ' . $minimumOrderQuantity;
-                continue;
-            }
+        
 
             $cartItems[] = [
                 'variant_id' => $variant->id,
