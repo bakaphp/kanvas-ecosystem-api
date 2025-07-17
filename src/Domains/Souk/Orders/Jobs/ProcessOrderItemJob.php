@@ -12,7 +12,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Enums\AppEnums;
 use Kanvas\Souk\Orders\Services\OrderItemService;
 use Kanvas\Users\Models\Users;
 
