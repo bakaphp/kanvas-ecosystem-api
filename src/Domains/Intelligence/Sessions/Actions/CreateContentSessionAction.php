@@ -16,15 +16,10 @@ class CreateContentSessionAction
 
     public function execute(): array
     {
-        switch ($this->entityNamespace) {
-            case People::class:
-                $people = People::getById($this->entityId);
-                return $this->mapPeople($people);
-            default:
-                break;
-        }
-
-        return [];
+        return match ($this->entityNamespace) {
+            People::class => $this->mapPeople(People::getById($this->entityId)),
+            default => [],
+        };
     }
 
     protected function mapPeople(People $people): array
