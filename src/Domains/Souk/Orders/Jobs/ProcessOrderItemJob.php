@@ -30,13 +30,14 @@ class ProcessOrderItemJob implements ShouldQueue
         public Companies $currentUserCompany,
         public array $orderItems,
         public int $channelId,
+        public string $sessionId,
     ) {
     }
 
     public function handle(): void
     {
         $this->overwriteAppService($this->app);
-        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
+        $cart = app('cart')->session($this->sessionId);
 
         $orderItemService = new OrderItemService($this->app, $this->user, $this->currentUserCompany);
         $orderItemService->processOrderItems($this->orderItems, $this->channelId, $cart);
