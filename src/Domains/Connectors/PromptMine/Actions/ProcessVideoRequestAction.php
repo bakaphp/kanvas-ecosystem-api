@@ -218,13 +218,20 @@ class ProcessVideoRequestAction
     }
 
     /**
-     * Get default video values from app settings
+     * Get default video values from app settings based on the model from the message
      */
     protected function getDefaultVideoValues(string $type): array
     {
         $settings = $this->entity->app->get('llm_list_video_categorization_dev');
 
-        if (! $settings || ! is_array($settings)) {
+        if (!$settings || !is_array($settings)) {
+            return [];
+        }
+
+        // Get the model value from the message
+        $messageModel = $this->entity->message['ai_model']['value'] ?? null;
+        
+        if (!$messageModel) {
             return [];
         }
 
@@ -232,23 +239,21 @@ class ProcessVideoRequestAction
 
         // Search through all categories for the video key
         foreach ($settings as $category) {
-            if (! isset($category['value']) || ! is_array($category['value'])) {
+            if (!isset($category['value']) || !is_array($category['value'])) {
                 continue;
             }
 
             foreach ($category['value'] as $videoTypeConfig) {
                 if (isset($videoTypeConfig['key']) && $videoTypeConfig['key'] === $videoKey) {
                     if (isset($videoTypeConfig['value']) && is_array($videoTypeConfig['value'])) {
-                        // Find the first (default) model configuration
+                        // Find the model configuration that matches the message model
                         foreach ($videoTypeConfig['value'] as $modelConfig) {
-                            if (isset($modelConfig['input_config']) && isset($modelConfig['isDefault']) && $modelConfig['isDefault']) {
-                                return $this->extractDefaultsFromInputConfig($modelConfig['input_config']);
+                            if (isset($modelConfig['model']) && 
+                                (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))) {
+                                if (isset($modelConfig['input_config'])) {
+                                    return $this->extractDefaultsFromInputConfig($modelConfig['input_config']);
+                                }
                             }
-                        }
-
-                        // If no default found, use the first one
-                        if (! empty($videoTypeConfig['value']) && isset($videoTypeConfig['value'][0]['input_config'])) {
-                            return $this->extractDefaultsFromInputConfig($videoTypeConfig['value'][0]['input_config']);
                         }
                     }
                 }
@@ -259,7 +264,7 @@ class ProcessVideoRequestAction
     }
 
     /**
-     * Extract default values from input_config
+     * Extract default values from input_config (taking position 0 from array values)
      */
     private function extractDefaultsFromInputConfig(array $inputConfig): array
     {
@@ -271,9 +276,10 @@ class ProcessVideoRequestAction
                 continue;
             }
 
-            if (is_array($values) && ! empty($values)) {
+            if (is_array($values) && !empty($values)) {
+                // Take the first value (position 0) from the array
                 $defaults[$key] = $values[0];
-            } elseif (! is_array($values)) {
+            } elseif (!is_array($values)) {
                 $defaults[$key] = $values;
             }
         }
