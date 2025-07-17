@@ -88,7 +88,20 @@ class OrderItemService
             $warehouse = $channel?->productVariantWarehouse()->first();
             $currentStock = $warehouse?->quantity ?? 0;
 
-        
+            /**
+             * @todo validate overselling
+             */
+            if ($currentStock < $orderItem['quantity']) {
+                $errors[] = 'Not enough stock for product ' . $variant->name . ' (' . $variant->sku . ')';
+
+                continue;
+            }
+
+            if ($minimumOrderQuantity > $orderItem['quantity']) {
+                $errors[] = 'Minimum order quantity for product ' . $variant->name . ' (' . $variant->sku . ') is ' . $minimumOrderQuantity;
+
+                continue;
+            }
 
             $cartItems[] = [
                 'variant_id' => $variant->id,
