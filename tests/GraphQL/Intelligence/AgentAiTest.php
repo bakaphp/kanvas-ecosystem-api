@@ -10,7 +10,7 @@ use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Tests\TestCase;
 
-class AgentTest extends TestCase
+class AgentAiTest extends TestCase
 {
     public function createAgentType(): AgentType
     {
@@ -39,7 +39,7 @@ class AgentTest extends TestCase
     {
         $mutation = '
             mutation CreateAgent($input: AgentAiInput!) {
-                createAgent(input: $input) {
+                createAiAgent(input: $input) {
                     id
                     uuid
                     name
@@ -86,7 +86,7 @@ class AgentTest extends TestCase
     {
         $mutation = '
         mutation CreateAgent($input: AgentAiInput!) {
-            createAgent(input: $input) {
+            createAiAgent(input: $input) {
                 id
                 uuid
                 name
@@ -116,10 +116,10 @@ class AgentTest extends TestCase
         ];
 
         $response = $this->graphQL($mutation, $input);
-        $id = $response->json('data.createAgent.id');
+        $id = $response->json('data.createAiAgent.id');
         $mutation = '
             mutation UpdateAgent($id: ID!, $input: AgentAiInput!) {
-                updateAgent(id: $id, input: $input) {
+                updateAiAgent(id: $id, input: $input) {
                     id
                     uuid
                     name
@@ -157,7 +157,7 @@ class AgentTest extends TestCase
     {
         $mutation = '
         mutation CreateAgent($input: AgentAiInput!) {
-            createAgent(input: $input) {
+            createAiAgent(input: $input) {
                 id
                 uuid
                 name

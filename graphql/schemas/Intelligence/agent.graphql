@@ -3,7 +3,7 @@ type AgentAi {
     company: [Company!]! @belongsTo
     user: [User!]! @belongsTo
     type: AgentType! @belongsTo
-    model: AgentModel! @belongsTo
+    model: AgentAiModel! @belongsTo
     companyTaskList: TaskList! @belongsTo
     uuid: String!
     name: String!
@@ -14,7 +14,7 @@ type AgentAi {
     is_active: Boolean!
 }
 
-type AgentModel {
+type AgentAiModel {
     id: ID!
     name: String!
     config: JSON
@@ -43,15 +43,15 @@ input CommunicationChannelPivot {
 }
 
 extend type Mutation @guard {
-    createAgent(input: AgentAiInput!): AgentAi!
+    createAiAgent(input: AgentAiInput!): AgentAi!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@create"
         )
-    updateAgent(id: ID!, input: AgentAiInput!): AgentAi!
+    updateAiAgent(id: ID!, input: AgentAiInput!): AgentAi!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@update"
         )
-    deleteAgent(id: ID!): Boolean!
+    deleteAiAgent(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@delete"
         )
