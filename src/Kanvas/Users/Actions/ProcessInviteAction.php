@@ -23,7 +23,7 @@ class ProcessInviteAction
      */
     public function __construct(
         protected CompleteInviteInput $userInvite,
-        protected ?Users $user = null
+        protected ?Users $existingUser = null
     ) {
     }
 
@@ -46,24 +46,44 @@ class ProcessInviteAction
         DB::beginTransaction();
 
         try {
-            $user = $this->user ?? (new CreateUserAction($dto))->execute();
+            $user = $this->existingUser ?? (new CreateUserAction($dto))->execute();
 
             $company = $invite->company;
             #$branch = $invite->branch;
             $app = app(Apps::class);
+
+            if ($this->existingUser) {
+                $company->associateUser(
+                    $user,
+                    StateEnums::YES->getValue(),
+                    $invite->branch,
+                    (int) ($invite->role_id ?? null)
+                );
+
+                if (is_object($invite->branch)) {
+                    $company->associateUser(
+                        $user,
+                        StateEnums::YES->getValue(),
+                        $invite->branch,
+                        (int) ($invite->role_id ?? null)
+                    );
+                }
+            }
+
             $company->associateUserApp(
                 $user,
                 $app,
                 StateEnums::YES->getValue(),
             );
 
-            new SendUserNotificationAction($app, $company, $user)->execute('admin-new-user', $company->toArray());
+            if (! $this->existingUser) {
+                new SendUserNotificationAction($app, $company, $user)->execute('admin-new-user', $company->toArray());
+            }
 
             $invite->softDelete();
             DB::commit();
         } catch (Throwable $e) {
             DB::rollBack();
-
             throw $e;
         }
 
