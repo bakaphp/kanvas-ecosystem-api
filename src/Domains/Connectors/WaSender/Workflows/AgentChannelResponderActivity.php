@@ -27,7 +27,7 @@ class AgentChannelResponderActivity extends KanvasActivity
         $defaultAgentId = $params['agent_id'] ?? null;
         $allowedChannels = $params['channelId'] ?? [];
         $channelAgentMapping = $params['channelAgentMapping'] ?? [];
-        
+
         if ($message->message['from_me']) {
             new CreateSessionAction(
                 Session::from([
