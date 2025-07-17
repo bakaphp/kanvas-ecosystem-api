@@ -20,6 +20,8 @@ class CreateSessionAction
         )->execute();
 
         return SessionModel::updateOrCreate([
+                'uuid' => $this->session->channel->slug,
+            ], [
             'apps_id' => $this->session->app->getId(),
             'companies_id' => $this->session->company->getId(),
             'channel_id' => $this->session->channel->getId(),
@@ -29,7 +31,6 @@ class CreateSessionAction
             'entity_id' => $this->session->entity_id,
             'user' => $this->session->user,
             'content' => $content,
-            'uuid' => $this->session->channel->slug,
         ]);
     }
 }
