@@ -89,6 +89,7 @@ class CartManagementMutation
                 'aeroambupromoq2',
                 'pdlc10',
                 'PR10',
+                'ruben10',
             ];
 
             if (! in_array(strtolower($discountCodes[0]), $validDiscountCodes, true)) {
@@ -134,6 +135,17 @@ class CartManagementMutation
             } elseif (strtolower($discountCodes[0]) === 'pr10') {
                 $fifteenPercentOff = new CartCondition([
                   'name' => 'pr10',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-10%',
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($fifteenPercentOff);
+            } elseif (strtolower($discountCodes[0]) === 'ruben10') {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'ruben10',
                   'type' => 'discount',
                   'target' => 'subtotal',
                   'value' => '-10%',
