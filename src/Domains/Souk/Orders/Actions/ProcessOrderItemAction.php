@@ -16,7 +16,7 @@ use Kanvas\Users\Models\Users;
 
 class ProcessOrderItemAction
 {
-    private const int LIMIT_ITEMS_PER_REQUEST = 200;
+    private const int LIMIT_ITEMS_PER_REQUEST = 300;
 
     public function __construct(
         protected Apps $app,
