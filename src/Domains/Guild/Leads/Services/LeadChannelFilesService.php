@@ -142,8 +142,8 @@ class LeadChannelFilesService
             'action' => $action . ($notificationName ?? ''),
             'status' => $status,
             'participant_name' => $notificationName ? trim($notificationName, ' ()') : null,
-            'created_at' => $message->created_at,
-            'last_message_at' => $lastMessage->created_at,
+            'created_at' => $message->created_at->format('Y-m-d H:i:s'),
+            'last_message_at' => $lastMessage->created_at->format('Y-m-d H:i:s'),
             'files' => $this->removeDuplicateFiles($files, $notificationName),
             'metadata' => $metadata,
         ];
@@ -161,8 +161,8 @@ class LeadChannelFilesService
             'action' => 'Uploads Mainbuyer',
             'status' => 'submitted',
             'participant_name' => null,
-            'created_at' => $this->lead->created_at,
-            'last_message_at' => $this->lead->created_at,
+            'created_at' => $this->lead->created_at->format('Y-m-d H:i:s'),
+            'last_message_at' => $this->lead->created_at->format('Y-m-d H:i:s'),
             'files' => $this->formatFiles($leadFiles->toArray()),
             'metadata' => [],
         ];
@@ -194,8 +194,8 @@ class LeadChannelFilesService
                         'action' => 'Uploads Cobuyer (' . $people->name . ')',
                         'status' => 'submitted',
                         'participant_name' => $people->name,
-                        'created_at' => $this->lead->created_at,
-                        'last_message_at' => $this->lead->created_at,
+                        'created_at' => $this->lead->created_at->format('Y-m-d H:i:s'),
+                        'last_message_at' => $this->lead->created_at->format('Y-m-d H:i:s'),
                         'files' => $this->formatFiles($participantFiles->toArray()),
                         'metadata' => [],
                     ];

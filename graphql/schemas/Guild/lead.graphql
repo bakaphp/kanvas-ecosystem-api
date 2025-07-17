@@ -70,7 +70,7 @@ type LeadChannelFileGroup {
     created_at: DateTime!
     last_message_at: DateTime!
     files: [LeadChannelFile!]!
-    metadata: JSON
+    metadata: Mixed
 }
 
 type LeadChannelFile {
@@ -82,7 +82,7 @@ type LeadChannelFile {
     field_name: String
     verification_status: String
     verification_message: String
-    attributes: JSON
+    attributes: Mixed
 }
 
 type LeadsParticipants {
