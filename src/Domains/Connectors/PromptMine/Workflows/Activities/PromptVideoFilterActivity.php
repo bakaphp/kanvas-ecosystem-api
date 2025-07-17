@@ -14,6 +14,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
+use Kanvas\Connectors\PromptMine\Actions\ProcessVideoRequestAction;
 use Kanvas\Connectors\PromptMine\Notifications\VideoProcessingPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
@@ -44,11 +45,6 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
 
         sleep($app->get('PROMPT_VIDEO_WAIT_TIME') ?? 5);
         $this->app = $app;
-        $this->apiUrl = $entity->app->get('PROMPT_VIDEO_API_URL');
-
-        // Extract video model dynamically from message - use the full value as is
-        $videoModel = $entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
-        $videoType = $entity->message['type'] ?? 'video-format';
 
         $company = $this->getCompany($app, $entity);
 
@@ -56,79 +52,26 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($params, $videoModel, $videoType) {
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($params) {
                 $entity->setPrivate();
 
-                if (empty($this->apiUrl)) {
-                    return [
-                        'result' => false,
-                        'message' => 'Video API URL not configured',
-                    ];
-                }
-
                 try {
-                    // Check if we already have a request_id (in case of retry)
-                    $existingRequestId = $entity->message['video_request_id'] ?? null;
+                    // Use the ProcessVideoRequestAction for the core logic
+                    $processVideoAction = new ProcessVideoRequestAction($entity, $app, $params);
+                    $result = $processVideoAction->execute();
 
-                    if ($existingRequestId) {
-                        // If we already have a request ID, just return success
-                        // The delayed job will handle the processing
-                        return [
-                            'result' => true,
-                            'model' => $videoModel,
-                            'request_id' => $existingRequestId,
-                            'message' => 'Video processing request already submitted. Processing continues asynchronously.',
-                            'message_id' => $entity->getId(),
-                            'status' => 'IN_QUEUE',
-                        ];
+                    if ($result['result'] && isset($result['request_id'])) {
+                        // Schedule delayed processing
+                        $this->scheduleVideoProcessingCheck(
+                            $entity,
+                            $app,
+                            $result['request_id'],
+                            $result['model'],
+                            $params
+                        );
                     }
 
-                    // Determine if it's text-to-video or image-to-video based on hasFiles flag
-                    $isImageToVideo = isset($entity->message['hasFiles']) && $entity->message['hasFiles'] === true;
-
-                    if ($isImageToVideo) {
-                        // Process image-to-video
-                        $messageFiles = $entity->getFiles();
-                        if ($messageFiles->isEmpty()) {
-                            return [
-                                'result' => false,
-                                'message' => 'Message does not have any files for image-to-video processing',
-                            ];
-                        }
-
-                        $imageUrl = $messageFiles->first()->url;
-                        $requestId = $this->submitImageToVideo($imageUrl, $videoModel, $entity, $params);
-                    } else {
-                        // Process text-to-video
-                        $requestId = $this->submitTextToVideo($videoModel, $entity, $params);
-                    }
-
-                    if ($requestId === null) {
-                        return [
-                            'result' => false,
-                            'model' => $videoModel,
-                            'message' => 'Failed to submit video processing request',
-                        ];
-                    }
-
-                    // Store the request ID for tracking
-                    $messageCopy = $entity->message;
-                    $messageCopy['video_request_id'] = $requestId;
-                    $messageCopy['video_processing_status'] = 'IN_QUEUE';
-                    $entity->message = $messageCopy;
-                    $entity->save();
-
-                    // Schedule delayed processing
-                    $this->scheduleVideoProcessingCheck($entity, $app, $requestId, $videoModel, $params);
-
-                    return [
-                        'result' => true,
-                        'model' => $videoModel,
-                        'request_id' => $requestId,
-                        'message' => 'Video processing request submitted successfully. Processing will continue asynchronously.',
-                        'message_id' => $entity->getId(),
-                        'status' => 'IN_QUEUE',
-                    ];
+                    return $result;
                 } catch (Exception $e) {
                     report($e);
 
@@ -246,59 +189,6 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
     }
 
     /**
-     * Submit text-to-video request and return request ID
-     */
-    protected function submitTextToVideo(string $videoModel, Model $entity, array $params): ?string
-    {
-        // Get default values from app settings
-        $defaultValues = $this->getDefaultVideoValues($entity->app, 'text-to-video');
-
-        // Submit the video generation request
-        $submitPayload = [
-            'operation' => 'submit',
-            'model' => $videoModel,
-            'prompt' => $entity->message['prompt'] ?? '',
-            'aspect_ratio' => $defaultValues['aspect_ratio'] ?? '16:9',
-            'generate_audio' => $defaultValues['generate_audio'] ?? true,
-            'duration' => $defaultValues['duration'] ?? '8s',
-        ];
-
-        $submitResponse = $this->submitVideoRequest($submitPayload);
-
-        if (! isset($submitResponse['request_id'])) {
-            throw new Exception('Failed to submit video for processing: ' . json_encode($submitResponse));
-        }
-
-        return $submitResponse['request_id'];
-    }
-
-    /**
-     * Submit image-to-video request and return request ID
-     */
-    protected function submitImageToVideo(string $imageUrl, string $videoModel, Model $entity, array $params): ?string
-    {
-        // Get default values from app settings
-        $defaultValues = $this->getDefaultVideoValues($entity->app, 'image-to-video');
-
-        // Submit the video generation request
-        $submitPayload = [
-            'operation' => 'submit',
-            'model' => $videoModel,
-            'image_url' => $imageUrl,
-            'prompt' => $entity->message['prompt'] ?? '',
-            'prompt_optimizer' => $defaultValues['prompt_optimizer'] ?? true,
-        ];
-
-        $submitResponse = $this->submitVideoRequest($submitPayload);
-
-        if (! isset($submitResponse['request_id'])) {
-            throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
-        }
-
-        return $submitResponse['request_id'];
-    }
-
-    /**
      * Poll for video processing result with retries
      */
     protected function pollForVideoResult(string $requestId, string $videoModel, Apps $app): array
@@ -306,12 +196,18 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
         $maxAttempts = 3;
         $attempt = 0;
 
+        // Reconstruct API URL for polling
+        $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
+        $baseApiUrl = $app->get('PROMPT_VIDEO_API_URL');
+        $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
+        $apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
+
         while ($attempt < $maxAttempts) {
             try {
                 // Check status
                 $statusResponse = Http::withHeaders([
                     'Content-Type' => 'application/json',
-                ])->post($this->apiUrl, [
+                ])->post($apiUrl, [
                     'operation' => 'status',
                     'requestId' => $requestId,
                     'model' => $videoModel,
@@ -324,7 +220,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
                     // Get the result
                     $resultResponse = Http::withHeaders([
                         'Content-Type' => 'application/json',
-                    ])->post($this->apiUrl, [
+                    ])->post($apiUrl, [
                         'operation' => 'result',
                         'requestId' => $requestId,
                         'model' => $videoModel,
@@ -384,34 +280,6 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             report($e);
             $this->updateVideoProcessingStatus($entity, 'FAILED', $e->getMessage());
         }
-    }
-
-    /**
-     * Get default video values from app settings
-     */
-    protected function getDefaultVideoValues(Apps $app, string $type): array
-    {
-        $settingsKey = $type === 'text-to-video'
-            ? 'llm_list_video_categorization_dev'
-            : 'llm_list_image_to_video_categorization_dev';
-
-        $settings = $app->get($settingsKey);
-
-        if (! $settings || ! isset($settings['input_config'])) {
-            return [];
-        }
-
-        $inputConfig = $settings['input_config'];
-        $defaults = [];
-
-        // Extract first value of each array as default
-        foreach ($inputConfig as $key => $values) {
-            if (is_array($values) && ! empty($values)) {
-                $defaults[$key] = $values[0];
-            }
-        }
-
-        return $defaults;
     }
 
     /**
@@ -535,18 +403,6 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             'processed_video_url' => $processedVideoUrl,
             'request_id' => $requestId,
         ];
-    }
-
-    /**
-     * Submit a video generation request
-     */
-    protected function submitVideoRequest(array $payload): array
-    {
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-        ])->post($this->apiUrl, $payload);
-
-        return $response->json();
     }
 
     /**
