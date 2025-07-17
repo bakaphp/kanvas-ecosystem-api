@@ -82,6 +82,65 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         ],
                     ];
 
+                    // Create getDocsDriversLicense data from verification data
+                    $getDocsDriversLicense = null;
+                    if (isset($verificationData['idcheck']['data'])) {
+                        $idCheck = $verificationData['idcheck']['data'];
+                        $ocrMatchData = $verificationData['ocr_match']['data'] ?? [];
+
+                        $getDocsDriversLicense = [
+                            'address' => $ocrMatchData['address'] ?? '',
+                            'state' => $idCheck['state'] ?? '',
+                            'birthday' => [
+                                'day' => isset($idCheck['dateOfBirth']) ? (int) date('d', strtotime($idCheck['dateOfBirth'])) : 0,
+                                'month' => isset($idCheck['dateOfBirth']) ? (int) date('m', strtotime($idCheck['dateOfBirth'])) : 0,
+                                'year' => isset($idCheck['dateOfBirth']) ? (int) date('Y', strtotime($idCheck['dateOfBirth'])) : 0,
+                            ],
+                            'license' => $idCheck['dLIDNumberRaw'] ?? '',
+                            'exp_date' => [
+                                'day' => isset($idCheck['expirationDate']) ? (int) date('d', strtotime($idCheck['expirationDate'])) : 0,
+                                'month' => isset($idCheck['expirationDate']) ? (int) date('m', strtotime($idCheck['expirationDate'])) : 0,
+                                'year' => isset($idCheck['expirationDate']) ? (int) date('Y', strtotime($idCheck['expirationDate'])) : 0,
+                            ],
+                            'state_id' => 0,
+                            'firstname' => $idCheck['firstName'] ?? '',
+                            'middlename' => '',
+                            'lastname' => $idCheck['lastName'] ?? '',
+                        ];
+                    }
+
+                    $resultsFromIntellicheck = [
+                        'intelicheck' => $verificationResults['status'] == 'green' || $verificationResults['status'] == 'flag' ? true : false,
+                        'status' => $verificationResults['status'],
+                        'message' => $verificationResults['message'],
+                        'scandit' => $verificationResults['status'] == 'green' || $verificationResults['status'] == 'flag' ? true : false,
+                        'expired' => $verificationResults['status'] == 'flag' ? true : false,
+                        'ocMatch' => $verificationResults['ocMatch'] ?? false,
+                        'intellicheck_workflow_response' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
+                        'intellicheckResponse' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
+                    ];
+
+                    // Get lead and people from entity
+                    $lead = $entity;
+                    $people = $entity->people;
+
+                    if ($entity instanceof Lead) {
+                        $lead->set(
+                            'id_verification',
+                            $resultsFromIntellicheck
+                        );
+
+                        $people->set(
+                            'id_verification',
+                            $resultsFromIntellicheck
+                        );
+                    }
+
+                    if (! empty($getDocsDriversLicense)) {
+                        $lead->set('get_docs_drivers_license', $getDocsDriversLicense);
+                        $people->del('get_docs_drivers_license');
+                    }
+
                     dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData, $name) {
                         $key = IntegrationsEnum::INTELLICHECK->value . '_sent_report';
                         if ($entity->get($key)) {
@@ -154,6 +213,8 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         'result' => true,
                         'message' => 'IdVerificationReportActivity executed successfully',
                         'data' => $reportData,
+                        'resultsFromIntellicheck' => $resultsFromIntellicheck,
+                        'getDocsDriversLicense' => $getDocsDriversLicense ?? null,
                     ];
                 },
                 company: $company,
