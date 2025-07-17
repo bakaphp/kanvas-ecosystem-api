@@ -10,6 +10,7 @@ use finfo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -44,11 +45,18 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
 
         sleep($app->get('PROMPT_VIDEO_WAIT_TIME') ?? 5);
         $this->app = $app;
-        $this->apiUrl = $entity->app->get('PROMPT_VIDEO_API_URL');
 
         // Extract video model dynamically from message - use the full value as is
         $videoModel = $entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
         $videoType = $entity->message['type'] ?? 'video-format';
+
+        // Determine if it's text-to-video or image-to-video based on hasFiles flag
+        $isImageToVideo = isset($entity->message['hasFiles']) && $entity->message['hasFiles'] === true;
+
+        // Construct the API URL based on video type
+        $baseApiUrl = $entity->app->get('PROMPT_VIDEO_API_URL');
+        $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
+        $this->apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
 
         $company = $this->getCompany($app, $entity);
 
@@ -56,7 +64,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($params, $videoModel, $videoType) {
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($params, $videoModel, $videoType, $isImageToVideo) {
                 $entity->setPrivate();
 
                 if (empty($this->apiUrl)) {
@@ -82,9 +90,6 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
                             'status' => 'IN_QUEUE',
                         ];
                     }
-
-                    // Determine if it's text-to-video or image-to-video based on hasFiles flag
-                    $isImageToVideo = isset($entity->message['hasFiles']) && $entity->message['hasFiles'] === true;
 
                     if ($isImageToVideo) {
                         // Process image-to-video
@@ -258,10 +263,34 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             'operation' => 'submit',
             'model' => $videoModel,
             'prompt' => $entity->message['prompt'] ?? '',
-            'aspect_ratio' => $defaultValues['aspect_ratio'] ?? '16:9',
-            'generate_audio' => $defaultValues['generate_audio'] ?? true,
-            'duration' => $defaultValues['duration'] ?? '8s',
+            'resolution' => $defaultValues['resolution'] ?? '720p',
         ];
+
+        // Add optional webhook URL if configured
+        $webhookUrl = $entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
+        if ($webhookUrl) {
+            $submitPayload['webhookUrl'] = $webhookUrl;
+        }
+
+        // Add other optional parameters based on model configuration
+        if (isset($defaultValues['aspect_ratio'])) {
+            $submitPayload['aspect_ratio'] = $defaultValues['aspect_ratio'];
+        }
+        if (isset($defaultValues['generate_audio'])) {
+            $submitPayload['generate_audio'] = $defaultValues['generate_audio'];
+        }
+        if (isset($defaultValues['duration'])) {
+            $submitPayload['duration'] = $defaultValues['duration'];
+        }
+        if (isset($defaultValues['negative_prompt'])) {
+            $submitPayload['negative_prompt'] = $defaultValues['negative_prompt'];
+        }
+        if (isset($defaultValues['style'])) {
+            $submitPayload['style'] = $defaultValues['style'];
+        }
+        if (isset($defaultValues['prompt_optimizer'])) {
+            $submitPayload['prompt_optimizer'] = $defaultValues['prompt_optimizer'];
+        }
 
         $submitResponse = $this->submitVideoRequest($submitPayload);
 
@@ -286,8 +315,30 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             'model' => $videoModel,
             'image_url' => $imageUrl,
             'prompt' => $entity->message['prompt'] ?? '',
-            'prompt_optimizer' => $defaultValues['prompt_optimizer'] ?? true,
         ];
+
+        // Add optional webhook URL if configured
+        $webhookUrl = $entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
+        if ($webhookUrl) {
+            $submitPayload['webhookUrl'] = $webhookUrl;
+        }
+
+        // Add other optional parameters based on model configuration
+        if (isset($defaultValues['prompt_optimizer'])) {
+            $submitPayload['prompt_optimizer'] = $defaultValues['prompt_optimizer'];
+        }
+        if (isset($defaultValues['aspect_ratio'])) {
+            $submitPayload['aspect_ratio'] = $defaultValues['aspect_ratio'];
+        }
+        if (isset($defaultValues['resolution'])) {
+            $submitPayload['resolution'] = $defaultValues['resolution'];
+        }
+        if (isset($defaultValues['duration'])) {
+            $submitPayload['duration'] = $defaultValues['duration'];
+        }
+        if (isset($defaultValues['negative_prompt'])) {
+            $submitPayload['negative_prompt'] = $defaultValues['negative_prompt'];
+        }
 
         $submitResponse = $this->submitVideoRequest($submitPayload);
 
@@ -391,23 +442,59 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
      */
     protected function getDefaultVideoValues(Apps $app, string $type): array
     {
-        $settingsKey = $type === 'text-to-video'
-            ? 'llm_list_video_categorization_dev'
-            : 'llm_list_image_to_video_categorization_dev';
+        $settings = $app->get('llm_list_video_categorization_dev');
 
-        $settings = $app->get($settingsKey);
-
-        if (! $settings || ! isset($settings['input_config'])) {
+        if (! $settings || ! is_array($settings)) {
             return [];
         }
 
-        $inputConfig = $settings['input_config'];
+        $videoKey = $type === 'text-to-video' ? 'fal-ai/text-to-video' : 'fal-ai/image-to-video';
+
+        // Search through all categories for the video key
+        foreach ($settings as $category) {
+            if (! isset($category['value']) || ! is_array($category['value'])) {
+                continue;
+            }
+
+            foreach ($category['value'] as $videoTypeConfig) {
+                if (isset($videoTypeConfig['key']) && $videoTypeConfig['key'] === $videoKey) {
+                    if (isset($videoTypeConfig['value']) && is_array($videoTypeConfig['value'])) {
+                        // Find the first (default) model configuration
+                        foreach ($videoTypeConfig['value'] as $modelConfig) {
+                            if (isset($modelConfig['input_config']) && isset($modelConfig['isDefault']) && $modelConfig['isDefault']) {
+                                return $this->extractDefaultsFromInputConfig($modelConfig['input_config']);
+                            }
+                        }
+
+                        // If no default found, use the first one
+                        if (! empty($videoTypeConfig['value']) && isset($videoTypeConfig['value'][0]['input_config'])) {
+                            return $this->extractDefaultsFromInputConfig($videoTypeConfig['value'][0]['input_config']);
+                        }
+                    }
+                }
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Extract default values from input_config
+     */
+    private function extractDefaultsFromInputConfig(array $inputConfig): array
+    {
         $defaults = [];
 
-        // Extract first value of each array as default
         foreach ($inputConfig as $key => $values) {
+            // Skip comment fields
+            if (strpos($key, '__') === 0 && strpos($key, '_comment__') !== false) {
+                continue;
+            }
+
             if (is_array($values) && ! empty($values)) {
                 $defaults[$key] = $values[0];
+            } elseif (! is_array($values)) {
+                $defaults[$key] = $values;
             }
         }
 
@@ -546,6 +633,11 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             'Content-Type' => 'application/json',
         ])->post($this->apiUrl, $payload);
 
+        Log::info('Video request submitted', [
+            'url' => $this->apiUrl,
+            'payload' => $payload,
+            'response' => $response->json(),
+        ]);
         return $response->json();
     }
 
