@@ -39,7 +39,7 @@ class SyncZohoLeadFromReceiverJob extends ProcessWebhookJob
         return [
             'message' => 'Lead created successfully via receiver ' . $leadReceiver->uuid,
             'receiver' => $leadReceiver->getId(),
-            'lead' => $lead->getId(),
+            'lead' => $lead ? $lead->getId() : null,
         ];
     }
 }
