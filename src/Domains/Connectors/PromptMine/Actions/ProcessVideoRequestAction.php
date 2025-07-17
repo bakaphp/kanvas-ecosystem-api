@@ -66,10 +66,12 @@ class ProcessVideoRequestAction
                 }
 
                 $imageUrl = $messageFiles->first()->url;
-                $requestId = $this->submitImageToVideo($imageUrl, $videoModel, $apiUrl);
+                $results = $this->submitImageToVideo($imageUrl, $videoModel, $apiUrl);
+                $requestId = $results['request_id'] ?? null;
             } else {
                 // Process text-to-video
-                $requestId = $this->submitTextToVideo($videoModel, $apiUrl);
+                $results = $this->submitTextToVideo($videoModel, $apiUrl);
+                $requestId = $results['request_id'] ?? null;
             }
 
             if ($requestId === null) {
@@ -91,6 +93,7 @@ class ProcessVideoRequestAction
                 'result' => true,
                 'model' => $videoModel,
                 'request_id' => $requestId,
+                'results' => $results,
                 'message' => 'Video processing request submitted successfully. Processing will continue asynchronously.',
                 'message_id' => $this->entity->getId(),
                 'status' => 'IN_QUEUE',
@@ -109,7 +112,7 @@ class ProcessVideoRequestAction
     /**
      * Submit text-to-video request and return request ID
      */
-    protected function submitTextToVideo(string $videoModel, string $apiUrl): ?string
+    protected function submitTextToVideo(string $videoModel, string $apiUrl): array
     {
         // Get default values from app settings
         $defaultValues = $this->getDefaultVideoValues('text-to-video');
@@ -154,7 +157,11 @@ class ProcessVideoRequestAction
             throw new Exception('Failed to submit video for processing: ' . json_encode($submitResponse));
         }
 
-        return $submitResponse['request_id'];
+        return [
+            'request_id' => $submitResponse['request_id'],
+            'payload' => $submitPayload,
+            'model' => $videoModel,
+        ];
     }
 
     /**
@@ -224,14 +231,14 @@ class ProcessVideoRequestAction
     {
         $settings = $this->entity->app->get('llm_list_video_categorization_dev');
 
-        if (!$settings || !is_array($settings)) {
+        if (! $settings || ! is_array($settings)) {
             return [];
         }
 
         // Get the model value from the message
         $messageModel = $this->entity->message['ai_model']['value'] ?? null;
-        
-        if (!$messageModel) {
+
+        if (! $messageModel) {
             return [];
         }
 
@@ -239,7 +246,7 @@ class ProcessVideoRequestAction
 
         // Search through all categories for the video key
         foreach ($settings as $category) {
-            if (!isset($category['value']) || !is_array($category['value'])) {
+            if (! isset($category['value']) || ! is_array($category['value'])) {
                 continue;
             }
 
@@ -248,7 +255,7 @@ class ProcessVideoRequestAction
                     if (isset($videoTypeConfig['value']) && is_array($videoTypeConfig['value'])) {
                         // Find the model configuration that matches the message model
                         foreach ($videoTypeConfig['value'] as $modelConfig) {
-                            if (isset($modelConfig['model']) && 
+                            if (isset($modelConfig['model']) &&
                                 (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))) {
                                 if (isset($modelConfig['input_config'])) {
                                     return $this->extractDefaultsFromInputConfig($modelConfig['input_config']);
@@ -276,10 +283,10 @@ class ProcessVideoRequestAction
                 continue;
             }
 
-            if (is_array($values) && !empty($values)) {
+            if (is_array($values) && ! empty($values)) {
                 // Take the first value (position 0) from the array
                 $defaults[$key] = $values[0];
-            } elseif (!is_array($values)) {
+            } elseif (! is_array($values)) {
                 $defaults[$key] = $values;
             }
         }
