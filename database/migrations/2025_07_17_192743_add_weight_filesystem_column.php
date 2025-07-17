@@ -11,7 +11,6 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('filesystem_entities', function (Blueprint $table) {
-
             $table->smallInteger('weight')->nullable()->after('field_name');
         });
     }
@@ -22,7 +21,6 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('filesystem_entities', function (Blueprint $table) {
-
             $table->dropColumn('weight');
         });
     }
