@@ -1,6 +1,6 @@
 type AIAgentSession {
     name: String!
-    user: User!
+    user: Mixed!
     id: ID!
     company: Company!
     company_config: Mixed
