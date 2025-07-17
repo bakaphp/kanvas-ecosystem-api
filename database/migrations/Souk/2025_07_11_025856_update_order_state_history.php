@@ -13,6 +13,9 @@ return new class () extends Migration {
     public function up()
     {
         Schema::table('order_transitions_history', function (Blueprint $table) {
+            $table->dropForeign(['from_status_id']);
+            $table->dropForeign(['to_status_id']);
+            $table->dropForeign(['transition_id']);
             $table->boolean('is_current')->default(false);
             $table->bigInteger('from_status_id')->nullable()->change();
             $table->bigInteger('transition_id')->nullable()->change();
