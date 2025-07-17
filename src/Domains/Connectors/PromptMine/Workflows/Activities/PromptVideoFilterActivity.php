@@ -35,8 +35,6 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
 {
     protected ?string $apiUrl = null;
     protected ?Apps $app = null;
-    protected const int MAX_STATUS_CHECKS = 30;
-    protected const int STATUS_CHECK_DELAY = 2;
     public $tries = 3;
 
     #[Override]
@@ -68,11 +66,23 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
                     ];
                 }
 
-                $fileSystemRecord = null;
-                $processedVideoUrl = null;
-                $requestId = null;
-
                 try {
+                    // Check if we already have a request_id (in case of retry)
+                    $existingRequestId = $entity->message['video_request_id'] ?? null;
+
+                    if ($existingRequestId) {
+                        // If we already have a request ID, just return success
+                        // The delayed job will handle the processing
+                        return [
+                            'result' => true,
+                            'model' => $videoModel,
+                            'request_id' => $existingRequestId,
+                            'message' => 'Video processing request already submitted. Processing continues asynchronously.',
+                            'message_id' => $entity->getId(),
+                            'status' => 'IN_QUEUE',
+                        ];
+                    }
+
                     // Determine if it's text-to-video or image-to-video based on hasFiles flag
                     $isImageToVideo = isset($entity->message['hasFiles']) && $entity->message['hasFiles'] === true;
 
@@ -87,48 +97,136 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
                         }
 
                         $imageUrl = $messageFiles->first()->url;
-                        list($fileSystemRecord, $processedVideoUrl, $requestId) = $this->processImageToVideo(
-                            $imageUrl,
-                            $videoModel,
-                            $entity
-                        );
+                        $requestId = $this->submitImageToVideo($imageUrl, $videoModel, $entity, $params);
                     } else {
                         // Process text-to-video
-                        list($fileSystemRecord, $processedVideoUrl, $requestId) = $this->processTextToVideo(
-                            $videoModel,
-                            $entity
-                        );
+                        $requestId = $this->submitTextToVideo($videoModel, $entity, $params);
                     }
 
-                    if ($fileSystemRecord === null) {
+                    if ($requestId === null) {
                         return [
                             'result' => false,
                             'model' => $videoModel,
-                            'request_id' => $requestId,
-                            'message' => 'Failed to retrieve processed video',
+                            'message' => 'Failed to submit video processing request',
                         ];
                     }
 
-                    // Create nugget message and send notification
-                    return $this->finalizeProcessing(
-                        $entity,
-                        $fileSystemRecord,
-                        $processedVideoUrl,
-                        $params,
-                        $requestId
-                    );
+                    // Store the request ID for tracking
+                    $messageCopy = $entity->message;
+                    $messageCopy['video_request_id'] = $requestId;
+                    $messageCopy['video_processing_status'] = 'IN_QUEUE';
+                    $entity->message = $messageCopy;
+                    $entity->save();
+
+                    // Schedule delayed processing
+                    $this->scheduleVideoProcessingCheck($entity, $app, $requestId, $videoModel, $params);
+
+                    return [
+                        'result' => true,
+                        'model' => $videoModel,
+                        'request_id' => $requestId,
+                        'message' => 'Video processing request submitted successfully. Processing will continue asynchronously.',
+                        'message_id' => $entity->getId(),
+                        'status' => 'IN_QUEUE',
+                    ];
                 } catch (Exception $e) {
                     report($e);
 
                     return [
                         'result' => false,
                         'message_id' => $entity->getId(),
-                        'message' => 'Error processing video: ' . $e->getMessage(),
+                        'message' => 'Error submitting video processing request: ' . $e->getMessage(),
                     ];
                 }
             },
             company: $company,
         );
+    }
+
+    /**
+     * Schedule a delayed job to check video processing status
+     */
+    protected function scheduleVideoProcessingCheck(Model $entity, AppInterface $app, string $requestId, string $videoModel, array $params): void
+    {
+        dispatch(function () use ($entity, $app, $requestId, $videoModel, $params) {
+            $key = IntegrationsEnum::PROMPT_MINE->value . '_video_processed_' . $requestId;
+
+            // Check if this video has already been processed
+            if ($entity->get($key)) {
+                return;
+            }
+
+            try {
+                // Refresh entity to get latest data
+                $entity->refresh();
+
+                // Check if processing was completed by another process
+                if (isset($entity->message['video_processing_status']) &&
+                    $entity->message['video_processing_status'] === 'COMPLETED') {
+                    return;
+                }
+
+                // Poll for the result with retries
+                $result = $this->pollForVideoResult($requestId, $videoModel, $entity->app);
+
+                if ($result['status'] === 'COMPLETED' && isset($result['video_url'])) {
+                    // Mark as processed to prevent duplicate processing
+                    $entity->set($key, true);
+
+                    // Process the completed video
+                    $this->processCompletedVideo($entity, $result['video_url'], $requestId, $params);
+                } elseif ($result['status'] === 'FAILED') {
+                    // Update status to failed
+                    $this->updateVideoProcessingStatus($entity, 'FAILED', $result['error'] ?? 'Video processing failed');
+                } else {
+                    // If still processing, schedule another check in 2 minutes
+                    $this->scheduleVideoProcessingRetry($entity, $app, $requestId, $videoModel, $params);
+                }
+            } catch (Exception $e) {
+                report($e);
+                $this->updateVideoProcessingStatus($entity, 'FAILED', $e->getMessage());
+            }
+        })->delay(now()->addMinutes(8)); // Wait 8 minutes before first check
+    }
+
+    /**
+     * Schedule a retry check for video processing
+     */
+    protected function scheduleVideoProcessingRetry(Model $entity, AppInterface $app, string $requestId, string $videoModel, array $params): void
+    {
+        dispatch(function () use ($entity, $app, $requestId, $videoModel, $params) {
+            try {
+                // Check again by calling the polling logic
+                $result = $this->pollForVideoResult($requestId, $videoModel, $entity->app);
+
+                if ($result['status'] === 'COMPLETED' && isset($result['video_url'])) {
+                    $key = IntegrationsEnum::PROMPT_MINE->value . '_video_processed_' . $requestId;
+                    if (! $entity->get($key)) {
+                        $entity->set($key, true);
+                        $this->processCompletedVideo($entity, $result['video_url'], $requestId, $params);
+                    }
+                } elseif ($result['status'] === 'FAILED') {
+                    $this->updateVideoProcessingStatus($entity, 'FAILED', $result['error'] ?? 'Video processing failed');
+                }
+            } catch (Exception $e) {
+                report($e);
+                $this->updateVideoProcessingStatus($entity, 'FAILED', $e->getMessage());
+            }
+        })->delay(now()->addMinutes(2));
+    }
+
+    /**
+     * Update video processing status in message
+     */
+    protected function updateVideoProcessingStatus(Model $entity, string $status, ?string $error = null): void
+    {
+        $messageCopy = $entity->message;
+        $messageCopy['video_processing_status'] = $status;
+        if ($error) {
+            $messageCopy['video_error'] = $error;
+        }
+        $entity->message = $messageCopy;
+        $entity->save();
     }
 
     /**
@@ -148,19 +246,17 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
     }
 
     /**
-     * Process text-to-video
-     *
-     * @return array [fileSystemRecord, processedVideoUrl, requestId]
+     * Submit text-to-video request and return request ID
      */
-    protected function processTextToVideo(string $videoModel, Model $entity): array
+    protected function submitTextToVideo(string $videoModel, Model $entity, array $params): ?string
     {
         // Get default values from app settings
         $defaultValues = $this->getDefaultVideoValues($entity->app, 'text-to-video');
 
-        // Step 1: Submit the video generation request
+        // Submit the video generation request
         $submitPayload = [
             'operation' => 'submit',
-            'model' => $videoModel, // Use the full model value as is
+            'model' => $videoModel,
             'prompt' => $entity->message['prompt'] ?? '',
             'aspect_ratio' => $defaultValues['aspect_ratio'] ?? '16:9',
             'generate_audio' => $defaultValues['generate_audio'] ?? true,
@@ -173,43 +269,21 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             throw new Exception('Failed to submit video for processing: ' . json_encode($submitResponse));
         }
 
-        $requestId = $submitResponse['request_id'];
-
-        // Step 2: Check processing status until complete
-        $statusResponse = $this->checkProcessingStatus($requestId, $videoModel);
-
-        if ($statusResponse['status'] !== 'COMPLETED') {
-            throw new Exception('Video processing did not complete successfully: ' . json_encode($statusResponse));
-        }
-
-        // Step 3: Get the processed video result
-        $resultResponse = $this->getProcessingResult($requestId, $videoModel);
-        $processedVideoUrl = $this->extractVideoUrl($resultResponse);
-
-        if ($processedVideoUrl === null) {
-            throw new Exception('Failed to extract video URL from response: ' . json_encode($resultResponse));
-        }
-
-        // Download and upload video to our filesystem
-        $fileSystemRecord = $this->downloadAndUploadVideo($processedVideoUrl, $entity);
-
-        return [$fileSystemRecord, $processedVideoUrl, $requestId];
+        return $submitResponse['request_id'];
     }
 
     /**
-     * Process image-to-video
-     *
-     * @return array [fileSystemRecord, processedVideoUrl, requestId]
+     * Submit image-to-video request and return request ID
      */
-    protected function processImageToVideo(string $imageUrl, string $videoModel, Model $entity): array
+    protected function submitImageToVideo(string $imageUrl, string $videoModel, Model $entity, array $params): ?string
     {
         // Get default values from app settings
         $defaultValues = $this->getDefaultVideoValues($entity->app, 'image-to-video');
 
-        // Step 1: Submit the video generation request
+        // Submit the video generation request
         $submitPayload = [
             'operation' => 'submit',
-            'model' => $videoModel, // Use the full model value as is
+            'model' => $videoModel,
             'image_url' => $imageUrl,
             'prompt' => $entity->message['prompt'] ?? '',
             'prompt_optimizer' => $defaultValues['prompt_optimizer'] ?? true,
@@ -221,27 +295,95 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
         }
 
-        $requestId = $submitResponse['request_id'];
+        return $submitResponse['request_id'];
+    }
 
-        // Step 2: Check processing status until complete
-        $statusResponse = $this->checkProcessingStatus($requestId, $videoModel);
+    /**
+     * Poll for video processing result with retries
+     */
+    protected function pollForVideoResult(string $requestId, string $videoModel, Apps $app): array
+    {
+        $maxAttempts = 3;
+        $attempt = 0;
 
-        if ($statusResponse['status'] !== 'COMPLETED') {
-            throw new Exception('Image-to-video processing did not complete successfully: ' . json_encode($statusResponse));
+        while ($attempt < $maxAttempts) {
+            try {
+                // Check status
+                $statusResponse = Http::withHeaders([
+                    'Content-Type' => 'application/json',
+                ])->post($this->apiUrl, [
+                    'operation' => 'status',
+                    'requestId' => $requestId,
+                    'model' => $videoModel,
+                    'logs' => true,
+                ]);
+
+                $statusData = $statusResponse->json();
+
+                if ($statusData['status'] === 'COMPLETED') {
+                    // Get the result
+                    $resultResponse = Http::withHeaders([
+                        'Content-Type' => 'application/json',
+                    ])->post($this->apiUrl, [
+                        'operation' => 'result',
+                        'requestId' => $requestId,
+                        'model' => $videoModel,
+                    ]);
+
+                    $resultData = $resultResponse->json();
+                    $videoUrl = $this->extractVideoUrl($resultData);
+
+                    return [
+                        'status' => 'COMPLETED',
+                        'video_url' => $videoUrl,
+                        'result_data' => $resultData,
+                    ];
+                } elseif ($statusData['status'] === 'FAILED') {
+                    return [
+                        'status' => 'FAILED',
+                        'error' => 'Video processing failed on external service',
+                        'details' => $statusData,
+                    ];
+                } else {
+                    // Still processing
+                    return [
+                        'status' => 'IN_PROGRESS',
+                        'details' => $statusData,
+                    ];
+                }
+            } catch (Exception $e) {
+                $attempt++;
+                if ($attempt >= $maxAttempts) {
+                    return [
+                        'status' => 'FAILED',
+                        'error' => 'Failed to check video status after ' . $maxAttempts . ' attempts: ' . $e->getMessage(),
+                    ];
+                }
+                sleep(2); // Wait before retry
+            }
         }
 
-        // Step 3: Get the processed video result
-        $resultResponse = $this->getProcessingResult($requestId, $videoModel);
-        $processedVideoUrl = $this->extractVideoUrl($resultResponse);
+        return [
+            'status' => 'FAILED',
+            'error' => 'Maximum polling attempts reached',
+        ];
+    }
 
-        if ($processedVideoUrl === null) {
-            throw new Exception('Failed to extract video URL from response: ' . json_encode($resultResponse));
+    /**
+     * Process completed video - download, upload, create nugget, send notifications
+     */
+    protected function processCompletedVideo(Model $entity, string $videoUrl, string $requestId, array $params): void
+    {
+        try {
+            // Download and upload video
+            $fileSystemRecord = $this->downloadAndUploadVideo($videoUrl, $entity);
+
+            // Finalize processing
+            $this->finalizeProcessing($entity, $fileSystemRecord, $videoUrl, $params, $requestId);
+        } catch (Exception $e) {
+            report($e);
+            $this->updateVideoProcessingStatus($entity, 'FAILED', $e->getMessage());
         }
-
-        // Download and upload video to our filesystem
-        $fileSystemRecord = $this->downloadAndUploadVideo($processedVideoUrl, $entity);
-
-        return [$fileSystemRecord, $processedVideoUrl, $requestId];
     }
 
     /**
@@ -346,6 +488,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
 
         $messageCopy = $entity->message;
         $messageCopy['ai_video'] = $cdnVideoUrl;
+        $messageCopy['video_processing_status'] = 'COMPLETED';
         $entity->message = $messageCopy;
         $entity->is_public = 1;
         $entity->save();
@@ -372,18 +515,16 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             );
             $entity->user->notify($newMessageNotification);
 
-            $totalDelivery = new DistributeMessagesToUsersAction($entity, $this->app)->execute();
+            $totalDelivery = new DistributeMessagesToUsersAction($entity, $entity->app)->execute();
         } catch (InternalServerErrorException $e) {
             report($e);
-
-            return [
-                'result' => false,
-                'message' => 'Error in notification to user',
-                'exception' => $e,
-            ];
         }
 
-        $result = [
+        // Turn type to prompt
+        $entity->message_types_id = MessageType::fromApp($entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
+        $entity->update();
+
+        return [
             'message' => 'Video processed successfully',
             'total_delivery' => $totalDelivery,
             'result' => true,
@@ -391,22 +532,9 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
             'message_data' => $entity->message,
             'message_id' => $entity->getId(),
             'nugget_message_id' => $createNuggetMessage->getId(),
+            'processed_video_url' => $processedVideoUrl,
+            'request_id' => $requestId,
         ];
-
-        // Add processed video URL and request ID if they exist
-        if ($processedVideoUrl !== null) {
-            $result['processed_video_url'] = $processedVideoUrl;
-        }
-
-        if ($requestId !== null) {
-            $result['request_id'] = $requestId;
-        }
-
-        // Turn type to prompt
-        $entity->message_types_id = MessageType::fromApp($entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
-        $entity->update();
-
-        return $result;
     }
 
     /**
@@ -417,62 +545,6 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
         ])->post($this->apiUrl, $payload);
-
-        return $response->json();
-    }
-
-    /**
-     * Check the processing status of a submitted video
-     */
-    protected function checkProcessingStatus(string $requestId, string $videoModel): array
-    {
-        $attempts = 0;
-        $statusResponse = [];
-
-        while ($attempts < self::MAX_STATUS_CHECKS) {
-            $response = Http::withHeaders([
-                'Content-Type' => 'application/json',
-            ])->post($this->apiUrl, [
-                'operation' => 'status',
-                'requestId' => $requestId,
-                'model' => $videoModel, // Use the full model value as is
-                'logs' => true,
-            ]);
-
-            $statusResponse = $response->json();
-
-            if ($statusResponse['status'] === 'COMPLETED') {
-                break;
-            }
-
-            if ($statusResponse['status'] === 'FAILED') {
-                throw new Exception('Video processing failed for request: ' . $requestId);
-            }
-
-            // Wait before checking again
-            sleep(self::STATUS_CHECK_DELAY);
-            $attempts++;
-        }
-
-        if ($attempts >= self::MAX_STATUS_CHECKS) {
-            throw new Exception('Video processing timed out for request: ' . $requestId);
-        }
-
-        return $statusResponse;
-    }
-
-    /**
-     * Get the result of a processed video
-     */
-    protected function getProcessingResult(string $requestId, string $videoModel): array
-    {
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-        ])->post($this->apiUrl, [
-            'operation' => 'result',
-            'requestId' => $requestId,
-            'model' => $videoModel, // Use the full model value as is
-        ]);
 
         return $response->json();
     }
