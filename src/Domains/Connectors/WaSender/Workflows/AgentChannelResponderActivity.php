@@ -28,21 +28,22 @@ class AgentChannelResponderActivity extends KanvasActivity
         $allowedChannels = $params['channelId'] ?? [];
         $channelAgentMapping = $params['channelAgentMapping'] ?? [];
 
-        $sessionDto = Session::from([
-            'app' => $app,
-            'company' => $channel->company,
-            'channel' => $channel,
-            'entity_namespace' => get_class($message->getEntity()),
-            'entity_id' => $message->getEntity()->getId(),
-            'canal_id' => $message->message['chat_jid'],
-            'user' => [
-                'name' => $message->getEntity()->getName(),
-                'id' => $message->getEntity()->getId(),
-                'email' => $message->getEntity()->getEmails()->first()?->value,
-            ],
-            'agent' => Agent::getById($defaultAgentId, $app),
-        ]);
-        new CreateSessionAction($sessionDto)->execute();
+        new CreateSessionAction(
+            Session::from([
+                'app' => $app,
+                'company' => $channel->company,
+                'channel' => $channel,
+                'entity_namespace' => get_class($message->getEntity()),
+                'entity_id' => $message->getEntity()->getId(),
+                'canal_id' => $message->message['chat_jid'],
+                'user' => [
+                    'name' => $message->getEntity()->getName(),
+                    'id' => $message->getEntity()->getId(),
+                    'email' => $message->getEntity()->getEmails()->first()?->value,
+                ],
+                'agent' => Agent::getById($defaultAgentId, $app),
+            ])
+        )->execute();
 
         return $this->executeIntegration(
             entity: $channel,

@@ -13,7 +13,8 @@ class AgentSessionQuery
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $session = Session::getByUuid($request['id']);
+        $session = Session::getByUuid($request['id'], $app);
+
         return [
             'id' => $request['id'],
             'name' => 'orchestrate',

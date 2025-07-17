@@ -17,7 +17,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('companies_id');
             $table->unsignedBigInteger('channel_id')->nullable();
             $table->unsignedBigInteger('agents_id')->nullable();
-            $table->string('uuid');
+            $table->string('uuid', 36);
             $table->string('canal_id')->nullable();
             $table->string('entity_namespace');
             $table->unsignedBigInteger('entity_id');
