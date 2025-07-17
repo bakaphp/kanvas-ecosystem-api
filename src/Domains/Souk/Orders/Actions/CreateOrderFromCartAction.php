@@ -138,7 +138,9 @@ class CreateOrderFromCartAction
             $order->app,
             $this->company,
             $order->user
-        )->execute('admin-new-order', $order->toArray());
+        )->execute('admin-new-order', [
+            'order' => $order,
+        ]);
 
         $this->cart->clear();
 
