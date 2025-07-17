@@ -40,7 +40,7 @@ class PushNoteToLeadAction
         $user = Dealer::getUser(
             $vinCompany,
             $vinUserId,
-            $this->app,
+            $this->lead->app,
         );
         $vinLead = Lead::getById(
             $vinCompany,
