@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
-use Baka\Support\Str;
 use Exception;
 use finfo;
 use Illuminate\Database\Eloquent\Model;
@@ -48,11 +47,11 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
         sleep($app->get('PROMPT_VIDEO_WAIT_TIME') ?? 5);
         $this->app = $app;
         $this->apiUrl = $entity->app->get('PROMPT_VIDEO_API_URL');
-        
+
         // Extract video model dynamically from message - use the full value as is
         $videoModel = $entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
         $videoType = $entity->message['type'] ?? 'video-format';
-        
+
         $company = $this->getCompany($app, $entity);
 
         return $this->executeIntegration(
@@ -76,7 +75,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
                 try {
                     // Determine if it's text-to-video or image-to-video based on hasFiles flag
                     $isImageToVideo = isset($entity->message['hasFiles']) && $entity->message['hasFiles'] === true;
-                    
+
                     if ($isImageToVideo) {
                         // Process image-to-video
                         $messageFiles = $entity->getFiles();
@@ -86,7 +85,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
                                 'message' => 'Message does not have any files for image-to-video processing',
                             ];
                         }
-                        
+
                         $imageUrl = $messageFiles->first()->url;
                         list($fileSystemRecord, $processedVideoUrl, $requestId) = $this->processImageToVideo(
                             $imageUrl,
@@ -141,6 +140,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
 
         try {
             $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
+
             return $branch->company;
         } catch (ModelNotFoundException $e) {
             return $entity->company;
@@ -156,7 +156,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         // Get default values from app settings
         $defaultValues = $this->getDefaultVideoValues($entity->app, 'text-to-video');
-        
+
         // Step 1: Submit the video generation request
         $submitPayload = [
             'operation' => 'submit',
@@ -169,7 +169,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
 
         $submitResponse = $this->submitVideoRequest($submitPayload);
 
-        if (!isset($submitResponse['request_id'])) {
+        if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit video for processing: ' . json_encode($submitResponse));
         }
 
@@ -205,7 +205,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         // Get default values from app settings
         $defaultValues = $this->getDefaultVideoValues($entity->app, 'image-to-video');
-        
+
         // Step 1: Submit the video generation request
         $submitPayload = [
             'operation' => 'submit',
@@ -217,7 +217,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
 
         $submitResponse = $this->submitVideoRequest($submitPayload);
 
-        if (!isset($submitResponse['request_id'])) {
+        if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
         }
 
@@ -249,26 +249,26 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
      */
     protected function getDefaultVideoValues(Apps $app, string $type): array
     {
-        $settingsKey = $type === 'text-to-video' 
-            ? 'llm_list_video_categorization_dev' 
+        $settingsKey = $type === 'text-to-video'
+            ? 'llm_list_video_categorization_dev'
             : 'llm_list_image_to_video_categorization_dev';
-            
+
         $settings = $app->get($settingsKey);
-        
-        if (!$settings || !isset($settings['input_config'])) {
+
+        if (! $settings || ! isset($settings['input_config'])) {
             return [];
         }
-        
+
         $inputConfig = $settings['input_config'];
         $defaults = [];
-        
+
         // Extract first value of each array as default
         foreach ($inputConfig as $key => $values) {
-            if (is_array($values) && !empty($values)) {
+            if (is_array($values) && ! empty($values)) {
                 $defaults[$key] = $values[0];
             }
         }
-        
+
         return $defaults;
     }
 
@@ -356,6 +356,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
         );
 
         $title = trim($title);
+
         try {
             // Send notification to the user
             $newMessageNotification = new VideoProcessingPushNotification(
@@ -490,7 +491,7 @@ class PromptVideoFilterActivity extends KanvasActivity implements WorkflowActivi
         if (
             isset($resultResponse['data']['videos']) &&
             is_array($resultResponse['data']['videos']) &&
-            !empty($resultResponse['data']['videos']) &&
+            ! empty($resultResponse['data']['videos']) &&
             isset($resultResponse['data']['videos'][0]['url'])
         ) {
             return $resultResponse['data']['videos'][0]['url'];
