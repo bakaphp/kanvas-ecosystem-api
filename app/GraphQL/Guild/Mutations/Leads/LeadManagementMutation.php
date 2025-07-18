@@ -136,7 +136,7 @@ class LeadManagementMutation
             $app
         );
 
-        if (isset($request['params']['task_id'])) {
+        if (! empty($request['params']['task_id'] ?? null)) {
             $lead->set('checklist_upload', $request['params']['task_id']);
             //$lead->tasks()->attach($request['params']['task_id']);
             $lead->fireWorkflow(
