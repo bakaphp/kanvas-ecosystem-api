@@ -284,9 +284,9 @@ class ProcessDriverLicenseVerificationAction
             app: $this->app,
             branch: $people->company->defaultBranch,
             user: $this->user,
-            firstname: $driverLicenseData['first_name'] ?? $people->firstname,
-            lastname: $driverLicenseData['last_name'] ?? $people->lastname,
-            middlename: $driverLicenseData['middle_name'] ?? $people->middlename,
+            firstname: $driverLicenseData['firstname'] ?? $people->firstname,
+            lastname: $driverLicenseData['lastname'] ?? $people->lastname,
+            middlename: $driverLicenseData['middlename'] ?? $people->middlename,
             dob: $dob,
             contacts: DataTransferObjectContact::collect([], DataCollection::class),
             address: DataTransferObjectAddress::collect($addressArray, DataCollection::class),
@@ -297,8 +297,12 @@ class ProcessDriverLicenseVerificationAction
 
         // Use UpdatePeopleAction to handle all updates
         $updateAction = new UpdatePeopleAction($people, $peopleData);
-        $updateAction->runWorkflow = false; // Don't run workflow for this internal update
-        $updateAction->execute();
+        $people = $updateAction->execute();
+
+        if (! empty($driverLicenseData['license'])) {
+            // Set the driver's license number
+            $people->set('drivers_license_number', $driverLicenseData['license']);
+        }
     }
 
     protected function createEngagement(Lead $lead, People $people, Apps $app): Engagement
@@ -417,8 +421,42 @@ class ProcessDriverLicenseVerificationAction
 
     protected function parseAddress(string $fullAddress): ?array
     {
-        // Remove extra spaces and normalize
-        $address = trim(preg_replace('/\s+/', ' ', $fullAddress));
+        // Remove extra spaces and normalize, but preserve newlines for initial parsing
+        $address = trim($fullAddress);
+
+        // Handle newline-separated addresses (street\ncity, state zip)
+        if (strpos($address, "\n") !== false) {
+            $parts = explode("\n", $address);
+            if (count($parts) >= 2) {
+                $streetAddress = trim($parts[0]);
+                $cityStateZip = trim($parts[1]);
+
+                // Parse the city, state, zip part
+                $pattern = '/^(.+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i';
+                if (preg_match($pattern, $cityStateZip, $matches)) {
+                    return [
+                        'address' => $streetAddress,
+                        'city' => trim($matches[1]),
+                        'state' => strtoupper(trim($matches[2])),
+                        'zipcode' => trim($matches[3]),
+                    ];
+                }
+
+                // Alternative pattern without comma: City State ZIP
+                $pattern2 = '/^(.+)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i';
+                if (preg_match($pattern2, $cityStateZip, $matches)) {
+                    return [
+                        'address' => $streetAddress,
+                        'city' => trim($matches[1]),
+                        'state' => strtoupper(trim($matches[2])),
+                        'zipcode' => trim($matches[3]),
+                    ];
+                }
+            }
+        }
+
+        // Normalize single-line addresses (remove extra spaces)
+        $address = trim(preg_replace('/\s+/', ' ', $address));
 
         // Pattern to match: Street Address, City, State ZIP
         // This regex handles various formats of US addresses
