@@ -45,7 +45,7 @@ class GenerateLeadLinkedFieldActivity extends KanvasActivity
                 }
 
                 // Merge data with existing taking priority
-                $mergedData = array_merge($newData, $existingData);
+                $mergedData = array_merge($existingData, $newData);
 
                 // Update or create the activity log entry
                 if ($linkedField) {
