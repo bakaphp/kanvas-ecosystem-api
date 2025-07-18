@@ -17,6 +17,7 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadUpdateInput;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class LeadManagementMutation
 {
@@ -151,6 +152,19 @@ class LeadManagementMutation
             );
 
             return $lead;
+        }
+
+        if (isset($request['params']['task_id'])) {
+            $lead->set('checklist_upload', $request['params']['task_id']);
+            //$lead->tasks()->attach($request['params']['task_id']);
+            $lead->fireWorkflow(
+                WorkflowEnum::AFTER_UPLOAD->value,
+                true,
+                [
+                    'task_id' => $request['params']['task_id'],
+                    'app' => $app,
+                ]
+            );
         }
 
         return $this->uploadFileToEntity(

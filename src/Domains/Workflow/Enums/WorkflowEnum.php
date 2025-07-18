@@ -37,6 +37,7 @@ enum WorkflowEnum: string
     case AFTER_ADDING_MESSAGE_TO_CHANNEL = 'after-adding-message-to-channel';
     case BEFORE_ACTION = 'before-action';
     case STATUS_TRANSITION = 'status-transition';
+    case AFTER_UPLOAD = 'after-upload';
 
     /**
      * Get the enum case by its value.
