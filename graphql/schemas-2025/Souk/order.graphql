@@ -94,6 +94,7 @@ type ImportOrderCsvResult {
 }
 
 type GeneratePaymentIntentResult {
+    id: ID!
     client_secret: String!
     status: String
     message: Mixed

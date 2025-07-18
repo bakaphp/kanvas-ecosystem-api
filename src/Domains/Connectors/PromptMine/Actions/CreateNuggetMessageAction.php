@@ -18,7 +18,12 @@ class CreateNuggetMessageAction
 
     public function execute(): Message
     {
-        $messageTypeValue = $this->messageData['type'] == 'text-format' ? 'nugget' : 'image';
+        $messageTypeValue = match ($this->messageData['type']) {
+            'text-format' => 'nugget',
+            'image-format' => 'image',
+            'video-format' => 'video',
+            default => 'nugget',
+        };
         $nuggetMessage = Message::on('social')->create([
             'parent_id' => $this->parentMessage->getId(),
             'apps_id' => $this->parentMessage->apps_id,

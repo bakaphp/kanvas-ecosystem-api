@@ -53,6 +53,7 @@ use Kanvas\Connectors\PromptMine\Workflows\Activities\CheckNuggetGenerationCount
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptVideoFilterActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
 use Kanvas\Connectors\QuickBooks\Workflows\PushOrderToInvoiceActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
@@ -231,6 +232,7 @@ class KanvasWorkflowSynActionCommand extends Command
             GenerateLeadLinkedFieldActivity::class,
             OfacScreeningActivity::class,
             LeadProcessDriverLicenseImageActivity::class,
+            PromptVideoFilterActivity::class,
         ];
 
         $createdActions = [];
