@@ -7,7 +7,7 @@ type Filesystem {
     size: Float!
     field_name: String
     attributes: Mixed
-    weight: Int
+    weight: Float
     created_at: DateTimeTz @method(name: "createdAt")
 }
 
@@ -23,7 +23,7 @@ input FilesystemAttachInput {
     field_name: String!
     system_module_uuid: String!
     entity_id: ID!
-    weight: Int
+    weight: Float
 }
 
 extend type Query @guard {

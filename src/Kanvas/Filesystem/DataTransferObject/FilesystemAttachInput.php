@@ -13,7 +13,7 @@ class FilesystemAttachInput extends Data
         public string $fieldName,
         public string $systemModuleUuid,
         public string $entityId,
-        public int $weight = 0,
+        public float $weight = 0,
     ) {
     }
 

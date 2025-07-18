@@ -24,7 +24,7 @@ class AttachFilesystemAction
     ) {
     }
 
-    public function execute(string $fieldName, ?int $id = null, ?int $weight = null): FilesystemEntities
+    public function execute(string $fieldName, ?int $id = null, ?float $weight = null): FilesystemEntities
     {
         return DB::connection('ecosystem')->transaction(function () use ($fieldName, $id, $weight) {
             $systemModule = SystemModulesRepository::getByModelName($this->entity::class, $this->filesystem->app);
@@ -145,7 +145,7 @@ class AttachFilesystemAction
     /**
      * Helper method to create a new file entity with proper error handling
      */
-    private function createFileEntity(string $fieldName, SystemModules $systemModule, ?int $weight = 0): FilesystemEntities
+    private function createFileEntity(string $fieldName, SystemModules $systemModule, ?float $weight = 0): FilesystemEntities
     {
         try {
             // Try to create the entity
