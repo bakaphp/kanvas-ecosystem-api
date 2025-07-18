@@ -88,7 +88,7 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
                     new MessageInput(
                         app: $app,
                         company: $lead->company,
-                        user: $lead->users,
+                        user: $lead->user,
                         type: $messageType,
                         message: $messageData
                     ),
@@ -102,7 +102,7 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
                 $engagement = Engagement::firstOrCreate([
                     'companies_id' => $lead->company->getId(),
                     'apps_id' => $lead->app->getId(),
-                    'users_id' => $lead->users->getId(),
+                    'users_id' => $lead->user->getId(),
                     'leads_id' => $lead->getId(),
                     'people_id' => $lead->people->getId(),
                     'companies_actions_id' => $taskListItem->companyAction->getId(),
@@ -119,7 +119,7 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
                     $taskEngagementItem->lead_id = $lead->getId();
                     $taskEngagementItem->companies_id = $lead->company->getId();
                     $taskEngagementItem->apps_id = $lead->app->getId();
-                    $taskEngagementItem->users_id = $lead->users->getId();
+                    $taskEngagementItem->users_id = $lead->user->getId();
                 }
 
                 $taskEngagementItem->engagement_start_id = $engagement->getId();
