@@ -54,9 +54,6 @@ class Filesystem extends BaseModel
     ];
     public $timestamps = true;
 
-    /**
-     * Settings relationship.
-     */
     public function settings(): HasMany
     {
         return $this->hasMany(FilesystemSettings::class, 'apps_id');
