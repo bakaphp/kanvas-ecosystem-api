@@ -1,4 +1,5 @@
 <?php
+<?php
 
 declare(strict_types=1);
 
@@ -18,6 +19,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
+use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
+use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
@@ -32,6 +36,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Spatie\LaravelData\DataCollection;
 
 class LeadProcessDriverLicenseImageActivity extends KanvasActivity
 {
@@ -92,21 +97,20 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             }
 
             // Check if there are any driver license images to process
-            $hasMainDriverLicense = ! empty($driverLicenseImage);
+            $hasMainDriverLicense = !empty($driverLicenseImage);
             $hasParticipantDriverLicense = false;
 
-            if (! empty($participants)) {
+            if (!empty($participants)) {
                 foreach ($participants as $participant) {
                     if (isset($participant['driver_license_images'])) {
                         $hasParticipantDriverLicense = true;
-
                         break;
                     }
                 }
             }
 
             // If no driver license images found, return early
-            if (! $hasMainDriverLicense && ! $hasParticipantDriverLicense) {
+            if (!$hasMainDriverLicense && !$hasParticipantDriverLicense) {
                 DB::commit();
 
                 return [
@@ -154,7 +158,6 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             ];
         } catch (Exception $e) {
             DB::rollBack();
-
             throw $e;
         }
     }
@@ -169,19 +172,9 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
         $currentScanOption = $lead->company->get('id_verification') ?? 'intelicheck';
         $isIdValid = (bool) ($idVerificationData[$currentScanOption] ?? false);
 
-        // Update birth date if available
-        if ($driverLicenseData && isset($driverLicenseData['birthday'])) {
-            $this->updatePeopleBirthDate($lead->people, $driverLicenseData['birthday']);
-        }
-
-        // Update people name from driver license data
+        // Update people information from driver license data
         if ($driverLicenseData) {
-            $this->updatePeopleName($lead->people, $driverLicenseData);
-        }
-
-        // Update people address from driver license data
-        if ($driverLicenseData) {
-            $this->updatePeopleAddress($lead->people, $driverLicenseData);
+            $this->updatePeopleFromDriverLicense($lead->people, $driverLicenseData);
         }
 
         // Create engagement and message
@@ -191,9 +184,6 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
         // Process and upload images
         $isExpired = $this->validateExpirationDate($lead, $lead->people, $driverLicenseData, $idVerificationData) ?? false;
         $this->processDriverLicenseImages($message, $driverLicenseImage, $isIdValid, $isExpired);
-
-        // Send notification
-        //$this->sendWhatsAppNotification($lead, $isIdValid, $isExpired);
 
         return [
             'people_id' => $lead->people->id,
@@ -209,7 +199,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
         $results = [];
 
         foreach ($participants as $index => $participant) {
-            if (! isset($participant['driver_license_images'])) {
+            if (!isset($participant['driver_license_images'])) {
                 continue;
             }
 
@@ -220,7 +210,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
 
             // Find the corresponding participant
             $leadParticipant = $this->findLeadParticipant($lead, $participant);
-            if (! $leadParticipant) {
+            if (!$leadParticipant) {
                 continue;
             }
 
@@ -231,19 +221,9 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             $currentScanOption = $lead->company->get('id_verification') ?? 'intelicheck';
             $isIdValid = (bool) ($idVerificationData[$currentScanOption] ?? false);
 
-            // Update birth date if available
-            if (isset($driverLicenseData['birthday'])) {
-                $this->updatePeopleBirthDate($people, $driverLicenseData['birthday']);
-            }
-
-            // Update participant name from driver license data
+            // Update participant information from driver license data
             if ($driverLicenseData) {
-                $this->updateParticipantName($people, $driverLicenseData);
-            }
-
-            // Update participant address from driver license data
-            if ($driverLicenseData) {
-                $this->updatePeopleAddress($people, $driverLicenseData);
+                $this->updatePeopleFromDriverLicense($people, $driverLicenseData);
             }
 
             // Validate expiration date
@@ -255,9 +235,6 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
 
             // Process and upload images
             $this->processDriverLicenseImages($message, $participant['driver_license_images'], $isIdValid, $isExpired);
-
-            // Send notification
-            //$this->sendWhatsAppNotification($lead, $isIdValid, $isExpired, $people->name);
 
             $results[] = [
                 'people_id' => $people->id,
@@ -282,6 +259,64 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             ->first();
     }
 
+    protected function updatePeopleFromDriverLicense(People $people, array $driverLicenseData): void
+    {
+        // Parse address components
+        $addressComponents = isset($driverLicenseData['address']) ? 
+            $this->parseAddress($driverLicenseData['address']) : null;
+
+        // Build address collection
+        $addresses = new DataCollection(DataTransferObjectAddress::class, []);
+        
+        if ($addressComponents) {
+            $addresses->push(new DataTransferObjectAddress(
+                address: $addressComponents['address'] ?? '',
+                city: $addressComponents['city'] ?? '',
+                state: $addressComponents['state'] ?? '',
+                zip: $addressComponents['zipcode'] ?? '',
+                country: 'United States',
+                address_2: null,
+                is_default: true
+            ));
+        }
+
+        // Parse birth date
+        $dob = null;
+        if (isset($driverLicenseData['birthday'])) {
+            $birthday = $driverLicenseData['birthday'];
+            $birthDateString = sprintf(
+                '%04d-%02d-%02d',
+                $birthday['year'],
+                $birthday['month'],
+                $birthday['day']
+            );
+            if ($this->isValidDate($birthDateString)) {
+                $dob = Carbon::createFromFormat('Y-m-d', $birthDateString);
+            }
+        }
+
+        // Build People DTO
+        $peopleData = new PeopleDataInput(
+            app: $this->app,
+            branch: $people->company->defaultBranch,
+            user: $this->user,
+            firstname: $driverLicenseData['first_name'] ?? $people->firstname,
+            lastname: $driverLicenseData['last_name'] ?? $people->lastname,
+            middlename: $driverLicenseData['middle_name'] ?? $people->middlename,
+            dob: $dob,
+            contacts: new DataCollection(\Kanvas\Guild\Customers\DataTransferObject\Contact::class, []),
+            address: $addresses,
+            id: $people->id,
+            custom_fields: [],
+            tags: []
+        );
+
+        // Use UpdatePeopleAction to handle all updates
+        $updateAction = new UpdatePeopleAction($people, $peopleData);
+        //$updateAction->runWorkflow = false; // Don't run workflow for this internal update
+        $updateAction->execute();
+    }
+
     protected function createEngagement(Lead $lead, People $people, Apps $app): Engagement
     {
         $action = Action::getBySlug(ConfigurationEnum::ID_VERIFICATION->value, $lead->company);
@@ -296,7 +331,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             ->where('verb', ConfigurationEnum::ID_VERIFICATION->value)
             ->first();
 
-        if (! $messageType) {
+        if (!$messageType) {
             $messageType = (new CreateMessageTypeAction(
                 new MessageTypeInput(
                     $app,
@@ -391,110 +426,6 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
         );
     }
 
-    protected function updatePeopleBirthDate(People $people, array $birthday): void
-    {
-        $birthDate = sprintf(
-            '%04d-%02d-%02d',
-            $birthday['year'],
-            $birthday['month'],
-            $birthday['day']
-        );
-
-        if ($this->isValidDate($birthDate) && $people->dob?->format('Y-m-d') !== $birthDate) {
-            $people->dob = Carbon::createFromFormat('Y-m-d', $birthDate);
-            $people->saveOrFail();
-        }
-    }
-
-    protected function updatePeopleName(People $people, array $driverLicenseData): void
-    {
-        $firstName = $driverLicenseData['first_name'] ?? null;
-        $lastName = $driverLicenseData['last_name'] ?? null;
-
-        if ($firstName && $lastName) {
-            $needsUpdate = false;
-
-            if ($people->firstname !== $firstName) {
-                $people->firstname = $firstName;
-                $needsUpdate = true;
-            }
-
-            if ($people->lastname !== $lastName) {
-                $people->lastname = $lastName;
-                $needsUpdate = true;
-            }
-
-            if ($needsUpdate) {
-                $people->saveOrFail();
-            }
-        }
-    }
-
-    protected function updateParticipantName(People $people, array $driverLicenseData): void
-    {
-        $firstName = $driverLicenseData['first_name'] ?? null;
-        $lastName = $driverLicenseData['last_name'] ?? null;
-
-        if ($firstName && $lastName) {
-            $needsUpdate = false;
-
-            if ($people->firstname !== $firstName) {
-                $people->firstname = $firstName;
-                $needsUpdate = true;
-            }
-
-            if ($people->lastname !== $lastName) {
-                $people->lastname = $lastName;
-                $needsUpdate = true;
-            }
-
-            if ($needsUpdate) {
-                $people->saveOrFail();
-            }
-        }
-    }
-
-    protected function updatePeopleAddress(People $people, array $driverLicenseData): void
-    {
-        $address = $driverLicenseData['address'] ?? null;
-
-        if (! $address) {
-            return;
-        }
-
-        // Parse address using regex to extract components
-        $addressComponents = $this->parseAddress($address);
-
-        if ($addressComponents) {
-            $needsUpdate = false;
-
-            // Update address fields if they exist and are different
-            if (isset($addressComponents['address']) && $people->address !== $addressComponents['address']) {
-                $people->address = $addressComponents['address'];
-                $needsUpdate = true;
-            }
-
-            if (isset($addressComponents['city']) && $people->city !== $addressComponents['city']) {
-                $people->city = $addressComponents['city'];
-                $needsUpdate = true;
-            }
-
-            if (isset($addressComponents['state']) && $people->state !== $addressComponents['state']) {
-                $people->state = $addressComponents['state'];
-                $needsUpdate = true;
-            }
-
-            if (isset($addressComponents['zipcode']) && $people->zipcode !== $addressComponents['zipcode']) {
-                $people->zipcode = $addressComponents['zipcode'];
-                $needsUpdate = true;
-            }
-
-            if ($needsUpdate) {
-                $people->saveOrFail();
-            }
-        }
-    }
-
     protected function parseAddress(string $fullAddress): ?array
     {
         // Remove extra spaces and normalize
@@ -550,7 +481,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
         ?array $idVerificationData,
         ?string $participantName = null
     ): bool {
-        if (empty($driverLicenseData) || ! isset($driverLicenseData['exp_date'])) {
+        if (empty($driverLicenseData) || !isset($driverLicenseData['exp_date'])) {
             return false;
         }
 
@@ -567,7 +498,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
         $isIdValid = (bool) ($idVerificationData[$currentScanOption] ?? false);
 
         // Update verification data with expiration status
-        if ($idVerificationData && ! isset($idVerificationData['expired'])) {
+        if ($idVerificationData && !isset($idVerificationData['expired'])) {
             $idVerificationData['expired'] = $isExpired;
             $people->set('id_verification', $idVerificationData);
 
@@ -613,7 +544,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             $name = $entityModel instanceof Lead ? $entityModel->people->name : '';
         }
 
-        if (! empty($this->idVerificationReport)) {
+        if (!empty($this->idVerificationReport)) {
             return $this->idVerificationReport['message'] ?? $this->getDefaultVerificationMessage($name, $isIdValid, $isExpired);
         }
 
@@ -622,7 +553,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
 
     protected function getDefaultVerificationMessage(string $name, bool $isIdValid, bool $isExpired): string
     {
-        if ($isIdValid && ! $isExpired) {
+        if ($isIdValid && !$isExpired) {
             return "{$name} passed the ID Verification.";
         } elseif ($isIdValid && $isExpired) {
             return "{$name} passed the ID Verification but the ID has expired.";
