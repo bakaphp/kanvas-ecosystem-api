@@ -809,6 +809,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',

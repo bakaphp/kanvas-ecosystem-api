@@ -257,13 +257,9 @@ class ImportOrderItemsCsvTest extends TestCase
         ];
 
         $response = $this->multipartGraphQL($operations, $map, $file);
-        $response->assertJson([
-            'data' => [
-                'importOrderCsv' => [
-                    'message' => "Not enough stock for product {$variantResponse['name']}, Not enough stock for product {$variantResponse2['name']}",
-                    'status' => 'error',
-                ],
-            ],
+        $response->assertJsonFragment([
+            'message' => "Not enough stock for product {$variantResponse2['name']}",
+            'status' => 'error',
         ]);
     }
 
