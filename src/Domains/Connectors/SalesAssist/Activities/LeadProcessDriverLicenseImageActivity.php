@@ -32,6 +32,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -359,7 +360,11 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             channel_slug: $lead->uuid,
         );
 
-        $message = (new CreateMessageAction($messageInput))->execute();
+        $message = new CreateMessageAction(
+            $messageInput,
+            SystemModulesRepository::getByModelName(Lead::class),
+            $lead->getId()
+        )->execute();
         $message->set('people_id', $people->id);
         $message->saveOrFail();
 
