@@ -17,6 +17,7 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadUpdateInput;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class LeadManagementMutation
 {
@@ -134,6 +135,19 @@ class LeadManagementMutation
             $user->getCurrentBranch(),
             $app
         );
+
+        if (! empty($request['params']['task_id'] ?? null)) {
+            $lead->set('checklist_upload', $request['params']['task_id']);
+            //$lead->tasks()->attach($request['params']['task_id']);
+            $lead->fireWorkflow(
+                WorkflowEnum::AFTER_UPLOAD->value,
+                true,
+                [
+                    'task_id' => $request['params']['task_id'],
+                    'app' => $app,
+                ]
+            );
+        }
 
         //@todo this is a hack , to remove , once frontend move the logic to upload directly to the people
         if (isset($request['params']['people_id']) && $request['params']['people_id'] != $lead->people_id) {
