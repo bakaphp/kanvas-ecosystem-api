@@ -20,6 +20,7 @@ use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
+use Kanvas\Guild\Customers\DataTransferObject\Contact as DataTransferObjectContact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -266,19 +267,19 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
         $addressComponents = isset($driverLicenseData['address']) ?
             $this->parseAddress($driverLicenseData['address']) : null;
 
-        // Build address collection
-        $addresses = new DataCollection(DataTransferObjectAddress::class, []);
+        // Build address array
+        $addressArray = [];
 
         if ($addressComponents) {
-            $addresses->push(new DataTransferObjectAddress(
-                address: $addressComponents['address'] ?? '',
-                city: $addressComponents['city'] ?? '',
-                state: $addressComponents['state'] ?? '',
-                zip: $addressComponents['zipcode'] ?? '',
-                country: 'United States',
-                address_2: null,
-                is_default: true
-            ));
+            $addressArray[] = [
+                'address' => $addressComponents['address'] ?? '',
+                'city' => $addressComponents['city'] ?? '',
+                'state' => $addressComponents['state'] ?? '',
+                'zip' => $addressComponents['zipcode'] ?? '',
+                'country' => 'United States',
+                'address_2' => null,
+                'is_default' => true,
+            ];
         }
 
         // Parse birth date
@@ -305,8 +306,8 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             lastname: $driverLicenseData['last_name'] ?? $people->lastname,
             middlename: $driverLicenseData['middle_name'] ?? $people->middlename,
             dob: $dob,
-            contacts: new DataCollection(\Kanvas\Guild\Customers\DataTransferObject\Contact::class, []),
-            address: $addresses,
+            contacts: DataTransferObjectContact::collect([], DataCollection::class),
+            address: DataTransferObjectAddress::collect($addressArray, DataCollection::class),
             id: $people->id,
             custom_fields: [],
             tags: []
