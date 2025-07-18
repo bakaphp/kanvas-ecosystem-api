@@ -17,8 +17,6 @@ class SetTaskEngagementStatusFromEngagementAction
     public function execute(): array
     {
         return [
-            'success' => ! empty($results),
-            'results' => $results,
             'message' => 'Task engagement status updated',
         ];
     }
