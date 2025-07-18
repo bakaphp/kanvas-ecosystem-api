@@ -339,8 +339,7 @@ class ProcessDriverLicenseVerificationAction
                 'source' => 'workflow',
                 'status' => 'submitted',
                 'verb' => ConfigurationEnum::ID_VERIFICATION->value,
-            ],
-            channel_slug: $lead->uuid,
+            ]
         );
 
         $message = new CreateMessageAction(
@@ -350,6 +349,11 @@ class ProcessDriverLicenseVerificationAction
         )->execute();
         $message->set('people_id', $people->id);
         $message->saveOrFail();
+
+        $lead->socialChannels->first()->addMessage(
+            $message,
+            $lead->user
+        );
 
         // Create the engagement using the correct pattern
         $engagement = Engagement::firstOrCreate([
