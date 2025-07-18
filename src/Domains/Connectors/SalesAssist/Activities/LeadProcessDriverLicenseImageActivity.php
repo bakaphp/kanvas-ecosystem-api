@@ -1,5 +1,4 @@
 <?php
-<?php
 
 declare(strict_types=1);
 
@@ -97,20 +96,21 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             }
 
             // Check if there are any driver license images to process
-            $hasMainDriverLicense = !empty($driverLicenseImage);
+            $hasMainDriverLicense = ! empty($driverLicenseImage);
             $hasParticipantDriverLicense = false;
 
-            if (!empty($participants)) {
+            if (! empty($participants)) {
                 foreach ($participants as $participant) {
                     if (isset($participant['driver_license_images'])) {
                         $hasParticipantDriverLicense = true;
+
                         break;
                     }
                 }
             }
 
             // If no driver license images found, return early
-            if (!$hasMainDriverLicense && !$hasParticipantDriverLicense) {
+            if (! $hasMainDriverLicense && ! $hasParticipantDriverLicense) {
                 DB::commit();
 
                 return [
@@ -158,6 +158,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             ];
         } catch (Exception $e) {
             DB::rollBack();
+
             throw $e;
         }
     }
@@ -199,7 +200,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
         $results = [];
 
         foreach ($participants as $index => $participant) {
-            if (!isset($participant['driver_license_images'])) {
+            if (! isset($participant['driver_license_images'])) {
                 continue;
             }
 
@@ -210,7 +211,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
 
             // Find the corresponding participant
             $leadParticipant = $this->findLeadParticipant($lead, $participant);
-            if (!$leadParticipant) {
+            if (! $leadParticipant) {
                 continue;
             }
 
@@ -262,12 +263,12 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
     protected function updatePeopleFromDriverLicense(People $people, array $driverLicenseData): void
     {
         // Parse address components
-        $addressComponents = isset($driverLicenseData['address']) ? 
+        $addressComponents = isset($driverLicenseData['address']) ?
             $this->parseAddress($driverLicenseData['address']) : null;
 
         // Build address collection
         $addresses = new DataCollection(DataTransferObjectAddress::class, []);
-        
+
         if ($addressComponents) {
             $addresses->push(new DataTransferObjectAddress(
                 address: $addressComponents['address'] ?? '',
@@ -331,7 +332,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             ->where('verb', ConfigurationEnum::ID_VERIFICATION->value)
             ->first();
 
-        if (!$messageType) {
+        if (! $messageType) {
             $messageType = (new CreateMessageTypeAction(
                 new MessageTypeInput(
                     $app,
@@ -481,7 +482,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
         ?array $idVerificationData,
         ?string $participantName = null
     ): bool {
-        if (empty($driverLicenseData) || !isset($driverLicenseData['exp_date'])) {
+        if (empty($driverLicenseData) || ! isset($driverLicenseData['exp_date'])) {
             return false;
         }
 
@@ -498,7 +499,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
         $isIdValid = (bool) ($idVerificationData[$currentScanOption] ?? false);
 
         // Update verification data with expiration status
-        if ($idVerificationData && !isset($idVerificationData['expired'])) {
+        if ($idVerificationData && ! isset($idVerificationData['expired'])) {
             $idVerificationData['expired'] = $isExpired;
             $people->set('id_verification', $idVerificationData);
 
@@ -544,7 +545,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             $name = $entityModel instanceof Lead ? $entityModel->people->name : '';
         }
 
-        if (!empty($this->idVerificationReport)) {
+        if (! empty($this->idVerificationReport)) {
             return $this->idVerificationReport['message'] ?? $this->getDefaultVerificationMessage($name, $isIdValid, $isExpired);
         }
 
@@ -553,7 +554,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
 
     protected function getDefaultVerificationMessage(string $name, bool $isIdValid, bool $isExpired): string
     {
-        if ($isIdValid && !$isExpired) {
+        if ($isIdValid && ! $isExpired) {
             return "{$name} passed the ID Verification.";
         } elseif ($isIdValid && $isExpired) {
             return "{$name} passed the ID Verification but the ID has expired.";
