@@ -24,7 +24,7 @@ class AttachFilesystemAction
     ) {
     }
 
-    public function execute(string $fieldName, ?int $id = null, ?float $weight = null): FilesystemEntities
+    public function execute(string $fieldName, ?int $id = null, ?float $weight = 0): FilesystemEntities
     {
         return DB::connection('ecosystem')->transaction(function () use ($fieldName, $id, $weight) {
             $systemModule = SystemModulesRepository::getByModelName($this->entity::class, $this->filesystem->app);
