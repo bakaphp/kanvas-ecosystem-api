@@ -145,7 +145,7 @@ class AttachFilesystemAction
     /**
      * Helper method to create a new file entity with proper error handling
      */
-    private function createFileEntity(string $fieldName, SystemModules $systemModule, int $weight = 0): FilesystemEntities
+    private function createFileEntity(string $fieldName, SystemModules $systemModule, ?int $weight = 0): FilesystemEntities
     {
         try {
             // Try to create the entity
