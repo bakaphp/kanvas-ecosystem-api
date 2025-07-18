@@ -68,6 +68,8 @@ class ProcessDriverLicenseVerificationAction
                 ];
             }
 
+            $lockedLead->set('driver_license_processed', true);
+
             $results = [];
             $driverLicenseImage = $this->lead->get('driver_license_images');
             $driverLicenseData = $this->lead->get('get_docs_drivers_license');
@@ -129,9 +131,6 @@ class ProcessDriverLicenseVerificationAction
 
             // Clean up temporary data
             $this->cleanupTemporaryData($this->lead);
-
-            // Mark as processed
-            $this->lead->set('driver_license_processed', true);
 
             DB::commit();
 
@@ -556,6 +555,8 @@ class ProcessDriverLicenseVerificationAction
     {
         $lead->del('driver_license_images');
         $lead->del('participants');
+        $lead->del('driver_license_processed');
+
         // Note: Keeping 'get_docs_drivers_license' and 'id_verification' for future reference
     }
 
