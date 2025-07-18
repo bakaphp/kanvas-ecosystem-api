@@ -136,6 +136,19 @@ class LeadManagementMutation
             $app
         );
 
+        if (isset($request['params']['task_id'])) {
+            $lead->set('checklist_upload', $request['params']['task_id']);
+            //$lead->tasks()->attach($request['params']['task_id']);
+            $lead->fireWorkflow(
+                WorkflowEnum::AFTER_UPLOAD->value,
+                true,
+                [
+                    'task_id' => $request['params']['task_id'],
+                    'app' => $app,
+                ]
+            );
+        }
+
         //@todo this is a hack , to remove , once frontend move the logic to upload directly to the people
         if (isset($request['params']['people_id']) && $request['params']['people_id'] != $lead->people_id) {
             //override the lead with the people
@@ -152,19 +165,6 @@ class LeadManagementMutation
             );
 
             return $lead;
-        }
-
-        if (isset($request['params']['task_id'])) {
-            $lead->set('checklist_upload', $request['params']['task_id']);
-            //$lead->tasks()->attach($request['params']['task_id']);
-            $lead->fireWorkflow(
-                WorkflowEnum::AFTER_UPLOAD->value,
-                true,
-                [
-                    'task_id' => $request['params']['task_id'],
-                    'app' => $app,
-                ]
-            );
         }
 
         return $this->uploadFileToEntity(
