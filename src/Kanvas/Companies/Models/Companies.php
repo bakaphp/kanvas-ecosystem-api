@@ -317,6 +317,9 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
             'password' => $password,
+            'email' => $user->email,
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
         ]);
     }
 

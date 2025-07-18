@@ -66,6 +66,9 @@ class CreateAppsAction
         Artisan::call('kanvas:update-abilities-templates', [
             'app' => $app->key,
         ]);
+        Artisan::call('kanvas:agent:create-default-channel', [
+            'app_id' => $app->id,
+        ]);
 
         return $app;
     }

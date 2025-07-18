@@ -8,7 +8,9 @@ use Baka\Casts\Json;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Intelligence\Agents\Factories\AgentTypeFactory;
 use Kanvas\Intelligence\Models\BaseModel;
+use Override;
 
 class AgentType extends BaseModel
 {
@@ -39,5 +41,11 @@ class AgentType extends BaseModel
     public function agents(): HasMany
     {
         return $this->hasMany(Agent::class);
+    }
+
+    #[Override]
+    protected static function newFactory()
+    {
+        return new AgentTypeFactory();
     }
 }
