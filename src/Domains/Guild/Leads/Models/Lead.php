@@ -501,10 +501,12 @@ class Lead extends BaseModel
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',
                     'type' => 'int64',
+                    'optional' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',
