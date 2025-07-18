@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('filesystem_entities', function (Blueprint $table) {
-            $table->smallInteger('weight')->nullable()->after('field_name');
+            $table->decimal('weight', 5)->default(0)->after('field_name');
         });
     }
 
