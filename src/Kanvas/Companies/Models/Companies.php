@@ -548,6 +548,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',

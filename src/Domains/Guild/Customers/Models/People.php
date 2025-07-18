@@ -546,11 +546,13 @@ class People extends BaseModel
                 ],
                 [
                     'name' => 'created_at',
-                    'type' => 'string',
+                    'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',
-                    'type' => 'string',
+                    'type' => 'int64',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'files',
