@@ -5,12 +5,61 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Kanvas\Apps\Models\Apps;
-use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Tests\TestCase;
 
 class ActivityLogTest extends TestCase
 {
-    use InventoryCases;
+    /**
+     * Test Create Activity Log
+     */
+    public function testCreateActivityLog(): void
+    {
+        $logName = 'linkedfield';
+        $description = 'none';
+        $properties = ['hole'];
+
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+        $systemModule = SystemModulesRepository::getByModelName(get_class($company), $app);
+
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation createActivityLog($input: ActivityLogInput!) {
+                createActivityLog(input: $input) {
+                    id
+                    log_name
+                    description
+                    subject_type
+                    event
+                    entity_id
+                    causer_id
+                    properties
+                    created_at
+                }
+            }
+        ', [
+            'input' => [
+                'system_module_uuid' => $systemModule->uuid,
+                'entity_id' => $company->getKey(),
+                'log_name' => $logName,
+                'description' => $description,
+                'properties' => $properties,
+            ],
+        ])->assertJson([
+            'data' => [
+                'createActivityLog' => [
+                    'log_name' => $logName,
+                    'description' => $description,
+                    'entity_id' => $company->getKey(),
+                    'properties' => $properties,
+                ],
+            ],
+        ]);
+
+        $this->assertNotNull($response->json('data.createActivityLog.id'));
+        $this->assertNotNull($response->json('data.createActivityLog.created_at'));
+    }
 
     /**
      * Test Get Activity Log
@@ -20,50 +69,32 @@ class ActivityLogTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
-
-        $data = [
-            'name' => fake()->name,
-            'description' => fake()->text,
-            'sku' => fake()->time,
-            'weight' => 1,
-            'attributes' => [
-                [
-                    'name' => fake()->name,
-                    'value' => fake()->name,
-                ],
-            ],
-        ];
-
-        $response = $this->createProduct($data);
-        unset($data['id']);
-        unset($data['sku']);
-        $response->assertJson([
-            'data' => ['createProduct' => $data],
-        ]);
-
-        $productId = $response->json()['data']['createProduct']['id'];
+        $systemModule = SystemModulesRepository::getByModelName(get_class($company), $app);
 
         $response = $this->graphQL(/** @lang GraphQL */ '
-            query getActivityLog($first: Int, $productId: Mixed!) {
+            query getActivityLog($system_module_uuid: String!, $entity_id: Int!, $first: Int) {
                 getActivityLog(
-                    where: {column: MODEL_ID, operator: EQ, value: $productId}
+                    system_module_uuid: $system_module_uuid
+                    entity_id: $entity_id
                     first: $first
                 ) {
                     data {
                         id
                         log_name
                         description
-                        model_name
-                        model_id
+                        subject_type
                         event
-                        changes
+                        entity_id
+                        causer_id
+                        properties
                         created_at
                     }
                 }
             }
         ', [
-            'first' => 1,
-            'productId' => $productId
+            'system_module_uuid' => $systemModule->uuid,
+            'entity_id' => $company->getKey(),
+            'first' => 3,
         ]);
 
         $this->assertArrayHasKey('data', $response->json());
