@@ -87,7 +87,7 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
                 $createMessage = new CreateMessageAction(
                     new MessageInput(
                         app: $app,
-                        company: $lead->companies,
+                        company: $lead->company,
                         user: $lead->users,
                         type: $messageType,
                         message: $messageData
@@ -100,7 +100,7 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
 
                 // Create engagement using Laravel's Engagement model
                 $engagement = Engagement::firstOrCreate([
-                    'companies_id' => $lead->companies->getId(),
+                    'companies_id' => $lead->company->getId(),
                     'apps_id' => $lead->app->getId(),
                     'users_id' => $lead->users->getId(),
                     'leads_id' => $lead->getId(),
@@ -117,7 +117,7 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
                     $taskEngagementItem = new TaskEngagementItem();
                     $taskEngagementItem->task_list_item_id = $taskListItem->getId();
                     $taskEngagementItem->lead_id = $lead->getId();
-                    $taskEngagementItem->companies_id = $lead->companies->getId();
+                    $taskEngagementItem->companies_id = $lead->company->getId();
                     $taskEngagementItem->apps_id = $lead->app->getId();
                     $taskEngagementItem->users_id = $lead->users->getId();
                 }
