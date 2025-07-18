@@ -16,10 +16,10 @@ return new class () extends Migration {
             $table->dropForeign(['from_status_id']);
             $table->dropForeign(['to_status_id']);
             $table->dropForeign(['transition_id']);
-            $table->boolean('is_current')->default(false);
+            $table->boolean('is_current')->index()->default(false);
             $table->bigInteger('from_status_id')->nullable()->change();
             $table->bigInteger('transition_id')->nullable()->change();
-            $table->timestamp('ended_at')->nullable();
+            $table->timestamp('ended_at')->index()->nullable();
             $table->bigInteger('ended_by')->nullable();
             $table->bigInteger('duration_in_seconds')->nullable();
         });
