@@ -32,7 +32,6 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -337,31 +336,28 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             $messageType = (new CreateMessageTypeAction(
                 new MessageTypeInput(
                     $app,
-                    $lead->user,
+                    1,
                     'ID Verification',
                     ConfigurationEnum::ID_VERIFICATION->value,
-                    $lead->company
                 )
             ))->execute();
         }
 
         $messageInput = new MessageInput(
-            $app,
-            $lead->user,
-            $messageType,
-            $lead->company,
-            SystemModulesRepository::getByModelName(Lead::class, $app),
-            $lead->id
+            app: $app,
+            company: $lead->company,
+            user: $lead->user,
+            type: $messageType,
+            message: [
+                'engagement_status' => 'submitted',
+                'hashtagVisited' => ConfigurationEnum::ID_VERIFICATION->value,
+                'text' => 'ID Verification Documents',
+                'source' => 'workflow',
+                'status' => 'submitted',
+                'verb' => ConfigurationEnum::ID_VERIFICATION->value,
+            ],
+            channel_slug: $lead->uuid,
         );
-
-        $messageInput->message = [
-            'engagement_status' => 'submitted',
-            'hashtagVisited' => ConfigurationEnum::ID_VERIFICATION->value,
-            'text' => 'ID Verification Documents',
-            'source' => 'workflow',
-            'status' => 'submitted',
-            'verb' => ConfigurationEnum::ID_VERIFICATION->value,
-        ];
 
         $message = (new CreateMessageAction($messageInput))->execute();
         $message->set('people_id', $people->id);
