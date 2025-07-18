@@ -47,7 +47,7 @@ extend type Query @guard {
         )
     ): [ActivityLog!]!
         @paginate(
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\ActivityLog\\ActivityLogQuery@getAllActivityLogs"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\ActivityLog\\ActivityLogQuery@getAllAppCompanyActivityLogs"
             defaultCount: 25
         )
 }
