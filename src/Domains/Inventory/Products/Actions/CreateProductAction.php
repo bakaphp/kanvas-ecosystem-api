@@ -63,7 +63,7 @@ class CreateProductAction
                 'users_id' => $this->user->getId(),
                 'is_published' => $this->productDto->is_published,
                 'published_at' => Carbon::now(),
-                'weight' => $this->productDto->weight ?? 0,
+                'weight' => $this->productDto->weight ?? $existingProduct?->weight ?? 0,
             ];
 
             if ($productType == null) {
