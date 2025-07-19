@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Workflows\Activities;
+namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Http\UploadedFile;
@@ -14,6 +14,8 @@ use Knp\Snappy\Pdf;
 
 class ConvertMessageImagesToPdfActivity extends KanvasActivity
 {
+    public $tries = 3;
+
     public function execute(Message $message, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
