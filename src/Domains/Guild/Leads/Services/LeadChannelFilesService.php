@@ -239,7 +239,7 @@ class LeadChannelFilesService
 
         return $files->map(function ($file) {
             return [
-                'id' => $file->id,
+                'id' => $file->filesystem_id,
                 'name' => $file->name,
                 'url' => $file->url,
                 'file_type' => $file->file_type ?? '',

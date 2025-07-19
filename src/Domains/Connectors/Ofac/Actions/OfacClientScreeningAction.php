@@ -113,7 +113,7 @@ class OfacClientScreeningAction
                     'ofac' => $ofacResponse,
                 ],
             ],
-            text: 'ofac',
+            text: 'Ofac',
             verb: 'ofac',
             status: ActionStatusEnum::SUBMITTED->value,
             actionLink: 'https://app.salesassist.io/',
