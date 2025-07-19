@@ -84,6 +84,7 @@ class CreateOrderAction
 
             if ($this->orderData->orderType) {
                 $order->setOrderType($this->orderData->orderType);
+                new TransitionOrderStateAction($order, $this->orderData->user, $order->orderStatus)->setInitialState();
             }
 
             $order->addItems($this->orderData->items);
