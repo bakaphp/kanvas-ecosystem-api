@@ -341,7 +341,7 @@ class ProcessDriverLicenseVerificationAction
             message: [
                 'engagement_status' => 'submitted',
                 'hashtagVisited' => ConfigurationEnum::ID_VERIFICATION->value,
-                'text' => 'ID Verification Documents',
+                'text' => 'ID Verification Showroom',
                 'source' => 'workflow',
                 'status' => 'submitted',
                 'verb' => ConfigurationEnum::ID_VERIFICATION->value,
