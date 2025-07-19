@@ -11,7 +11,7 @@ use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Exceptions\ValidationException;
 
-class SetTaskEngagementStatusFromEngagementAction
+class UpdateTaskStatusFromEngagementAction
 {
     public function __construct(
         protected Engagement $engagement,

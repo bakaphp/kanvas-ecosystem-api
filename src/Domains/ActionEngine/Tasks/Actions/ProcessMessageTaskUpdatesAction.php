@@ -4,28 +4,25 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Tasks\Actions;
 
-use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
-class SetTaskEngagementStatusFromMessageAction
+class ProcessMessageTaskUpdatesAction
 {
     public function __construct(
         protected Message $message,
         protected Lead $lead,
-        protected Users $user,
-        protected AppInterface $app,
-        protected Companies $company
+        protected ?Users $user = null,
     ) {
+        $this->user = $this->user ?? $message->user;
     }
 
     public function execute(): array
@@ -74,7 +71,7 @@ class SetTaskEngagementStatusFromMessageAction
         $data = $messageData['data'] ?? [];
 
         $action = Action::where('slug', $verb)->firstOrFail();
-        $companyAction = CompanyAction::getByAction($action, $this->company, $this->app);
+        $companyAction = CompanyAction::getByAction($action, $this->lead->company, $this->lead->app);
 
         $checkListId = $this->getCheckListId($messageData);
 
@@ -138,7 +135,7 @@ class SetTaskEngagementStatusFromMessageAction
         }
 
         $filename = $data['documentForms'][0]['filename'] ?? null;
-        $companyId = $this->company->getId();
+        $companyId = $this->lead->company->getId();
 
         $conditionsMap = [
             'privacy-disclosure.pdf' => [
@@ -196,7 +193,7 @@ class SetTaskEngagementStatusFromMessageAction
 
         try {
             $action = Action::where('slug', $verb)->firstOrFail();
-            $companyAction = CompanyAction::getByAction($action, $this->company, $this->app);
+            $companyAction = CompanyAction::getByAction($action, $this->lead->company, $this->lead->app);
         } catch (Throwable $e) {
             return null;
         }
@@ -230,8 +227,8 @@ class SetTaskEngagementStatusFromMessageAction
             lead: $this->lead,
             status: $taskStatus,
             user: $this->user,
-            app: $this->app,
-            company: $this->company,
+            app: $this->lead->app,
+            company: $this->lead->company,
             message: $this->message
         );
         $taskEngagementItem = $changeStatusAction->execute();

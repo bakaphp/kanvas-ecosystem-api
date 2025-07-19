@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\Ofac\Activities;
 
 use Baka\Contracts\AppInterface;
 use Exception;
-use Kanvas\ActionEngine\Tasks\Actions\SetTaskEngagementStatusFromEngagementAction;
+use Kanvas\ActionEngine\Tasks\Actions\UpdateTaskStatusFromEngagementAction;
 use Kanvas\Connectors\Ofac\Actions\OfacClientScreeningAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -42,7 +42,7 @@ class OfacScreeningActivity extends KanvasActivity
                 $fileLink = $ofacAction->execute();
 
                 //change checklist status
-                $changeStatusAction = new SetTaskEngagementStatusFromEngagementAction(
+                $changeStatusAction = new UpdateTaskStatusFromEngagementAction(
                     engagement: $message->engagement,
                     status: 'completed'
                 )->execute();
