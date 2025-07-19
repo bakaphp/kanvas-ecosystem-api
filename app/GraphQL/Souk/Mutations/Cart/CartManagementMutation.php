@@ -88,7 +88,7 @@ class CartManagementMutation
             $validDiscountCodes = [
                 'aeroambupromoq2',
                 'pdlc10',
-                'PR10',
+                'pr10',
                 'ruben10',
             ];
 
