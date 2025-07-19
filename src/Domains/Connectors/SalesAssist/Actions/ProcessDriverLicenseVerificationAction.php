@@ -137,10 +137,13 @@ class ProcessDriverLicenseVerificationAction
             return [
                 'success' => true,
                 'results' => $results,
+                'driverLicenseData' => $driverLicenseData,
+                'idVerificationData' => $idVerificationData,
                 'message' => 'Driver license verification completed',
             ];
         } catch (Exception $e) {
             DB::rollBack();
+            report($e);
 
             throw $e;
         }
