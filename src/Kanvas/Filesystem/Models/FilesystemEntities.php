@@ -47,6 +47,7 @@ class FilesystemEntities extends BaseModel
         'system_modules_id',
         'entity_id',
         'field_name',
+        'weight',
         'is_deleted',
     ];
 
