@@ -152,7 +152,7 @@ class LeadChannelFilesService
     protected function getLeadFileGroup(): array
     {
         // Get lead files using the standard files relationship
-        $leadFiles = $this->lead->files()->get();
+        $leadFiles = $this->lead->getFiles();
 
         return [
             'id' => (string) $this->lead->getId(),
@@ -239,7 +239,7 @@ class LeadChannelFilesService
 
         return $files->map(function ($file) {
             return [
-                'id' => $file->filesystem_id,
+                'id' => $file->id,
                 'name' => $file->name,
                 'url' => $file->url,
                 'file_type' => $file->file_type ?? '',
