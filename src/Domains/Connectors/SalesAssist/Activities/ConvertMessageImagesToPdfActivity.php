@@ -80,7 +80,7 @@ class ConvertMessageImagesToPdfActivity extends KanvasActivity
         ';
 
         $generate = false;
-        $messageData = ! $message->hasParent() ? ($message->message ?? []) : ($message->parent->message ?? []);
+        $messageData = $message->isRoot() ? ($message->message ?? []) : ($message->parent->message ?? []);
 
         // Process files attached to the message
         $messageFiles = $message->getFiles();
@@ -164,7 +164,7 @@ class ConvertMessageImagesToPdfActivity extends KanvasActivity
         $message->addFile($filesystem, 'generated_pdf');
 
         // If message has parent, also attach to parent
-        if ($message->hasParent()) {
+        if (! $message->isRoot()) {
             $message->parent->addFile($filesystem, 'generated_pdf');
         }
 
