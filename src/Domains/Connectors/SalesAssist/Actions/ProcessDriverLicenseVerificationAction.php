@@ -548,8 +548,8 @@ class ProcessDriverLicenseVerificationAction
     protected function validateExpirationDate(
         Lead $lead,
         People $people,
-        ?array $driverLicenseData,
-        ?array $idVerificationData,
+        ?array $driverLicenseData = null,
+        ?array $idVerificationData = null,
         ?string $participantName = null
     ): bool {
         if (empty($driverLicenseData) || ! isset($driverLicenseData['exp_date'])) {
@@ -569,8 +569,10 @@ class ProcessDriverLicenseVerificationAction
         $isIdValid = (bool) ($idVerificationData[$currentScanOption] ?? false);
 
         // Update verification data with expiration status
-        if ($idVerificationData && ! isset($idVerificationData['expired'])) {
-            $idVerificationData['expired'] = $isExpired;
+        if ($idVerificationData) {
+            if (! isset($idVerificationData['expired'])) {
+                $idVerificationData['expired'] = $isExpired;
+            }
             $people->set('id_verification', $idVerificationData);
 
             if ($people->id === $lead->people->id) {
