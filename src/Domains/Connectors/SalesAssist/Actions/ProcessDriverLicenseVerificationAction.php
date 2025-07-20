@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
@@ -24,7 +25,7 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
-use Kanvas\Notifications\Notification;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -33,6 +34,7 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 use Spatie\LaravelData\DataCollection;
 
 class ProcessDriverLicenseVerificationAction
@@ -551,16 +553,30 @@ class ProcessDriverLicenseVerificationAction
         ?string $participantName = null
     ): void {
         $name = $participantName ?? $people->name;
-        $message = $this->getVerificationMessage($people, $isIdValid, $isExpired);
+        //$message = $this->getVerificationMessage($people, $isIdValid, $isExpired);
 
-        // Create notification
-        $notification = new Notification(
+        if (empty($this->intellicheckResponse)) {
+            return;
+        }
+
+        $usersToNotify = UsersRepository::findUsersByArray($lead->company->get('company_manager'), $lead->app);
+        $notification = new Blank(
+            'id-verification-report',
+            [
+                'message' => $this->intellicheckResponse['message'],
+                'status' => $this->intellicheckResponse['status'],
+                'flags' => $this->intellicheckResponse['flags'],
+                'failures' => $this->intellicheckResponse['failures'],
+                'results' => $this->intellicheckResponse['results'],
+                'isShowRoom' => true,
+                'verificationData' => $this->intellicheckResponse,
+            ],
+            ['mail'],
             $lead,
-            ['message' => $message, 'title' => "{$name} - ID Verification"]
         );
 
-        // Send to managers or relevant users
-        // This would depend on your notification system implementation
+        $notification->setSubject($name . ' - ID Verification Report');
+        Notification::send($usersToNotify, $notification);
     }
 
     protected function getVerificationMessage(Model $entity, bool $isIdValid, bool $isExpired): string
