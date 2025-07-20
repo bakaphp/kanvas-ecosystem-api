@@ -15,6 +15,7 @@ use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -79,8 +80,12 @@ class ProcessDriverLicenseVerificationAction
             $participants = $this->lead->get('participants') ?? [];
 
             // Set intellicheck response if available
-            if (isset($this->params['intellicheckResponse'])) {
-                $this->intellicheckResponse = $this->params['intellicheckResponse'];
+            if (! empty($this->lead->get('intellicheckResponse'))) {
+                $this->intellicheckResponse = IdVerificationService::processVerificationData(
+                    $this->lead->get('intellicheckResponse'),
+                    $this->lead->people->name,
+                    true
+                );
             }
 
             // Check if there are any driver license images to process
@@ -194,7 +199,12 @@ class ProcessDriverLicenseVerificationAction
 
             // Set participant intellicheck response if available
             if (isset($participant['intellicheckResponse'])) {
-                $this->intellicheckResponse = $participant['intellicheckResponse'];
+                //$this->intellicheckResponse = $participant['intellicheckResponse'];
+                $this->intellicheckResponse = IdVerificationService::processVerificationData(
+                    $participant['intellicheckResponse'],
+                    IdVerificationService::getName($participant['intellicheckResponse']),
+                    true
+                );
             }
 
             // Find the corresponding participant
