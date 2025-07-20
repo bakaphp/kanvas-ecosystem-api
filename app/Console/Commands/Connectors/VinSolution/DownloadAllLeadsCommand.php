@@ -6,14 +6,17 @@ namespace App\Console\Commands\Connectors\VinSolution;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
+use Kanvas\Connectors\VinSolution\Dealers\User;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -32,7 +35,8 @@ class DownloadAllLeadsCommand extends Command
                             {user_id : The user ID}
                             {--from-first-page=0 : Start from first page (1) or continue from last position (0)}
                             {--total-page-limit= : Limit the total number of pages to process}
-                            {--items-per-page=10 : Number of items per page}';
+                            {--items-per-page=10 : Number of items per page}
+                            {--sync-duplicates=1 : Sync duplicate active leads before download (1=yes, 0=no)}';
 
     /**
      * The console command description.
@@ -74,6 +78,12 @@ class DownloadAllLeadsCommand extends Command
             $this->error('Failed to get VinSolution dealer or user: ' . $e->getMessage());
 
             return;
+        }
+
+        // Sync duplicate active leads before downloading (if enabled)
+        $syncDuplicates = (bool) $this->option('sync-duplicates');
+        if ($syncDuplicates) {
+            $this->syncDuplicateActiveLeads($app, $company, $user, $dealer, $vinUser);
         }
 
         // Pagination settings
@@ -164,6 +174,88 @@ class DownloadAllLeadsCommand extends Command
         } catch (Throwable $e) {
             $this->error('Failed to download leads: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Sync people's leads when they have 2 or more active leads.
+     * VinSolution doesn't allow multiple active leads per person, so we need to sync them to update status correctly.
+     */
+    private function syncDuplicateActiveLeads(Apps $app, Companies $company, Users $user, Dealer $dealer, User $vinUser): void
+    {
+        $this->info('Checking for people with multiple active leads...');
+
+        // Find people with 2 or more active leads (leads_status_id <= 2)
+        $peopleWithMultipleActiveLeads = DB::connection('crm')->table('leads')
+            ->select('people_id', DB::raw('COUNT(*) as active_leads_count'))
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('leads_status_id', '<=', 2) // Active leads condition
+            ->where('is_deleted', 0)
+            ->groupBy('people_id')
+            ->having('active_leads_count', '>=', 2)
+            ->get();
+
+        if ($peopleWithMultipleActiveLeads->isEmpty()) {
+            $this->info('No people with multiple active leads found.');
+
+            return;
+        }
+
+        $this->info("Found {$peopleWithMultipleActiveLeads->count()} people with multiple active leads. Syncing...");
+
+        $syncCount = 0;
+        $errorCount = 0;
+
+        // Create progress bar for sync operation
+        $syncProgressBar = $this->output->createProgressBar($peopleWithMultipleActiveLeads->count());
+        $syncProgressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% - %message%');
+        $syncProgressBar->setMessage('Syncing duplicate active leads...');
+
+        foreach ($peopleWithMultipleActiveLeads as $peopleData) {
+            try {
+                // Get all active leads for this person
+                $activeLeads = ModelsLead::where('people_id', $peopleData->people_id)
+                    ->where('companies_id', $company->getId())
+                    ->where('apps_id', $app->getId())
+                    ->where('leads_status_id', '<=', 2)
+                    ->where('is_deleted', 0)
+                    ->get();
+
+                foreach ($activeLeads as $lead) {
+                    // Check if lead has VinSolution lead ID
+                    $vinLeadId = $lead->get(CustomFieldEnum::LEADS->value);
+
+                    if ($vinLeadId) {
+                        try {
+                            // Use PullLeadAction to sync the lead from VinSolution
+                            $pullLeadAction = new PullLeadAction($app, $company, $user);
+                            $result = $pullLeadAction->execute(null, $vinLeadId);
+
+                            if (! empty($result)) {
+                                $syncCount++;
+                            }
+                        } catch (Throwable $e) {
+                            $errorCount++;
+                            $this->warn("Failed to sync lead {$lead->id} (VIN ID: {$vinLeadId}): " . $e->getMessage());
+                        }
+                    }
+                }
+
+                $syncProgressBar->setMessage("Synced person {$peopleData->people_id} - Success: {$syncCount}, Errors: {$errorCount}");
+                $syncProgressBar->advance();
+            } catch (Throwable $e) {
+                $errorCount++;
+                $this->warn("Failed to sync leads for person {$peopleData->people_id}: " . $e->getMessage());
+                $syncProgressBar->advance();
+            }
+        }
+
+        $syncProgressBar->finish();
+        $this->newLine(2);
+        $this->info('Duplicate leads sync completed!');
+        $this->info("Successfully synced: {$syncCount} leads");
+        $this->info("Sync errors: {$errorCount} leads");
+        $this->newLine();
     }
 
     /**
