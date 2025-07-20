@@ -148,6 +148,7 @@ class ProcessDriverLicenseVerificationAction
                 'driverLicenseData' => $driverLicenseData,
                 'idVerificationData' => $idVerificationData,
                 'intellicheckResponse' => $this->intellicheckResponse ?? null,
+                'idVerificationReport' => $this->idVerificationReport ?? null,
                 'message' => 'Driver license verification completed',
             ];
         } catch (Exception $e) {
