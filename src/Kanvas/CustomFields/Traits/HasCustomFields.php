@@ -71,8 +71,9 @@ trait HasCustomFields
         $legacySystemModule = SystemModules::getLegacyNamespace($currentClass);
         $hasLegacySystemModule = $legacySystemModule !== $currentClass;
 
-        // Build the query dynamically
-        $query = 'SELECT name, value 
+        // Build the query dynamically with ordering to prioritize newer records
+        $query = 'SELECT name, value, model_name, 
+                COALESCE(updated_at, created_at) as last_modified
             FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
             WHERE companies_id = ? AND entity_id = ?';
 
@@ -88,12 +89,25 @@ trait HasCustomFields
             $parameters[] = $currentClass;
         }
 
+        // Order by: prioritize current class over legacy, then by last modified (newest first)
+        $query .= ' ORDER BY 
+                CASE WHEN model_name = ? THEN 0 ELSE 1 END ASC,
+                last_modified DESC';
+        $parameters[] = $currentClass;
+
         $results = DB::select($query, $parameters);
 
         $listOfCustomFields = [];
+        $processedFields = []; // Track which field names we've already processed
 
         foreach ($results as $row) {
+            // Skip if we've already processed this field name (keeps the first/newest one)
+            if (isset($processedFields[$row->name])) {
+                continue;
+            }
+
             $listOfCustomFields[$row->name] = Str::jsonToArray($row->value);
+            $processedFields[$row->name] = true;
         }
 
         return $listOfCustomFields;
@@ -381,7 +395,6 @@ trait HasCustomFields
 
     /**
      * Remove all the custom fields from the entity.
-     *
      */
     public function deleteAllCustomFields(): bool
     {
