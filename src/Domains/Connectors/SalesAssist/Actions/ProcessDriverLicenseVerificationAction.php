@@ -98,9 +98,11 @@ class ProcessDriverLicenseVerificationAction
                         'intellicheck_workflow_response' => $this->idVerificationReport['status'] === 'green' ? 'passed' : $this->idVerificationReport['status'],
                         'intellicheckResponse' => $this->idVerificationReport['status'] === 'green' ? 'passed' : $this->idVerificationReport['status'],
                     ];
+
+                $this->lead->set('id_verification', $idVerificationData);
             }
 
-            // Check if there are any driver license images to process
+            // Check sif there are any driver license images to process
             $hasMainDriverLicense = ! empty($driverLicenseImage);
             $hasParticipantDriverLicense = false;
 
