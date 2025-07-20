@@ -623,6 +623,7 @@ class ProcessDriverLicenseVerificationAction
         $lead->del('driver_license_images');
         $lead->del('participants');
         $lead->del('driver_license_processed');
+        $lead->del('intellicheckResponse');
 
         // Note: Keeping 'get_docs_drivers_license' and 'id_verification' for future reference
     }
