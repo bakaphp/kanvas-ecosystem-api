@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class FilesystemEntitiesRepository
@@ -51,10 +53,20 @@ class FilesystemEntitiesRepository
     {
         $app = $entity->app ?? app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
+        $legacySystemModule = SystemModulesRepository::getByModelName(SystemModules::getLegacyNamespace($entity::class), $app);
+
+        $systemModuleIds = [$systemModule->getKey(), $legacySystemModule->getKey()];
+
+        // If entity is a Message, add the third system module id, this is the only model with this behavior
+        // This is to ensure that we can retrieve files from messages correctly
+        if ($entity instanceof Message) {
+            $messageSystemModule = SystemModulesRepository::getByModelName('Kanvas\Social\Models\Messages', $app);
+            $systemModuleIds[] = $messageSystemModule->getKey();
+        }
 
         return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
             ->where('filesystem_entities.entity_id', '=', $entity->getKey())
-            ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
+            ->whereIn('filesystem_entities.system_modules_id', $systemModuleIds)
             ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
             ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
             ->select(
