@@ -87,6 +87,17 @@ class ProcessDriverLicenseVerificationAction
                     $this->lead->people->name,
                     true
                 );
+
+                $idVerificationData = [
+                        'intelicheck' => $this->idVerificationReport['status'] == 'green' || $this->idVerificationReport['status'] == 'flag' ? true : false,
+                        'status' => $this->idVerificationReport['status'],
+                        'message' => $this->idVerificationReport['message'],
+                        'scandit' => $this->idVerificationReport['status'] == 'green' || $this->idVerificationReport['status'] == 'flag' ? true : false,
+                        'expired' => $this->idVerificationReport['status'] == 'flag' ? true : false,
+                        'ocMatch' => $this->idVerificationReport['ocMatch'] ?? false,
+                        'intellicheck_workflow_response' => $this->idVerificationReport['status'] === 'green' ? 'passed' : $this->idVerificationReport['status'],
+                        'intellicheckResponse' => $this->idVerificationReport['status'] === 'green' ? 'passed' : $this->idVerificationReport['status'],
+                    ];
             }
 
             // Check if there are any driver license images to process
@@ -200,10 +211,12 @@ class ProcessDriverLicenseVerificationAction
                 continue;
             }
 
+            $idVerificationReport = [];
+
             // Set participant intellicheck response if available
             if (isset($participant['intellicheckResponse'])) {
                 //$this->intellicheckResponse = $participant['intellicheckResponse'];
-                $this->intellicheckResponse = IdVerificationService::processVerificationData(
+                $idVerificationReport = IdVerificationService::processVerificationData(
                     $participant['intellicheckResponse'],
                     IdVerificationService::getName($participant['intellicheckResponse']),
                     true
@@ -219,6 +232,19 @@ class ProcessDriverLicenseVerificationAction
             $people = $leadParticipant->people;
             $driverLicenseData = $participant['get_docs_drivers_license'] ?? [];
             $idVerificationData = $participant['id_verification'] ?? [];
+
+            if (! empty($idVerificationReport)) {
+                $idVerificationData = [
+                       'intelicheck' => $idVerificationReport['status'] == 'green' || $idVerificationReport['status'] == 'flag' ? true : false,
+                       'status' => $idVerificationReport['status'],
+                       'message' => $idVerificationReport['message'],
+                       'scandit' => $idVerificationReport['status'] == 'green' || $idVerificationReport['status'] == 'flag' ? true : false,
+                       'expired' => $idVerificationReport['status'] == 'flag' ? true : false,
+                       'ocMatch' => $idVerificationReport['ocMatch'] ?? false,
+                       'intellicheck_workflow_response' => $this->idVerificationReport['status'] === 'green' ? 'passed' : $this->idVerificationReport['status'],
+                       'intellicheckResponse' => $this->idVerificationReport['status'] === 'green' ? 'passed' : $this->idVerificationReport['status'],
+                   ];
+            }
 
             $currentScanOption = $lead->company->get('id_verification') ?? 'intelicheck';
             $isIdValid = (bool) ($idVerificationData[$currentScanOption] ?? false);
