@@ -81,7 +81,8 @@ class ProcessDriverLicenseVerificationAction
 
             // Set intellicheck response if available
             if (! empty($this->lead->get('intellicheckResponse'))) {
-                $this->intellicheckResponse = IdVerificationService::processVerificationData(
+                $this->intellicheckResponse = $this->lead->get('intellicheckResponse');
+                $this->idVerificationReport = IdVerificationService::processVerificationData(
                     $this->lead->get('intellicheckResponse'),
                     $this->lead->people->name,
                     true
@@ -574,11 +575,11 @@ class ProcessDriverLicenseVerificationAction
         $notification = new Blank(
             'id-verification-report',
             [
-                'message' => $this->intellicheckResponse['message'],
-                'status' => $this->intellicheckResponse['status'],
-                'flags' => $this->intellicheckResponse['flags'],
-                'failures' => $this->intellicheckResponse['failures'],
-                'results' => $this->intellicheckResponse['results'],
+                'message' => $this->idVerificationReport['message'],
+                'status' => $this->idVerificationReport['status'],
+                'flags' => $this->idVerificationReport['flags'],
+                'failures' => $this->idVerificationReport['failures'],
+                'results' => $this->idVerificationReport['results'],
                 'isShowRoom' => true,
                 'verificationData' => $this->intellicheckResponse,
             ],
