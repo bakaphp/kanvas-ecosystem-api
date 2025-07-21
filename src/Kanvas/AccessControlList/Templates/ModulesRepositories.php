@@ -10,12 +10,16 @@ use Kanvas\Enums\ModuleEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Rotations\Models\Rotation;
 use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
 
@@ -73,6 +77,16 @@ class ModulesRepositories
                     'edit',
                     'delete',
                 ],
+                Status::class => [
+                    'create',
+                    'edit',
+                    'delete'
+                ],
+                Categories::class => [
+                    'create',
+                    'edit',
+                    'delete'
+                ]
             ],
             ModuleEnum::CRM->value => [
                 People::class => [
@@ -91,6 +105,16 @@ class ModulesRepositories
                     'delete',
                 ],
                 Rotation::class => [
+                    'create',
+                    'edit',
+                    'delete',
+                ],
+                LeadType::class => [
+                    'create',
+                    'edit',
+                    'delete',
+                ],
+                Pipeline::class => [
                     'create',
                     'edit',
                     'delete',

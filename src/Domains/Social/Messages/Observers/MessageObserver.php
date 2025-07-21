@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Observers;
 
-use Kanvas\Connectors\PromptMine\Actions\CheckNuggetGenerationCountAction;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
@@ -15,10 +14,16 @@ class MessageObserver
     public function creating(Message $message): void
     {
         //$messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
-        if ($message->app->get('message-image-type') && is_array($message->message) && isset($message->message['type']) && $message->message['type'] === 'image-format') {
+        if (
+            $message->app->get('message-image-type')
+            && is_array($message->message)
+            && isset($message->message['type'])
+            && $message->message['type'] === 'image-format'
+            && $message->messageType->verb == $message->app->get('image-generation-limit-message-type-verb')
+        ) {
             (new CheckMessagePostLimitAction(
                 message: $message,
-                getChildrenCount: true
+                messageTypeId: $message->message_types_id
             ))->execute();
         }
 
@@ -26,28 +31,17 @@ class MessageObserver
             $checkJson = new MessageSchemaValidator($message, $message->messageType);
             $checkJson->validate();
         }
-
-        if ($message->app->get('check-free-generation-count')) {
-            //(new CheckNuggetGenerationCountAction($message))->execute();
-        }
-    }
-
-    public function saved(Message $message): void
-    {
-        // check if it has a parent, update parent total children
-        if ($message->parent_id && $message->parent) {
-            $message->parent->increment('total_children');
-        }
     }
 
     public function created(Message $message): void
     {
-        /*         $message->fireWorkflow(WorkflowEnum::CREATED->value, true, [
-                    'app' => $message->app,
-                    'notification_name' => WorkflowEnum::CREATED->value . '-' . $message->messageType->name
-                ]); */
-
+        if ($message->parent_id && $message->parent) {
+            $message->parent->increment('total_children');
+            $message->parent->searchable();
+        }
         $message->clearLightHouseCacheJob();
+
+        $message->user->getAppProfile($message->app)->increment('total_messages_count');
     }
 
     public function updated(Message $message): void

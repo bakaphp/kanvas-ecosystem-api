@@ -18,11 +18,12 @@ class PaymentMethod extends Data
         public readonly string $payment_ending_numbers,
         public readonly string $payment_methods_brand,
         public readonly string $expiration_date,
-        public readonly string $stripe_card_id,
         public readonly string $zip_code,
         public readonly bool $is_default = false,
         public readonly bool $is_deleted = false,
-        public readonly string $processor = "stripe",
+        public readonly ?string $stripe_card_id = null,
+        public readonly ?string $instrument_identifier_id = null,
+        public readonly ?string $processor = null,
         public readonly mixed $metadata = [],
     ) {
     }

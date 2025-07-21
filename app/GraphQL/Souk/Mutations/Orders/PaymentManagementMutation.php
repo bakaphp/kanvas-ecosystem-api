@@ -50,6 +50,7 @@ class PaymentManagementMutation
 
         return [
             'status' => 'success',
+            'id' => $intent->id,
             'client_secret' => $intent->client_secret,
             'message' => [
                 'message' => 'Payment intent generated successfully',

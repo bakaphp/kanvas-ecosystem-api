@@ -27,11 +27,6 @@ class Client
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? ConfigurationEnum::SANDBOX_URL->value;
 
-        if (app()->environment() == 'production') {
-            // TODO: Remove this once we have a production environment
-            throw new ValidationException('Echo Pay is not available in production yet');
-        }
-
         $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value) ?? $config['client_id'] ?? '';
         $this->secret = $this->app->get(ConfigurationEnum::SECRET->value) ?? $config['secret'] ?? '';
 
@@ -42,7 +37,7 @@ class Client
         $this->appToken = $this->getAccessToken();
 
         $this->client = new GuzzleClient([
-            'base_uri' => ConfigurationEnum::SANDBOX_URL->value,
+            'base_uri' => $this->baseUrl,
             'headers' => [
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->appToken,
@@ -88,6 +83,38 @@ class Client
             $response = $this->client->post($endpoint, [
                 'json' => $data,
             ]);
+            $body = $response->getBody()->getContents();
+
+            return json_decode($body, true);
+        } catch (ClientException $e) {
+            throw $e;
+        }
+    }
+
+    /**
+     * Perform a PATCH request to the API.
+     */
+    public function patch(string $endpoint, array $data): array
+    {
+        try {
+            $response = $this->client->patch($endpoint, [
+                'json' => $data,
+            ]);
+            $body = $response->getBody()->getContents();
+
+            return json_decode($body, true);
+        } catch (ClientException $e) {
+            throw $e;
+        }
+    }
+
+    /**
+     * Perform a DELETE request to the API.
+     */
+    public function delete(string $endpoint, array $data = []): array
+    {
+        try {
+            $response = $this->client->delete($endpoint);
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);

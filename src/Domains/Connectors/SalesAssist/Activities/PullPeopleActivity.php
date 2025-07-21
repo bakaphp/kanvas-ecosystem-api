@@ -28,6 +28,7 @@ class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInter
      */
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
         $isSync = $entity->id === 0;
         $company = Companies::getById($entity->companies_id);
         $this->company = $company;

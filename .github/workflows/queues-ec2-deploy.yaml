@@ -38,45 +38,35 @@ jobs:
           key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
           script: |
             cd ${{ secrets.AWS_EC2_TARGET_DIR }}
-    
+
             docker-compose -f docker-compose.${{ github.ref_name }}.yml up -d
             docker exec -i phpkanvas-ecosystem composer install --no-dev --optimize-autoloader
-            
+
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
             docker stop nginxkanvas-ecosystem
             docker stop rediskanvas-ecosystem
-            docker restart queue-scrapper
-            docker restart queue-scrapper-worker-1
-            docker restart queue-scrapper-worker-2
-            docker restart queue-scrapper-worker-3
-            docker restart queue-scrapper-worker-4
+
+            # Restart queue services with container names
             docker restart queue
             docker restart queue-imports
             docker restart queue-notifications
             docker restart queue-social
-            docker restart laravel-scheduler
-            docker restart queue-sync-shopify-queue
-            docker restart queue-sync-shopify-queue-worker-1
-            docker restart queue-sync-shopify-queue-worker-1
-            docker restart queue-sync-shopify-queue-worker-2
-            docker restart queue-scout-worker-1
-            docker restart queue-scout-worker-2
-            docker restart queue-scout-worker-3
-            docker restart queue-workflow-1
-            docker restart queue-workflow-2
-            docker restart queue-workflow-3
-            docker restart batch-logger-queue
             docker restart queue-user-interactions
+            docker restart batch-logger-queue
+            docker restart laravel-scheduler
+
+            # Restart services with replicas (no specific container names)
+            docker-compose -f docker-compose.${{ github.ref_name }}.yml restart queue-scrapper
+            docker-compose -f docker-compose.${{ github.ref_name }}.yml restart queue-sync-shopify
+            docker-compose -f docker-compose.${{ github.ref_name }}.yml restart queue-scout-worker
+            docker-compose -f docker-compose.${{ github.ref_name }}.yml restart queue-workflow
+
+            # Additional queues for 1.x branch
             if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
-              docker restart queue-imports2
               docker restart queue2
               docker restart queue3
-              docker restart queue4
-              docker restart queue5
-              docker restart queue6
-              docker restart queue7
-              docker restart queue8
-              docker restart queue-workflow-4
             fi
+
+            docker exec -i phpkanvas-ecosystem php artisan octane:reload

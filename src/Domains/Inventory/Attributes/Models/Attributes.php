@@ -21,6 +21,7 @@ use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
+use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  * Class Attributes.
@@ -43,11 +44,18 @@ class Attributes extends BaseModel
     use CascadeSoftDeletes;
     use DatabaseSearchableTrait;
     use HasTranslationsDefaultFallback;
+    //use QueryCacheable;
 
     public $table = 'attributes';
     public $translatable = ['name'];
 
     public $guarded = [];
+    public $cacheFor = 604800; //1 week
+    public $cacheTags = ['attributes'];
+    public $cachePrefix = 'attributes_';
+    public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
+
     protected $cascadeDeletes = ['variantAttributes','defaultValues'];
 
     public function apps(): BelongsTo

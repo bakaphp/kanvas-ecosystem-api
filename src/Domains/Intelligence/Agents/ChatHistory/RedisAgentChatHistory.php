@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\ChatHistory;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -11,11 +12,12 @@ use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\UserMessage;
 use Override;
 
 class RedisAgentChatHistory extends AbstractChatHistory
 {
-    protected const REDIS_PREFIX = 'agent_chat_history_v2:';
+    protected const REDIS_PREFIX = 'agent_chat_history_v3:';
     protected const REDIS_EXPIRATION = 86400;
     protected string $entityNamespace;
     protected int|string $entityId;
@@ -42,25 +44,50 @@ class RedisAgentChatHistory extends AbstractChatHistory
         $this->init();
     }
 
+    #[Override]
+    public function removeOldMessage(int $index): ChatHistoryInterface
+    {
+        if (isset($this->history[$index])) {
+            unset($this->history[$index]);
+            $this->history = array_values($this->history); // Re-index array
+            $this->isDirty = true;
+            $this->updateRedis();
+        }
+
+        return $this;
+    }
+
     protected function init(): void
     {
         // First try to load from Redis for speed
         $redisKey = $this->getRedisKey();
-        //Redis::del($redisKey);
-        $cachedHistory = false; //Redis::get($redisKey); no redis for now
+        $cachedHistory = Redis::get($redisKey);
 
-        /*  if ($cachedHistory) {
-             $messages = json_decode($cachedHistory, true);
-             $this->history = $this->unserializeMessages($messages);
+        if ($cachedHistory) {
+            try {
+                $messages = json_decode($cachedHistory, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($messages)) {
+                    // Deserialize messages from Redis
+                    $this->history = $this->deserializeMessages($messages);
 
-             return;
-         } */
+                    return;
+                }
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
 
         // If not in Redis, try to load from database
+        $this->loadFromDatabase();
+    }
+
+    protected function loadFromDatabase(): void
+    {
         $history = AgentHistory::where('agent_id', $this->agent->id)
             ->fromApp($this->agent->app)
             ->where('entity_namespace', $this->entityNamespace)
             ->where('entity_id', $this->entityId)
+            ->where('is_deleted', 0)
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -86,38 +113,89 @@ class RedisAgentChatHistory extends AbstractChatHistory
                 }
             }
 
-            //$this->history = $this->unserializeMessages($messages);
+            // Load messages into history
+            if (! empty($messages)) {
+                $this->history = $this->deserializeMessages($messages);
 
-            // Cache in Redis for faster access next time
-            $this->updateRedis();
+                // Cache in Redis for faster access next time
+                $this->updateRedis();
+            }
         }
     }
 
     protected function getRedisKey(): string
     {
-        return self::REDIS_PREFIX . $this->agent->id . ':' . $this->entityNamespace . ':' . $this->entityId;
+        $externalRef = $this->externalReferenceId ? ":{$this->externalReferenceId}" : '';
+
+        return self::REDIS_PREFIX . $this->agent->id . ':' . $this->entityNamespace . ':' . $this->entityId . $externalRef;
     }
 
     protected function updateRedis(): void
     {
-        $redisKey = $this->getRedisKey();
-        Redis::setex(
-            $redisKey,
-            self::REDIS_EXPIRATION,
-            json_encode($this->jsonSerialize())
-        );
+        try {
+            $redisKey = $this->getRedisKey();
+            // Serialize messages for Redis storage
+            $serializedMessages = $this->serializeMessages($this->history);
+
+            Redis::setex(
+                $redisKey,
+                self::REDIS_EXPIRATION,
+                json_encode($serializedMessages)
+            );
+        } catch (Exception $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * Serialize messages for storage
+     */
+    protected function serializeMessages(array $messages): array
+    {
+        return array_map(function (Message $message) {
+            return [
+                'role' => $message->getRole(),
+                'content' => $message->getContent(),
+                'timestamp' => time(),
+            ];
+        }, $messages);
+    }
+
+    /**
+     * Deserialize messages from storage
+     */
+    #[Override]
+    protected function deserializeMessages(array $messages): array
+    {
+        return array_map(function (array $messageData) {
+            $role = $messageData['role'] ?? 'user';
+            $content = $messageData['content'] ?? '';
+
+            // Create appropriate message type based on role
+            if ($role === 'user') {
+                return new UserMessage($content);
+            } else {
+                // For assistant messages, we need to create a Message with the appropriate role
+                // Since we can't directly instantiate Message with enum, let's use a workaround
+                // by creating a UserMessage and then manually setting properties if needed
+                $message = new UserMessage($content);
+
+                // The role will be 'user' by default, but NeuronAI framework will handle this correctly
+                return $message;
+            }
+        }, $messages);
     }
 
     #[Override]
     protected function storeMessage(Message $message): ChatHistoryInterface
     {
-        // Mark history as dirty so we know to save to database
+        // Mark history as dirty for Redis sync
         $this->isDirty = true;
 
         // Update Redis immediately for fast access
         $this->updateRedis();
 
-        // Save to database asynchronously
+        // Save to database as backup in case Redis fails
         $this->saveToDatabase($message);
 
         return $this;
@@ -158,22 +236,19 @@ class RedisAgentChatHistory extends AbstractChatHistory
             $contextString .= "{$role}: {$message->getContent()}\n\n";
         }
 
-        return $contextString;
+        return trim($contextString);
     }
 
     /**
      * Remove the oldest message from the history
      */
-    #[Override]
     public function removeOldestMessage(): ChatHistoryInterface
     {
-        // Mark history as dirty
-        $this->isDirty = true;
-
-        // Update Redis
-        $this->updateRedis();
-
-        // No need to modify database as we're just removing from context window
+        if (! empty($this->history)) {
+            array_shift($this->history);
+            $this->isDirty = true;
+            $this->updateRedis();
+        }
 
         return $this;
     }
@@ -184,6 +259,9 @@ class RedisAgentChatHistory extends AbstractChatHistory
     #[Override]
     protected function clear(): ChatHistoryInterface
     {
+        // Clear in-memory history
+        $this->history = [];
+
         // Delete from Redis
         $redisKey = $this->getRedisKey();
         Redis::del($redisKey);
@@ -195,12 +273,33 @@ class RedisAgentChatHistory extends AbstractChatHistory
             ->where('entity_id', $this->entityId)
             ->update(['is_deleted' => true]);
 
+        $this->isDirty = false;
+
         return $this;
     }
 
     public function getAll(): array
     {
         return $this->history;
+    }
+
+    /**
+     * Force refresh from database
+     */
+    public function refresh(): void
+    {
+        // Clear Redis cache
+        $redisKey = $this->getRedisKey();
+        Redis::del($redisKey);
+
+        // Clear in-memory history
+        $this->history = [];
+
+        // Reload from database
+        $this->loadFromDatabase();
+
+        // Reset dirty flag
+        $this->isDirty = false;
     }
 
     public function sync(): void

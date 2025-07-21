@@ -25,7 +25,8 @@ class AddFundsToWalletAction
             throw new Exception('User company not found in order metadata.');
         }
 
-        $company = Companies::getById($userCompany);
+        ///$company = Companies::getById($userCompany); hotfix while we figure it out
+        $company = $this->order->user->getCurrentCompany();
 
         UsersRepository::belongsToThisApp(
             $this->order->user,
@@ -41,12 +42,26 @@ class AddFundsToWalletAction
                 continue;
             }
 
-            $total += $item->getTotal();
+            $total += (float) ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_AMOUNT->value)?->value ?? $item->getPrice());
         }
         if ($total <= 0) {
             throw new Exception('Total amount to deposit must be greater than zero.');
         }
 
-        return $wallet->depositFloat($total);
+        $transaction = $wallet->depositFloat($total);
+        $transaction->meta = [
+            'order_id' => $this->order->getId(),
+            'variants' => $this->order->items->map(function ($item) {
+                return [
+                    'id' => $item->variant->getId(),
+                    'name' => $item->variant->name,
+                    'price' => $item->getPrice(),
+                    'quantity' => $item->quantity,
+                ];
+            })->toArray(),
+        ];
+        $transaction->saveOrFail();
+
+        return $transaction;
     }
 }

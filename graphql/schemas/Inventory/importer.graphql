@@ -3,11 +3,8 @@ input ImporterProductInput {
     description: String
     regionId: Int
     slug: String!
-    price: Float!
-    discountPrice: Float
     sku: String!
     variants: [VariantsInput!]!
-    quantity: Int!
     short_description: String
     html_description: String
     warranty_terms: String

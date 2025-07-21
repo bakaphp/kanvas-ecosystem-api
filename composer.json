@@ -20,7 +20,7 @@
         "berkayk/onesignal-laravel": "^2.4",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
-        "echolabsdev/prism": "^0.69.0",
+        "echolabsdev/prism": "^0.72.0",
         "genealabs/laravel-model-caching": "^12.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
@@ -55,8 +55,9 @@
         "phpclassic/php-shopify": "^1.2",
         "powersync/authorizenet-sdk-php": "^2.0",
         "pusher/pusher-php-server": "^7.2",
+        "quickbooks/v3-php-sdk": "^6.2",
         "recombee/php-api-client": "^5.0",
-        "rennokki/laravel-eloquent-query-cache": "^3.6",
+        "rennokki/laravel-eloquent-query-cache": "dev-master",
         "ryanwinchester/netsuite-php": "^2024.2",
         "sentry/sentry-laravel": "^4.2",
         "shish/safe": "^2.6",
@@ -81,10 +82,11 @@
         "typesense/typesense-php": "^4.2",
         "vlucas/phpdotenv": "^5.5",
         "webleit/zohocrmapi": "dev-master",
-        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5.1"
+        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^2.0.0"
     },
     "require-dev": {
         "beyondcode/laravel-dump-server": "^2.1",
+        "brianium/paratest": "^7.10",
         "fakerphp/faker": "^1.9.1",
         "kitloong/laravel-migrations-generator": "^7.0",
         "larastan/larastan": "^3.0",
@@ -189,6 +191,10 @@
         {
             "type": "vcs",
             "url": "https://github.com/laravel-shift/laravel-scout-typesense-driver.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/byErikas/laravel-eloquent-query-cache.git"
         }
     ],
     "extra": {

@@ -55,7 +55,6 @@ use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Users\Traits\CanBlockUser;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -802,7 +801,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $currentUser = auth()->user();
 
         return [
-            'total_message' => Message::fromApp(app(Apps::class))->where('users_id', $this->getId())->count(),
+            'total_message' => $this->getAppProfile($app)->total_messages_count,
             'total_like' => 0,
             'total_followers' => $socialCount['users_followers_count'] ?? 0,
             'total_following' => $socialCount['users_following_count'] ?? 0,
@@ -810,6 +809,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'is_following' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isFollowing($this, $app) : false,
             'is_blocked' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isBlocked($this, $app) : false,
             'total_list' => 0,
+            'unread_notifications' => $this->getUnreadNotificationsCount($app),
         ];
     }
 
@@ -849,13 +849,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function toSearchableArray(): array
     {
         return [
-            'id' => $this->getId(),
+            'id' => (string) $this->getId(),
             'firstname' => $this->firstname,
             'lastname' => $this->lastname,
             'displayname' => $this->displayname,
             'email' => $this->email,
             'apps' => $this->apps->pluck('id')->toArray(),
             'companies' => $this->companies->pluck('id')->toArray(),
+            'created_at' => $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString(),
         ];
     }
 
@@ -894,7 +895,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'fields' => [
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'firstname',
@@ -1026,6 +1027,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',
@@ -1040,6 +1042,17 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function getRolesToArray(): array
     {
+        // Check if roles are already loaded to avoid N+1
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->toArray();
+        }
+
+        // If not loaded, load them efficiently
         return $this->getRoles()->toArray();
+    }
+
+    public function getUnreadNotificationsCount(?AppInterface $app = null): int
+    {
+        return (int) ($this->getAppProfile($app ?? app(Apps::class))->unread_notifications_count ?? 0);
     }
 }

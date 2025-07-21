@@ -77,6 +77,7 @@ class ProductsTest extends TestCase
         $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
         // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
     }
+
     public function testSortByVariantAttributes(): void
     {
         $attributeName = fake()->name;
@@ -138,8 +139,8 @@ class ProductsTest extends TestCase
                 [
                     'name' => 'coordinates',
                     'value' => [
-                        "lat" => 18.463449,
-                        "long" => -66.117866
+                        'lat' => 18.463449,
+                        'long' => -66.117866,
                     ],
                 ],
             ],
@@ -185,6 +186,7 @@ class ProductsTest extends TestCase
         // assert that there's one product is near by location
         $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
     }
+
     /**
      * test get product.
      */
@@ -384,7 +386,7 @@ class ProductsTest extends TestCase
 
         $dataUpdate = [
             'name' => fake()->name . ' en',
-            'description' => fake()->text . ' en'
+            'description' => fake()->text . ' en',
         ];
         $response = $this->graphQL('
             mutation($dataUpdate: ProductTranslationInput!, $id: ID!, $code: String!) {
@@ -405,7 +407,7 @@ class ProductsTest extends TestCase
             }', [
             'dataUpdate' => $dataUpdate,
             'id' => $id,
-            'code' => $language->code
+            'code' => $language->code,
         ]);
 
         $this->assertEquals(
@@ -435,7 +437,7 @@ class ProductsTest extends TestCase
         ]);
 
         $this->assertEquals(
-            $productData['slug'] . "-copy",
+            $productData['slug'] . '-copy',
             $response->json()['data']['duplicateProduct']['slug']
         );
     }

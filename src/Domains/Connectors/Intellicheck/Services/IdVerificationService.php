@@ -170,6 +170,7 @@ class IdVerificationService
 
         // Skip IPQS validation if in showroom mode or IPQS address data is empty
         $skipIpqsValidation = empty($ipqsAddress);
+        $flagGroupScores = [];
 
         if (! $skipIpqsValidation) {
             // BEHAVIOR RISKS - NEW RULE (remove failure conditions, only keep flag)
@@ -193,16 +194,20 @@ class IdVerificationService
             }
 
             // Add score-based flags (no failures for risk scores now)
-            if ($scoresAbove75 >= 2) {
+            $flagGroupScores = [];
+            if ($scoresAbove75 >= 1) {
                 $flags[] = 'Multiple risk scores >= 75';
                 if ($riskScore >= 75) {
                     $flags[] = 'Risk score';
+                    $flagGroupScores[] = 'Risk score';
                 }
                 if ($fraudScore >= 75) {
                     $flags[] = 'Fraud score';
+                    $flagGroupScores[] = 'Fraud score';
                 }
                 if ($fraudChance >= 75) {
                     $flags[] = 'Fraud chance';
+                    $flagGroupScores[] = 'Fraud chance';
                 }
                 $flagGroups[] = 'behavior risk';
                 $flagNotice = true;
@@ -280,7 +285,8 @@ class IdVerificationService
 
         if (empty($failures)) {
             // Always make sure expired IDs are flagged
-            if ($isExpired || count($flags) >= 2 || $flagNotice) {
+            //if ($isExpired || count($flags) >= 2 || $flagNotice) {
+            if ($isExpired || ($flagNotice && count($flagGroupScores) >= 2)) {
                 // Create message using flag groups
                 $flagReasons = [];
                 foreach ($flaggedGroups as $group) {

@@ -30,7 +30,6 @@
             "options": {
                 "file": "/usr/local/etc/php/conf.d/zx-app-config.ini"
             },
-            "request_body_buffer_size": 100000000,
             "processes": {}
         }
     }

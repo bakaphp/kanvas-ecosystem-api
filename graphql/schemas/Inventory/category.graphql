@@ -12,9 +12,9 @@ type Category {
             resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
         )
     is_published: Boolean!
-    companies: Company!
+    companies: Company! @belongsTo(relation: "company")
     weight: Int
-    users: User!
+    users: User! @belongsTo(relation: "user")
     total_products: Int! @method(name: "getTotalProducts")
     files: [Filesystem!]!
         @cacheRedis
@@ -22,13 +22,16 @@ type Category {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
-    children: [Category!] @hasMany(type: PAGINATOR)
-    products: [Product!] @belongsToMany(relation: "products", type: PAGINATOR)
-    productsTags(tag: String!): [Product!]! 
-    @paginate(
-        defaultCount: 4
-        builder: "App\\GraphQL\\Inventory\\Builders\\Categories\\GetProductByTag@getProductsByTag"
-    )
+    children: [Category!] @cacheRedis @hasMany(type: PAGINATOR)
+    products: [Product!]
+        @cacheRedis
+        @belongsToMany(relation: "products", type: PAGINATOR)
+    productsTags(tag: String!): [Product!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 4
+            builder: "App\\GraphQL\\Inventory\\Builders\\Categories\\GetProductByTag@getProductsByTag"
+        )
 }
 
 input CategoryInput {

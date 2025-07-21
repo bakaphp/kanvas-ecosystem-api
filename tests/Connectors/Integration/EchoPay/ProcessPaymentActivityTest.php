@@ -2,27 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\PasoRapido;
+namespace Tests\Connectors\Integration\EchoPay;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
-use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
-use Kanvas\Connectors\PasoRapido\Enums\CustomFieldEnum;
-use Kanvas\Connectors\PasoRapido\Handlers\PasoRapidoHandler;
-use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
+use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
+use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
+use Kanvas\Connectors\EchoPay\Handlers\EchoPayHandler;
+use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
-final class PasoRapidoOrderActivityTest extends TestCase
+final class ProcessPaymentActivityTest extends TestCase
 {
     use HasIntegrationCompany;
     use InventoryCases;
+    use PaymentCases;
 
     public function testOrderCreationWorkflow(): void
     {
@@ -31,13 +32,25 @@ final class PasoRapidoOrderActivityTest extends TestCase
         $company = $user->getCurrentCompany();
         $region = Regions::getDefault($company ?? $company, $app);
 
-        $app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_PASO_RAPIDO_CLIENT_ID'));
-        $app->set(ConfigurationEnum::SECRET->value, env('TEST_PASO_RAPIDO_SECRET'));
+        $orderTypeName = 'paso_rapido';
+
+        $app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
+        $app->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
+        $app->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
+        $app->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $app->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $app->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
+
+        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_SERVICE_KEY'));
+        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_CHANNEL_CODE->value, env('TEST_ECHO_PAY_CHANNEL_CODE'));
+        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_CODE->value, env('TEST_ECHO_PAY_SERVICE_CODE'));
+        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_SERVICE_TYPE_ID->value, env('TEST_ECHO_PAY_SERVICE_TYPE_ID'));
+        $app->set($orderTypeName . '_' . CustomFieldEnum::ECHO_PAY_CONTRACT->value, env('TEST_ECHO_PAY_CONTRACT'));
 
         $this->setIntegration(
             $app,
-            IntegrationsEnum::PASO_RAPIDO,
-            PasoRapidoHandler::class,
+            IntegrationsEnum::ECHO_PAY,
+            EchoPayHandler::class,
             $company,
             $user
         );
@@ -46,8 +59,8 @@ final class PasoRapidoOrderActivityTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $warehouseData = [
@@ -73,34 +86,26 @@ final class PasoRapidoOrderActivityTest extends TestCase
             warehouseData: $warehouseData
         );
 
-
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
             warehouseId: $warehouseResponse['id'],
             amount: 100
         );
 
-        $transactionId = "7478925724996114" . rand(100000, 999999);
+        $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
 
         $data = [
-            'email' => fake()->email(),
-            'region_id' => $region->getId(),
+            'cartId' => 0,
+            'customer' => [
+                'email' => fake()->email(),
+            ],
+            'order_type' => $orderTypeName,
             'metadata' => [
                 'data' => [
-                    'paso_rapido_tag' => "317169",
-                    'payment_methods_id' => "91",
+                    'paso_rapido_tag' => '317169',
+                    'payment_methods_id' => $paymentMethod['id'],
                     'payment_date' => now()->toDateTimeString(),
                 ],
-            ],
-            'customer' => [
-                'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-            ],
-            'shipping_address' => [
-                'address' => fake()->address(),
-                'address_2' => fake()->postcode(),
-                'city' => fake()->city(),
-                'state' => fake()->state(),
             ],
             'items' => [
                 [
@@ -109,13 +114,16 @@ final class PasoRapidoOrderActivityTest extends TestCase
                     'price' => 100,
                 ],
             ],
+            'reference' => 'Recarga de paso rapido 2',
         ];
 
         // Perform GraphQL mutation to create a draft order
         $response = $this->graphQL('
             mutation createDraftOrder($input: DraftOrderInput!) {
                 createDraftOrder(input: $input) {
-                    id
+                    order {
+                        id
+                    }
                 }
             }
         ', [
@@ -125,24 +133,22 @@ final class PasoRapidoOrderActivityTest extends TestCase
             'X-Kanvas-App' => $app->key,
         ]);
 
-        $order = $response->json()['data']['createDraftOrder'];
+        $order = $response->json('data.createDraftOrder.order');
+
         $order = Order::fromApp($app)->find($order['id']);
 
-        $order->set(EnumsCustomFieldEnum::ECHO_PAY_TRANSACTION_ID->value, $transactionId);
-        $order->set(CustomFieldEnum::PASO_RAPIDO_DNI->value, "1234567890");
-
-        $activity = new CreatePasoRapidoOrderActivity(
+        $activity = new ProcessPaymentActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
             []
         );
 
-        $result = $activity->execute($order, $app, []);
+        $payment = $order->payments()->first();
+        $result = $activity->execute($payment, $app, []);
         $order->refresh();
-        $this->assertArrayHasKey('order', $result);
-        $this->assertArrayHasKey('tag', $result);
-        $this->assertNotNull($order->get(CustomFieldEnum::PASO_RAPIDO_PAYMENT_STATUS->value));
-        $this->assertNotNull($order->get(CustomFieldEnum::PASO_RAPIDO_PAYMENT_RESPONSE->value));
+        $this->assertArrayHasKey('status', $result);
+        $this->assertArrayHasKey('message', $result);
+        $this->assertArrayHasKey('data', $result);
     }
 }

@@ -22,11 +22,11 @@ use Kanvas\Workflow\KanvasActivity;
 
 class ProcessMessageVehicleImageActivity extends KanvasActivity
 {
-    public $tries = 1;
+    public $tries = 3;
 
     public function execute(Message $message, Apps $app, array $params): array
     {
-        $this->overWriteAppPermissionService($app);
+        $this->overwriteAppService($app);
 
         return $this->executeIntegration(
             entity: $message,

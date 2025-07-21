@@ -79,16 +79,18 @@ class CreateOrderAction
             $order->payment_gateway_names = $this->orderData->paymentGatewayName;
             $order->language_code = $this->orderData->languageCode;
             $order->reference = $this->orderData->reference;
+            $order->parent_id = $this->orderData->parent?->getId() ?? null;
             $order->saveOrFail();
 
             if ($this->orderData->orderType) {
                 $order->setOrderType($this->orderData->orderType);
+                new TransitionOrderStateAction($order, $this->orderData->user, $order->orderStatus)->setInitialState();
             }
 
             $order->addItems($this->orderData->items);
 
             if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {
-                new CreatePaymentAction($order)->execute($order->metadata['data']);
+                new CreatePaymentAction($order, $this->orderData->user)->execute($order->metadata['data']);
             }
 
             // Run after commit

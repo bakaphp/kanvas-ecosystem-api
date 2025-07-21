@@ -11,7 +11,7 @@ type Variant {
     ean: String
     barcode: String
     serial_number: String
-    status: Status
+    status: Status @belongsTo(relation: "status")
     rating: Float
     weight: Float
     is_published: Boolean
@@ -28,7 +28,7 @@ type Variant {
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     user_interactions: Mixed! @method(name: "getUserSocialInteractions") @guard
-    product: Product
+    product: Product @belongsTo(relation: "product")
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]! @method(name: "visibleAttributes") @cacheRedis
@@ -93,6 +93,7 @@ input VariantsInput {
     files: [FilesystemInputUrl!]
     slug: String
     discountPrice: Float
+    quantity: Int
     status: StatusReferenceInput
     price: Float
     weight: Float

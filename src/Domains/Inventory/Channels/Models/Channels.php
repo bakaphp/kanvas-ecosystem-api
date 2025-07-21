@@ -58,11 +58,26 @@ class Channels extends BaseModel
      */
     public function unPublishAllVariants(): bool
     {
-        Variants::fromCompany($this->company)->chunkById(100, function ($variants) {
-            $variants->unsearchable();
-        }, $column = 'id');
+        $dontUnPublishVariantsId = $this->company->get('dont_unpublish_variants', []);
 
-        return $this->availableProducts()->update(['is_published' => 0]) > 0;
+        // Get all variant IDs that need to be unpublished from this channel
+        $query = $this->availableProducts();
+
+        if (! empty($dontUnPublishVariantsId)) {
+            $query->whereNotIn('products_variants_id', $dontUnPublishVariantsId);
+        }
+
+        // Get variant IDs in a single query
+        $variantIds = $query->pluck('products_variants_id')->unique()->toArray();
+
+        if (! empty($variantIds)) {
+            // Remove from search index efficiently - get all variants at once
+            $variants = Variants::whereIn('id', $variantIds)->get();
+            $variants->unsearchable();
+        }
+
+        // Update all channel products in a single query
+        return $query->update(['is_published' => 0]) > 0;
     }
 
     public function pricesHistory(): HasMany

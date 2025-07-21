@@ -36,9 +36,17 @@ type Order {
     is_deleted: Boolean!
     created_at: String!
     updated_at: String
-    order_type: OrderType
+    order_type: OrderType @belongsTo(relation: "orderType")
+    parent: Order @belongsTo(relation: "parent")
+    order_status: OrderStatus @belongsTo(relation: "orderStatus")
+    payment_status: String
+    payments: [Payment!] @hasMany(relation: "payments")
+    transaction_link: String!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Builders\\Order\\TransactionLinkBuilder@getLink"
+        )
     items(includeAllItems: Boolean = false): [OrderItem!]
-        @HasMany (relation: "allItems")
+        @HasMany(relation: "allItems")
         @builder(
             method: "App\\GraphQL\\Souk\\Builders\\Order\\OrderBuilder@filterByItems"
         )
@@ -47,6 +55,11 @@ type Order {
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
 }
 
@@ -76,6 +89,17 @@ type OrderType {
     name: String!
 }
 
+type OrderStatus {
+    id: ID!
+    name: String!
+    slug: String!
+    order_type_id: ID!
+    order_type: OrderType! @belongsTo(relation: "orderType")
+    is_default: Boolean!
+    is_final: Boolean!
+    metadata: Mixed
+}
+
 type PaymentResult {
     status: String!
     transaction_id: ID!
@@ -94,6 +118,7 @@ type ImportOrderCsvResult {
 }
 
 type GeneratePaymentIntentResult {
+    id: ID!
     client_secret: String!
     status: String
     message: Mixed
@@ -144,8 +169,22 @@ input OrderCustomerInput {
 
 input OrderCartInput {
     cartId: ID!
+    parent_id: ID
+    customer: OrderCustomerInput!
+    currency: String
+    billing: OrderBillingInput
+    shipping_address: AddressInput
+    items: [OrderLineItemInput]
+    order_type: String
+    metadata: Mixed
+    reference: String
+    payment_intent_id: ID
+}
+
+input ExtendOrderInput {
     customer: OrderCustomerInput!
     billing: OrderBillingInput
+    currency: String
     shipping_address: AddressInput
     items: [OrderLineItemInput]
     order_type: String
@@ -175,6 +214,7 @@ input OrderLineItemInput {
     variant_id: ID!
     quantity: Float!
     price: Money
+    metadata: Mixed
 }
 
 input PaymentInput {
@@ -212,6 +252,44 @@ input GooglePlayInAppPurchaseReceipt {
     custom_fields: [CustomFieldEntityInput!]
 }
 
+type PaymentLinkResult {
+    status: String!
+    payment_url: String
+    payment_link_id: String
+    session_id: String
+    provider: String
+    message: Mixed
+}
+
+input PaymentLinkOptionsInput {
+    success_url: String
+    cancel_url: String
+    automatic_tax: Boolean = false
+    allowed_countries: [String!]
+    payment_method_types: [String!] = ["card"]
+    use_detailed_items: Boolean = false
+    custom_fields: [PaymentCustomFieldInput!]
+    provider: String = "stripe"
+}
+
+input PaymentCustomFieldInput {
+    key: String!
+    type: String! # "text", "dropdown", "numeric"
+    label: String!
+    optional: Boolean = true
+    dropdown_options: [String!]
+}
+
+input TransitionOrderStatusInput {
+    order_id: ID!
+    status_slug: String!
+}
+
+type OrderStatusTransitionResult {
+    status: String!
+    message: Mixed
+}
+
 extend type Mutation @guard {
     # @deprecated(reason: "Use createOrderFromCart instead")
     createOrder(input: OrderInput!): Mixed!
@@ -233,6 +311,10 @@ extend type Mutation @guard {
     updateOrder(id: ID!, input: UpdateOrderInput!): OrderResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@update"
+        )
+    extendOrder(id: ID!, input: ExtendOrderInput!): OrderResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@extendOrder"
         )
     deleteOrder(id: ID!): Boolean
         @field(
@@ -270,6 +352,22 @@ extend type Mutation @guard {
     #    @field(
     #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@assignPaymentToOrder"
     #    )
+    transitionOrderStatus(
+        input: TransitionOrderStatusInput!
+    ): OrderStatusTransitionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
+        )
+}
+
+extend type Mutation @guardByAppKey {
+    generateCheckoutSession(
+        order_id: ID!
+        options: PaymentLinkOptionsInput
+    ): PaymentLinkResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentLinkMutation@generateCheckoutSession"
+        )
 }
 
 extend type Query @guard {
@@ -289,12 +387,18 @@ extend type Query @guard {
                     "order_number"
                     "reference"
                     "order_types_id"
+                    "parent_id"
                 ]
             )
         orderType: _
             @whereConditions(
                 columns: ["name"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_type_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
             )
         hasAddress: _
             @whereConditions(
@@ -311,7 +415,7 @@ extend type Query @guard {
             )
         hasItems: _
             @whereHasConditions(
-                relation: "items"
+                relation: "allItems"
                 columns: ["product_name", "product_sku", "variant_id"]
             )
         hasPeople: _

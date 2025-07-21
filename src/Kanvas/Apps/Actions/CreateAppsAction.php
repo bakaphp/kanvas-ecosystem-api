@@ -17,24 +17,15 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 use Kanvas\Users\Models\Users;
-use Throwable;
 
 class CreateAppsAction
 {
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected AppInput $data,
         protected Users $user
     ) {
     }
 
-    /**
-     * Invoke function.
-     *
-     * @throws Throwable
-     */
     public function execute(): Apps
     {
         $app = new Apps();
@@ -74,6 +65,9 @@ class CreateAppsAction
         ]);
         Artisan::call('kanvas:update-abilities-templates', [
             'app' => $app->key,
+        ]);
+        Artisan::call('kanvas:agent:create-default-channel', [
+            'app_id' => $app->id,
         ]);
 
         return $app;
@@ -119,7 +113,7 @@ class CreateAppsAction
             ], [
                 'name' => AppSettingsEnums::ONBOARDING_EVENT_SETUP->getValue(),
                 'value' => 1,
-            ]
+            ],
         ];
 
         foreach ($settings as $key => $value) {

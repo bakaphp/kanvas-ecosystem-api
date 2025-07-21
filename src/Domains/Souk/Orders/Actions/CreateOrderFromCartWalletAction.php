@@ -12,7 +12,7 @@ use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Users\Repositories\UsersRepository;
 use Override;
 
-class CreateOrderFromCartWalletAction extends CreateOrderFromCartAction
+class CreateOrderFromCartWalletAction extends CreateBaseOrderAction
 {
     #[Override]
     public function execute(): Order
@@ -36,7 +36,8 @@ class CreateOrderFromCartWalletAction extends CreateOrderFromCartAction
             return;
         }
 
-        $company = Companies::getById($this->request['input']['metadata']['user_company_id']);
+        //$company = Companies::getById($this->request['input']['metadata']['user_company_id']);
+        $company = $this->user->getCurrentCompany();
 
         UsersRepository::belongsToThisApp(
             $this->user,

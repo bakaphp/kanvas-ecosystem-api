@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -18,12 +19,17 @@ use Override;
 
 class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    protected ?Companies $company = null;
+    protected ?Apps $app = null;
+
     #[Override]
     /**
      * $entity <Lead>
      */
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
+
         $isSync = $entity->id === 0;
         $company = Companies::getById($entity->companies_id);
         $this->company = $company;

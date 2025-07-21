@@ -50,7 +50,7 @@ class OrderWalletTest extends TestCase
         //$company->associateUserApp($user, $app, 1);
         // Prepare input data for the order
 
-        $wallet = $company->createAppWallet($app, ['name' => 'default'])->deposit(1000, [
+        $wallet = $company->createAppWallet($app, ['name' => 'default'])->deposit(100000, [
             'description' => 'Initial deposit for order testing',
             'slug' => 'initial-deposit',
         ]);

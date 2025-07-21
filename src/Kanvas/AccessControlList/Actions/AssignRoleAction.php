@@ -15,9 +15,6 @@ use Silber\Bouncer\Database\Models;
 
 class AssignRoleAction
 {
-    /**
-     * __construct.
-     */
     public function __construct(
         public Users|BaseModel $entity,
         public Role $role,
@@ -26,9 +23,6 @@ class AssignRoleAction
         $this->app = $app ?? app(Apps::class);
     }
 
-    /**
-     * execute.
-     */
     public function execute(): void
     {
         // we will only allow one role per user per app
@@ -43,6 +37,7 @@ class AssignRoleAction
                 } */
 
         Bouncer::assign($this->role->name)->to($this->entity);
+        Bouncer::refreshFor($this->entity);
 
         try {
             if ($this->entity instanceof Users) {

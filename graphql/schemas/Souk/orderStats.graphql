@@ -1,0 +1,53 @@
+type OrderStats {
+    period: Period!
+    ordersInPeriod: [OrderStateCount!]!
+    currentCount: Int!
+    dailyTurnover: [DailyTurnover!]!
+    averageRotation: AverageRotation!
+}
+
+type AverageRotation {
+    orders: [OrderRotation!]!
+    averageTime: Float!
+}
+
+type OrderRotation {
+    orderId: Int!
+    initialDate: String!
+    finalDate: String!
+    time: Float!
+}
+
+type Period {
+    start: String!
+    end: String!
+}
+
+type DailyTurnover {
+    date: String!
+    entries: Int!
+    exits: Int!
+}
+
+type OrderStateCount {
+    date: String!
+    states: Mixed!
+    count: Int!
+}
+
+input OrderStatsInput {
+    initialStates: [String!]
+    finalStates: [String!]
+    currentCountStates: [String!]
+    date: String # single date (e.g., "2025-07-07")
+    startDate: String # start of period (e.g., "2025-07-01")
+    endDate: String # end of period (e.g., "2025-07-07")
+    timezone: String # e.g., "America/New_York"
+}
+
+extend type Query @guard {
+    orderStats(input: OrderStatsInput): OrderStats!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@getOrderStats"
+        )
+}

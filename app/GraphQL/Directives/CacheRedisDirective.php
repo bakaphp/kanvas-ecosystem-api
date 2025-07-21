@@ -16,6 +16,7 @@ use Override;
 
 class CacheRedisDirective extends CacheCacheDirective
 {
+    #[Override]
     public static function definition(): string
     {
         return /** @lang GraphQL */ <<<'GRAPHQL'

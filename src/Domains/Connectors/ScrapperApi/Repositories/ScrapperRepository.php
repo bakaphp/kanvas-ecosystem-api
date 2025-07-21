@@ -6,48 +6,81 @@ namespace Kanvas\Connectors\ScrapperApi\Repositories;
 
 use Baka\Contracts\AppInterface;
 use Exception;
-use Illuminate\Support\Facades\Http;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Promise\PromiseInterface;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 
 class ScrapperRepository
 {
-    protected string $baseUri;
+    protected Client $client;
+    protected string $baseUri = 'https://api.scraperapi.com';
+    protected array $defaultParams;
 
     public function __construct(public AppInterface $app)
     {
-        $this->baseUri = 'https://api.scraperapi.com';
+        $this->client = new Client([
+            'base_uri' => $this->baseUri,
+            'timeout' => 60,
+        ]);
+
+        $this->defaultParams = [
+            'api_key' => $this->app->get(ConfigEnum::SCRAPPER_API_KEY->value),
+            'country_code' => 'us',
+            'tld' => 'com',
+        ];
     }
 
-    protected function makeRequest(string $url, array $queryParams): array
+    public function makeRequestAsync(string $endpoint, array $params = []): PromiseInterface
     {
-        $response = Http::retry(3, 3)->timeout(60)->get($this->baseUri . $url, $queryParams);
+        $query = array_merge($this->defaultParams, $params);
 
-        if ($response->failed()) {
-            throw new Exception('Request failed with status: ' . $response->status());
-        }
+        return $this->client->getAsync($endpoint, ['query' => $query])
+            ->then(
+                fn ($response) => json_decode($response->getBody()->getContents(), true),
+                function (RequestException $e) use ($endpoint) {
+                    logger()->error("Request failed for {$endpoint}", [
+                        'message' => $e->getMessage(),
+                        'response' => $e->getResponse()?->getBody()?->getContents(),
+                    ]);
 
-        return $response->json();
+                    throw new Exception("Request failed: {$e->getMessage()}");
+                }
+            );
     }
 
     public function getByAsin(string $asin): array
     {
-        return $this->makeRequest('/structured/amazon/product', [
-            'api_key' => $this->app->get(ConfigEnum::SCRAPPER_API_KEY->value),
+        $promises = $this->makeRequestAsync('/structured/amazon/product', [
             'asin' => $asin,
-            'country_code' => 'us',
-            'tld' => 'com',
         ]);
+        $results = \GuzzleHttp\Promise\Utils::settle($promises)->wait();
+        return $results[0]['value'];
     }
 
     public function getSearch(string $search): array
     {
-        $response = $this->makeRequest('/structured/amazon/search', [
-            'api_key' => $this->app->get(ConfigEnum::SCRAPPER_API_KEY->value),
+        $data = $this->makeRequestAsync('/structured/amazon/search', [
             'query' => $search,
-            'country_code' => 'us',
-            'tld' => 'com',
-        ]);
+        ])->wait();
 
-        return $response['results'] ?? [];
+        return $data['results'] ?? [];
+    }
+
+    public function getMultipleByAsin(array $asins): array
+    {
+        $promises = [];
+
+        foreach ($asins as $asin) {
+            $promises[] = $this->makeRequestAsync('/structured/amazon/product', [
+                'asin' => $asin,
+            ]);
+        }
+
+        $results = \GuzzleHttp\Promise\Utils::settle($promises)->wait();
+
+        return array_map(function ($result) {
+            return $result['value'] ?? null;
+        }, $results);
     }
 }

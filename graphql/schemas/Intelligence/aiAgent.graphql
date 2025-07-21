@@ -1,0 +1,15 @@
+type AIAgentSession {
+    name: String!
+    user: Mixed!
+    id: ID!
+    company: Company!
+    company_config: Mixed
+    content: Mixed
+}
+
+extend type Query @guard {
+    aiAgentSession(id: ID!): AIAgentSession!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentSessionQuery@getSessionInfo"
+        )
+}

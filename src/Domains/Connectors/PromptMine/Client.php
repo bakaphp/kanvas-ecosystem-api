@@ -37,20 +37,128 @@ class Client
     }
 
     /**
+     * Generate a chat response using text-to-text model.
+     *
+     * @param array $messages Array of chat messages in the format [['role' => 'user', 'content' => 'message']]
+     * @param array $aiModel The AI model configuration from message
+     * @return array The API response containing chat data
+     */
+    public function generateChatResponse(array $messages, array $aiModel): array
+    {
+        // Extract provider and model from ai_model configuration
+        $provider = $aiModel['key'] ?? 'gemini';
+        $modelId = $aiModel['value'] ?? 'gemini-2.0-flash';
+
+        $endpoint = "/{$this->apiEnv}/v2/chat/{$provider}/qa";
+
+        $data = [
+            'messages' => $messages,
+        ];
+
+        $queryParams = [
+            'modelId' => $modelId,
+        ];
+
+        $response = $this->post($endpoint, $data, $queryParams);
+
+        return $response;
+    }
+
+    /**
+     * Extract the response text from the chat API response.
+     *
+     * @param array $response The API response
+     * @return string|null The response text or null if not found
+     */
+    public function extractChatResponseText(array $response): ?string
+    {
+        // The response should contain the assistant's message
+        if (isset($response['responseText'])) {
+            return $response['responseText'];
+        }
+
+        // Fallback: look for common response patterns
+        if (isset($response['response'])) {
+            return $response['response'];
+        }
+
+        if (isset($response['text'])) {
+            return $response['text'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract the chat history from the response while excluding the latest response.
+     *
+     * @param array $messages The original messages sent
+     * @param array $response The API response
+     * @return array Array of chat history messages
+     */
+    public function extractChatHistory(array $messages, array $response): array
+    {
+        $history = [];
+
+        // Add all original messages to history
+        foreach ($messages as $message) {
+            $history[] = [
+                'role' => $message['role'],
+                'content' => $message['content'],
+                'timestamp' => time(),
+            ];
+        }
+
+        return $history;
+    }
+
+    /**
+     * Get the full conversation including the new response.
+     *
+     * @param array $messages The original messages sent
+     * @param array $response The API response
+     * @return array Complete conversation array
+     */
+    public function getFullConversation(array $messages, array $response): array
+    {
+        $conversation = $this->extractChatHistory($messages, $response);
+
+        $responseText = $this->extractChatResponseText($response);
+        if ($responseText) {
+            $conversation[] = [
+                'role' => 'assistant',
+                'content' => $responseText,
+                'timestamp' => time(),
+            ];
+        }
+
+        return $conversation;
+    }
+
+    /**
      * Generate an image using text-to-image model.
      *
-     * @param string $provider The AI provider (e.g., 'fal-ai', 'openai', 'stability-ai')
-     * @param string $model The model to use (e.g., 'ideogram/v2', 'dall-e-3')
+     * @param string $provider The AI provider (e.g., 'fal-ai/text-to-image', 'openai', 'stability-ai')
+     * @param string $model The model to use (e.g., 'fal-ai/flux-pro/kontext/text-to-image', 'dall-e-3')
      * @param string $prompt The text prompt for image generation
      * @param string $key The API endpoint identifier (default: 'text-to-image')
      * @return array The API response containing image data
      */
     public function generateImage(string $provider, string $model, string $prompt, string $key = 'text-to-image'): array
     {
-        $endpoint = "/{$this->apiEnv}/image/{$provider}/{$key}";
+        // Extract the base provider from the provider string (e.g., 'fal-ai' from 'fal-ai/text-to-image')
+        $baseProvider = explode('/', $provider)[0];
+
+        if (empty($baseProvider)) {
+            $baseProvider = 'fal-ai'; // Default to fal-ai if no provider is specified
+            $model = 'ideogram/v2';
+        }
+
+        #$endpoint = "/{$this->apiEnv}/image/{$baseProvider}/{$key}";
+        $endpoint = "/{$this->apiEnv}/image/{$baseProvider}";
 
         $data = [
-            'model' => $provider . '/' . $model,
+            'model' => $model, // Use the full model path directly
             'prompt' => $prompt,
         ];
 
@@ -110,12 +218,18 @@ class Client
     /**
      * Perform a POST request to the API.
      */
-    public function post(string $endpoint, array $data): array
+    public function post(string $endpoint, array $data, array $queryParams = []): array
     {
         try {
-            $response = $this->client->post($endpoint, [
+            $options = [
                 'json' => $data,
-            ]);
+            ];
+
+            if (! empty($queryParams)) {
+                $options['query'] = $queryParams;
+            }
+
+            $response = $this->client->post($endpoint, $options);
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);

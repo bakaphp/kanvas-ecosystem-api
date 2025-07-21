@@ -47,7 +47,7 @@ class People extends PeopleDTO
                 array_map(
                     fn ($phone) => [
                         'value' => $phone['Number'],
-                        'contacts_types_id' => ContactTypeEnum::PHONE->value,
+                        'contacts_types_id' => strtolower($phone['PhoneType']) === 'cell' ? ContactTypeEnum::CELLPHONE->value : ContactTypeEnum::PHONE->value,
                         'weight' => (int) $phone['PhoneId'] === 1 ? 100 : $phone['PhoneId'],
                     ],
                     $customer->phones

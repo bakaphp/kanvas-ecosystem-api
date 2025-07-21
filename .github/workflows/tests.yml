@@ -62,7 +62,7 @@ jobs:
       MEILISEARCH_HOST: http://localhost:7700
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
-      # APP_DEBUG: true
+      APP_DEBUG: true
 
       #third party integration
       TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
@@ -117,17 +117,21 @@ jobs:
       TEST_DRIVECENTRIC_API_KEY: ${{ secrets.TEST_DRIVECENTRIC_API_KEY }}
       TEST_DRIVECENTRIC_API_SECRET_KEY: ${{ secrets.TEST_DRIVECENTRIC_API_SECRET_KEY }}
       TEST_DRIVECENTRIC_STORE_ID: ${{ secrets.TEST_DRIVECENTRIC_STORE_ID }}
+      TEST_PASO_RAPIDO_CLIENT_ID: ${{ secrets.TEST_PASO_RAPIDO_CLIENT_ID }}
+      TEST_PASO_RAPIDO_SECRET: ${{ secrets.TEST_PASO_RAPIDO_SECRET }}
+      TEST_PASO_RAPIDO_TAG: ${{ secrets.TEST_PASO_RAPIDO_TAG }}
       TEST_ECHO_PAY_CLIENT_ID: ${{ secrets.TEST_ECHO_PAY_CLIENT_ID }}
       TEST_ECHO_PAY_SECRET: ${{ secrets.TEST_ECHO_PAY_SECRET }}
       TEST_ECHO_PAY_MERCHANT_ID: ${{ secrets.TEST_ECHO_PAY_MERCHANT_ID }}
       TEST_ECHO_PAY_MERCHANT_KEY: ${{ secrets.TEST_ECHO_PAY_MERCHANT_KEY }}
       TEST_ECHO_PAY_MERCHANT_SECRET: ${{ secrets.TEST_ECHO_PAY_MERCHANT_SECRET }}
-      TEST_ECHO_PAY_PAYMENT_INSTRUMENT_ID: ${{ secrets.TEST_ECHO_PAY_PAYMENT_INSTRUMENT_ID }}
       TEST_ECHO_PAY_REFERENCE_ID: ${{ secrets.TEST_ECHO_PAY_REFERENCE_ID }}
+      TEST_ECHO_PAY_MERCHANT_SERVICE_KEY: ${{ secrets.TEST_ECHO_PAY_MERCHANT_SERVICE_KEY }}
+      TEST_ECHO_PAY_CHANNEL_CODE: ${{ secrets.TEST_ECHO_PAY_CHANNEL_CODE }}
+      TEST_ECHO_PAY_SERVICE_CODE: ${{ secrets.TEST_ECHO_PAY_SERVICE_CODE }}
+      TEST_ECHO_PAY_SERVICE_TYPE_ID: ${{ secrets.TEST_ECHO_PAY_SERVICE_TYPE_ID }}
+      TEST_ECHO_PAY_CONTRACT: ${{ secrets.TEST_ECHO_PAY_CONTRACT }}
       TEST_ECHO_PAY_TRANSACTION_ID: ${{ secrets.TEST_ECHO_PAY_TRANSACTION_ID }}
-      TEST_PASO_RAPIDO_CLIENT_ID: ${{ secrets.TEST_PASO_RAPIDO_CLIENT_ID }}
-      TEST_PASO_RAPIDO_SECRET: ${{ secrets.TEST_PASO_RAPIDO_SECRET }}
-      TEST_PASO_RAPIDO_TAG: ${{ secrets.TEST_PASO_RAPIDO_TAG }}
     strategy:
       fail-fast: false
       matrix:
@@ -239,7 +243,7 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: php artisan test --dont-report-useless-tests
+        run: php artisan test --parallel --processes=4 --dont-report-useless-tests 
 
       - name: Upload artifacts
         uses: actions/upload-artifact@master

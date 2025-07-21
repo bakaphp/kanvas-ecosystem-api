@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
+use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
+use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
-use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
 
 class ImageProcessingPushNotification extends CustomMessageNotification
@@ -37,9 +38,10 @@ class ImageProcessingPushNotification extends CustomMessageNotification
         ];
 
         parent::__construct($entity, $data, $via);
-        $this->setType(EmailTemplateEnum::BLANK->value);
+        $this->setType(NotificationTypesEnum::IMAGE_PROCESSING->value);
         $this->setPushTemplateName($templates['push_template']);
         $this->setData($data);
+        $this->setInteraction(InteractionEnum::SYSTEM_INFO->getValue());
         //$this->setFromUser($user);
         $this->channels = $via;
     }

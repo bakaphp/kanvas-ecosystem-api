@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Http\UploadedFile;
+use Kanvas\Apps\Models\Apps;
 use Tests\TestCase;
 
 class FilesystemTest extends TestCase
@@ -43,6 +44,96 @@ class FilesystemTest extends TestCase
                     ],
                 ],
             ]);
+    }
+    public function testDeleteFile(): void
+    {
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+                mutation ($file: Upload!) {
+                    upload(file: $file)
+                    { 
+                        uuid, 
+                        name, 
+                        url 
+                    } 
+                }
+            ',
+            'variables' => [
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('avatar.jpg'),
+        ];
+
+        $response = $this->multipartGraphQL($operations, $map, $file)->json();
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation(
+                $uuid: String!
+            ){
+                deleteFile(
+                    uuid: $uuid
+                ) 
+            }',
+            [
+                'uuid' => $response['data']['upload']['uuid'],
+            ]
+        )->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'deleteFile' => true,
+            ],
+        ]);
+    }
+
+    public function testUploadFileOriginalName(): void
+    {
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+                mutation ($file: Upload!) {
+                    upload(file: $file)
+                    { 
+                        uuid, 
+                        name, 
+                        url 
+                    } 
+                }
+            ',
+            'variables' => [
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('avatar.jpg'),
+        ];
+
+        $app = app(Apps::class);
+        $app->set('filesystem-preserve-original-filename', true);
+
+        $response = $this->multipartGraphQL($operations, $map, $file);
+
+        $response->assertJson([
+                'data' => [
+                    'upload' => [
+                        'name' => 'avatar.jpg',
+                    ],
+                ],
+            ]);
+
+        $this->assertStringContainsString(
+            'avatar',
+            $response->json('data.upload.url')
+        );
     }
 
     public function testMultiUploadFile(): void

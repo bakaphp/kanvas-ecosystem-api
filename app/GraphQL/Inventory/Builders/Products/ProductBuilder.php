@@ -7,7 +7,7 @@ namespace App\GraphQL\Inventory\Builders\Products;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Actions\ExportProductsAction;
 use Kanvas\Inventory\Products\Models\Products;
@@ -53,10 +53,11 @@ class ProductBuilder
         if (! empty($args['nearByLocation'])) {
             $query->filterByNearLocation($args['nearByLocation']);
         }
+
         return $query;
     }
 
-    public function getProductsExport(mixed $root, array $request, GraphQLContext $contex): array
+    public function getProductsExport(mixed $root, array $request, GraphQLContext $context): array
     {
         $user = auth()->user();
         $app = app(Apps::class);
@@ -71,12 +72,33 @@ class ProductBuilder
                 'message' => 'Products exported successfully',
             ];
         } catch (Exception $e) {
-            Log::error('productExportError', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            report($e);
 
             throw new Exception('Error exporting products: ' . $e->getMessage());
         }
+    }
+
+    public function productSemanticSearch(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Collection {
+        $results = Products::search($args['query'])
+                    ->semantic([
+                        'per_page' => 25,
+                    ]);
+
+        // @todo Improve vector distance filtering
+        $hits = collect($results['hits'])
+        ->filter(fn ($hit) => $hit['vector_distance'] < 0.8)
+        ->pluck('document');
+
+        $ids = $hits->pluck('id')->toArray();
+
+        // @todo Improve
+        return Products::whereIn('id', $ids)
+            ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')')
+            ->get();
     }
 }

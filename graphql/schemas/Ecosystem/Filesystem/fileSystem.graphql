@@ -7,7 +7,8 @@ type Filesystem {
     size: Float!
     field_name: String
     attributes: Mixed
-    created_at: DateTimeTz
+    weight: Float
+    created_at: DateTimeTz @method(name: "createdAt")
 }
 
 input FilesystemInputUrl {
@@ -22,12 +23,16 @@ input FilesystemAttachInput {
     field_name: String!
     system_module_uuid: String!
     entity_id: ID!
+    weight: Float
 }
 
 extend type Query @guard {
     entityFiles(
         entity: SystemModuleEntityInput!
-        where: _ @whereConditions(columns: ["field_name", "uuid", "file_type", "url"])
+        where: _
+            @whereConditions(
+                columns: ["field_name", "uuid", "file_type", "url"]
+            )
     ): [Filesystem!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFilesFromSystemModuleEntity"
@@ -61,8 +66,16 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@deAttachFiles"
         )
+    deleteFile(uuid: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@deleteFile"
+        )
     uploadCsv(file: Upload!): Mixed!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@uploadCsv"
+        )
+    mergeFiles(files: [ID!]!): Filesystem
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@mergeFiles"
         )
 }

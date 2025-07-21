@@ -34,6 +34,7 @@ type User {
     apps: [App!]! @HasManyThrough
     photo: Filesystem @method(name: "getPhoto")
     social: UserSocialInfo @method(name: "getSocialInfo")
+    total_unread_notifications: Int! @method(name: "getUnreadNotificationsCount")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -96,6 +97,7 @@ type UserSocialInfo {
     total_lists: Int
     is_following: Boolean
     is_blocked: Boolean
+    unread_notifications: Int
 }
 
 type UserContactsMatchesFindings {

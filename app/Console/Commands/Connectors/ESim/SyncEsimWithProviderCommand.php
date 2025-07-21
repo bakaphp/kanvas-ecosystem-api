@@ -624,7 +624,8 @@ class SyncEsimWithProviderCommand extends Command
 
         if (! empty($balance)) {
             foreach ($balance as $bal) {
-                if (isset($bal['id_balance_type']) && $bal['id_balance_type'] == 1) {
+                // The 'value' field contains the remaining data in bytes
+                if (isset($bal['value']) && is_numeric($bal['value'])) {
                     $remainingData = (float)$bal['value'];
                     break;
                 }

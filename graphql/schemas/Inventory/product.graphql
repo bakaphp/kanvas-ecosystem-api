@@ -15,7 +15,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     upc: String
     system_module: SystemModule! @method(name: "getSystemModule")
     total_variants: Int @method(name: "getTotalVariants")
-    status: Status
+    status: Status @belongsTo(relation: "status")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -282,9 +282,16 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
             defaultCount: 25
-        )
+        ) 
+        @searchCache
     productsExport: EntityExport
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"
+        )
+    productSemanticSearch(
+        query: String!
+    ): [Product!]!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@productSemanticSearch"
         )
 }

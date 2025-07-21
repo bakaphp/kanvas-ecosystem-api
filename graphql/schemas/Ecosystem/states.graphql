@@ -11,6 +11,7 @@ extend type Query {
         @paginate(
             defaultCount: 25
             model: "\\Kanvas\\Locations\\Models\\States"
+            scopes: ["notDeleted"]
         )
     state(id: Int!): States @find(model: "\\Kanvas\\Locations\\Models\\States")
 }

@@ -18,7 +18,12 @@ class CreateNuggetMessageAction
 
     public function execute(): Message
     {
-        $messageTypeValue = $this->messageData['type'] == 'text-format' ? 'nugget' : 'image';
+        $messageTypeValue = match ($this->messageData['type']) {
+            'text-format' => 'nugget',
+            'image-format' => 'image',
+            'video-format' => 'video',
+            default => 'nugget',
+        };
         $nuggetMessage = Message::on('social')->create([
             'parent_id' => $this->parentMessage->getId(),
             'apps_id' => $this->parentMessage->apps_id,
@@ -28,17 +33,18 @@ class CreateNuggetMessageAction
             'message_types_id' => MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app)->getId(),
             'message' => [
                 'title' => $this->messageData['title'],
-                "type" => $this->messageData['type'],
+                'type' => $this->messageData['type'],
                 $messageTypeValue => $this->messageData[$messageTypeValue],
             ],
             'is_public' => $this->messageData['is_public'] ?? 1,
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         $nuggetMessage->addTags($this->parentMessage->tags->pluck('name')->toArray());
-        $this->parentMessage->total_children++;
-        $this->parentMessage->save();
+
+        /*  $this->parentMessage->total_children++;
+         $this->parentMessage->save(); */
         return $nuggetMessage;
     }
 }

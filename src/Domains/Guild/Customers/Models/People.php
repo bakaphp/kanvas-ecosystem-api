@@ -7,10 +7,12 @@ namespace Kanvas\Guild\Customers\Models;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -22,6 +24,8 @@ use Kanvas\Locations\Models\Countries;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
@@ -48,8 +52,9 @@ use Override;
 class People extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
-    use HasTagsTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }    use HasTagsTrait;
     use CanUseWorkflow;
     use SocialInteractionsTrait;
     use Notifiable;
@@ -238,6 +243,15 @@ class People extends BaseModel
         );
     }
 
+    public function addDefaultAddress(DataTransferObjectAddress $address): Address
+    {
+        $address = $this->addAddress($address);
+        $address->is_default = 1;
+        $address->saveOrFail();
+
+        return $address;
+    }
+
     public function addEmail(string $email): Contact
     {
         return Contact::updateOrCreate(
@@ -258,6 +272,136 @@ class People extends BaseModel
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
             ]
         );
+    }
+
+    public function addCellPhone(string $phone): Contact
+    {
+        return Contact::updateOrCreate(
+            [
+                'peoples_id' => $this->id,
+                'value' => $phone,
+                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+            ]
+        );
+    }
+
+    public static function findByEmailOrCreate(
+        string $email,
+        Companies $company,
+        Users $user,
+        ?string $name = null,
+        ?Apps $app = null
+    ): self {
+        $app = $app ?? app(Apps::class);
+
+        // Try to find existing person by email
+        $person = self::whereHas('contacts', function ($query) use ($email) {
+            $query->where('value', $email)
+                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId());
+        })->where('apps_id', $app->getId())
+          ->first();
+
+        if (! $person) {
+            // Create new person if not found
+            $person = new self();
+            $person->apps_id = $app->getId();
+            $person->companies_id = $company->getId();
+            $person->users_id = $user->getId();
+            $person->name = $name ?? explode('@', $email)[0];
+
+            // Extract name parts if provided
+            if ($name) {
+                $nameParts = explode(' ', trim($name));
+                $person->firstname = $nameParts[0] ?? '';
+                $person->lastname = count($nameParts) > 1 ? end($nameParts) : '';
+                if (count($nameParts) > 2) {
+                    $person->middlename = implode(' ', array_slice($nameParts, 1, -1));
+                }
+            }
+
+            $person->save();
+
+            // Add email contact
+            $person->addEmail($email);
+        }
+
+        return $person;
+    }
+
+    public static function findByPhoneOrCreate(
+        string $phone,
+        Companies $company,
+        Users $user,
+        ?string $name = null,
+        ?Apps $app = null
+    ): self {
+        $app = $app ?? app(Apps::class);
+
+        // Try to find existing person by phone (using regex to match digits only)
+        $person = self::whereHas('contacts', function ($query) use ($phone) {
+            $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
+                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId());
+        })->where('apps_id', $app->getId())
+          ->first();
+
+        if (! $person) {
+            // Create new person if not found
+            $person = new self();
+            $person->apps_id = $app->getId();
+            $person->companies_id = $company->getId();
+            $person->users_id = $user->getId();
+            $person->name = $name ?? 'Unknown';
+
+            // Extract name parts if provided
+            if ($name) {
+                $nameParts = explode(' ', trim($name));
+                $person->firstname = $nameParts[0] ?? '';
+                $person->lastname = count($nameParts) > 1 ? end($nameParts) : '';
+                if (count($nameParts) > 2) {
+                    $person->middlename = implode(' ', array_slice($nameParts, 1, -1));
+                }
+            }
+
+            $person->save();
+
+            // Add phone contact
+            $person->addPhone($phone);
+        }
+
+        return $person;
+    }
+
+    /**
+     * Get person by email.
+     */
+    public static function getByEmail(string $email, ?Apps $app = null): ?self
+    {
+        $app = $app ?? app(Apps::class);
+
+        return self::whereHas('contacts', function ($query) use ($email) {
+            $query->where('value', $email)
+                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId());
+        })->where('apps_id', $app->getId())
+          ->where('is_deleted', 0)
+          ->first();
+    }
+
+    /**
+     * Get person by phone matching (strips non-numeric characters for comparison).
+     */
+    public static function getByPhoneMatchingValue(string $phone, ?Apps $app = null): ?self
+    {
+        $app = $app ?? app(Apps::class);
+
+        return self::whereHas('contacts', function ($query) use ($phone) {
+            $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
+                  ->whereIn('contacts_types_id', [
+                      ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+                      ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+                  ]);
+        })->where('apps_id', $app->getId())
+          ->where('is_deleted', 0)
+          ->first();
     }
 
     #[Override]
@@ -402,11 +546,13 @@ class People extends BaseModel
                 ],
                 [
                     'name' => 'created_at',
-                    'type' => 'string',
+                    'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',
-                    'type' => 'string',
+                    'type' => 'int64',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'files',
@@ -448,5 +594,35 @@ class People extends BaseModel
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $app->fireWorkflow(
+            event: WorkflowEnum::SEARCH->value,
+            params: [
+                'search' => trim($query),
+                'search_type' => 'people',
+                'user' => $user instanceof UserInterface ? $user : null,
+                'company' => $user instanceof UserInterface ? $user->getCurrentCompany() : null,
+            ]
+        );
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+            ]);
+        }
+
+        return $query;
     }
 }

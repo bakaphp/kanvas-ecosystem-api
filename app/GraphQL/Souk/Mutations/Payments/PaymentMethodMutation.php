@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Payments;
 
-use Exception;
+use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
-use Kanvas\Connectors\EchoPay\DataTransferObject\CardDetail;
-use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenization;
-use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
-use Kanvas\Connectors\EchoPay\Services\EchoPayService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\Actions\CreatePaymentMethodAction;
+use Kanvas\Payments\Actions\UpdatePaymentMethodAction;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Payments\Models\PaymentMethods;
 
@@ -22,63 +18,176 @@ class PaymentMethodMutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $companiesId = auth()->user()->currentCompanyId();
-        $company = Companies::find($companiesId);
+        $company = $user->getCurrentCompany();
         $input = $request['input'];
         $card = null;
-        // TODO: move this to a provider centry to avoid hardcoding here
-        if ($input['processor'] == 'portal') {
-            [$year, $month] = explode('-', $input['expiration_date']);
-            $portalService = new EchoPayService($app, $company);
-            $card = new CardTokenization(
-                card: new CardDetail(
-                    number: $input['number'],
-                    expirationMonth: $month,
-                    expirationYear: $year,
-                    type: $input['brand'],
-                ),
-                billTo: new BillingDetail(
-                    firstName: $user->firstname,
-                    lastName: $user->lastname,
-                    email: $user->email,
-                    country: $input['country'],
-                    city: $input['city'],
-                    address1: $input['address'],
-                    phone: $input['phone'],
-                    postalCode: $input['zip_code'],
-                    administrativeArea: $input['state'],
-                ),
-                merchant: MerchantDetail::from([
-                    'id' => $app->get('ECHO_PAY_MERCHANT_ID'),
-                    'key' => $app->get('ECHO_PAY_MERCHANT_KEY'),
-                    'secretKey' => $app->get('ECHO_PAY_MERCHANT_SECRET')
-                ]),
-            );
-            $tokenizedCard = $portalService->addCard($card);
-            $paymentMethod = new PaymentMethod(
+
+        try {
+            // TODO: move this to a provider to avoid hardcoding here
+            if ($input['processor']) {
+                $processor = app("payment.{$input['processor']}");
+                $input['brand'] = $this->guessCardBrand($input['number']);
+                // $input['state'] = $input['country'] == 'DO' ? 'DN' : $input['state'];
+                $paymentMethod = $processor->addCardFromRequest($input, $user);
+            } else {
+                $paymentMethod = new PaymentMethod(
+                    app: $app,
+                    user: $user,
+                    company: $company,
+                    instrument_identifier_id: $input['instrument_identifier_id'] ?? '',
+                    payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
+                    payment_methods_brand: $this->guessCardBrand($input['number']),
+                    stripe_card_id: $input['stripe_card_id'] ?? '',
+                    expiration_date: $input['expiration_date'],
+                    zip_code: $input['zip_code'],
+                    processor: $input['processor'] ?? null,
+                    metadata: $request['metadata'] ?? [
+                        'country' => $input['country'],
+                        'city' => $input['city'],
+                        'address' => $input['address'],
+                        'phone' => $input['phone'],
+                        'zip_code' => $input['zip_code'],
+                        'state' => $input['state'],
+                        'firstname' => $input['firstname'] ?? null,
+                        'lastname' => $input['lastname'] ?? null,
+                    ]
+                );
+            }
+
+            return new CreatePaymentMethodAction($paymentMethod)->execute();
+        } catch (RequestException $e) {
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorMessage = json_decode((string) $response->getBody())->message;
+            } else {
+                $errorMessage = $e->getMessage();
+            }
+
+            if (is_array($errorMessage)) {
+                $errorMessage = implode(', ', $errorMessage);
+            }
+
+            throw new ValidationException($errorMessage);
+        }
+    }
+
+    public function updatePaymentMethod($_, array $request): PaymentMethods
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $input = $request['input'];
+
+        $paymentMethod = PaymentMethods::fromCompany($company)->fromApp($app)->where([
+            'id' => $request['id'],
+        ])->first();
+
+        if (! $paymentMethod) {
+            throw new ValidationException('Payment method not found');
+        }
+
+        if ($paymentMethod->processor) {
+            $processor = app("payment.{$paymentMethod->processor}");
+            $paymentMethodUpdateData = $processor->updateCardFromRequest(PaymentMethod::from([
+                ...$paymentMethod->toArray(),
+                'app' => $app,
+                'user' => $user,
+                'company' => $company,
+            ]), $input);
+        } else {
+            $paymentMethodUpdateData = new PaymentMethod(
                 app: $app,
                 user: $user,
                 company: $company,
-                payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
-                payment_methods_brand: $input['brand'],
-                stripe_card_id: $tokenizedCard['paymentInstrumentId'],
-                expiration_date: $input['expiration_date'],
-                zip_code: $card->billTo->postalCode,
-                processor: $input['processor'] ?? null,
-                metadata: $request['metadata'] ?? [
-                    ...$tokenizedCard,
-                    'country' => $input['country'],
-                    'city' => $input['city'],
-                    'address' => $input['address'],
-                    'phone' => $input['phone'],
-                    'zip_code' => $input['zip_code'],
-                    'state' => $input['state']
-                ]
+                instrument_identifier_id: $input['instrument_identifier_id'] ?? $paymentMethod->instrument_identifier_id,
+                payment_ending_numbers: $input['number'] ?? $paymentMethod->payment_ending_numbers,
+                payment_methods_brand: $input['brand'] ?? $paymentMethod->payment_methods_brand,
+                stripe_card_id: $input['stripe_card_id'] ?? $paymentMethod->stripe_card_id,
+                expiration_date: $input['expiration_date'] ?? $paymentMethod->expiration_date,
+                zip_code: $input['zip_code'] ?? $paymentMethod->zip_code,
+                processor: $input['processor'] ?? $paymentMethod->processor,
+                metadata: $input['metadata'] ?? $paymentMethod->metadata
             );
-            $action = new CreatePaymentMethodAction($paymentMethod);
-            return $action->execute();
         }
 
-        throw new Exception('Processor not supported');
+        return new UpdatePaymentMethodAction(
+            $paymentMethod->id,
+            $paymentMethodUpdateData
+        )->execute();
+    }
+
+    public function deletePaymentMethod($_, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $paymentMethod = PaymentMethods::fromCompany($company)->fromApp($app)->where([
+            'id' => $request['id'],
+        ])->first();
+
+        if (! $paymentMethod) {
+            throw new ValidationException('Payment method not found');
+        }
+
+        if ($paymentMethod->processor) {
+            $processor = app("payment.{$paymentMethod->processor}");
+            $processor->deleteCardFromRequest(PaymentMethod::from([
+                ...$paymentMethod->toArray(),
+                'app' => $app,
+                'user' => $user,
+                'company' => $company,
+            ]));
+        }
+
+        return $paymentMethod->delete();
+    }
+
+    public function guessCardBrand($number): ?string
+    {
+        $number = preg_replace('/[^0-9]/', '', $number);
+
+        if (! $this->isValidLuhn($number)) {
+            return null;
+        }
+
+        $firstDigit = substr($number, 0, 1);
+        $firstTwoDigits = substr($number, 0, 2);
+
+        // Visa
+        if ($firstDigit === '4') {
+            return 'visa';
+        }
+
+        // Mastercard
+        if ($firstTwoDigits >= '51' && $firstTwoDigits <= '55') {
+            return 'mastercard';
+        }
+
+        // American Express
+        if ($firstTwoDigits === '34' || $firstTwoDigits === '37') {
+            return 'american express';
+        }
+
+        return null;
+    }
+
+    private function isValidLuhn(string|int $number): bool
+    {
+        $sum = 0;
+        $length = strlen((string)$number);
+        $parity = $length % 2;
+
+        for ($i = 0; $i < $length; $i++) {
+            $digit = (int)$number[$i];
+            if ($i % 2 === $parity) {
+                $digit *= 2;
+                if ($digit > 9) {
+                    $digit -= 9;
+                }
+            }
+            $sum += $digit;
+        }
+
+        return $sum % 10 === 0;
     }
 }

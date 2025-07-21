@@ -28,6 +28,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Nevadskiy\Tree\AsTree;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -67,8 +68,8 @@ use Spatie\LaravelData\DataCollection;
  * @property float|null $weight
  * @property string|null $checkout_token
  * @property string|null $currency
- * @property string|null $metadata
- * @property string|null $private_metadata
+ * @property array|null $metadata
+ * @property array|null $private_metadata
  * @property string|null $estimate_shipping_date
  * @property string|null $shipped_date
  * @property string|null $payment_gateway_names
@@ -85,6 +86,7 @@ class Order extends BaseModel
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use AsTree;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -140,7 +142,7 @@ class Order extends BaseModel
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
-        if (! $user->isAppOwner()) {
+        if (! $user->isAppOwner() && ! $user->can('view-all-orders')) {
             return $query->where('users_id', $user->getId());
         }
 
@@ -185,6 +187,7 @@ class Order extends BaseModel
         $orderItem->tax_rate = 0;
         $orderItem->currency = $item->currency->code;
         $orderItem->variant_name = $item->variant->name;
+        $orderItem->metadata = $item->metadata;
         $orderItem->saveOrFail();
 
         return $orderItem;
@@ -210,6 +213,12 @@ class Order extends BaseModel
     public function completed(): void
     {
         $this->status = 'completed';
+        $this->saveOrFail();
+    }
+
+    public function failed(): void
+    {
+        $this->status = 'failed';
         $this->saveOrFail();
     }
 
@@ -266,11 +275,11 @@ class Order extends BaseModel
 
     public function generateOrderNumber(): int
     {
-        // Lock the orders table while retrieving the last order
+        // Lock the orders table while retrieving the order with the highest order_number
         $lastOrder = Order::where('companies_id', $this->companies_id)
             ->where('apps_id', $this->apps_id)
             ->lockForUpdate() // Ensure no race conditions
-            ->latest('id')
+            ->orderBy('order_number', 'desc') // Order by the actual order_number field
             ->first();
 
         $lastOrderNumber = $lastOrder ? intval($lastOrder->order_number) : 0;
@@ -292,6 +301,11 @@ class Order extends BaseModel
     public function addMetadata(string $key, mixed $value): void
     {
         $metadata = $this->metadata ?? [];
+
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
         $metadata[$key] = $value;
 
         $this->metadata = $metadata;
@@ -581,10 +595,8 @@ class Order extends BaseModel
     public function checkPayments(): void
     {
         if ($this && ($this->payments)) {
-            $totalPaid = $this->getPaidAmount();
-            $totalDebt = $this->total_net_amount - $totalPaid;
-            if ($totalDebt <= 0) {
-                $this->fulfill();
+            if ($this->isPaid()) {
+                $this->completed();
 
                 $this->fireWorkflow(
                     WorkflowEnum::UPDATED->value,
@@ -597,14 +609,46 @@ class Order extends BaseModel
         }
     }
 
+    public function isPaid(): bool
+    {
+        return $this->getPaidAmount() >= $this->total_net_amount;
+    }
+
     public function getPaidAmount(): float
     {
         $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
+
         return (float) $paidAmount;
     }
 
     public function orderType(): BelongsTo
     {
         return $this->belongsTo(OrderTypes::class, 'order_types_id', 'id');
+    }
+
+    public function orderStatus(): BelongsTo
+    {
+        return $this->belongsTo(OrderStatus::class, 'order_status_id', 'id');
+    }
+
+    public function orderTransitionHistory(): HasMany
+    {
+        return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
+    }
+
+    public function calculateTotal(): void
+    {
+        $total = OrderItem::query()->where(['order_id' => $this->id])
+        ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
+        sum(unit_price_gross_amount - unit_price_net_amount) as discount, count(*) as count')->get();
+
+        $discount = $total[0]['discount'] ?? 0;
+        $orderTotal = ($total[0]['price'] ?? 0);
+        $this->total_gross_amount = (float) $orderTotal + (float) $discount;
+        $this->total_net_amount = (float) $orderTotal;
+        $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
+        $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
+        $this->discount_amount = (float) $discount;
+        $this->saveOrFail();
     }
 }

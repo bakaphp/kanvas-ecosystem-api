@@ -40,12 +40,15 @@ class CreateEsimOrderAction
 
     public function __construct(
         protected Order $order,
-        ?Warehouses $warehouse = null
+        ?Warehouses $warehouse = null,
+        ?Variants $targetVariant = null
     ) {
         $this->warehouse = $warehouse ?? $this->order->region->defaultWarehouse;
         $this->customerService = new CustomerService($order->app, $order->company);
         $this->orderService = new OrderService($order->app, $order->company);
-        $this->orderVariant = $order->allItems()->first()->variant;
+
+        // Use the provided variant or fall back to the first order item's variant
+        $this->orderVariant = $targetVariant ?? $order->allItems()->first()->variant;
         $this->variantSkuIsBundleId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $this->orderVariant->sku;
     }
 
@@ -53,7 +56,10 @@ class CreateEsimOrderAction
     {
         $this->validateOrder();
 
-        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+        //$isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+        $isRefuelOrder = (isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id'])) ||
+                      (isset($this->order->metadata['target_iccid']) && ! empty($this->order->metadata['target_iccid'])) ||
+                      (isset($this->order->metadata['parent_order_iccid']) && ! empty($this->order->metadata['parent_order_iccid']));
         if ($isRefuelOrder) {
             $this->processRefuelOrder();
         } else {
@@ -68,33 +74,46 @@ class CreateEsimOrderAction
 
     protected function validateOrder(): void
     {
+        // Remove the validation that prevents multiple eSim creation
+        // as we now want to allow multiple calls for different variants
+
+        // Only validate if this is the first eSim creation attempt
         $orderHasMetaData = $this->order->get(CustomFieldEnum::ORDER_ESIM_METADATA->value);
 
-        if (! empty($orderHasMetaData)) {
+        // Allow creation if no metadata exists or if we're creating additional eSims
+        if (! empty($orderHasMetaData) && ! isset($orderHasMetaData['esims'])) {
             throw new ValidationException('Order already has eSim metadata');
         }
     }
 
     protected function processRefuelOrder(): void
     {
-        $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
-        //$parentProduct = $parentOrder->allItems()->first();
-        $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
-        $this->availableVariant = $parentProductIccid->variant;
+        $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
+        $findOrderByIccid = ! isset($this->order->metadata['parent_order_id']) && $targetIccid !== null;
 
-        /* $refuelId = $this->orderVariant->getAttributeBySlug(ConfigurationEnum::PRODUCT_REFUEL_SKU->value)?->value ?? null;
+        $parentOrder = ! $findOrderByIccid ? Order::getById($this->order->metadata['parent_order_id']) : $this->findOrderByIccid($targetIccid);
 
-        $refuelId = $refuelId[0]['refuelingID'] ?? null;
-
-        if ($refuelId === null) {
-            throw new ValidationException('Refuel ID not found for this product variant - ' . $this->orderVariant->sku);
+        if (! $parentOrder) {
+            throw new ValidationException('Parent order not found for refuel order');
         }
- */
-        //$parentSku = $parentProduct->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $parentProduct->variant->sku;
+
+        // Get the specific ICCID from the refuel order metadata
+        if ($targetIccid !== null && ! empty($targetIccid)) {
+            // Use the specific ICCID provided by the frontend
+            $this->availableVariant = $this->findVariantByIccid($parentOrder, $targetIccid);
+            if (! $this->availableVariant) {
+                throw new ValidationException("Variant not found for ICCID: {$targetIccid}");
+            }
+        } else {
+            // Fall back to original behavior if no specific ICCID provided
+            $parentProductIccid = $parentOrder->allItems()->latest('id')->first();
+            $this->availableVariant = $parentProductIccid->variant;
+            $targetIccid = $parentProductIccid->product_sku;
+        }
 
         $this->cmLinkOrder = $this->orderService->createOrder(
             thirdOrderId: (string) $parentOrder->order_number,
-            iccid: $parentProductIccid->product_sku,
+            iccid: $targetIccid,
             quantity: 1,
             activeDate: $parentOrder->created_at->format('Y-m-d'),
             dataBundleId: $this->variantSkuIsBundleId
@@ -113,9 +132,6 @@ class CreateEsimOrderAction
         $this->availableVariant = $this->getAvailableVariant();
         $this->availableVariant->reduceQuantityInWarehouse($this->warehouse, 1);
 
-        // If it has a parent SKU its means its a fake product we created to sell the same product at a diff price
-        $this->orderVariant = $this->order->allItems()->first()->variant;
-
         // Add this variant to the order so we have a history of the iccid
         $this->addVariantToOrder($this->availableVariant);
 
@@ -132,14 +148,9 @@ class CreateEsimOrderAction
 
     protected function getAvailableVariant(): Variants
     {
-        // Check for previously assigned ICCID in failed orders
-        if ($this->order->allItems()->count() === 2) {
-            $lastVariant = $this->order->allItems()->latest()->first()->variant;
-
-            if ($lastVariant->product->productType->slug === ConfigurationEnum::ICCID_INVENTORY_PRODUCT_TYPE->value) {
-                return $lastVariant;
-            }
-        }
+        // For multiple eSim creation, we need to get a fresh ICCID each time
+        // Remove the logic that reuses existing variants from failed orders
+        // as we want each eSim to have its own unique ICCID
 
         $productTypeSlug = ConfigurationEnum::ICCID_INVENTORY_PRODUCT_TYPE->value;
         $productType = ProductsTypes::fromApp($this->order->app)
@@ -199,7 +210,7 @@ class CreateEsimOrderAction
             $this->availableVariant->sku,
             $this->esimData['data']['state'],
             (int) ($this->cmLinkOrder['quantity'] ?? 1),
-            (float) $this->cmLinkOrder['price'],
+            (float) ($this->cmLinkOrder['price'] ?? 0.0),
             'bundle',
             $this->orderVariant->sku,
             $this->esimData['data']['smdpAddress'],
@@ -219,5 +230,30 @@ class CreateEsimOrderAction
             ),
             $this->orderMetaData['esimLabels'][0]['label'] ?? null,
         );
+    }
+
+    /**
+     * Find the variant that corresponds to a specific ICCID from the parent order
+     */
+    protected function findVariantByIccid(Order $parentOrder, string $iccid): ?Variants
+    {
+        // Look through all order items to find the one with matching ICCID (SKU)
+        foreach ($parentOrder->allItems()->get() as $item) {
+            if ((string) $item->variant->sku === $iccid || (string) $item->product_sku === $iccid) {
+                return $item->variant;
+            }
+        }
+
+        return null;
+    }
+
+    protected function findOrderByIccid(string $iccid): ?Order
+    {
+        // Search for an order that contains the specified ICCID in its items
+        return Order::query()
+            ->whereHas('allItems', function ($query) use ($iccid) {
+                $query->where('product_sku', $iccid);
+            })
+            ->first();
     }
 }

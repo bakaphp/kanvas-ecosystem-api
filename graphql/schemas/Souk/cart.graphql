@@ -41,7 +41,11 @@ extend type Mutation @guardByKanvasIdentifier {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@add"
         )
-    updateCart(variant_id: ID!, quantity: Int!): [CartItem!]!
+    updateCart(
+        variant_id: ID!
+        quantity: Int!
+        attributes: Mixed
+    ): [CartItem!]!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@update"
         )

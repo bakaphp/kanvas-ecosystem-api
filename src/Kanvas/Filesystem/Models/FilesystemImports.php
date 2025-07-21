@@ -11,8 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Filesystem\Observers\FilesystemImportObserver;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Users\Models\Users;
 use Override;
 
 /**
@@ -67,5 +68,14 @@ class FilesystemImports extends BaseModel
     public function companiesBranches(): BelongsTo
     {
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id', 'id');
+    }
+
+    public function users(): BelongsTo
+    {
+        return $this->belongsTo(
+            Users::class,
+            'users_id',
+            'id'
+        );
     }
 }

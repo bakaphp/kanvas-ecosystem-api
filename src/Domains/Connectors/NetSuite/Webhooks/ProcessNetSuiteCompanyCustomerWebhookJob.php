@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\NetSuite\Webhooks;
 
+use Kanvas\Companies\Actions\AddAddressToCompanyAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
+use SoapFault;
 
 class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
 {
@@ -26,35 +28,75 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $syncCompanyWithNetSuite = new SyncNetSuiteCustomerWithCompanyAction($this->receiver->app, $this->receiver->company);
-        $company = $syncCompanyWithNetSuite->execute($netSuiteCompanyId);
+        $payload = $this->webhookRequest->payload;
 
-        //update or create customer own channel price list
-        $mainCompanyId = $this->receiver->app->get('B2B_MAIN_COMPANY_ID');
+        try {
+            $syncCompanyWithNetSuite = new SyncNetSuiteCustomerWithCompanyAction($this->receiver->app, $this->receiver->company);
+            $company = $syncCompanyWithNetSuite->execute($netSuiteCompanyId);
 
-        if ($isCompany && $mainCompanyId) {
-            $mainCompany = Companies::getById($mainCompanyId);
+            $user = $this->receiver->app->keys()->firstOrFail()->user;
 
-            $syncNetSuiteCustomerWithCompany = new SyncNetSuiteCustomerItemsListAction(
-                $this->receiver->app,
-                $mainCompany,
-                $company
-            );
-            $syncNetSuiteCustomerWithCompany->execute();
+            if (isset($payload['sublists']['addressbook']['line 1'])) {
+                $addAddressAction = new AddAddressToCompanyAction($company, $user, $this->receiver->app);
+                $addressData = $payload['sublists']['addressbook']['line 1'];
+                $addAddressAction->fromNetSuite($addressData);
+            }
 
-            Products::fromApp($this->receiver->app)
-               ->fromCompany($mainCompany)
-               ->where('is_published', 1)
-               ->searchable();
+            //update or create customer own channel price list
+            $mainCompanyId = $this->receiver->app->get('B2B_MAIN_COMPANY_ID');
+
+            if ($isCompany && $mainCompanyId) {
+                $mainCompany = Companies::getById($mainCompanyId);
+
+                $syncNetSuiteCustomerWithCompany = new SyncNetSuiteCustomerItemsListAction(
+                    $this->receiver->app,
+                    $mainCompany,
+                    $company
+                );
+                $syncNetSuiteCustomerWithCompany->execute();
+
+                Products::fromApp($this->receiver->app)
+                   ->fromCompany($mainCompany)
+                   ->where('is_published', 1)
+                   ->searchable();
+
+                return [
+                    'message' => 'NetSuite Company Synced',
+                    'netSuiteCompanyId' => $netSuiteCompanyId,
+                ];
+            }
 
             return [
-                'message' => 'NetSuite Company Synced',
-                'netSuiteCompanyId' => $netSuiteCompanyId,
+                'message' => 'Not a NetSuite Company',
             ];
-        }
+        } catch (SoapFault $e) {
+            // Check if it's a NetSuite rate limit error
+            if ($this->isNetSuiteRateLimitError($e)) {
+                // Return success response with rate limit message
+                // This prevents the webhook from being retried immediately
+                return [
+                    'message' => 'NetSuite sync delayed due to rate limiting',
+                    'status' => 'rate_limited',
+                    'netSuiteCompanyId' => $netSuiteCompanyId,
+                    'retry_suggested' => true,
+                ];
+            }
 
-        return [
-            'message' => 'Not a NetSuite Company',
-        ];
+            throw $e; // Re-throw non-rate-limit errors
+        }
+    }
+
+    /**
+     * Check if the SoapFault is due to NetSuite rate limiting
+     */
+    protected function isNetSuiteRateLimitError(SoapFault $e): bool
+    {
+        $message = strtolower($e->getMessage());
+
+        return str_contains($message, 'concurrent request limit exceeded') ||
+               str_contains($message, 'request blocked') ||
+               str_contains($message, 'rate limit') ||
+               str_contains($message, 'too many requests') ||
+               str_contains($message, 'suitetalk concurrent request limit');
     }
 }

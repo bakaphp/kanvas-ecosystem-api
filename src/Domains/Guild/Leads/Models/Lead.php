@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Event\Participants\Models\ParticipantType;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
@@ -28,6 +29,7 @@ use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
@@ -63,7 +65,9 @@ use Override;
 class Lead extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use HasTagsTrait;
     use FollowersTrait;
     use CanUseWorkflow;
@@ -164,7 +168,8 @@ class Lead extends BaseModel
 
     public function socialChannels(): HasMany
     {
-        return $this->hasMany(Channel::class, 'entity_id', 'id')->where('entity_namespace', self::class);
+        return $this->hasMany(Channel::class, 'entity_id', 'id')
+            ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
     }
 
     public function receiver(): BelongsTo
@@ -257,6 +262,67 @@ class Lead extends BaseModel
         return new LeadFactory();
     }
 
+    public function addCoBuyerParticipant(People $people): LeadParticipant
+    {
+        $type = ParticipantType::where('name', 'Co-Buyer')
+            ->where('is_deleted', 0)
+            ->where('companies_id', $this->companies_id)
+            ->first();
+
+        // Find existing participant or create new one
+        $participant = LeadParticipant::where('leads_id', $this->id)
+            ->where('peoples_id', $people->id)
+            ->first();
+
+        if (! $participant) {
+            $participant = new LeadParticipant();
+        }
+
+        // Set participant data
+        $participant->leads_id = $this->id;
+        $participant->peoples_id = $people->id;
+        $participant->participants_types_id = $type ? $type->id : 0;
+        $participant->is_deleted = 0;
+
+        $participant->save();
+
+        return $participant;
+    }
+
+    public function addParticipant(People $people): LeadParticipant
+    {
+        // Find existing participant or create new one
+        $participant = LeadParticipant::where('leads_id', $this->id)
+            ->where('peoples_id', $people->id)
+            ->where('is_deleted', 0)
+            ->first();
+
+        if (! $participant) {
+            $participant = new LeadParticipant();
+        }
+
+        $participant->leads_id = $this->id;
+        $participant->peoples_id = $people->id;
+        $participant->is_deleted = 0;
+
+        $participant->save();
+
+        return $participant;
+    }
+
+    public function removeParticipant(People $people): bool
+    {
+        return LeadParticipant::where('leads_id', $this->id)
+            ->where('peoples_id', $people->id)
+            ->firstOrFail()->delete();
+    }
+
+    public function setOrganization(Organization $organization): void
+    {
+        $this->organization_id = $organization->id;
+        $this->save();
+    }
+
     /**
      * The Typesense schema to be created for the Lead model.
      */
@@ -271,7 +337,7 @@ class Lead extends BaseModel
                 ],
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'uuid',
@@ -435,10 +501,12 @@ class Lead extends BaseModel
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',
                     'type' => 'int64',
+                    'optional' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',
@@ -461,5 +529,33 @@ class Lead extends BaseModel
     {
         $this->set('is_chrono_running', 1);
         $this->set('chrono_start_date', date('c'));
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+
+        $app->fireWorkflow(
+            event: WorkflowEnum::SEARCH->value,
+            params: [
+                'search_type' => 'lead',
+                'search' => trim($query),
+            ]
+        );
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+            ]);
+        }
+
+        return $query;
     }
 }

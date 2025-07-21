@@ -56,23 +56,27 @@ class OrderFinishExpiredCommand extends Command
             $variant = $order->items->first(function ($item) {
                 return $item->variant->product?->attributes
                 ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));
-            })->variant;
-            $channel = $variant->variantChannels()->first();
-
-            $variantWarehouse = $channel?->productVariantWarehouse()->first();
+            })?->variant;
             // Mark order as completed
             $order->fulfill();
-            $available = $variantWarehouse->quantity + 1;
-            $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
-            $product = $variant->product;
-            $capacity = $product->getAttributeByName('capacity')?->value;
-            // @deprecated: remove this after new flow is implemented
-            if ($capacity) {
-                $product->addAttribute('capacity', [
-                    'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
-                    'availableParkingSpaces' => $available,
-                    'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
-                ]);
+
+            // If the order is not related to another order. it means that is not an extension
+            // but a main order, we can update the warehouse quantity when the order is finished
+            if (! $order->parent_id && $variant) {
+                $channel = $variant->variantChannels()->first();
+                $variantWarehouse = $channel?->productVariantWarehouse()->first();
+                $available = $variantWarehouse->quantity + 1;
+                $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
+                $product = $variant->product;
+                $capacity = $product->getAttributeByName('capacity')?->value;
+                // @deprecated: remove this after new flow is implemented
+                if ($capacity) {
+                    $product->addAttribute('capacity', [
+                        'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
+                        'availableParkingSpaces' => $available,
+                        'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
+                    ]);
+                }
             }
             $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
         } else {
@@ -90,11 +94,11 @@ class OrderFinishExpiredCommand extends Command
         ->notDeleted()
         ->whereNotFulfilled()
         ->whereNotNull('metadata')
+        ->whereRaw('JSON_VALID(metadata)')  // Add JSON validation
         ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
         ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) is not null")
         ->orderBy('id', 'desc')
         ->with('items');
-
 
         $ordersInProgress = $query->get();
         $this->info('Found ' . $ordersInProgress->count() . ' orders in progress to finish for app ' . $app->name . ' at ' . $endTime);

@@ -27,12 +27,17 @@ class VariantPriceService
     {
         try {
             if ($this->useCompanySpecificPrice && $this->currentUserCompany) {
-                return $this->getCompanySpecificPrice($variant);
+                $companyPrice = $this->getCompanySpecificPrice($variant);
+
+                // If company-specific price is 0, fall back to channel price
+                if ($companyPrice > 0) {
+                    return $companyPrice;
+                }
             }
 
             return $this->getChannelPrice($variant, $channelId);
         } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
-            return $this->getInventoryPrice($variant);
+            return $this->getFallbackPrice($variant);
         }
     }
 
@@ -54,18 +59,41 @@ class VariantPriceService
 
     private function getChannelPrice(Variants $variant, ?int $channelId = null): float
     {
+        // Use default channel if no channel ID provided
         if (! $channelId) {
-            return (float) $variant->getPriceInfoFromDefaultChannel()->price;
+            return $this->getDefaultChannelPrice($variant);
         }
 
-        return (float) $variant->channels()
+        // Try to get channel-specific price
+        $channelPrice = $variant->channels()
             ->where('channels_id', $channelId)
-            ->firstOrFail()
-            ->price;
+            ->value('price'); // Gets the price directly instead of the whole object
+
+        // Return channel price if found, otherwise fallback to default
+        return $channelPrice ? (float) $channelPrice : $this->getDefaultChannelPrice($variant);
+    }
+
+    private function getDefaultChannelPrice(Variants $variant): float
+    {
+        return (float) $variant->getPriceInfoFromDefaultChannel()->price;
     }
 
     private function getInventoryPrice(Variants $variant): float
     {
         return $variant->variantWarehouses()->first()->price ?? 0.00;
+    }
+
+    private function getFallbackPrice(Variants $variant): float
+    {
+        try {
+            $defaultPrice = $this->getDefaultChannelPrice($variant);
+            if ($defaultPrice > 0) {
+                return $defaultPrice;
+            }
+        } catch (ModelNotFoundException|ExceptionsModelNotFoundException) {
+            // Default channel price failed, continue to inventory price
+        }
+
+        return $this->getInventoryPrice($variant);
     }
 }
