@@ -11,7 +11,7 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Handlers\EchoPayHandler;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
-use Kanvas\Connectors\Movipass\Actions\SendPaymentReceiptAction;
+use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Notifications\PaymentReceiptNotification;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
@@ -50,6 +50,8 @@ final class ProcessPaymentTest extends TestCase
             $company,
             $user
         );
+
+        $this->setAllowNoPaymentStatus(true, $app);
 
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct(attributes: [
@@ -138,28 +140,89 @@ final class ProcessPaymentTest extends TestCase
         $processPaymentAction = new ProcessPaymentAction($app, $payment, $order);
 
         $result = $processPaymentAction->execute(ConsumerAuthentication::from([
-                'indicator' => 'vbv',
-                'eciRaw' => '05',
-                'authenticationResult' => '0',
-                'strongAuthentication' => [
-                    'OutageExemptionIndicator' => '0',
-                ],
-                'authenticationStatusMsg' => 'Success',
-                'eci' => '05',
-                'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
-                'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
-                'paresStatus' => 'Y',
-                'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
-                'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
-                'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
-                'specificationVersion' => '2.2.0',
-                'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
+            'indicator' => 'vbv',
+            'eciRaw' => '05',
+            'authenticationResult' => '0',
+            'strongAuthentication' => [
+                'OutageExemptionIndicator' => '0',
+            ],
+            'authenticationStatusMsg' => 'Success',
+            'eci' => '05',
+            'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
+            'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+            'paresStatus' => 'Y',
+            'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+            'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
+            'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
+            'specificationVersion' => '2.2.0',
+            'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
         ]));
 
         $order->refresh();
         $this->assertArrayHasKey('status', $result);
         $this->assertArrayHasKey('message', $result);
         $this->assertArrayHasKey('data', $result);
+    }
+
+    private function getOrderMetadata(OrderTypeEnum $orderType): array
+    {
+        if ($orderType === OrderTypeEnum::PASO_RAPIDO) {
+            return [
+                "orderType" => OrderTypeEnum::PASO_RAPIDO->value,
+                "metadata" => [
+                    'data' => [
+                        'paso_rapido_tag' => '317169',
+                    ]
+                ],
+            ];
+        } elseif ($orderType === OrderTypeEnum::IMPOUND_LOT) {
+            return [
+                "orderType" => OrderTypeEnum::IMPOUND_LOT->value,
+                "metadata" => [
+                    'data' => [
+                        "start_at" => "2025-07-03T23:07:49.675Z",
+                        "vehicleBrand" => "Hyundai",
+                        "vehicleColor" => "blanco ",
+                        "vehiclePlate" => "T000001",
+                        "images" => [
+                            "image1.jpg",
+                            "image2.jpg",
+                            "image3.jpg",
+                            "image4.jpg"
+                        ],
+                        "carDeposit" => [
+                            "id" => "259177",
+                            "name" => "Centro de Retencion Vehicular",
+                            "description" => "Avenida 1 #5"
+                        ],
+                        "parking_spot" => "27",
+                        "proof_images" => [
+                            "image1.jpg",
+                            "image2.jpg",
+                            "image3.jpg",
+                            "image4.jpg"
+                        ],
+                        "delivery_time" => "2025-07-03T23:09:35.279Z",
+                        "observations" => "",
+                        'payment_date' => now()->toDateTimeString(),
+                    ]
+                ]
+            ];
+        } elseif ($orderType === OrderTypeEnum::MOVIPASS) {
+            return [
+                "orderType" => OrderTypeEnum::MOVIPASS->value,
+                "metadata" => [
+                    "data" => [
+                      "user_ip" => "127.0.0.1",
+                      "start_at" => "2025-06-27 17:36",
+                      "end_at" => "2025-06-27 18:36",
+                      "product_description" => "Parking located at CPS Piantini",
+                    ]
+                ]
+            ];
+        }
+
+        return [];
     }
 
     public function testProcessPaymentNotification(): void
@@ -186,6 +249,8 @@ final class ProcessPaymentTest extends TestCase
             $company,
             $user
         );
+
+        $this->setAllowNoPaymentStatus(true, $app);
 
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct(attributes: [
@@ -226,41 +291,20 @@ final class ProcessPaymentTest extends TestCase
 
         $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
 
+        $metadata = $this->getOrderMetadata(OrderTypeEnum::MOVIPASS);
+
         $data = [
             'cartId' => 0,
             'customer' => [
                 'email' => fake()->email(),
             ],
-            'order_type' => $orderTypeName,
+            'order_type' => $metadata["orderType"],
             'metadata' => [
                 'data' => [
-                    "start_at" => "2025-07-03T23:07:49.675Z",
-                    "vehicleBrand" => "Hyundai",
-                    "vehicleColor" => "blanco ",
-                    "vehiclePlate" => "T000001",
-                    "images" => [
-                        "image1.jpg",
-                        "image2.jpg",
-                        "image3.jpg",
-                        "image4.jpg"
-                    ],
-                    "carDeposit" => [
-                        "id" => "259177",
-                        "name" => "Centro de Retencion Vehicular",
-                        "description" => "Avenida 1 #5"
-                    ],
-                    "parking_spot" => "27",
-                    "proof_images" => [
-                        "image1.jpg",
-                        "image2.jpg",
-                        "image3.jpg",
-                        "image4.jpg"
-                    ],
-                    "delivery_time" => "2025-07-03T23:09:35.279Z",
-                    "observations" => "",
+                    ...$metadata["metadata"]["data"],
                     'payment_methods_id' => $paymentMethod['id'],
                     'payment_date' => now()->toDateTimeString(),
-                ]
+                ],
             ],
             'items' => [
                 [
@@ -297,27 +341,23 @@ final class ProcessPaymentTest extends TestCase
         $processPaymentAction = new ProcessPaymentAction($app, $payment, $order);
 
         $result = $processPaymentAction->execute(ConsumerAuthentication::from([
-                'indicator' => 'vbv',
-                'eciRaw' => '05',
-                'authenticationResult' => '0',
-                'strongAuthentication' => [
-                    'OutageExemptionIndicator' => '0',
-                ],
-                'authenticationStatusMsg' => 'Success',
-                'eci' => '05',
-                'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
-                'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
-                'paresStatus' => 'Y',
-                'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
-                'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
-                'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
-                'specificationVersion' => '2.2.0',
-                'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
+            'indicator' => 'vbv',
+            'eciRaw' => '05',
+            'authenticationResult' => '0',
+            'strongAuthentication' => [
+                'OutageExemptionIndicator' => '0',
+            ],
+            'authenticationStatusMsg' => 'Success',
+            'eci' => '05',
+            'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
+            'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+            'paresStatus' => 'Y',
+            'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+            'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
+            'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
+            'specificationVersion' => '2.2.0',
+            'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
         ]));
-
-        $sendPaymentReceiptAction = new SendPaymentReceiptAction($order, $payment, $user);
-
-        $sendPaymentReceiptAction->execute();
         Notification::assertSentTo(
             Notification::route('mail', $user->email),
             PaymentReceiptNotification::class

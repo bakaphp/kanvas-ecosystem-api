@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Baka\Support\Str;
-use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Exceptions\ConfigurationException;
@@ -69,49 +68,33 @@ trait HashTableTrait
 
         if (! is_object($this->settingsModel)) {
             throw new ConfigurationException(
-                '
-            ModelSettingsTrait need to have a settings model configure,
-            check the model setting exists for this class' . get_class($this)
+                'ModelSettingsTrait need to have a settings model configure, check the model setting exists for this class' . get_class($this)
             );
         }
 
         // Set in Redis first
         $this->setInRedis($key, $value);
 
-        // Use updateOrCreate to handle duplicates gracefully
         $settingsModelClass = get_class($this->settingsModel);
         $primaryKey = $this->getSettingsPrimaryKey();
 
         $value = Str::isJson($value) ? json_decode($value, true) : $value;
 
-        try {
-            $settingsModelClass::updateOrCreate(
+        // Use upsert for atomic insert/update
+        $settingsModelClass::upsert(
+            [
                 [
                     $primaryKey => $this->getKey(),
                     'name' => $key,
+                    'value' => is_array($value) ? json_encode($value) : $value,
+                    'is_public' => (int) $isPublic,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ],
-                [
-                    'value' => $value,
-                    'is_public' => (int) $isPublic,
-                ]
-            );
-        } catch (Exception $e) {
-            // Fallback: try to find existing and update
-            $existing = $settingsModelClass::where($primaryKey, $this->getKey())
-                ->where('name', $key)
-                ->first();
-
-            if ($existing) {
-                $existing->update([
-                    'value' => $value,
-                    'is_public' => (int) $isPublic,
-                ]);
-            } else {
-                // If still fails, there might be a race condition
-                // Log and return false or throw a more specific exception
-                throw $e;
-            }
-        }
+            ],
+            [$primaryKey, 'name'], // unique columns
+            ['value', 'is_public', 'updated_at'] // columns to update on conflict
+        );
 
         return true;
     }
@@ -197,11 +180,16 @@ trait HashTableTrait
             $this->getSettingsRedisPrimaryKey(),
         );
 
+        $result = [];
         foreach ($fields as $key => $value) {
-            $fields[$key] = Str::jsonToArray($value);
+            // Skip cached null markers
+            if ($value === '__NULL__') {
+                continue;
+            }
+            $result[$key] = Str::jsonToArray($value);
         }
 
-        return $fields;
+        return $result;
     }
 
     /**
@@ -269,12 +257,20 @@ trait HashTableTrait
      */
     public function get(string $key, mixed $defaultValue = null): mixed
     {
-        // Try Redis first
-        if ($value = $this->getFromRedis($key)) {
-            return $value;
+        $redisKey = $this->getSettingsRedisPrimaryKey();
+        $value = Redis::hGet($redisKey, $key);
+
+        // If key exists in Redis
+        if ($value !== false) {
+            // Handle cached "not found" state
+            if ($value === '__NULL__') {
+                return $defaultValue;
+            }
+
+            return Str::jsonToArray($value);
         }
 
-        // Fallback to database
+        // Key doesn't exist in Redis, check database
         $this->createSettingsModel();
         $setting = $this->getSettingsByKey($key);
 
@@ -284,6 +280,9 @@ trait HashTableTrait
 
             return $setting->value;
         }
+
+        // Cache the "not found" state to prevent future database queries
+        Redis::hSet($redisKey, $key, '__NULL__');
 
         return $defaultValue;
     }

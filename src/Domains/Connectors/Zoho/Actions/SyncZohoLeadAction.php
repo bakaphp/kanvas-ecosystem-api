@@ -99,7 +99,15 @@ class SyncZohoLeadAction
                     default => LeadStatus::getByName('active'),
                 }; */
 
-        $ownerUser = UsersAssociatedApps::query()->fromApp($this->app)->where('email', $zohoLead->Owner['email'])->first()?->user;
+        // Fix: Safely access Owner email with null checks
+        $ownerUser = null;
+        if (! empty($zohoLead->Owner) && ! empty($zohoLead->Owner['email'])) {
+            $ownerUser = UsersAssociatedApps::query()
+                ->fromApp($this->app)
+                ->where('email', $zohoLead->Owner['email'])
+                ->first()?->user;
+        }
+
         $user = $agent?->user ?? $this->company->user;
 
         if (! $localLead) {

@@ -27,6 +27,8 @@ class B2BUpdateCompanyOrderActivity extends KanvasActivity
 
                 sleep(30);
 
+                $order->refresh();
+
                 if ($orderCompany->getId() !== $userCompany->getId()) {
                     // Check for conflict
                     $conflict = Order::fromApp($app)

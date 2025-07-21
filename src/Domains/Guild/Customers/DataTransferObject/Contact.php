@@ -19,6 +19,6 @@ class Contact extends Data
 
     public function getType(): string
     {
-        return ContactType::getById($this->contacts_types_id)->name;
+        return strtolower(ContactType::getById($this->contacts_types_id)->name);
     }
 }

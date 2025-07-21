@@ -317,6 +317,9 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
             'password' => $password,
+            'email' => $user->email,
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
         ]);
     }
 
@@ -548,6 +551,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',

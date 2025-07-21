@@ -6,7 +6,7 @@ input TagInput {
 
 type Tag {
     id: ID!
-    user: User!
+    user: User! @belongsTo(method: "user")
     name: String!
     slug: String
     weight: Int

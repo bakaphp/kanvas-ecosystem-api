@@ -589,9 +589,6 @@ class Order extends BaseModel
         ]);
 
         $this->order_types_id = $orderType->id;
-        if ($orderType->defaultStatus) {
-            $this->order_status_id = $orderType->defaultStatus->id;
-        }
         $this->saveOrFail();
     }
 

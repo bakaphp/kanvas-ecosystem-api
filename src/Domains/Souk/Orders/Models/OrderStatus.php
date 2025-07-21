@@ -29,6 +29,8 @@ class OrderStatus extends BaseModel
 
     protected $casts = [
         'metadata' => Json::class,
+        'is_default' => 'boolean',
+        'is_final' => 'boolean',
     ];
 
     public function orderType(): BelongsTo
@@ -49,5 +51,20 @@ class OrderStatus extends BaseModel
     public function fromTransitions(): HasMany
     {
         return $this->hasMany(OrderStatusTransitions::class, 'from_status_id', 'id');
+    }
+
+    public function isInitialState(): bool
+    {
+        return $this->is_default;
+    }
+
+    public function isDefaultState(): bool
+    {
+        return $this->is_default;
+    }
+
+    public function isFinalState(): bool
+    {
+        return $this->is_final;
     }
 }

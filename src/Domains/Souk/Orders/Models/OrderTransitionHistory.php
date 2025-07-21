@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Models;
 
+use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Souk\Models\BaseModel;
 
@@ -23,6 +24,13 @@ class OrderTransitionHistory extends BaseModel
         'is_deleted',
         'changed_at',
         'changed_by',
+    ];
+
+    protected $casts = [
+        'changed_at' => 'datetime',
+        'status_ended_at' => 'datetime',
+        'metadata' => Json::class,
+        'is_current' => 'boolean',
     ];
 
     public $timestamps = true;

@@ -412,8 +412,8 @@ class OrderManagementMutation
         try {
             return new TransitionOrderStateAction(
                 $order,
-                $newOrderStatus,
-                $user
+                $user,
+                $newOrderStatus
             )->execute();
         } catch (Throwable $e) {
             throw new ValidationException($e->getMessage());

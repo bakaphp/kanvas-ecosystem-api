@@ -45,7 +45,10 @@ class FilesystemManagementMutation
             $entity
         );
 
-        $fileSystemEntity = $attachFile->execute($filesystemAttachmentInput->fieldName);
+        $fileSystemEntity = $attachFile->execute(
+            fieldName: $filesystemAttachmentInput->fieldName,
+            weight: $filesystemAttachmentInput->weight
+        );
 
         return (string) $fileSystemEntity->uuid;
     }
@@ -261,7 +264,7 @@ class FilesystemManagementMutation
         return false;
     }
 
-    public function mergeFiles(mixed $rootValue, array $request): Filesystem
+    public function mergeFiles(mixed $rootValue, array $request): ?Filesystem
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -320,6 +323,6 @@ class FilesystemManagementMutation
             return $uploadedFilesystem;
         }
 
-        throw new Exception('No files to merge');
+        return null;
     }
 }

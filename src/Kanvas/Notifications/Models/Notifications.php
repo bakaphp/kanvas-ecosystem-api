@@ -7,11 +7,13 @@ namespace Kanvas\Notifications\Models;
 use Baka\Casts\Json;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
+use Kanvas\Notifications\Observers\NotificationObserver;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
@@ -38,6 +40,7 @@ use Throwable;
  * @property string $updated_at
  * @property string $is_deleted
  */
+#[ObservedBy(NotificationObserver::class)]
 class Notifications extends BaseModel
 {
     public $table = 'notifications';
@@ -152,7 +155,7 @@ class Notifications extends BaseModel
 
         try {
             $systemModule = $this->systemModule()->firstOrFail();
-            $modelName = $systemModule->model_name;
+            $modelName = SystemModules::convertLegacySystemModules($systemModule->model_name);
 
             /**
              * @todo cache
@@ -173,7 +176,7 @@ class Notifications extends BaseModel
             $systemModule = $this->systemModule()->firstOrFail();
             $modelName = $systemModule->model_name;
             $entity = $modelName::getById($this->entity_id);
-            if ($entity instanceof Message && is_null($entity->parent_id)) {
+            if ($entity instanceof Message && $entity->parent_id === null && $entity->total_children > 0) {
                 return $entity->children;
             }
         } catch (Throwable $e) {

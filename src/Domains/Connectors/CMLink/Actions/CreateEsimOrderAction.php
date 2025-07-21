@@ -210,7 +210,7 @@ class CreateEsimOrderAction
             $this->availableVariant->sku,
             $this->esimData['data']['state'],
             (int) ($this->cmLinkOrder['quantity'] ?? 1),
-            (float) $this->cmLinkOrder['price'],
+            (float) ($this->cmLinkOrder['price'] ?? 0.0),
             'bundle',
             $this->orderVariant->sku,
             $this->esimData['data']['smdpAddress'],

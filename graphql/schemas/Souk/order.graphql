@@ -56,6 +56,11 @@ type Order {
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
 }
 
 type OrderItem {
@@ -113,6 +118,7 @@ type ImportOrderCsvResult {
 }
 
 type GeneratePaymentIntentResult {
+    id: ID!
     client_secret: String!
     status: String
     message: Mixed
@@ -172,6 +178,7 @@ input OrderCartInput {
     order_type: String
     metadata: Mixed
     reference: String
+    payment_intent_id: ID
 }
 
 input ExtendOrderInput {
@@ -345,7 +352,9 @@ extend type Mutation @guard {
     #    @field(
     #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@assignPaymentToOrder"
     #    )
-    transitionOrderStatus(input: TransitionOrderStatusInput!): OrderStatusTransitionResult!
+    transitionOrderStatus(
+        input: TransitionOrderStatusInput!
+    ): OrderStatusTransitionResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
         )

@@ -23,18 +23,15 @@ class ProductService
     public function mapProduct(array $product): array
     {
         $weight = $this->calcWeight($product);
-        if (key_exists('original_price', $product)) {
-            $price = (float)$product['original_price']['price'];
-            $product['price'] = $price;
-        }
         $amazonPrice = $product['price'];
-        $price = $this->calcDiscountPrice($product);
         $name = Str::limit($product['name'], 255);
+        $discountPrice = str_replace('$', '', $product['pricing']);
+        $listPrice = key_exists('list_price', $product) ? str_replace('$', '', $product['list_price']) : $discountPrice;
         $product = [
             'name' => $name,
             'description' => $this->getDescription($product),
-            'price' => $amazonPrice,
-            'discountPrice' => $amazonPrice,
+            'price' => $listPrice,
+            'discountPrice' => $discountPrice,
             'slug' => Str::slug($product['asin']),
             'sku' => $product['asin'],
             'source' => 'amazon',

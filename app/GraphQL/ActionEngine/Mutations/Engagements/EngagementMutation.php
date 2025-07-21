@@ -81,6 +81,7 @@ class EngagementMutation
             $app,
             $lead->branch
         );
+        $companyActionParent = $companyAction;
 
         /**
          * @todo clean this
@@ -120,6 +121,15 @@ class EngagementMutation
             $request['mixed_share_code'] = $action;
             $action = ActionEnum::SHARE_BLUELINK->value;
             //$request['actions_slug'] = $action;
+        }
+
+        if (isset($request['mixed_credit_app']) || isset($request['mixed_cosigner_app'])) {
+            $companyActionParent = CompanyAction::getByAction(
+                Action::getBySlug($action, $company),
+                $company,
+                $app,
+                $lead->branch
+            );
         }
 
         $request['visitors_id'] = $requestId;
@@ -177,7 +187,7 @@ class EngagementMutation
             'contacts_id' => $people->uuid,
             'companies_id' => $company->getId(),
             'users_id' => $user->getId(),
-            'companies_actions_id' => $companyAction->getId(),
+            'companies_actions_id' => $companyActionParent->getId(),
             'actions_slug' => $request['action'],
             'request' => $request,
         ]);
@@ -221,6 +231,7 @@ class EngagementMutation
             entity_namespace: Lead::class,
             name: $lead->uuid,
             slug: $lead->uuid,
+            description: $lead->uuid,
         ))->execute();
 
         $engagementMessage = new EngagementMessage(
@@ -240,8 +251,9 @@ class EngagementMutation
             preFill: [],
             via: $via,
             product_id: $data['product_id'] ?? null,
-            channel_id: $channel ? (string) $channel->uuid : null,
+            channel_id: isset($data['channel_id']) && ! empty($data['channel_id']) ? (string) $data['channel_id'] : ($channel ? (string) $channel->uuid : null),
         );
+
         $messageInput = [
             'message' => $engagementMessage->toArray(),
             'reactions_count' => 0,
@@ -283,13 +295,14 @@ class EngagementMutation
         //create msg
         //create engagement
         //return engagement
+
         $engagement = Engagement::firstOrCreate([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
             'users_id' => $user->getId(),
             'leads_id' => $lead->getId(),
             'people_id' => $people->getId(),
-            'companies_actions_id' => $companyAction->getId(),
+            'companies_actions_id' => $companyActionParent->getId(),
             'message_id' => $createMessage->getId(),
             'slug' => $action,
             'entity_uuid' => $requestId,
@@ -388,6 +401,7 @@ class EngagementMutation
             entity_id: $lead->getId(),
             entity_namespace: Lead::class,
             name: $lead->uuid,
+            description: $lead->uuid,
             slug: $lead->uuid,
         ))->execute();
         if ($channel) {

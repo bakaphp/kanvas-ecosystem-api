@@ -141,6 +141,12 @@ class Apps extends BaseModel implements AppInterface
         return (int) $totalCompanies;
     }
 
+    public function userKeys(): HasMany
+    {
+        return $this->hasMany(AppKey::class, 'apps_id')
+            ->where('users_id', auth()->id());
+    }
+
     public function getUserKeys(?UserInterface $user = null): Collection
     {
         $user = $user ?? Auth::user();

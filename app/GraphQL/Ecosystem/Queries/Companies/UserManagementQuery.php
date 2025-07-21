@@ -59,6 +59,7 @@ class UserManagementQuery
         ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
         ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
         ->where('users_associated_apps.is_active', StateEnums::YES->getValue())
+        ->with(['companies', 'roles']) // Add eager loading
         ->groupBy('users_associated_apps.users_id'); // Group by the correct user ID
     }
 
@@ -119,6 +120,7 @@ class UserManagementQuery
             'users_associated_apps.apps_id',
             $app->getId()
         )
+        ->with(['companies', 'roles']) // Add eager loading
         ->groupBy('users_associated_apps.users_id'); // Group by the correct user ID
     }
 }

@@ -47,9 +47,9 @@ class ImportDataFromFilesystemAction
                 $record
             );
             if (Products::class == $modelName) {
-                $variant['productSlug'] = $variant['slug'];
+                $variant['product_slug'] = $variant['slug'];
                 $variant['price'] = filter_var($variant['price'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
-                $listOfVariants[$variant['productSlug']][] = $variant;
+                $listOfVariants[$variant['product_slug']][] = $variant;
             } else {
                 $listOfProducts[] = $variant;
             }
@@ -102,7 +102,7 @@ class ImportDataFromFilesystemAction
                 $listOfProducts[] = [
                     'name' => $variants[0]['name'],
                     'description' => $variants[0]['description'],
-                    'slug' => $variants[0]['productSlug'],
+                    'slug' => $variants[0]['product_slug'],
                     'sku' => $variants[0]['sku'],
                     'regionId' => $variants[0]['regionId'],
                     'price' => (float) ($variants[0]['price'] ?? 0),
