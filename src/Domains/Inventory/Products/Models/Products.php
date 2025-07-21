@@ -225,8 +225,19 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             ->whereHas('variants', function (Builder $query) use ($value) {
                 $query->where('products_variants.is_deleted', 0)
                     ->whereHas('attributes', function (Builder $query) use ($value) {
-                        $query->where('products_variants_attributes.value', $value)
-                            ->where('products_variants_attributes.is_deleted', 0);
+                        $query->where(function ($subQuery) use ($value) {
+                            $subQuery
+                                // If value is JSON, extract and compare
+                                ->whereRaw(
+                                    "IF(
+                                        JSON_VALID(products_variants_attributes.value),
+                                        JSON_UNQUOTE(JSON_EXTRACT(products_variants_attributes.value, '$.en')),
+                                        products_variants_attributes.value
+                                    ) LIKE ?",
+                                    ['%' . $value . '%']
+                                )
+                                ->where('products_variants_attributes.is_deleted', 0);
+                        });
                     });
             });
     }
