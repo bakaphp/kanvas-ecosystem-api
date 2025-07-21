@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\NetSuite\Webhooks;
 
+use Baka\Contracts\CompanyInterface;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\AddAddressToCompanyAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
@@ -41,6 +43,8 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
                 $addressData = $payload['sublists']['addressbook']['line 1'];
                 $addAddressAction->fromNetSuite($addressData);
             }
+
+            $this->setCompanyDocuments($company, $this->receiver->app);
 
             //update or create customer own channel price list
             $mainCompanyId = $this->receiver->app->get('B2B_MAIN_COMPANY_ID');
@@ -98,5 +102,26 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
                str_contains($message, 'rate limit') ||
                str_contains($message, 'too many requests') ||
                str_contains($message, 'suitetalk concurrent request limit');
+    }
+
+    private function setCompanyDocuments(CompanyInterface $company, Apps $app): void
+    {
+        $documents = $app->get('NETSUITE_COMPANY_DOCUMENTS');
+        if (! $documents) {
+            $documents = [
+                'Authorized Reseller Program Agreement',
+                'Certificate of Insurance (COI)',
+                'Credit Application',
+                'Customer Agreement Form',
+                'NDA',
+                'W9',
+            ];
+        } else {
+            $documents = explode(',', $documents);
+        }
+
+        foreach ($documents as $document) {
+            $company->set($document, ['status' => 'approved', 'comment' => null], 1);
+        }
     }
 }
