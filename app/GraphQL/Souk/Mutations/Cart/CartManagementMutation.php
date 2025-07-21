@@ -166,6 +166,7 @@ class CartManagementMutation
                 ]);
 
                 $cart->condition($fifteenPercentOff);
+                $user->set('coupon-sl5', 1);
             }
         }
 
