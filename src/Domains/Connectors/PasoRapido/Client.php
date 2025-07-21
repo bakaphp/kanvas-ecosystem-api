@@ -38,6 +38,7 @@ class Client
 
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUrl,
+            'verify' => false, // Only for this specific case
             'headers' => [
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->appToken,
@@ -47,7 +48,9 @@ class Client
 
     public function getAccessToken(): string
     {
-        $client = new GuzzleClient();
+        $client = new GuzzleClient([
+            'verify' => false, // Only for this specific case
+        ]);
         $result = $client->post($this->baseUrl . ConfigurationEnum::AUTHORIZATION_PATH->value, [
             'json' => [
                 'username' => $this->clientId,
