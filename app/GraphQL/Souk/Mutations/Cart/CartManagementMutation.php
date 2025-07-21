@@ -90,6 +90,7 @@ class CartManagementMutation
                 'pdlc10',
                 'pr10',
                 'ruben10',
+                'sl5',
             ];
 
             if (! in_array(strtolower($discountCodes[0]), $validDiscountCodes, true)) {
@@ -154,6 +155,18 @@ class CartManagementMutation
                 ]);
 
                 $cart->condition($fifteenPercentOff);
+            } elseif (strtolower($discountCodes[0]) === 'sl5' && ! $user->get('coupon-sl5')) {
+                $fifteenPercentOff = new CartCondition([
+                  'name' => 'sl5',
+                  'type' => 'discount',
+                  'target' => 'subtotal',
+                  'value' => '-5%',
+                  'minimum' => 1,
+                  'order' => 1,
+                ]);
+
+                $cart->condition($fifteenPercentOff);
+                $user->set('coupon-sl5', 1);
             }
         }
 
