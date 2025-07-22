@@ -8,7 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteProductsAction;
 
 class NetSuiteDownloadProductsCommand extends Command
@@ -20,7 +20,7 @@ class NetSuiteDownloadProductsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:netsuite-download-products {app_id} {company_id} {net_suite_customer_id}';
+    protected $signature = 'kanvas:netsuite-download-products {app_id} {company_id} {buyer_company_id}';
 
     /**
      * The console command description.
@@ -38,17 +38,17 @@ class NetSuiteDownloadProductsCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
-        $netSuiteCustomerId = $this->argument('net_suite_customer_id');
+        $buyerCompanyId = $this->argument('buyer_company_id');
 
-        $this->info("Downloading product {$netSuiteCustomerId} to company {$company->getId()} \n");
+        $this->info("Downloading products from company {$buyerCompanyId} to company {$company->getId()} \n");
 
-        $syncCompany = new SyncNetSuiteCustomerWithCompanyAction($app, $company);
-        $newCompany = $syncCompany->execute($netSuiteCustomerId);
+        $buyerCompany = CompaniesRepository::getByUuid($buyerCompanyId);
 
-        $syncNetSuiteCustomerWithCompany = new SyncNetSuiteProductsAction($app, $company, $newCompany);
+        $syncNetSuiteCustomerWithCompany = new SyncNetSuiteProductsAction($app, $company, $buyerCompany);
+
         $syncNetSuiteCustomerWithCompany->execute();
 
-        $this->info("All products from Customer {$newCompany->name} downloaded successfully \n");
+        $this->info("All products from company {$buyerCompany->name} downloaded successfully \n");
 
         return;
     }
