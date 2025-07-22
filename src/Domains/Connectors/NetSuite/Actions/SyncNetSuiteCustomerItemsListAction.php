@@ -15,8 +15,6 @@ use Kanvas\Inventory\Channels\DataTransferObject\Channels;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
-use NetSuite\Classes\InventoryItem;
 
 /**
  * This action handles the synchronization of the NetSuite Customer Items List,
