@@ -31,7 +31,6 @@ class CreateAgentAction
         ]);
 
         if ($this->agent->communicationChannel) {
-            dump($this->agent->communicationChannel);
             $agent->communicationChannels()->sync($this->agent->communicationChannel);
         }
 
