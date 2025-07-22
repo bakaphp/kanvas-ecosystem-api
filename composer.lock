@@ -2775,7 +2775,7 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.403.0",
+            "version": "v0.404.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
@@ -2813,7 +2813,7 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.403.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.404.0"
             },
             "time": "2025-06-04T17:28:44+00:00"
         },
@@ -4283,16 +4283,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.15.11",
+            "version": "1.15.14",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "ebad512827ea478ebcc14db375ccb19aea3ddc9d"
+                "reference": "1dd40d7bc42aba8e84c4066abf59454c0255a461"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/ebad512827ea478ebcc14db375ccb19aea3ddc9d",
-                "reference": "ebad512827ea478ebcc14db375ccb19aea3ddc9d",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/1dd40d7bc42aba8e84c4066abf59454c0255a461",
+                "reference": "1dd40d7bc42aba8e84c4066abf59454c0255a461",
                 "shasum": ""
             },
             "require": {
@@ -4345,9 +4345,9 @@
             "description": "The AI Agent Development Kit for PHP.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.15.11"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.15.14"
             },
-            "time": "2025-07-19T10:13:01+00:00"
+            "time": "2025-07-21T16:05:19+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -10485,16 +10485,16 @@
         },
         {
             "name": "sentry/sentry",
-            "version": "4.14.1",
+            "version": "4.14.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-php.git",
-                "reference": "a28c4a6f5fda2bf730789a638501d7a737a64eda"
+                "reference": "bfeec74303d60d3f8bc33701ab3e86f8a8729f17"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/a28c4a6f5fda2bf730789a638501d7a737a64eda",
-                "reference": "a28c4a6f5fda2bf730789a638501d7a737a64eda",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/bfeec74303d60d3f8bc33701ab3e86f8a8729f17",
+                "reference": "bfeec74303d60d3f8bc33701ab3e86f8a8729f17",
                 "shasum": ""
             },
             "require": {
@@ -10558,7 +10558,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-php/issues",
-                "source": "https://github.com/getsentry/sentry-php/tree/4.14.1"
+                "source": "https://github.com/getsentry/sentry-php/tree/4.14.2"
             },
             "funding": [
                 {
@@ -10570,7 +10570,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2025-06-23T15:25:52+00:00"
+            "time": "2025-07-21T08:28:29+00:00"
         },
         {
             "name": "sentry/sentry-laravel",
