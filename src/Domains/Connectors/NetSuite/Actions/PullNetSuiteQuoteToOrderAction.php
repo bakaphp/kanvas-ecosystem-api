@@ -161,6 +161,12 @@ class PullNetSuiteQuoteToOrderAction
         }
     }
 
+    protected function markAllOrderItemsAsDeleted(Order $order): void
+    {
+        // Mark all non-deleted items as deleted
+        $order->items()->where('is_deleted', false)->update(['is_deleted' => true]);
+    }
+
     /**
      * Update order items based on NetSuite quote items
      */
@@ -168,6 +174,8 @@ class PullNetSuiteQuoteToOrderAction
     {
         // Track which items we've processed
         $processedSkus = [];
+
+        $this->markAllOrderItemsAsDeleted($order);
 
         foreach ($netsuiteItems as $netsuiteItem) {
             if (! isset($netsuiteItem->item) || ! isset($netsuiteItem->item->name)) {
@@ -182,7 +190,7 @@ class PullNetSuiteQuoteToOrderAction
             $processedSkus[] = $sku;
 
             // Find corresponding order item by SKU
-            $orderItem = $order->items->where('product_sku', $sku)->first();
+            $orderItem = $order->items->where('product_sku', $sku)->withTrashed()->first();
 
             if ($orderItem) {
                 // Update existing order item
@@ -203,6 +211,12 @@ class PullNetSuiteQuoteToOrderAction
     protected function updateExistingOrderItem(OrderItem $orderItem, float $quantity, float $rate, string $description): void
     {
         $updated = false;
+
+        // First, restore the item if it was marked as deleted
+        if ($orderItem->is_deleted) {
+            $orderItem->is_deleted = false;
+            $updated = true;
+        }
 
         // Update quantity if different
         if ($orderItem->quantity != $quantity) {
