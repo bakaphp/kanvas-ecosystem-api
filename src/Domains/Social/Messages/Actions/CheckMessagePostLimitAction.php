@@ -39,7 +39,7 @@ class CheckMessagePostLimitAction
             $this->getChildrenCount
         );
 
-        //$this->message->app->reGenerateRedisSettings();
+        $this->message->app->reGenerateRedisSettings();
         //$messageLimit = $this->message->app->get('message-post-limit');
         //Log:info("Message Count for today: $messageCount of $messageLimit");
 
