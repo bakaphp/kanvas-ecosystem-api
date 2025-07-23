@@ -41,13 +41,4 @@ class AgentModel extends BaseModel
     {
         return AgentModelFactory::new();
     }
-
-    public function scopeFromApp(Builder $query, mixed $app = null): Builder
-    {
-        $table = $this instanceof Model ? $this->getTable() . '.' : '';
-
-        $app = $app instanceof Apps ? $app : app(Apps::class);
-
-        return $query->where($table . 'app_id', $app->getId());
-    }
 }
