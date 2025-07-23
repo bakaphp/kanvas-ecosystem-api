@@ -149,18 +149,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     public function validateImageLimit(Message $message, array $params): array
     {
         try {
-            if (
-                $message->app->get('message-image-type')
-                && is_array($message->message)
-                && isset($message->message['type'])
-                && $message->message['type'] === 'image-format'
-                && $message->messageType->verb == $message->app->get('image-generation-limit-message-type-verb')
-            ) {
-                (new CheckMessagePostLimitAction(
-                    message: $message,
-                    messageTypeId: $message->message_types_id
-                ))->execute();
-            }
+            (new CheckMessagePostLimitAction(
+                message: $message,
+                messageTypeId: $message->message_types_id
+            ))->execute();
         } catch (Exception $e) {
             //report($e);
             $endViaList = array_map(
