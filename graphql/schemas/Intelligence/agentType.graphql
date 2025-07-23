@@ -48,5 +48,6 @@ extend type Query @guard {
     @paginate(
         model: "Kanvas\\Intelligence\\Agents\\Models\\AgentType",
         defaultCount: 25,
+        scopes: ["fromApp"]
     )
 }

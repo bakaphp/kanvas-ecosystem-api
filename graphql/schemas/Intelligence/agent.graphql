@@ -74,4 +74,13 @@ extend type Query @guard {
             defaultCount: 25
             scopes: ["fromCompany", "fromApp"]
         )
+    agentModels(
+        where: _ @whereConditions(columns: ["id", "name", "is_active", "is_published"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [AgentAiModel!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentModel",
+            defaultCount: 25,
+            scopes: ["fromApp"]
+        )
 }

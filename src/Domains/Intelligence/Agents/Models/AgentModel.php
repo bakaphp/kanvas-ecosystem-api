@@ -6,7 +6,10 @@ namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Factories\AgentModelFactory;
 use Kanvas\Intelligence\Models\BaseModel;
 
@@ -37,5 +40,14 @@ class AgentModel extends BaseModel
     public static function newFactory()
     {
         return AgentModelFactory::new();
+    }
+
+    public function scopeFromApp(Builder $query, mixed $app = null): Builder
+    {
+        $table = $this instanceof Model ? $this->getTable() . '.' : '';
+
+        $app = $app instanceof Apps ? $app : app(Apps::class);
+
+        return $query->where($table . 'app_id', $app->getId());
     }
 }
