@@ -15,6 +15,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Inventory\Support\Setup;
+use Kanvas\Users\Actions\AddAdminsToCompanyAction;
 use Kanvas\Users\Actions\AssignCompanyAction;
 
 class SyncNetSuiteCustomerWithCompanyAction
@@ -57,9 +58,11 @@ class SyncNetSuiteCustomerWithCompanyAction
             return $company;
         }
 
+        $adminUser = $this->app->keys()->firstOrFail()->user;
+
         $createCompany = new CreateCompaniesAction(
             new Company(
-                user: $this->app->keys()->firstOrFail()->user,
+                user: $adminUser,
                 name: $customerInfo->companyName,
                 email: $customerInfo->email
             )
@@ -82,6 +85,8 @@ class SyncNetSuiteCustomerWithCompanyAction
             $company->user,
             $company
         ))->run();
+
+        (new AddAdminsToCompanyAction($this->app, $adminUser, $company, $branch))->execute();
 
         return $company;
     }
