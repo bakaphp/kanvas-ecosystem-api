@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\PromptMine\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 
 class CreateNuggetMessageAction
