@@ -6,6 +6,7 @@ namespace App\GraphQL\Ecosystem\Queries\Apps;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UserAppRepository;
@@ -24,7 +25,33 @@ class AppUserManagementQuery
     ): Builder {
         $app = app(Apps::class);
 
-        return UserAppRepository::getAllAppUsers($app);
+        $builder = UserAppRepository::getAllAppUsers($app);
+
+        $user = auth()->user();
+
+        if ($user->can('limited-company-access')) {
+            // Get company IDs that the current user belongs to
+            $userCompanyIds = DB::table('users_associated_apps')
+                ->where('users_id', $user->getId())
+                ->where('apps_id', $app->getId())
+                ->where('companies_id', '>', 0) // Only get actual company associations
+                ->where('is_deleted', 0)
+                ->pluck('companies_id');
+
+            // Get user IDs from those companies (including users with companies_id > 0)
+            $allowedUserIds = DB::table('users_associated_apps')
+                ->whereIn('companies_id', $userCompanyIds)
+                ->where('apps_id', $app->getId())
+                ->where('is_deleted', 0)
+                ->pluck('users_id');
+
+            // Filter the main builder to only show users from those companies
+            // The main query still gets users with companies_id = 0 (app-level data)
+            // but we limit which users based on their company associations
+            return $builder->whereIn('users.id', $allowedUserIds);
+        }
+
+        return $builder;
     }
 
     public function getAllAppUsersNoAdmin(

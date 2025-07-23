@@ -375,6 +375,21 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     {
         $app = app(Apps::class);
 
+        $user = auth()->user();
+
+        // If user CANNOT view all companies, limit to their companies only
+        if ($user->can('limited-company-access')) {
+            return $query->join(
+                'users_associated_apps',
+                'users_associated_apps.companies_id',
+                '=',
+                'companies.id'
+            )->where('users_associated_apps.apps_id', '=', $app->getId())
+            ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('users_associated_apps.users_id', $user->getId())
+            ->select('companies.*');
+        }
+
         return $query->join(
             'user_company_apps',
             'user_company_apps.companies_id',
