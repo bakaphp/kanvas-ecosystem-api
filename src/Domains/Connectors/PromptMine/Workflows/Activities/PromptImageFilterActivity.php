@@ -416,6 +416,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 'type' => 'image-format',
                 'image' => $cdnImageUrl,
             ],
+            messageTypeVerb: 'chat-response',
         ))->execute();
 
         $messageCopy = $entity->message;
