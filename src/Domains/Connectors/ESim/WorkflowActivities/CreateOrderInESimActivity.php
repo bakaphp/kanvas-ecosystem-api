@@ -322,6 +322,8 @@ class CreateOrderInESimActivity extends KanvasActivity
                         $orderNotification->channels = ['mail'];
                         $order->user->notify($orderNotification);
                     }
+
+                    $order->user->set('coupon-sl5', 1); // Set a flag for sl5 coupon usage
                 } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
                     // Handle notification failure
                 }
