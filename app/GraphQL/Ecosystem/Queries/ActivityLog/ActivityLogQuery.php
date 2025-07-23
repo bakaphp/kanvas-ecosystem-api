@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Queries\ActivityLog;
 
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Activities\Models\Activity as ModelsActivity;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -36,5 +37,14 @@ class ActivityLogQuery
         return Activity::query()
             ->where('subject_type', $module)
             ->where('subject_id', $entity->getKey());
+    }
+
+    public function getAllAppCompanyActivityLogs(mixed $root, array $query): Builder
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        return ModelsActivity::forAppAndCompany($app, $company);
     }
 }
