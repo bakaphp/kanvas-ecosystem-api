@@ -34,7 +34,7 @@ type Variant {
     attributes: [VariantsAttributes!]! @method(name: "visibleAttributes") @cacheRedis
     companies: Company! @belongsTo(relation: "company")
     channels(currencyCode: String): [VariantChannelRelationship!]!
-        @BelongsToMany(relation: "channels", type: PAGINATOR)
+        @BelongsToMany(relation: "channels")
     channel(currencyCode: String): VariantPricingInfo
         @field(
             resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price"
