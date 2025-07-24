@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Sessions\Actions;
 
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
+
 class CreateContentSessionAction
 {
     public function __construct(
