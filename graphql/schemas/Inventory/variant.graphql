@@ -49,6 +49,9 @@ type Variant {
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     inventory_quantity: Int @method(name: "getTotalQuantity")
+    activities: [ActivityLog!]
+        @method(name: "getActivities")
+
 }
 
 type VariantPricingInfo {

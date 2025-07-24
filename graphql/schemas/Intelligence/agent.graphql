@@ -8,10 +8,16 @@ type AgentAi {
     uuid: String!
     name: String!
     description: String
-    config: JSON
-    role: String
+    config: Mixed
+    role: Mixed
     agent_model_id: ID
     is_active: Boolean!
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
 }
 
 type AgentAiModel {
@@ -29,8 +35,8 @@ input AgentAiInput {
     name: String!
     agent_model_id: Int
     description: String
-    config: String
-    role: String
+    config: Mixed
+    role: Mixed
     is_active: Boolean
     company_task_list_id: Int
     communication_channels: [CommunicationChannelPivot!]
@@ -60,7 +66,7 @@ extend type Mutation @guard {
 extend type Query @guard {
     agentsAi(
         search: String @search
-        where: _ @whereConditions(columns: ["id", "description", "is_active"])
+        where: _ @whereConditions(columns: ["id", "description", "is_active", "agent_type_id", "company_task_list_id"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [AgentAi!]!
         @paginate(

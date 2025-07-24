@@ -57,6 +57,8 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+    activities: [ActivityLog!]
+        @method(name: "getActivities")
 }
 
 ### @todo extract this into its own type.

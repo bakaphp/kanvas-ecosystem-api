@@ -2,12 +2,13 @@ type ActivityLog {
     id: ID!
     log_name: String!
     description: String
-    subject_type: String
+    model_name: String! @rename(attribute: "subject_type")
+    model_id: ID! @rename(attribute: "subject_id")
+    changes: Mixed! @rename(attribute: "properties")
     event: String
-    entity_id: Int @rename(attribute: "subject_id")
-    causer_id: Int!
-    properties: Mixed
+    user: User @belongsTo
     created_at: DateTime!
+    updated_at: DateTime!
 }
 
 input ActivityLogInput {
@@ -21,28 +22,22 @@ input ActivityLogInput {
 
 extend type Mutation @guard {
     createActivityLog(input: ActivityLogInput!): ActivityLog!
-        @deprecated(reason: "Use 2025 instead, no longer able to create activity by mutation")
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\ActivityLog\\ActivityLogManagementMutation@createActivityLog"
         )
 }
 
-#@deprecated(reason: "Use 2025 version instead")
+enum ActivityLogEnum {
+    ID @enum(value: "activity_log.id")
+    MODEL_NAME @enum(value: "activity_log.subject_type")
+    MODEL_ID @enum(value: "activity_log.subject_id")
+    EVENT @enum(value: "activity_log.event")
+    USER_ID @enum(value: "activity_log.causer_id")
+}
+
 extend type Query @guard {
     getActivityLog(
-        system_module_uuid: String!
-        entity_id: Int!
-        where: _@whereConditions(
-            columns: [
-                "log_name",
-                "description",
-                "subject_type",
-                "subject_id"
-                "causer_id"
-                "event"
-                "batch_uuid"
-            ]
-        )
+        where: _@whereConditions(columnsEnum: ActivityLogEnum)
         orderBy: _@orderBy(
             columns: [
                 "id"
@@ -52,7 +47,7 @@ extend type Query @guard {
         )
     ): [ActivityLog!]!
         @paginate(
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\ActivityLog\\ActivityLogQuery@getAllActivityLogs"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\ActivityLog\\ActivityLogQuery@getAllAppCompanyActivityLogs"
             defaultCount: 25
         )
 }

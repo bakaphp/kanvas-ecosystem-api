@@ -18,11 +18,11 @@ class Agent extends Data
         public Users $user,
         public AgentType $agentType,
         public string $name,
-        public string $role,
+        public string|array $role,
         public bool $is_active,
         public ?AgentModel $agentModel = null,
         public ?string $description = null,
-        public ?string $config = null,
+        public string|array|null $config = null,
         public ?TaskList $task = null,
         public array $communicationChannel = []
     ) {

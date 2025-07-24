@@ -34,7 +34,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                     'app' => $app,
                     'company' => $channel->company,
                     'channel' => $channel,
-                    'entity_namespace' => get_class($message->entity()),
+                    'entity_namespace' => is_object($message->entity()) ? get_class($message->entity()) : null,
                     'entity_id' => $message->entity()->getId(),
                     'canal_id' => $message->message['chat_jid'],
                     'user' => [

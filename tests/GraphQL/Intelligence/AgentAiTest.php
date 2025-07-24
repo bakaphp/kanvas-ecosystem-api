@@ -57,9 +57,14 @@ class AgentAiTest extends TestCase
             'input' => [
                 'agent_type_id' => $agentTypeId,
                 'description' => 'Test Agent',
-                'config' => '{"key": "value"}',
+                'config' => [
+                    "key" => "value",
+                ],
                 'name' => 'Test Agent',
-                'role' => 'test-role',
+                'role' => [
+                    'name' => 'test-role',
+                    'description' => 'This is a test role',
+                ],
                 'agent_model_id' => $agentModel,
                 'is_active' => true  ,
                 'company_task_list_id' => $taskListId,
@@ -77,7 +82,10 @@ class AgentAiTest extends TestCase
         $response->assertJsonFragment([
             'description' => 'Test Agent',
             'name' => 'Test Agent',
-            'role' => 'test-role',
+            'role' => [
+                'name' => 'test-role',
+                'description' => 'This is a test role',
+            ],
             'is_active' => true,
         ]);
     }

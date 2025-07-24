@@ -45,7 +45,10 @@ class FilesystemManagementMutation
             $entity
         );
 
-        $fileSystemEntity = $attachFile->execute($filesystemAttachmentInput->fieldName);
+        $fileSystemEntity = $attachFile->execute(
+            fieldName: $filesystemAttachmentInput->fieldName,
+            weight: $filesystemAttachmentInput->weight
+        );
 
         return (string) $fileSystemEntity->uuid;
     }
