@@ -44,7 +44,7 @@ class PopulateTrendingFeedAction
                     ->where('is_deleted', 0)
                     ->where('id', $messageId['id'])->first();
 
-            if (!$message) {
+            if (! $message) {
                 continue;
             }
 
