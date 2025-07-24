@@ -151,7 +151,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         try {
             (new CheckMessagePostLimitAction(
                 message: $message,
-                messageTypeId: $message->message_types_id
+                messageTypeId: MessageType::fromApp($message->app)->where('verb', 'prompt')->firstOrFail()->getId(),
             ))->execute();
         } catch (Throwable $e) {
             //report($e);
@@ -179,10 +179,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     'destination_event' => 'FOLLOWING',
                 ]);
                 $message->user->notify($errorProcessingImageNotification);
-                $message->delete();
             } catch (Throwable $e) {
                 report($e);
             }
+            $message->delete();
 
             return [
                 'result' => false,
