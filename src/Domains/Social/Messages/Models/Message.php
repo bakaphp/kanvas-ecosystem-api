@@ -372,6 +372,7 @@ class Message extends BaseModel
         ->when($messageTypesId, fn ($query) => $query->where('message_types_id', $messageTypesId))
         ->where('created_at', '>=', Carbon::now()->subHours($hours))
         ->when($getChildrenCount, fn ($query) => $query->whereNotNull('parent_id'), fn ($query) => $query->whereNull('parent_id'))
+        ->withTrashed()
         ->count();
     }
 
