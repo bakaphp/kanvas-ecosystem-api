@@ -62,7 +62,7 @@ class FacebookDriver implements DriverInterface
 
         $data = json_decode($response->getBody()->getContents(), true);
 
-        if (isset($data['email']) && !empty($data['email'])) {
+        if (isset($data['email']) && ! empty($data['email'])) {
             $email = $data['email'];
         } else {
             $email = $this->generateSocialTemporalEmail($data['name'], SourceEnum::FACEBOOK->value);
@@ -97,6 +97,6 @@ class FacebookDriver implements DriverInterface
 
     protected function generateSocialTemporalEmail(string $name, string $provider): String
     {
-        return Str::slug($name).'@'.'social-'.$provider.'.com';
+        return Str::slug($name) . '@' . 'social-' . $provider . '.com';
     }
 }
