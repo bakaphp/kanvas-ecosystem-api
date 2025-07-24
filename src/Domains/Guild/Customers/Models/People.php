@@ -424,7 +424,7 @@ class People extends BaseModel
     {
         $people = [
             'objectID' => $this->uuid,
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'name' => $this->name,
             'firstname' => $this->firstname,
             'middlename' => $this->middlename,
