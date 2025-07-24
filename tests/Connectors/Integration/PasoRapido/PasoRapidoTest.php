@@ -6,10 +6,13 @@ namespace Tests\Connectors\Integration\PasoRapido;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\PasoRapido\Client;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyCustomerResponse;
+use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
+use Mockery;
 use Tests\TestCase;
 
 final class PasoRapidoTest extends TestCase
@@ -50,6 +53,51 @@ final class PasoRapidoTest extends TestCase
         );
         $tag = env('TEST_PASO_RAPIDO_TAG');
         $result = $pasoRapidoService->verifyCustomer($tag);
+        $this->assertInstanceOf(VerifyCustomerResponse::class, $result);
+        $this->assertEquals($tag, $result->device);
+    }
+
+    public function testVerifyCustomerWithoutUsername()
+    {
+        // Create a mock of the HTTP client
+        $mockClient = Mockery::mock(Client::class);
+        $tag = env('TEST_PASO_RAPIDO_TAG');
+
+        // Set up the expectation
+        $mockClient->shouldReceive('post')
+            ->once()
+            ->with(
+                ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag,
+                []
+            )
+            ->andReturn([
+                'nombreUsuario' => null,
+                'apellidoUsuario' => null,
+                'dispositivo' => $tag,
+                'descripcionMensaje' => "test description",
+                'rnc_Cedula' => "1234",
+                'balance' => 2000,
+                'tipoDeReferencia' => "test",
+                'referencia' => $tag,
+                'cuenta' => "1234",
+                'estado' => "activo",
+            ]);
+
+        // Inject the mock into your class
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $config = $this->getPasoRapidoConfig();
+
+        $pasoRapidoService = new PasoRapidoService(
+            app: $app,
+            company: $company,
+            config: $config,
+            client: $mockClient
+        );
+
+        // Execute your test
+        $result = $pasoRapidoService->verifyCustomer($tag);
+
         $this->assertInstanceOf(VerifyCustomerResponse::class, $result);
         $this->assertEquals($tag, $result->device);
     }
