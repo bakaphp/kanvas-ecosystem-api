@@ -23,9 +23,10 @@ class PasoRapidoService
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected array $config = []
+        protected array $config = [],
+        ?Client $client = null
     ) {
-        $this->client = (new Client($app, $company, $config));
+        $this->client = $client ?? (new Client($app, $company, $config));
     }
 
     /**
@@ -37,8 +38,8 @@ class PasoRapidoService
         $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
 
         return VerifyCustomerResponse::from([
-            'username' => $response['nombreUsuario'],
-            'lastname' => $response['apellidoUsuario'],
+            'username' => $response['nombreUsuario'] ?? "",
+            'lastname' => $response['apellidoUsuario'] ?? "",
             'device' => $response['dispositivo'],
             'message' => $response['descripcionMensaje'],
             'document' => $response['rnc_Cedula'],
