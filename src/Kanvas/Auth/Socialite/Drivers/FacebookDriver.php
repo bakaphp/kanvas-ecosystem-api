@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Auth\Socialite\Drivers;
 
 use Baka\Support\Random;
+use Baka\Support\Str;
 use Exception;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -13,6 +14,7 @@ use Illuminate\Support\Arr;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Socialite\Contracts\DriverInterface;
 use Kanvas\Auth\Socialite\DataTransferObject\User;
+use Kanvas\Enums\SourceEnum;
 use Override;
 use phpseclib3\Crypt\RSA;
 use phpseclib3\Math\BigInteger;
@@ -60,9 +62,15 @@ class FacebookDriver implements DriverInterface
 
         $data = json_decode($response->getBody()->getContents(), true);
 
+        if (isset($data['email']) && !empty($data['email'])) {
+            $email = $data['email'];
+        } else {
+            $email = $this->generateSocialTemporalEmail($data['name'], SourceEnum::FACEBOOK->value);
+        }
+
         return User::from([
             'id' => $data['id'],
-            'email' => $data['email'],
+            'email' => $email,
             'nickname' => Random::generateDisplayName($data['first_name']),
             'name' => $data['name'],
             'token' => $token,
@@ -85,5 +93,10 @@ class FacebookDriver implements DriverInterface
         $key['e'] = new BigInteger(JWT::urlsafeB64Decode($key['e']), 256);
 
         return new Key((string) RSA::load($key), 'RS256');
+    }
+
+    protected function generateSocialTemporalEmail(string $name, string $provider): String
+    {
+        return Str::slug($name).'@'.'social-'.$provider.'.com';
     }
 }
