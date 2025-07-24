@@ -153,32 +153,36 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 message: $message,
                 messageTypeId: $message->message_types_id
             ))->execute();
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             //report($e);
-            $endViaList = array_map(
-                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                $params['via'] ?? ['database']
-            );
-            $errorProcessingImageNotification = new ImageProcessingPushNotification(
-                user: $message->user,
-                entity: $message,
-                message: 'You have reached your daily image generation limit.',
-                title: 'Daily Limit Reached',
-                via: $endViaList,
-                templates: [
-                    'email_template' => $params['email_template'],
-                    'push_template' => $params['push_template'],
-                ],
-            );
+            try {
+                $endViaList = array_map(
+                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                    $params['via'] ?? ['database']
+                );
+                $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                    user: $message->user,
+                    entity: $message,
+                    message: 'You have reached your daily image generation limit.',
+                    title: 'Daily Limit Reached',
+                    via: $endViaList,
+                    templates: [
+                        'email_template' => $params['email_template'],
+                        'push_template' => $params['push_template'],
+                    ],
+                );
 
-            //send to the user profile when it fails
-            $errorProcessingImageNotification->setData([
-                'destination_id' => $message->getId(),
-                'destination_type' => 'USER',
-                'destination_event' => 'FOLLOWING',
-            ]);
-            $message->user->notify($errorProcessingImageNotification);
-            $message->delete();
+                //send to the user profile when it fails
+                $errorProcessingImageNotification->setData([
+                    'destination_id' => $message->getId(),
+                    'destination_type' => 'USER',
+                    'destination_event' => 'FOLLOWING',
+                ]);
+                $message->user->notify($errorProcessingImageNotification);
+                $message->delete();
+            } catch (Throwable $e) {
+                report($e);
+            }
 
             return [
                 'result' => false,
