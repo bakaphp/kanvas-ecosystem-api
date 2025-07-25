@@ -62,7 +62,7 @@ class RecombeeIndexService
             'categories' => 'set',
             'type' => 'string',
             'is_regenerated_image' => 'boolean',
-            'is_public' => 'boolean',
+            'is_public' => 'int',
         ];
         $existingProperties = $this->client->send(new ListItemProperties());
         $existingPropertyNames = array_column($existingProperties, 'name');
