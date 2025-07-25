@@ -274,6 +274,112 @@ class ImportOrderItemsCsvTest extends TestCase
         $this->assertStringContainsString($variantResponse['name'], $message);
     }
 
+
+    public function testImportOrderItemsWithAvailableGlobalStock(): void
+    {
+        $app = app(Apps::class);
+        $regionResponse = $this->createRegion()->json()['data']['createRegion'];
+        $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+
+        $warehouseData = [
+            'id' => $warehouseResponse['id'],
+        ];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+        $variantResponse2 = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 10
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse2['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 10
+        );
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $operations = [
+            'query' =>
+            /** @lang GraphQL */
+            '
+                mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
+                    importOrderCsv(input: {file: $file, channel_id: $channel_id})
+                    { 
+                        status, 
+                        message 
+                    } 
+                }
+            ',
+            'variables' => [
+                'file' => null,
+                'channel_id' => $channelResponse['id'],
+                'app_id' => $app->getId(),
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $csv = $this->getValidProductsCsvContent([
+            [
+                'id' => $variantResponse['id'],
+                'name' => $variantResponse['name'],
+                'ean' => $variantResponse['ean'],
+            ],
+            [
+                'id' => $variantResponse2['id'],
+                'name' => $variantResponse2['name'],
+                'ean' => $variantResponse2['ean'],
+            ],
+        ], 5);
+
+        $file = [
+            '0' => UploadedFile::fake()->createWithContent('products.csv', $csv),
+        ];
+
+        $response = $this->multipartGraphQL($operations, $map, $file);
+
+        // Check that the message contains the expected error text
+        $responseData = $response->json();
+
+        $cartQuery = $this->graphQL(/** @lang GraphQL */ '
+            {
+                cart {
+                    id
+                    items {
+                        id
+                        name
+                        price
+                        variant {
+                            id
+                            name
+                            sku
+                        }
+                        quantity
+                        attributes
+                    }
+                    total
+                }
+            }
+        ');
+        $cartItems = $cartQuery->json()['data']['cart']['items'];
+
+        $this->assertCount(2, $cartItems);
+    }
+
     private function getProductsCsvContent($qty = 0): string
     {
         return '"Instructions: Please fill out the Quantity fields. Ensure all entries are accurate before uploading. Save the file as a CSV format."
