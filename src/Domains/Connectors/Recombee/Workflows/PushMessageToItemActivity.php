@@ -26,6 +26,14 @@ class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivi
     {
         $this->overwriteAppService($app);
 
+        if (! $message->is_public) {
+            return [
+                'result' => false,
+                'message' => 'Message is not public, should not be indexed',
+                'id' => $message->id,
+            ];
+        }
+
         try {
             $company = $app->getAppCompany();
         } catch (ModelNotFoundException $e) {
