@@ -109,9 +109,9 @@ class PromptAgentEngagerCommand extends Command
 
             foreach ($allMessages as $message) {
                 if (! isset($message['message']['title'])) {
-                  //  $this->error('Message does not have a title. Skipping.');
+                    //  $this->error('Message does not have a title. Skipping.');
 
-                   // continue;
+                    // continue;
                 }
 
                 $content = 'Tittle :' . ($message['message']['title'] ?? $message['message']['prompt']);
