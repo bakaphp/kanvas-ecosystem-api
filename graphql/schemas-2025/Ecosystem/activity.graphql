@@ -37,14 +37,8 @@ enum ActivityLogEnum {
 
 extend type Query @guard {
     getActivityLog(
-        where: _@whereConditions(columnsEnum: ActivityLogEnum)
-        orderBy: _@orderBy(
-            columns: [
-                "id"
-                "created_at"
-                "updated_at"
-            ]
-        )
+        where: _ @whereConditions(columnsEnum: ActivityLogEnum)
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [ActivityLog!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\ActivityLog\\ActivityLogQuery@getAllAppCompanyActivityLogs"
