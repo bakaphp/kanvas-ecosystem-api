@@ -10,11 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Models\BaseModel;
 
 class Agent extends BaseModel
 {
     use UuidTrait;
+    use HasFilesystemTrait;
     protected $fillable = [
         'uuid',
         'apps_id',

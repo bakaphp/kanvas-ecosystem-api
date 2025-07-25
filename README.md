@@ -42,8 +42,8 @@ Unlike typical low-code automation tools, Kanvas is designed to be part of your 
 
 ## Prerequisites
 
-- PHP ^8.3
-- Laravel ^11.0
+- PHP ^8.4
+- Laravel ^12.0
 
 ## Initial Setup
 

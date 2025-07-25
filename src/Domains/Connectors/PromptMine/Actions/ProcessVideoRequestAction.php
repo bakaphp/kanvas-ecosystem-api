@@ -167,7 +167,7 @@ class ProcessVideoRequestAction
     /**
      * Submit image-to-video request and return request ID
      */
-    protected function submitImageToVideo(string $imageUrl, string $videoModel, string $apiUrl): ?string
+    protected function submitImageToVideo(string $imageUrl, string $videoModel, string $apiUrl): array
     {
         // Get default values from app settings
         $defaultValues = $this->getDefaultVideoValues('image-to-video');
@@ -209,7 +209,7 @@ class ProcessVideoRequestAction
             throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
         }
 
-        return $submitResponse['request_id'];
+        return $submitResponse;
     }
 
     /**

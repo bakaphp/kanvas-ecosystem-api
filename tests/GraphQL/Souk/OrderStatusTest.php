@@ -146,6 +146,15 @@ class OrderStatusTest extends OrderBase
             'X-Kanvas-App' => $this->apps->key,
         ]);
 
+        $orderTransitionHistory = OrderTransitionHistory::where([
+            'order_id' => $order->id,
+            'from_status_id' => null,
+            'to_status_id' => $order->orderStatus->id,
+            'is_current' => true,
+        ])->first();
+
+        $this->assertNotNull($orderTransitionHistory);
+
         $this->assertEquals($response->json('data.orders.data.0.order_status.name'), 'Draft');
     }
 

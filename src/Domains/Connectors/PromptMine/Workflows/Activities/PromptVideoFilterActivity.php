@@ -84,7 +84,7 @@ class PromptVideoFilterActivity extends KanvasActivity
         dispatch(function () use ($entity, $app, $requestId, $videoModel, $params) {
             $service = new VideoProcessingService($entity, $app);
             $service->checkVideoProcessingStatus($requestId, $videoModel, $params);
-        })->delay(now()->addMinutes(8)); // Wait 8 minutes before first check
+        })->delay(now()->addMinutes(5)); // Wait 8 minutes before first check
     }
 
     /**

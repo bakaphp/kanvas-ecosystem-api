@@ -16,7 +16,8 @@ class CreateSessionAction
     {
         $content = $this->session->content ? [] : new CreateContentSessionAction(
             $this->session->entity_namespace,
-            $this->session->entity_id
+            $this->session->entity_id,
+            $this->session->agent
         )->execute();
 
         return SessionModel::updateOrCreate([

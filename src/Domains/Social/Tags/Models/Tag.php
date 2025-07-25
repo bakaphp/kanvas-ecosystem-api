@@ -80,7 +80,7 @@ class Tag extends BaseModel
     {
         return [
             'objectID' => $this->id,
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'name' => $this->name,
             'company' => [
                 'id' => $this->companies_id,
