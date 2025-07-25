@@ -32,7 +32,7 @@ class PopulateTrendingFeedAction
 
         Message::fromApp($this->app)->whereHas('tags', function ($query) use ($trendingSlug) {
             $query->where('slug', $trendingSlug)
-                ->where('messages.is_public', 1)
+                ->where('messages.is_public', 0)
                 ->where('messages.is_deleted', 0);
         })->get()->each(function ($message) use ($trendingSlug) {
             $message->removeTag($trendingSlug);
