@@ -71,8 +71,7 @@ class IdVerificationService
         $results['facial_match_probability'] = $facial['matchProbability'] ?? null;
         $results['facial_liveness_probability'] = $facial['livenessProbability'] ?? null;
 
-        // OCR CHECK - NEW RULE
-        // Check for any "False" values in the OCR match fields (any false value causes failure)
+        // OCR CHECK - ADJUSTED FOR SHOWROOM MODE
         $hasOcrFailure = false;
         $ocrMatchFields = [
             'isDlClassMatch',
@@ -88,45 +87,85 @@ class IdVerificationService
             'isNameMatch',
         ];
 
+        // Define critical fields for showroom mode
+        $criticalFields = [
+            'isNameMatch',
+            'isDocumentNumberMatch',
+            'isDobMatch',
+            'isSexMatch',
+        ];
+
         $ocrFailedFields = [];
-        $allFieldsFailed = true; // Assume all fields failed initially
+        $criticalFailedFields = [];
+        $nonCriticalFailedFields = [];
+        $allFieldsFailed = true;
+
         foreach ($ocrMatchFields as $field) {
-            // Check if the field is present
             if (isset($ocrMatch[$field])) {
                 if ($ocrMatch[$field] === false) {
-                    // Field failed, add to failed fields
                     $ocrFailedFields[] = $field;
+
+                    // Separate critical vs non-critical fields for showroom mode
+                    if ($isShowRoom && in_array($field, $criticalFields)) {
+                        $criticalFailedFields[] = $field;
+                    } else {
+                        $nonCriticalFailedFields[] = $field;
+                    }
                 } else {
-                    // At least one field passed, so not all fields failed
                     $allFieldsFailed = false;
                 }
             } else {
-                // Field is not present, so we can't say all fields failed
                 $allFieldsFailed = false;
             }
         }
 
-        // Only mark as failure if ALL fields failed (and we have at least one field)
-        if ($allFieldsFailed && ! empty($ocrFailedFields)) {
-            $failures[] = 'OCR verification failed: ' . implode(', ', $ocrFailedFields);
-            $failureGroups[] = 'OCR mismatch';
+        // Handle OCR failures based on mode
+        if ($isShowRoom) {
+            // In showroom mode: critical field mismatches are failures, others are flags
+            if (! empty($criticalFailedFields)) {
+                $criticalReadableFields = array_map(function ($field) {
+                    $readable = str_replace(['is', 'Match'], '', $field);
+
+                    return trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
+                }, $criticalFailedFields);
+
+                $failures[] = 'Critical OCR verification failed: ' . implode(', ', $criticalReadableFields);
+                $failureGroups[] = 'OCR critical mismatch';
+                $hasOcrFailure = true;
+            }
+
+            if (! empty($nonCriticalFailedFields)) {
+                $nonCriticalReadableFields = array_map(function ($field) {
+                    $readable = str_replace(['is', 'Match'], '', $field);
+
+                    return trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
+                }, $nonCriticalFailedFields);
+
+                $flags[] = 'OCR verification issues: ' . implode(', ', $nonCriticalReadableFields);
+                $flagGroups[] = 'OCR non-critical mismatch';
+                $flagNotice = true;
+            }
+        } else {
+            // Original logic for non-showroom mode
+            if ($allFieldsFailed && ! empty($ocrFailedFields)) {
+                $failures[] = 'OCR verification failed: ' . implode(', ', $ocrFailedFields);
+                $failureGroups[] = 'OCR mismatch';
+            }
+
+            if (! empty($ocrFailedFields)) {
+                $readableFailedFields = array_map(function ($field) {
+                    $readable = str_replace(['is', 'Match'], '', $field);
+
+                    return trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
+                }, $ocrFailedFields);
+
+                $flags[] = 'OCR verification issues: ' . implode(', ', $readableFailedFields);
+                $flagGroups[] = 'OCR mismatch';
+                $flagNotice = true;
+            }
         }
 
-        // Also add flags for any individual OCR field that fails
-        if (! empty($ocrFailedFields)) {
-            // Convert field names to readable format
-            $readableFailedFields = array_map(function ($field) {
-                $readable = str_replace(['is', 'Match'], '', $field);
-
-                return trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
-            }, $ocrFailedFields);
-
-            $flags[] = 'OCR verification issues: ' . implode(', ', $readableFailedFields);
-            $flagGroups[] = 'OCR mismatch';
-            $flagNotice = true; // Ensure it triggers a flag status
-        }
-
-        // Count total matches for reporting purposes (even though we're using the new rule)
+        // Count total matches for reporting purposes
         $ocrRequiredMatches = array_filter([
             $ocrMatch['isDlClassMatch'] ?? false,
             $ocrMatch['isDobMatch'] ?? false,
@@ -144,14 +183,14 @@ class IdVerificationService
         $totalOcrMatches = count($ocrRequiredMatches);
         $ocrMatchScore = $totalOcrMatches > 0 ? $totalOcrMatches / 11 * 100 : 0;
         $results['ocr_required_matches'] = $ocrMatchScore;
-        $ocMatch = ! $hasOcrFailure;  // OCR match is true if there are no failures
+        $ocMatch = ! $hasOcrFailure;
 
         // ID CHECK
         $isExpired = strtolower($idCheck['expired'] ?? 'no') === 'yes';
         if ($isExpired) {
             $flags[] = 'ID is expired';
             $flagGroups[] = 'ID check flag';
-            $flagNotice = true;  // Ensure expired IDs always trigger a flag status
+            $flagNotice = true;
         }
 
         if (strtolower($idCheck['processResult'] ?? '') === 'documentunknown') {
@@ -169,7 +208,7 @@ class IdVerificationService
         }
 
         // Skip IPQS validation if in showroom mode or IPQS address data is empty
-        $skipIpqsValidation = empty($ipqsAddress);
+        $skipIpqsValidation = $isShowRoom || empty($ipqsAddress);
         $flagGroupScores = [];
 
         if (! $skipIpqsValidation) {
@@ -285,13 +324,13 @@ class IdVerificationService
 
         if (empty($failures)) {
             // Always make sure expired IDs are flagged
-            //if ($isExpired || count($flags) >= 2 || $flagNotice) {
             if ($isExpired || ($flagNotice && count($flagGroupScores) >= 2)) {
                 // Create message using flag groups
                 $flagReasons = [];
                 foreach ($flaggedGroups as $group) {
                     switch ($group) {
                         case 'OCR mismatch':
+                        case 'OCR non-critical mismatch':
                             $flagReasons[] = 'document verification concerns';
 
                             break;
@@ -326,14 +365,8 @@ class IdVerificationService
                 $status = 'green';
             }
         } else {
-            /*   if ($isExpired) {
-                  $message = "$name failed the ID Verification due to expired ID" .
-                      (! empty($failedGroups) ? ' and detected fraud from ' . implode(', ', $failedGroups) : '') .
-                      '. Proceed with caution.';
-              } else { */
             $message = "$name failed the ID Verification due to detected fraud from " .
                 implode(', ', $failedGroups) . '. Proceed with caution.';
-            //}
             $status = 'fail';
         }
 
