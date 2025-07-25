@@ -56,6 +56,11 @@ class DriversLicense extends Data
 
     public static function fromArray(array $license): self
     {
+        $fromIntellicheck = isset($license['license']) && isset($license['address']) && isset($license['state']) && isset($license['license']);
+        if ($fromIntellicheck) {
+            return self::fromIntellicheckDriversLicense($license);
+        }
+
         return new self(
             (string) $license[0]['value'],
             (string) $license[1]['value'],
@@ -78,6 +83,71 @@ class DriversLicense extends Data
             (string) $license[18]['value'],
             (string) $license[19]['value'],
             (string) $license[20]['value']
+        );
+    }
+
+    public static function fromIntellicheckDriversLicense(array $license): self
+    {
+        // Parse the address into components
+        $addressLines = explode("\n", trim($license['address'] ?? ''));
+        $streetAddress = $addressLines[0] ?? '';
+        if (count($addressLines) > 1 && strpos($addressLines[1], 'APT') === 0) {
+            $streetAddress .= ' ' . $addressLines[1];
+            $cityStateZip = $addressLines[2] ?? '';
+        } else {
+            $cityStateZip = $addressLines[1] ?? '';
+        }
+
+        // Parse city, state, zip from the last address line
+        $cityStateZipParts = explode(', ', $cityStateZip);
+        $city = $cityStateZipParts[0] ?? '';
+        $stateZip = $cityStateZipParts[1] ?? '';
+        $stateZipParts = explode(' ', $stateZip);
+        $state = $stateZipParts[0] ?? $license['state'] ?? '';
+        $zipCode = $stateZipParts[1] ?? '';
+
+        // Format dates
+        $birthDate = '';
+        if (isset($license['birthday'])) {
+            $birthday = $license['birthday'];
+            $birthDate = sprintf('%04d-%02d-%02d', $birthday['year'], $birthday['month'], $birthday['day']);
+        }
+
+        $expirationDate = '';
+        if (isset($license['exp_date'])) {
+            $expDate = $license['exp_date'];
+            $expirationDate = sprintf('%04d-%02d-%02d', $expDate['year'], $expDate['month'], $expDate['day']);
+        } elseif (isset($license['expDate'])) {
+            $expDate = $license['expDate'];
+            $expirationDate = sprintf('%04d-%02d-%02d', $expDate['year'], $expDate['month'], $expDate['day']);
+        }
+
+        // Build full name
+        $fullName = trim(($license['firstname'] ?? '') . ' ' . ($license['middlename'] ?? '') . ' ' . ($license['lastname'] ?? ''));
+        $fullName = preg_replace('/\s+/', ' ', $fullName); // Remove extra spaces
+
+        return new self(
+            region: $state, // Using state as region
+            documentNumber: (string) ($license['license'] ?? ''),
+            vehicleClassification: '', // Not provided in Intellicheck format
+            expirationDate: $expirationDate,
+            lastName: (string) ($license['lastname'] ?? ''),
+            firstName: (string) ($license['firstname'] ?? ''),
+            fullName: $fullName,
+            streetAddress: $streetAddress,
+            city: $city,
+            state: $state,
+            zipCode: $zipCode,
+            birthDate: $birthDate,
+            restriction: '', // Not provided in Intellicheck format
+            endorsements: '', // Not provided in Intellicheck format
+            sex: '', // Not provided in Intellicheck format
+            hairColor: '', // Not provided in Intellicheck format
+            eyeColor: '', // Not provided in Intellicheck format
+            height: '', // Not provided in Intellicheck format
+            weight: '', // Not provided in Intellicheck format
+            issueDate: '', // Not provided in Intellicheck format
+            documentDiscriminator: '' // Not provided in Intellicheck format
         );
     }
 }
