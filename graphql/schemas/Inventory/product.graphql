@@ -57,8 +57,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
-    activities: [ActivityLog!]
-        @method(name: "getActivities")
+    activities: [ActivityLog!] @method(name: "getActivities")
 }
 
 ### @todo extract this into its own type.
@@ -284,15 +283,13 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
             defaultCount: 25
-        ) 
+        )
         @searchCache
     productsExport: EntityExport
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"
         )
-    productSemanticSearch(
-        query: String!
-    ): [Product!]!
+    productSemanticSearch(query: String!): [Product!]!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@productSemanticSearch"
         )

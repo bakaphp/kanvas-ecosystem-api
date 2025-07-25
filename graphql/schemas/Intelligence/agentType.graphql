@@ -42,12 +42,21 @@ extend type Mutation @guard {
 extend type Query @guard {
     agentTypes(
         search: String @search
-        where: _ @whereConditions(columns: ["id", "name", "is_active", "is_default", "is_published"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "is_active"
+                    "is_default"
+                    "is_published"
+                ]
+            )
         orderBy: _ @orderBy(columns: ["id", "createdAt", "updatedAt", "name"])
     ): [agentType!]!
-    @paginate(
-        model: "Kanvas\\Intelligence\\Agents\\Models\\AgentType",
-        defaultCount: 25,
-        scopes: ["fromApp"]
-    )
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentType"
+            defaultCount: 25
+            scopes: ["fromApp"]
+        )
 }

@@ -66,7 +66,16 @@ extend type Mutation @guard {
 extend type Query @guard {
     agentsAi(
         search: String @search
-        where: _ @whereConditions(columns: ["id", "description", "is_active", "agent_type_id", "company_task_list_id"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "description"
+                    "is_active"
+                    "agent_type_id"
+                    "company_task_list_id"
+                ]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [AgentAi!]!
         @paginate(
@@ -75,12 +84,15 @@ extend type Query @guard {
             scopes: ["fromCompany", "fromApp"]
         )
     agentModels(
-        where: _ @whereConditions(columns: ["id", "name", "is_active", "is_published"])
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "is_active", "is_published"]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [AgentAiModel!]!
         @paginate(
-            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentModel",
-            defaultCount: 25,
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentModel"
+            defaultCount: 25
             scopes: ["fromApp"]
         )
 }
