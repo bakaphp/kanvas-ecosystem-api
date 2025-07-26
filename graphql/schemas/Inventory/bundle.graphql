@@ -1,0 +1,11 @@
+type Bundle {
+    id: ID!
+    company: Company! @belongsTo(relation: "company")
+    app: App! @belongsTo(relation: "app")
+    variant: Variant @belongsTo(relation: "variant")
+    name: String!
+    description: String
+    execution_mode: String
+    expose_as_product: Boolean
+    variants: [Variant!]! @BelongsToMany(relation: "variants", type: PAGINATOR)
+}
