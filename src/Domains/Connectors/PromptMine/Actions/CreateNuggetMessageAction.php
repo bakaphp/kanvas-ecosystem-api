@@ -24,18 +24,18 @@ class CreateNuggetMessageAction
             'video-format' => 'video',
             default => 'nugget',
         };
-        $nuggetMessage = Message::on('social')->create([
+        $nuggetMessage = Message::create([
             'parent_id' => $this->parentMessage->getId(),
             'apps_id' => $this->parentMessage->apps_id,
             'uuid' => DB::raw('uuid()'),
             'companies_id' => $this->parentMessage->companies_id,
             'users_id' => $this->parentMessage->users_id,
             'message_types_id' => MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app)->getId(),
-            'message' => [
+            'message' => array_merge([
                 'title' => $this->messageData['title'],
                 'type' => $this->messageData['type'],
                 $messageTypeValue => $this->messageData[$messageTypeValue],
-            ],
+            ], $this->messageData['message']),
             'is_public' => $this->messageData['is_public'] ?? 1,
             'created_at' => now(),
             'updated_at' => now(),
@@ -43,8 +43,6 @@ class CreateNuggetMessageAction
 
         $nuggetMessage->addTags($this->parentMessage->tags->pluck('name')->toArray());
 
-        /*  $this->parentMessage->total_children++;
-         $this->parentMessage->save(); */
         return $nuggetMessage;
     }
 }
