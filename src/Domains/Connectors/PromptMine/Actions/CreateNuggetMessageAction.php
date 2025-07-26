@@ -35,7 +35,7 @@ class CreateNuggetMessageAction
                 'title' => $this->messageData['title'],
                 'type' => $this->messageData['type'],
                 $messageTypeValue => $this->messageData[$messageTypeValue],
-            ], $this->messageData['message']),
+            ], $this->messageData),
             'is_public' => $this->messageData['is_public'] ?? 1,
             'created_at' => now(),
             'updated_at' => now(),
