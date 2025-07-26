@@ -31,11 +31,15 @@ class CreateNuggetMessageAction
             'companies_id' => $this->parentMessage->companies_id,
             'users_id' => $this->parentMessage->users_id,
             'message_types_id' => MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app)->getId(),
-            'message' => array_merge([
-                'title' => $this->messageData['title'],
-                'type' => $this->messageData['type'],
-                $messageTypeValue => $this->messageData[$messageTypeValue],
-            ], $this->messageData),
+            'message' => [
+                'title' => $this->messageData['title'] ?? null,
+                'type' => $this->messageData['type'] ?? null,
+                $messageTypeValue => $this->messageData[$messageTypeValue] ?? null,
+                // Optionally merge in extra fields, excluding duplicates
+                ...collect($this->messageData)
+                    ->except(['title', 'type', $messageTypeValue])
+                    ->toArray(),
+            ],
             'is_public' => $this->messageData['is_public'] ?? 1,
             'created_at' => now(),
             'updated_at' => now(),
