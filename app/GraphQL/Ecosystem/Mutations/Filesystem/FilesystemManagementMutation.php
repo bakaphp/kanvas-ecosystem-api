@@ -325,4 +325,14 @@ class FilesystemManagementMutation
 
         return null;
     }
+
+    public function renameFile(mixed $rootVale, array $request): Filesystem
+    {
+        $filesystem = Filesystem::getById($request['id'], app(Apps::class));
+        $filesystem->update([
+            'name' => $request['name'],
+        ]);
+
+        return $filesystem;
+    }
 }
