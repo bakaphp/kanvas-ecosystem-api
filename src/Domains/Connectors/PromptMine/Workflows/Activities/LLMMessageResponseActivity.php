@@ -109,8 +109,9 @@ class LLMMessageResponseActivity extends KanvasActivity
                 ))->execute();
 
                 if ($promptChannel && empty($promptChannel->title)) {
-                    $promptChannel->name = $message->message['title'] ?? $nuggetTitle;
-                    $promptChannel->title = $promptChannel->name;
+                    $channelName = $this->cleanChannelTitle($message->message['title'] ?? $nuggetTitle);
+                    $promptChannel->name = $channelName;
+                    $promptChannel->title = $channelName;
                     $promptChannel->update();
                 }
 
@@ -126,6 +127,42 @@ class LLMMessageResponseActivity extends KanvasActivity
             },
             company: $company,
         );
+    }
+
+    private function cleanChannelTitle(string $title): string
+    {
+        // Remove markdown formatting
+        $cleanTitle = preg_replace('/\*\*([^*]+)\*\*/', '$1', $title);
+
+        // Extract just the title part if it follows the pattern "**Title:** ActualTitle"
+        if (preg_match('/\*\*Title:\*\*\s*([^\n\r*]+)/', $cleanTitle, $matches)) {
+            $cleanTitle = trim($matches[1]);
+        }
+
+        // If it still contains image prompt markers, extract just the title before the prompt
+        if (Str::contains($cleanTitle, '/imagine')) {
+            $parts = explode('/imagine', $cleanTitle);
+            $cleanTitle = trim($parts[0]);
+        }
+
+        // Remove any remaining markdown or special characters
+        $cleanTitle = preg_replace('/[*#`\[\]]+/', '', $cleanTitle);
+
+        // Remove extra whitespace and newlines
+        $cleanTitle = preg_replace('/\s+/', ' ', $cleanTitle);
+        $cleanTitle = trim($cleanTitle);
+
+        // If title is still empty or too generic, use a fallback
+        if (empty($cleanTitle) || strlen($cleanTitle) < 3) {
+            $cleanTitle = 'AI Generated Content';
+        }
+
+        // Truncate to 190 characters to leave some buffer
+        if (strlen($cleanTitle) > 190) {
+            $cleanTitle = substr($cleanTitle, 0, 187) . '...';
+        }
+
+        return $cleanTitle;
     }
 
     private function generateChatResponse(Message $message): array
