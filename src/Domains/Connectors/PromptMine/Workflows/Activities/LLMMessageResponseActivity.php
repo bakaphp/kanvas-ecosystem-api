@@ -140,7 +140,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         }
 
         // If it still contains image prompt markers, extract just the title before the prompt
-        if (strpos($cleanTitle, '/imagine') !== false) {
+        if (Str::contains($cleanTitle, '/imagine')) {
             $parts = explode('/imagine', $cleanTitle);
             $cleanTitle = trim($parts[0]);
         }
