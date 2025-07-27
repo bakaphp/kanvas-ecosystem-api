@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "61a913b0cfe4045a149b9e492f9c9883",
+    "content-hash": "d5d362ecf07e1f12a7f773bfe83b4653",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -16425,16 +16425,16 @@
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
-            "version": "v2.1.1",
+            "version": "dev-hotfix-version-6.22.2",
             "source": {
                 "type": "git",
-                "url": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema.git",
-                "reference": "5846573cf249ea75c0e6f88725a4949544e6e1b8"
+                "url": "https://github.com/bakaphp/laravel-lighthouse-graphql-multi-schema.git",
+                "reference": "79b1398c6af99dc463ef8d396908f2bbb45e5e87"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/as-yakovenko/laravel-lighthouse-graphql-multi-schema/zipball/5846573cf249ea75c0e6f88725a4949544e6e1b8",
-                "reference": "5846573cf249ea75c0e6f88725a4949544e6e1b8",
+                "url": "https://api.github.com/repos/bakaphp/laravel-lighthouse-graphql-multi-schema/zipball/79b1398c6af99dc463ef8d396908f2bbb45e5e87",
+                "reference": "79b1398c6af99dc463ef8d396908f2bbb45e5e87",
                 "shasum": ""
             },
             "require": {
@@ -16455,7 +16455,11 @@
                     "Yakovenko\\LighthouseGraphqlMultiSchema\\": "src/"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "autoload-dev": {
+                "psr-4": {
+                    "Yakovenko\\LighthouseGraphqlMultiSchema\\Tests\\": "tests/"
+                }
+            },
             "license": [
                 "MIT"
             ],
@@ -16475,10 +16479,9 @@
                 "multi-schema"
             ],
             "support": {
-                "issues": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/issues",
-                "source": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/tree/v2.1.1"
+                "source": "https://github.com/bakaphp/laravel-lighthouse-graphql-multi-schema/tree/hotfix-version-6.22.2"
             },
-            "time": "2025-06-17T10:49:45+00:00"
+            "time": "2025-07-27T04:41:21+00:00"
         }
     ],
     "packages-dev": [
@@ -18901,7 +18904,8 @@
         "grantholle/laravel-username-generator": 20,
         "rennokki/laravel-eloquent-query-cache": 20,
         "typesense/laravel-scout-typesense-driver": 20,
-        "webleit/zohocrmapi": 20
+        "webleit/zohocrmapi": 20,
+        "yakovenko/laravel-lighthouse-graphql-multi-schema": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

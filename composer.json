@@ -82,7 +82,7 @@
         "typesense/typesense-php": "^4.2",
         "vlucas/phpdotenv": "^5.5",
         "webleit/zohocrmapi": "dev-master",
-        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^2.0.0"
+        "yakovenko/laravel-lighthouse-graphql-multi-schema": "dev-hotfix-version-6.22.2"
     },
     "require-dev": {
         "beyondcode/laravel-dump-server": "^2.1",
@@ -195,6 +195,10 @@
         {
             "type": "vcs",
             "url": "https://github.com/byErikas/laravel-eloquent-query-cache.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/bakaphp/laravel-lighthouse-graphql-multi-schema.git"
         }
     ],
     "extra": {
