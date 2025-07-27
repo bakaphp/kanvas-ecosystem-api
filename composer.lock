@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d5d362ecf07e1f12a7f773bfe83b4653",
+    "content-hash": "4f1d687c96f4dc38407b6107a485109b",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -5111,16 +5111,16 @@
         },
         {
             "name": "laravel/octane",
-            "version": "v2.12.0",
+            "version": "2.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/octane.git",
-                "reference": "d606f3dffc785032f11c23a017334c99800f2e40"
+                "reference": "4ca38b90d76f31b8c1e27873316c2db34450151c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/octane/zipball/d606f3dffc785032f11c23a017334c99800f2e40",
-                "reference": "d606f3dffc785032f11c23a017334c99800f2e40",
+                "url": "https://api.github.com/repos/laravel/octane/zipball/4ca38b90d76f31b8c1e27873316c2db34450151c",
+                "reference": "4ca38b90d76f31b8c1e27873316c2db34450151c",
                 "shasum": ""
             },
             "require": {
@@ -5152,6 +5152,7 @@
                 "spiral/roadrunner-cli": "^2.6.0",
                 "spiral/roadrunner-http": "^3.3.0"
             },
+            "default-branch": true,
             "bin": [
                 "bin/roadrunner-worker",
                 "bin/swoole-server"
@@ -5197,7 +5198,7 @@
                 "issues": "https://github.com/laravel/octane/issues",
                 "source": "https://github.com/laravel/octane"
             },
-            "time": "2025-07-18T15:50:14+00:00"
+            "time": "2025-07-25T15:03:05+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -18902,6 +18903,7 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "grantholle/laravel-username-generator": 20,
+        "laravel/octane": 20,
         "rennokki/laravel-eloquent-query-cache": 20,
         "typesense/laravel-scout-typesense-driver": 20,
         "webleit/zohocrmapi": 20,
