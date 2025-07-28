@@ -3,13 +3,13 @@ type agentType {
     uuid: String!
     name: String!
     description: String
-    config: JSON
-    role: String
+    config: Mixed
+    role: Mixed
     is_active: Boolean!
     is_default: Boolean!
     is_published: Boolean!
     is_multi_agent: Boolean!
-    multi_agent_list: JSON
+    multi_agent_list: Mixed
     description: String
     createdAt: DateTime!
     updatedAt: DateTime!
@@ -17,13 +17,13 @@ type agentType {
 input AgentTypeInput {
     name: String!
     description: String
-    config: String
+    config: String!
     is_active: Boolean
-    role: String
+    role: String!
     is_default: Boolean
     is_published: Boolean
     is_multi_agent: Boolean
-    multi_agent_list: String
+    multi_agent_list: Mixed!
 }
 extend type Mutation @guard {
     createAgentType(input: AgentTypeInput!): agentType!
