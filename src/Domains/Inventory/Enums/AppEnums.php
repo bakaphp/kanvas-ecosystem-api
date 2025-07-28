@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Enums;
 
 use Baka\Contracts\EnumsInterface;
+use Override;
 
 enum AppEnums implements EnumsInterface
 {
     case PRODUCT_VARIANTS_SEARCH_INDEX;
     case PRODUCT_SEARCH_INDEX;
-    case CAN_USE_COMMERCE_DISCOUNT_PRICE
+    case CAN_USE_COMMERCE_DISCOUNT_PRICE;
 
     #[Override]
     public function getValue(): mixed
