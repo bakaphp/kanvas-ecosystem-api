@@ -28,25 +28,6 @@ class AgentChannelResponderActivity extends KanvasActivity
         $allowedChannels = $params['channelId'] ?? [];
         $channelAgentMapping = $params['channelAgentMapping'] ?? [];
 
-        if (! $message->message['from_me']) {
-            new CreateSessionAction(
-                Session::from([
-                    'app' => $app,
-                    'company' => $channel->company,
-                    'channel' => $channel,
-                    'entity_namespace' => is_object($message->entity()) ? get_class($message->entity()) : null,
-                    'entity_id' => $message->entity()->getId(),
-                    'canal_id' => $message->message['chat_jid'],
-                    'user' => [
-                        'name' => $message->entity()->getName(),
-                        'id' => $message->entity()->getId(),
-                        'email' => $message->entity()->getEmails()->first()?->value,
-                    ],
-                    'agent' => Agent::getById($defaultAgentId, $app),
-                ])
-            )->execute();
-        }
-
         return $this->executeIntegration(
             entity: $channel,
             app: $app,
@@ -89,6 +70,25 @@ class AgentChannelResponderActivity extends KanvasActivity
                         'message' => 'No agent ID found for this channel',
                         'entity' => null,
                     ];
+                }
+
+                if (! $message->message['from_me']) {
+                    new CreateSessionAction(
+                        Session::from([
+                            'app' => $app,
+                            'company' => $channel->company,
+                            'channel' => $channel,
+                            'entity_namespace' => is_object($message->entity()) ? get_class($message->entity()) : null,
+                            'entity_id' => $message->entity()->getId(),
+                            'canal_id' => $message->message['chat_jid'],
+                            'user' => [
+                                'name' => $message->entity()->getName(),
+                                'id' => $message->entity()->getId(),
+                                'email' => $message->entity()->getEmails()->first()?->value,
+                            ],
+                            'agent' => Agent::getById($agentId, $app),
+                        ])
+                    )->execute();
                 }
 
                 return new AgentChannelResponderAction(
