@@ -1,4 +1,4 @@
-FROM php:8.4.10-fpm
+FROM php:8.4.10-cli
 
 # Add docker PHP extension installer
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
