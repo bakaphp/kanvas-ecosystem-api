@@ -21,8 +21,6 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
-
-        $messageData = ! is_array($entity->message) ? json_decode($entity->message, true) : $entity->message;
         $messageType = MessageType::fromApp($entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
 
         if (! isset($messageData['remix_parent_id']) && $entity->message_types_id !== $messageType) {
