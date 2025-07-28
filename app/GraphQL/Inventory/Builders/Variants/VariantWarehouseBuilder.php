@@ -20,7 +20,7 @@ class VariantWarehouseBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        $warehouseId = $args['warehouse_id'];
+        $warehouseId = $args['warehouse_id'] ?? $args['warehouseId'];
 
         $warehouse = Warehouses::fromApp()
         ->where('id', $warehouseId)
