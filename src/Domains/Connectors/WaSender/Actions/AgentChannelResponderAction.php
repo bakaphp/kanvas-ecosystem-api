@@ -109,14 +109,9 @@ class AgentChannelResponderAction
             $this->message->company
         );
 
-        $sentMessages = [];
         // Define the callback to send each chunk in real time
-        $onChunk = function ($text, $data) use ($whatsAppMessageService, $channelId, &$sentMessages): void {
-            $response = $whatsAppMessageService->sendTextMessage($channelId, $text);
-            $sentMessages[] = [
-                'text' => $text,
-                'response' => $response,
-            ];
+        $onChunk = function ($text, $data) use ($whatsAppMessageService, $channelId): void {
+            $whatsAppMessageService->sendTextMessage($channelId, $text);
         };
 
         $question = $currentAgent instanceof ADKAgent ?
@@ -134,7 +129,7 @@ class AgentChannelResponderAction
 
         //if its not an ADKAgent, send the response as a text message
         if (! ($currentAgent instanceof ADKAgent)) {
-            $whatsAppMessageService->sendTextMessage(
+            $responseText = $whatsAppMessageService->sendTextMessage(
                 $channelId,
                 $responseText
             );
