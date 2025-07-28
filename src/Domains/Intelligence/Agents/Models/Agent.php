@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
-use Baka\Traits\SearchableTrait;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Models\BaseModel;
-use Baka\Traits\DynamicSearchableTrait;
 
 class Agent extends BaseModel
 {
