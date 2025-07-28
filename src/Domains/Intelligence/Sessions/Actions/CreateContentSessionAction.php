@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Actions;
 
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Companies\Models\CompaniesBranches;
+
 class CreateContentSessionAction
 {
     public function __construct(

@@ -8,8 +8,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
-use Spatie\LaravelData\Data;
 use Kanvas\Users\Models\Users;
+use Spatie\LaravelData\Data;
+
 class Session extends Data
 {
     public function __construct(
