@@ -18,7 +18,7 @@ class CreateSessionAction
             $this->session->entity_namespace,
             $this->session->entity_id,
             $this->session->agent,
-            $this->session->userModel->getCurrentBranch()
+            $this->session->company->defaultBranch,
         )->execute();
 
         return SessionModel::updateOrCreate([
