@@ -27,7 +27,7 @@ class AgentChannelResponderActivity extends KanvasActivity
         $defaultAgentId = $params['agent_id'] ?? null;
         $allowedChannels = $params['channelId'] ?? [];
         $channelAgentMapping = $params['channelAgentMapping'] ?? [];
-
+        $agent = Agent::getById($defaultAgentId, $app);
         if (! $message->message['from_me']) {
             new CreateSessionAction(
                 Session::from([
@@ -42,8 +42,8 @@ class AgentChannelResponderActivity extends KanvasActivity
                         'id' => $message->entity()->getId(),
                         'email' => $message->entity()->getEmails()->first()?->value,
                     ],
-                    'agent' => Agent::getById($defaultAgentId, $app),
-                    'userModel' => Users::getById($message->users_id),
+                    'agent' => $agent,
+                    'userModel' => Users::getById($agent->user_id),
                 ])
             )->execute();
         }
