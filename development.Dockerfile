@@ -1,4 +1,4 @@
-FROM unit:php8.4
+FROM php:8.4.10-fpm
 
 # Add docker PHP extension installer
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
@@ -42,7 +42,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN chown -R www-data:www-data /var/www/html
 
 # Copy configuration files
-COPY ./docker/unit.json /docker-entrypoint.d/
+# COPY ./docker/unit.json /docker-entrypoint.d/
 COPY docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
 COPY docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 
