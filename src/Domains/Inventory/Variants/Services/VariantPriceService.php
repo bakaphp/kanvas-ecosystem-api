@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 
@@ -62,6 +63,17 @@ class VariantPriceService
         // Use default channel if no channel ID provided
         if (! $channelId) {
             return $this->getDefaultChannelPrice($variant);
+        }
+
+        if ($variant->app->get(AppEnums::CAN_USE_COMMERCE_DISCOUNT_PRICE->getValue())) {
+            // Try to get the discount price if available and greater than 0
+            $discountedPrice = $variant->channels()
+                ->where('channels_id', $channelId)
+                ->value('discount_price');
+
+            if ($discountedPrice !== null && $discountedPrice > 0) {
+                return (float) $discountedPrice;
+            }
         }
 
         // Try to get channel-specific price

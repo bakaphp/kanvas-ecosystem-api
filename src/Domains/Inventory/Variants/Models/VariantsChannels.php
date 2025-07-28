@@ -15,6 +15,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Models\VariantChannelPriceHistory;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Override;
 
 /**
  * Class Variants Channels.
@@ -45,6 +46,7 @@ class VariantsChannels extends BaseModel
     protected $primaryKey = ['product_variants_warehouse_id', 'channels_id'];
     protected $forceDeleting = true;
 
+    #[Override]
     protected function casts(): array
     {
         return [
