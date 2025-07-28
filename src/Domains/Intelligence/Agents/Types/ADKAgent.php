@@ -32,7 +32,7 @@ class ADKAgent
         $this->company = $agent->company;
     }
 
-    public function chat(Channel $channel, Message $message, string $messageContent, array $params = []): self
+    public function chat(Channel $channel, Message $message, string $messageContent, ?callable $onChunk = null): self
     {
         $googleADKService = new GoogleADKService(
             $channel->app,
@@ -47,6 +47,7 @@ class ADKAgent
             (string) $message->users_id,
             $channel->slug,
             $messageContent,
+            $onChunk
         );
 
         return $this;
