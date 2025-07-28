@@ -104,25 +104,46 @@ class AgentChannelResponderAction
                 new AgentMonitoring($inspector)
             );
         }
-
-        $question = $currentAgent instanceof ADKAgent ? $currentAgent->chat($this->channel, $this->message, $messageConversation) : $currentAgent->chat(new UserMessage($messageConversation));
-        $responseContent = $question->getContent();
-
-        // Extract text from response that might be formatted with markdown code blocks
-        $responseText = ChatHelper::extractTextFromResponse($responseContent);
-
         $whatsAppMessageService = new MessageService(
             $this->message->app,
             $this->message->company
         );
 
+        $sentMessages = [];
+        // Define the callback to send each chunk in real time
+        $onChunk = function ($text, $data) use ($whatsAppMessageService, $channelId, &$sentMessages): void {
+            $response = $whatsAppMessageService->sendTextMessage($channelId, $text);
+            $sentMessages[] = [
+                'text' => $text,
+                'response' => $response,
+            ];
+        };
+
+        $question = $currentAgent instanceof ADKAgent ?
+        $currentAgent->chat(
+            $this->channel,
+            $this->message,
+            $messageConversation,
+            $onChunk
+        ) : $currentAgent->chat(new UserMessage($messageConversation));
+
+        $responseContent = $question->getContent();
+
+        // Extract text from response that might be formatted with markdown code blocks
+        $responseText = ChatHelper::extractTextFromResponse($responseContent);
+
+        //if its not an ADKAgent, send the response as a text message
+        if (! ($currentAgent instanceof ADKAgent)) {
+            $whatsAppMessageService->sendTextMessage(
+                $channelId,
+                $responseText
+            );
+        }
+
         return [
             'message' => $messageConversation,
             'responseText' => $responseContent,
-            'response' => $whatsAppMessageService->sendTextMessage(
-                $channelId,
-                $responseText,
-            ),
+            'response' => $responseText,
         ];
     }
 }
