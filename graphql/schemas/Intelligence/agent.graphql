@@ -18,6 +18,8 @@ type AgentAi {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
+    created_at: DateTime!
+    updated_at: DateTime!
 }
 
 type AgentAiModel {
@@ -35,8 +37,8 @@ input AgentAiInput {
     name: String!
     agent_model_id: Int
     description: String
-    config: Mixed
-    role: Mixed
+    config: Mixed!
+    role: Mixed!
     is_active: Boolean
     company_task_list_id: Int
     communication_channels: [CommunicationChannelPivot!]

@@ -21,9 +21,9 @@ class AgentTypeManagementMutation
             description: $input['description'],
             config: $input['config'],
             role: $input['role'],
-            is_active: $input['is_active'],
-            is_published: $input['is_published'],
-            is_multi_agent: $input['is_multi_agent'],
+            is_active: $input['is_active'] ?? true,
+            is_published: $input['is_published'] ?? false,
+            is_multi_agent: $input['is_multi_agent'] ?? false,
             multi_agent_list: $input['multi_agent_list']
         );
         $action = new CreateAgentTypeAction($agentTypeDTO);
@@ -41,9 +41,9 @@ class AgentTypeManagementMutation
             description: $input['description'],
             config: $input['config'],
             role: $input['role'],
-            is_active: $input['is_active'],
-            is_published: $input['is_published'],
-            is_multi_agent: $input['is_multi_agent'],
+            is_active: $input['is_active'] ?? true,
+            is_published: $input['is_published'] ?? false,
+            is_multi_agent: $input['is_multi_agent'] ?? false,
             multi_agent_list: $input['multi_agent_list']
         );
         $action = new UpdateAgentTypeAction($agentTypeDTO, $agentTypeModel);

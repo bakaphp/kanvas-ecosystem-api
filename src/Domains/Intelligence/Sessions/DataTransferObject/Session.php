@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\Data;
 
 class Session extends Data
@@ -23,6 +24,7 @@ class Session extends Data
         public ?int $communication_channels_id = null,
         public array $content = [],
         public ?Agent $agent = null,
+        public ?Users $userModel = null,
     ) {
     }
 }
