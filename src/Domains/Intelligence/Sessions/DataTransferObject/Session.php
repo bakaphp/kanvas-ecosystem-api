@@ -9,7 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Spatie\LaravelData\Data;
-
+use Kanvas\Users\Models\Users;
 class Session extends Data
 {
     public function __construct(
@@ -23,6 +23,7 @@ class Session extends Data
         public ?int $communication_channels_id = null,
         public array $content = [],
         public ?Agent $agent = null,
+        public ?Users $userModel = null,
     ) {
     }
 }

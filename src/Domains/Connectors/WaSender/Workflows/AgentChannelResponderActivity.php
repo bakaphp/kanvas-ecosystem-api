@@ -12,7 +12,7 @@ use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-
+use Kanvas\Users\Models\Users;
 class AgentChannelResponderActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -43,6 +43,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                         'email' => $message->entity()->getEmails()->first()?->value,
                     ],
                     'agent' => Agent::getById($defaultAgentId, $app),
+                    'userModel' => Users::getById($message->users_id),
                 ])
             )->execute();
         }
