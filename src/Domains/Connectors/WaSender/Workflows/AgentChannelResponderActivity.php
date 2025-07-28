@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -27,7 +28,7 @@ class AgentChannelResponderActivity extends KanvasActivity
         $defaultAgentId = $params['agent_id'] ?? null;
         $allowedChannels = $params['channelId'] ?? [];
         $channelAgentMapping = $params['channelAgentMapping'] ?? [];
-
+        $agent = Agent::getById($defaultAgentId, $app);
         if (! $message->message['from_me']) {
             new CreateSessionAction(
                 Session::from([
@@ -42,7 +43,8 @@ class AgentChannelResponderActivity extends KanvasActivity
                         'id' => $message->entity()->getId(),
                         'email' => $message->entity()->getEmails()->first()?->value,
                     ],
-                    'agent' => Agent::getById($defaultAgentId, $app),
+                    'agent' => $agent,
+                    'userModel' => Users::getById($agent->user_id),
                 ])
             )->execute();
         }
