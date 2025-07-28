@@ -44,7 +44,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
         $this->init();
     }
 
-    #[Override]
     public function removeOldMessage(int $index): ChatHistoryInterface
     {
         if (isset($this->history[$index])) {
@@ -186,7 +185,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
         }, $messages);
     }
 
-    #[Override]
     protected function storeMessage(Message $message): ChatHistoryInterface
     {
         // Mark history as dirty for Redis sync
@@ -308,6 +306,16 @@ class RedisAgentChatHistory extends AbstractChatHistory
             $this->updateRedis();
             $this->isDirty = false;
         }
+    }
+
+    #[Override]
+    public function setMessages(array $messages): ChatHistoryInterface
+    {
+        $this->history = $messages;
+        $this->isDirty = true;
+        $this->updateRedis();
+
+        return $this;
     }
 
     public function __destruct()
