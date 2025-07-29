@@ -21,6 +21,7 @@ class OrderTransitionHistory extends BaseModel
         'to_status_id',
         'description',
         'metadata',
+        'is_current',
         'is_deleted',
         'changed_at',
         'changed_by',

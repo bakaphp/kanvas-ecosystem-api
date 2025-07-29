@@ -194,14 +194,13 @@ class OrderStatusTest extends OrderBase
             amount: 100
         );
 
-
-
         $order = $this->createOrderFromCart(
             variantId: $variantResponse['id'],
             quantity: 1,
             metadata: [
                 'data' => []
             ],
+            currency: 'DOP',
             orderType: $this->orderTypeName
         );
 
@@ -246,5 +245,6 @@ class OrderStatusTest extends OrderBase
 
         $this->assertEquals($goodUpdate->json('data.transitionOrderStatus.message'), 'Order status transitioned successfully');
         $this->assertNotNull($orderTransitionHistory);
+        $this->assertEquals(trim($order->currency), 'DOP');
     }
 }
