@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Services;
 
+use FFMpeg\FFMpeg;
+use FFMpeg\Coordinate\TimeCode;
 use Exception;
 use finfo;
 use Illuminate\Http\UploadedFile;
@@ -22,8 +24,6 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 use Throwable;
-use FFMpeg\FFMpeg;
-use FFMpeg\Coordinate\TimeCode;
 
 class VideoProcessingService
 {
@@ -31,7 +31,8 @@ class VideoProcessingService
     public function __construct(
         protected Message $entity,
         protected Apps $app
-    ) {}
+    ) {
+    }
 
     public function checkVideoProcessingStatus(
         string $requestId,
@@ -409,7 +410,7 @@ class VideoProcessingService
             @unlink($thumbnailTempFile);
 
             return $fileSystemRecord;
-        } catch ( Exception $e) {
+        } catch (Exception $e) {
             // Handle the exception
             report($e->getMessage());
             return null;
