@@ -13,12 +13,13 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+
+use function Sentry\captureException;
+
 use Sentry\Laravel\Facade as Sentry;
 use Throwable;
 use Webleit\ZohoCrmApi\Exception\ApiError;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
-
-use function Sentry\captureException;
 
 class SyncLeadToZohoAction
 {
@@ -58,7 +59,9 @@ class SyncLeadToZohoAction
                     $zohoData['Owner'] = $lead->owner->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $company->get(CustomFieldEnum::DEFAULT_OWNER->value);
                 }
 
-                $zohoData['Lead_Status'] = 'New Lead';
+                if (! isset($zohoData['Lead_Status'])) {
+                    $zohoData['Lead_Status'] = 'New Lead';
+                }
                 $organization = $lead->organization;
                 if ($organization) {
                     $zohoData['Company'] = $organization->name;
