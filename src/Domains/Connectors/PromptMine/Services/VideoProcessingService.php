@@ -266,6 +266,7 @@ class VideoProcessingService
         }
 
         $totalDelivery = 0;
+        $thumbnailImageUrl = $this->entity->getFiles()->first()->url ?? 'https://s3.amazonaws.com/mc-canvas/dDVavRYaRGa4eA7yCLFANt0pLWhNYg5Anwee5rvZ.png';
         // Create a new nugget message with the processed video
         $cdnVideoUrl = $this->entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
         $createNuggetMessage = (new CreateNuggetMessageAction(
@@ -274,7 +275,7 @@ class VideoProcessingService
                 'title' => trim($title),
                 'type' => 'video-format',
                 'video' => $cdnVideoUrl,
-                'thumbnail' => 'https://s3.amazonaws.com/mc-canvas/dDVavRYaRGa4eA7yCLFANt0pLWhNYg5Anwee5rvZ.png',
+                'thumbnail' => $thumbnailImageUrl,
                 'is_posted' => true,
             ],
         ))->execute();
