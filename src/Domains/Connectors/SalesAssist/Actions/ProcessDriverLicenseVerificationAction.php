@@ -150,6 +150,11 @@ class ProcessDriverLicenseVerificationAction
                 $this->validateExpirationDate($this->lead, $this->lead->people, $driverLicenseData, $idVerificationData);
             }
 
+            // Send verification notification once for the main lead (moved from individual validations)
+            if ($this->intellicheckResponse && $this->idVerificationReport) {
+                $this->sendVerificationNotification($this->lead, $this->lead->people);
+            }
+
             // Clean up temporary data
             $this->cleanupTemporaryData($this->lead);
 
@@ -167,6 +172,7 @@ class ProcessDriverLicenseVerificationAction
         } catch (Exception $e) {
             DB::rollBack();
             report($e);
+            $this->cleanupTemporaryData($this->lead);
 
             throw $e;
         }
@@ -582,26 +588,15 @@ class ProcessDriverLicenseVerificationAction
             }
         }
 
-        // Send notification about verification status
-        $this->sendVerificationNotification($lead, $people, $isIdValid, $isExpired, $participantName);
+        // Removed notification call from here - now handled in main workflow
 
         return $isExpired;
     }
 
     protected function sendVerificationNotification(
         Lead $lead,
-        People $people,
-        bool $isIdValid,
-        bool $isExpired,
-        ?string $participantName = null
+        People $people
     ): void {
-        $name = $participantName ?? $people->name;
-        //$message = $this->getVerificationMessage($people, $isIdValid, $isExpired);
-
-        if (empty($this->intellicheckResponse)) {
-            return;
-        }
-
         $usersToNotify = UsersRepository::findUsersByArray($lead->company->get('company_manager'), $lead->app);
         $notification = new Blank(
             'id-verification-report',
@@ -618,7 +613,7 @@ class ProcessDriverLicenseVerificationAction
             $lead,
         );
 
-        $notification->setSubject($name . ' - ID Verification Report');
+        $notification->setSubject($people->name . ' - ID Verification Report');
         Notification::send($usersToNotify, $notification);
     }
 

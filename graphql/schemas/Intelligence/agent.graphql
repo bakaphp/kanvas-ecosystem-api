@@ -18,6 +18,8 @@ type AgentAi {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
+    created_at: DateTime!
+    updated_at: DateTime!
 }
 
 type AgentAiModel {
@@ -35,8 +37,8 @@ input AgentAiInput {
     name: String!
     agent_model_id: Int
     description: String
-    config: Mixed
-    role: Mixed
+    config: Mixed!
+    role: Mixed!
     is_active: Boolean
     company_task_list_id: Int
     communication_channels: [CommunicationChannelPivot!]
@@ -66,12 +68,33 @@ extend type Mutation @guard {
 extend type Query @guard {
     agentsAi(
         search: String @search
-        where: _ @whereConditions(columns: ["id", "description", "is_active", "agent_type_id", "company_task_list_id"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "description"
+                    "is_active"
+                    "agent_type_id"
+                    "company_task_list_id"
+                ]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [AgentAi!]!
         @paginate(
             model: "Kanvas\\Intelligence\\Agents\\Models\\Agent"
             defaultCount: 25
             scopes: ["fromCompany", "fromApp"]
+        )
+    agentModels(
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "is_active", "is_published"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [AgentAiModel!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentModel"
+            defaultCount: 25
+            scopes: ["fromApp"]
         )
 }

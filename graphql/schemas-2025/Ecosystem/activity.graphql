@@ -1,0 +1,47 @@
+type ActivityLog {
+    id: ID!
+    log_name: String!
+    description: String
+    model_name: String! @rename(attribute: "subject_type")
+    model_id: ID! @rename(attribute: "subject_id")
+    changes: Mixed! @rename(attribute: "properties")
+    event: String
+    user: User @belongsTo
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input ActivityLogInput {
+    system_module_uuid: String!
+    entity_id: Int!
+    log_name: String!
+    description: String
+    event: String
+    properties: Mixed
+}
+
+extend type Mutation @guard {
+    createActivityLog(input: ActivityLogInput!): ActivityLog!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\ActivityLog\\ActivityLogManagementMutation@createActivityLog"
+        )
+}
+
+enum ActivityLogEnum {
+    ID @enum(value: "activity_log.id")
+    MODEL_NAME @enum(value: "activity_log.subject_type")
+    MODEL_ID @enum(value: "activity_log.subject_id")
+    EVENT @enum(value: "activity_log.event")
+    USER_ID @enum(value: "activity_log.causer_id")
+}
+
+extend type Query @guard {
+    getActivityLog(
+        where: _ @whereConditions(columnsEnum: ActivityLogEnum)
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [ActivityLog!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\ActivityLog\\ActivityLogQuery@getAllAppCompanyActivityLogs"
+            defaultCount: 25
+        )
+}

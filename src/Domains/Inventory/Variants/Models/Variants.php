@@ -23,6 +23,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
+use Kanvas\Activities\Contracts\ActivityLogInterface;
+use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -45,6 +48,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 use Override;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Class Attributes.
@@ -67,7 +72,7 @@ use Override;
  * @property int is_deleted
  */
 #[ObservedBy(VariantObserver::class)]
-class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface
+class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface, ActivityLogInterface
 {
     use SlugTrait;
     use UuidTrait;
@@ -85,6 +90,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use HasRating;
     use HasTranslationsDefaultFallback;
     use HasWallet;
+    use LogsActivity;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
@@ -129,6 +135,28 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public static function searchableIndex(): string
     {
         return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
+    }
+
+    public function getActivityLogName(): string
+    {
+        return 'variant-' . $this->companies_id . '-' . $this->apps_id;
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+        ->useLogName($this->getActivityLogName())
+        ->setDescriptionForEvent(fn (string $eventName) => "This variant has been {$eventName}")
+        ->logOnly(['*'])
+        ->dontLogIfAttributesChangedOnly(['created_at','updated_at','published_at'])
+        ->logOnlyDirty();
+    }
+
+    public function getActivities(): Collection
+    {
+        return Activity::forSubject($this)
+                ->where('log_name', $this->getActivityLogName())
+                ->get();
     }
 
     #[Override]

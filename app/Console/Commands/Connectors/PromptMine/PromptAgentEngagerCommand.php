@@ -103,18 +103,18 @@ class PromptAgentEngagerCommand extends Command
 
             // Simple merge of the data arrays
             $allMessages = array_merge(
+                $publicMessages['data'] ?? [],
                 $forYouFeed['data'] ?? [],
-                $publicMessages['data'] ?? []
             );
 
             foreach ($allMessages as $message) {
                 if (! isset($message['message']['title'])) {
-                    $this->error('Message does not have a title. Skipping.');
+                    //  $this->error('Message does not have a title. Skipping.');
 
-                    continue;
+                    // continue;
                 }
 
-                $content = 'Tittle :' . $message['message']['title'];
+                $content = 'Tittle :' . ($message['message']['title'] ?? $message['message']['prompt']);
                 $messageId = (int) $message['id'];
 
                 $this->info('Analyzing content: ' . $content);
