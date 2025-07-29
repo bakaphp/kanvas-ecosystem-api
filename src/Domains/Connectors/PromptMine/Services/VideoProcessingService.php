@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Services;
 
 use Exception;
-use FFMpeg\FFMpeg;
 use FFMpeg\Coordinate\TimeCode;
+use FFMpeg\FFMpeg;
 use finfo;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
