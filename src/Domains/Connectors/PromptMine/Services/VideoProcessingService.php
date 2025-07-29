@@ -411,7 +411,7 @@ class VideoProcessingService
             return $fileSystemRecord;
         } catch ( Exception $e) {
             // Handle the exception
-            error_log($e->getMessage());
+            report($e->getMessage());
             return null;
         }
     }
