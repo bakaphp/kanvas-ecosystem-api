@@ -143,14 +143,21 @@ class GetOrderStatsAction
             ->orderBy('date_range.report_date')
             ->get();
 
-        return $results->groupBy('date')->map(function ($group) {
+        $daysInRange = collect($this->generateDateList($start, $end))
+            ->map(fn ($date) => trim($date, "'"));
+        
+        $groupedResults = $results->groupBy('date');
+
+        return $daysInRange->map(function ($date) use ($groupedResults) {
+            $group = $groupedResults->get($date, collect());
+
             return [
-                'date' => $group->first()->date,
-                'count' => $group->sum('count'),
-                'states' => $group->map(fn ($item) => [
+                'date' => $date,
+                'count' => $group?->sum('count') ?? 0,
+                'states' => $group?->map(fn ($item) => [
                     'state' => $item->state ?? 'Unknown',
                     'count' => (int) $item->count,
-                ])->toArray(),
+                ])->toArray() ?? [],
             ];
         })->values()->toArray();
     }
