@@ -39,7 +39,6 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                 if (empty($mappedProduct) || $mappedProduct['price'] == 0) {
                     continue;
                 }
-
                 $product = (
                     new ProductImporterAction(
                         ProductImporter::from($mappedProduct),
@@ -57,6 +56,7 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                         $this->uuid,
                         $product,
                         $product->variants()->first()->getPrice($warehouse),
+                        $this->searchText
                     );
                 }
 
