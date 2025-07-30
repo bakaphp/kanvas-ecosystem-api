@@ -414,7 +414,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
         $createNuggetMessage = (new CreateNuggetMessageAction(
-            parentMessage: $entity->parent_id ? $entity->parent : $entity,
+            parentMessage: $entity,
             messageData: [
                 'title' => trim($title),
                 'type' => 'image-format',

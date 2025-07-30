@@ -269,7 +269,7 @@ class VideoProcessingService
         // Create a new nugget message with the processed video
         $cdnVideoUrl = $this->entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
         $createNuggetMessage = (new CreateNuggetMessageAction(
-            parentMessage: $this->entity->parent_id ? $this->entity->parent : $this->entity,
+            parentMessage: $this->entity,
             messageData: [
                 'title' => trim($title),
                 'type' => 'video-format',
