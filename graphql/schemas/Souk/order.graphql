@@ -382,12 +382,14 @@ extend type Query @guard {
                     "users_id"
                     "user_email"
                     "user_phone"
+                    "people_id"
                     "status"
                     "fulfillment_status"
                     "order_number"
                     "reference"
                     "order_types_id"
                     "parent_id"
+                    "created_at"
                 ]
             )
         orderType: _

@@ -64,7 +64,7 @@ class TransitionOrderStateAction
 
                     $current->updateQuietly([
                         'is_current' => false,
-                        'status_ended_at' => $now,
+                        'ended_at' => $now,
                         'duration_in_seconds' => $duration,
                         'ended_by' => $this->user->getId(),
                     ]);
