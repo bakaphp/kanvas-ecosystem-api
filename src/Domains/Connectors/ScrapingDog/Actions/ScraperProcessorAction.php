@@ -57,8 +57,6 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                         $this->uuid,
                         $product,
                         $product->variants()->first()->getPrice($warehouse),
-                        $product->getShopifyId($this->region),
-                        $this->searchText
                     );
                 }
 
