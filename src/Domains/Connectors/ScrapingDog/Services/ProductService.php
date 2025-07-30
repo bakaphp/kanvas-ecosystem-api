@@ -291,11 +291,12 @@ class ProductService
 
     protected function extractListPrice(array $product): float
     {
-        if (isset($product['previous_price']) && ! empty($product['previous_price'])) {
+        $price = $this->extractPrice($product);
+        if ($price == 0 && isset($product['previous_price']) && ! empty($product['previous_price'])) {
             return (float) str_replace(['$', ','], '', $product['previous_price']);
         }
 
-        return $this->extractPrice($product);
+        return $price;
     }
 
     protected function getProductAsin(array $product): string

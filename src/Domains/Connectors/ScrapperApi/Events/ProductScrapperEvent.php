@@ -23,7 +23,6 @@ class ProductScrapperEvent implements ShouldBroadcast
         protected string $uuid,
         protected Products $product,
         protected float $price,
-        protected ?string $shopifyProductId = null,
         protected ?string $searchText = null
     ) {
     }
@@ -34,7 +33,6 @@ class ProductScrapperEvent implements ShouldBroadcast
 
         return [
             'kanvas_product_id' => $product->getId(),
-            'shopify_product_id' => $this->shopifyProductId,
             'sku' => $product->variants()->first()->sku,
             'variant_id' => $product->variants()->first()->getId(),
             'title' => $product->name,
