@@ -12,4 +12,6 @@ enum ConfigEnum: string
     case DEFAULT_QUANTITY = 'default_quantity';
     case SCRAPPER_BRAND = 'scrapper_brand';
     case SCRAPPER_RATING = 'scrapper_rating';
+    case VARIANT_PRICE_UPDATE = 'variant_price_update';
+    case VARIANT_PRICE_DATE_UPDATE = 'variant_price_date_update';
 }
