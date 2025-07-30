@@ -2,7 +2,7 @@ type OrderStats {
     period: Period!
     ordersInPeriod: [OrderStateCount!]!
     currentCount: Int!
-    dailyTurnover: [DailyTurnover!]!
+    dailyTurnover: DailyTurnover!
     averageRotation: AverageRotation!
 }
 
@@ -23,10 +23,26 @@ type Period {
     end: String!
 }
 
-type DailyTurnover {
+type OrderTurnover {
     date: String!
     entries: Int!
     exits: Int!
+}
+
+type DateCount {
+    date: String,
+    count: Int
+}
+
+type DailyTurnover {
+    totalEntries: Int,
+    totalExits: Int,
+    exitAvg: Float,
+    entryAvg: Float,
+    exitPercentage: Int,
+    maxExitDate: DateCount
+    maxEntryDate: DateCount
+    data: [OrderTurnover]
 }
 
 type OrderStateCount {

@@ -215,12 +215,35 @@ class GetOrderStatsAction
             ->sort()
             ->values();
 
-        return $dates->map(function ($date) use ($entries, $exits) {
+        $byDates = $dates->map(function ($date) use ($entries, $exits) {
             return [
                 'date' => $date,
                 'entries' => (int) ($entries[$date]->count ?? 0),
                 'exits' => (int) ($exits[$date]->count ?? 0),
             ];
         })->toArray();
+
+        $totalEntries = $entries->sum(fn ($entry) => $entry->count ?? 0);
+        $totalExits = $exits->sum(fn ($entry) => $entry->count ?? 0);
+
+        $maxExit =  $exits->sortByDesc(fn ($entry) => $entry->count ?? 0)->first();
+        $maxEntry = $entries->sortByDesc(fn ($entry) => $entry->count ?? 0)->first();;
+
+        return [
+            "totalEntries" => $entries->sum(fn ($entry) => $entry->count ?? 0),
+            "totalExits" => $exits->sum(fn ($entry) => $entry->count ?? 0),
+            "exitAvg" => $totalExits / $dates->count(),
+            "entryAvg" => $totalEntries / $dates->count(),
+            "exitPercentage" => $totalEntries > 0 ? ($totalExits / $totalEntries * 100) : 0,
+            "maxExitDate" => [
+                "date" => $maxExit->date,
+                "count" => $maxExit->count
+            ],
+            "maxEntryDate" => [
+                "date" => $maxEntry->date,
+                "count" => $maxEntry->count
+            ],
+            "data" => $byDates
+        ];
     }
 }
