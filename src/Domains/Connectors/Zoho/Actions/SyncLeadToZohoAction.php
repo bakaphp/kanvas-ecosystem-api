@@ -13,9 +13,6 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
-
-use function Sentry\captureException;
-
 use Sentry\Laravel\Facade as Sentry;
 use Throwable;
 use Webleit\ZohoCrmApi\Exception\ApiError;
@@ -84,7 +81,7 @@ class SyncLeadToZohoAction
                             'message' => (string) $e->response()->getBody(),
                         ]);
 
-                        captureException($e);
+                        report($e);
                     });
                 }
             } else {
