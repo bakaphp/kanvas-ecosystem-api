@@ -382,6 +382,7 @@ extend type Query @guard {
                     "users_id"
                     "user_email"
                     "user_phone"
+                    "people_id"
                     "status"
                     "fulfillment_status"
                     "order_number"
