@@ -13,6 +13,7 @@ class CreateNuggetMessageAction
     public function __construct(
         private Message $parentMessage,
         private array $messageData = [],
+        private ?string $messageTypeVerb = null,
     ) {
     }
 
@@ -30,7 +31,7 @@ class CreateNuggetMessageAction
             'uuid' => DB::raw('uuid()'),
             'companies_id' => $this->parentMessage->companies_id,
             'users_id' => $this->parentMessage->users_id,
-            'message_types_id' => MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app)->getId(),
+            'message_types_id' => MessagesTypesRepository::getByVerb($this->messageTypeVerb ?? 'memo', $this->parentMessage->app)->getId(),
             'message' => [
                 'title' => $this->messageData['title'] ?? null,
                 'type' => $this->messageData['type'] ?? null,
