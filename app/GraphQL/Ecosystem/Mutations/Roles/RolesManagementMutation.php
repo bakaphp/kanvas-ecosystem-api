@@ -6,6 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Roles;
 
 use Baka\Support\Str;
 use Bouncer;
+use Exception;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Actions\BulkAllowRoleToPermissionAction;
@@ -17,6 +18,7 @@ use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Silber\Bouncer\Database\Role as SilberRole;
@@ -30,25 +32,22 @@ class RolesManagementMutation
     {
         $auth = auth()->user();
         $company = $auth->getCurrentCompany();
-        $userId = (int) $request['userId'];
         $app = app(Apps::class);
 
-        $role = RolesRepository::getByMixedParamFromCompany(
-            param: $request['role'],
-            app: $app
-        );
-
         if ($auth->isAppOwner()) {
-            $user = UsersRepository::getUserOfAppById($userId, $app);
+            $user = UsersRepository::getUserOfAppById((int) $request['userId'], $app);
         } else {
-            $user = UsersRepository::getUserOfCompanyById($company, $userId);
+            $user = UsersRepository::getUserOfCompanyById($company, (int) $request['userId']);
         }
 
-        $assign = new AssignRoleAction(
-            $user,
-            $role
-        );
-        $assign->execute();
+        $newRoleIds = is_array($request['roleIds']) ? $request['roleIds'] : [$request['roleIds']];
+        $newRoleIds = array_map('intval', $newRoleIds);
+
+        $this->syncRolesEfficiently($user, $app, $newRoleIds);
+
+        foreach( $request['roleIds'] as $roleId) {
+            $this->assignRoleAction($user, $app, (int) $roleId);
+        }
 
         return true;
     }
@@ -222,5 +221,76 @@ class RolesManagementMutation
         }
 
         return $role->delete();
+    }
+
+    private function assignRoleAction(Users $user, Apps $app, Int $roleId): void
+    {
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: $roleId,
+            app: $app
+        );
+
+        $assign = new AssignRoleAction(
+            $user,
+            $role
+        );
+
+        $assign->execute();
+    }
+
+    private function removeRoleAction($user, $app, int $roleId): void
+    {
+        $role = SilberRole::find($roleId);
+        if (!$role) {
+            return;
+        }
+
+        Bouncer::retract($role->name)->from($user);
+
+        try {
+            if ($user instanceof Users) {
+                $profile = $user->getAppProfile($app);
+                if ($profile->user_role == $roleId) {
+                    $remainingRoles = $this->getCurrentUserAppRoles($user, $app);
+                    $newPrimaryRole = $remainingRoles->first();
+
+                    $profile->update([
+                        'user_role' => $newPrimaryRole ? $newPrimaryRole->id : null,
+                    ]);
+                }
+            }
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        Bouncer::refreshFor($user);
+    }
+
+    private function syncRolesEfficiently(Users $user, Apps $app, array $newRoleIds): void
+    {
+        $currentRoles = $this->getCurrentUserAppRoles($user, $app);
+        $currentRoleIds = $currentRoles->pluck('id')->map('intval')->toArray();
+
+        $rolesToRemove = array_diff($currentRoleIds, $newRoleIds);
+        $rolesToAdd = array_diff($newRoleIds, $currentRoleIds);
+
+        foreach ($rolesToRemove as $roleId) {
+            $this->removeRoleAction($user, $app, $roleId);
+        }
+
+        foreach ($rolesToAdd as $roleId) {
+            $this->assignRoleAction($user, $app, $roleId);
+        }
+    }
+
+
+    private function getCurrentUserAppRoles(Users $user, Apps $app)
+    {
+        $allUserRoles = $user->getRoles();
+        $appScope = RolesEnums::getScope($app);
+
+        return SilberRole::whereIn('name', $allUserRoles)
+                ->where('scope', $appScope)
+                ->get();
     }
 }
