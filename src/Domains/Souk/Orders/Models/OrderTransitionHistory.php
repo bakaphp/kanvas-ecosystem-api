@@ -23,13 +23,16 @@ class OrderTransitionHistory extends BaseModel
         'metadata',
         'is_current',
         'is_deleted',
+        'ended_at',
+        'duration_in_seconds',
         'changed_at',
         'changed_by',
+        'ended_by'
     ];
 
     protected $casts = [
         'changed_at' => 'datetime',
-        'status_ended_at' => 'datetime',
+        'ended_at' => 'datetime',
         'metadata' => Json::class,
         'is_current' => 'boolean',
     ];
