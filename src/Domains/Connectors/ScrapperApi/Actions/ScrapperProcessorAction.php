@@ -74,6 +74,9 @@ class ScrapperProcessorAction
 
                 $mappedProduct = $service->mapProduct($product);
                 $mappedProduct['variants'] = $productVariantService->mapVariant($product);
+                if ($mappedProduct['price'] < 1) {
+                    continue;
+                }
 
                 try {
                     $product = (
