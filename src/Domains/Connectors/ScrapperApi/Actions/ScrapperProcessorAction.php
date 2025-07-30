@@ -32,8 +32,7 @@ class ScrapperProcessorAction
         public CompaniesBranches $companyBranch,
         protected Regions $region,
         public array $results,
-        public ?string $uuid = null,
-        public ?string $searchText = null,
+        public ?string $uuid = null
     ) {
         $this->uuid = $uuid;
     }
@@ -74,9 +73,6 @@ class ScrapperProcessorAction
 
                 $mappedProduct = $service->mapProduct($product);
                 $mappedProduct['variants'] = $productVariantService->mapVariant($product);
-                if ($mappedProduct['price'] < 1) {
-                    continue;
-                }
 
                 try {
                     $product = (
@@ -103,7 +99,6 @@ class ScrapperProcessorAction
                         $product,
                         $product->variants()->first()->getPrice($warehouse),
                         $product->getShopifyId($this->region),
-                        $this->searchText
                     );
                 }
             } catch (\Throwable $e) {
