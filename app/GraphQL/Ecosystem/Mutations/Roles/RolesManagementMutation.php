@@ -241,7 +241,7 @@ class RolesManagementMutation
     private function removeRoleAction($user, $app, int $roleId): void
     {
         $role = SilberRole::find($roleId);
-        if ( !$role) {
+        if (! $role) {
             return;
         }
 
@@ -274,11 +274,11 @@ class RolesManagementMutation
         $rolesToRemove = array_diff($currentRoleIds, $newRoleIds);
         $rolesToAdd = array_diff($newRoleIds, $currentRoleIds);
 
-        foreach ( $rolesToRemove as $roleId) {
+        foreach ($rolesToRemove as $roleId) {
             $this->removeRoleAction($user, $app, $roleId);
         }
 
-        foreach ( $rolesToAdd as $roleId) {
+        foreach ($rolesToAdd as $roleId) {
             $this->assignRoleAction($user, $app, $roleId);
         }
     }
