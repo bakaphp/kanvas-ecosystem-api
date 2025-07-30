@@ -150,7 +150,7 @@ class GetOrderStatsAction
 
         $daysInRange = collect($this->generateDateList($start, $end))
             ->map(fn ($date) => trim($date, "'"));
-        
+
         $groupedResults = $results->groupBy('date');
 
         $byDates = $daysInRange->map(function ($date) use ($groupedResults) {
