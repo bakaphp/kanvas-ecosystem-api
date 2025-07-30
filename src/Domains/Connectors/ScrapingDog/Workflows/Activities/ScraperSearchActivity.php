@@ -14,10 +14,9 @@ use Kanvas\Connectors\ScrapingDog\Enums\ConfigEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ScraperSearchActivity extends KanvasActivity
 {
