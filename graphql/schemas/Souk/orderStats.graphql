@@ -1,9 +1,10 @@
 type OrderStats {
     period: Period!
-    ordersInPeriod: [OrderStateCount!]!
+    ordersInPeriod: OrdersInPeriod!
     currentCount: Int!
     dailyTurnover: DailyTurnover!
     averageRotation: AverageRotation!
+    orderRotationAvg: Float
 }
 
 type AverageRotation {
@@ -49,6 +50,13 @@ type OrderStateCount {
     date: String!
     states: Mixed!
     count: Int!
+}
+
+type OrdersInPeriod {
+    orderAvg: Float
+    maxOrdersDate: DateCount
+    minOrdersDate: DateCount
+    data: [OrderStateCount!]!
 }
 
 input OrderStatsInput {

@@ -29,15 +29,20 @@ class GetOrderStatsAction
             $end = $endDate ? Carbon::parse($endDate, $timezone)->endOfDay()->timezone('UTC') : now()->endOfDay()->timezone('UTC');
         }
 
+        $currentCount = $this->getCurrentCount();
+        $dailyTurnover = $this->getDailyTurnover($start, $end);
+        $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount);
+
         return [
             'period' => [
                 'start' => $start->format('Y-m-d H:i:s'),
                 'end' => $end->format('Y-m-d H:i:s'),
             ],
-            'ordersInPeriod' => $this->getOrdersInPeriod($start, $end),
-            'currentCount' => $this->getCurrentCount(),
-            'dailyTurnover' => $this->getDailyTurnover($start, $end),
+            'ordersInPeriod' => $ordersInPeriod,
+            'currentCount' => $currentCount,
+            'dailyTurnover' => $dailyTurnover,
             'averageRotation' => $this->getAverageRotation($start, $end),
+            'orderRotationAvg' => $ordersInPeriod["orderAvg"] ? ($dailyTurnover["totalExits"] / $ordersInPeriod["orderAvg"]) * 100 : 0
         ];
     }
 
@@ -89,7 +94,7 @@ class GetOrderStatsAction
     /**
      * Get orders in period grouped by date and state
      */
-    private function getOrdersInPeriod($start, $end): array
+    private function getOrdersInPeriod($start, $end, $currentCount = null): array
     {
         $dateList = $this->generateDateList($start, $end);
 
@@ -148,7 +153,7 @@ class GetOrderStatsAction
         
         $groupedResults = $results->groupBy('date');
 
-        return $daysInRange->map(function ($date) use ($groupedResults) {
+        $byDates = $daysInRange->map(function ($date) use ($groupedResults) {
             $group = $groupedResults->get($date, collect());
 
             return [
@@ -159,7 +164,25 @@ class GetOrderStatsAction
                     'count' => (int) $item->count,
                 ])->toArray() ?? [],
             ];
-        })->values()->toArray();
+        });
+
+        $totalEntries = $byDates->sum(fn ($entry) => $entry["count"] ?? 0);
+
+        $maxOrders = $byDates->sortByDesc(fn ($entry) => $entry["count"] ?? 0)->first();
+        $minOrders = $byDates->sortBy(fn ($entry) => $entry["count"] ?? 0)->first();
+
+        return [
+            "orderAvg" => $totalEntries / $daysInRange->count(),
+            "maxOrdersDate" => [
+                "date" => $maxOrders["date"],
+                "count" => $maxOrders["count"]
+            ],
+            "minOrdersDate" => [
+                "date" => $minOrders["date"],
+                "count" => $minOrders["count"]
+            ],
+            "data" => $byDates->toArray()
+        ];
     }
 
     private function generateDateList($start, $end): array
@@ -227,7 +250,7 @@ class GetOrderStatsAction
         $totalExits = $exits->sum(fn ($entry) => $entry->count ?? 0);
 
         $maxExit =  $exits->sortByDesc(fn ($entry) => $entry->count ?? 0)->first();
-        $maxEntry = $entries->sortByDesc(fn ($entry) => $entry->count ?? 0)->first();;
+        $maxEntry = $entries->sortByDesc(fn ($entry) => $entry->count ?? 0)->first();
 
         return [
             "totalEntries" => $entries->sum(fn ($entry) => $entry->count ?? 0),
