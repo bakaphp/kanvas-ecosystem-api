@@ -190,7 +190,7 @@ class PullNetSuiteQuoteToOrderAction
             $processedSkus[] = $sku;
 
             // Find corresponding order item by SKU
-            $orderItem = $order->items->where('product_sku', $sku)->withTrashed()->first();
+            $orderItem = $order->items()->withTrashed()->where('product_sku', $sku)->first();
 
             if ($orderItem) {
                 // Update existing order item
