@@ -82,6 +82,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
                     'digital_jacket_url' => $creditApplicant['digital_jacket_url'],
                     'passed' => (bool) $creditApplicant['pull_credit_pass'],
                     'lead' => $lead->toArray(),
+                    'response' => $creditApplicant['response'] ?? [],
                     'people' => $lead->people->toArray(),
                 ];
 

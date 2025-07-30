@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use GuzzleHttp\Exception\RequestException;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Credit700\Client;
 use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
@@ -57,6 +58,10 @@ class CreditScoreService
                 unset($data['BUREAU']);
             }
 
+            Log::info('Credit Score Request Data', [
+                'data' => $data,
+                'bureau' => $bureau,
+            ]);
             $responseArray = $this->client->post(
                 '/Request',
                 $data
@@ -95,6 +100,7 @@ class CreditScoreService
                 'iframe_url' => $iframeUrl,
                 'iframe_url_signed' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
                 'iframe_url_digital_jacket' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
+                'response' => $responseArray,
                 'pdf' => $pdf,
             ];
         } catch (RequestException $e) {
