@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\ScrapingDog\Workflows\Activities;
+
+use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Redis;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\ScrapingDog\Actions\ScraperAction;
+use Kanvas\Connectors\ScrapingDog\Enums\ConfigEnum;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\KanvasActivity;
+use Throwable;
+
+use function Sentry\captureException;
+
+class ScraperSearchActivity extends KanvasActivity
+{
+    //public $tries = 3;
+    // public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
+
+    public function execute(Model $model, AppInterface $app, array $params): array
+    {
+        try {
+            $word = $params['search'];
+            // if ($this->checkRecentlySearched($app, $word)) {
+            //     return [
+            //         'error' => 'Already searched this word recently',
+            //     ];
+            // }
+            $action = new ScraperAction(
+                $app,
+                Users::getById($params['user']),
+                CompaniesBranches::getById($params['companyBranch']),
+                Regions::getById($params['region']),
+                $params['search'],
+            );
+
+            // $this->setRecentlySearched($app, $word);
+            return [
+                'word' => $action->execute(),
+            ];
+        } catch (Throwable $e) {
+            captureException($e);
+            dump($e->getMessage());
+            dump($e->getTraceAsString());
+
+            return [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ];
+        }
+    }
+
+    // protected function checkRecentlySearched(AppInterface $app, string $word): bool
+    // {
+    //     $key = ConfigEnum::getWordEnum($app);
+    //     $field = ConfigEnum::SEARCHED_FIELD->value . $word;
+    //     if (! Redis::hexists($key, $field)) {
+    //         return false;
+    //     }
+    //     $value = Redis::hget($key, $field);
+    //     $secondsApp = $app->get(ConfigEnum::SCRAPPER_SECONDS->value);
+    //     $seconds = Carbon::createFromFormat('Y-m-d H:i:s', $value)->floatDiffInSeconds(Carbon::now());
+
+    //     return $seconds < $secondsApp;
+    // }
+
+    // protected function setRecentlySearched(AppInterface $app, string $word): void
+    // {
+    //     $key = ConfigEnum::getWordEnum($app);
+    //     $field = ConfigEnum::SEARCHED_FIELD->value . $word;
+
+    //     Redis::hset($key, $field, Carbon::now()->format('Y-m-d H:i:s'));
+    // }
+}
