@@ -2,6 +2,7 @@
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use DateTime;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
@@ -15,8 +16,7 @@ class GetOrderStatsAction
         protected array $initialStates,
         protected array $finalStates,
         protected array $currentCountStates = [],
-    ) {
-    }
+    ) {}
 
     public function execute(?string $date, ?string $startDate, ?string $endDate, ?string $timezone = 'UTC'): array
     {
@@ -75,7 +75,7 @@ class GetOrderStatsAction
             ->get();
 
         return [
-            'orders' => $rotationQuery->map(fn ($item) => [
+            'orders' => $rotationQuery->map(fn($item) => [
                 'orderId' => $item->order_id,
                 'initialDate' => $item->initial_date,
                 'finalDate' => $item->final_date,
@@ -90,49 +90,89 @@ class GetOrderStatsAction
      */
     private function getOrdersInPeriod($start, $end): array
     {
-        return DB::connection('commerce')->query()
-        ->fromSub(function ($query) use ($start, $end) {
-            $query->from('order_transitions_history')
-                ->selectRaw('
-                    order_transitions_history.id,
-                    order_transitions_history.order_id,
-                    order_transitions_history.to_status_id,
-                    DATE(order_transitions_history.changed_at) as date,
-                    order_transitions_history.is_deleted,
-                    ROW_NUMBER() OVER (PARTITION BY order_id, DATE(changed_at) ORDER BY changed_at DESC) as rn
-                ')
-                ->whereBetween('changed_at', [$start, $end])
-                ->where('order_transitions_history.apps_id', $this->app->id);
-        }, 'latest_transitions')
-        ->join('order_statuses', 'latest_transitions.to_status_id', '=', 'order_statuses.id')
-        ->where('latest_transitions.rn', 1)
-        ->when(! empty($this->currentCountStates), function ($query) {
-            $query->whereIn('order_statuses.slug', $this->currentCountStates);
-        })
-        ->selectRaw('order_statuses.slug as state, COUNT(*) as count, latest_transitions.date')
-        ->groupBy('order_statuses.slug', 'latest_transitions.date')
-        ->orderBy('latest_transitions.date')
-        ->get()
-        ->groupBy('date')
-        ->map(function ($dateGroup) {
+        $dateList = $this->generateDateList($start, $end);
+
+        $dateRangeSub = DB::raw("(SELECT " . implode(" UNION ALL SELECT ", $dateList) . ") as date_list(date_val)");
+    
+        $activeOrders = DB::raw("
+            (SELECT DISTINCT order_id 
+             FROM order_transitions_history 
+             WHERE apps_id = {$this->app->id} 
+               AND is_deleted = 0 
+               AND changed_at <= '{$end} 23:59:59') AS active_orders
+        ");
+    
+        $latestStatus = DB::raw("
+            (
+                SELECT * FROM (
+                    SELECT 
+                        order_id,
+                        to_status_id,
+                        changed_at,
+                        ended_at,
+                        ROW_NUMBER() OVER (PARTITION BY order_id, date(changed_at) ORDER BY changed_at DESC) AS rn
+                    FROM order_transitions_history
+                    WHERE apps_id = {$this->app->id}
+                      AND is_deleted = 0
+                ) ranked
+                WHERE rn = 1
+            ) AS latest_status
+        ");
+    
+        $results = DB::connection('commerce')->query()
+            ->fromSub(function ($query) use ($dateRangeSub) {
+                $query->selectRaw('date_val as report_date')->from($dateRangeSub);
+            }, 'date_range')
+            ->crossJoin($activeOrders)
+            ->leftJoin($latestStatus, function ($join) {
+                $join->on('active_orders.order_id', '=', 'latest_status.order_id')
+                    ->whereRaw('latest_status.changed_at <= CONCAT(date_range.report_date, " 23:59:59")')
+                    ->whereRaw('(latest_status.ended_at IS NULL OR latest_status.ended_at > CONCAT(date_range.report_date, " 23:59:59"))');
+            })
+            ->join('order_statuses', 'latest_status.to_status_id', '=', 'order_statuses.id')
+            ->when(!empty($this->currentCountStates), function ($query) {
+                $query->whereIn('order_statuses.slug', $this->currentCountStates);
+            })
+            ->selectRaw('
+                order_statuses.slug as state, 
+                COUNT(DISTINCT active_orders.order_id) as count, 
+                date_range.report_date as date
+            ')
+            ->groupBy('order_statuses.slug', 'date_range.report_date')
+            ->orderBy('date_range.report_date')
+            ->get();
+    
+        return $results->groupBy('date')->map(function ($group) {
             return [
-                'date' => $dateGroup->first()->date,
-                'count' => $dateGroup->sum('count'),
-                'states' => $dateGroup->map(fn ($item) => [
+                'date' => $group->first()->date,
+                'count' => $group->sum('count'),
+                'states' => $group->map(fn($item) => [
                     'state' => $item->state ?? 'Unknown',
                     'count' => (int) $item->count,
                 ])->toArray(),
             ];
-        })
-        ->values()
-        ->toArray();
+        })->values()->toArray();
+    }
+
+    private function generateDateList($start, $end): array
+    {
+        $dates = [];
+        $startDate = new DateTime($start);
+        $endDate = new DateTime($end);
+
+        while ($startDate <= $endDate) {
+            $dates[] = "'" . $startDate->format('Y-m-d') . "'";
+            $startDate->modify('+1 day');
+        }
+
+        return $dates;
     }
 
     private function getCurrentCount(): int
     {
         return Order::query()
             ->where('apps_id', $this->app->id)
-            ->whereHas('orderStatus', fn ($q) => $q->whereIn('slug', $this->currentCountStates))
+            ->whereHas('orderStatus', fn($q) => $q->whereIn('slug', $this->currentCountStates))
             ->count();
     }
 
