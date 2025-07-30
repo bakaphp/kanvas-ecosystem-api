@@ -32,7 +32,8 @@ class ScrapperProcessorAction
         public CompaniesBranches $companyBranch,
         protected Regions $region,
         public array $results,
-        public ?string $uuid = null
+        public ?string $uuid = null,
+        public ?string $searchText = null,
     ) {
         $this->uuid = $uuid;
     }
@@ -99,6 +100,7 @@ class ScrapperProcessorAction
                         $product,
                         $product->variants()->first()->getPrice($warehouse),
                         $product->getShopifyId($this->region),
+                        $this->searchText
                     );
                 }
             } catch (\Throwable $e) {
