@@ -35,9 +35,11 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                 }
                 $mappedProduct = $service->mapProduct($product);
                 $mappedProduct['variants'] = $service->mapVariant($product);
-
                 if (empty($mappedProduct) || $mappedProduct['price'] == 0) {
                     continue;
+                }
+                if (empty($mappedProduct['variants'])) {
+                    $mappedProduct['variants'] = $mappedProduct;
                 }
                 $product = (
                     new ProductImporterAction(
