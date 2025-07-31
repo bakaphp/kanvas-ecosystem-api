@@ -39,7 +39,7 @@ input AgentAiInput {
     description: String
     config: Mixed!
     role: Mixed!
-    is_active: Boolean
+    is_active: Boolean!
     company_task_list_id: Int
     communication_channels: [CommunicationChannelPivot!]
 }

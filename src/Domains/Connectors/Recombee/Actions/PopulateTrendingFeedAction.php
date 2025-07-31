@@ -49,6 +49,10 @@ class PopulateTrendingFeedAction
             }
 
             try {
+                $message = Message::fromApp($this->app)
+                    ->where('is_public', 1)
+                    ->where('is_deleted', 0)
+                    ->where('id', $messageId)->first();
                 $message->addTag($trendingSlug, $this->app, $this->user, $this->company);
                 $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
             } catch (Exception $e) {

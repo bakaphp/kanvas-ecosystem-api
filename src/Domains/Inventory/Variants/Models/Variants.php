@@ -604,11 +604,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         }
     }
 
-    public function updatePriceInChannel(Channels $channel, float $price): void
+    public function updatePriceInChannel(Channels $channel, float $price, ?float $discountPrice = null): void
     {
         $channelInfo = $this->variantChannels()->where('channels_id', $channel->getId())->first();
 
         if ($channelInfo) {
+            $channelInfo->discounted_price = $discountPrice ?? $channelInfo->discounted_price;
             $channelInfo->price = $price;
             $channelInfo->saveOrFail();
         }

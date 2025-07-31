@@ -907,12 +907,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $data = $payload['data'] ?? [];
         $status = $data['status'] ?? 'unknown';
 
-        // Just log the status change
-        Log::info('WaSender Session Status Changed', [
-            'status' => $status,
-            'timestamp' => $payload['timestamp'] ?? time(),
-        ]);
-
         return [
             'status' => $status,
         ];

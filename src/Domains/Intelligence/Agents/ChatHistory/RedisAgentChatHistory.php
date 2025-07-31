@@ -62,6 +62,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
         $redisKey = $this->getRedisKey();
         $cachedHistory = Redis::get($redisKey);
 
+        Redis::del($redisKey); // Clear cache to avoid stale data
         if ($cachedHistory) {
             try {
                 $messages = json_decode($cachedHistory, true);
@@ -321,5 +322,16 @@ class RedisAgentChatHistory extends AbstractChatHistory
     public function __destruct()
     {
         $this->sync();
+    }
+
+    #[Override]
+    public function addMessage(Message $message): ChatHistoryInterface
+    {
+        $this->history[] = $message;
+        $this->trimHistory();
+        $this->storeMessage($message); // This will update Redis and save to DB
+        $this->setMessages($this->history); // Ensure messages are set correctly
+
+        return $this;
     }
 }
