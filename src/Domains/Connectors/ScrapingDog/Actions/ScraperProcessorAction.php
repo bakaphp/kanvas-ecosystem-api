@@ -39,7 +39,7 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                     continue;
                 }
                 if (empty($mappedProduct['variants'])) {
-                    $mappedProduct['variants'] = $mappedProduct;
+                    $mappedProduct['variants'] = [$mappedProduct];
                 }
                 $product = (
                     new ProductImporterAction(
