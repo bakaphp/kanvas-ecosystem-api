@@ -26,14 +26,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     vim \
     wkhtmltopdf \
-    xvfb && \
+    xvfb \
+    ffmpeg && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Install Node.js and chokidar for file watching
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g chokidar-cli
 
 # Copy application files
 COPY . /var/www/html/
 
 WORKDIR /var/www/html/
+
+# Install chokidar locally for Laravel Octane with debugging
+RUN echo "Installing chokidar for Laravel Octane..." && \
+    npm init -y && \
+    npm install chokidar@^3.5.3 && \
+    echo "Verifying chokidar installation..." && \
+    ls -la node_modules/ | grep chokidar && \
+    node -e "console.log('chokidar version:', require('chokidar/package.json').version)" && \
+    echo "NODE_PATH: $NODE_PATH" && \
+    echo "Current directory: $(pwd)" && \
+    echo "node_modules exists: $(test -d node_modules && echo 'YES' || echo 'NO')"
 
 # Install composer globally
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
@@ -59,3 +76,6 @@ RUN composer install --no-dev --optimize-autoloader
 
 # Expose the required port
 EXPOSE 8000
+
+# Keep container running without starting a web server
+CMD ["tail", "-f", "/dev/null"]

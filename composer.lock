@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "54edc025d833b6d87d54aee2488006f8",
+    "content-hash": "88526b030fddf2a46557ea21146ba210",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.351.7",
+            "version": "3.351.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "9506d7fdb3cb84f8d7b175c594db9993264814be"
+                "reference": "e179e6351fca44ca7fae58dad4c76ccb00a179ce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/9506d7fdb3cb84f8d7b175c594db9993264814be",
-                "reference": "9506d7fdb3cb84f8d7b175c594db9993264814be",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/e179e6351fca44ca7fae58dad4c76ccb00a179ce",
+                "reference": "e179e6351fca44ca7fae58dad4c76ccb00a179ce",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.351.7"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.351.10"
             },
-            "time": "2025-07-25T18:06:34+00:00"
+            "time": "2025-07-30T18:09:54+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -2822,7 +2822,7 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.404.0",
+            "version": "v0.405.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
@@ -2860,7 +2860,7 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.404.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.405.0"
             },
             "time": "2025-06-04T17:28:44+00:00"
         },
@@ -4330,16 +4330,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.16.3",
+            "version": "1.16.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "68cc5bc44b5dea8979a6d574d3f15eeef4da48e0"
+                "reference": "7d9925e4426420700e879e08255cc3965c15c932"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/68cc5bc44b5dea8979a6d574d3f15eeef4da48e0",
-                "reference": "68cc5bc44b5dea8979a6d574d3f15eeef4da48e0",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/7d9925e4426420700e879e08255cc3965c15c932",
+                "reference": "7d9925e4426420700e879e08255cc3965c15c932",
                 "shasum": ""
             },
             "require": {
@@ -4392,9 +4392,9 @@
             "description": "The AI Agent Development Kit for PHP.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.16.3"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.16.7"
             },
-            "time": "2025-07-25T22:15:33+00:00"
+            "time": "2025-07-29T19:25:30+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -7622,16 +7622,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v5.5.0",
+            "version": "v5.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "ae59794362fe85e051a58ad36b289443f57be7a9"
+                "reference": "221b0d0fdf1369c71047ad1d18bb5880017bbc56"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/ae59794362fe85e051a58ad36b289443f57be7a9",
-                "reference": "ae59794362fe85e051a58ad36b289443f57be7a9",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/221b0d0fdf1369c71047ad1d18bb5880017bbc56",
+                "reference": "221b0d0fdf1369c71047ad1d18bb5880017bbc56",
                 "shasum": ""
             },
             "require": {
@@ -7674,9 +7674,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v5.5.0"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v5.6.0"
             },
-            "time": "2025-05-31T08:24:38+00:00"
+            "time": "2025-07-27T20:03:57+00:00"
         },
         {
             "name": "nunomaduro/termwind",
@@ -11808,16 +11808,16 @@
         },
         {
             "name": "spatie/laravel-model-states",
-            "version": "2.11.3",
+            "version": "2.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-model-states.git",
-                "reference": "aff8ac86aeaae4f36fcb6bdae5170f51f52bebcf"
+                "reference": "e503bed02623e8754384ea5dfb3fa1bd70b6790c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/aff8ac86aeaae4f36fcb6bdae5170f51f52bebcf",
-                "reference": "aff8ac86aeaae4f36fcb6bdae5170f51f52bebcf",
+                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/e503bed02623e8754384ea5dfb3fa1bd70b6790c",
+                "reference": "e503bed02623e8754384ea5dfb3fa1bd70b6790c",
                 "shasum": ""
             },
             "require": {
@@ -11868,7 +11868,7 @@
                 "state"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-model-states/tree/2.11.3"
+                "source": "https://github.com/spatie/laravel-model-states/tree/2.12.0"
             },
             "funding": [
                 {
@@ -11880,7 +11880,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-23T08:12:29+00:00"
+            "time": "2025-07-28T08:28:21+00:00"
         },
         {
             "name": "spatie/laravel-package-tools",
@@ -16488,16 +16488,16 @@
         },
         {
             "name": "webonyx/graphql-php",
-            "version": "v15.21.3",
+            "version": "v15.22.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webonyx/graphql-php.git",
-                "reference": "8404965d3834d284efb4e46f9df64b44963f2aaa"
+                "reference": "d160c99334edd34adbc38fbe80b6df455d1923f8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/8404965d3834d284efb4e46f9df64b44963f2aaa",
-                "reference": "8404965d3834d284efb4e46f9df64b44963f2aaa",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/d160c99334edd34adbc38fbe80b6df455d1923f8",
+                "reference": "d160c99334edd34adbc38fbe80b6df455d1923f8",
                 "shasum": ""
             },
             "require": {
@@ -16515,7 +16515,7 @@
                 "nyholm/psr7": "^1.5",
                 "phpbench/phpbench": "^1.2",
                 "phpstan/extension-installer": "^1.1",
-                "phpstan/phpstan": "2.1.19",
+                "phpstan/phpstan": "2.1.20",
                 "phpstan/phpstan-phpunit": "2.0.7",
                 "phpstan/phpstan-strict-rules": "2.0.6",
                 "phpunit/phpunit": "^9.5 || ^10.5.21 || ^11",
@@ -16550,7 +16550,7 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
-                "source": "https://github.com/webonyx/graphql-php/tree/v15.21.3"
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.22.0"
             },
             "funding": [
                 {
@@ -16558,7 +16558,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2025-07-24T08:17:01+00:00"
+            "time": "2025-07-28T12:28:41+00:00"
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
@@ -17597,16 +17597,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.20",
+            "version": "2.1.21",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "a9ccfef95210f92ba6feea6e8d1eef42b5605499"
+                "reference": "1ccf445757458c06a04eb3f803603cb118fe5fa6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/a9ccfef95210f92ba6feea6e8d1eef42b5605499",
-                "reference": "a9ccfef95210f92ba6feea6e8d1eef42b5605499",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/1ccf445757458c06a04eb3f803603cb118fe5fa6",
+                "reference": "1ccf445757458c06a04eb3f803603cb118fe5fa6",
                 "shasum": ""
             },
             "require": {
@@ -17651,20 +17651,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-07-26T20:45:26+00:00"
+            "time": "2025-07-28T19:35:08+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
-            "version": "12.3.1",
+            "version": "12.3.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/php-code-coverage.git",
-                "reference": "ddec29dfc128eba9c204389960f2063f3b7fa170"
+                "reference": "086553c5b2e0e1e20293d782d788ab768202b621"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/ddec29dfc128eba9c204389960f2063f3b7fa170",
-                "reference": "ddec29dfc128eba9c204389960f2063f3b7fa170",
+                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/086553c5b2e0e1e20293d782d788ab768202b621",
+                "reference": "086553c5b2e0e1e20293d782d788ab768202b621",
                 "shasum": ""
             },
             "require": {
@@ -17720,7 +17720,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/php-code-coverage/issues",
                 "security": "https://github.com/sebastianbergmann/php-code-coverage/security/policy",
-                "source": "https://github.com/sebastianbergmann/php-code-coverage/tree/12.3.1"
+                "source": "https://github.com/sebastianbergmann/php-code-coverage/tree/12.3.2"
             },
             "funding": [
                 {
@@ -17740,7 +17740,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-06-18T08:58:13+00:00"
+            "time": "2025-07-29T06:19:24+00:00"
         },
         {
             "name": "phpunit/php-file-iterator",
@@ -17989,16 +17989,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "12.2.7",
+            "version": "12.2.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "8b1348b254e5959acaf1539c6bd790515fb49414"
+                "reference": "49dc7c0669b97c7a36f63411635f48eedc140eb4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/8b1348b254e5959acaf1539c6bd790515fb49414",
-                "reference": "8b1348b254e5959acaf1539c6bd790515fb49414",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/49dc7c0669b97c7a36f63411635f48eedc140eb4",
+                "reference": "49dc7c0669b97c7a36f63411635f48eedc140eb4",
                 "shasum": ""
             },
             "require": {
@@ -18012,7 +18012,7 @@
                 "phar-io/manifest": "^2.0.4",
                 "phar-io/version": "^3.2.1",
                 "php": ">=8.3",
-                "phpunit/php-code-coverage": "^12.3.1",
+                "phpunit/php-code-coverage": "^12.3.2",
                 "phpunit/php-file-iterator": "^6.0.0",
                 "phpunit/php-invoker": "^6.0.0",
                 "phpunit/php-text-template": "^5.0.0",
@@ -18066,7 +18066,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.2.7"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.2.8"
             },
             "funding": [
                 {
@@ -18090,7 +18090,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-07-11T04:11:13+00:00"
+            "time": "2025-07-30T05:58:18+00:00"
         },
         {
             "name": "sebastian/cli-parser",
