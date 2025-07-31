@@ -6,11 +6,11 @@ namespace App\Console\Commands\Connectors\Movipass;
 
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
+use Bouncer;
 use Illuminate\Console\Command;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\MovipassRolesEnum;
-use Bouncer;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 
 class SetupRolesCommand extends Command
 {
@@ -35,7 +35,6 @@ class SetupRolesCommand extends Command
         $appsId = $this->argument('app_id');
         $app = Apps::getById($appsId);
         $this->setupRoles($app);
-       
 
         $this->info('Roles setup successfully');
     }
@@ -44,23 +43,23 @@ class SetupRolesCommand extends Command
     {
         $abilities = [
             "list-orders" => [
-                MovipassRolesEnum::ADMIN,
+                RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::AGENT,
             ],
             "update-orders" => [
-                MovipassRolesEnum::ADMIN,
+                RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::AGENT,
             ],
             "download-orders" => [
-                MovipassRolesEnum::ADMIN,
+                RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
             ],
             "order-reports" => [
-                MovipassRolesEnum::ADMIN,
+                RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
             ]
