@@ -28,6 +28,7 @@ use Throwable;
 class VideoProcessingService
 {
     private const THUMBNAIL_FRAME_SECONDS = 2;
+
     public function __construct(
         protected Message $entity,
         protected Apps $app
@@ -271,7 +272,7 @@ class VideoProcessingService
         }
 
         $totalDelivery = 0;
-        $thumbnailImageUrl = $this->generateThumbnailFromVideo($fileSystemRecord->url);
+        $thumbnailImageUrl = $this->entity->getFiles()->first() ?? $this->generateThumbnailFromVideo($fileSystemRecord->url);
         $cdnThumbnailUrl = $this->entity->app->get('cloud-cdn') . '/' . $thumbnailImageUrl->path;
         // Create a new nugget message with the processed video
         $cdnVideoUrl = $this->entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
@@ -413,6 +414,7 @@ class VideoProcessingService
         } catch (Exception $e) {
             // Handle the exception
             report($e->getMessage());
+
             return null;
         }
     }
