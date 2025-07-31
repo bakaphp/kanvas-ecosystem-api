@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Services;
 
 use Exception;
+use FFMpeg\Coordinate\TimeCode;
+use FFMpeg\FFMpeg;
 use finfo;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -25,6 +27,8 @@ use Throwable;
 
 class VideoProcessingService
 {
+    private const THUMBNAIL_FRAME_SECONDS = 2;
+
     public function __construct(
         protected Message $entity,
         protected Apps $app
@@ -48,8 +52,10 @@ class VideoProcessingService
             $this->entity->refresh();
 
             // Check if processing was completed by another process
-            if (isset($this->entity->message['video_processing_status']) &&
-                $this->entity->message['video_processing_status'] === 'COMPLETED') {
+            if (
+                isset($this->entity->message['video_processing_status']) &&
+                $this->entity->message['video_processing_status'] === 'COMPLETED'
+            ) {
                 return;
             }
 
@@ -266,6 +272,8 @@ class VideoProcessingService
         }
 
         $totalDelivery = 0;
+        $thumbnailImageUrl = $this->entity->getFiles()->first() ?? $this->generateThumbnailFromVideo($fileSystemRecord->url);
+        $cdnThumbnailUrl = $this->entity->app->get('cloud-cdn') . '/' . $thumbnailImageUrl->path;
         // Create a new nugget message with the processed video
         $cdnVideoUrl = $this->entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
         $createNuggetMessage = (new CreateNuggetMessageAction(
@@ -274,7 +282,7 @@ class VideoProcessingService
                 'title' => trim($title),
                 'type' => 'video-format',
                 'video' => $cdnVideoUrl,
-                'thumbnail' => 'https://s3.amazonaws.com/mc-canvas/dDVavRYaRGa4eA7yCLFANt0pLWhNYg5Anwee5rvZ.png',
+                'thumbnail' => $cdnThumbnailUrl,
                 'is_posted' => true,
             ],
         ))->execute();
@@ -358,5 +366,56 @@ class VideoProcessingService
             ->generate();
 
         return str_replace(['```', 'json'], '', $response->text);
+    }
+
+    private function generateThumbnailFromVideo(string $videoUrl): ?Filesystem
+    {
+        // Download the video file
+        $videoContent = file_get_contents($videoUrl);
+
+        if ($videoContent === false) {
+            throw new Exception("Failed to download video from URL: {$videoUrl}");
+        }
+
+        // Create a temporary file
+        $tempFile = tempnam(sys_get_temp_dir(), 'video_');
+        file_put_contents($tempFile, $videoContent);
+
+        //Create thumbnail from video using FFMpeg
+        try {
+            $ffmpeg = FFMpeg::create();
+            $video = $ffmpeg->open($tempFile);
+            $frame = $video->frame(TimeCode::fromSeconds(self::THUMBNAIL_FRAME_SECONDS));
+            $thumbnailFileName = 'thumbnail_' . uniqid() . '.png';
+            $thumbnailTempFile = tempnam(sys_get_temp_dir(), 'thumbnail_') . '.png';
+            $frame->save($thumbnailTempFile);
+
+            // Get the file's mime type
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $thumbnailMimeType = $finfo->file($thumbnailTempFile);
+
+            // Create an UploadedFile instance for the thumbnail
+            $uploadedThumbnail = new UploadedFile(
+                $thumbnailTempFile,
+                $thumbnailFileName,
+                $thumbnailMimeType,
+                null,
+                true
+            );
+
+            $filesystem = new FilesystemServices($this->entity->app);
+            $fileSystemRecord = $filesystem->upload($uploadedThumbnail, $this->entity->user);
+
+            // Clean up temporary file
+            @unlink($tempFile);
+            @unlink($thumbnailTempFile);
+
+            return $fileSystemRecord;
+        } catch (Exception $e) {
+            // Handle the exception
+            report($e->getMessage());
+
+            return null;
+        }
     }
 }
