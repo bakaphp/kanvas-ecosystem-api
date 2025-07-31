@@ -87,6 +87,8 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+    created_at: String
+    updated_at: String
 }
 
 type OrderStatus {
@@ -440,5 +442,19 @@ extend type Query @guard {
             model: "Kanvas\\Souk\\Orders\\Models\\Order"
             scopes: ["fromCompany", "fromApp", "notDeleted", "filterByUser"]
             defaultCount: 25
+        )
+    
+    orderTypes(
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        where: _
+            @whereConditions(
+                columns: ["id", "companies_id", "name"]
+            )
+    ): [OrderType!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes"
+            scopes: ["fromApp", "notDeleted"]
         )
 }
