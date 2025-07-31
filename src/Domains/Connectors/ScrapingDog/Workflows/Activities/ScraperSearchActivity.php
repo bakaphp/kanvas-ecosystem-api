@@ -42,7 +42,8 @@ class ScraperSearchActivity extends KanvasActivity
 
             // $this->setRecentlySearched($app, $word);
             return [
-                'word' => $action->execute(),
+                'product' => $action->execute(),
+                'word' => $word
             ];
         } catch (Throwable $e) {
             captureException($e);

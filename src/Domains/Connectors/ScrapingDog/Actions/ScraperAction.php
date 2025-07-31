@@ -37,9 +37,10 @@ class ScraperAction extends ScraperApiAction
                 null,
                 $this->search
             ));
-            $classConcurrently[] = fn () => $action->execute();
+            // $classConcurrently[] = fn () => $action->execute();
+            $action->execute();
         }
-        $resultsOctane = Octane::concurrently($classConcurrently, 1000000);
+        // $resultsOctane = Octane::concurrently($classConcurrently, 1000000);
 
         ScraperJob::dispatch(
             $app,
