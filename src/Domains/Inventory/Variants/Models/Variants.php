@@ -688,17 +688,17 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'name' => 'sku',
                     'type' => 'string',
                     'facet' => true,
-                ], 
+                ],
                 [
                     'name' => 'ean',
                     'type' => 'string',
                     'facet' => true,
-                ], 
+                ],
                 [
                     'name' => 'barcode',
                     'type' => 'string',
                     'facet' => true,
-                ], 
+                ],
                 [
                     'name' => 'status',
                     'type' => 'object',
