@@ -91,6 +91,10 @@ class AgentChannelResponderActivity extends KanvasActivity
                     )->execute();
                 }
 
+                $slowDownApiResponseTime = $params['slowDownApiResponseTime'] ?? 5;
+                //https://wasenderapi.com/api-docs/rate-limits/understanding-rate-limits
+                sleep($slowDownApiResponseTime); // Simulate processing time
+
                 return new AgentChannelResponderAction(
                     $channel,
                     $message,
