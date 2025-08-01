@@ -35,9 +35,19 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                 }
                 $mappedProduct = $service->mapProduct($product);
                 $mappedProduct['variants'] = $service->mapVariant($product);
-
                 if (empty($mappedProduct) || $mappedProduct['price'] == 0) {
                     continue;
+                }
+                if (empty($mappedProduct['variants'])) {
+                    $variant = $mappedProduct;
+                    $variant['channels'][] = [
+                        'price' => $mappedProduct['price'],
+                        'discountPrice' => $mappedProduct['discountPrice'] ?? null,
+                        'is_published' => true,
+                        'warehouses_id' => $warehouse->getId(),
+                        'channels_id' => $channels->getId(),
+                    ];
+                    $mappedProduct['variants'] = [$variant];
                 }
                 $product = (
                     new ProductImporterAction(
@@ -54,7 +64,7 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                     ProductScrapperEvent::dispatch(
                         $this->app,
                         $this->uuid,
-                        $product,
+                        $product->toArray(),
                         $product->variants()->first()->getPrice($warehouse),
                         $this->searchText
                     );
