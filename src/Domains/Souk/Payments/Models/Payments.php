@@ -67,6 +67,6 @@ class Payments extends BaseModel
 
     public function scopePending($query)
     {
-        return $query->where('status', PaymentStatusEnum::PENDING->value);
+        return $query->whereIn('status', [PaymentStatusEnum::PENDING->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value]);
     }
 }
