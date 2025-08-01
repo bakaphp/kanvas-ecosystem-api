@@ -190,6 +190,11 @@ class LLMMessageResponseActivity extends KanvasActivity
             'content' => $prompt,
         ];
 
+        if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value && isset($message->message['platform']) && $message->message['platform'] === 'android') {
+            $messages['safety_tolerance'] = 1;
+            $messages['enable_safety_checker'] = true;
+        }
+
         // Use PromptMine client for chat response with AI model configuration
         $promptClient = new PromptClient($message->app);
         $apiResponse = $promptClient->generateChatResponse($messages, $aiModel);
