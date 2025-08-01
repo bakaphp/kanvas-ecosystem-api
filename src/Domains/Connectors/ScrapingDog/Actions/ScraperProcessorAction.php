@@ -40,6 +40,13 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                 }
                 if (empty($mappedProduct['variants'])) {
                     $variant = $mappedProduct;
+                    $variant['channels'][] = [
+                        'price' => $mappedProduct['price'],
+                        'discountPrice' => $mappedProduct['discountPrice'] ?? null,
+                        'is_published' => true,
+                        'warehouses_id' => $warehouse->getId(),
+                        'channels_id' => $channels->getId(),
+                    ];
                     $mappedProduct['variants'] = [$variant];
                 }
                 $product = (

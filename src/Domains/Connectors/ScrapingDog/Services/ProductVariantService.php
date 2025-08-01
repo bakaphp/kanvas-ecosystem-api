@@ -32,7 +32,7 @@ class ProductVariantService extends ProductService
             ];
             $variant['channels'][] = $channel;
 
-            $variant['name'] = key_exists('attributes', $group) ? $this->getName($group['attributes']) : ($group['name'] ?? $product['title'] ?? '');
+            $variant['name'] = $group['name'];
 
             $variants[] = $variant;
         }
