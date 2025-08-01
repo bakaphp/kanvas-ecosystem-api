@@ -35,6 +35,15 @@ class RolesRepository
             ->firstOrFail();
     }
 
+    public static function getByNameFromApp(string $name, ?AppInterface $app = null): Role
+    {
+        $app = $app ?? app(Apps::class);
+
+        Bouncer::scope()->to(RolesEnums::getScope($app));
+        return Role::where('name', $name)
+        ->firstOrFail();
+    }
+
     /**
      * @psalm-suppress MixedReturnStatement
      */

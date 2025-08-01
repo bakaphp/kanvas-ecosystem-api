@@ -2,6 +2,7 @@
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use DateTime;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
@@ -28,15 +29,20 @@ class GetOrderStatsAction
             $end = $endDate ? Carbon::parse($endDate, $timezone)->endOfDay()->timezone('UTC') : now()->endOfDay()->timezone('UTC');
         }
 
+        $currentCount = $this->getCurrentCount();
+        $dailyTurnover = $this->getDailyTurnover($start, $end);
+        $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount);
+
         return [
             'period' => [
                 'start' => $start->format('Y-m-d H:i:s'),
                 'end' => $end->format('Y-m-d H:i:s'),
             ],
-            'ordersInPeriod' => $this->getOrdersInPeriod($start, $end),
-            'currentCount' => $this->getCurrentCount(),
-            'dailyTurnover' => $this->getDailyTurnover($start, $end),
+            'ordersInPeriod' => $ordersInPeriod,
+            'currentCount' => $currentCount,
+            'dailyTurnover' => $dailyTurnover,
             'averageRotation' => $this->getAverageRotation($start, $end),
+            'orderRotationAvg' => $ordersInPeriod["orderAvg"] ? ($dailyTurnover["totalExits"] / $ordersInPeriod["orderAvg"]) * 100 : 0
         ];
     }
 
@@ -88,44 +94,109 @@ class GetOrderStatsAction
     /**
      * Get orders in period grouped by date and state
      */
-    private function getOrdersInPeriod($start, $end): array
+    private function getOrdersInPeriod($start, $end, $currentCount = null): array
     {
-        return DB::connection('commerce')->query()
-        ->fromSub(function ($query) use ($start, $end) {
-            $query->from('order_transitions_history')
-                ->selectRaw('
-                    order_transitions_history.id,
-                    order_transitions_history.order_id,
-                    order_transitions_history.to_status_id,
-                    DATE(order_transitions_history.changed_at) as date,
-                    order_transitions_history.is_deleted,
-                    ROW_NUMBER() OVER (PARTITION BY order_id, DATE(changed_at) ORDER BY changed_at DESC) as rn
-                ')
-                ->whereBetween('changed_at', [$start, $end])
-                ->where('order_transitions_history.apps_id', $this->app->id);
-        }, 'latest_transitions')
-        ->join('order_statuses', 'latest_transitions.to_status_id', '=', 'order_statuses.id')
-        ->where('latest_transitions.rn', 1)
-        ->when(! empty($this->currentCountStates), function ($query) {
-            $query->whereIn('order_statuses.slug', $this->currentCountStates);
-        })
-        ->selectRaw('order_statuses.slug as state, COUNT(*) as count, latest_transitions.date')
-        ->groupBy('order_statuses.slug', 'latest_transitions.date')
-        ->orderBy('latest_transitions.date')
-        ->get()
-        ->groupBy('date')
-        ->map(function ($dateGroup) {
+        $dateList = $this->generateDateList($start, $end);
+
+        $dateRangeSub = DB::raw("(SELECT " . implode(" UNION ALL SELECT ", $dateList) . ") as date_list(date_val)");
+
+        $activeOrders = DB::raw("
+            (SELECT DISTINCT order_id 
+             FROM order_transitions_history 
+             WHERE apps_id = {$this->app->id} 
+               AND is_deleted = 0 
+               AND changed_at <= '{$end} 23:59:59') AS active_orders
+        ");
+
+        $latestStatus = DB::raw("
+            (
+                SELECT * FROM (
+                    SELECT 
+                        order_id,
+                        to_status_id,
+                        changed_at,
+                        ended_at,
+                        ROW_NUMBER() OVER (PARTITION BY order_id, date(changed_at) ORDER BY changed_at DESC) AS rn
+                    FROM order_transitions_history
+                    WHERE apps_id = {$this->app->id}
+                      AND is_deleted = 0
+                ) ranked
+                WHERE rn = 1
+            ) AS latest_status
+        ");
+
+        $results = DB::connection('commerce')->query()
+            ->fromSub(function ($query) use ($dateRangeSub) {
+                $query->selectRaw('date_val as report_date')->from($dateRangeSub);
+            }, 'date_range')
+            ->crossJoin($activeOrders)
+            ->leftJoin($latestStatus, function ($join) {
+                $join->on('active_orders.order_id', '=', 'latest_status.order_id')
+                    ->whereRaw('latest_status.changed_at <= CONCAT(date_range.report_date, " 23:59:59")')
+                    ->whereRaw('(latest_status.ended_at IS NULL OR latest_status.ended_at > CONCAT(date_range.report_date, " 23:59:59"))');
+            })
+            ->join('order_statuses', 'latest_status.to_status_id', '=', 'order_statuses.id')
+            ->when(! empty($this->currentCountStates), function ($query) {
+                $query->whereIn('order_statuses.slug', $this->currentCountStates);
+            })
+            ->selectRaw('
+                order_statuses.slug as state, 
+                COUNT(DISTINCT active_orders.order_id) as count, 
+                date_range.report_date as date
+            ')
+            ->groupBy('order_statuses.slug', 'date_range.report_date')
+            ->orderBy('date_range.report_date')
+            ->get();
+
+        $daysInRange = collect($this->generateDateList($start, $end))
+            ->map(fn ($date) => trim($date, "'"));
+
+        $groupedResults = $results->groupBy('date');
+
+        $byDates = $daysInRange->map(function ($date) use ($groupedResults) {
+            $group = $groupedResults->get($date, collect());
+
             return [
-                'date' => $dateGroup->first()->date,
-                'count' => $dateGroup->sum('count'),
-                'states' => $dateGroup->map(fn ($item) => [
+                'date' => $date,
+                'count' => $group?->sum('count') ?? 0,
+                'states' => $group?->map(fn ($item) => [
                     'state' => $item->state ?? 'Unknown',
                     'count' => (int) $item->count,
-                ])->toArray(),
+                ])->toArray() ?? [],
             ];
-        })
-        ->values()
-        ->toArray();
+        });
+
+        $totalEntries = $byDates->sum(fn ($entry) => $entry["count"] ?? 0);
+
+        $maxOrders = $byDates->sortByDesc(fn ($entry) => $entry["count"] ?? 0)->first();
+        $minOrders = $byDates->sortBy(fn ($entry) => $entry["count"] ?? 0)->first();
+
+        return [
+            "orderAvg" => $totalEntries / $daysInRange->count(),
+            "maxOrdersDate" => [
+                "date" => $maxOrders["date"],
+                "count" => $maxOrders["count"]
+            ],
+            "minOrdersDate" => [
+                "date" => $minOrders["date"],
+                "count" => $minOrders["count"]
+            ],
+            "data" => $byDates->toArray()
+        ];
+    }
+
+    private function generateDateList($start, $end): array
+    {
+        $dates = [];
+        $startDate = new DateTime($start);
+        $endDate = new DateTime($end);
+
+        while ($startDate <= $endDate) {
+            $dates[] = "'" . $startDate->format('Y-m-d') . "'";
+            $startDate->modify('+1 day');
+        }
+
+        return $dates;
     }
 
     private function getCurrentCount(): int
@@ -167,12 +238,35 @@ class GetOrderStatsAction
             ->sort()
             ->values();
 
-        return $dates->map(function ($date) use ($entries, $exits) {
+        $byDates = $dates->map(function ($date) use ($entries, $exits) {
             return [
                 'date' => $date,
                 'entries' => (int) ($entries[$date]->count ?? 0),
                 'exits' => (int) ($exits[$date]->count ?? 0),
             ];
         })->toArray();
+
+        $totalEntries = $entries->sum(fn ($entry) => $entry->count ?? 0);
+        $totalExits = $exits->sum(fn ($entry) => $entry->count ?? 0);
+
+        $maxExit =  $exits->sortByDesc(fn ($entry) => $entry->count ?? 0)->first();
+        $maxEntry = $entries->sortByDesc(fn ($entry) => $entry->count ?? 0)->first();
+
+        return [
+            "totalEntries" => $entries->sum(fn ($entry) => $entry->count ?? 0),
+            "totalExits" => $exits->sum(fn ($entry) => $entry->count ?? 0),
+            "exitAvg" => $totalExits / $dates->count(),
+            "entryAvg" => $totalEntries / $dates->count(),
+            "exitPercentage" => $totalEntries > 0 ? ($totalExits / $totalEntries * 100) : 0,
+            "maxExitDate" => [
+                "date" => $maxExit->date,
+                "count" => $maxExit->count
+            ],
+            "maxEntryDate" => [
+                "date" => $maxEntry->date,
+                "count" => $maxEntry->count
+            ],
+            "data" => $byDates
+        ];
     }
 }

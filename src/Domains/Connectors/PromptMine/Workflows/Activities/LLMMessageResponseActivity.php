@@ -231,16 +231,24 @@ class LLMMessageResponseActivity extends KanvasActivity
     {
         $promptClient = new PromptClient($message->app);
         $prompt = $message->message['prompt'] ?? null;
+        $params = [];
 
         $provider = (string) ($message->message['ai_model']['key'] ?? 'dalle3');
         $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
+
+
+
+        if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value && isset($message->message['platform']) && $message->message['platform'] === 'android') {
+            $params['safety_tolerance'] = 1;
+            $params['enable_safety_checker'] = true;
+        }
 
         try {
             $generateImage = $promptClient->generateImage(
                 provider: $provider,
                 model: $model,
                 prompt: $prompt,
-                key: 'text-to-image'
+                params: $params
             );
         } catch (ClientException $e) {
             $errorBody = $e->getResponse()->getBody()->getContents();

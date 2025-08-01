@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Models;
 use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 
 class OrderTransitionHistory extends BaseModel
 {
@@ -21,14 +22,18 @@ class OrderTransitionHistory extends BaseModel
         'to_status_id',
         'description',
         'metadata',
+        'is_current',
         'is_deleted',
+        'ended_at',
+        'duration_in_seconds',
         'changed_at',
         'changed_by',
+        'ended_by'
     ];
 
     protected $casts = [
         'changed_at' => 'datetime',
-        'status_ended_at' => 'datetime',
+        'ended_at' => 'datetime',
         'metadata' => Json::class,
         'is_current' => 'boolean',
     ];
@@ -48,5 +53,13 @@ class OrderTransitionHistory extends BaseModel
     public function toStatus(): BelongsTo
     {
         return $this->belongsTo(OrderStatus::class, 'to_status_id', 'id');
+    }
+    public function changedBy(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'changed_by', 'id');
+    }
+    public function endedBy(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'ended_by', 'id');
     }
 }

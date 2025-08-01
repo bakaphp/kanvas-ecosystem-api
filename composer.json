@@ -52,6 +52,7 @@
         "nevadskiy/laravel-tree": "^0.6.0",
         "nuwave/lighthouse": "^6.0",
         "openai-php/client": "^0.13.0",
+        "php-ffmpeg/php-ffmpeg": "*",
         "phpclassic/php-shopify": "^1.2",
         "powersync/authorizenet-sdk-php": "^2.0",
         "pusher/pusher-php-server": "^7.2",
@@ -82,7 +83,7 @@
         "typesense/typesense-php": "^4.2",
         "vlucas/phpdotenv": "^5.5",
         "webleit/zohocrmapi": "dev-master",
-        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^2.0.0"
+        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^2.1.2"
     },
     "require-dev": {
         "beyondcode/laravel-dump-server": "^2.1",

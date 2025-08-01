@@ -78,6 +78,6 @@ class CreatePaymentAction
 
     public function hasPendingPayments(): bool
     {
-        return $this->order->payments()->where('status', PaymentStatusEnum::PENDING->value)->exists();
+        return $this->order->payments()->whereIn('status', [PaymentStatusEnum::PENDING->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value])->exists();
     }
 }

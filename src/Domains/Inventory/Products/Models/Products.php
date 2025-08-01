@@ -24,6 +24,7 @@ use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
@@ -549,9 +550,19 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+        if (
+            $user instanceof UserInterface &&
+            (
+                ! auth()->user()->isAppOwner() ||
+            (
+                app()->bound(CompaniesBranches::class) &&
+                $app->get('enable_company_bound_search', false) // Only apply if this app setting is enabled
+            )
+            )
+        ) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
+
         if ($query->model->isTypesense()) {
             $query->options([
                 'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'

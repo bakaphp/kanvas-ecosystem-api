@@ -87,6 +87,8 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+    created_at: String
+    updated_at: String
 }
 
 type OrderStatus {
@@ -290,6 +292,22 @@ type OrderStatusTransitionResult {
     message: Mixed
 }
 
+type OrderTransitionHistory {
+    id: ID!
+    order_id: ID!
+    order: Order @belongsTo(relation: "order")
+    fromStatus: OrderStatus @belongsTo(relation: "fromStatus")
+    toStatus: OrderStatus @belongsTo(relation: "toStatus")
+    changedBy: User @belongsTo(relation: "changedBy")
+    endedBy: User @belongsTo(relation: "endedBy")
+    description: String
+    metadata: String
+    is_current: Boolean
+    changed_at: String
+    ended_at: String
+    duration_in_seconds: Int
+}
+
 extend type Mutation @guard {
     # @deprecated(reason: "Use createOrderFromCart instead")
     createOrder(input: OrderInput!): Mixed!
@@ -382,12 +400,14 @@ extend type Query @guard {
                     "users_id"
                     "user_email"
                     "user_phone"
+                    "people_id"
                     "status"
                     "fulfillment_status"
                     "order_number"
                     "reference"
                     "order_types_id"
                     "parent_id"
+                    "created_at"
                 ]
             )
         orderType: _
@@ -438,5 +458,45 @@ extend type Query @guard {
             model: "Kanvas\\Souk\\Orders\\Models\\Order"
             scopes: ["fromCompany", "fromApp", "notDeleted", "filterByUser"]
             defaultCount: 25
+        )
+    
+    orderTypes(
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        where: _
+            @whereConditions(
+                columns: ["id", "companies_id", "name"]
+            )
+    ): [OrderType!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes"
+            scopes: ["fromApp", "notDeleted"]
+        )
+     orderTransitionHistory(
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "id", 
+                    "companies_id", 
+                    "order_id",
+                    "transition_id",
+                    "from_status_id",
+                    "to_status_id",
+                    "changed_at",
+                    "ended_at",
+                    "is_current",
+                    "changed_by",
+                    "ended_by",
+                    "duration_in_seconds"
+                ]
+            )
+    ): [OrderTransitionHistory!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderTransitionHistory"
+            scopes: ["fromApp", "notDeleted", "filterByUser"]
         )
 }

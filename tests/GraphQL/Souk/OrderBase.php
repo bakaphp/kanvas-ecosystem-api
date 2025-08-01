@@ -87,7 +87,8 @@ class OrderBase extends TestCase
         array $metadata,
         string $variantId,
         int $quantity = 1,
-        string $orderType = 'order'
+        string $orderType = 'order',
+        string $currency = 'USD'
     ): Order {
         $data = [
             'cartId' => 0,
@@ -95,6 +96,7 @@ class OrderBase extends TestCase
             'customer' => [
                 'email' => fake()->email(),
             ],
+            'currency' => $currency,
             'shipping_address' => [
                 'address' => fake()->address(),
                 'address_2' => fake()->postcode(),

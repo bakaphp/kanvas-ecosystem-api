@@ -746,7 +746,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile(app(Apps::class));
 
-        return $user->displayname ?? $this->displayname;
+        return $user->displayname ?? $this->displayname ?? "";
     }
 
     public function getAppEmail(): string

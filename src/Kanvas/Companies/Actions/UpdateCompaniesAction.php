@@ -31,19 +31,6 @@ class UpdateCompaniesAction
             return $value !== null;
         });
 
-        if (isset($data['is_active'])) {
-            $users = $this->companies->users;
-            $app = app(Apps::class);
-            if ($data['is_active'] === false) {
-                foreach ($users as $user) {
-                    $this->deactivateUser($user, $app);
-                }
-            } else {
-                foreach ($users as $user) {
-                    $this->activateUser($user, $app);
-                }
-            }
-        }
 
         $this->companies->updateOrFail($data);
 
