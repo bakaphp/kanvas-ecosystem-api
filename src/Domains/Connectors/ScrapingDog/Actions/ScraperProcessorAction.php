@@ -42,7 +42,7 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                     $variant = $mappedProduct;
                     $variant['channels'][] = [
                         'price' => $mappedProduct['price'],
-                        'discountPrice' => $mappedProduct['discountPrice'] ?? null,
+                        'discounted_price' => $mappedProduct['discountPrice'] ?? null,
                         'is_published' => true,
                         'warehouses_id' => $warehouse->getId(),
                         'channels_id' => $channels->getId(),
