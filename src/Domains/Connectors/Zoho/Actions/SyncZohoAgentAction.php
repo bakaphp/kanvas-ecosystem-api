@@ -14,6 +14,7 @@ use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Users\Models\Users;
+use Throwable;
 
 class SyncZohoAgentAction
 {
@@ -35,7 +36,7 @@ class SyncZohoAgentAction
             $zohoService = new ZohoService($this->app, $this->company);
             $record = $zohoService->getAgentByEmail($this->email);
 
-            $name = explode(' ', $record->Name);
+            $name = explode(' ', $record->Name ?? $record->Vendor_Name ?? 'Unknown User');
             $firstName = $name[0];
             $lastName = implode(' ', array_slice($name, 1));
             $memberNumber = $record->Member_Number;
@@ -45,9 +46,14 @@ class SyncZohoAgentAction
             $newMemberNumber = false;
 
             // Get or create owner and their agent record
-            $ownerData = $this->getOrCreateOwner($owner);
-            $ownerUser = $ownerData['user'];
-            $ownerAgent = $ownerData['agent'];
+            try {
+                $ownerData = $this->getOrCreateOwner($owner);
+                $ownerUser = $ownerData['user'];
+                $ownerAgent = $ownerData['agent'];
+            } catch (Throwable $e) {
+                report($e);
+                $ownerAgent = null;
+            }
 
             if ($existingUser) {
                 $user = $existingUser;
@@ -97,7 +103,7 @@ class SyncZohoAgentAction
 
             // Update the agent if it exists, otherwise create a new record
             $agentData = [
-                'name' => $record->Name,
+                'name' => $record->Name ?? $record->Vendor_Name,
                 'owner_linked_source_id' => $owner['id'],
                 'owner_id' => $record->Sponsor ?? ($ownerAgent ? $ownerAgent->member_id : null),
                 'status_id' => 1,
