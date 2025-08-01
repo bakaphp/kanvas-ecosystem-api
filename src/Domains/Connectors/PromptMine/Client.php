@@ -144,7 +144,7 @@ class Client
      * @param string $key The API endpoint identifier (default: 'text-to-image')
      * @return array The API response containing image data
      */
-    public function generateImage(string $provider, string $model, string $prompt, string $key = 'text-to-image'): array
+    public function generateImage(string $provider, string $model, string $prompt, $params = []): array
     {
         // Extract the base provider from the provider string (e.g., 'fal-ai' from 'fal-ai/text-to-image')
         $baseProvider = explode('/', $provider)[0];
@@ -161,6 +161,10 @@ class Client
             'model' => $model, // Use the full model path directly
             'prompt' => $prompt,
         ];
+
+        if (!empty($params)) {
+            $data = array_merge($data, $params);
+        }
 
         return $this->post($endpoint, $data);
     }
