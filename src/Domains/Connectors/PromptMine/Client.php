@@ -141,7 +141,6 @@ class Client
      * @param string $provider The AI provider (e.g., 'fal-ai/text-to-image', 'openai', 'stability-ai')
      * @param string $model The model to use (e.g., 'fal-ai/flux-pro/kontext/text-to-image', 'dall-e-3')
      * @param string $prompt The text prompt for image generation
-     * @param string $key The API endpoint identifier (default: 'text-to-image')
      * @return array The API response containing image data
      */
     public function generateImage(string $provider, string $model, string $prompt, $params = []): array
@@ -162,7 +161,7 @@ class Client
             'prompt' => $prompt,
         ];
 
-        if (!empty($params)) {
+        if (! empty($params)) {
             $data = array_merge($data, $params);
         }
 
