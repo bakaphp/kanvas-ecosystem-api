@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\DynamicSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,7 @@ use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Models\BaseModel;
+use Override;
 
 #[ObservedBy(AgentObserver::class)]
 class Agent extends BaseModel
@@ -23,6 +25,7 @@ class Agent extends BaseModel
     use UuidTrait;
     use HasFilesystemTrait;
     use DynamicSearchableTrait;
+    use HasLightHouseCache;
 
     protected $fillable = [
         'uuid',
@@ -44,6 +47,12 @@ class Agent extends BaseModel
         'role' => Json::class,
         'is_active' => 'boolean',
     ];
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'Agent';
+    }
 
     public function type(): BelongsTo
     {

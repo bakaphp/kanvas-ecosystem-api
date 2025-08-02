@@ -137,11 +137,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
     }
 
+    #[Override]
     public function getActivityLogName(): string
     {
         return 'variant-' . $this->companies_id . '-' . $this->apps_id;
     }
 
+    #[Override]
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -152,6 +154,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         ->logOnlyDirty();
     }
 
+    #[Override]
     public function getActivities(): Collection
     {
         return Activity::forSubject($this)

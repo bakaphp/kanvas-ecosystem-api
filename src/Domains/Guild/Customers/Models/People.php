@@ -9,6 +9,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
@@ -114,7 +115,7 @@ class People extends BaseModel
     }
 
     // Define the relationship with the Organization model
-    public function organizations()
+    public function organizations(): BelongsToMany
     {
         return $this->belongsToMany(
             Organization::class,
