@@ -119,11 +119,13 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return 'Product';
     }
 
+    #[Override]
     public function getActivityLogName(): string
     {
         return 'product-' . $this->companies_id . '-' . $this->apps_id;
     }
 
+    #[Override]
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -134,6 +136,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         ->logOnlyDirty();
     }
 
+    #[Override]
     public function getActivities(): Collection
     {
         return Activity::forSubject($this)
