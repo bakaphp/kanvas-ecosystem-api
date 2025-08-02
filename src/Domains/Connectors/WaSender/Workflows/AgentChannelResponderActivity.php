@@ -41,9 +41,9 @@ class AgentChannelResponderActivity extends KanvasActivity
                 }
 
                 $chatJid = $message->message['chat_jid'] ?? null;
-
+                $filterByChannel = (bool) ($params['filterByChannel'] ?? false);
                 // Check if this channel is allowed
-                if (! in_array($chatJid, $allowedChannels)) {
+                if ($filterByChannel && ! in_array($chatJid, $allowedChannels)) {
                     return [
                         'message' => 'Agent is not running on this channel',
                         'entity' => null,
