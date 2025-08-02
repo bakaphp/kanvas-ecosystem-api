@@ -24,7 +24,7 @@ class CreateSessionAction
         return SessionModel::updateOrCreate([
                 'uuid' => $this->session->channel->slug,
                 'apps_id' => $this->session->app->getId(),
-                'agents_id' => $this->session->agent?->getId(),
+                'agents_id' => $this->session->agent->getId(),
                 'channel_id' => $this->session->channel->getId(),
                 'companies_id' => $this->session->company->getId(),
             ], [
