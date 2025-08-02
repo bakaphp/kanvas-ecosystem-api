@@ -17,13 +17,13 @@ class Session extends Data
         public Apps $app,
         public Companies $company,
         public Channel $channel,
+        public Agent $agent,
         public string $entity_namespace,
         public string $entity_id,
         public array $user,
         public ?string $canal_id = null,
         public ?int $communication_channels_id = null,
         public array $content = [],
-        public ?Agent $agent = null,
         public ?Users $userModel = null,
     ) {
     }
