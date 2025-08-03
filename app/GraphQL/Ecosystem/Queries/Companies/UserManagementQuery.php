@@ -49,11 +49,11 @@ class UserManagementQuery
             'users_associated_company.users_id',
             'users.id'
         )
-        ->join('users_associated_apps', function ($join) use ($companiesId) {
-            $join->on('users_associated_apps.users_id', '=', 'users.id')
-                 ->where('users_associated_apps.companies_id', '=', $companiesId)
-                 ->orWhere('users_associated_apps.companies_id', '=', 0);
-        })
+        ->join(
+            'users_associated_apps',
+            'users_associated_apps.users_id',
+            'users.id'
+        )
         ->where('users_associated_company.companies_id', $companiesId)
         ->where('users_associated_company.companies_id', $companiesId)
         ->where('users_associated_apps.apps_id', $app->getId())
