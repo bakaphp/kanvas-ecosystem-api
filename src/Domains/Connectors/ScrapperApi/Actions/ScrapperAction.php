@@ -24,7 +24,8 @@ class ScrapperAction
         public CompaniesBranches $companyBranch,
         protected Regions $region,
         public string $search,
-        public ?string $uuid = null
+        public ?string $uuid = null,
+        public ?string $cacheKey = null
     ) {
         $this->uuid = $uuid ?? app(AppEnums::KANVAS_IDENTIFIER->getValue());
     }
