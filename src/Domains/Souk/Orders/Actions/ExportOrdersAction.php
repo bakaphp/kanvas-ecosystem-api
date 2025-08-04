@@ -12,7 +12,6 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ExportOrdersAction
 {
-
     public function __construct(
         protected Collection $orderData,
         protected ?array $fieldMapper = null,
