@@ -11,13 +11,14 @@ class AddAttributeValue
 {
     public function __construct(
         protected Attributes $attributeModel,
-        protected array $values
+        protected array $values,
+        protected ?string $locale = null
     ) {
     }
 
     public function execute(): void
     {
-        $currentLocale = app()->getLocale();
+        $currentLocale = $this->locale ?? app()->getLocale();
 
         foreach ($this->values as $value) {
             $attributeValue = AttributesValues::firstOrNewTranslatable([
