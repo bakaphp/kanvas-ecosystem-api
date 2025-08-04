@@ -29,7 +29,8 @@ class AddAttributeValue
                 $parent = AttributesValues::getById($value['parent_id']);
                 if ($parent) {
                     $attributeValue->parent()->associate($parent);
-                    $parent->setHasChildren(true);
+                    $parent->has_children = true;
+                    $parent->saveOrFail();
                 }
             }
 

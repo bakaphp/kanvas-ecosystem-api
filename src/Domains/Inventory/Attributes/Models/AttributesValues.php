@@ -56,10 +56,4 @@ class AttributesValues extends BaseModel
 
         return $instance;
     }
-
-    public function setHasChildren(bool $value): void
-    {
-        $this->has_children = $value;
-        $this->saveOrFail();
-    }
 }
