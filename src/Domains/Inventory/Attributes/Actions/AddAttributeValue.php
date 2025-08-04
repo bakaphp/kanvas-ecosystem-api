@@ -17,11 +17,25 @@ class AddAttributeValue
 
     public function execute(): void
     {
+        $currentLocale = app()->getLocale();
+
         foreach ($this->values as $value) {
-            AttributesValues::firstOrCreate([
+            $attributeValue = AttributesValues::firstOrNewTranslatable([
                 'attributes_id' => $this->attributeModel->getId(),
-                'value' => $value['value'] ?? null,
-            ]);
+                'parent_id' => $value['parent_id'] ?? null,
+            ], 'value', $value['value'], $currentLocale);
+
+            if (!$attributeValue->exists && !empty($value['parent_id'])) {
+                $parent = AttributesValues::getById($value['parent_id']);
+                if ($parent) {
+                    $attributeValue->parent()->associate($parent);
+                    $parent->setHasChildren(true);
+                }
+            }
+
+            if (!$attributeValue->exists) {
+                $attributeValue->save();
+            }
         }
     }
 }
