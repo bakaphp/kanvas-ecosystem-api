@@ -61,18 +61,13 @@ class OrderExportQuery
             // Apply orderType filter using the handler
             if (isset($args['orderType']) && is_array($args['orderType'])) {
                 $handler = new OrderTypeHandler(new SQLOperator());
-                // Handle single orderType condition object
                 $handler($query, $args['orderType'], null, 'and');
             }
 
             // Apply orderStatus filter using the handler
             if (isset($args['orderStatus']) && is_array($args['orderStatus'])) {
                 $handler = new OrderStatusHandler(new SQLOperator());
-                foreach ($args['orderStatus'] as $condition) {
-                    if (is_array($condition)) {
-                        $handler($query, $condition, null, 'and');
-                    }
-                }
+                $handler($query, $args["orderStatus"], null, 'and');
             }
 
             // Apply hasAddress filter using the handler
@@ -156,8 +151,8 @@ class OrderExportQuery
                 'allItems.variant',
             ])->get();
 
-            // Create export service with field mapper and metadata
-            $exportService = new ExportOrdersAction($orders, $fieldMapper, $metadata);
+            // Create export service with field mapper, metadata, and where conditions
+            $exportService = new ExportOrdersAction($orders, $fieldMapper, $metadata, $args['where'] ?? []);
             return $exportService->execute($format);
         } catch (\Exception $e) {
             return [
