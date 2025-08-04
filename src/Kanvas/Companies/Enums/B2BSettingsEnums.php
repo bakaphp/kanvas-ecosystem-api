@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Enums;
 
 use Baka\Contracts\EnumsInterface;
-use Kanvas\Enums\AppEnums;
 use Override;
 
 enum B2BSettingsEnums implements EnumsInterface
