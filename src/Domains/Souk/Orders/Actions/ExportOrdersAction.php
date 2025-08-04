@@ -15,7 +15,7 @@ class ExportOrdersAction
     public function __construct(
         protected Collection $orderData,
         protected ?array $fieldMapper = null,
-        protected ?string $customTitle = null
+        protected ?array $metadata = null
     ) {
     }
 
@@ -25,8 +25,9 @@ class ExportOrdersAction
        $filename = "orders_export_{$timestamp}";
 
        $metaData = [
-        "title" => $this->customTitle ?? 'REPORTE DE ÓRDENES',
-        "description" => $this->description ?? ""
+        "title" => $this->metadata['custom_title'] ?? 'REPORTE DE ÓRDENES',
+        "subtitle" => $this->metadata['subtitle'] ?? '',
+        "headerImages" => $this->metadata['headerImages'] ?? []
        ];
        
        if ($format === 'EXCEL') {
@@ -236,9 +237,11 @@ class ExportOrdersAction
                 $excelData = [];
                 
                 // Add header information
-                $excelData[] = ['REPORTE DE ÓRDENES'];
+                $excelData[] = [$this->data['header_info']['title']];
                 $excelData[] = [''];
-                $excelData[] = ['Dirección:', 'CENTRO RETENCIÓN VEHICULAR AV. 27 DE FEBRERO'];
+                if (!empty($this->data['header_info']['subtitle'])) {
+                    $excelData[] = [$this->data['header_info']['subtitle']];
+                }
                 $excelData[] = ['Fecha de exportación:', $this->data['header_info']['export_date']];
                 $excelData[] = ['Rango de fechas:', $this->data['header_info']['date_range']];
                 $excelData[] = ['Estados seleccionados:', $this->data['header_info']['status_filter']];
@@ -326,15 +329,9 @@ class ExportOrdersAction
 
         // Header information with logos and company details
         $headerInfo = [
-            'logos' => [
-                'MoviPass' => public_path('images/movipass-logo.png'),
-                'DIGESETT' => public_path('images/digesett-logo.png'),
-                'ParqueoT RD' => public_path('images/parqueot-logo.png'),
-                'Fiduciaria Reservas' => public_path('images/fiduciaria-logo.png'),
-                'Gruas Colon' => public_path('images/gruas-colon-logo.png'),
-            ],
-            'title' => $metaData["title"] ?? $this->customTitle ?? 'REPORTE DE ÓRDENES',
-            'description' => $metaData["description"] ?? $this->description ?? '',
+            'logos' => $metaData['headerImages'] ?? [],
+            'title' => $metaData['title'] ?? 'REPORTE DE ÓRDENES',
+            'subtitle' => $metaData['subtitle'] ?? '',
             'export_date' => Carbon::now()->format('d/m/Y H:i:s'),
             'date_range' => $this->getDateRange($orders),
             'status_filter' => $this->getStatusFilter($orders)

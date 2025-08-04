@@ -320,6 +320,12 @@ type OrderTransitionHistory {
     duration_in_seconds: Int
 }
 
+input ExportMetadataInput {
+    custom_title: String
+    subtitle: String
+    headerImages: [String!]
+}
+
 extend type Mutation @guard {
     # @deprecated(reason: "Use createOrderFromCart instead")
     createOrder(input: OrderInput!): Mixed!
@@ -513,10 +519,9 @@ extend type Query @guard {
             )
     exportOrders(
         format: ExportFormat!
-        field_mapper: Mixed # JSON object with label => field_path mapping
-        custom_title: String
-        subtitle: String
         search: String @search
+        field_mapper: Mixed # JSON object with label => field_path mapping
+        metadata: ExportMetadataInput
         where: _
             @whereConditions(
                 columns: [

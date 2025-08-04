@@ -23,9 +23,10 @@ class OrderExportQuery
         $company = auth()->user()->getCurrentCompany();
         $format = $args['format'];
         
-        // Extract field mapper and custom title from args
+        // Extract field mapper and metadata from args
         $fieldMapper = $args['field_mapper'] ?? null;
-        $customTitle = $args['custom_title'] ?? null;
+        $metadata = $args['metadata'] ?? [];
+        $customTitle = $metadata['custom_title'] ?? null;
         
         try {
             // Build the query with the same filters as the orders query
@@ -60,13 +61,8 @@ class OrderExportQuery
             // Apply orderType filter using the handler
             if (isset($args['orderType']) && is_array($args['orderType'])) {
                 $handler = new OrderTypeHandler(new SQLOperator());
-                print_r($args["orderType"]);
-                die();
-                foreach ($args['orderType'] as $condition) {
-                    if (is_array($condition)) {
-                        $handler($query, $condition, null, 'and');
-                    }
-                }
+                // Handle single orderType condition object
+                $handler($query, $args['orderType'], null, 'and');
             }
 
             // Apply orderStatus filter using the handler
@@ -160,8 +156,8 @@ class OrderExportQuery
                 'allItems.variant',
             ])->get();
 
-            // Create export service with field mapper and custom title
-            $exportService = new ExportOrdersAction($orders, $fieldMapper, $customTitle);
+            // Create export service with field mapper and metadata
+            $exportService = new ExportOrdersAction($orders, $fieldMapper, $metadata);
             return $exportService->execute($format);
         } catch (\Exception $e) {
             return [
