@@ -28,6 +28,9 @@ class AttributesValues extends BaseModel
     public $table = 'attributes_values';
     public $guarded = [];
     public $translatable = ['value'];
+    protected $casts = [
+        'has_children' => 'boolean',
+    ];
 
     /**
      * attribute.
