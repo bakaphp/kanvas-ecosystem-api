@@ -7,8 +7,7 @@ namespace App\GraphQL\Souk\Queries\Orders;
 use GraphQL\Type\Definition\ResolveInfo;
 use App\GraphQL\Souk\Handlers\OrderTypeHandler;
 use App\GraphQL\Souk\Handlers\OrderStatusHandler;
-use App\GraphQL\Souk\Handlers\HasAddressHandler;
-use App\GraphQL\Souk\Handlers\HasPeopleHandler;
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\Order;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -22,12 +21,11 @@ class OrderExportQuery
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
         $format = $args['format'];
-        
+
         // Extract field mapper and metadata from args
         $fieldMapper = $args['field_mapper'] ?? null;
         $metadata = $args['metadata'] ?? [];
-        $customTitle = $metadata['custom_title'] ?? null;
-        
+
         try {
             // Build the query with the same filters as the orders query
             $query = Order::query()
@@ -41,9 +39,9 @@ class OrderExportQuery
                 $searchTerm = $args['search'];
                 $query->where(function ($q) use ($searchTerm) {
                     $q->where('user_email', 'like', "%{$searchTerm}%")
-                      ->orWhere('user_phone', 'like', "%{$searchTerm}%")
-                      ->orWhere('reference', 'like', "%{$searchTerm}%")
-                      ->orWhere('order_number', 'like', "%{$searchTerm}%");
+                        ->orWhere('user_phone', 'like', "%{$searchTerm}%")
+                        ->orWhere('reference', 'like', "%{$searchTerm}%")
+                        ->orWhere('order_number', 'like', "%{$searchTerm}%");
                 });
             }
 
@@ -71,18 +69,18 @@ class OrderExportQuery
             if (isset($args['orderBy']) && is_array($args['orderBy'])) {
                 foreach ($args['orderBy'] as $order) {
                     // Skip if order is not an array or doesn't have required fields
-                    if (!is_array($order) || !isset($order['column'])) {
+                    if (! is_array($order) || ! isset($order['column'])) {
                         continue;
                     }
-                    
+
                     $column = $order['column'];
                     $direction = $order['order'] ?? 'ASC';
-                    
+
                     // Convert column name to lowercase to handle enum-like values
                     if (is_string($column)) {
                         $column = strtolower($column);
                     }
-                    
+
                     $query->orderBy($column, $direction);
                 }
             } else {
@@ -91,10 +89,10 @@ class OrderExportQuery
 
             // Get the orders with relationships needed for field mapping
             $orders = $query->with([
-                'user', 
-                'company', 
-                'orderType', 
-                'orderStatus', 
+                'user',
+                'company',
+                'orderType',
+                'orderStatus',
                 'allItems',
                 'allItems.variant',
             ])->get();
@@ -112,7 +110,7 @@ class OrderExportQuery
         }
     }
 
-    public function applyWhereConditions($query, array $conditions = [])
+    public function applyWhereConditions($query, array $conditions = []): Builder
     {
         $operatorMap = [
             'EQ' => '=',
@@ -141,7 +139,7 @@ class OrderExportQuery
         return $query;
     }
 
-    private function applySingleCondition($query, array $condition, array $operatorMap)
+    private function applySingleCondition($query, array $condition, array $operatorMap): void
     {
         $column = $condition['column'];
         $operator = strtoupper($condition['operator'] ?? 'EQ');
@@ -161,5 +159,4 @@ class OrderExportQuery
             $query->where($column, $operatorMap[$operator], $value);
         }
     }
-
 }
