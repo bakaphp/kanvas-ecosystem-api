@@ -55,9 +55,6 @@ class OrderExportQuery
                 );
             }
 
-            // print_r($query->toSql());
-            // die();
-
             // Apply orderType filter using the handler
             if (isset($args['orderType']) && is_array($args['orderType'])) {
                 $handler = new OrderTypeHandler(new SQLOperator());
@@ -68,55 +65,6 @@ class OrderExportQuery
             if (isset($args['orderStatus']) && is_array($args['orderStatus'])) {
                 $handler = new OrderStatusHandler(new SQLOperator());
                 $handler($query, $args["orderStatus"], null, 'and');
-            }
-
-            // Apply hasAddress filter using the handler
-            if (isset($args['hasAddress']) && is_array($args['hasAddress'])) {
-                $handler = new HasAddressHandler(new SQLOperator());
-                foreach ($args['hasAddress'] as $condition) {
-                    if (is_array($condition)) {
-                        $handler($query, $condition, null, 'and');
-                    }
-                }
-            }
-
-            // Apply hasItems filter
-            if (isset($args['hasItems']) && is_array($args['hasItems'])) {
-                foreach ($args['hasItems'] as $condition) {
-                    // Skip if condition is not an array or doesn't have required fields
-                    if (!is_array($condition) || !isset($condition['column']) || !isset($condition['value'])) {
-                        continue;
-                    }
-                    
-                    $column = $condition['column'];
-                    $operator = $condition['operator'] ?? 'EQ';
-                    $value = $condition['value'];
-                    
-                    $query->whereHas('allItems', function ($q) use ($column, $operator, $value) {
-                        switch ($operator) {
-                            case 'EQ':
-                                $q->where($column, $value);
-                                break;
-                            case 'LIKE':
-                                $q->where($column, 'like', "%{$value}%");
-                                break;
-                            case 'IN':
-                                $q->whereIn($column, is_array($value) ? $value : [$value]);
-                                break;
-                            // Add more operators as needed
-                        }
-                    });
-                }
-            }
-
-            // Apply hasPeople filter using the handler
-            if (isset($args['hasPeople']) && is_array($args['hasPeople'])) {
-                $handler = new HasPeopleHandler(new SQLOperator());
-                foreach ($args['hasPeople'] as $condition) {
-                    if (is_array($condition)) {
-                        $handler($query, $condition, null, 'and');
-                    }
-                }
             }
 
             // Apply order by
