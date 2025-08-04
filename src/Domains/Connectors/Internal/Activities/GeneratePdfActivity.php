@@ -6,6 +6,12 @@ namespace Kanvas\Connectors\Internal\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\ActionEngine\Actions\Models\Action;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
+use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
+use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -53,6 +59,33 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
         //@todo any better way to do this?
         if ($entity instanceof Message && $entity->parent) {
             $entity->parent->addFile($pdfFile, $pdfFileName);
+        }
+
+        /**
+         * @todo MOVE THIS TO ITS OWN ACTIVITY
+         */
+        if ($entity instanceof Message && isset($entity->message['checkListId'])) {
+            $action = Action::getBySlug($entity->message['verb'], $entity->company);
+            $companyAction = CompanyAction::getByAction($action, $entity->company, $app);
+            $engagement = Engagement::getByMessageId($entity->getId());
+
+            $companyTaskList = TaskListItem::query()->where('companies_action_id', $companyAction->getId())
+                ->where('task_list_id', $entity->message['checkListId'])
+                ->where('is_deleted', 0)
+                ->first();
+
+            //$entity->message['checkListId'] = $entity->message['checkListId'];
+            if ($companyTaskList) {
+                new ChangeTaskEngagementItemStatusAction(
+                    taskListItem: $companyTaskList,
+                    lead: $engagement->lead,
+                    status: TaskStatusEnum::COMPLETED->value,
+                    user: $engagement->user,
+                    app: $app,
+                    company: $engagement->company,
+                    message: $entity
+                )->execute();
+            }
         }
 
         return [
