@@ -49,7 +49,7 @@ class AttributesValues extends BaseModel
 
         $instance = $query->first();
 
-        if (!$instance) {
+        if (! $instance) {
             $instance = new static($attributes);
             $instance->setTranslation($translatableField, $locale, $translatableValue);
         }

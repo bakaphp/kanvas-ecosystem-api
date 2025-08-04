@@ -25,7 +25,7 @@ class AddAttributeValue
                 'parent_id' => $value['parent_id'] ?? null,
             ], 'value', $value['value'], $currentLocale);
 
-            if (!$attributeValue->exists && !empty($value['parent_id'])) {
+            if (! $attributeValue->exists && !empty($value['parent_id'])) {
                 $parent = AttributesValues::getById($value['parent_id']);
                 if ($parent) {
                     $attributeValue->parent()->associate($parent);
@@ -33,7 +33,7 @@ class AddAttributeValue
                 }
             }
 
-            if (!$attributeValue->exists) {
+            if (! $attributeValue->exists) {
                 $attributeValue->save();
             }
         }
