@@ -30,6 +30,7 @@ class ScrapperJob implements ShouldQueue
         public array $results,
         public ?string $uuid = null,
         public ?string $searchText = null,
+        public ?string $cacheKey = null,
     ) {
         $this->queue = 'scrapper-queue';
     }
@@ -43,7 +44,8 @@ class ScrapperJob implements ShouldQueue
             $this->region,
             $this->results,
             $this->uuid,
-            $this->searchText
+            $this->searchText,
+            $this->cacheKey
         )->execute();
     }
 }

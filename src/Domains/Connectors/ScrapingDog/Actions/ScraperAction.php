@@ -35,7 +35,8 @@ class ScraperAction extends ScraperApiAction
                 $region,
                 [$result],
                 null,
-                $this->search
+                $this->search,
+                $this->cacheKey
             ));
             // $classConcurrently[] = fn () => $action->execute();
             $action->execute();
@@ -49,7 +50,8 @@ class ScraperAction extends ScraperApiAction
             $region,
             $secondGroup,
             $uuid,
-            $this->search
+            $this->search,
+            $this->cacheKey
         );
         sleep(4);
 

@@ -34,6 +34,7 @@ class ScrapperProcessorAction
         public array $results,
         public ?string $uuid = null,
         public ?string $searchText = null,
+        public ?string $cacheKey = null,
     ) {
         $this->uuid = $uuid;
     }
