@@ -29,7 +29,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         ->where('apps_id', $app->getId())
             ->firstOrFail();
         if (! $variant->get(ConfigEnum::VARIANT_PRICE_UPDATE->value)) {
-           $data = $this->updatePriceVariant($variant);
+            $data = $this->updatePriceVariant($variant);
         } elseif (Carbon::parse($variant->get(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value))->isLastWeek()) {
             $data = $this->updatePriceVariant($variant);
         }
@@ -59,7 +59,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $variant->set(ConfigEnum::VARIANT_PRICE_UPDATE->value, true);
         $variant->set(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value, Carbon::now());
         return [
-            'price'=> $mappedProduct['price'],
+            'price' => $mappedProduct['price'],
             'discounted_price' => $mappedProduct['discountPrice'] ?? null,
         ];
     }
