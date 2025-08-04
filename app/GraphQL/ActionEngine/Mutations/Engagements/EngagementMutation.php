@@ -372,7 +372,7 @@ class EngagementMutation
 
         $engagementMessage = new EngagementMessage(
             data: $data,
-            text: $data['text'] ?? '',
+            text: $data['text'] ?? $companyAction->name,
             verb: $action,
             status: $status,
             actionLink: $data['link'] ?? '',
