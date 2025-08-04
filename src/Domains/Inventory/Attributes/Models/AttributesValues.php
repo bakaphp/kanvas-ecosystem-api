@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Nevadskiy\Tree\AsTree;
+use Override;
 
 /**
  * Class Attributes.
@@ -29,6 +30,7 @@ class AttributesValues extends BaseModel
     public $guarded = [];
     public $translatable = ['value'];
 
+    #[Override]
     protected function casts(): array
     {
         return [
