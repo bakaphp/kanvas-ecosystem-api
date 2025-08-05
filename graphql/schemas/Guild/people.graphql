@@ -9,6 +9,7 @@ type People {
     lastname: String
     subscriptions: [PeopleSubscription!]! @hasMany
     dob: Date
+    licence_number: String
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
@@ -87,6 +88,7 @@ input PeopleInput {
     twitter_contact_id: String
     linkedin_contact_id: String
     google_contact_id: String
+    licence_number: String
     dob: String
     contacts: [ContactInput!]
     address: [AddressInput!]
