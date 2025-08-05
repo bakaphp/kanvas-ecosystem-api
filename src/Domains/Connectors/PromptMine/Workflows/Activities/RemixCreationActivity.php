@@ -23,7 +23,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
         $this->overwriteAppService($app);
         $messageType = MessageType::fromApp($entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
 
-        if (! array_key_exists('remix_parent_id', $entity->message) && $entity->message_types_id !== $messageType) {
+        if ((is_array($entity->message) && ! array_key_exists('remix_parent_id', $entity->message)) && $entity->message_types_id !== $messageType) {
             return [
                 'result' => false,
                 'message' => 'Message does not have a remix parent ID, not a remix',
