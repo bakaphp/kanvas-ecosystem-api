@@ -96,12 +96,16 @@ class PullLeadAction
 
                 //$lead->searchable();
 
-                $vehicleOfInterest = current(Interest::getByLeadId(
-                    $vinCompany,
-                    $user,
-                    $currentLead['LeadId']
-                )->items);
-                $this->getVehicleOfInterest($vehicleOfInterest, $lead);
+                try {
+                    $vehicleOfInterest = current(Interest::getByLeadId(
+                        $vinCompany,
+                        $user,
+                        $currentLead['LeadId']
+                    )->items);
+                    $this->getVehicleOfInterest($vehicleOfInterest, $lead);
+                } catch (Throwable $e) {
+                    report($e);
+                }
 
                 $lead->refresh();
 
