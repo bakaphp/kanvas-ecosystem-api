@@ -32,7 +32,7 @@ class People extends Data
         public int $id = 0,
         #[WithCast(DateTimeInterfaceCast::class, format: 'Y-m-d')]
         public readonly ?DateTime $dob = null,
-        public readonly ?string $licence_id = null,
+        public readonly ?string $licence_number = null,
         public readonly ?string $facebook_contact_id = null,
         public readonly ?string $google_contact_id = null,
         public readonly ?string $apple_contact_id = null,
