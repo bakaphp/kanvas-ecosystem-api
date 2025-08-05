@@ -54,6 +54,12 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             (float) $mappedProduct['price'],
             (float) $mappedProduct['discountPrice']
         );
+        if ($mappedProduct['files']) {
+            $variant->deleteFiles();
+            foreach ($mappedProduct['files'] as $file) {
+                $variant->addFileFromUrl($file['url'], $file['name']);
+            }
+        }
         $variant->set(ConfigEnum::VARIANT_PRICE_UPDATE->value, true);
         $variant->set(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value, Carbon::now());
     }
