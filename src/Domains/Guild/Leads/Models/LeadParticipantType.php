@@ -8,7 +8,7 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
- * Class Leads.
+ * Class LeadParticipantType.
  *
  * @property int $id
  * @property int $apps_id
