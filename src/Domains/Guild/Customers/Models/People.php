@@ -42,6 +42,7 @@ use Override;
  * @property string $firstname
  * @property string|null $middlename = null
  * @property string $lastname
+ * @property string $licence_id
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
