@@ -19,7 +19,8 @@ class CheckMessagePostLimitAction
         public Message $message,
         public int $timeFrame = 24,
         public ?int $messageTypeId = null,
-        public bool $getChildrenCount = false
+        public bool $getChildrenCount = false,
+        public ?array $messageJsonFilters = null
     ) {
     }
 
@@ -36,7 +37,8 @@ class CheckMessagePostLimitAction
             $this->message->app,
             $this->timeFrame,
             $this->messageTypeId,
-            $this->getChildrenCount
+            $this->getChildrenCount,
+            $this->messageJsonFilters
         );
 
         // $this->message->app->reGenerateRedisSettings();
