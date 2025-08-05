@@ -50,6 +50,7 @@ class SyncLeadByThirdPartyCustomFieldAction
             $lead->firstname = $this->lead->people->firstname;
             $lead->lastname = $this->lead->people->lastname;
             $lead->email = $this->lead->people->getEmails()[0]['value'] ?? null;
+            $lead->people_id = $people->getId();
             $lead->description = $this->lead->description;
             $lead->leads_status_id = $this->lead->status_id;
             $lead->leads_types_id = $this->lead->type_id;
