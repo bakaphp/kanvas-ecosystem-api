@@ -8,7 +8,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Souk\Orders\Exports\OrderExport;
-use Knp\Snappy\Pdf;
+use Kanvas\Souk\Orders\Jobs\GeneratePdfJob;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ExportOrdersAction
@@ -186,6 +186,7 @@ class ExportOrdersAction
             'status' => 'success',
             'download_url' => Storage::disk('public')->url($filePath),
             'file_name' => "{$filename}.xlsx",
+            'file_path' => $filePath,
             'message' => 'Excel export completed successfully'
         ];
     }
@@ -204,54 +205,20 @@ class ExportOrdersAction
     {
         $data = $this->prepareOrderData($orders, $metaData);
 
-        // Generate HTML from the Blade view
-        $html = view('exports.orders', ['orders' => $data])->render();
+        // Generate HTML content
+        $html = $this->generatePdfHtml(
+            $data['orders'],
+            $data['headers'],
+            $data['header_info']['logos'] ?? []
+        );
 
-        // Create PDF using Knp\Snappy\Pdf
-        // Try to find wkhtmltopdf binary in common locations
-        $binaryPath = config('snappy.pdf.binary') ?? $this->findWkhtmltopdfBinary();
-        $pdf = new Pdf($binaryPath);
-        $pdf->setOptions([
-            'page-size' => 'A4',
-            'orientation' => 'landscape',
-            'margin-top' => 10,
-            'margin-right' => 10,
-            'margin-bottom' => 10,
-            'margin-left' => 10,
-            'encoding' => 'UTF-8',
-            'enable-local-file-access' => true
-        ]);
-
-        $pdfContent = $pdf->getOutputFromHtml($html);
-
-        $filePath = "exports/{$filename}.pdf";
-        Storage::disk('public')->put($filePath, $pdfContent);
-
-        return [
-            'status' => 'success',
-            'download_url' => Storage::disk('public')->url($filePath),
-            'file_name' => "{$filename}.pdf",
-            'message' => 'PDF export completed successfully'
-        ];
+        // Use queue job for PDF generation to avoid Swoole issues
+        // dispatchSync runs the job immediately and waits for the result
+        $job = new GeneratePdfJob($html, $filename);
+        return $job->dispatchSync();
     }
 
-    private function findWkhtmltopdfBinary(): string
-    {
-        $commonPaths = [
-            '/usr/local/bin/wkhtmltopdf',
-            '/usr/bin/wkhtmltopdf',
-            '/bin/wkhtmltopdf',
-            'wkhtmltopdf' // Let system find it in PATH
-        ];
 
-        foreach ($commonPaths as $path) {
-            if ($path === 'wkhtmltopdf' || file_exists($path)) {
-                return $path;
-            }
-        }
-
-        throw new \Exception('wkhtmltopdf binary not found. Please install wkhtmltopdf or set the binary path in config.');
-    }
 
     private function prepareOrderData($orders, array $metaData = []): array
     {
