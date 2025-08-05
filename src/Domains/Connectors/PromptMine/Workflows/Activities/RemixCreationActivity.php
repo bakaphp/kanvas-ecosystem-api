@@ -23,7 +23,8 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
         $this->overwriteAppService($app);
         $messageType = MessageType::fromApp($entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
 
-        if ((is_array($entity->message) && ! array_key_exists('remix_parent_id', $entity->message)) && $entity->message_types_id !== $messageType) {
+        $messageData = is_string($entity->message) ? json_decode($entity->message, true) : $entity->message;
+        if ((is_array($messageData) && ! array_key_exists('remix_parent_id', $messageData)) && $entity->message_types_id !== $messageType) {
             return [
                 'result' => false,
                 'message' => 'Message does not have a remix parent ID, not a remix',
@@ -44,9 +45,9 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity) {
+            integrationOperation: function ($entity) use ($messageData) {
                 // Assign the remix_parent_id as the parent_id of the message, creating a remix.
-                $entity->parent_id = $entity->message['remix_parent_id'];
+                $entity->parent_id = $messageData['remix_parent_id'];
                 $entity->save();
 
                 return [
