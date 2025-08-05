@@ -365,15 +365,27 @@ class Message extends BaseModel
         Apps $app,
         int $hours,
         ?int $messageTypesId = null,
-        bool $getChildrenCount = false
+        bool $getChildrenCount = false,
+        ?array $messageJsonFilters = null
     ): int {
         return self::fromApp($app)
-        ->where('users_id', $userId)
-        ->when($messageTypesId, fn ($query) => $query->where('message_types_id', $messageTypesId))
-        ->where('created_at', '>=', Carbon::now()->subHours($hours))
-        ->when($getChildrenCount, fn ($query) => $query->whereNotNull('parent_id'), fn ($query) => $query->whereNull('parent_id'))
-        ->withTrashed()
-        ->count();
+            ->where('users_id', $userId)
+            ->when($messageTypesId, fn ($query) => $query->where('message_types_id', $messageTypesId))
+            ->where('created_at', '>=', Carbon::now()->subHours($hours))
+            ->when($getChildrenCount, fn ($query) => $query->whereNotNull('parent_id'), fn ($query) => $query->whereNull('parent_id'))
+            ->when($messageJsonFilters, function ($query) use ($messageJsonFilters) {
+                foreach ($messageJsonFilters as $jsonPath => $value) {
+                    if (is_array($value)) {
+                        // For multiple values, use whereIn with JSON path
+                        $query->whereIn("message->{$jsonPath}", $value);
+                    } else {
+                        // For single value, use where with JSON path
+                        $query->where("message->{$jsonPath}", $value);
+                    }
+                }
+            })
+            ->withTrashed()
+            ->count();
     }
 
     public function toSearchableArray(): array
