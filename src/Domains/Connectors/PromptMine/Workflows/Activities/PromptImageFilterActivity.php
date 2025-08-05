@@ -151,7 +151,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         try {
             (new CheckMessagePostLimitAction(
                 message: $message,
-                messageTypeId: MessageType::fromApp($message->app)->where('verb', 'prompt')->firstOrFail()->getId(),
+                //messageTypeId: MessageType::fromApp($message->app)->where('verb', 'prompt')->firstOrFail()->getId(),
                 messageJsonFilters: ['type' => 'image-format']
             ))->execute();
         } catch (Throwable $e) {
