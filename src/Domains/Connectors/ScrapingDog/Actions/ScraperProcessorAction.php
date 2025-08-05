@@ -77,6 +77,7 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                     $key = $this->cacheKey;
                     $seconds = (int)$app->get(AppEnums::CACHE_SEARCH_TTL->getValue());
                     $keyArray = explode(':', $this->cacheKey);
+                    Cache::forget($this->cacheKey);
                     Cache::remember($this->cacheKey, $seconds, function () use ($product, $app, $keyArray, $key) {
                         return ScoutMacros::getTypesenseData($app, $product, $keyArray[2], 25, []);
                     });
