@@ -32,12 +32,15 @@ class ScraperSearchActivity extends KanvasActivity
             //         'error' => 'Already searched this word recently',
             //     ];
             // }
+            $cacheKey = $params['cache_key'] ?? null;
             $action = new ScraperAction(
                 $app,
                 Users::getById($params['user']),
                 CompaniesBranches::getById($params['companyBranch']),
                 Regions::getById($params['region']),
                 $params['search'],
+                $params['uuid'] ?? null,
+                $cacheKey
             );
 
             // $this->setRecentlySearched($app, $word);
@@ -47,9 +50,6 @@ class ScraperSearchActivity extends KanvasActivity
             ];
         } catch (Throwable $e) {
             captureException($e);
-            dump($e->getMessage());
-            dump($e->getTraceAsString());
-
             return [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
