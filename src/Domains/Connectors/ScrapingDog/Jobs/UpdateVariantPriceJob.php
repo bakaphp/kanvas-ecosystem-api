@@ -25,21 +25,23 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $app = $this->receiver->app;
         $this->overwriteAppService($app);
         $request = $this->webhookRequest->payload;
-        $variant = Variants::where('slug', $request['slug'])
+        $variant = Variants::where('sku', $request['sku'])
         ->where('apps_id', $app->getId())
             ->firstOrFail();
         if (! $variant->get(ConfigEnum::VARIANT_PRICE_UPDATE->value)) {
-            $this->updatePriceVariant($variant);
+            $data = $this->updatePriceVariant($variant);
         } elseif (Carbon::parse($variant->get(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value))->isLastWeek()) {
-            $this->updatePriceVariant($variant);
+            $data = $this->updatePriceVariant($variant);
         }
 
         return [
             'message' => 'Variant price updated',
+            'price' => $data['price'],
+            'discounted_price' => $data['discounted_price'],
         ];
     }
 
-    protected function updatePriceVariant(Variants $variant)
+    protected function updatePriceVariant(Variants $variant): array
     {
         $product = new ScrapingDogRepository($this->receiver->app)->getByAsin($variant->sku);
         $channels = Channels::getById($this->receiver->configuration['channel_id']);
@@ -56,5 +58,9 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         );
         $variant->set(ConfigEnum::VARIANT_PRICE_UPDATE->value, true);
         $variant->set(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value, Carbon::now());
+        return [
+            'price' => $mappedProduct['price'],
+            'discounted_price' => $mappedProduct['discountPrice'] ?? null,
+        ];
     }
 }
