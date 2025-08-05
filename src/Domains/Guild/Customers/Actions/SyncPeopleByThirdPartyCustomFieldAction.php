@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Models\People as ModelsPeople;
@@ -25,18 +26,22 @@ class SyncPeopleByThirdPartyCustomFieldAction
             throw new ValidationException('People Missing Custom Fields Key and Value to find reference');
         }
 
-        $people = ModelsPeople::getByCustomField(
-            $customFieldKeys[0],
-            $customFieldValues[0],
-            $this->people->branch->company,
-        );
+        $lockKey = 'people_sync:' . $this->people->app->getId() . $this->people->branch->company->getId() . ':' . $customFieldKeys[0] . ':' . $customFieldValues[0];
 
-        if ($people !== null) {
-            $this->people->id = $people->getId();
-        }
+        return Cache::lock($lockKey, 10)->block(5, function () use ($customFieldKeys, $customFieldValues) {
+            $people = ModelsPeople::getByCustomField(
+                $customFieldKeys[0],
+                $customFieldValues[0],
+                $this->people->branch->company,
+            );
 
-        $createPeople = new CreatePeopleAction($this->people);
+            if ($people !== null) {
+                $this->people->id = $people->getId();
+            }
 
-        return $createPeople->execute();
+            $createPeople = new CreatePeopleAction($this->people);
+
+            return $createPeople->execute();
+        });
     }
 }
