@@ -28,17 +28,20 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $variant = Variants::where('sku', $request['sku'])
         ->where('apps_id', $app->getId())
             ->firstOrFail();
+        $response = [
+            'message' => 'Variant price updated',
+        ];
         if (! $variant->get(ConfigEnum::VARIANT_PRICE_UPDATE->value)) {
             $data = $this->updatePriceVariant($variant);
+            $response['price'] = $data['price'];
+            $response['discounted_price'] = $data['discounted_price'] ?? null;
         } elseif (Carbon::parse($variant->get(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value))->isLastWeek()) {
             $data = $this->updatePriceVariant($variant);
+            $response['price'] = $data['price'];
+            $response['discounted_price'] = $data['discounted_price'] ?? null;
         }
 
-        return [
-            'message' => 'Variant price updated',
-            'price' => $data['price'],
-            'discounted_price' => $data['discounted_price'],
-        ];
+        return $response;
     }
 
     protected function updatePriceVariant(Variants $variant): array
@@ -56,8 +59,15 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             (float) $mappedProduct['price'],
             (float) $mappedProduct['discountPrice']
         );
+        if ($mappedProduct['files']) {
+            $variant->deleteFiles();
+            foreach ($mappedProduct['files'] as $file) {
+                $variant->addFileFromUrl($file['url'], $file['name']);
+            }
+        }
         $variant->set(ConfigEnum::VARIANT_PRICE_UPDATE->value, true);
         $variant->set(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value, Carbon::now());
+
         return [
             'price' => $mappedProduct['price'],
             'discounted_price' => $mappedProduct['discountPrice'] ?? null,
