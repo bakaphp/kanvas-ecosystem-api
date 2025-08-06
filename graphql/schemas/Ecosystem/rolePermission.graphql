@@ -91,7 +91,7 @@ extend type Mutation @guardByAdmin {
         )
 
     #assign role to the company and to the app
-    assignRoleToUser(userId: ID!, role: Mixed!): Boolean
+    assignRoleToUser(userId: ID!, roleIds: [ID!]!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@assignRoleToUser"
         )

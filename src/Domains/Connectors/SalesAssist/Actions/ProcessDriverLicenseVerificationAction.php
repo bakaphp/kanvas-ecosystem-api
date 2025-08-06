@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
+use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
+use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
@@ -423,6 +426,24 @@ class ProcessDriverLicenseVerificationAction
             'entity_uuid' => Str::uuid()->toString(),
             'pipelines_stages_id' => $stage->getId(),
         ]);
+
+        //change status for all id verification in checklist
+        $companyTaskList = TaskListItem::query()->where('companies_action_id', $companyAction->getId())
+            ->where('is_deleted', 0);
+
+        if ($companyTaskList->exists()) {
+            foreach ($companyTaskList->get() as $taskItem) {
+                new ChangeTaskEngagementItemStatusAction(
+                    taskListItem: $taskItem,
+                    lead: $this->lead,
+                    status: TaskStatusEnum::COMPLETED->value,
+                    user: $this->user,
+                    app: $this->lead->app,
+                    company: $this->lead->company,
+                    message: $message
+                )->execute();
+            }
+        }
 
         return $engagement;
     }

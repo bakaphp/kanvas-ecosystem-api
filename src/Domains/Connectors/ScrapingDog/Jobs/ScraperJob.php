@@ -23,7 +23,8 @@ class ScraperJob extends ScrapperJob
             $this->region,
             $this->results,
             $this->uuid,
-            $this->searchText
+            $this->searchText,
+            $this->cacheKey
         )->execute();
     }
 }

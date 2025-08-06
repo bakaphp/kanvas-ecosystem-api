@@ -211,6 +211,10 @@ class Lead
             ]
         );
 
+        if (! isset($response['coBuyerContact']) || empty($response['coBuyerContact'])) {
+            return null;
+        }
+
         if (preg_match("/\/id\/(\d+)/", $response['coBuyerContact'], $matches)) {
             return $matches[1];
         }

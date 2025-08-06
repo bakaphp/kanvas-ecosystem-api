@@ -14,7 +14,7 @@ class MessageObserver
     public function creating(Message $message): void
     {
         //$messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
-        if (
+        /* if (
             $message->app->get('message-image-type')
             && is_array($message->message)
             && isset($message->message['type'])
@@ -25,7 +25,7 @@ class MessageObserver
                 message: $message,
                 messageTypeId: $message->message_types_id
             ))->execute();
-        }
+        } */
 
         if ($message->app->get('validate-message-schema')) {
             $checkJson = new MessageSchemaValidator($message, $message->messageType);
