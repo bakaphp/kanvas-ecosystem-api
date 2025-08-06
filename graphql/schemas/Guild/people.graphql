@@ -98,7 +98,6 @@ input PeopleInput {
     peopleEmploymentHistory: [EmploymentPeopleHistoryInput!]
     organization: String
     created_at: DateTime
-    
 }
 
 input PeopleParticipantInput {
@@ -133,13 +132,16 @@ extend type Query @guard {
             )
         hasEventsVersions: _
             @whereHasConditions(
-                columns: ["id","name","version"]
+                columns: ["id", "name", "version"]
                 handler: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionBuilder@getHasEventVersion"
             )
         hasEmails: _
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
         hasOrganization: _
-            @whereHasConditions(relation: "organizations", columns: ["id", "name"])
+            @whereHasConditions(
+                relation: "organizations"
+                columns: ["id", "name"]
+            )
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
         hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
@@ -155,6 +157,21 @@ extend type Query @guard {
                     "leads_status_id"
                     "leads_sources_id"
                     "leads_types_id"
+                ]
+            )
+        hasOrders: _
+            @whereHasConditions(
+                relation: "orders"
+                columns: [
+                    "id"
+                    "uuid"
+                    "status"
+                    "total"
+                    "subtotal"
+                    "taxes"
+                    "shipping"
+                    "discounts"
+                    "created_at"
                 ]
             )
         hasAddress: _
