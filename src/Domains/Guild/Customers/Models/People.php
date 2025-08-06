@@ -103,7 +103,7 @@ class People extends BaseModel
         )->orderBy('created_at', 'desc');
     }
 
-    public function orders() : HasMany
+    public function orders(): HasMany
     {
         return $this->hasMany(
             Order::class,
