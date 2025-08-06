@@ -57,10 +57,10 @@ class SetB2BChannelVariantPricingCommand extends Command
             ->whereNotNull('products_variants_channels.price')
             ->get();
 
-        /*$defaultChannel = Channels::getDefault(
-            app: $app,
-            company: $b2bCompany
-        );*/
+        /*    $defaultChannel = Channels::getDefault(
+               app: $app,
+               company: $b2bCompany
+           ); */
         foreach ($variants as $variant) {
             try {
                 $variantWarehouses = $variant->variantWarehouses->first();
@@ -77,10 +77,10 @@ class SetB2BChannelVariantPricingCommand extends Command
                 }
 
                 $variantChannel = VariantChannel::from([
-                    'price' => number_format($variantChannelPrice, 2, '.', ''),
-                    'discounted_price' => number_format($variantChannelPrice, 2, '.', ''),
-                    'is_published' => 1,
-                ]);
+                                'price' => number_format($variantChannelPrice, 2, '.', ''),
+                                'discounted_price' => number_format($variantChannelPrice, 2, '.', ''),
+                                'is_published' => 1,
+                    ]);
                 (new AddVariantToChannelAction(
                     $variantWarehouses,
                     $channel,
