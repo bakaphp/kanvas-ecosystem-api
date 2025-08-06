@@ -55,6 +55,7 @@ class CreatePeopleAction
             'google_contact_id' => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
+            'licence_number' => $this->peopleData->licence_number,
         ];
 
         if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
