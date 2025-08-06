@@ -12,7 +12,7 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class OrderExport implements FromCollection, WithDrawings, WithColumnWidths, WithStyles, WithEvents
+class OrderExportExcel implements FromCollection, WithDrawings, WithColumnWidths, WithStyles, WithEvents
 {
     private $data;
     private $headerRowStart;

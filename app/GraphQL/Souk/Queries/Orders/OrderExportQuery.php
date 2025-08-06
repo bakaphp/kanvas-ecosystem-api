@@ -10,9 +10,9 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Actions\ExportOrdersAction;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use Nuwave\Lighthouse\WhereConditions\SQLOperator;
 
@@ -21,13 +21,15 @@ class OrderExportQuery
     public function export(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
         $format = $args['format'];
         $fieldMapper = $args['field_mapper'] ?? null;
         $metadata = $args['metadata'] ?? [];
 
         try {
             $user = auth()->user();
-            $orders = $this->getOrdersList($app, $user, $args);
+            $orders = $this->getOrdersList($app, $company, $args);
             $exportService = new ExportOrdersAction(
                 user: $user,
                 orderData: $orders,
@@ -46,12 +48,12 @@ class OrderExportQuery
         }
     }
 
-    public function getOrdersList(Apps $app, Users $user, array $args): Collection
+    public function getOrdersList(Apps $app, Companies $company, array $args): Collection
     {
         // Build the query with the same filters as the orders query
         $query = Order::query()
-            ->fromCompany()
-            ->fromApp()
+            ->fromCompany($company)
+            ->fromApp($app)
             ->notDeleted()
             ->filterByUser();
 

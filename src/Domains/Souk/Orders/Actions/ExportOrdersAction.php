@@ -7,7 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
-use Kanvas\Souk\Orders\Exports\OrderExport;
+use Kanvas\Souk\Orders\Exports\OrderExportExcel;
 use Kanvas\Souk\Orders\Jobs\GeneratePdfJob;
 use Kanvas\Users\Models\Users;
 use Maatwebsite\Excel\Facades\Excel;
@@ -53,7 +53,7 @@ class ExportOrdersAction
     {
         $data = $this->prepareOrderData($orders, $metaData);
 
-        $export = new OrderExport($data);
+        $export = new OrderExportExcel($data);
 
         $filePath = "exports/{$filename}.xlsx";
         Excel::store($export, $filePath, 'public');
