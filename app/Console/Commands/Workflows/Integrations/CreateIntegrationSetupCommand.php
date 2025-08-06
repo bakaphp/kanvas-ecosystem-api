@@ -110,10 +110,12 @@ class CreateIntegrationSetupCommand extends Command
 
             if ($hasTemplate) {
                 $config = [];
-                
+
                 while (true) {
                     $fieldName = $this->ask('Enter field name (dot notation supported, empty to finish)');
-                    if (empty($fieldName)) break;
+                    if (empty($fieldName)) {
+                        break;
+                    }
 
                     $fieldType = $this->choice('Data type', [
                         'string', 'integer', 'boolean', 'array', 'email', 'url'
@@ -123,19 +125,18 @@ class CreateIntegrationSetupCommand extends Command
 
                     $typeRules = [
                         'string' => 'string',
-                        'integer' => 'integer', 
+                        'integer' => 'integer',
                         'boolean' => 'boolean',
                         'array' => 'array',
                         'email' => 'email',
                         'url' => 'url'
                     ];
-                    
-                    $rule = ($isRequired ? 'required' : 'nullable') . '|' . $typeRules[$fieldType];
 
+                    $rule = ($isRequired ? 'required' : 'nullable') . '|' . $typeRules[$fieldType];
                     $config[$fieldName] = $rule;
                     $this->info("Added: $fieldName = $rule");
                 }
-            
+
                 $this->info('Final configuration:');
                 $this->line(json_encode($config, JSON_PRETTY_PRINT));
             }
@@ -147,7 +148,6 @@ class CreateIntegrationSetupCommand extends Command
                 'template' => json_encode($config)
             ]);
             (new CreateMessageTypeAction($messageTypeDto))->execute();
-
         }
     }
 }
