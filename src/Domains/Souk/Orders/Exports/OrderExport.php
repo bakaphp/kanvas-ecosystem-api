@@ -94,7 +94,9 @@ class OrderExport implements FromCollection, WithDrawings, WithColumnWidths, Wit
 
                         // Distribute logos across the header
                         $columnIndex = $index * $columnsPerLogo;
-                        $column = chr(65 + min($columnIndex, count($this->data['headers']) - 1));
+                        $number = 65 + min($columnIndex, count($this->data['headers']) - 1);
+                        $number = (int) floor($number);
+                        $column = chr($number);
                         $drawing->setCoordinates($column . '2');
 
                         $drawings[] = $drawing;

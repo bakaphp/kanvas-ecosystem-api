@@ -9,15 +9,17 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Souk\Orders\Exports\OrderExport;
 use Kanvas\Souk\Orders\Jobs\GeneratePdfJob;
+use Kanvas\Users\Models\Users;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ExportOrdersAction
 {
     public function __construct(
+        protected Users $user,
         protected Collection $orderData,
         protected ?array $fieldMapper = null,
         protected ?array $metadata = null,
-        protected ?array $whereConditions = null
+        protected ?array $params = null
     ) {
     }
 
@@ -46,129 +48,6 @@ class ExportOrdersAction
         ];
     }
 
-    protected function generatePdfHtml(array $data, array $headers, array $logos = []): string
-    {
-        $logoHtml = '';
-        if (! empty($logos)) {
-            $logoHtml = '<div class="logo-row">';
-            foreach ($logos as $logo) {
-                $logoHtml .= "<img src='{$logo}' class='logo' alt='Logo'>";
-            }
-            $logoHtml .= '</div>';
-        }
-
-        $headerCells = '';
-        foreach ($headers as $header) {
-            $headerCells .= "<th>{$header}</th>";
-        }
-
-        $dataRows = '';
-        foreach ($data as $row) {
-            $dataRows .= '<tr>';
-            foreach ($row as $cell) {
-                $dataRows .= "<td>{$cell}</td>";
-            }
-            $dataRows .= '</tr>';
-        }
-
-        return "
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset='UTF-8'>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                }
-                .header {
-                    text-align: center;
-                    margin-bottom: 20px;
-                    border-bottom: 2px solid #333;
-                    padding-bottom: 15px;
-                }
-                .logo-row {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 15px;
-                }
-                .logo {
-                    max-height: 60px;
-                    max-width: 150px;
-                    object-fit: contain;
-                }
-                .company-info {
-                    margin: 10px 0;
-                }
-                .company-info h1 {
-                    margin: 0;
-                    color: #333;
-                    font-size: 24px;
-                }
-                .company-info p {
-                    margin: 5px 0;
-                    color: #666;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 20px;
-                }
-                th {
-                    background-color: #f8f9fa;
-                    border: 1px solid #ddd;
-                    padding: 12px;
-                    text-align: left;
-                    font-weight: bold;
-                    color: #333;
-                }
-                td {
-                    border: 1px solid #ddd;
-                    padding: 10px;
-                    text-align: left;
-                }
-                tr:nth-child(even) {
-                    background-color: #f9f9f9;
-                }
-                tr:hover {
-                    background-color: #f5f5f5;
-                }
-                .footer {
-                    margin-top: 30px;
-                    text-align: center;
-                    font-size: 12px;
-                    color: #666;
-                    border-top: 1px solid #ddd;
-                    padding-top: 10px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class='header'>
-                {$logoHtml}
-                <div class='company-info'>
-                    <h1>Data Export Report</h1>
-                    <p>Generated on " . now()->format('F j, Y \a\t g:i A') . "</p>
-                </div>
-            </div>
-            
-            <table>
-                <thead>
-                    <tr>{$headerCells}</tr>
-                </thead>
-                <tbody>
-                    {$dataRows}
-                </tbody>
-            </table>
-            
-            <div class='footer'>
-                <p>This report contains " . count($data) . " records</p>
-            </div>
-        </body>
-        </html>";
-    }
 
     private function toExcel($orders, string $filename, array $metaData = []): array
     {
@@ -204,18 +83,27 @@ class ExportOrdersAction
     private function toPdf($orders, string $filename, array $metaData = []): array
     {
         $data = $this->prepareOrderData($orders, $metaData);
+        $order = $this->orderData->first();
 
-        // Generate HTML content
-        $html = $this->generatePdfHtml(
-            $data['orders'],
-            $data['headers'],
-            $data['header_info']['logos'] ?? []
+        GeneratePdfJob::dispatch(
+            $order,
+            $this->user,
+            'orders-pdf',
+            $filename,
+            [
+                "orders" => $data['orders'],
+                "headers" => $data['headers'],
+                "logos" => $data['header_info']['logos'] ?? []
+            ]
         );
 
-        // Use queue job for PDF generation to avoid Swoole issues
-        // dispatchSync runs the job immediately and waits for the result
-        $job = new GeneratePdfJob($html, $filename);
-        return $job->dispatchSync();
+        return [
+            'status' => 'processing',
+            'download_url' => null,
+            'file_name' => "{$filename}.pdf",
+            'file_path' => null,
+            'message' => 'PDF generation started. You will receive an email with the download link when ready.',
+        ];
     }
 
 
@@ -294,8 +182,8 @@ class ExportOrdersAction
     private function getDateRange($orders): string
     {
         // Try to extract date range from where conditions first
-        if ($this->whereConditions) {
-            $dateRange = $this->extractDateRangeFromWhere($this->whereConditions);
+        if ($this->params) {
+            $dateRange = $this->extractDateRangeFromWhere($this->params);
             if ($dateRange) {
                 return $dateRange;
             }

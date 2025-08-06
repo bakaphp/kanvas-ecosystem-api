@@ -8,9 +8,11 @@ use App\GraphQL\Souk\Handlers\OrderStatusHandler;
 use App\GraphQL\Souk\Handlers\OrderTypeHandler;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Actions\ExportOrdersAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use Nuwave\Lighthouse\WhereConditions\SQLOperator;
 
@@ -19,86 +21,20 @@ class OrderExportQuery
     public function export(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
         $format = $args['format'];
-
-        // Extract field mapper and metadata from args
         $fieldMapper = $args['field_mapper'] ?? null;
         $metadata = $args['metadata'] ?? [];
 
         try {
-            // Build the query with the same filters as the orders query
-            $query = Order::query()
-                ->fromCompany()
-                ->fromApp()
-                ->notDeleted()
-                ->filterByUser();
-
-            // Apply search filter
-            if (isset($args['search'])) {
-                $searchTerm = $args['search'];
-                $query->where(function ($q) use ($searchTerm) {
-                    $q->where('user_email', 'like', "%{$searchTerm}%")
-                        ->orWhere('user_phone', 'like', "%{$searchTerm}%")
-                        ->orWhere('reference', 'like', "%{$searchTerm}%")
-                        ->orWhere('order_number', 'like', "%{$searchTerm}%");
-                });
-            }
-
-            // Apply basic where conditions
-            if (isset($args['where']) && is_array($args['where'])) {
-                $query = $this->applyWhereConditions(
-                    $query,
-                    $args['where'] ?? []
-                );
-            }
-
-            // Apply orderType filter using the handler
-            if (isset($args['orderType']) && is_array($args['orderType'])) {
-                $handler = new OrderTypeHandler(new SQLOperator());
-                $handler($query, $args['orderType'], null, 'and');
-            }
-
-            // Apply orderStatus filter using the handler
-            if (isset($args['orderStatus']) && is_array($args['orderStatus'])) {
-                $handler = new OrderStatusHandler(new SQLOperator());
-                $handler($query, $args["orderStatus"], null, 'and');
-            }
-
-            // Apply order by
-            if (isset($args['orderBy']) && is_array($args['orderBy'])) {
-                foreach ($args['orderBy'] as $order) {
-                    // Skip if order is not an array or doesn't have required fields
-                    if (! is_array($order) || ! isset($order['column'])) {
-                        continue;
-                    }
-
-                    $column = $order['column'];
-                    $direction = $order['order'] ?? 'ASC';
-
-                    // Convert column name to lowercase to handle enum-like values
-                    if (is_string($column)) {
-                        $column = strtolower($column);
-                    }
-
-                    $query->orderBy($column, $direction);
-                }
-            } else {
-                $query->orderBy('created_at', 'DESC');
-            }
-
-            // Get the orders with relationships needed for field mapping
-            $orders = $query->with([
-                'user',
-                'company',
-                'orderType',
-                'orderStatus',
-                'allItems',
-                'allItems.variant',
-            ])->get();
-
-            // Create export service with field mapper, metadata, and where conditions
-            $exportService = new ExportOrdersAction($orders, $fieldMapper, $metadata, $args['where'] ?? []);
+            $user = auth()->user();
+            $orders = $this->getOrdersList($app, $user, $args);
+            $exportService = new ExportOrdersAction(
+                user: $user,
+                orderData: $orders,
+                fieldMapper: $fieldMapper,
+                metadata: $metadata,
+                params: $args['where'] ?? []
+            );
             return $exportService->execute($format);
         } catch (\Exception $e) {
             return [
@@ -108,6 +44,81 @@ class OrderExportQuery
                 'message' => 'Export failed: ' . $e->getMessage()
             ];
         }
+    }
+
+    public function getOrdersList(Apps $app, Users $user, array $args): Collection
+    {
+        // Build the query with the same filters as the orders query
+        $query = Order::query()
+            ->fromCompany()
+            ->fromApp()
+            ->notDeleted()
+            ->filterByUser();
+
+        // Apply search filter
+        if (isset($args['search'])) {
+            $searchTerm = $args['search'];
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('user_email', 'like', "%{$searchTerm}%")
+                    ->orWhere('user_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('reference', 'like', "%{$searchTerm}%")
+                    ->orWhere('order_number', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply basic where conditions
+        if (isset($args['where']) && is_array($args['where'])) {
+            $query = $this->applyWhereConditions(
+                $query,
+                $args['where'] ?? []
+            );
+        }
+
+        // Apply orderType filter using the handler
+        if (isset($args['orderType']) && is_array($args['orderType'])) {
+            $handler = new OrderTypeHandler(new SQLOperator());
+            $handler($query, $args['orderType'], null, 'and');
+        }
+
+        // Apply orderStatus filter using the handler
+        if (isset($args['orderStatus']) && is_array($args['orderStatus'])) {
+            $handler = new OrderStatusHandler(new SQLOperator());
+            $handler($query, $args["orderStatus"], null, 'and');
+        }
+
+        // Apply order by
+        if (isset($args['orderBy']) && is_array($args['orderBy'])) {
+            foreach ($args['orderBy'] as $order) {
+                // Skip if order is not an array or doesn't have required fields
+                if (! is_array($order) || ! isset($order['column'])) {
+                    continue;
+                }
+
+                $column = $order['column'];
+                $direction = $order['order'] ?? 'ASC';
+
+                // Convert column name to lowercase to handle enum-like values
+                if (is_string($column)) {
+                    $column = strtolower($column);
+                }
+
+                $query->orderBy($column, $direction);
+            }
+        } else {
+            $query->orderBy('created_at', 'DESC');
+        }
+
+        // Get the orders with relationships needed for field mapping
+        $orders = $query->with([
+            'user',
+            'company',
+            'orderType',
+            'orderStatus',
+            'allItems',
+            'allItems.variant',
+        ])->get();
+
+        return $orders;
     }
 
     public function applyWhereConditions($query, array $conditions = []): Builder

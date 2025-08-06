@@ -4,113 +4,60 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Jobs;
 
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Notification;
+use Kanvas\Connectors\Movipass\Notifications\OrdersExportNotification;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Souk\Orders\Models\Order;
-use Knp\Snappy\Pdf;
 
 class GeneratePdfJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
+
+    public array $result = [];
 
     public function __construct(
         public Order $entity,
-        public string $html,
-        public string $filename,
-        public array $options = []
+        public UserInterface $user,
+        public string $html = '',
+        public string $filename = '',
+        public array $data = [],
     ) {
     }
 
-    public function handle(): array
+    public function handle(): void
     {
-        try {
-            $pdfFile = PdfService::generatePdfFromTemplate(
-                $entity->app,
-                $entity->user,
-                $html,
-                $entity,
-                $pdfData
-            );
+        $pdfFile = PdfService::generatePdfFromTemplate(
+            $this->entity->app,
+            $this->user,
+            $this->html,
+            $this->entity,
+            $this->data,
+            []
+        );
 
-            return [
-                'status' => 'success',
-                'download_url' => $pdfFile->url,
-                'file_name' => "{$this->filename}.pdf",
-                'file_path' => $pdfFile->path,
-                'message' => 'PDF export completed successfully'
-            ];
-        } catch (\Exception $e) {
-            return [
-                'status' => 'error',
-                'download_url' => null,
-                'file_name' => null,
-                'file_path' => null,
-                'message' => 'PDF generation failed: ' . $e->getMessage()
-            ];
-        }
-    }
-    public function handleOld(): array
-    {
-        try {
-            // Find wkhtmltopdf binary
-            $binaryPath = config('snappy.pdf.binary') ?? $this->findWkhtmltopdfBinary();
-            
-            // Create PDF using Knp\Snappy\Pdf
-            $pdf = new Pdf($binaryPath);
-            $pdf->setOptions(array_merge([
-                'page-size' => 'A4',
-                'orientation' => 'landscape',
-                'margin-top' => 10,
-                'margin-right' => 10,
-                'margin-bottom' => 10,
-                'margin-left' => 10,
-                'encoding' => 'UTF-8',
-                'enable-local-file-access' => true
-            ], $this->options));
-
-            $pdfContent = $pdf->getOutputFromHtml($this->html);
-
-            $filePath = "exports/{$this->filename}.pdf";
-            Storage::disk('public')->put($filePath, $pdfContent);
-
-            return [
-                'status' => 'success',
-                'download_url' => Storage::disk('public')->url($filePath),
-                'file_name' => "{$this->filename}.pdf",
-                'file_path' => $filePath,
-                'message' => 'PDF export completed successfully'
-            ];
-        } catch (\Exception $e) {
-            return [
-                'status' => 'error',
-                'download_url' => null,
-                'file_name' => null,
-                'file_path' => null,
-                'message' => 'PDF generation failed: ' . $e->getMessage()
-            ];
-        }
+        $this->sendEmail($pdfFile->url ?? "N/D");
     }
 
-    private function findWkhtmltopdfBinary(): string
+
+    private function sendEmail(string $path)
     {
-        $commonPaths = [
-            '/usr/local/bin/wkhtmltopdf',
-            '/usr/bin/wkhtmltopdf',
-            '/bin/wkhtmltopdf',
-            'wkhtmltopdf' // Let system find it in PATH
-        ];
+        $notification = new OrdersExportNotification(
+            $this->entity,
+            [
+                "downloadUrl" => $path,
+                "appName" => $this->entity->app->name
 
-        foreach ($commonPaths as $path) {
-            if ($path === 'wkhtmltopdf' || file_exists($path)) {
-                return $path;
-            }
-        }
-
-        throw new \Exception('wkhtmltopdf binary not found. Please install wkhtmltopdf or set the binary path in config.');
+            ],
+        );
+        Notification::route('mail', $this->user->email)->notify($notification);
     }
 }
