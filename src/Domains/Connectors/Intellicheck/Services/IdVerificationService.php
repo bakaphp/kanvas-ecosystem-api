@@ -196,7 +196,16 @@ class IdVerificationService
         if (strtolower($idCheck['processResult'] ?? '') === 'documentunknown') {
             $failures[] = 'ID process result is unknown';
             $failureGroups[] = 'ID check fail';
-        } elseif (strtolower($idCheck['processResult'] ?? '') !== 'documentprocessok' && strtolower($idCheck['processResult'] ?? '') !== 'documentunknown') {
+        } elseif (
+            in_array(strtolower($idCheck['processResult'] ?? ''), ['documentbadread', 'documentbaddevice'])
+        ) {
+            $flags[] = 'ID process result is ' . ($idCheck['processResult'] ?? 'unknown');
+            $flagGroups[] = 'ID check incomplete';
+            $flagNotice = true;
+        } elseif (
+            strtolower($idCheck['processResult'] ?? '') !== 'documentprocessok' &&
+            strtolower($idCheck['processResult'] ?? '') !== 'documentunknown'
+        ) {
             $flags[] = 'ID process result is ' . ($idCheck['processResult'] ?? 'unknown');
             $flagGroups[] = 'ID check incomplete';
             $flagNotice = true;
