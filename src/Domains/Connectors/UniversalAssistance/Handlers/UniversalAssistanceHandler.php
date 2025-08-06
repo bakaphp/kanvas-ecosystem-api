@@ -128,7 +128,7 @@ class UniversalAssistanceHandler
         // Get order metadata
         $orderMetadata = $this->order->metadata ?? [];
         
-        if (!isset($orderMetadata['universal_assistance'])) {
+        if (! isset($orderMetadata['universal_assistance'])) {
             throw new ValidationException('Universal Assistance data not found in order metadata');
         }
 
@@ -142,12 +142,12 @@ class UniversalAssistanceHandler
         }
 
         // Step 2: Create voucher after successful quote
-        if (isset($uaData['voucher_data']) && !empty($results['quote'])) {
+        if (isset($uaData['voucher_data']) && ! empty($results['quote'])) {
             $applicant = $this->order->peoples()->first();
-            if (!$applicant) {
+            if (! $applicant) {
                 throw new ValidationException('No applicant found for voucher creation');
             }
-            
+
             $results['voucher'] = $this->handleVoucherCreation($uaData['voucher_data'], $applicant);
         }
 

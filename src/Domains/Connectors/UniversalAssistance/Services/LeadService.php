@@ -95,7 +95,7 @@ class LeadService
         ];
 
         foreach ($requiredFields as $field) {
-            if (!isset($travelData[$field])) {
+            if (! isset($travelData[$field])) {
                 throw new ValidationException("Missing required field: {$field}");
             }
         }

@@ -43,9 +43,9 @@ class Client
     {
         if ($this->quoteClient === null) {
             try {
-                $wsdlUrl = $this->app->get(ConfigurationEnum::WSDL_QUOTE->value) 
+                $wsdlUrl = $this->app->get(ConfigurationEnum::WSDL_QUOTE->value)
                     ?? $this->baseUrl . '/quote.wsdl';
-                
+
                 $this->quoteClient = new SoapClient($wsdlUrl, [
                     'trace' => true,
                     'exceptions' => true,
@@ -67,9 +67,9 @@ class Client
     {
         if ($this->voucherClient === null) {
             try {
-                $wsdlUrl = $this->app->get(ConfigurationEnum::WSDL_VOUCHER->value) 
+                $wsdlUrl = $this->app->get(ConfigurationEnum::WSDL_VOUCHER->value)
                     ?? $this->baseUrl . '/voucher.wsdl';
-                
+
                 $this->voucherClient = new SoapClient($wsdlUrl, [
                     'trace' => true,
                     'exceptions' => true,
@@ -91,9 +91,9 @@ class Client
     {
         if ($this->queryClient === null) {
             try {
-                $wsdlUrl = $this->app->get(ConfigurationEnum::WSDL_QUERY->value) 
+                $wsdlUrl = $this->app->get(ConfigurationEnum::WSDL_QUERY->value)
                     ?? $this->baseUrl . '/query.wsdl';
-                
+
                 $this->queryClient = new SoapClient($wsdlUrl, [
                     'trace' => true,
                     'exceptions' => true,
@@ -124,7 +124,7 @@ class Client
             ];
 
             $response = $client->__soapCall('CreacionLead', [$parameters]);
-            
+
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
             throw new ValidationException('Failed to create/update lead: ' . $e->getMessage());
@@ -138,7 +138,7 @@ class Client
     {
         try {
             $client = $this->getVoucherClient();
-            
+
             $parameters = [
                 'Username' => $this->username,
                 'Password' => $this->password,
@@ -147,7 +147,7 @@ class Client
             ];
 
             $response = $client->__soapCall('AltaVoucher', [$parameters]);
-            
+
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
             throw new ValidationException('Failed to create voucher: ' . $e->getMessage());
@@ -161,7 +161,7 @@ class Client
     {
         try {
             $client = $this->getQuoteClient();
-            
+
             $parameters = [
                 'Username' => $this->username,
                 'Password' => $this->password,
@@ -171,7 +171,7 @@ class Client
             ];
 
             $response = $client->__soapCall('BajaLead', [$parameters]);
-            
+
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
             throw new ValidationException('Failed to cancel lead: ' . $e->getMessage());
@@ -185,7 +185,7 @@ class Client
     {
         try {
             $client = $this->getQueryClient();
-            
+
             $parameters = [
                 'Username' => $this->username,
                 'Password' => $this->password,
@@ -194,7 +194,7 @@ class Client
             ];
 
             $response = $client->__soapCall('ConsultaVoucherPortal', [$parameters]);
-            
+
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
             throw new ValidationException('Failed to query voucher: ' . $e->getMessage());
@@ -208,7 +208,7 @@ class Client
     {
         try {
             $client = $this->getQueryClient();
-            
+
             $parameters = [
                 'Username' => $this->username,
                 'Password' => $this->password,
@@ -217,7 +217,7 @@ class Client
             ];
 
             $response = $client->__soapCall('GeneracionPDF', [$parameters]);
-            
+
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
             throw new ValidationException('Failed to generate PDF: ' . $e->getMessage());
@@ -232,7 +232,7 @@ class Client
         if (is_object($response)) {
             return json_decode(json_encode($response), true);
         }
-        
+
         return (array) $response;
     }
 

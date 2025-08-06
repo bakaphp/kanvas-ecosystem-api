@@ -104,7 +104,7 @@ class VoucherService
     {
         $sex = $person->getCustomField('sex')?->value ?? $person->getCustomField('gender')?->value;
         
-        if (!$sex) {
+        if (! $sex) {
             // Try to infer from courtesy title or name
             $title = $this->getCourtesyTitle($person);
             return in_array($title, ['Sr.', 'Dr.']) ? 'M' : 'F';
@@ -145,7 +145,7 @@ class VoucherService
         ];
 
         foreach ($requiredFields as $field) {
-            if (!isset($voucherData[$field]) || empty($voucherData[$field])) {
+            if (! isset($voucherData[$field]) || empty($voucherData[$field])) {
                 throw new ValidationException("Missing required field: {$field}");
             }
         }
