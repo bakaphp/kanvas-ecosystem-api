@@ -6,14 +6,8 @@ namespace App\Console\Commands\Social;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Social\Follows\Models\UsersFollows;
-use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Models\UsersAssociatedApps;
 
 class RemoveMessagesByKeywordsCommand extends Command
 {
