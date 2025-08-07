@@ -42,11 +42,11 @@ class OAuthIntegrationController extends BaseController
 
         ['receiver' => $receiver, 'app' => $app] = $result;
 
-        $shopDomain = $receiver->configuration['shop_domain'] ?? $request->get('shop');
+        $shopDomain = $request->get('shop') ?? $receiver->configuration['shop_domain'];
         $shopDomain .= '.myshopify.com';
 
         // Configure the Shopify SDK with redirect URL
-        $redirectUrl = $receiver->company->get('shopify-redirect-url') ?? $app->get('shopify-redirect-url');
+        $redirectUrl = $request->get('redirect_uri') ?? $receiver->company->get('shopify-redirect-url') ?? $app->get('shopify-redirect-url');
         $this->configureShopifySDK($app, $shopDomain, $receiver, $redirectUrl);
 
         // Generate a nonce for security
