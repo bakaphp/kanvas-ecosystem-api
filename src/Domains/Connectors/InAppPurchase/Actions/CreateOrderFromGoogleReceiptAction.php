@@ -11,6 +11,7 @@ use Baka\Users\Contracts\UserInterface;
 use Imdhemy\GooglePlay\ClientFactory;
 use Imdhemy\GooglePlay\Products\ProductPurchase;
 use Imdhemy\Purchases\Facades\Product;
+use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\GooglePlayInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\GooglePlayReceiptStatusEnum;
 use Kanvas\Currencies\Models\Currencies;
@@ -27,7 +28,7 @@ use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromGoogleReceiptAction
 {
-    private const DEFAULT_CURRENCY = 'USD';
+    private const string DEFAULT_CURRENCY = 'USD';
     private AppInterface $app;
     private CompanyInterface $company;
     private UserInterface $user;
@@ -82,7 +83,12 @@ class CreateOrderFromGoogleReceiptAction
 
     private function verifyReceipt(array $receipt): ProductPurchase
     {
-        $client = ClientFactory::createWithJsonKey(json_decode(file_get_contents(config('kanvas.app.google.google_play_credentials_json')), true));
+        if (empty($this->app->get(ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value))) {
+            throw new ValidationException('Google client config is missing');
+        }
+
+        $client = ClientFactory::createWithJsonKey($this->app->get(ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value));
+
         return Product::googlePlay($client)->id($receipt['productId'])->token($receipt['purchaseToken'])->get();
     }
 
