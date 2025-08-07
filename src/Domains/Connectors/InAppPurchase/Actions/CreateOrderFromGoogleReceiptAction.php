@@ -83,6 +83,10 @@ class CreateOrderFromGoogleReceiptAction
 
     private function verifyReceipt(array $receipt): ProductPurchase
     {
+        if (empty($this->app->get(ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value))) {
+            throw new ValidationException('Google client config is missing');
+        }
+
         $client = ClientFactory::createWithJsonKey($this->app->get(ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value));
 
         return Product::googlePlay($client)->id($receipt['productId'])->token($receipt['purchaseToken'])->get();
