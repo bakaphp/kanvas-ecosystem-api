@@ -50,7 +50,7 @@ class RemoveMessagesByKeywordsCommand extends Command
             })
             ->chunk(50, function ($messages) {
                 foreach ($messages as $message) {
-                    echo('-Soft Deleting message: ' . $message->getId() . PHP_EOL);
+                    echo('-Soft Deleting message: ' . $message->getId() . "-slug-" . $message->slug . PHP_EOL);
                     $message->is_deleted = 1;
                     $message->is_public = 0;
                     $message->save();
