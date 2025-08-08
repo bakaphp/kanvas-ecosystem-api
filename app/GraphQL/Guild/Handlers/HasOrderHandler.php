@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Handlers;
 
-use Illuminate\Database\Eloquent\Model;
-use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Souk\Orders\Models\Order;
-use Nuwave\Lighthouse\WhereConditions\WhereConditionsHandler;
 use App\GraphQL\Souk\Handlers\HasAddressHandler;
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Souk\Orders\Models\Order;
 use Override;
 
 final class HasOrderHandler extends HasAddressHandler
