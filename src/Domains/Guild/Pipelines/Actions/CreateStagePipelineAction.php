@@ -35,5 +35,6 @@ class CreateStagePipelineAction
         new StageCounterAction(
             $this->stageData->pipeline
         )->increase();
+        return $stage;
     }
 }
