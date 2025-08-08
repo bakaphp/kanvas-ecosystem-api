@@ -15,6 +15,13 @@ class AgentSessionQuery
         $user = auth()->user();
         $session = Session::getByUuid($request['id'], $app);
 
+        if ($session->agent->role !== $session->content['background']) {
+            $content = $session->content;
+            $content['background'] = $session->agent->role;
+            $session->content = $content;
+            $session->update();
+        }
+
         return [
             'id' => $request['id'],
             'name' => 'orchestrate',
