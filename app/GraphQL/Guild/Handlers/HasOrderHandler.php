@@ -8,12 +8,15 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
 use Nuwave\Lighthouse\WhereConditions\WhereConditionsHandler;
-use App\GraphQl\Souk\Handlers\HasAddressHandler;
+use App\GraphQL\Souk\Handlers\HasAddressHandler;
+use Override;
+
 final class HasOrderHandler extends HasAddressHandler
 {
     /**
      * @param  array<string, mixed>  $whereConditions
      */
+    #[Override]
     public function __invoke(
         object $builder,
         array $whereConditions,
