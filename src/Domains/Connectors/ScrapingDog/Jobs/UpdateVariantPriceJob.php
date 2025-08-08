@@ -31,15 +31,20 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $response = [
             'message' => 'Variant price updated',
         ];
-        if (! $variant->get(ConfigEnum::VARIANT_PRICE_UPDATE->value)) {
-            $data = $this->updatePriceVariant($variant);
-            $response['price'] = $data['price'];
-            $response['discounted_price'] = $data['discounted_price'] ?? null;
-        } elseif (Carbon::parse($variant->get(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value))->isLastWeek()) {
-            $data = $this->updatePriceVariant($variant);
-            $response['price'] = $data['price'];
-            $response['discounted_price'] = $data['discounted_price'] ?? null;
-        }
+
+        $data = $this->updatePriceVariant($variant);
+        $response['price'] = $data['price'];
+        $response['discounted_price'] = $data['discounted_price'] ?? null;
+
+        // if (! $variant->get(ConfigEnum::VARIANT_PRICE_UPDATE->value)) {
+        //     $data = $this->updatePriceVariant($variant);
+        //     $response['price'] = $data['price'];
+        //     $response['discounted_price'] = $data['discounted_price'] ?? null;
+        // } elseif (Carbon::parse($variant->get(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value))->isLastWeek()) {
+        //     $data = $this->updatePriceVariant($variant);
+        //     $response['price'] = $data['price'];
+        //     $response['discounted_price'] = $data['discounted_price'] ?? null;
+        // }
 
         return $response;
     }
