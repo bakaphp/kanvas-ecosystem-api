@@ -45,17 +45,16 @@ class RemoveMessagesByKeywordsCommand extends Command
             ->where('is_deleted', 0)
             ->where(function ($query) use ($keywords) {
                 foreach ($keywords as $keyword) {
-                    $query->orWhere('message', 'like', '%' . $keyword . '%');
+                    $query->orWhereRaw('BINARY message LIKE ?', ['%' . $keyword . '%']);
                 }
             })
             ->chunk(50, function ($messages) {
                 foreach ($messages as $message) {
-                    echo('-Making the message unsearchable: ' . $message->getId() . "-slug-" . $message->slug . PHP_EOL);
-                    $message->unsearchable();
-                    echo('-Made the message unsearchable' . PHP_EOL);
                     echo('-Soft Deleting message: ' . $message->getId() . "-slug-" . $message->slug . PHP_EOL);
-                    $message->is_deleted = 1;
                     $message->is_public = 0;
+                    $message->save();
+                    $message->unsearchable(); // There is a rule somewhere that makes us do this to make messages unsearchable
+                    $message->is_deleted = 1;
                     $message->save();
                 }
             });
