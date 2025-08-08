@@ -56,7 +56,6 @@ class RemoveMessagesByKeywordsCommand extends Command
                     $message->unsearchable(); // There is a rule somewhere that makes us do this to make messages unsearchable
                     $message->is_deleted = 1;
                     $message->save(); 
-
                 }
             });
     }
