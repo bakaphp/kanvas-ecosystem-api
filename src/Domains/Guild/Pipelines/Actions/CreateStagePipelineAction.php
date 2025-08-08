@@ -34,7 +34,7 @@ class CreateStagePipelineAction
         ]);
         new StageCounterAction(
             $this->stageData->pipeline
-        )->increase();
+        )->execute();
         return $stage;
     }
 }

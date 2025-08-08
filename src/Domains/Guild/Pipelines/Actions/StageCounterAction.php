@@ -17,17 +17,8 @@ class StageCounterAction
     ) {
     }
 
-    public function increase(): void
+    public function execute(): void
     {
-        $count = $this->pipeline->get(PipelineEnum::STAGE_COUNTER->value);
-        $count = $count ? $count + 1 : 1;
-        $this->pipeline->set(PipelineEnum::STAGE_COUNTER->value, $count);
-    }
-
-    public function decrease(): void
-    {
-        $count = $this->pipeline->get(PipelineEnum::STAGE_COUNTER->value);
-        $count = $count && $count > 0 ? $count - 1 : 0;
-        $this->pipeline->set(PipelineEnum::STAGE_COUNTER->value, $count);
+        $this->pipeline->set(PipelineEnum::STAGE_COUNTER->value, $this->pipeline->stages->count());
     }
 }
