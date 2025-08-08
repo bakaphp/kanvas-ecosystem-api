@@ -57,7 +57,6 @@ class RemoveMessagesByKeywordsCommand extends Command
                     $message->is_deleted = 1;
                     $message->is_public = 0;
                     $message->save();
-                   
                 }
             });
     }
