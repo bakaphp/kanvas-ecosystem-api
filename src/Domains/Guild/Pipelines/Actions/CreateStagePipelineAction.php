@@ -6,7 +6,7 @@ namespace Kanvas\Guild\Pipelines\Actions;
 
 use Kanvas\Guild\Pipelines\DataTransferObject\PipelineStage;
 use Kanvas\Guild\Pipelines\Models\PipelineStage as ModelsPipelineStage;
-use Kanvas\Guild\Pipelines\Actions\StageCounterAction;
+
 class CreateStagePipelineAction
 {
     /**
