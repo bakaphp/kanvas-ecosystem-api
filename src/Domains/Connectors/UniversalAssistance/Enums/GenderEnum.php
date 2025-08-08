@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\UniversalAssistance\Enums;
 
-enum SexoEnum: string
+enum GenderEnum: string
 {
-    case MASCULINO = 'M';
-    case FEMENINO = 'F';
+    case MALE = 'M';
+    case FEMALE = 'F';
 }

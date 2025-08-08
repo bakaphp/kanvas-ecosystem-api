@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\UniversalAssistance\Services;
 use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Kanvas\Connectors\UniversalAssistance\Client;
-use Kanvas\Connectors\UniversalAssistance\Enums\TipoViajeEnum;
+use Kanvas\Connectors\UniversalAssistance\Enums\TripTypeEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
@@ -37,7 +37,7 @@ class LeadService
             'Folleto' => $travelData['brochure'] ?? 'N',
             'PaisOrigen' => $travelData['origin_country'],
             'Destino' => $travelData['destination'],
-            'TipoViaje' => $travelData['trip_type'] ?? TipoViajeEnum::UN_VIAJE->value,
+            'TipoViaje' => $travelData['trip_type'] ?? TripTypeEnum::SINGLE_TRIP->value,
             'FechaInicio' => Carbon::parse($travelData['start_date'])->format('m/d/Y'),
             'FechaFin' => Carbon::parse($travelData['end_date'])->format('m/d/Y'),
             'CantidadPasajeros' => $travelData['passenger_count'],
@@ -68,7 +68,7 @@ class LeadService
     public function updateLead(string $leadId, array $updateData): array
     {
         $updateData['IdLead'] = $leadId;
-        
+
         return $this->client->createOrUpdateLead($updateData);
     }
 

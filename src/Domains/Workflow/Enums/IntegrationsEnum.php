@@ -34,4 +34,5 @@ enum IntegrationsEnum: string
     case PLUSVAL = 'plusval';
     case MOVIPASS = 'movipass';
     case QUICKBOOKS = 'quickbooks';
+    case UNIVERSAL_ASSISTANCE = 'universal_assistance';
 }

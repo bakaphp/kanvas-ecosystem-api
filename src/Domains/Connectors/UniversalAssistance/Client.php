@@ -115,7 +115,7 @@ class Client
     {
         try {
             $client = $this->getQuoteClient();
-            
+
             $parameters = [
                 'Username' => $this->username,
                 'Password' => $this->password,

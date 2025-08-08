@@ -11,6 +11,6 @@ enum SaleTypeEnum: string
     case ANNUAL_WITH_RENEWAL = 'Anual con renovación';
     case MONTHLY = 'Mensual';
     case MODULES = 'Módulos';
-    case BY_DAYS = 'Por días';
+    case DAILY = 'Por días';
     case WEEKLY = 'Semanal';
 }

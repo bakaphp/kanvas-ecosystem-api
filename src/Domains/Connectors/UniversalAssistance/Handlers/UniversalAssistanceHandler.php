@@ -26,13 +26,13 @@ class UniversalAssistanceHandler
     public function handleTravelQuote(array $travelData, People $contactPerson = null): array
     {
         $leadService = new LeadService($this->app, $this->order);
-        
+
         try {
             $response = $leadService->createLead($travelData, $contactPerson);
-            
+
             // Log the response
             $this->logResponse('travel_quote_created', $response);
-            
+
             return $response;
         } catch (\Exception $e) {
             $this->logError('travel_quote_error', $e->getMessage(), $travelData);
@@ -46,13 +46,13 @@ class UniversalAssistanceHandler
     public function handleVoucherCreation(array $voucherData, People $applicant): array
     {
         $voucherService = new VoucherService($this->app, $this->order);
-        
+
         try {
             $response = $voucherService->createVoucher($voucherData, $applicant);
-            
+
             // Log the response
             $this->logResponse('voucher_created', $response);
-            
+
             return $response;
         } catch (\Exception $e) {
             $this->logError('voucher_creation_error', $e->getMessage(), $voucherData);
@@ -66,13 +66,13 @@ class UniversalAssistanceHandler
     public function handleVoucherQuery(array $queryParams): array
     {
         $voucherService = new VoucherService($this->app, $this->order);
-        
+
         try {
             $response = $voucherService->queryVoucher($queryParams);
-            
+
             // Log the response
             $this->logResponse('voucher_queried', $response);
-            
+
             return $response;
         } catch (\Exception $e) {
             $this->logError('voucher_query_error', $e->getMessage(), $queryParams);
@@ -86,13 +86,13 @@ class UniversalAssistanceHandler
     public function handlePdfGeneration(string $voucherNumber): array
     {
         $voucherService = new VoucherService($this->app, $this->order);
-        
+
         try {
             $response = $voucherService->generateVoucherPdf($voucherNumber);
-            
+
             // Log the response
             $this->logResponse('pdf_generated', $response);
-            
+
             return $response;
         } catch (\Exception $e) {
             $this->logError('pdf_generation_error', $e->getMessage(), ['voucher_number' => $voucherNumber]);
@@ -106,13 +106,13 @@ class UniversalAssistanceHandler
     public function handleLeadCancellation(string $leadId, string $reasonCode = 'Venta Online'): array
     {
         $leadService = new LeadService($this->app, $this->order);
-        
+
         try {
             $response = $leadService->cancelLead($leadId, $reasonCode);
-            
+
             // Log the response
             $this->logResponse('lead_cancelled', $response);
-            
+
             return $response;
         } catch (\Exception $e) {
             $this->logError('lead_cancellation_error', $e->getMessage(), ['lead_id' => $leadId, 'reason' => $reasonCode]);
@@ -127,7 +127,7 @@ class UniversalAssistanceHandler
     {
         // Get order metadata
         $orderMetadata = $this->order->metadata ?? [];
-        
+
         if (! isset($orderMetadata['universal_assistance'])) {
             throw new ValidationException('Universal Assistance data not found in order metadata');
         }

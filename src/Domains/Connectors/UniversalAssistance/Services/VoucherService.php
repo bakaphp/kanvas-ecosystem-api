@@ -7,9 +7,9 @@ namespace Kanvas\Connectors\UniversalAssistance\Services;
 use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Kanvas\Connectors\UniversalAssistance\Client;
-use Kanvas\Connectors\UniversalAssistance\Enums\EstadoVoucherEnum;
-use Kanvas\Connectors\UniversalAssistance\Enums\TipoDocumentoEnum;
-use Kanvas\Connectors\UniversalAssistance\Enums\TipoVentaEnum;
+use Kanvas\Connectors\UniversalAssistance\Enums\VoucherStatusEnum;
+use Kanvas\Connectors\UniversalAssistance\Enums\DocumentTypeEnum;
+use Kanvas\Connectors\UniversalAssistance\Enums\SaleTypeEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
@@ -37,24 +37,24 @@ class VoucherService
             'PostProcesoFlag' => $voucherData['post_process_flag'] ?? 'N',
             'Vendedor' => $voucherData['seller'] ?? '',
             'Canal' => $voucherData['channel'],
-            'TipoVenta' => $voucherData['sale_type'] ?? TipoVentaEnum::ANUAL->value,
+            'TipoVenta' => $voucherData['sale_type'] ?? SaleTypeEnum::ANNUAL->value,
             'Linea' => $voucherData['line'],
-            'EstadoVoucher' => $voucherData['voucher_status'] ?? EstadoVoucherEnum::ACTIVO->value,
+            'EstadoVoucher' => $voucherData['voucher_status'] ?? VoucherStatusEnum::ACTIVE->value,
             'MotivoVoucher' => $voucherData['voucher_reason'] ?? 'Activo',
             'Facturacion' => $voucherData['billing_status'] ?? 'Pendiente Facturación',
             'MonedaLista' => $voucherData['currency'] ?? 'USD',
-            
+
             // Applicant data
             'PaisResidenciaSolicitante' => $voucherData['applicant_residence_country'],
-            'SexoSolicitante' => $this->getSexFromPerson($applicant),
-            'TipoDocumentoSolicitante' => $voucherData['applicant_document_type'] ?? TipoDocumentoEnum::DNI->value,
+            'SexoSolicitante' => $this->getGenderFromPerson($applicant),
+            'TipoDocumentoSolicitante' => $voucherData['applicant_document_type'] ?? DocumentTypeEnum::DNI->value,
             'TituloCortesiaSolicitante' => $this->getCourtesyTitle($applicant),
             'NombreSolicitante' => $applicant->firstname,
             'ApellidoSolicitante' => $applicant->lastname,
             'NumeroDocumentoSolicitante' => $voucherData['applicant_document_number'],
             'EmailSolicitante' => $applicant->email,
             'TelefonoSolicitante' => $applicant->getCustomField('phone')?->value ?? '',
-            
+
             // Address data
             'Pais' => $voucherData['country'],
             'ProvEstado' => $voucherData['state_province'],
@@ -98,12 +98,12 @@ class VoucherService
     }
 
     /**
-     * Get sex from person (M/F)
+     * Get gender from person (M/F)
      */
-    protected function getSexFromPerson(People $person): string
+    protected function getGenderFromPerson(People $person): string
     {
         $sex = $person->getCustomField('sex')?->value ?? $person->getCustomField('gender')?->value;
-        
+
         if (! $sex) {
             // Try to infer from courtesy title or name
             $title = $this->getCourtesyTitle($person);
@@ -119,13 +119,13 @@ class VoucherService
     protected function getCourtesyTitle(People $person): string
     {
         $title = $person->getCustomField('title')?->value;
-        
+
         if ($title) {
             return (string) $title;
         }
 
-        // Default based on sex
-        $sex = $this->getSexFromPerson($person);
+        // Default based on gender
+        $sex = $this->getGenderFromPerson($person);
         return $sex === 'M' ? 'Sr.' : 'Sra.';
     }
 
