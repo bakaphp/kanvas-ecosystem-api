@@ -173,6 +173,7 @@ extend type Query @guard {
                     "discounts"
                     "created_at"
                 ]
+                handler: "App\\GraphQL\\Guild\\Handlers\\HasOrderHandler"
             )
         hasAddress: _
             @whereHasConditions(
