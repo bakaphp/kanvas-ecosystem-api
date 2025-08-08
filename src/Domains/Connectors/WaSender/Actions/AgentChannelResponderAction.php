@@ -13,6 +13,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -24,7 +25,8 @@ class AgentChannelResponderAction
     public function __construct(
         protected Channel $channel,
         protected Message $message,
-        protected Agent $agent
+        protected Agent $agent,
+        protected ?Session $session = null,
     ) {
     }
 
@@ -119,7 +121,8 @@ class AgentChannelResponderAction
             $this->channel,
             $this->message,
             $messageConversation,
-            $onChunk
+            $onChunk,
+            $this->session
         ) : $currentAgent->chat(new UserMessage($messageConversation));
 
         $responseContent = $question->getContent();
