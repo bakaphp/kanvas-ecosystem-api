@@ -22,8 +22,8 @@ class Client
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
-        $this->apiKey = $this->company->get(ConfigurationEnum::API_KEY->value) ?? $this->app->get(ConfigurationEnum::API_KEY->value);
+        $this->baseUrl = $app->get(ConfigurationEnum::BASE_URL->value);
+        $this->apiKey = $company->get(ConfigurationEnum::API_KEY->value) ?? $app->get(ConfigurationEnum::API_KEY->value);
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
             throw new ValidationException('Wasender configuration is missing');
