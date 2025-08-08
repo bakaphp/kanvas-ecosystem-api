@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\UniversalAssistance\DataTransferObjects;
 
 use Carbon\Carbon;
-use Kanvas\Connectors\UniversalAssistance\Enums\VoucherStatusEnum;
 use Kanvas\Connectors\UniversalAssistance\Enums\DocumentTypeEnum;
 use Kanvas\Connectors\UniversalAssistance\Enums\SaleTypeEnum;
+use Kanvas\Connectors\UniversalAssistance\Enums\VoucherStatusEnum;
 use Spatie\LaravelData\Data;
 
 class VoucherData extends Data
