@@ -50,11 +50,14 @@ class RemoveMessagesByKeywordsCommand extends Command
             })
             ->chunk(50, function ($messages) {
                 foreach ($messages as $message) {
+                    echo('-Making the message unsearchable: ' . $message->getId() . "-slug-" . $message->slug . PHP_EOL);
+                    $message->unsearchable();
+                    echo('-Made the message unsearchable' . PHP_EOL);
                     echo('-Soft Deleting message: ' . $message->getId() . "-slug-" . $message->slug . PHP_EOL);
                     $message->is_deleted = 1;
                     $message->is_public = 0;
                     $message->save();
-                    $message->unsearchableSync();
+                   
                 }
             });
     }
