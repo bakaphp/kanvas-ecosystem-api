@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -32,20 +33,28 @@ class ADKAgent
         $this->company = $agent->company;
     }
 
-    public function chat(Channel $channel, Message $message, string $messageContent, ?callable $onChunk = null): self
-    {
+    public function chat(
+        Channel $channel,
+        Message $message,
+        string $messageContent,
+        ?callable $onChunk = null,
+        ?Session $session = null
+    ): self {
         $googleADKService = new GoogleADKService(
             $channel->app,
             $channel->company
         );
+
+        $sessionId = $session ? $session->uuid : $channel->slug;
+
         $googleADKService->startSession(
             (string) $message->users_id,
-            $channel->slug
+            $sessionId
         );
 
         $this->content = $googleADKService->chat(
             (string) $message->users_id,
-            $channel->slug,
+            $sessionId,
             $messageContent,
             $onChunk
         );
