@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Models\BaseModel;
+use Override;
 
 /**
  * Class Session
@@ -28,6 +29,7 @@ class Session extends BaseModel
     protected $table = 'sessions';
     protected $guarded = [];
 
+    #[Override]
     protected function casts(): array
     {
         return [

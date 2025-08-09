@@ -28,25 +28,6 @@ class AgentChannelResponderActivity extends KanvasActivity
         $allowedChannels = $params['channelId'] ?? [];
         $channelAgentMapping = $params['channelAgentMapping'] ?? [];
 
-        if (! $message->message['from_me']) {
-            new CreateSessionAction(
-                Session::from([
-                    'app' => $app,
-                    'company' => $channel->company,
-                    'channel' => $channel,
-                    'entity_namespace' => get_class($message->entity()),
-                    'entity_id' => $message->entity()->getId(),
-                    'canal_id' => $message->message['chat_jid'],
-                    'user' => [
-                        'name' => $message->entity()->getName(),
-                        'id' => $message->entity()->getId(),
-                        'email' => $message->entity()->getEmails()->first()?->value,
-                    ],
-                    'agent' => Agent::getById($defaultAgentId, $app),
-                ])
-            )->execute();
-        }
-
         return $this->executeIntegration(
             entity: $channel,
             app: $app,
@@ -60,9 +41,9 @@ class AgentChannelResponderActivity extends KanvasActivity
                 }
 
                 $chatJid = $message->message['chat_jid'] ?? null;
-
+                $filterByChannel = (bool) ($params['filterByChannel'] ?? false);
                 // Check if this channel is allowed
-                if (! in_array($chatJid, $allowedChannels)) {
+                if ($filterByChannel && ! in_array($chatJid, $allowedChannels)) {
                     return [
                         'message' => 'Agent is not running on this channel',
                         'entity' => null,
@@ -91,10 +72,35 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
+                $chatSession = null;
+                if (! $message->message['from_me']) {
+                    $chatSession = new CreateSessionAction(
+                        Session::from([
+                            'app' => $app,
+                            'company' => $channel->company,
+                            'channel' => $channel,
+                            'entity_namespace' => is_object($message->entity()) ? get_class($message->entity()) : null,
+                            'entity_id' => $message->entity()->getId(),
+                            'canal_id' => $message->message['chat_jid'],
+                            'user' => [
+                                'name' => $message->entity()->getName(),
+                                'id' => $message->entity()->getId(),
+                                'email' => $message->entity()->getEmails()->first()?->value,
+                            ],
+                            'agent' => Agent::getById($agentId, $app),
+                        ])
+                    )->execute();
+                }
+
+                $slowDownApiResponseTime = $params['slowDownApiResponseTime'] ?? 5;
+                //https://wasenderapi.com/api-docs/rate-limits/understanding-rate-limits
+                sleep($slowDownApiResponseTime); // Simulate processing time
+
                 return new AgentChannelResponderAction(
                     $channel,
                     $message,
-                    Agent::getById($agentId, $app)
+                    Agent::getById($agentId, $app),
+                    $chatSession
                 )->execute($params);
             },
             company: $channel->company,

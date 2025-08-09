@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Actions;
 
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Intelligence\Agents\Models\Agent;
 
 class CreateContentSessionAction
 {
     public function __construct(
         public string $entityNamespace,
-        public int $entityId
+        public int $entityId,
+        public ?Agent $agent = null,
+        public ?CompaniesBranches $branch = null,
     ) {
     }
 
@@ -25,12 +29,14 @@ class CreateContentSessionAction
     protected function mapPeople(People $people): array
     {
         return [
+            'branch' => $this->branch,
             'firstname' => $people->firstname,
             'lastname' => $people->lastname,
             'middlename' => $people->middlename,
             'leads' => $people->leads->toArray(),
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
+            'background' => $this->agent?->role,
         ];
     }
 }

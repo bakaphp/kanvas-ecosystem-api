@@ -31,7 +31,9 @@ type Variant {
     product: Product @belongsTo(relation: "product")
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]! @method(name: "visibleAttributes") @cacheRedis
+    attributes: [VariantsAttributes!]!
+        @method(name: "visibleAttributes")
+        @cacheRedis
     companies: Company! @belongsTo(relation: "company")
     channels(currencyCode: String): [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")
@@ -49,6 +51,7 @@ type Variant {
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     inventory_quantity: Int @method(name: "getTotalQuantity")
+    activities: [ActivityLog!] @method(name: "getActivities")
 }
 
 type VariantPricingInfo {

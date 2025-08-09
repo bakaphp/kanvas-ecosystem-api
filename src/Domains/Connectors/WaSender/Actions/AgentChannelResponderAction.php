@@ -13,6 +13,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -24,7 +25,8 @@ class AgentChannelResponderAction
     public function __construct(
         protected Channel $channel,
         protected Message $message,
-        protected Agent $agent
+        protected Agent $agent,
+        protected ?Session $session = null,
     ) {
     }
 
@@ -104,25 +106,42 @@ class AgentChannelResponderAction
                 new AgentMonitoring($inspector)
             );
         }
-
-        $question = $currentAgent instanceof ADKAgent ? $currentAgent->chat($this->channel, $this->message, $messageConversation) : $currentAgent->chat(new UserMessage($messageConversation));
-        $responseContent = $question->getContent();
-
-        // Extract text from response that might be formatted with markdown code blocks
-        $responseText = ChatHelper::extractTextFromResponse($responseContent);
-
         $whatsAppMessageService = new MessageService(
             $this->message->app,
             $this->message->company
         );
 
+        // Define the callback to send each chunk in real time
+        $onChunk = function ($text, $data) use ($whatsAppMessageService, $channelId): void {
+            $whatsAppMessageService->sendTextMessage($channelId, $text);
+        };
+
+        $question = $currentAgent instanceof ADKAgent ?
+        $currentAgent->chat(
+            $this->channel,
+            $this->message,
+            $messageConversation,
+            $onChunk,
+            $this->session
+        ) : $currentAgent->chat(new UserMessage($messageConversation));
+
+        $responseContent = $question->getContent();
+
+        // Extract text from response that might be formatted with markdown code blocks
+        $responseText = ChatHelper::extractTextFromResponse($responseContent);
+
+        //if its not an ADKAgent, send the response as a text message
+        if (! ($currentAgent instanceof ADKAgent)) {
+            $responseText = $whatsAppMessageService->sendTextMessage(
+                $channelId,
+                $responseText
+            );
+        }
+
         return [
             'message' => $messageConversation,
             'responseText' => $responseContent,
-            'response' => $whatsAppMessageService->sendTextMessage(
-                $channelId,
-                $responseText,
-            ),
+            'response' => $responseText,
         ];
     }
 }

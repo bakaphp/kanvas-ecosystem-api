@@ -57,6 +57,7 @@ use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Users\Traits\CanBlockUser;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
@@ -301,6 +302,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function state(): BelongsTo
     {
         return $this->belongsTo(States::class, 'state_id');
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(
+            Order::class,
+            'users_id',
+            'id'
+        )->orderBy('created_at', 'desc');
     }
 
     /**
@@ -746,7 +756,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile(app(Apps::class));
 
-        return $user->displayname ?? $this->displayname;
+        return $user->displayname ?? $this->displayname ?? '';
     }
 
     public function getAppEmail(): string

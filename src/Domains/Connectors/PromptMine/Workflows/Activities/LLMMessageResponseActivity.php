@@ -12,17 +12,22 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
+use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
+use Throwable;
 
 class LLMMessageResponseActivity extends KanvasActivity
 {
@@ -109,8 +114,9 @@ class LLMMessageResponseActivity extends KanvasActivity
                 ))->execute();
 
                 if ($promptChannel && empty($promptChannel->title)) {
-                    $promptChannel->name = $message->message['title'] ?? $nuggetTitle;
-                    $promptChannel->title = $promptChannel->name;
+                    $channelName = $this->cleanChannelTitle($message->message['title'] ?? $nuggetTitle);
+                    $promptChannel->name = $channelName;
+                    $promptChannel->title = $channelName;
                     $promptChannel->update();
                 }
 
@@ -126,6 +132,42 @@ class LLMMessageResponseActivity extends KanvasActivity
             },
             company: $company,
         );
+    }
+
+    private function cleanChannelTitle(string $title): string
+    {
+        // Remove markdown formatting
+        $cleanTitle = preg_replace('/\*\*([^*]+)\*\*/', '$1', $title);
+
+        // Extract just the title part if it follows the pattern "**Title:** ActualTitle"
+        if (preg_match('/\*\*Title:\*\*\s*([^\n\r*]+)/', $cleanTitle, $matches)) {
+            $cleanTitle = trim($matches[1]);
+        }
+
+        // If it still contains image prompt markers, extract just the title before the prompt
+        if (Str::contains($cleanTitle, '/imagine')) {
+            $parts = explode('/imagine', $cleanTitle);
+            $cleanTitle = trim($parts[0]);
+        }
+
+        // Remove any remaining markdown or special characters
+        $cleanTitle = preg_replace('/[*#`\[\]]+/', '', $cleanTitle);
+
+        // Remove extra whitespace and newlines
+        $cleanTitle = preg_replace('/\s+/', ' ', $cleanTitle);
+        $cleanTitle = trim($cleanTitle);
+
+        // If title is still empty or too generic, use a fallback
+        if (empty($cleanTitle) || strlen($cleanTitle) < 3) {
+            $cleanTitle = 'AI Generated Content';
+        }
+
+        // Truncate to 190 characters to leave some buffer
+        if (strlen($cleanTitle) > 190) {
+            $cleanTitle = substr($cleanTitle, 0, 187) . '...';
+        }
+
+        return $cleanTitle;
     }
 
     private function generateChatResponse(Message $message): array
@@ -194,16 +236,28 @@ class LLMMessageResponseActivity extends KanvasActivity
     {
         $promptClient = new PromptClient($message->app);
         $prompt = $message->message['prompt'] ?? null;
+        $params = [];
 
         $provider = (string) ($message->message['ai_model']['key'] ?? 'dalle3');
         $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
+
+        if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value && isset($message->message['platform']) && $message->message['platform'] === 'android') {
+            $params['safety_tolerance'] = 1;
+            $params['enable_safety_checker'] = true;
+        }
+
+        $imageLimitValidation = $this->validateImageLimit($message);
+
+        if ($imageLimitValidation !== null) {
+            return $imageLimitValidation;
+        }
 
         try {
             $generateImage = $promptClient->generateImage(
                 provider: $provider,
                 model: $model,
                 prompt: $prompt,
-                key: 'text-to-image'
+                params: $params
             );
         } catch (ClientException $e) {
             $errorBody = $e->getResponse()->getBody()->getContents();
@@ -216,6 +270,49 @@ class LLMMessageResponseActivity extends KanvasActivity
         return (string) $promptClient->extractImageUrl(
             $generateImage
         );
+    }
+
+    public function validateImageLimit(Message $message): ?string
+    {
+        try {
+            (new CheckMessagePostLimitAction(
+                message: $message,
+                //messageTypeId: MessageType::fromApp($message->app)->where('verb', 'prompt')->firstOrFail()->getId(),
+                messageJsonFilters: ['type' => 'image-format']
+            ))->execute();
+        } catch (Throwable $e) {
+            try {
+                $endViaList = array_map(
+                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                    ['push']
+                );
+                $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                    user: $message->user,
+                    entity: $message,
+                    message: 'You have reached your daily image generation limit.',
+                    title: 'Daily Limit Reached',
+                    via: $endViaList,
+                    templates: [
+                        'email_template' => 'email-new-message-nugget',
+                        'push_template' => 'push-new-message-nugget',
+                    ],
+                );
+
+                //send to the user profile when it fails
+                $errorProcessingImageNotification->setData([
+                    'destination_id' => $message->getId(),
+                    'destination_type' => 'USER',
+                    'destination_event' => 'FOLLOWING',
+                ]);
+                $message->user->notify($errorProcessingImageNotification);
+            } catch (Throwable $e) {
+                report($e);
+            }
+
+            return $message->app->get('LIMIT_IMAGE_URL') ?? '';
+        }
+
+        return null;
     }
 
     private function generateTitleByPrompt(string $prompt): string

@@ -196,7 +196,9 @@ class MessageBuilder
         return UserMessage::getFollowingFeed($user, $app)->when(
             $messageTypeId !== null,
             function ($query) use ($messageTypeId) {
-                return $query->where('messages.message_types_id', $messageTypeId);
+                return $query->where('messages.message_types_id', $messageTypeId)
+                        ->where('messages.is_public', 1)
+                        ->where('messages.is_deleted', 0);
             }
         );
     }

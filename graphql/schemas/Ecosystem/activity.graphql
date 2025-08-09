@@ -21,11 +21,13 @@ input ActivityLogInput {
 
 extend type Mutation @guard {
     createActivityLog(input: ActivityLogInput!): ActivityLog!
+        @deprecated(reason: "Use 2025 instead, no longer able to create activity by mutation")
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\ActivityLog\\ActivityLogManagementMutation@createActivityLog"
         )
 }
 
+#@deprecated(reason: "Use 2025 version instead")
 extend type Query @guard {
     getActivityLog(
         system_module_uuid: String!

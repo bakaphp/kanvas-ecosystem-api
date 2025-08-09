@@ -15,7 +15,9 @@ use Kanvas\ActionEngine\Engagements\DataTransferObject\EngagementMessage;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
+use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -223,6 +225,18 @@ class EngagementMutation
             ],
         ];
 
+        if ((int) $checkListId > 0) {
+            try {
+                $checkListTaskItem = TaskListItem::getById($checkListId);
+
+                if ($checkListTaskItem->task->company->getId() === $lead->company->getId()) {
+                    $checkListId = $checkListTaskItem->task->getId();
+                }
+            } catch (ModelNotFoundException $e) {
+                $checkListId = 0;
+            }
+        }
+
         $channel = new CreateChannelAction(new Channel(
             apps: $app,
             companies: $lead->company,
@@ -344,9 +358,21 @@ class EngagementMutation
             $lead->branch
         );
 
+        if ((int) $checkListId > 0) {
+            try {
+                $checkListTaskItem = TaskListItem::getById($checkListId);
+
+                if ($checkListTaskItem->task->company->getId() === $lead->company->getId()) {
+                    $checkListId = $checkListTaskItem->task->getId();
+                }
+            } catch (ModelNotFoundException $e) {
+                $checkListId = 0;
+            }
+        }
+
         $engagementMessage = new EngagementMessage(
             data: $data,
-            text: $data['text'] ?? '',
+            text: $data['text'] ?? $companyAction->name,
             verb: $action,
             status: $status,
             actionLink: $data['link'] ?? '',

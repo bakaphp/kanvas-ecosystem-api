@@ -20,8 +20,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
+use Kanvas\Activities\Contracts\ActivityLogInterface;
+use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
@@ -53,6 +56,8 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Override;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Class Products.
@@ -75,7 +80,7 @@ use Override;
  * @property bool $is_deleted
  */
 #[ObservedBy(ProductsObserver::class)]
-class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface
+class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface, ActivityLogInterface
 {
     use UuidTrait;
     use SlugTrait;
@@ -93,6 +98,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use CanUseWorkflow;
     use HasRating;
     use HasTranslationsDefaultFallback;
+    use LogsActivity;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -111,6 +117,31 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function getGraphTypeName(): string
     {
         return 'Product';
+    }
+
+    #[Override]
+    public function getActivityLogName(): string
+    {
+        return 'product-' . $this->companies_id . '-' . $this->apps_id;
+    }
+
+    #[Override]
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+        ->useLogName($this->getActivityLogName())
+        ->setDescriptionForEvent(fn (string $eventName) => "This product has been {$eventName}")
+        ->logOnly(['*'])
+        ->dontLogIfAttributesChangedOnly(['created_at','updated_at','published_at'])
+        ->logOnlyDirty();
+    }
+
+    #[Override]
+    public function getActivities(): Collection
+    {
+        return Activity::forSubject($this)
+                ->where('log_name', $this->getActivityLogName())
+                ->get();
     }
 
     /**
@@ -522,9 +553,19 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+        if (
+            $user instanceof UserInterface &&
+            (
+                ! auth()->user()->isAppOwner() ||
+            (
+                app()->bound(CompaniesBranches::class) &&
+                $app->get('enable_company_bound_search', false) // Only apply if this app setting is enabled
+            )
+            )
+        ) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
+
         if ($query->model->isTypesense()) {
             $query->options([
                 'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'

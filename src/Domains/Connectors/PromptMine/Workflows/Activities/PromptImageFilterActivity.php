@@ -23,7 +23,9 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -64,6 +66,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageFiles, $params, $imageFilter, $isOpenAi) {
                 $entity->setPrivate();
+
+                if (! empty($this->validateImageLimit($entity, $params))) {
+                    return [
+                        'result' => false,
+                        'message_id' => $entity->getId(),
+                        'message' => 'Image limit validation failed',
+                    ];
+                }
 
                 if (empty($this->apiUrl)) {
                     return [
@@ -134,6 +144,55 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             },
             company: $company,
         );
+    }
+
+    public function validateImageLimit(Message $message, array $params): array
+    {
+        try {
+            (new CheckMessagePostLimitAction(
+                message: $message,
+                //messageTypeId: MessageType::fromApp($message->app)->where('verb', 'prompt')->firstOrFail()->getId(),
+                messageJsonFilters: ['type' => 'image-format']
+            ))->execute();
+        } catch (Throwable $e) {
+            //report($e);
+            try {
+                $endViaList = array_map(
+                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                    $params['via'] ?? ['database']
+                );
+                $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                    user: $message->user,
+                    entity: $message,
+                    message: 'You have reached your daily image generation limit.',
+                    title: 'Daily Limit Reached',
+                    via: $endViaList,
+                    templates: [
+                        'email_template' => $params['email_template'],
+                        'push_template' => $params['push_template'],
+                    ],
+                );
+
+                //send to the user profile when it fails
+                $errorProcessingImageNotification->setData([
+                    'destination_id' => $message->getId(),
+                    'destination_type' => 'USER',
+                    'destination_event' => 'FOLLOWING',
+                ]);
+                $message->user->notify($errorProcessingImageNotification);
+            } catch (Throwable $e) {
+                report($e);
+            }
+            $message->delete();
+
+            return [
+                'result' => false,
+                'message_id' => $message->getId(),
+                'message' => 'Error checking message post limit: ' . $e->getMessage(),
+            ];
+        }
+
+        return [];
     }
 
     /**
@@ -356,12 +415,13 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
         $createNuggetMessage = (new CreateNuggetMessageAction(
-            parentMessage: $entity->parent_id ? $entity->parent : $entity,
+            parentMessage: $entity,
             messageData: [
                 'title' => trim($title),
                 'type' => 'image-format',
                 'image' => $cdnImageUrl,
             ],
+            messageTypeVerb: 'chat-response',
         ))->execute();
 
         $messageCopy = $entity->message;
@@ -376,6 +436,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         );
 
         $title = trim($title);
+
         try {
             // Send notification to the user
             $newMessageNotification = new ImageProcessingPushNotification(

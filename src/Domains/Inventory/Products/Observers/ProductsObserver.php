@@ -18,7 +18,7 @@ class ProductsObserver
         $product->setTotalVariants();
     }
 
-    public function updating(Products $product)
+    public function updating(Products $product): void
     {
         if ($product->isDirty('users_id')) {
             $product->users_id = $product->getOriginal('users_id');

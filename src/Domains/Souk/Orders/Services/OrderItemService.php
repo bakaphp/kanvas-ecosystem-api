@@ -76,6 +76,7 @@ class OrderItemService
     {
         $cartItems = [];
         $errors = [];
+
         foreach ($orderItems as $orderItem) {
             $variant = Variants::where('id', $orderItem['variant_id'])->first();
             $channel = $variant->variantChannels()->where('channels_id', $channelId)->first();
@@ -85,20 +86,20 @@ class OrderItemService
             }
 
             $minimumOrderQuantity = $channel?->config['minimum_quantity'] ?? 0;
-            $warehouse = $channel?->productVariantWarehouse()->first();
+            $warehouse = $channel?->productVariantWarehouse()->first() ?? $variant->variantWarehouses()->first();
             $currentStock = $warehouse?->quantity ?? 0;
 
             /**
              * @todo validate overselling
              */
             if ($currentStock < $orderItem['quantity']) {
-                $errors[] = 'Not enough stock for product ' . $variant->name . ' (' . $variant->sku . ')';
+                $errors[] = "Not enough stock for product $variant->name ($variant->sku)";
 
                 continue;
             }
 
             if ($minimumOrderQuantity > $orderItem['quantity']) {
-                $errors[] = 'Minimum order quantity for product ' . $variant->name . ' (' . $variant->sku . ') is ' . $minimumOrderQuantity;
+                $errors[] = "Minimum order quantity for product $variant->name ( $variant->sku) is $minimumOrderQuantity";
 
                 continue;
             }

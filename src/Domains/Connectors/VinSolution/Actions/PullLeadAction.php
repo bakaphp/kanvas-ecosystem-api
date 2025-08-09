@@ -10,12 +10,15 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\VinSolution\DataTransferObject\Lead as DataTransferObjectLead;
+use Kanvas\Connectors\VinSolution\DataTransferObject\People;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
+use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Connectors\VinSolution\Vehicles\Interest;
+use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Throwable;
@@ -69,14 +72,40 @@ class PullLeadAction
                 );
 
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
+
+                try {
+                    $vinCoBuyer = Lead::getCoBuyer(
+                        $vinCompany,
+                        $user,
+                        $currentLead['LeadId']
+                    );
+                    if ($vinCoBuyer && (int) $vinCoBuyer > 0) {
+                        //$coBuyerPeople = new Customers($this, (int) $vinCoBuyer);
+                        //$coBuyerPeople = $coBuyerPeople->transform();
+                        $customer = Contact::getById($vinCompany, $user, (int) $vinCoBuyer);
+                        $people = People::fromContact($customer, $lead->app, $lead->company, $lead->user);
+                        $peopleSync = new SyncPeopleByThirdPartyCustomFieldAction($people);
+                        $coBuyerPeople = $peopleSync->execute();
+
+                        $lead->addCoBuyerParticipant($coBuyerPeople);
+                    }
+                    //$lead->co_buyer_id = $coBuyerPeople->getId();
+                } catch (Throwable $e) {
+                    report($e);
+                }
+
                 //$lead->searchable();
 
-                $vehicleOfInterest = current(Interest::getByLeadId(
-                    $vinCompany,
-                    $user,
-                    $currentLead['LeadId']
-                )->items);
-                $this->getVehicleOfInterest($vehicleOfInterest, $lead);
+                try {
+                    $vehicleOfInterest = current(Interest::getByLeadId(
+                        $vinCompany,
+                        $user,
+                        $currentLead['LeadId']
+                    )->items);
+                    $this->getVehicleOfInterest($vehicleOfInterest, $lead);
+                } catch (Throwable $e) {
+                    report($e);
+                }
 
                 $lead->refresh();
 

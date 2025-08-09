@@ -23,6 +23,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
+use Kanvas\Activities\Contracts\ActivityLogInterface;
+use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -45,6 +48,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 use Override;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Class Attributes.
@@ -67,7 +72,7 @@ use Override;
  * @property int is_deleted
  */
 #[ObservedBy(VariantObserver::class)]
-class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface
+class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface, ActivityLogInterface
 {
     use SlugTrait;
     use UuidTrait;
@@ -85,6 +90,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use HasRating;
     use HasTranslationsDefaultFallback;
     use HasWallet;
+    use LogsActivity;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
@@ -129,6 +135,31 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public static function searchableIndex(): string
     {
         return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
+    }
+
+    #[Override]
+    public function getActivityLogName(): string
+    {
+        return 'variant-' . $this->companies_id . '-' . $this->apps_id;
+    }
+
+    #[Override]
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+        ->useLogName($this->getActivityLogName())
+        ->setDescriptionForEvent(fn (string $eventName) => "This variant has been {$eventName}")
+        ->logOnly(['*'])
+        ->dontLogIfAttributesChangedOnly(['created_at','updated_at','published_at'])
+        ->logOnlyDirty();
+    }
+
+    #[Override]
+    public function getActivities(): Collection
+    {
+        return Activity::forSubject($this)
+                ->where('log_name', $this->getActivityLogName())
+                ->get();
     }
 
     #[Override]
@@ -402,6 +433,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'uuid' => $this->uuid,
             'slug' => $this->slug,
             'sku' => $this->sku,
+            'ean' => $this->ean,
+            'barcode' => $this->barcode,
             'status' => [
                 'id' => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,
@@ -576,11 +609,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         }
     }
 
-    public function updatePriceInChannel(Channels $channel, float $price): void
+    public function updatePriceInChannel(Channels $channel, float $price, ?float $discountPrice = null): void
     {
         $channelInfo = $this->variantChannels()->where('channels_id', $channel->getId())->first();
 
         if ($channelInfo) {
+            $channelInfo->discounted_price = $discountPrice ?? $channelInfo->discounted_price;
             $channelInfo->price = $price;
             $channelInfo->saveOrFail();
         }
@@ -655,6 +689,16 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ],
                 [
                     'name' => 'sku',
+                    'type' => 'string',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'ean',
+                    'type' => 'string',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'barcode',
                     'type' => 'string',
                     'facet' => true,
                 ],
