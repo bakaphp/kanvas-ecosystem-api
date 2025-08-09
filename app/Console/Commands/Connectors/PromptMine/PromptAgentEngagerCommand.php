@@ -114,7 +114,13 @@ class PromptAgentEngagerCommand extends Command
                     // continue;
                 }
 
-                $content = 'Tittle :' . ($message['message']['title'] ?? $message['message']['prompt']);
+                $title = $message['message']['title'] ?? $message['message']['prompt'] ?? null;
+
+                if ($title === null) {
+                    continue;
+                }
+
+                $content = 'Title :' . ($title);
                 $messageId = (int) $message['id'];
 
                 $this->info('Analyzing content: ' . $content);
