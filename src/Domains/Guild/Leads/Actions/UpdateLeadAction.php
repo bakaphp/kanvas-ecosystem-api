@@ -112,7 +112,7 @@ class UpdateLeadAction
             $lead->leads_receivers_id = $receiver?->getId() ?? $lead->leads_receivers_id ?? 0;
             $lead->leads_owner_id = $owner?->getId() ?? $lead->leads_owner_id ?? 0;
             $lead->organization_id = $organization?->getId() ?? $lead->organization_id ?? 0;
-            $lead->description = $this->leadData->description ?? $lead->description ?? '';
+            $lead->description = $this->leadData->description ?? '';
             $lead->reason_lost = $this->leadData->reason_lost ?? $lead->reason_lost ?? '';
             $lead->saveOrFail();
 

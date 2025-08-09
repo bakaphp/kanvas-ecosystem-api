@@ -9,6 +9,7 @@ type People {
     lastname: String
     subscriptions: [PeopleSubscription!]! @hasMany
     dob: Date
+    licence_number: String
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
@@ -87,6 +88,7 @@ input PeopleInput {
     twitter_contact_id: String
     linkedin_contact_id: String
     google_contact_id: String
+    licence_number: String
     dob: String
     contacts: [ContactInput!]
     address: [AddressInput!]
@@ -96,7 +98,6 @@ input PeopleInput {
     peopleEmploymentHistory: [EmploymentPeopleHistoryInput!]
     organization: String
     created_at: DateTime
-    
 }
 
 input PeopleParticipantInput {
@@ -131,13 +132,16 @@ extend type Query @guard {
             )
         hasEventsVersions: _
             @whereHasConditions(
-                columns: ["id","name","version"]
+                columns: ["id", "name", "version"]
                 handler: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionBuilder@getHasEventVersion"
             )
         hasEmails: _
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
         hasOrganization: _
-            @whereHasConditions(relation: "organizations", columns: ["id", "name"])
+            @whereHasConditions(
+                relation: "organizations"
+                columns: ["id", "name"]
+            )
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
         hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
@@ -154,6 +158,22 @@ extend type Query @guard {
                     "leads_sources_id"
                     "leads_types_id"
                 ]
+            )
+        hasOrders: _
+            @whereHasConditions(
+                relation: "orders"
+                columns: [
+                    "id"
+                    "uuid"
+                    "status"
+                    "total"
+                    "subtotal"
+                    "taxes"
+                    "shipping"
+                    "discounts"
+                    "created_at"
+                ]
+                handler: "App\\GraphQL\\Guild\\Handlers\\HasOrderHandler"
             )
         hasAddress: _
             @whereHasConditions(

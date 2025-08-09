@@ -1,6 +1,7 @@
 type Filesystem {
     id: ID!
     uuid: String!
+    filesystem_uuid: String!
     name: String!
     url: String!
     type: String
@@ -77,5 +78,9 @@ extend type Mutation @guard {
     mergeFiles(files: [ID!]!): Filesystem
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@mergeFiles"
+        )
+    renameFile(id: ID!, name: String!): Filesystem!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@renameFile"
         )
 }
