@@ -325,4 +325,17 @@ class FilesystemManagementMutation
 
         return null;
     }
+
+    public function renameFile(mixed $rootVale, array $request): Filesystem
+    {
+        $filesystem = Filesystem::getById($request['id'], app(Apps::class));
+        if ($filesystem->users_id != auth()->user()->getId() && ! auth()->user()->isAdmin()) {
+            throw new ModelNotFoundException('File not found or you do not have permission to rename it.');
+        }
+        $filesystem->update([
+            'name' => $request['name'],
+        ]);
+
+        return $filesystem;
+    }
 }
