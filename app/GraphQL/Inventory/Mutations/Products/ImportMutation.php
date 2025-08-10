@@ -32,7 +32,6 @@ class ImportMutation
 
         $region = ! isset($req['regionId']) ? Regions::getDefault($company) : RegionRepository::getById($req['regionId'], $company);
 
-        // Check if input is empty
         if (empty($req['input']) || ! is_array($req['input'])) {
             throw new InvalidArgumentException('Input array cannot be empty.');
         }
