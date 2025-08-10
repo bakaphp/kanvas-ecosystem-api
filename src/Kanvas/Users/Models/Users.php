@@ -45,7 +45,6 @@ use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
@@ -303,11 +302,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function state(): BelongsTo
     {
         return $this->belongsTo(States::class, 'state_id');
-    }
-
-    public function people(): HasOne
-    {
-        return $this->hasOne(People::class, 'id', 'people_id');
     }
 
     public function orders(): HasMany

@@ -10,8 +10,10 @@ use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserAppInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Auth\Contracts\Authenticatable;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
@@ -44,6 +46,7 @@ use Override;
  * @property string $email_verified_at
  * @property string $phone_verified_at
  * @property int|null $people_id
+ * @property string|null $stripe_id
  * @property  string $timezone
  * @property int $is_deleted
  */
@@ -86,6 +89,8 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         'phone_verified_at',
         'email_verified_at',
         'timezone',
+        'people_id',
+        'stripe_id',
     ];
 
     protected $casts = [
@@ -100,6 +105,11 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'user_role');
+    }
+
+    public function people(): HasOne
+    {
+        return $this->hasOne(People::class, 'id', 'people_id');
     }
 
     public function deActive(): bool

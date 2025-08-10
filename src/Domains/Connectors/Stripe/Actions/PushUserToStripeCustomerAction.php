@@ -33,8 +33,8 @@ class PushUserToStripeCustomerAction
         $stripeCustomer = $stripeCustomerService->getOrCreateCustomerByPerson($people);
 
         $userApp = $this->user->getAppProfile($this->app);
-        if ($stripeCustomer->id !== $userApp->stripe_customer_id) {
-            $userApp->update(['stripe_customer_id' => $stripeCustomer->id]);
+        if ($stripeCustomer->id !== $userApp->stripe_id) {
+            $userApp->update(['stripe_id' => $stripeCustomer->id]);
         }
 
         return $stripeCustomer;
