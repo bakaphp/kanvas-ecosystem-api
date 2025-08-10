@@ -9,6 +9,7 @@ use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People as ModelsPeople;
+use Stripe\Customer;
 use Stripe\StripeClient;
 
 class StripeCustomerService
@@ -21,7 +22,7 @@ class StripeCustomerService
         $this->stripe = new StripeClient($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
     }
 
-    public function getOrCreateCustomerByPerson(ModelsPeople $people): \Stripe\Customer
+    public function getOrCreateCustomerByPerson(ModelsPeople $people): Customer
     {
         $email = $people->getEmails()->first()->value ?? '';
         if (empty($email)) {
@@ -50,9 +51,8 @@ class StripeCustomerService
                 'email' => $email,
                 'name' => $name,
             ]);
-
-            $people->set(CustomFieldEnum::STRIPE_ID->value, $customer->id);
         }
+        $people->set(CustomFieldEnum::STRIPE_ID->value, $customer->id);
 
         return $customer;
     }
