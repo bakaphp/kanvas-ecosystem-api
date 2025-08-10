@@ -445,8 +445,8 @@ class People extends BaseModel
             'dob' => $this->dob,
             'apps_id' => $this->apps_id,
             'users_id' => $this->users_id,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'created_at' => $this->created_at->getTimestamp(),
+            'updated_at' => $this->updated_at->getTimestamp(),
             'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
                     'uuid' => $files->uuid,
