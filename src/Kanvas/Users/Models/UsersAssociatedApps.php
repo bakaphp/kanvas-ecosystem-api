@@ -43,6 +43,7 @@ use Override;
  * @property string $two_step_phone_number
  * @property string $email_verified_at
  * @property string $phone_verified_at
+ * @property int|null $people_id
  * @property  string $timezone
  * @property int $is_deleted
  */
