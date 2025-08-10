@@ -15,6 +15,7 @@ use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Source;
 use Kanvas\Connectors\VinSolution\Leads\Types;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
+use Kanvas\Guild\Leads\Models\LeadSource as ModelsLeadSource;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
@@ -22,6 +23,7 @@ use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource as DataTransferObject
 use Kanvas\Guild\LeadSources\Models\LeadSource;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Users\Models\UserConfig;
+use Throwable;
 
 class Lead extends DataTransferObjectLead
 {
@@ -71,25 +73,13 @@ class Lead extends DataTransferObjectLead
             }
         }
 
-        //add followers @todo
-
-        $source = Source::getById(
+        $localLeadSource = self::getLeadSource(
             $dealer,
             $dealerUser,
-            (int) $data['LeadSource']
+            $app,
+            $company,
+            $data
         );
-
-        $localLeadSource = new CreateLeadSourceAction(
-            new DataTransferObjectLeadSource(
-                app: $app,
-                company: $company,
-                leads_types_id: null,
-                name: $source->name,
-                is_active: true,
-                description: $data['LeadSource']
-            )
-        )->execute();
-        $localLeadSource->set(CustomFieldEnum::LEADS_SOURCE_ID->value, (int) $data['LeadSource']);
 
         $vinLeadsType = self::getLeadsType($company);
         $vinLeadsTypeId = ! isset($data['newLeadType']) ? ($vinLeadsType[$data['LeadType'] - 1] ?? 'INTERNET') : $data['newLeadType'];
@@ -117,6 +107,39 @@ class Lead extends DataTransferObjectLead
                 CustomFieldEnum::LEADS->value => $data['LeadId'],
             ],
         ]);
+    }
+
+    public static function getLeadSource(
+        Dealer $dealer,
+        User $dealerUser,
+        AppInterface $app,
+        Companies $company,
+        array $data
+    ): ?ModelsLeadSource {
+        try {
+            $source = Source::getById(
+                $dealer,
+                $dealerUser,
+                (int) $data['LeadSource']
+            );
+
+            $localLeadSource = new CreateLeadSourceAction(
+                new DataTransferObjectLeadSource(
+                    app: $app,
+                    company: $company,
+                    leads_types_id: null,
+                    name: $source->name,
+                    is_active: true,
+                    description: $data['LeadSource']
+                )
+            )->execute();
+            $localLeadSource->set(CustomFieldEnum::LEADS_SOURCE_ID->value, (int) $data['LeadSource']);
+        } catch (Throwable $e) {
+            report($e);
+            $localLeadSource = null;
+        }
+
+        return $localLeadSource;
     }
 
     public static function getSalesRep(array $dealerTeam): array
