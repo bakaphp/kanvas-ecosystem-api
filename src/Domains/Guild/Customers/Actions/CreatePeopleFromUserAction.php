@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Actions;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -49,6 +50,20 @@ class CreatePeopleFromUserAction
             )
         );
 
-        return $createPeople->execute();
+        $people = $createPeople->execute();
+
+        $allowDuplicateContacts = (bool) ($this->branch->company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false);
+
+        /**
+         *  If duplicate contacts are not allowed, associate the newly created people with the user.
+         *  if we allow duplicate contact we will have issues we need to resolve @todo
+         */
+        if (! $allowDuplicateContacts) {
+            $appUser = $this->user->getAppProfile($this->app);
+            $appUser->people_id = $people->id;
+            $appUser->saveOrFail();
+        }
+
+        return $people;
     }
 }
