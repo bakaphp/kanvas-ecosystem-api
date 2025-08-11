@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\UniversalAssistance\Services;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Connectors\UniversalAssistance\Services\LeadService;
-use Kanvas\Connectors\UniversalAssistance\Services\VoucherService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
 
