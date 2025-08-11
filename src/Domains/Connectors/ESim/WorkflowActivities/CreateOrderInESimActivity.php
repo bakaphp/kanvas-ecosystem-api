@@ -370,6 +370,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $stripeService = new StripeCustomerService($order->app);
                 $stripe->paymentIntents->update($paymentIntentId, [
                     'customer' => $stripeService->getOrCreateCustomerByPerson($order->people)->id,
+                    'description' => 'Kanvas Order #' . $order->order_number,
                 ]);
             } catch (Throwable $e) {
                 report($e);

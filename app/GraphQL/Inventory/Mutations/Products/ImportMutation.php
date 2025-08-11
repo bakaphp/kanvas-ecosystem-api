@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\Products;
 
 use Baka\Support\Str;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
@@ -30,6 +31,10 @@ class ImportMutation
         );
 
         $region = ! isset($req['regionId']) ? Regions::getDefault($company) : RegionRepository::getById($req['regionId'], $company);
+
+        if (empty($req['input']) || ! is_array($req['input'])) {
+            throw new InvalidArgumentException('Input array cannot be empty.');
+        }
 
         //verify it has the correct format
         ProductImporter::from($req['input'][0]);
