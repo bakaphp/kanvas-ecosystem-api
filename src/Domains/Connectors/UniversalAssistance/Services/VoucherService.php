@@ -186,7 +186,7 @@ class VoucherService
             $errors[] = 'End date must be after start date';
         }
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             throw new ValidationException(implode(', ', $errors));
         }
     }

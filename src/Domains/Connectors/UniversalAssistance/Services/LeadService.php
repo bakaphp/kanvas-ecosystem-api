@@ -120,7 +120,7 @@ class LeadService
             $errors[] = 'Origin country and destination are required';
         }
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             throw new ValidationException(implode(', ', $errors));
         }
     }

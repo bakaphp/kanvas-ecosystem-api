@@ -30,7 +30,7 @@ class CreateUniversalAssistanceVoucherActivity extends KanvasActivity
 
                 // Get the applicant from order user or params
                 $applicant = $params['applicant'] ?? $order->user;
-                if (!$applicant instanceof People) {
+                if (! $applicant instanceof People) {
                     throw new \InvalidArgumentException('Applicant must be a People instance');
                 }
 
