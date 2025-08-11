@@ -105,16 +105,21 @@ class FilesystemManagementMutation
         if ($fileEntity->filesystem->apps_id != $app->getId()) {
             return false;
         }
+
+        $systemModule = $fileEntity->systemModule->model_name;
+        $entityId = $fileEntity->entity_id;
+
         $response = $fileEntity->softDelete();
 
         try {
-            $systemModule = $fileEntity->systemModule->model_name;
-            $entityData = $systemModule::getById($fileEntity->entity_id);
+            $entityData = $systemModule::getById($entityId);
             //@todo Set the same cache trait to all filesystem entities
             if (method_exists($entityData, 'clearLightHouseCacheJob')) {
                 $entityData->clearLightHouseCacheJob();
             }
+            $entityData->fireObserverEvent('saved');
         } catch (ModelNotFoundException $e) {
+            report($e);
         }
 
         return $response;
@@ -324,18 +329,5 @@ class FilesystemManagementMutation
         }
 
         return null;
-    }
-
-    public function renameFile(mixed $rootVale, array $request): Filesystem
-    {
-        $filesystem = Filesystem::getById($request['id'], app(Apps::class));
-        if ($filesystem->users_id != auth()->user()->getId() && ! auth()->user()->isAdmin()) {
-            throw new ModelNotFoundException('File not found or you do not have permission to rename it.');
-        }
-        $filesystem->update([
-            'name' => $request['name'],
-        ]);
-
-        return $filesystem;
     }
 }
