@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\UniversalAssistance\Services;
 use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Kanvas\Connectors\UniversalAssistance\Client;
+use Kanvas\Connectors\UniversalAssistance\DataTransferObjects\VoucherData;
 use Kanvas\Connectors\UniversalAssistance\Enums\DocumentTypeEnum;
 use Kanvas\Connectors\UniversalAssistance\Enums\SaleTypeEnum;
 use Kanvas\Connectors\UniversalAssistance\Enums\VoucherStatusEnum;
@@ -30,50 +31,75 @@ class VoucherService
      */
     public function createVoucher(array $voucherData, People $applicant): array
     {
-        $this->validateVoucherData($voucherData);
+        // Use DTO for better structure
+        $voucher = VoucherData::from([
+            'controlNumber' => $voucherData['control_number'] ?? '',
+            'channel' => $voucherData['channel'] ?? '',
+            'line' => $voucherData['line'] ?? '',
+            'applicantResidenceCountry' => $voucherData['applicant_residence_country'] ?? 'ARG',
+            'applicantDocumentNumber' => $voucherData['applicant_document_number'] ?? $applicant->getCustomField('document_number')?->value ?? '',
+            'country' => $voucherData['country'] ?? 'ARG',
+            'stateProvince' => $voucherData['state_province'] ?? '',
+            'postProcessFlag' => $voucherData['post_process_flag'] ?? 'N',
+            'seller' => $voucherData['seller'] ?? '',
+            'saleType' => $voucherData['sale_type'] ?? SaleTypeEnum::ANNUAL->value,
+            'voucherStatus' => $voucherData['voucher_status'] ?? VoucherStatusEnum::ACTIVE->value,
+            'voucherReason' => $voucherData['voucher_reason'] ?? 'Activo',
+            'billingStatus' => $voucherData['billing_status'] ?? 'Pendiente Facturación',
+            'currency' => $voucherData['currency'] ?? 'USD',
+            'applicantDocumentType' => $voucherData['applicant_document_type'] ?? DocumentTypeEnum::DNI->value,
+            'birthDate' => isset($voucherData['birth_date']) ? Carbon::parse($voucherData['birth_date']) : null,
+            'startDate' => isset($voucherData['start_date']) ? Carbon::parse($voucherData['start_date']) : null,
+            'endDate' => isset($voucherData['end_date']) ? Carbon::parse($voucherData['end_date']) : null,
+            'city' => $voucherData['city'] ?? '',
+            'postalCode' => $voucherData['postal_code'] ?? '',
+            'address' => $voucherData['address'] ?? '',
+        ]);
+
+        $this->validateVoucherData($voucher, $applicant);
 
         $voucherRequestData = [
-            'NroControl' => $voucherData['control_number'],
-            'PostProcesoFlag' => $voucherData['post_process_flag'] ?? 'N',
-            'Vendedor' => $voucherData['seller'] ?? '',
-            'Canal' => $voucherData['channel'],
-            'TipoVenta' => $voucherData['sale_type'] ?? SaleTypeEnum::ANNUAL->value,
-            'Linea' => $voucherData['line'],
-            'EstadoVoucher' => $voucherData['voucher_status'] ?? VoucherStatusEnum::ACTIVE->value,
-            'MotivoVoucher' => $voucherData['voucher_reason'] ?? 'Activo',
-            'Facturacion' => $voucherData['billing_status'] ?? 'Pendiente Facturación',
-            'MonedaLista' => $voucherData['currency'] ?? 'USD',
+            'NroControl' => $voucher->controlNumber,
+            'PostProcesoFlag' => $voucher->postProcessFlag,
+            'Vendedor' => $voucher->seller,
+            'Canal' => $voucher->channel,
+            'TipoVenta' => $voucher->saleType,
+            'Linea' => $voucher->line,
+            'EstadoVoucher' => $voucher->voucherStatus,
+            'MotivoVoucher' => $voucher->voucherReason,
+            'Facturacion' => $voucher->billingStatus,
+            'MonedaLista' => $voucher->currency,
 
             // Applicant data
-            'PaisResidenciaSolicitante' => $voucherData['applicant_residence_country'],
+            'PaisResidenciaSolicitante' => $voucher->applicantResidenceCountry,
             'SexoSolicitante' => $this->getGenderFromPerson($applicant),
-            'TipoDocumentoSolicitante' => $voucherData['applicant_document_type'] ?? DocumentTypeEnum::DNI->value,
+            'TipoDocumentoSolicitante' => $voucher->applicantDocumentType,
             'TituloCortesiaSolicitante' => $this->getCourtesyTitle($applicant),
             'NombreSolicitante' => $applicant->firstname,
             'ApellidoSolicitante' => $applicant->lastname,
-            'NumeroDocumentoSolicitante' => $voucherData['applicant_document_number'],
+            'NumeroDocumentoSolicitante' => $voucher->applicantDocumentNumber,
             'EmailSolicitante' => $applicant->email,
             'TelefonoSolicitante' => $applicant->getCustomField('phone')?->value ?? '',
 
             // Address data
-            'Pais' => $voucherData['country'],
-            'ProvEstado' => $voucherData['state_province'],
-            'Ciudad' => $voucherData['city'] ?? '',
-            'CodigoPostal' => $voucherData['postal_code'] ?? '',
-            'Direccion' => $voucherData['address'] ?? '',
+            'Pais' => $voucher->country,
+            'ProvEstado' => $voucher->stateProvince,
+            'Ciudad' => $voucher->city,
+            'CodigoPostal' => $voucher->postalCode,
+            'Direccion' => $voucher->address,
         ];
 
         // Add optional fields
-        if (isset($voucherData['birth_date'])) {
-            $voucherRequestData['FechaNacimientoSolicitante'] = Carbon::parse($voucherData['birth_date'])->format('m/d/Y');
+        if ($voucher->birthDate) {
+            $voucherRequestData['FechaNacimientoSolicitante'] = $voucher->birthDate->format('m/d/Y');
         }
 
-        if (isset($voucherData['start_date'])) {
-            $voucherRequestData['FechaInicio'] = Carbon::parse($voucherData['start_date'])->format('m/d/Y');
+        if ($voucher->startDate) {
+            $voucherRequestData['FechaInicio'] = $voucher->startDate->format('m/d/Y');
         }
 
-        if (isset($voucherData['end_date'])) {
-            $voucherRequestData['FechaFin'] = Carbon::parse($voucherData['end_date'])->format('m/d/Y');
+        if ($voucher->endDate) {
+            $voucherRequestData['FechaFin'] = $voucher->endDate->format('m/d/Y');
         }
 
         return $this->client->createVoucher($voucherRequestData);
@@ -132,22 +158,36 @@ class VoucherService
     /**
      * Validate voucher data
      */
-    protected function validateVoucherData(array $voucherData): void
+    protected function validateVoucherData(VoucherData $voucherData, People $applicant): void
     {
-        $requiredFields = [
-            'control_number',
-            'channel',
-            'line',
-            'applicant_residence_country',
-            'applicant_document_number',
-            'country',
-            'state_province'
-        ];
+        $errors = [];
 
-        foreach ($requiredFields as $field) {
-            if (! isset($voucherData[$field]) || empty($voucherData[$field])) {
-                throw new ValidationException("Missing required field: {$field}");
-            }
+        if (empty($voucherData->controlNumber)) {
+            $errors[] = 'Control number is required';
+        }
+
+        if (empty($voucherData->channel)) {
+            $errors[] = 'Channel is required';
+        }
+
+        if (empty($voucherData->line)) {
+            $errors[] = 'Line is required';
+        }
+
+        if (empty($voucherData->applicantDocumentNumber)) {
+            $errors[] = 'Applicant document number is required';
+        }
+
+        if (empty($applicant->email)) {
+            $errors[] = 'Applicant email is required';
+        }
+
+        if ($voucherData->startDate && $voucherData->endDate && $voucherData->startDate >= $voucherData->endDate) {
+            $errors[] = 'End date must be after start date';
+        }
+
+        if (!empty($errors)) {
+            throw new ValidationException(implode(', ', $errors));
         }
     }
 }

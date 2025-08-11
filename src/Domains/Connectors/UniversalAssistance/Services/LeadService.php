@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\UniversalAssistance\Services;
 use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Kanvas\Connectors\UniversalAssistance\Client;
+use Kanvas\Connectors\UniversalAssistance\DataTransferObjects\TravelQuoteData;
 use Kanvas\Connectors\UniversalAssistance\Enums\TripTypeEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
@@ -28,25 +29,41 @@ class LeadService
      */
     public function createLead(array $travelData, People $contactPerson = null): array
     {
-        $this->validateTravelData($travelData);
+        // Use DTO for better structure
+        $travelQuote = TravelQuoteData::from([
+            'originCountry' => $travelData['origin_country'] ?? 'ARG',
+            'destination' => $travelData['destination'] ?? 'Europa',
+            'startDate' => isset($travelData['start_date']) ? Carbon::parse($travelData['start_date']) : Carbon::now()->addDays(30),
+            'endDate' => isset($travelData['end_date']) ? Carbon::parse($travelData['end_date']) : Carbon::now()->addDays(37),
+            'passengerCount' => $travelData['passenger_count'] ?? 1,
+            'passengerAges' => $travelData['passenger_ages'] ?? [30],
+            'leadId' => $travelData['lead_id'] ?? null,
+            'tripType' => $travelData['trip_type'] ?? TripTypeEnum::SINGLE_TRIP->value,
+            'agreementId' => $travelData['agreement_id'] ?? null,
+            'brochure' => $travelData['brochure'] ?? 'N',
+            'familyPack' => $travelData['family_pack'] ?? null,
+            'quoteCount' => $travelData['quote_count'] ?? 1,
+        ]);
+
+        $this->validateTravelData($travelQuote);
 
         $leadData = [
-            'IdLead' => $travelData['lead_id'] ?? null, // If null, creates new lead
-            'CantCotizaciones' => $travelData['quote_count'] ?? 1,
-            'Convenio' => $travelData['agreement_id'] ?? null,
-            'Folleto' => $travelData['brochure'] ?? 'N',
-            'PaisOrigen' => $travelData['origin_country'],
-            'Destino' => $travelData['destination'],
-            'TipoViaje' => $travelData['trip_type'] ?? TripTypeEnum::SINGLE_TRIP->value,
-            'FechaInicio' => Carbon::parse($travelData['start_date'])->format('m/d/Y'),
-            'FechaFin' => Carbon::parse($travelData['end_date'])->format('m/d/Y'),
-            'CantidadPasajeros' => $travelData['passenger_count'],
-            'PackFamiliar' => $travelData['family_pack'] ?? null,
+            'IdLead' => $travelQuote->leadId,
+            'CantCotizaciones' => $travelQuote->quoteCount,
+            'Convenio' => $travelQuote->agreementId,
+            'Folleto' => $travelQuote->brochure,
+            'PaisOrigen' => $travelQuote->originCountry,
+            'Destino' => $travelQuote->destination,
+            'TipoViaje' => $travelQuote->tripType,
+            'FechaInicio' => $travelQuote->startDate->format('m/d/Y'),
+            'FechaFin' => $travelQuote->endDate->format('m/d/Y'),
+            'CantidadPasajeros' => $travelQuote->passengerCount,
+            'PackFamiliar' => $travelQuote->familyPack,
         ];
 
         // Add passenger ages
-        if (isset($travelData['passenger_ages']) && is_array($travelData['passenger_ages'])) {
-            foreach ($travelData['passenger_ages'] as $index => $age) {
+        if (isset($travelQuote->passengerAges) && is_array($travelQuote->passengerAges)) {
+            foreach ($travelQuote->passengerAges as $index => $age) {
                 $leadData['Edad' . ($index + 1)] = (string) $age;
             }
         }
@@ -83,39 +100,28 @@ class LeadService
     /**
      * Validate travel data
      */
-    protected function validateTravelData(array $travelData): void
+    protected function validateTravelData(TravelQuoteData $travelData): void
     {
-        $requiredFields = [
-            'origin_country',
-            'destination',
-            'start_date',
-            'end_date',
-            'passenger_count',
-            'passenger_ages'
-        ];
+        $errors = [];
 
-        foreach ($requiredFields as $field) {
-            if (! isset($travelData[$field])) {
-                throw new ValidationException("Missing required field: {$field}");
-            }
+        if ($travelData->startDate <= Carbon::now()) {
+            $errors[] = 'Start date must be in the future';
         }
 
-        // Validate dates
-        $startDate = Carbon::parse($travelData['start_date']);
-        $endDate = Carbon::parse($travelData['end_date']);
-
-        if ($endDate->lte($startDate)) {
-            throw new ValidationException('End date must be after start date');
+        if ($travelData->endDate <= $travelData->startDate) {
+            $errors[] = 'End date must be after start date';
         }
 
-        // Validate passenger count matches ages
-        if (count($travelData['passenger_ages']) !== (int) $travelData['passenger_count']) {
-            throw new ValidationException('Passenger count must match number of ages provided');
+        if ($travelData->passengerCount !== count($travelData->passengerAges)) {
+            $errors[] = 'Passenger count must match number of ages provided';
         }
 
-        // Validate at least one passenger age
-        if (empty($travelData['passenger_ages'][0])) {
-            throw new ValidationException('At least Edad1 (first passenger age) is required');
+        if (empty($travelData->originCountry) || empty($travelData->destination)) {
+            $errors[] = 'Origin country and destination are required';
+        }
+
+        if (!empty($errors)) {
+            throw new ValidationException(implode(', ', $errors));
         }
     }
 }
