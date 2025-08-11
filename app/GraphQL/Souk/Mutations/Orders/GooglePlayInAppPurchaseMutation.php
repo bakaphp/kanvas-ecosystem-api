@@ -13,6 +13,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Illuminate\Support\Facades\Log;
 
 class GooglePlayInAppPurchaseMutation
 {
@@ -31,6 +32,16 @@ class GooglePlayInAppPurchaseMutation
         }
 
         $region = Regions::getDefault($company, $app);
+
+        if ($app->get('bypass_order_creation') && in_array($user->email, $app->get('bypass_order_creation_allowed_users'))) {
+            Log::info("User {$user->email} is allowed to bypass validation.");
+            //Get a valid order from the database as a result to let it bypass.
+            return Order::fromApp($app)
+                ->where('companies_id', $company->getId())
+                ->where('status', 'completed')
+                ->where("fulfillment_status", "fulfilled")
+                ->firstOrFail();
+        }
 
         $googleInAppPurchase = GooglePlayInAppPurchaseReceipt::from(
             $app,
