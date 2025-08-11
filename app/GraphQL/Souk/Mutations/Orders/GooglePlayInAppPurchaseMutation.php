@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Orders;
 
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromGoogleReceiptAction;
@@ -13,7 +14,6 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Illuminate\Support\Facades\Log;
 
 class GooglePlayInAppPurchaseMutation
 {
