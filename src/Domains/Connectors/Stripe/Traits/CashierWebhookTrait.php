@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Stripe\Traits;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Payment;
 use Laravel\Cashier\Subscription;
@@ -68,6 +69,17 @@ trait CashierWebhookTrait
                 $user->trial_ends_at = null;
                 $user->save();
             }
+        }
+
+        if (method_exists($user, 'fireWorkflow')) {
+            $user->ireWorkflow(
+                WorkflowEnum::CREATE_SUBSCRIPTION->value,
+                true,
+                [
+                'app' => $participant->lead->app,
+                'company' => $participant->lead->company,
+            ]
+            );
         }
 
         return $this->successMethod();
