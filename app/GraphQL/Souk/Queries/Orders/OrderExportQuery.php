@@ -18,8 +18,12 @@ use Nuwave\Lighthouse\WhereConditions\SQLOperator;
 
 class OrderExportQuery
 {
-    public function export(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
-    {
+    public function export(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): array {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -37,19 +41,23 @@ class OrderExportQuery
                 metadata: $metadata,
                 params: $args['where'] ?? []
             );
+
             return $exportService->execute($format);
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
                 'download_url' => null,
                 'file_name' => null,
-                'message' => 'Export failed: ' . $e->getMessage()
+                'message' => 'Export failed: ' . $e->getMessage(),
             ];
         }
     }
 
-    public function getOrdersList(Apps $app, Companies $company, array $args): Collection
-    {
+    public function getOrdersList(
+        Apps $app,
+        Companies $company,
+        array $args
+    ): Collection {
         // Build the query with the same filters as the orders query
         $query = Order::query()
             ->fromCompany($company)
@@ -85,7 +93,7 @@ class OrderExportQuery
         // Apply orderStatus filter using the handler
         if (isset($args['orderStatus']) && is_array($args['orderStatus'])) {
             $handler = new OrderStatusHandler(new SQLOperator());
-            $handler($query, $args["orderStatus"], null, 'and');
+            $handler($query, $args['orderStatus'], null, 'and');
         }
 
         // Apply order by
@@ -123,7 +131,7 @@ class OrderExportQuery
         return $orders;
     }
 
-    public function applyWhereConditions($query, array $conditions = []): Builder
+    public function applyWhereConditions(Builder $query, array $conditions = []): Builder
     {
         $operatorMap = [
             'EQ' => '=',
@@ -152,7 +160,7 @@ class OrderExportQuery
         return $query;
     }
 
-    private function applySingleCondition($query, array $condition, array $operatorMap): void
+    private function applySingleCondition(Builder $query, array $condition, array $operatorMap): void
     {
         $column = $condition['column'];
         $operator = strtoupper($condition['operator'] ?? 'EQ');
