@@ -23,7 +23,7 @@ trait CashierWebhookTrait
     /**
     * Handle customer subscription created.
     */
-    protected function handleCustomerSubscriptionCreated(array $payload)
+    protected function handleCustomerSubscriptionCreated(array $payload): string
     {
         $user = $this->getUserByStripeId($payload['data']['object']['customer']);
 
@@ -40,9 +40,11 @@ trait CashierWebhookTrait
                 $firstItem = $data['items']['data'][0];
                 $isSinglePrice = count($data['items']['data']) === 1;
 
-                $subscription = $user->subscriptions()->create([
-                    'type' => $data['metadata']['type'] ?? $data['metadata']['name'] ?? $this->newSubscriptionType($payload),
+                // Use updateOrCreate for idempotency
+                $subscription = $user->subscriptions()->updateOrCreate([
                     'stripe_id' => $data['id'],
+                ], [
+                    'type' => $data['metadata']['type'] ?? $data['metadata']['name'] ?? $this->newSubscriptionType($payload),
                     'stripe_status' => $data['status'],
                     'stripe_price' => $isSinglePrice ? $firstItem['price']['id'] : null,
                     'quantity' => $isSinglePrice && isset($firstItem['quantity']) ? $firstItem['quantity'] : null,
@@ -51,8 +53,9 @@ trait CashierWebhookTrait
                 ]);
 
                 foreach ($data['items']['data'] as $item) {
-                    $subscription->items()->create([
+                    $subscription->items()->updateOrCreate([
                         'stripe_id' => $item['id'],
+                    ], [
                         'stripe_product' => $item['price']['product'],
                         'stripe_price' => $item['price']['id'],
                         'quantity' => $item['quantity'] ?? null,
@@ -72,10 +75,8 @@ trait CashierWebhookTrait
 
     /**
      * Determines the type that should be used when new subscriptions are created from the Stripe dashboard.
-     *
-     * @return string
      */
-    protected function newSubscriptionType(array $payload)
+    protected function newSubscriptionType(array $payload): string
     {
         return 'default';
     }
@@ -83,7 +84,7 @@ trait CashierWebhookTrait
     /**
      * Handle customer subscription updated.
      */
-    protected function handleCustomerSubscriptionUpdated(array $payload)
+    protected function handleCustomerSubscriptionUpdated(array $payload): ?string
     {
         if ($user = $this->getUserByStripeId($payload['data']['object']['customer'])) {
             $data = $payload['data']['object'];
@@ -97,7 +98,7 @@ trait CashierWebhookTrait
                 $subscription->items()->delete();
                 $subscription->delete();
 
-                return;
+                return null;
             }
 
             $subscription->type = $subscription->type ?? $data['metadata']['type'] ?? $data['metadata']['name'] ?? $this->newSubscriptionType($payload);
@@ -165,7 +166,7 @@ trait CashierWebhookTrait
     /**
      * Handle the cancellation of a customer subscription.
      */
-    protected function handleCustomerSubscriptionDeleted(array $payload)
+    protected function handleCustomerSubscriptionDeleted(array $payload): string
     {
         if ($user = $this->getUserByStripeId($payload['data']['object']['customer'])) {
             $user->subscriptions->filter(function ($subscription) use ($payload) {
@@ -181,7 +182,7 @@ trait CashierWebhookTrait
     /**
      * Handle customer updated.
      */
-    protected function handleCustomerUpdated(array $payload)
+    protected function handleCustomerUpdated(array $payload): string
     {
         if ($user = $this->getUserByStripeId($payload['data']['object']['id'])) {
             $user->updateDefaultPaymentMethodFromStripe();
@@ -193,7 +194,7 @@ trait CashierWebhookTrait
     /**
      * Handle deleted customer.
      */
-    protected function handleCustomerDeleted(array $payload)
+    protected function handleCustomerDeleted(array $payload): string
     {
         if ($user = $this->getUserByStripeId($payload['data']['object']['id'])) {
             $user->subscriptions->each(function (Subscription $subscription) {
@@ -214,7 +215,7 @@ trait CashierWebhookTrait
     /**
      * Handle payment method automatically updated by vendor.
      */
-    protected function handlePaymentMethodAutomaticallyUpdated(array $payload)
+    protected function handlePaymentMethodAutomaticallyUpdated(array $payload): string
     {
         if ($user = $this->getUserByStripeId($payload['data']['object']['customer'])) {
             $user->updateDefaultPaymentMethodFromStripe();
@@ -226,7 +227,7 @@ trait CashierWebhookTrait
     /**
      * Handle payment action required for invoice.
      */
-    protected function handleInvoicePaymentActionRequired(array $payload)
+    protected function handleInvoicePaymentActionRequired(array $payload): string
     {
         if (is_null($notification = config('cashier.payment_notification'))) {
             return $this->successMethod();
@@ -269,23 +270,20 @@ trait CashierWebhookTrait
         return Cashier::findBillable($stripeId);
     }
 
-    protected function successMethod($parameters = [])
+    protected function successMethod($parameters = []): string
     {
         return 'Webhook Handled';
     }
 
-    protected function missingMethod($parameters = [])
+    protected function missingMethod($parameters = []): string
     {
         return 'Webhook Not Handled';
     }
 
     /**
      * Set the number of automatic retries due to an object lock timeout from Stripe.
-     *
-     * @param  int  $retries
-     * @return void
      */
-    protected function setMaxNetworkRetries($retries = 3)
+    protected function setMaxNetworkRetries($retries = 3): void
     {
         Stripe::setMaxNetworkRetries($retries);
     }

@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Connectors\Stripe\Traits\CashierWebhookTrait;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Laravel\Cashier\Cashier;
+use Laravel\Cashier\Events\WebhookReceived;
 use Override;
 
 class CashierStripeWebhookJob extends ProcessWebhookJob
@@ -20,6 +21,8 @@ class CashierStripeWebhookJob extends ProcessWebhookJob
         //$regionId = $this->receiver->configuration['region_id'];
         $payload = $this->webhookRequest->payload;
         $method = 'handle' . Str::studly(str_replace('.', '_', $payload['type']));
+
+        WebhookReceived::dispatch($payload);
 
         if (method_exists($this, $method)) {
             $this->setMaxNetworkRetries();

@@ -38,6 +38,9 @@ enum WorkflowEnum: string
     case BEFORE_ACTION = 'before-action';
     case STATUS_TRANSITION = 'status-transition';
     case AFTER_UPLOAD = 'after-upload';
+    case CREATE_SUBSCRIPTION = 'create-subscription';
+    case UPDATE_SUBSCRIPTION = 'update-subscription';
+    case CANCEL_SUBSCRIPTION = 'cancel-subscription';
 
     /**
      * Get the enum case by its value.

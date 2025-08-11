@@ -12,6 +12,7 @@ use Kanvas\Exceptions\ConfigurationException;
 use Kanvas\Subscription\Models\BaseModel;
 use Laravel\Cashier\Billable;
 use Laravel\Cashier\Cashier;
+use Override;
 
 /**
  * Class AppsStripeCustomer.
@@ -32,11 +33,13 @@ class AppsStripeCustomer extends BaseModel
     protected $table = 'apps_stripe_customers';
     protected $guarded = [];
 
+    #[Override]
     public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
 
+    #[Override]
     public function trashed(): bool
     {
         return (bool) $this->is_deleted;
