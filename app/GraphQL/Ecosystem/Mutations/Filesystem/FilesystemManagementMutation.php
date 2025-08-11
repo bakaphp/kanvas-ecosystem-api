@@ -105,16 +105,21 @@ class FilesystemManagementMutation
         if ($fileEntity->filesystem->apps_id != $app->getId()) {
             return false;
         }
+
+        $systemModule = $fileEntity->systemModule->model_name;
+        $entityId = $fileEntity->entity_id;
+
         $response = $fileEntity->softDelete();
 
         try {
-            $systemModule = $fileEntity->systemModule->model_name;
-            $entityData = $systemModule::getById($fileEntity->entity_id);
+            $entityData = $systemModule::getById($entityId);
             //@todo Set the same cache trait to all filesystem entities
             if (method_exists($entityData, 'clearLightHouseCacheJob')) {
                 $entityData->clearLightHouseCacheJob();
             }
+            $entityData->fireObserverEvent('saved');
         } catch (ModelNotFoundException $e) {
+            report($e);
         }
 
         return $response;
