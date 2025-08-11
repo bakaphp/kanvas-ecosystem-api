@@ -1,7 +1,7 @@
 type Filesystem {
     id: ID!
     uuid: String!
-    filesystem_uuid: String!
+    filesystem_uuid: String
     name: String!
     url: String!
     type: String
