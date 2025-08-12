@@ -22,5 +22,4 @@ trait HasMessagesTrait
             'message_id'
         )->where('app_module_message.system_modules', static::class);
     }
-
 }

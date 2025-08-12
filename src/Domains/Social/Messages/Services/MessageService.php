@@ -31,8 +31,8 @@ class MessageService
         }
 
         $template = json_decode($messageType->template, true);
-        
-        if (!$template) {
+
+        if (! $template) {
             throw new InvalidArgumentException('Invalid JSON template');
         }
 
@@ -81,7 +81,7 @@ class MessageService
                 continue;
             }
 
-            if (!$required && ($value === null || $value === '')) {
+            if (! $required && ($value === null || $value === '')) {
                 continue;
             }
 
@@ -94,7 +94,7 @@ class MessageService
 
         $this->processNestedArrayFields($nestedFields, $data, $result, $errors);
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             throw new ValidationException('Template validation failed: ' . implode(', ', $errors));
         }
         return $result;
@@ -112,7 +112,7 @@ class MessageService
         }
 
         foreach ($groupedFields as $arrayName => $fields) {
-            if (!isset($data[$arrayName]) || !is_array($data[$arrayName])) {
+            if (! isset($data[$arrayName]) || !is_array($data[$arrayName])) {
                 foreach ($fields as $fieldName => $config) {
                     if ($config['required']) {
                         $errors[] = "Field '{$arrayName}.{$fieldName}' is required";
@@ -143,11 +143,11 @@ class MessageService
                         continue;
                     }
 
-                    if (!$required && ($value === null || $value === '')) {
+                    if (! $required && ($value === null || $value === '')) {
                         continue;
                     }
                     $convertedValue = $this->convertType($value, $type, "{$arrayName}.{$fieldName}");
-                    
+
                     if ($convertedValue !== null) {
                         $processedItem[$fieldName] = $convertedValue;
                     }
@@ -155,7 +155,7 @@ class MessageService
                 $processedArray[$index] = $processedItem;
             }
 
-            if (!empty($processedArray) || isset($result[$arrayName])) {
+            if (! empty($processedArray) || isset($result[$arrayName])) {
                 $result[$arrayName] = $processedArray;
             }
         }
@@ -203,7 +203,7 @@ class MessageService
                 return (int) $value;
 
             case 'number':
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     throw new ValidationException("Field '$field' must be a number");
                 }
                 return (float) $value;
@@ -215,7 +215,7 @@ class MessageService
                 return (string) $value;
 
             case 'array':
-                if (!is_array($value)) {
+                if (! is_array($value)) {
                     throw new ValidationException("Field '$field' must be an array");
                 }
                 return $value;
