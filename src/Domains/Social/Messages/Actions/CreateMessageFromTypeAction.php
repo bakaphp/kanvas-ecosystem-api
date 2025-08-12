@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Services;
+namespace Kanvas\Social\Messages\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
@@ -15,7 +15,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 
-class MessageService
+class CreateMessageFromTypeAction
 {
     public function __construct(
         protected UserInterface $user,
@@ -24,7 +24,7 @@ class MessageService
     ) {
     }
 
-    public function createMessageFromType(MessageType $messageType, mixed $data, ?SystemModules $systemModule = null, mixed $entityId = null): Message
+    public function execute(MessageType $messageType, mixed $data, ?SystemModules $systemModule = null, mixed $entityId = null): Message
     {
         if (is_string($data)) {
             $data = json_decode($data, true);
