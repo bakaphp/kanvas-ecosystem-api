@@ -248,7 +248,7 @@ class ExportOrderTest extends OrderBase
             amount: 100
         );
 
-        $order = $this->createOrderFromCart(
+        $this->createOrderFromCart(
             variantId: $variantResponse['id'],
             quantity: 1,
             metadata: [
@@ -265,7 +265,7 @@ class ExportOrderTest extends OrderBase
         $edgeCaseResponse = $this->graphQL('
             query ExportOrdersEdgeCases($fieldMapper: Mixed!) {
                 exportOrders(
-                    format: PDF
+                    format: EXCEL
                     field_mapper: $fieldMapper
                 ) {
                     status
