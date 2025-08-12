@@ -1,3 +1,15 @@
+enum ExportFormat {
+    EXCEL
+    PDF
+}
+
+type OrderExportResult {
+    status: String!
+    download_url: String
+    file_name: String
+    message: Mixed
+}
+
 type Order {
     id: ID!
     uuid: String!
@@ -56,6 +68,11 @@ type Order {
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
 }
 
 type OrderItem {
@@ -82,6 +99,8 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+    created_at: String
+    updated_at: String
 }
 
 type OrderStatus {
@@ -113,6 +132,7 @@ type ImportOrderCsvResult {
 }
 
 type GeneratePaymentIntentResult {
+    id: ID!
     client_secret: String!
     status: String
     message: Mixed
@@ -172,6 +192,7 @@ input OrderCartInput {
     order_type: String
     metadata: Mixed
     reference: String
+    payment_intent_id: ID
 }
 
 input ExtendOrderInput {
@@ -283,6 +304,28 @@ type OrderStatusTransitionResult {
     message: Mixed
 }
 
+type OrderTransitionHistory {
+    id: ID!
+    order_id: ID!
+    order: Order @belongsTo(relation: "order")
+    fromStatus: OrderStatus @belongsTo(relation: "fromStatus")
+    toStatus: OrderStatus @belongsTo(relation: "toStatus")
+    changedBy: User @belongsTo(relation: "changedBy")
+    endedBy: User @belongsTo(relation: "endedBy")
+    description: String
+    metadata: String
+    is_current: Boolean
+    changed_at: String
+    ended_at: String
+    duration_in_seconds: Int
+}
+
+input ExportMetadataInput {
+    custom_title: String
+    subtitle: String
+    headerImages: [String!]
+}
+
 extend type Mutation @guard {
     # @deprecated(reason: "Use createOrderFromCart instead")
     createOrder(input: OrderInput!): Mixed!
@@ -345,7 +388,9 @@ extend type Mutation @guard {
     #    @field(
     #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@assignPaymentToOrder"
     #    )
-    transitionOrderStatus(input: TransitionOrderStatusInput!): OrderStatusTransitionResult!
+    transitionOrderStatus(
+        input: TransitionOrderStatusInput!
+    ): OrderStatusTransitionResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
         )
@@ -373,12 +418,14 @@ extend type Query @guard {
                     "users_id"
                     "user_email"
                     "user_phone"
+                    "people_id"
                     "status"
                     "fulfillment_status"
                     "order_number"
                     "reference"
                     "order_types_id"
                     "parent_id"
+                    "created_at"
                 ]
             )
         orderType: _
@@ -406,7 +453,7 @@ extend type Query @guard {
             )
         hasItems: _
             @whereHasConditions(
-                relation: "items"
+                relation: "allItems"
                 columns: ["product_name", "product_sku", "variant_id"]
             )
         hasPeople: _
@@ -429,5 +476,116 @@ extend type Query @guard {
             model: "Kanvas\\Souk\\Orders\\Models\\Order"
             scopes: ["fromCompany", "fromApp", "notDeleted", "filterByUser"]
             defaultCount: 25
+        )
+    
+    orderTypes(
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        where: _
+            @whereConditions(
+                columns: ["id", "companies_id", "name"]
+            )
+    ): [OrderType!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes"
+            scopes: ["fromApp", "notDeleted"]
+        )
+       orderTransitionHistory(
+            orderBy: _
+                @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+            where: _
+                @whereConditions(
+                    columns: [
+                        "id", 
+                        "companies_id", 
+                        "order_id",
+                        "transition_id",
+                        "from_status_id",
+                        "to_status_id",
+                        "changed_at",
+                        "ended_at",
+                        "is_current",
+                        "changed_by",
+                        "ended_by",
+                        "duration_in_seconds"
+                    ]
+                )
+        ): [OrderTransitionHistory!]!
+            @paginate(
+                defaultCount: 25
+                model: "Kanvas\\Souk\\Orders\\Models\\OrderTransitionHistory"
+                scopes: ["fromApp", "notDeleted", "filterByUser"]
+            )
+    exportOrders(
+        format: ExportFormat!
+        search: String @search
+        field_mapper: Mixed # JSON object with label => field_path mapping
+        metadata: ExportMetadataInput
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "users_id"
+                    "user_email"
+                    "user_phone"
+                    "status"
+                    "fulfillment_status"
+                    "order_number"
+                    "reference"
+                    "order_types_id"
+                    "parent_id"
+                    "created_at"
+                ]
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_type_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
+            )
+        hasAddress: _
+            @whereConditions(
+                columns: [
+                    "address"
+                    "address_2"
+                    "city"
+                    "county"
+                    "state"
+                    "zip"
+                    "countries_id"
+                ]
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasAddressHandler"
+            )
+        hasItems: _
+            @whereHasConditions(
+                relation: "allItems"
+                columns: ["product_name", "product_sku", "variant_id"]
+            )
+        hasPeople: _
+            @whereHasConditions(
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasPeopleHandler"
+                columns: [
+                    "id"
+                    "users_id"
+                    "name"
+                    "firstname"
+                    "middlename"
+                    "lastname"
+                    "dob"
+                ]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
+    ): OrderExportResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderExportQuery@export"
+            # scopes: ["fromApp", "notDeleted"]
         )
 }

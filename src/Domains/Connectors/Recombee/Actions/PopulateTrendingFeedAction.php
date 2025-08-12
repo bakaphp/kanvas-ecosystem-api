@@ -31,16 +31,28 @@ class PopulateTrendingFeedAction
         $userForYouFeed = $recommendationService->getUserRecommendation($this->user, $pageSize, $trendingSlug)['recomms'];
 
         Message::fromApp($this->app)->whereHas('tags', function ($query) use ($trendingSlug) {
-            $query->where('slug', $trendingSlug);
+            $query->where('slug', $trendingSlug)
+                ->where('messages.is_public', 0)
+                ->where('messages.is_deleted', 0);
         })->get()->each(function ($message) use ($trendingSlug) {
             $message->removeTag($trendingSlug);
         });
 
         foreach ($userForYouFeed as $messageId) {
-            $messageId = $messageId['id'];
+            $message = Message::fromApp($this->app)
+                    ->where('is_public', 1)
+                    ->where('is_deleted', 0)
+                    ->where('id', $messageId['id'])->first();
+
+            if (! $message) {
+                continue;
+            }
 
             try {
-                $message = Message::getById($messageId, $this->app);
+                $message = Message::fromApp($this->app)
+                    ->where('is_public', 1)
+                    ->where('is_deleted', 0)
+                    ->where('id', $messageId)->first();
                 $message->addTag($trendingSlug, $this->app, $this->user, $this->company);
                 $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
             } catch (Exception $e) {

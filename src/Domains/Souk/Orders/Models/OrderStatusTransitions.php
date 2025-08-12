@@ -27,7 +27,7 @@ class OrderStatusTransitions extends BaseModel
     protected $guarded = [];
 
     protected $casts = [
-        'metadata' => Json::class,
+        'metadata' => Json::class
     ];
 
     public function orderType(): BelongsTo

@@ -30,4 +30,10 @@ enum ConfigurationEnum: string
     case QUICKBOOKS_DEFAULT_TERMS = 'QUICKBOOKS_DEFAULT_TERMS';
 
     case QUICKBOOKS_DEFAULT_ITEM_TYPE = 'quickbooks_default_item_type';
+
+    // New deposit-related configurations
+    case QUICKBOOKS_CUSTOMER_DEPOSITS_ACCOUNT_ID = 'quickbooks_customer_deposits_account_id';
+    case QUICKBOOKS_DEPOSIT_APPLICATION_ITEM_ID = 'quickbooks_deposit_application_item_id';
+    case QUICKBOOKS_UNEARNED_REVENUE_ACCOUNT_ID = 'quickbooks_unearned_revenue_account_id';
+    case QUICKBOOKS_UNDEPOSITED_FUNDS_ACCOUNT_ID = 'quickbooks_undeposited_funds_account_id';
 }

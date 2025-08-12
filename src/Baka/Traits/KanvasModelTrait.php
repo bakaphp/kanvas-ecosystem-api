@@ -316,4 +316,9 @@ trait KanvasModelTrait
     {
         return SystemModulesRepository::getByModelName(get_class($this), $this->app);
     }
+
+    public function fireObserverEvent(string $event, bool $halt = true): void
+    {
+        $this->fireModelEvent($event, $halt);
+    }
 }

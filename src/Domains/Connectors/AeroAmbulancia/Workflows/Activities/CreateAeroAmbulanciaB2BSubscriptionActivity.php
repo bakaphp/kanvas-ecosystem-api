@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\AeroAmbulancia\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Carbon\Carbon;
 use Kanvas\Connectors\AeroAmbulancia\Services\AeroAmbulanciaSubscriptionService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -16,13 +18,8 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
 {
     public function execute(Order $order, AppInterface $app, array $params): array
     {
-        // Check if the source is B2B from order metadata
-        $source = $order->getMetadata('source');
-        if (! is_string($source) || strtoupper($source) !== 'B2B') {
-            return [];
-        }
-
         $subscriptionVariant = $order->allItems()->first()->variant;
+        $mainAppCompany = B2BConfigurationService::getConfiguredB2BCompany($app, $order->company);
 
         // Check if the product is from the Dominican Republic
         $productCountry = $subscriptionVariant->product->getAttributeBySlug('countries-code')?->value ??
@@ -38,6 +35,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
             integration: IntegrationsEnum::AERO_AMBULANCIA,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 sleep(30);
+                $order->refresh();
                 $data = $this->getB2BActivityData($order, $params);
 
                 // Skip execution if no valid aeroAmbulancia plans found
@@ -74,7 +72,7 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
 
                 return $results;
             },
-            company: $order->company,
+            company: $mainAppCompany,
         );
     }
 
@@ -137,15 +135,131 @@ class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
             return [];
         }
 
+        $titular = $aeroData['titular'];
+
+        // Get the ambulance variant ID from the titular's plan - this will be used for all beneficiaries
+        $ambulanceVariantId = $titular['plan']['id'] ?? null;
+        if (! $ambulanceVariantId) {
+            throw new ValidationException('Missing plan ID in titular data');
+        }
+
+        // Transform titular data to expected format
+        $holder = $this->transformPersonData($titular, true, $ambulanceVariantId);
+
         $beneficiaries = [
-            'holder' => $aeroData['titular'],
+            'holder' => $holder,
         ];
 
         // Add dependents if they exist
         if (isset($aeroData['dependents']) && is_array($aeroData['dependents'])) {
-            $beneficiaries['dependents'] = $aeroData['dependents'];
+            $dependents = [];
+            foreach ($aeroData['dependents'] as $dependent) {
+                // Pass the titular's ambulanceVariantId to dependents since they share the same plan
+                $transformedDependent = $this->transformPersonData($dependent, false, $ambulanceVariantId);
+
+                $relationship = $dependent['relationship'] ?? 'Other';
+                $transformedDependent['holderRelationship'] = (int) $relationship;
+
+                $dependents[] = $transformedDependent;
+            }
+            $beneficiaries['dependents'] = $dependents;
         }
 
         return $beneficiaries;
+    }
+
+    /**
+     * Transform person data from eSimDetails format to AeroAmbulancia format
+     */
+    protected function transformPersonData(array $personData, bool $isHolder, string $ambulanceVariantId): array
+    {
+        $transformed = [
+            'documentType' => $personData['idType'] ?? 'passport', // 'passport' or 'id'
+            'documentNumber' => $personData['idNumber'] ?? '',
+            'firstname' => $personData['firstname'] ?? '',
+            'lastname' => $personData['lastname'] ?? '',
+            'gender' => strtoupper($personData['sex'] ?? 'M'), // 'M' or 'F'
+            'birthDate' => $this->formatDateForService($personData['dob'] ?? ''),
+            'activationDate' => $this->formatDateForService($personData['activationDate'] ?? date('Y-m-d')),
+            'phoneNumber' => $this->cleanPhoneNumber($personData['phone'] ?? ''),
+            'preferredLanguage' => $personData['language'] ?? 'es',
+            'email' => $personData['email'] ?? '',
+            'ambulanceVariantId' => $ambulanceVariantId, // Required for all beneficiaries
+        ];
+
+        // Calculate expiration date if we have activation date and plan duration
+        // For dependents, use the titular's plan duration
+        $planDuration = null;
+        if ($isHolder && isset($personData['plan']['duration'])) {
+            $planDuration = (int) $personData['plan']['duration'];
+        } else {
+            // For dependents, we need to get the duration from the titular's plan
+            // Since we don't have direct access here, we'll set a default or let the service handle it
+            // The service will get the duration from the ambulanceVariantId
+        }
+
+        if ($planDuration && isset($transformed['activationDate'])) {
+            $activationDate = Carbon::createFromFormat('d-m-Y', $transformed['activationDate']);
+            $expirationDate = $activationDate->copy()->addDays($planDuration);
+            $transformed['expirationDate'] = $expirationDate->format('d-m-Y');
+        }
+
+        return $transformed;
+    }
+
+    /**
+     * Format date from various formats to d-m-Y format expected by service
+     */
+    protected function formatDateForService(string $date): string
+    {
+        if (empty($date)) {
+            return date('d-m-Y');
+        }
+
+        try {
+            // Try different date formats
+            $formats = ['Y-m-d', 'd-m-Y', 'm/d/Y', 'Y/m/d'];
+
+            foreach ($formats as $format) {
+                try {
+                    $carbonDate = Carbon::createFromFormat($format, $date);
+
+                    return $carbonDate->format('d-m-Y');
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
+
+            // If no format works, try parsing with Carbon's automatic detection
+            $carbonDate = Carbon::parse($date);
+
+            return $carbonDate->format('d-m-Y');
+        } catch (\Exception $e) {
+            // Return current date if all parsing fails
+            return date('d-m-Y');
+        }
+    }
+
+    /**
+     * Clean and format phone number
+     */
+    protected function cleanPhoneNumber(string $phone): string
+    {
+        if (empty($phone)) {
+            return '';
+        }
+
+        // Remove all non-digit characters
+        $cleanPhone = preg_replace('/\D/', '', $phone);
+
+        // Ensure it's 10 digits (add padding if needed)
+        if (strlen($cleanPhone) < 10) {
+            $cleanPhone = str_pad($cleanPhone, 10, '0', STR_PAD_LEFT);
+        } elseif (strlen($cleanPhone) > 10) {
+            // Take the last 10 digits
+            $cleanPhone = substr($cleanPhone, -10);
+        }
+
+        return $cleanPhone;
     }
 }

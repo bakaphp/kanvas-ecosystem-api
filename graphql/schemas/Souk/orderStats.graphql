@@ -1,0 +1,77 @@
+type OrderStats {
+    period: Period!
+    ordersInPeriod: OrdersInPeriod!
+    currentCount: Int!
+    dailyTurnover: DailyTurnover!
+    averageRotation: AverageRotation!
+    orderRotationAvg: Float
+}
+
+type AverageRotation {
+    orders: [OrderRotation!]!
+    averageTime: Float!
+}
+
+type OrderRotation {
+    orderId: Int!
+    initialDate: String!
+    finalDate: String!
+    time: Float!
+}
+
+type Period {
+    start: String!
+    end: String!
+}
+
+type OrderTurnover {
+    date: String!
+    entries: Int!
+    exits: Int!
+}
+
+type DateCount {
+    date: String,
+    count: Int
+}
+
+type DailyTurnover {
+    totalEntries: Int,
+    totalExits: Int,
+    exitAvg: Float,
+    entryAvg: Float,
+    exitPercentage: Int,
+    maxExitDate: DateCount
+    maxEntryDate: DateCount
+    data: [OrderTurnover]
+}
+
+type OrderStateCount {
+    date: String!
+    states: Mixed!
+    count: Int!
+}
+
+type OrdersInPeriod {
+    orderAvg: Float
+    maxOrdersDate: DateCount
+    minOrdersDate: DateCount
+    data: [OrderStateCount!]!
+}
+
+input OrderStatsInput {
+    initialStates: [String!]
+    finalStates: [String!]
+    currentCountStates: [String!]
+    date: String # single date (e.g., "2025-07-07")
+    startDate: String # start of period (e.g., "2025-07-01")
+    endDate: String # end of period (e.g., "2025-07-07")
+    timezone: String # e.g., "America/New_York"
+}
+
+extend type Query @guard {
+    orderStats(input: OrderStatsInput): OrderStats!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@getOrderStats"
+        )
+}

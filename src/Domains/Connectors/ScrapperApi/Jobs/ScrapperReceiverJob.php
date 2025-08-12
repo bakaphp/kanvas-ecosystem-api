@@ -9,11 +9,13 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class ScrapperReceiverJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;
 
+    #[Override]
     public function execute(): array
     {
         $app = $this->receiver->app;

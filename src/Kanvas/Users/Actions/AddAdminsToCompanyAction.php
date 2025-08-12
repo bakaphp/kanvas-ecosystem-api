@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Baka\Contracts\AppInterface;
+use Bouncer;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -13,7 +14,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UserRoleRepository;
 
 use function Sentry\captureException;
 
@@ -39,14 +39,15 @@ class AddAdminsToCompanyAction
                     $this->branch
                 );
 
-                $role = RolesRepository::getByNameFromCompany(
-                    name: RolesEnums::ADMIN->value,
+                $role = RolesRepository::getByNameFromApp(
+                    name: RolesEnums::OWNER->value,
                     app: $this->app
                 );
 
-                $addUserCompanyAction->execute($admins, $role->getId());
+                $addUserCompanyAction->execute($admins, $role->id);
             } catch (Exception $e) {
                 captureException($e);
+                throw $e;
             }
         }
     }
@@ -54,11 +55,7 @@ class AddAdminsToCompanyAction
     public function getAdmins(
         AppInterface $app
     ): Collection {
-        $role = RolesRepository::getByNameFromCompany(
-            name: RolesEnums::ADMIN->value,
-            app: $app
-        );
-
-        return UserRoleRepository::getAllUsersOfRole($role, $app)->get();
+        Bouncer::scope()->to(RolesEnums::getScope($app));
+        return Users::whereIs(RolesEnums::OWNER->value)->get();
     }
 }

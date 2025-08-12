@@ -31,10 +31,12 @@ type Variant {
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]! @method(name: "visibleAttributes") @cacheRedis
+    attributes: [VariantsAttributes!]!
+        @method(name: "visibleAttributes")
+        @cacheRedis
     companies: Company! @belongsTo(relation: "company")
     channels(currencyCode: String): [VariantChannelRelationship!]!
-        @BelongsToMany(relation: "channels")
+        @BelongsToMany(relation: "channels", type: PAGINATOR)
     channel(currencyCode: String): VariantPricingInfo
         @field(
             resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price"

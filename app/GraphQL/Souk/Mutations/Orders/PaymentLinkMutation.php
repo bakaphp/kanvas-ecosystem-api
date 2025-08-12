@@ -156,7 +156,9 @@ class PaymentLinkMutation
 
         // Choose between simple or detailed checkout based on options
         if ($options['use_detailed_items'] ?? false) {
-            $session = $paymentService->createDetailedCheckoutSession($order, $options);
+            // @todo validate this method exists that it can only run if we have less 100 rows
+            //$session = $paymentService->createDetailedCheckoutSession($order, $options);
+            $session = $paymentService->createCheckoutSession($order, $options);
         } else {
             $session = $paymentService->createCheckoutSession($order, $options);
         }

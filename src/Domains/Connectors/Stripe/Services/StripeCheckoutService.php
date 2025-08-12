@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Stripe\Checkout\Session;
 use Stripe\StripeClient;
 
 class StripeCheckoutService
@@ -187,7 +188,7 @@ class StripeCheckoutService
     /**
      * Retrieve checkout session by order
      */
-    public function getCheckoutSessionByOrder(Order $order): ?\Stripe\Checkout\Session
+    public function getCheckoutSessionByOrder(Order $order): ?Session
     {
         $sessionId = $order->getMetadata('stripe_session_id');
 

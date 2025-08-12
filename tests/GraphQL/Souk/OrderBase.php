@@ -9,11 +9,13 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
 class OrderBase extends TestCase
 {
     use InventoryCases;
+    use PaymentCases;
 
     protected $variant;
     protected $region;
@@ -33,6 +35,7 @@ class OrderBase extends TestCase
 
         $this->warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
         $this->channelResponse = $this->createChannel()->json()['data']['createChannel'];
+        $this->setAllowNoPaymentStatus(true, $this->apps);
     }
 
     public function createDraftOrder(
@@ -84,7 +87,8 @@ class OrderBase extends TestCase
         array $metadata,
         string $variantId,
         int $quantity = 1,
-        string $orderType = 'order'
+        string $orderType = 'order',
+        string $currency = 'USD'
     ): Order {
         $data = [
             'cartId' => 0,
@@ -92,6 +96,7 @@ class OrderBase extends TestCase
             'customer' => [
                 'email' => fake()->email(),
             ],
+            'currency' => $currency,
             'shipping_address' => [
                 'address' => fake()->address(),
                 'address_2' => fake()->postcode(),

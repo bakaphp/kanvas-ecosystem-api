@@ -151,4 +151,44 @@ class RolesTest extends TestCase
                     ],
                 ]);
     }
+
+    public function testAddRoleUser(): void
+    {
+        $roles = $this->getRoles()['data'];
+        $user = auth()->user();
+
+        $this->graphQL(
+            query: '
+            mutation assignRoleToUser($userId: ID!, $roleIds: [ID!]!) {
+                assignRoleToUser(userId: $userId, roleIds: $roleIds)
+            }
+        ',
+            variables: [
+            'userId' => $user->getId(),
+            'roleIds' => [$roles[0]['id']],
+        ]
+        )->assertJson([
+            'data' => [
+                'assignRoleToUser' => true,
+            ],
+        ]);
+    }
+
+    private function getRoles()
+    {
+        $response = $this->graphQL('
+            query {
+                roles {
+                  data {
+                    id
+                    name
+                  }
+                }
+            }
+        ');
+
+        $this->assertArrayHasKey('id', $response->json()['data']['roles']['data'][1]);
+
+        return $response->json()['data']['roles'];
+    }
 }

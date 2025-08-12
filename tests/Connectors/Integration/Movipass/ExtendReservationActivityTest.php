@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
@@ -13,12 +14,14 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
 
 final class ExtendReservationActivityTest extends TestCase
 {
     use HasIntegrationCompany;
     use InventoryCases;
+    use PaymentCases;
 
     public function testOrderCreationWorkflow(): void
     {
@@ -35,6 +38,7 @@ final class ExtendReservationActivityTest extends TestCase
             $user
         );
 
+        $this->setAllowNoPaymentStatus(true, $app);
 
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct(attributes: [

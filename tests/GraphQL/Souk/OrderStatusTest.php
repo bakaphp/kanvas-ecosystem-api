@@ -7,6 +7,7 @@ namespace Tests\GraphQL\Souk;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
+use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 
 class OrderStatusTest extends OrderBase
@@ -145,6 +146,15 @@ class OrderStatusTest extends OrderBase
             'X-Kanvas-App' => $this->apps->key,
         ]);
 
+        $orderTransitionHistory = OrderTransitionHistory::where([
+            'order_id' => $order->id,
+            'from_status_id' => null,
+            'to_status_id' => $order->orderStatus->id,
+            'is_current' => true,
+        ])->first();
+
+        $this->assertNotNull($orderTransitionHistory);
+
         $this->assertEquals($response->json('data.orders.data.0.order_status.name'), 'Draft');
     }
 
@@ -184,14 +194,13 @@ class OrderStatusTest extends OrderBase
             amount: 100
         );
 
-
-
         $order = $this->createOrderFromCart(
             variantId: $variantResponse['id'],
             quantity: 1,
             metadata: [
                 'data' => []
             ],
+            currency: 'DOP',
             orderType: $this->orderTypeName
         );
 
@@ -211,7 +220,7 @@ class OrderStatusTest extends OrderBase
             'X-Kanvas-App' => $this->apps->key,
         ]);
 
-        $this->assertEquals($badUpdate->json('data.transitionOrderStatus.message'), 'The status Cancelled is not a valid transition from Draft');
+        $this->assertEquals($badUpdate->json('errors.0.message'), 'The status Cancelled is not a valid transition from Draft');
 
         $goodUpdate = $this->graphQL('
             mutation transitionOrderStatus($input: TransitionOrderStatusInput!) {
@@ -229,6 +238,13 @@ class OrderStatusTest extends OrderBase
             'X-Kanvas-App' => $this->apps->key,
         ]);
 
+        $orderTransitionHistory = OrderTransitionHistory::where([
+            'order_id' => $order->id,
+            'description' => 'Order status changed from draft to pending',
+        ])->first();
+
         $this->assertEquals($goodUpdate->json('data.transitionOrderStatus.message'), 'Order status transitioned successfully');
+        $this->assertNotNull($orderTransitionHistory);
+        $this->assertEquals(trim($order->currency), 'DOP');
     }
 }

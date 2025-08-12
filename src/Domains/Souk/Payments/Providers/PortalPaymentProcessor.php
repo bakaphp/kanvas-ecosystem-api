@@ -73,13 +73,13 @@ class PortalPaymentProcessor
     protected function setCustomerBillingAddress(Payments $payment, Order $orderInput): BillingDetail
     {
         return new BillingDetail(
-            firstName: $payment->paymentMethod->getMetadata('firstname') ?? $orderInput->user->firstname,
-            lastName: $payment->paymentMethod->getMetadata('lastname') ?? $orderInput->user->lastname,
+            firstName: $payment->paymentMethod->getMetadata('firstname') ?? $payment->user->firstname,
+            lastName: $payment->paymentMethod->getMetadata('lastname') ?? $payment->user->lastname,
             country: $payment->paymentMethod->getMetadata('country'),
             city: $payment->paymentMethod->getMetadata('city'),
             address1: $payment->paymentMethod->getMetadata('address'),
             phone: $payment->paymentMethod->getMetadata('phone'),
-            email: $orderInput->user->email,
+            email: $payment->user->email,
             postalCode: $payment->paymentMethod->getMetadata('zip_code'),
             administrativeArea: $payment->paymentMethod->getMetadata('state'),
         );

@@ -24,9 +24,9 @@ class AttachFilesystemAction
     ) {
     }
 
-    public function execute(string $fieldName, ?int $id = null): FilesystemEntities
+    public function execute(string $fieldName, ?int $id = null, ?float $weight = 0): FilesystemEntities
     {
-        return DB::connection('ecosystem')->transaction(function () use ($fieldName, $id) {
+        return DB::connection('ecosystem')->transaction(function () use ($fieldName, $id, $weight) {
             $systemModule = SystemModulesRepository::getByModelName($this->entity::class, $this->filesystem->app);
             $update = (int) $id > 0;
             $allowDuplicateFiles = $this->filesystem->app->get(AppSettingsEnums::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME->getValue());
@@ -66,14 +66,15 @@ class AttachFilesystemAction
                             // and update its filesystem_id
                             $fileEntity = $existingByFieldName;
                             $fileEntity->filesystem_id = $this->filesystem->getKey();
+                            $fileEntity->weight = $weight ?? $fileEntity->weight;
                             $fileEntity->saveOrFail();
                         } else {
                             // No existing record found, create a new one
-                            $fileEntity = $this->createFileEntity($fieldName, $systemModule);
+                            $fileEntity = $this->createFileEntity($fieldName, $systemModule, $weight);
                         }
                     } else {
                         // We allow duplicate files by name, so create a new one
-                        $fileEntity = $this->createFileEntity($fieldName, $systemModule);
+                        $fileEntity = $this->createFileEntity($fieldName, $systemModule, $weight);
                     }
                 }
             }
@@ -100,6 +101,11 @@ class AttachFilesystemAction
             // Update field_name if needed
             if ($fileEntity->field_name != $fieldName) {
                 $fileEntity->field_name = $fieldName;
+                $needsUpdate = true;
+            }
+
+            if ($fileEntity->weight != $weight) {
+                $fileEntity->weight = $weight;
                 $needsUpdate = true;
             }
 
@@ -139,7 +145,7 @@ class AttachFilesystemAction
     /**
      * Helper method to create a new file entity with proper error handling
      */
-    private function createFileEntity(string $fieldName, SystemModules $systemModule): FilesystemEntities
+    private function createFileEntity(string $fieldName, SystemModules $systemModule, ?float $weight = 0): FilesystemEntities
     {
         try {
             // Try to create the entity
@@ -149,6 +155,7 @@ class AttachFilesystemAction
                 'companies_id' => $this->filesystem->companies_id,
                 'filesystem_id' => $this->filesystem->getKey(),
                 'field_name' => $fieldName,
+                'weight' => $weight,
                 'is_deleted' => StateEnums::NO->getValue(),
             ]);
         } catch (QueryException $e) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Validations;
 
+use Baka\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Social\Messages\Exceptions\MessageValidationException;
 use Kanvas\Social\Messages\Models\Message;
@@ -22,8 +23,13 @@ class MessageSchemaValidator
 
     public function validate(): bool
     {
+        if ($this->messageType->message_schema === null || $this->messageType->message_schema === '' || ! Str::isJson($this->messageType->message_schema)) {
+            return true; // No schema to validate against
+        }
+
         $schema = json_decode($this->messageType->message_schema, true);
         $data = is_array($this->message->message) ? $this->message->message : json_decode($this->message->message, true);
+
         return $this->validateSchema($data, $schema);
     }
 
@@ -34,6 +40,7 @@ class MessageSchemaValidator
             if ($this->returnValidation) {
                 return false;
             }
+
             throw new MessageValidationException(implode(', ', $validator->errors()->all()));
         }
 

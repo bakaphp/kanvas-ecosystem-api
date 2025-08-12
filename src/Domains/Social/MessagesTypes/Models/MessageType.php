@@ -21,7 +21,7 @@ use Kanvas\Social\Models\BaseModel;
  *  @property string $verb
  *  @property string $template
  *  @property string $templates_plura
- *  @property string $message_schema
+ *  @property ?string $message_schema = null
  */
 class MessageType extends BaseModel
 {

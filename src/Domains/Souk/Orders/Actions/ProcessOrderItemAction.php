@@ -16,7 +16,7 @@ use Kanvas\Users\Models\Users;
 
 class ProcessOrderItemAction
 {
-    private const int LIMIT_ITEMS_PER_REQUEST = 100;
+    private const int LIMIT_ITEMS_PER_REQUEST = 700;
 
     public function __construct(
         protected Apps $app,
@@ -40,7 +40,14 @@ class ProcessOrderItemAction
 
         // If the number of valid order items is greater than the limit, dispatch a job to process the order items.
         if ($validOrderItemsCount > self::LIMIT_ITEMS_PER_REQUEST) {
-            ProcessOrderItemJob::dispatch($this->app, $this->user, $this->currentUserCompany, $validOrderItems, $channelId);
+            ProcessOrderItemJob::dispatch(
+                $this->app,
+                $this->user,
+                $this->currentUserCompany,
+                $validOrderItems,
+                $channelId,
+                $cart->getSessionKey()
+            );
 
             return [
                 'status' => 'pending',

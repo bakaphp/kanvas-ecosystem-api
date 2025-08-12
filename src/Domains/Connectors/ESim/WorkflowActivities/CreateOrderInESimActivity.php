@@ -88,7 +88,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                     }
 
                     $providerValue = strtolower($provider->value);
-                    $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
+                    $fromMobile = strtolower($order->metadata['source'] ?? '') !== 'b2b' && isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
                     $isRefuelOrder = isset($order->metadata['parent_order_id']) && ! empty($order->metadata['parent_order_id']);
                     $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
                     $language = $order->metadata['language'] ?? 'es';
@@ -322,6 +322,8 @@ class CreateOrderInESimActivity extends KanvasActivity
                         $orderNotification->channels = ['mail'];
                         $order->user->notify($orderNotification);
                     }
+
+                    $order->user->set('coupon-sl5', 1); // Set a flag for sl5 coupon usage
                 } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
                     // Handle notification failure
                 }
@@ -345,7 +347,16 @@ class CreateOrderInESimActivity extends KanvasActivity
             $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
             $woocommerceResponse = $woocommerceOrder->execute($providerValue);
 
-            $orderCommerceId = $woocommerceResponse['order']['id'];
+            $orderCommerceId = $woocommerceResponse['order']['id'] ?? null;
+
+            if ($orderCommerceId === null) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Error sending order to commerce',
+                    'response' => $woocommerceResponse,
+                ];
+            }
+
             $order->set(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value, $woocommerceResponse['order']['id']);
 
             $stripe = new StripeClient($order->app->get(EnumsConfigurationEnum::STRIPE_SECRET_KEY->value));
@@ -359,6 +370,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $stripeService = new StripeCustomerService($order->app);
                 $stripe->paymentIntents->update($paymentIntentId, [
                     'customer' => $stripeService->getOrCreateCustomerByPerson($order->people)->id,
+                    'description' => 'Kanvas Order #' . $order->order_number,
                 ]);
             } catch (Throwable $e) {
                 report($e);

@@ -1,0 +1,100 @@
+type AgentAi {
+    id: ID!
+    company: [Company!]! @belongsTo
+    user: [User!]! @belongsTo
+    type: agentType! @belongsTo
+    model: AgentAiModel! @belongsTo
+    companyTaskList: TaskList! @belongsTo
+    uuid: String!
+    name: String!
+    description: String
+    config: Mixed
+    role: Mixed
+    agent_model_id: ID
+    is_active: Boolean!
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type AgentAiModel {
+    id: ID!
+    name: String!
+    config: JSON
+    is_active: Boolean!
+    is_published: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input AgentAiInput {
+    agent_type_id: Int!
+    name: String!
+    agent_model_id: Int
+    description: String
+    config: Mixed!
+    role: Mixed!
+    is_active: Boolean!
+    company_task_list_id: Int
+    communication_channels: [CommunicationChannelPivot!]
+}
+
+input CommunicationChannelPivot {
+    communication_channel_id: Int!
+    entry_point: String
+    config: String
+}
+
+extend type Mutation @guard {
+    createAiAgent(input: AgentAiInput!): AgentAi!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@create"
+        )
+    updateAiAgent(id: ID!, input: AgentAiInput!): AgentAi!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@update"
+        )
+    deleteAiAgent(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    agentsAi(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "description"
+                    "is_active"
+                    "agent_type_id"
+                    "company_task_list_id"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [AgentAi!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\Agent"
+            defaultCount: 25
+            scopes: ["fromCompany", "fromApp"]
+        )
+    agentModels(
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "is_active", "is_published"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [AgentAiModel!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentModel"
+            defaultCount: 25
+            scopes: ["fromApp"]
+        )
+}

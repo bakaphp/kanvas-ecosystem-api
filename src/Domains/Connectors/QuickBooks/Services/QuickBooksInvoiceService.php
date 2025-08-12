@@ -6,9 +6,11 @@ namespace Kanvas\Connectors\QuickBooks\Services;
 
 use Baka\Contracts\AppInterface;
 use Exception;
+use Kanvas\Companies\Models\CompaniesAddress;
 use Kanvas\Connectors\QuickBooks\Client;
 use Kanvas\Connectors\QuickBooks\Enums\ConfigurationEnum;
 use Kanvas\Connectors\QuickBooks\Enums\CustomFieldEnum;
+use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Souk\Orders\Models\Order;
 use QuickBooksOnline\API\Data\IPPCustomer;
 use QuickBooksOnline\API\Data\IPPCustomerType;
@@ -101,7 +103,7 @@ class QuickBooksInvoiceService
         return $resultingInvoice;
     }
 
-    private function getOrCreateCustomerFromCompany(Order $order): ?IPPCustomer
+    public function getOrCreateCustomerFromCompany(Order $order): ?IPPCustomer
     {
         $customerEmail = $order->company->email;
         $customerName = $order->company->name ?: 'Guest Customer';
@@ -120,14 +122,14 @@ class QuickBooksInvoiceService
         $customer->CompanyName = $order->company->name;
 
         //@todo set customer type dynamically based on order type
-        $customerType = $this->getOrCreateCustomerType('B2B');
+        /*   $customerType = $this->getOrCreateCustomerType('B2B');
 
-        if ($customerType) {
-            $customerTypeRef = new IPPReferenceType();
-            $customerTypeRef->value = $customerType->Id;
-            $customerTypeRef->name = $customerType->Name;
-            $customer->CustomerTypeRef = $customerTypeRef;
-        }
+          if ($customerType) {
+              $customerTypeRef = new IPPReferenceType();
+              $customerTypeRef->value = $customerType->Id;
+              $customerTypeRef->name = $customerType->Name;
+              $customer->CustomerTypeRef = $customerTypeRef;
+          } */
 
         // Set email
         if ($customerEmail) {
@@ -145,8 +147,8 @@ class QuickBooksInvoiceService
         }
 
         // Add billing address if available
-        if ($order->billingAddress) {
-            $customer->BillAddr = $this->formatAddress($order->billingAddress);
+        if ($order->company->addresses()->first()) {
+            $customer->BillAddr = $this->formatAddress($order->company->addresses()->first());
         }
 
         $resultingCustomer = $this->dataService->Add($customer);
@@ -510,7 +512,7 @@ class QuickBooksInvoiceService
     /**
      * Format address for QuickBooks
      */
-    private function formatAddress($address): IPPPhysicalAddress
+    private function formatAddress(CompaniesAddress|Address $address): IPPPhysicalAddress
     {
         $qbAddress = new IPPPhysicalAddress();
         $qbAddress->Line1 = $address->address;

@@ -33,6 +33,7 @@ class AttachFileToChecklistItemActivity extends KanvasActivity implements Workfl
      */
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
         $config = $entity->config;
 
         $peopleId = $config['people_id'] ?? null;

@@ -22,16 +22,17 @@ class ScrapperJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public $queue = "scrapper-queue";
-
     public function __construct(
         public AppInterface $app,
         public Users $user,
         public CompaniesBranches $companyBranch,
         protected Regions $region,
         public array $results,
-        public ?string $uuid = null
+        public ?string $uuid = null,
+        public ?string $searchText = null,
+        public ?string $cacheKey = null,
     ) {
+        $this->queue = 'scrapper-queue';
     }
 
     public function handle()
@@ -42,7 +43,9 @@ class ScrapperJob implements ShouldQueue
             $this->companyBranch,
             $this->region,
             $this->results,
-            $this->uuid
+            $this->uuid,
+            $this->searchText,
+            $this->cacheKey
         )->execute();
     }
 }

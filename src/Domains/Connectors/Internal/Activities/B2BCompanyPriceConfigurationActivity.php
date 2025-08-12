@@ -55,14 +55,15 @@ class B2BCompanyPriceConfigurationActivity extends KanvasActivity
 
                 $variants = Variants::query()
                     ->select('products_variants.*')
-                    ->join('products_variants_warehouses', 'products_variants_warehouses.products_variants_id', 'products_variants.id')
                     ->join('products', 'products.id', 'products_variants.products_id')
-                    ->leftJoin('products_variants_channels', 'products_variants_channels.products_variants_id', 'products_variants.id')
+                    ->whereHas('variantWarehouses') // Ensure variant has warehouses
+                    ->whereHas('channels', function ($query) {
+                        $query->whereNotNull('products_variants_channels.price');
+                    }) // Ensure variant has channels with price
                     ->where('products.apps_id', $app->getId())
                     ->where('products.companies_id', $mainAppCompany->getId())
                     ->where('products.is_published', 1)
                     ->where('products.is_deleted', 0)
-                    ->whereNotNull('products_variants_channels.price')
                     ->when(! empty($productTypes), function ($query) use ($productTypes) {
                         return $query->whereIn('products.products_types_id', $productTypes);
                     })

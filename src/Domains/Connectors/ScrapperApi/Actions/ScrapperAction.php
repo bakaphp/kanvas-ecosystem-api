@@ -24,7 +24,8 @@ class ScrapperAction
         public CompaniesBranches $companyBranch,
         protected Regions $region,
         public string $search,
-        public ?string $uuid = null
+        public ?string $uuid = null,
+        public ?string $cacheKey = null
     ) {
         $this->uuid = $uuid ?? app(AppEnums::KANVAS_IDENTIFIER->getValue());
     }
@@ -51,7 +52,8 @@ class ScrapperAction
                 $companyBranch,
                 $region,
                 [$result],
-                null
+                null,
+                $this->search
             ));
             $classConcurrently[] = fn () => $action->execute();
         }
@@ -63,12 +65,14 @@ class ScrapperAction
             $companyBranch,
             $region,
             $secondGroup,
-            $uuid
+            $uuid,
+            $this->search
         );
+
         return [
             'scrapperProducts' => $scrapperProducts,
             'importerProducts' => $importerProducts,
-            'results' => $results
+            'results' => $results,
         ];
     }
 }

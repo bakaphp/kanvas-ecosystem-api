@@ -19,7 +19,8 @@ class CreateInviteAction
 {
     public function __construct(
         public InviteDto $inviteDto,
-        public Users $user
+        public Users $user,
+        public bool $userAlreadyExist = false
     ) {
     }
 
@@ -37,7 +38,6 @@ class CreateInviteAction
             $this->user
         );
 
-        //validate role
         $role = RolesRepository::getByIdFromCompany(
             $this->inviteDto->role_id,
             $company,
@@ -80,17 +80,19 @@ class CreateInviteAction
          ]);
  */
         //@todo allow it to be customized
-        $emailTitle = $this->inviteDto->app->get(AppSettingsEnums::INVITE_EMAIL_SUBJECT->getValue()) ?? 'You\'ve been invited to join ' . $company->name;
+        if (! $this->userAlreadyExist) {
+            $emailTitle = $this->inviteDto->app->get(AppSettingsEnums::INVITE_EMAIL_SUBJECT->getValue()) ?? 'You\'ve been invited to join ' . $company->name;
 
-        $inviteEmail = new InviteTemplate($invite, [
-            'fromUser' => $this->user,
-            'subject' => $emailTitle,
-            'template' => $this->inviteDto->email_template,
-            'company' => $company,
-        ]);
+            $inviteEmail = new InviteTemplate($invite, [
+                'fromUser' => $this->user,
+                'subject' => $emailTitle,
+                'template' => $this->inviteDto->email_template,
+                'company' => $company,
+            ]);
 
-        Notification::route('mail', $this->inviteDto->email)
-            ->notify($inviteEmail);
+            Notification::route('mail', $this->inviteDto->email)
+                ->notify($inviteEmail);
+        }
 
         return $invite;
     }

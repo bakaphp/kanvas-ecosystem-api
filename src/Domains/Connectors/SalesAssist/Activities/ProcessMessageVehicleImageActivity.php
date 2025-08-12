@@ -26,7 +26,7 @@ class ProcessMessageVehicleImageActivity extends KanvasActivity
 
     public function execute(Message $message, Apps $app, array $params): array
     {
-        $this->overWriteAppPermissionService($app);
+        $this->overwriteAppService($app);
 
         return $this->executeIntegration(
             entity: $message,

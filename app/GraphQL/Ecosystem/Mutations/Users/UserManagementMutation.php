@@ -103,6 +103,11 @@ class UserManagementMutation
 
         $branch = isset($request['companies_branches_id']) ? CompaniesBranches::getById($request['companies_branches_id']) : auth()->user()->getCurrentBranch();
 
+        $userAssociation = UsersAssociatedApps::where('email', $request['email'])
+        ->fromApp($app)
+        ->notDeleted()
+        ->first();
+
         $invite = new CreateInviteAction(
             new InviteDto(
                 $app,
@@ -115,10 +120,24 @@ class UserManagementMutation
                 $request['email_template'] ?? null,
                 $request['custom_fields'] ?? []
             ),
-            auth()->user()
+            auth()->user(),
+            (bool) $userAssociation
         );
 
-        return $invite->execute();
+        $invite = $invite->execute();
+
+        if ($userAssociation) {
+            (new ProcessInviteAction(
+                new CompleteInviteInput(
+                    invite_hash: $invite->invite_hash,
+                    password: $userAssociation->password,
+                    firstname: $invite->firstname
+                ),
+                $userAssociation->user
+            ))->execute();
+        }
+
+        return $invite;
     }
 
     /**

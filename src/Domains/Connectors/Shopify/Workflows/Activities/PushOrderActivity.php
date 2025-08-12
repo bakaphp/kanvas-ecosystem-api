@@ -20,6 +20,14 @@ class PushOrderActivity extends KanvasActivity
 
         $company = Companies::getById($entity->companies_id);
 
+        if (isset($params['shop_domain'])) {
+            $shopifyTempConfiguration = $app->get('shopify_temp_configuration')[$params['shop_domain']] ?? null;
+
+            if ($shopifyTempConfiguration !== null) {
+                $company = Companies::getById($shopifyTempConfiguration);
+            }
+        }
+
         return $this->executeIntegration(
             entity: $entity,
             app: $app,

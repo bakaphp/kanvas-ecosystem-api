@@ -84,12 +84,13 @@ class CreateOrderAction
 
             if ($this->orderData->orderType) {
                 $order->setOrderType($this->orderData->orderType);
+                new TransitionOrderStateAction($order, $this->orderData->user, $order->orderStatus)->setInitialState();
             }
 
             $order->addItems($this->orderData->items);
 
             if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {
-                new CreatePaymentAction($order)->execute($order->metadata['data']);
+                new CreatePaymentAction($order, $this->orderData->user)->execute($order->metadata['data']);
             }
 
             // Run after commit

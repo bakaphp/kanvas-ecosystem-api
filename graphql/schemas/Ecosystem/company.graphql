@@ -30,8 +30,8 @@ type Company {
         )
     addresses: [CompanyAddress!]!
         @paginate(
-           builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\AddressManagementQuery@getAllCompanyAddress"
-           defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\AddressManagementQuery@getAllCompanyAddress"
+            defaultCount: 25
         )
     country_code: String
     created_at: DateTime
@@ -270,6 +270,7 @@ extend type Query @guard {
         )
 
     companyUsers(
+        search: String @search
         where: _ @whereConditions(columnsEnum: CompanyUserColumn)
         orderBy: _ @orderBy(columnsEnum: CompanyUserColumn)
         userRole: _

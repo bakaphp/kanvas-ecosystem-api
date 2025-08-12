@@ -17,7 +17,7 @@ class PromptAgentEngagerCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'kanvas:prompt-agent-engager {app_id}}';
+    protected $signature = 'kanvas:prompt-agent-engager {app_id}';
     protected $description = 'Redistribute prompts from a Google Sheet';
     protected ?string $url = null;
     protected ?string $appId = null;
@@ -88,6 +88,12 @@ class PromptAgentEngagerCommand extends Command
         $agentDescription = $currentAgent['bio'];
         $token = $this->login($currentAgent['email'], $currentAgent['password']);
 
+        if (! $token) {
+            $this->error('Failed to login agent: ' . $currentAgent['email']);
+
+            return;
+        }
+
         $this->info('Agent logged in: ' . $currentAgent['email']);
 
         for ($page = 1; $page <= $totalPagesPerProfile; $page++) {
@@ -97,18 +103,24 @@ class PromptAgentEngagerCommand extends Command
 
             // Simple merge of the data arrays
             $allMessages = array_merge(
+                $publicMessages['data'] ?? [],
                 $forYouFeed['data'] ?? [],
-                $publicMessages['data'] ?? []
             );
 
             foreach ($allMessages as $message) {
                 if (! isset($message['message']['title'])) {
-                    $this->error('Message does not have a title. Skipping.');
+                    //  $this->error('Message does not have a title. Skipping.');
 
+                    // continue;
+                }
+
+                $title = $message['message']['title'] ?? $message['message']['prompt'] ?? null;
+
+                if ($title === null) {
                     continue;
                 }
 
-                $content = 'Tittle :' . $message['message']['title'];
+                $content = 'Title :' . ($title);
                 $messageId = (int) $message['id'];
 
                 $this->info('Analyzing content: ' . $content);
@@ -184,7 +196,7 @@ class PromptAgentEngagerCommand extends Command
         ], $additional);
     }
 
-    protected function login(string $email, string $password): string
+    protected function login(string $email, string $password): ?string
     {
         $login = <<<GQL
 mutation login(\$data: LoginInput!) {
@@ -200,25 +212,45 @@ mutation login(\$data: LoginInput!) {
 }
 GQL;
 
-        $getToken = $this->getClient()->post(
-            $this->url,
-            [
-                'headers' => $this->getHeaders(),
-                'json' => [
-                    'query' => $login,
-                    'variables' => [
-                        'data' => [
-                            'email' => $email,
-                            'password' => $password,
+        try {
+            $getToken = $this->getClient()->post(
+                $this->url,
+                [
+                    'headers' => $this->getHeaders(),
+                    'json' => [
+                        'query' => $login,
+                        'variables' => [
+                            'data' => [
+                                'email' => $email,
+                                'password' => $password,
+                            ],
                         ],
                     ],
-                ],
-            ]
-        );
+                ]
+            );
 
-        $loginResponse = json_decode($getToken->getBody()->getContents(), true);
+            $loginResponse = json_decode($getToken->getBody()->getContents(), true);
 
-        return 'Bearer ' . $loginResponse['data']['login']['token'];
+            // Check for GraphQL errors
+            if (isset($loginResponse['errors'])) {
+                $this->error('Login GraphQL Error: ' . json_encode($loginResponse['errors']));
+
+                return null;
+            }
+
+            // Check if data exists and has the expected structure
+            if (! isset($loginResponse['data']['login']['token'])) {
+                $this->error('Login failed: Invalid response structure. Response: ' . json_encode($loginResponse));
+
+                return null;
+            }
+
+            return 'Bearer ' . $loginResponse['data']['login']['token'];
+        } catch (\Exception $e) {
+            $this->error('Login exception: ' . $e->getMessage());
+
+            return null;
+        }
     }
 
     /**

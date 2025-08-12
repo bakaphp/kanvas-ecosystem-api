@@ -5,22 +5,35 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DynamicSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Models\BaseModel;
+use Override;
 
+#[ObservedBy(AgentObserver::class)]
 class Agent extends BaseModel
 {
     use UuidTrait;
+    use HasFilesystemTrait;
+    use DynamicSearchableTrait;
+    use HasLightHouseCache;
+
     protected $fillable = [
         'uuid',
-        'app_id',
-        'company_id',
+        'apps_id',
+        'companies_id',
         'agent_type_id',
         'user_id',
+        'name',
         'description',
         'config',
         'company_task_list_id',
@@ -34,6 +47,12 @@ class Agent extends BaseModel
         'role' => Json::class,
         'is_active' => 'boolean',
     ];
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'AgentAi';
+    }
 
     public function type(): BelongsTo
     {
@@ -70,5 +89,10 @@ class Agent extends BaseModel
     public function performanceMetrics(): HasMany
     {
         return $this->hasMany(AgentPerformanceMetric::class);
+    }
+
+    public static function getModel(): Model
+    {
+        return new Agent();
     }
 }

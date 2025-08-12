@@ -1,0 +1,62 @@
+type agentType {
+    id: ID!
+    uuid: String!
+    name: String!
+    description: String
+    config: Mixed
+    role: Mixed
+    is_active: Boolean!
+    is_default: Boolean!
+    is_published: Boolean!
+    is_multi_agent: Boolean!
+    multi_agent_list: Mixed
+    description: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
+}
+input AgentTypeInput {
+    name: String!
+    description: String
+    config: String!
+    is_active: Boolean
+    role: String!
+    is_default: Boolean
+    is_published: Boolean
+    is_multi_agent: Boolean
+    multi_agent_list: Mixed!
+}
+extend type Mutation @guard {
+    createAgentType(input: AgentTypeInput!): agentType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentTypeManagementMutation@create"
+        )
+    updateAgentType(id: ID!, input: AgentTypeInput!): agentType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentTypeManagementMutation@update"
+        )
+    deleteAgentType(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentTypeManagementMutation@delete"
+        )
+}
+extend type Query @guard {
+    agentTypes(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "is_active"
+                    "is_default"
+                    "is_published"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "createdAt", "updatedAt", "name"])
+    ): [agentType!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentType"
+            defaultCount: 25
+            scopes: ["fromApp"]
+        )
+}

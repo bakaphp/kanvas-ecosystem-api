@@ -55,6 +55,7 @@ class CreatePeopleAction
             'google_contact_id' => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
+            'licence_number' => $this->peopleData->licence_number,
         ];
 
         if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
@@ -79,13 +80,17 @@ class CreatePeopleAction
 
         if ($this->peopleData->contacts->count()) {
             $existingContacts = $people->contacts()->pluck('value')->toArray();
+
+            // Deduplicate incoming contacts and filter out empty values
+            $deduplicatedContacts = $this->peopleData->contacts
+                ->toCollection()
+                ->filter(fn ($contact) => ! empty($contact->value))
+                ->unique(fn ($contact) => $contact->value . '_' . $contact->contacts_types_id)
+                ->values();
+
             $contactsToAdd = [];
 
-            foreach ($this->peopleData->contacts as $contact) {
-                if (empty($contact->value)) {
-                    continue;
-                }
-
+            foreach ($deduplicatedContacts as $contact) {
                 if (! in_array($contact->value, $existingContacts)) {
                     $contactsToAdd[] = new Contact([
                         'contacts_types_id' => $contact->contacts_types_id,
@@ -108,9 +113,24 @@ class CreatePeopleAction
 
             $hasDefaultAddress = $people->address()->where('is_default', 1)->exists();
 
+            // Deduplicate incoming addresses and filter out empty/invalid addresses
+            $deduplicatedAddresses = $this->peopleData->address
+                ->toCollection()
+                ->filter(fn ($address) => ! empty($address->address))
+                ->unique(function ($address) {
+                    // Create unique key based on main address fields
+                    return $address->address . '_' .
+                           ($address->address_2 ?? '') . '_' .
+                           ($address->city ?? '') . '_' .
+                           ($address->state ?? '') . '_' .
+                           ($address->zip ?? '') . '_' .
+                           ($address->country_id ?? 0);
+                })
+                ->values();
+
             $addressesToAdd = [];
 
-            foreach ($this->peopleData->address as $address) {
+            foreach ($deduplicatedAddresses as $address) {
                 $newAddress = [
                     'address' => $address->address,
                     'address_2' => $address->address_2,
@@ -121,17 +141,27 @@ class CreatePeopleAction
                     'city_id' => $address->city_id ?? 0,
                     'state_id' => $address->state_id ?? 0,
                     'countries_id' => $address->country_id ?? 0,
-                    'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->peopleData->app)->getId(),
-                    'duration' => $address->duration ?? 0.0,
                 ];
 
                 if (! in_array($newAddress, $existingAddresses)) {
-                    $addressesToAdd[] = $addressesToAdd[] = new Address(array_merge($newAddress, [
+                    $addressesToAdd[] = new Address(array_merge($newAddress, [
+                        'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->peopleData->app)->getId(),
+                        'duration' => $address->duration ?? 0.0,
                         'is_default' => $hasDefaultAddress ? 0 : ($address->is_default ? 1 : 0),
                     ]));
+
+                    // If we're setting this as default, don't set any more as default
+                    if (! $hasDefaultAddress && $address->is_default) {
+                        $hasDefaultAddress = true;
+                    }
                 }
             }
+
+            if (! empty($addressesToAdd)) {
+                $people->address()->saveMany($addressesToAdd);
+            }
         }
+
         if ($this->peopleData->peopleEmploymentHistory) {
             foreach ($this->peopleData->peopleEmploymentHistory as $employmentHistory) {
                 $people->employmentHistory()->updateOrCreate(

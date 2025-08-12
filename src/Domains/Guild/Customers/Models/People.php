@@ -7,7 +7,9 @@ namespace Kanvas\Guild\Customers\Models;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
@@ -23,7 +25,9 @@ use Kanvas\Locations\Models\Countries;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
@@ -39,6 +43,7 @@ use Override;
  * @property string $firstname
  * @property string|null $middlename = null
  * @property string $lastname
+ * @property string $licence_number
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
@@ -50,8 +55,9 @@ use Override;
 class People extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
-    use HasTagsTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }    use HasTagsTrait;
     use CanUseWorkflow;
     use SocialInteractionsTrait;
     use Notifiable;
@@ -98,6 +104,15 @@ class People extends BaseModel
         )->orderBy('created_at', 'desc');
     }
 
+    public function orders(): HasMany
+    {
+        return $this->hasMany(
+            Order::class,
+            'peoples_id',
+            'id'
+        )->orderBy('created_at', 'desc');
+    }
+
     public function emails(): HasMany
     {
         return $this->hasMany(
@@ -111,7 +126,7 @@ class People extends BaseModel
     }
 
     // Define the relationship with the Organization model
-    public function organizations()
+    public function organizations(): BelongsToMany
     {
         return $this->belongsToMany(
             Organization::class,
@@ -421,7 +436,7 @@ class People extends BaseModel
     {
         $people = [
             'objectID' => $this->uuid,
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'name' => $this->name,
             'firstname' => $this->firstname,
             'middlename' => $this->middlename,
@@ -430,8 +445,8 @@ class People extends BaseModel
             'dob' => $this->dob,
             'apps_id' => $this->apps_id,
             'users_id' => $this->users_id,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'created_at' => $this->created_at->getTimestamp(),
+            'updated_at' => $this->updated_at->getTimestamp(),
             'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
                     'uuid' => $files->uuid,
@@ -543,11 +558,13 @@ class People extends BaseModel
                 ],
                 [
                     'name' => 'created_at',
-                    'type' => 'string',
+                    'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',
-                    'type' => 'string',
+                    'type' => 'int64',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'files',
@@ -589,5 +606,35 @@ class People extends BaseModel
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $app->fireWorkflow(
+            event: WorkflowEnum::SEARCH->value,
+            params: [
+                'search' => trim($query),
+                'search_type' => 'people',
+                'user' => $user instanceof UserInterface ? $user : null,
+                'company' => $user instanceof UserInterface ? $user->getCurrentCompany() : null,
+            ]
+        );
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+            ]);
+        }
+
+        return $query;
     }
 }

@@ -1,4 +1,4 @@
-FROM unit:php8.4
+FROM php:8.4.10-cli
 
 # Add the docker-php-extension-installer
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
@@ -7,7 +7,7 @@ ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/do
 RUN chmod +x /usr/local/bin/install-php-extensions && \
     install-php-extensions mbstring pdo_mysql zip exif pcntl gd memcached redis swoole opcache curl readline sqlite3 msgpack igbinary pcov sockets bcmath soap imagick
 
-# Install required dependencies
+# Install additional dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpng-dev \
@@ -27,7 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     vim \
     wkhtmltopdf \
-    xvfb && \
+    xvfb \
+    ffmpeg && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -47,7 +48,7 @@ RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 777 /var/www/html/storage/logs/
 
 # Copy configuration files
-COPY ./docker/unit.json /docker-entrypoint.d/
+# COPY ./docker/unit.json /docker-entrypoint.d/
 COPY docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
 COPY docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 
@@ -59,3 +60,6 @@ RUN composer install --no-dev --optimize-autoloader
 
 # Expose the required port
 EXPOSE 8000
+
+# Keep container running without starting a web server
+CMD ["tail", "-f", "/dev/null"]

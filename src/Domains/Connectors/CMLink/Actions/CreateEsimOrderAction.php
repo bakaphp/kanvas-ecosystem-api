@@ -56,7 +56,10 @@ class CreateEsimOrderAction
     {
         $this->validateOrder();
 
-        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+        //$isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+        $isRefuelOrder = (isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id'])) ||
+                      (isset($this->order->metadata['target_iccid']) && ! empty($this->order->metadata['target_iccid'])) ||
+                      (isset($this->order->metadata['parent_order_iccid']) && ! empty($this->order->metadata['parent_order_iccid']));
         if ($isRefuelOrder) {
             $this->processRefuelOrder();
         } else {
@@ -207,7 +210,7 @@ class CreateEsimOrderAction
             $this->availableVariant->sku,
             $this->esimData['data']['state'],
             (int) ($this->cmLinkOrder['quantity'] ?? 1),
-            (float) $this->cmLinkOrder['price'],
+            (float) ($this->cmLinkOrder['price'] ?? 0.0),
             'bundle',
             $this->orderVariant->sku,
             $this->esimData['data']['smdpAddress'],
@@ -248,7 +251,7 @@ class CreateEsimOrderAction
     {
         // Search for an order that contains the specified ICCID in its items
         return Order::query()
-            ->whereHas('items', function ($query) use ($iccid) {
+            ->whereHas('allItems', function ($query) use ($iccid) {
                 $query->where('product_sku', $iccid);
             })
             ->first();

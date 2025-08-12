@@ -3,6 +3,7 @@
 namespace Kanvas\Connectors\PasoRapido\Actions;
 
 use Exception;
+use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EchoPayCustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
@@ -10,6 +11,7 @@ use Kanvas\Connectors\PasoRapido\Enums\CustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Throwable;
 
 class CreatePasoRapidoOrderAction
 {
@@ -70,10 +72,14 @@ class CreatePasoRapidoOrderAction
 
             // If no tag returned, treat as failure
             throw new Exception('No tag returned from payment confirmation');
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            if ($e->hasResponse()) {
-                $response = $e->getResponse();
-                $errorMessage = json_decode((string) $response->getBody())->descripcionMensaje;
+        } catch (Throwable $e) {
+            if ($e instanceof RequestException) {
+                if ($e->hasResponse()) {
+                    $response = $e->getResponse();
+                    $errorMessage = json_decode((string) $response->getBody())->descripcionMensaje;
+                } else {
+                    $errorMessage = $e->getMessage();
+                }
             } else {
                 $errorMessage = $e->getMessage();
             }

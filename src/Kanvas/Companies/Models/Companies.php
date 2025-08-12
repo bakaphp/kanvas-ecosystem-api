@@ -317,6 +317,9 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
             'password' => $password,
+            'email' => $user->email,
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
         ]);
     }
 
@@ -371,6 +374,21 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     public function scopeCompanyInApp(Builder $query): Builder
     {
         $app = app(Apps::class);
+
+        $user = auth()->user();
+
+        // If user CANNOT view all companies, limit to their companies only
+        if ($user->can('limited-company-access')) {
+            return $query->join(
+                'users_associated_apps',
+                'users_associated_apps.companies_id',
+                '=',
+                'companies.id'
+            )->where('users_associated_apps.apps_id', '=', $app->getId())
+            ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('users_associated_apps.users_id', $user->getId())
+            ->select('companies.*');
+        }
 
         return $query->join(
             'user_company_apps',
@@ -548,6 +566,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',

@@ -40,6 +40,8 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
     {
         $this->overWriteAppPermissionService($app);
 
+        $lead->refresh();
+
         return $this->executeIntegration(
             entity: $lead,
             app: $app,
@@ -79,6 +81,9 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
                     'iframe_url_digital_jacket' => $creditApplicant['digital_jacket_url'],
                     'digital_jacket_url' => $creditApplicant['digital_jacket_url'],
                     'passed' => (bool) $creditApplicant['pull_credit_pass'],
+                    'lead' => $lead->toArray(),
+                    'response' => $creditApplicant['response'] ?? [],
+                    'people' => $lead->people->toArray(),
                 ];
 
                 $lead->set(
@@ -111,17 +116,23 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
                 //pull-credit?leadId=<Lead ID>&bcid=<Branch ID>
                 $lead->set('pull_credit_pass', (int) $creditApplicant['pull_credit_pass']);
 
-                return [
+                //we need to return a index array because of the way frontend handles async
+                return [[
                     'scores' => $creditApplicant['scores'],
                     'iframe_url' => $creditApplicant['iframe_url'],
                     'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
                     'iframe_url_digital_jacket' => $creditApplicant['digital_jacket_url'],
                     'pull_credit_pass' => $creditApplicant['pull_credit_pass'],
-                    'pdf' => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
+                    'pdf' => (! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem)
+                        ? $creditApplicant['pdf']->url
+                        : null,
+                    'engagement_message_id' => $engagement->message->getId(),
                     'message_id' => $parentMessage->getId(),
                     'message' => 'Credit score created successfully',
                     'lead_id' => $lead->getId(),
-                ];
+                    // 'lead'                => $lead->toArray(),
+                    // 'people'              => $lead->people->toArray(),
+                ]];
             },
             company: $lead->company,
         );
@@ -165,10 +176,11 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $provider = Str::replace(',', '|', trim($provider)); // Replace commas with '|' and trim whitespace
 
         $name = isset($personal['last_name']) ? $personal['first_name'] . ' ' . $personal['last_name'] : $personal['first_name'];
+        $peopleName = $lead->people->name;
 
         return $creditScoreService->getCreditScore(
             new CreditApplicant(
-                $name,
+                $peopleName,
                 $housing['address'],
                 $housing['city'],
                 $housing['state']['code'],

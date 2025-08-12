@@ -13,23 +13,33 @@ class CreateNuggetMessageAction
     public function __construct(
         private Message $parentMessage,
         private array $messageData = [],
+        private ?string $messageTypeVerb = null,
     ) {
     }
 
     public function execute(): Message
     {
-        $messageTypeValue = $this->messageData['type'] == 'text-format' ? 'nugget' : 'image';
-        $nuggetMessage = Message::on('social')->create([
+        $messageTypeValue = match ($this->messageData['type']) {
+            'text-format' => 'nugget',
+            'image-format' => 'image',
+            'video-format' => 'video',
+            default => 'nugget',
+        };
+        $nuggetMessage = Message::create([
             'parent_id' => $this->parentMessage->getId(),
             'apps_id' => $this->parentMessage->apps_id,
             'uuid' => DB::raw('uuid()'),
             'companies_id' => $this->parentMessage->companies_id,
             'users_id' => $this->parentMessage->users_id,
-            'message_types_id' => MessagesTypesRepository::getByVerb('memo', $this->parentMessage->app)->getId(),
+            'message_types_id' => MessagesTypesRepository::getByVerb($this->messageTypeVerb ?? 'memo', $this->parentMessage->app)->getId(),
             'message' => [
-                'title' => $this->messageData['title'],
-                'type' => $this->messageData['type'],
-                $messageTypeValue => $this->messageData[$messageTypeValue],
+                'title' => $this->messageData['title'] ?? null,
+                'type' => $this->messageData['type'] ?? null,
+                $messageTypeValue => $this->messageData[$messageTypeValue] ?? null,
+                // Optionally merge in extra fields, excluding duplicates
+                ...collect($this->messageData)
+                    ->except(['title', 'type', $messageTypeValue])
+                    ->toArray(),
             ],
             'is_public' => $this->messageData['is_public'] ?? 1,
             'created_at' => now(),
@@ -38,8 +48,6 @@ class CreateNuggetMessageAction
 
         $nuggetMessage->addTags($this->parentMessage->tags->pluck('name')->toArray());
 
-        /*  $this->parentMessage->total_children++;
-         $this->parentMessage->save(); */
         return $nuggetMessage;
     }
 }
