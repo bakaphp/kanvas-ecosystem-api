@@ -27,7 +27,7 @@ class LeadService
     /**
      * Create a new lead for travel quote
      */
-    public function createLead(array $travelData, People $contactPerson = null): array
+    public function createLead(array $travelData, ?People $contactPerson = null): array
     {
         // Use DTO for better structure
         $travelQuote = TravelQuoteData::from([
