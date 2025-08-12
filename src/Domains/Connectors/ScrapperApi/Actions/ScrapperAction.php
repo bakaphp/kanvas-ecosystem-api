@@ -38,7 +38,7 @@ class ScrapperAction
         $importerProducts = 0;
         $limit = (int) $this->app->get('limit-product-scrapper');
         $firstGroup = array_slice($results, 0, $limit);
-        $secondGroup = array_slice($results, $limit);
+        $secondGroup = array_slice($results, $limit, 10);
         $app = $this->app;
         $user = $this->user;
         $companyBranch = $this->companyBranch;
