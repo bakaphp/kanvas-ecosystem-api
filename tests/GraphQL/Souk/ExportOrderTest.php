@@ -128,7 +128,7 @@ class ExportOrderTest extends OrderBase
         // Test basic export without field mapping
         $basicExportResponse = $this->graphQL('
             query ExportOrdersBasic {
-                exportOrders(format: PDF) {
+                exportOrders(format: EXCEL) {
                     status
                     download_url
                     file_name
@@ -142,7 +142,7 @@ class ExportOrderTest extends OrderBase
 
         $this->assertEquals('success', $basicExportResponse->json('data.exportOrders.status'));
         $this->assertNotNull($basicExportResponse->json('data.exportOrders.download_url'));
-        $this->assertStringContainsString('pdf', $basicExportResponse->json('data.exportOrders.file_name'));
+        $this->assertStringContainsString('xlsx', $basicExportResponse->json('data.exportOrders.file_name'));
 
         // Test export with custom field mapping
         $customExportResponse = $this->graphQL('
@@ -186,7 +186,7 @@ class ExportOrderTest extends OrderBase
         $filteredExportResponse = $this->graphQL('
             query ExportOrdersWithSearch($search: String!, $metadata: ExportMetadataInput!) {
                 exportOrders(
-                    format: PDF
+                    format: EXCEL
                     search: $search
                     metadata: $metadata
                 ) {
@@ -212,7 +212,7 @@ class ExportOrderTest extends OrderBase
         // Test export with invalid format (should still work with fallback)
         $invalidFormatResponse = $this->graphQL('
             query ExportOrdersInvalidFormat {
-                exportOrders(format: PDF) {
+                exportOrders(format: EXCEL) {
                     status
                     download_url
                     file_name
