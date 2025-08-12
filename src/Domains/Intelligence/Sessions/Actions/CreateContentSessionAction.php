@@ -30,6 +30,7 @@ class CreateContentSessionAction
     {
         return [
             'branch' => $this->branch,
+            'people_id' => $people->id,
             'firstname' => $people->firstname,
             'lastname' => $people->lastname,
             'middlename' => $people->middlename,
