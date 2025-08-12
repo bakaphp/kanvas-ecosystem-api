@@ -26,7 +26,6 @@ class ProductService
         $amazonPrice = $this->extractPrice($product);
         $name = Str::limit($product['title'] ?? '', 255);
         $listPrice = $this->extractListPrice($product);
-        $discountPrice = $amazonPrice;
 
         // Usar parent_asin si existe, sino usar el asin del customization_options
         $asin = $this->getProductAsin($product);
@@ -34,8 +33,8 @@ class ProductService
         $mappedProduct = [
             'name' => $name,
             'description' => $this->getDescription($product),
-            'price' => $listPrice,
-            'discountPrice' => $discountPrice,
+            'price' => $amazonPrice,
+            'discountPrice' => $listPrice,
             'slug' => Str::slug($asin),
             'sku' => $asin,
             'source' => 'amazon',
@@ -271,15 +270,15 @@ class ProductService
 
     protected function extractPrice(array $product): float
     {
-        if (isset($product['exact_price']) && ! empty($product['exact_price'])) {
-            return (float) str_replace(['$', ','], '', $product['exact_price']);
-        }
-
-        if (isset($product['list_price']) && ! empty($product['list_price'])) {
-            return (float) str_replace(['$', ','], '', $product['list_price']);
-        }
-
         if (isset($product['price']) && ! empty($product['price'])) {
+            if (preg_match('/\$?([\d,]+\.?\d*)\s+with\s+(\d+)\s+percent\s+savings/i', $product['price'], $matches)) {
+                $discountedPrice = (float) str_replace(',', '', $matches[1]);
+                $discountPercent = (int) $matches[2];
+                $originalPrice = ($discountedPrice * 100) / (100 - $discountPercent);
+
+                return $originalPrice;
+            }
+
             preg_match('/\$?([\d,]+\.?\d*)/', $product['price'], $matches);
             if (isset($matches[1])) {
                 return (float) str_replace(',', '', $matches[1]);
@@ -291,12 +290,9 @@ class ProductService
 
     protected function extractListPrice(array $product): float
     {
-        $price = $this->extractPrice($product);
-        if ($price == 0 && isset($product['previous_price']) && ! empty($product['previous_price'])) {
-            return (float) str_replace(['$', ','], '', $product['previous_price']);
-        }
+        $price = str_replace(['$', ','], '', $product['list_price'] ?? '');
 
-        return $price;
+        return (float) $price;
     }
 
     protected function getProductAsin(array $product): string
