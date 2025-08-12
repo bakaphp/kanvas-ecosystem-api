@@ -5,7 +5,6 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Default Log Channel
@@ -111,7 +110,11 @@ return [
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
         ],
-
+         'deprecations' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/deprecations.log'),
+            'level' => 'warning',
+        ],
         'null' => [
             'driver' => 'monolog',
             'handler' => NullHandler::class,
@@ -127,5 +130,4 @@ return [
             'level' => 'info',
         ],
     ],
-
 ];

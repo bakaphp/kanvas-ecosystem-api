@@ -43,22 +43,26 @@ class SetupRolesCommand extends Command
     {
         $abilities = [
             "list-orders" => [
+                RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::AGENT,
             ],
             "update-orders" => [
+                RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::AGENT,
             ],
             "download-orders" => [
+                RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
             ],
             "order-reports" => [
+                RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,

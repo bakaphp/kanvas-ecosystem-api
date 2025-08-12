@@ -45,6 +45,64 @@ class FilesystemTest extends TestCase
                 ],
             ]);
     }
+
+    public function testRenameFile(): void
+    {
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+                mutation ($file: Upload!) {
+                    upload(file: $file)
+                    { 
+                        uuid, 
+                        name, 
+                        url 
+                        id
+                    } 
+                }
+            ',
+            'variables' => [
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('avatar.jpg'),
+        ];
+
+        $id = $this->multipartGraphQL($operations, $map, $file)
+            ->json('data.upload.id');
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation(
+                $id: ID!,
+                $name: String!
+            ){
+                renameFile(
+                    id: $id,
+                    name: $name
+                ) {
+                    id
+                    name
+                }
+            }',
+            [
+                'id' => $id,
+                'name' => 'new-avatar.jpg',
+            ]
+        )->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'renameFile' => [
+                    'id' => $id,
+                    'name' => 'new-avatar.jpg',
+                ],
+            ],
+        ]);
+    }
+
     public function testDeleteFile(): void
     {
         $operations = [

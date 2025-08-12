@@ -25,6 +25,7 @@ use Kanvas\Locations\Models\Countries;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -42,6 +43,7 @@ use Override;
  * @property string $firstname
  * @property string|null $middlename = null
  * @property string $lastname
+ * @property string $licence_number
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
@@ -98,6 +100,15 @@ class People extends BaseModel
         return $this->hasMany(
             Lead::class,
             'people_id',
+            'id'
+        )->orderBy('created_at', 'desc');
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(
+            Order::class,
+            'peoples_id',
             'id'
         )->orderBy('created_at', 'desc');
     }

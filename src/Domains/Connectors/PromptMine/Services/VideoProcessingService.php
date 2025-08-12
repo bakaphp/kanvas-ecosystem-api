@@ -306,8 +306,8 @@ class VideoProcessingService
             $newMessageNotification = new VideoProcessingPushNotification(
                 user: $this->entity->user,
                 entity: $this->entity,
-                message: "Your video for {$title} has been processed",
-                title: 'Video Processed',
+                message: 'Tap to view your AI-generated video on prompt mine.',
+                title: 'Video is ready ' . $title,
                 via: $endViaList,
                 templates: [
                     'email_template' => $params['email_template'] ?? null,

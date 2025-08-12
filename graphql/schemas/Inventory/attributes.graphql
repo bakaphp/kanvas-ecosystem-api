@@ -19,11 +19,13 @@ input AttributeUpdateInput {
 
 input AttributesValueInput {
     value: Mixed!
+    parent_id: ID
 }
 
 input UpdateAttributesValueInput {
     id: ID!
     value: Mixed!
+    parent_id: ID
 }
 
 input AttributeTranslationInput {
@@ -62,6 +64,8 @@ type AttributesValue {
             resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
         )
     value: Mixed
+    parent_id: ID
+    has_children: Boolean
 }
 
 type AttributeTranslation {
