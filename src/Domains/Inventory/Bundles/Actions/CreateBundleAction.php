@@ -18,9 +18,9 @@ class CreateBundleAction
     public function execute(): Bundles
     {
         $bundle = Bundles::create([
-            'app_id' => $this->bundle->app->getId(),
-            'company_id' => $this->bundle->company->getId(),
-            'user_id' => $this->bundle->user->getId(),
+            'apps_id' => $this->bundle->app->getId(),
+            'companies_id' => $this->bundle->company->getId(),
+            'users_id' => $this->bundle->user->getId(),
             'name' => $this->bundle->name,
             'variant_id' => $this->bundle->variant?->getId(),
             'description' => $this->bundle->description,

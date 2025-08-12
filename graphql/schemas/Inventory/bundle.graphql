@@ -7,5 +7,40 @@ type Bundle {
     description: String
     execution_mode: String
     expose_as_product: Boolean
-    variants: [Variant!]! @BelongsToMany(relation: "variants", type: PAGINATOR)
+    bundleItems: [BundleItem!]!
+        @hasMany(relation: "bundleItems", type: PAGINATOR)
+}
+
+type BundleItem {
+    variant: Variant!
+    quantity: Int!
+    unit: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input BundleInput {
+    name: String!
+    description: String
+    variants: [BundleVariantInput!]!
+    execution_mode: String
+    expose_as_product: Boolean
+    variant_id: ID
+}
+input BundleVariantInput {
+    id: ID!
+    quantity: Int!
+    unit: String!
+}
+
+extend type Mutation {
+    createBundle(input: BundleInput!): Bundle!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Bundles\\BundleManagementMutation@create"
+        )
+    updateBundle(id: ID!, input: BundleInput!): Bundle!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Bundles\\BundleManagementMutation@update"
+        )
+    deleteBundle(id: ID!): Boolean!
 }

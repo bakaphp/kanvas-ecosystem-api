@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Bundles\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -41,5 +42,10 @@ class Bundle extends BaseModel
     public function variant(): BelongsTo
     {
         return $this->belongsTo(Variants::class, 'variant_id');
+    }
+
+    public function bundleItems(): HasMany
+    {
+        return $this->hasMany(BundleItem::class, 'bundle_id');
     }
 }
