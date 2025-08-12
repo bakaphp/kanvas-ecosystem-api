@@ -112,7 +112,7 @@ class MessageService
         }
 
         foreach ($groupedFields as $arrayName => $fields) {
-            if (! isset($data[$arrayName]) || !is_array($data[$arrayName])) {
+            if (! isset($data[$arrayName]) || ! is_array($data[$arrayName])) {
                 foreach ($fields as $fieldName => $config) {
                     if ($config['required']) {
                         $errors[] = "Field '{$arrayName}.{$fieldName}' is required";
@@ -125,7 +125,7 @@ class MessageService
             $processedArray = [];
 
             foreach ($arrayData as $index => $item) {
-                if (!is_array($item)) {
+                if (! is_array($item)) {
                     $processedArray[$index] = $item;
                     continue;
                 }
@@ -184,7 +184,7 @@ class MessageService
         $lastKey = array_pop($keys);
 
         foreach ($keys as $k) {
-            if (!isset($current[$k])) {
+            if (! isset($current[$k])) {
                 $current[$k] = [];
             }
             $current = &$current[$k];
@@ -197,7 +197,7 @@ class MessageService
     {
         switch ($type) {
             case 'integer':
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     throw new ValidationException("Field '$field' must be an integer");
                 }
                 return (int) $value;
