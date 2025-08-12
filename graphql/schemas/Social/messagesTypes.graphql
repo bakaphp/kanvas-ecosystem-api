@@ -12,7 +12,7 @@ type MessageType {
     uuid: String!
     name: String!
     verb: String!
-    template: String
+    template: Mixed
     templates_plura: String
 }
 
