@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\UniversalAssistance\Services;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -19,12 +20,12 @@ class UniversalAssistanceService
     /**
      * Handle travel quote request
      */
-    public function handleTravelQuote(array $travelData): array
+    public function handleTravelQuote(array $travelData, ?People $contactPerson = null): array
     {
         $leadService = new LeadService($this->app, $this->order);
 
         try {
-            $response = $leadService->createLead($travelData);
+            $response = $leadService->createLead($travelData, $contactPerson);
 
             // Store the response in order metadata
             $this->order->metadata = array_merge(($this->order->metadata ?? []), [
@@ -151,12 +152,12 @@ class UniversalAssistanceService
     /**
      * Handle lead cancellation
      */
-    public function handleLeadCancellation(string $leadId): array
+    public function handleLeadCancellation(string $leadId, string $reasonCode = 'Venta Online'): array
     {
         $leadService = new LeadService($this->app, $this->order);
 
         try {
-            $response = $leadService->cancelLead($leadId);
+            $response = $leadService->cancelLead($leadId, $reasonCode);
 
             // Store the response in order metadata
             $this->order->metadata = array_merge(($this->order->metadata ?? []), [
@@ -172,6 +173,7 @@ class UniversalAssistanceService
                 'lead_cancellation_error' => [
                     'error' => $e->getMessage(),
                     'lead_id' => $leadId,
+                    'reason_code' => $reasonCode,
                     'timestamp' => now()->toISOString(),
                 ],
             ]);
@@ -179,5 +181,39 @@ class UniversalAssistanceService
 
             throw $e;
         }
+    }
+
+    /**
+     * Process order for Universal Assistance integration
+     */
+    public function processOrder(): array
+    {
+        // Get order metadata
+        $orderMetadata = $this->order->metadata ?? [];
+
+        if (! isset($orderMetadata['universal_assistance'])) {
+            throw new ValidationException('Universal Assistance data not found in order metadata');
+        }
+
+        $uaData = $orderMetadata['universal_assistance'];
+        $results = [];
+
+        // Step 1: Create travel quote if needed
+        if (isset($uaData['travel_data'])) {
+            $contactPerson = $this->order->peoples()->first();
+            $results['quote'] = $this->handleTravelQuote($uaData['travel_data'], $contactPerson);
+        }
+
+        // Step 2: Create voucher after successful quote
+        if (isset($uaData['voucher_data']) && ! empty($results['quote'])) {
+            $applicant = $this->order->peoples()->first();
+            if (! $applicant) {
+                throw new ValidationException('No applicant found for voucher creation');
+            }
+
+            $results['voucher'] = $this->handleVoucherCreation($uaData['voucher_data'], $applicant);
+        }
+
+        return $results;
     }
 }
