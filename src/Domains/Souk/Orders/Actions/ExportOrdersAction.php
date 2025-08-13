@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Souk\Orders\Exports\OrderExportExcel;
 use Kanvas\Souk\Orders\Jobs\GeneratePdfJob;
 use Kanvas\Users\Models\Users;
@@ -15,11 +19,13 @@ use Maatwebsite\Excel\Facades\Excel;
 class ExportOrdersAction
 {
     public function __construct(
+        protected AppInterface $app,
         protected Users $user,
-        protected Collection $orderData,
+        protected Collection|Builder $orderData,
         protected ?array $fieldMapper = null,
         protected ?array $metadata = null,
-        protected ?array $params = null
+        protected ?array $params = null,
+        protected ?string $timezone = null
     ) {
     }
 
@@ -53,19 +59,55 @@ class ExportOrdersAction
     {
         $data = $this->prepareOrderData($orders, $metaData);
 
-        $export = new OrderExportExcel($data);
+        // If orders is a Builder, pass it as the query; otherwise use null for collection
+        $query = $orders instanceof Builder ? $orders->with([
+            'user',
+            'company',
+            'orderType',
+            'orderStatus',
+            'allItems',
+            'allItems.variant',
+        ]) : null;
 
-        $filePath = "exports/{$filename}.xlsx";
-        Excel::store($export, $filePath, 'public');
+        $export = new OrderExportExcel($data, $query, $this->timezone);
+
+        $tempFilePath = "exports/{$filename}.xlsx";
+        Excel::store($export, $tempFilePath, 'public');
+
+        // Get the full path to the temporary file
+        $fullTempPath = Storage::disk('public')->path($tempFilePath);
+
+        // Create an UploadedFile instance from the temporary file
+        $uploadedFile = new UploadedFile(
+            $fullTempPath,
+            "{$filename}.xlsx",
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null,
+            true
+        );
+
+        // Upload to FileSystem
+        $filesystem = new FilesystemServices($this->app);
+        $uploadedFileEntry = $filesystem->upload($uploadedFile, $this->user);
+
+        // Clean up the temporary file if upload was successful and URL is not empty or '/'
+        $isSavedInFileSystem = ! empty($uploadedFileEntry->url) && $uploadedFileEntry->url !== '/';
+        if ($isSavedInFileSystem) {
+            if (file_exists($fullTempPath)) {
+                unlink($fullTempPath);
+            }
+            // Also clean up from storage disk
+            Storage::disk('public')->delete($tempFilePath);
+        }
 
         // Clean up temporary image files
         $this->cleanupTempImages();
 
         return [
             'status' => 'success',
-            'download_url' => Storage::disk('public')->url($filePath),
+            'download_url' => $isSavedInFileSystem ? $uploadedFileEntry->url : Storage::disk('public')->url($tempFilePath),
             'file_name' => "{$filename}.xlsx",
-            'file_path' => $filePath,
+            'file_path' => $uploadedFileEntry->url ?? $tempFilePath,
             'message' => 'Excel export completed successfully'
         ];
     }
@@ -112,6 +154,11 @@ class ExportOrdersAction
     {
         $data = [];
 
+        // For Builder objects, execute query once for metadata
+        $ordersForMetadata = $orders instanceof Builder ?
+            $orders->with('orderStatus')->take(1000)->get() :
+            $orders;
+
         // Header information with logos and company details
         $headerInfo = [
             'logos' => $metaData['headerImages'] ?? [],
@@ -119,7 +166,7 @@ class ExportOrdersAction
             'subtitle' => $metaData['subtitle'] ?? '',
             'export_date' => Carbon::now()->format('d/m/Y H:i:s'),
             'date_range' => $this->getDateRange($orders),
-            'status_filter' => $this->getStatusFilter($orders)
+            'status_filter' => $this->getStatusFilter($ordersForMetadata)
         ];
 
         // Store header info for use in views
@@ -165,15 +212,20 @@ class ExportOrdersAction
             ];
         }
 
-        // Add order data using dynamic field mapping
+        // For FromQuery approach, we don't need to process orders here
+        // The data will be processed in the map() method of OrderExportExcel
         $data['orders'] = [];
-        foreach ($orders as $order) {
-            $row = [];
-            foreach ($data['field_paths'] as $fieldPath) {
-                $value = $this->getNestedValue($order, $fieldPath);
-                $row[] = $value;
+
+        // If it's a collection (legacy), process it
+        if ($orders instanceof Collection) {
+            foreach ($orders as $order) {
+                $row = [];
+                foreach ($data['field_paths'] as $fieldPath) {
+                    $value = $this->getNestedValue($order, $fieldPath);
+                    $row[] = $value;
+                }
+                $data['orders'][] = $row;
             }
-            $data['orders'][] = $row;
         }
 
         return $data;
@@ -190,12 +242,17 @@ class ExportOrdersAction
         }
 
         // Fallback to orders data if no date range found in where conditions
-        if ($orders->isEmpty()) {
+        if ($orders instanceof Builder ? $orders->count() === 0 : $orders->isEmpty()) {
             return 'No date range available';
         }
 
-        $minDate = $orders->min('created_at');
-        $maxDate = $orders->max('created_at');
+        if ($orders instanceof Builder) {
+            $minDate = $orders->min('created_at');
+            $maxDate = $orders->max('created_at');
+        } else {
+            $minDate = $orders->min('created_at');
+            $maxDate = $orders->max('created_at');
+        }
 
         return "Desde: {$minDate->format('d/m/Y')} - Hasta: {$maxDate->format('d/m/Y')}";
     }
@@ -370,11 +427,13 @@ class ExportOrdersAction
 
     private function getStatusFilter($orders): string
     {
-        if ($orders->isEmpty()) {
+        if ($orders instanceof Collection ? $orders->isEmpty() : $orders->count() === 0) {
             return 'No status available';
         }
 
+        // Now $orders is always a Collection (from prepareOrderData)
         $statuses = $orders->pluck('orderStatus.name')->unique()->implode(', ');
+
         return "Estados: {$statuses}";
     }
 }
