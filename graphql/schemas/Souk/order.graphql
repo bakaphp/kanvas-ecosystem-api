@@ -522,6 +522,7 @@ extend type Query @guard {
         search: String @search
         field_mapper: Mixed # JSON object with label => field_path mapping
         metadata: ExportMetadataInput
+        timezone: String # e.g., "America/New_York"
         where: _
             @whereConditions(
                 columns: [

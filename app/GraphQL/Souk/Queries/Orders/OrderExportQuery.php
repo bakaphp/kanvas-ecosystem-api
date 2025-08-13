@@ -8,7 +8,6 @@ use App\GraphQL\Souk\Handlers\OrderStatusHandler;
 use App\GraphQL\Souk\Handlers\OrderTypeHandler;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Actions\ExportOrdersAction;
@@ -30,12 +29,14 @@ class OrderExportQuery
         $format = $args['format'];
         $fieldMapper = $args['field_mapper'] ?? null;
         $metadata = $args['metadata'] ?? [];
+        $timezone = $args['timezone'] ?? $user->timezone ?? null;
 
         try {
             $user = auth()->user();
-            $orders = $this->getOrdersList($app, $company, $args);
+            $ordersQuery = $this->getOrdersQuery($app, $company, $args);
 
-            if (! count($orders)) {
+            // Check if there are any orders first
+            if ($ordersQuery->count() === 0) {
                 return [
                     'status' => 'warning',
                     'download_url' => null,
@@ -45,11 +46,13 @@ class OrderExportQuery
             }
 
             $exportService = new ExportOrdersAction(
+                app: $app,
                 user: $user,
-                orderData: $orders,
+                orderData: $ordersQuery,
                 fieldMapper: $fieldMapper,
                 metadata: $metadata,
-                params: $args['where'] ?? []
+                params: $args['where'] ?? [],
+                timezone: $timezone
             );
 
             return $exportService->execute($format);
@@ -63,11 +66,11 @@ class OrderExportQuery
         }
     }
 
-    public function getOrdersList(
+    public function getOrdersQuery(
         Apps $app,
         Companies $company,
         array $args
-    ): Collection {
+    ): Builder {
         // Build the query with the same filters as the orders query
         $query = Order::query()
             ->fromCompany($company)
@@ -128,17 +131,7 @@ class OrderExportQuery
             $query->orderBy('created_at', 'DESC');
         }
 
-        // Get the orders with relationships needed for field mapping
-        $orders = $query->with([
-            'user',
-            'company',
-            'orderType',
-            'orderStatus',
-            'allItems',
-            'allItems.variant',
-        ])->get();
-
-        return $orders;
+        return $query;
     }
 
     public function applyWhereConditions(Builder $query, array $conditions = []): Builder
