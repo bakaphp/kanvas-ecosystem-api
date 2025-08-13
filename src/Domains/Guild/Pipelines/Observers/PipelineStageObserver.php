@@ -9,7 +9,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage as ModelsPipelineStage;
 
 class PipelineStageObserver
 {
-    public function saved(ModelsPipelineStage $stage)
+    public function saved(ModelsPipelineStage $stage): void
     {
         new StageCounterAction(
             $stage->pipeline
