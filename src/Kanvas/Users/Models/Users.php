@@ -638,6 +638,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user->password = Hash::make($newPassword);
         $user->user_activation_forgot = '';
 
+        /**
+         * Update the legacy user model with the new password and activation hash.
+         * @todo remove once we shut down the legacy apis
+         */
+        $this->password = $user->password;
+        $this->user_activation_forgot = '';
+
         $this->fireWorkflow(
             WorkflowEnum::AFTER_FORGOT_PASSWORD->value,
             true,
@@ -647,7 +654,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             ]
         );
 
-        return $user->saveOrFail();
+        return $user->saveOrFail() && $this->saveOrFail();
     }
 
     public function updateDisplayName(string $displayName, AppInterface $app): bool
