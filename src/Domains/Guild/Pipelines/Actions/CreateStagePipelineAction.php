@@ -6,7 +6,7 @@ namespace Kanvas\Guild\Pipelines\Actions;
 
 use Kanvas\Guild\Pipelines\DataTransferObject\PipelineStage;
 use Kanvas\Guild\Pipelines\Models\PipelineStage as ModelsPipelineStage;
-use Kanvas\Guild\Pipelines\Actions\StageCounterAction;
+
 class CreateStagePipelineAction
 {
     /**
@@ -32,9 +32,7 @@ class CreateStagePipelineAction
             'weight' => $this->stageData->pipeline->stages->count() > 0 && $this->stageData->weight === 0 ? $weight : $this->stageData->weight,
             'rotting_days' => $this->stageData->rotting_days,
         ]);
-        new StageCounterAction(
-            $this->stageData->pipeline
-        )->execute();
+
         return $stage;
     }
 }
