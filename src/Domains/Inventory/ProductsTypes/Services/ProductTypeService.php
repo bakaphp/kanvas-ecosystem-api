@@ -33,10 +33,6 @@ class ProductTypeService
                 ));
 
             (new CreateProductTypeAttributeAction($productsAttributesDto, $user))->execute();
-
-            if ($attributeObject?->attributeType?->isList()) {
-                (new AddAttributeValue($attributeObject, [$attribute]))->execute();
-            }
         }
 
         return $productsTypes;
