@@ -216,10 +216,19 @@ class FilesystemManagementMutation
 
         // Process CSV
         $csv = Reader::createFromPath($storagePath, 'r');
-        $csv->setHeaderOffset(0);
 
-        $header = $csv->getHeader();
-        $row = $csv->nth(0);
+        try {
+            $csv->setHeaderOffset(0);
+
+            $header = $csv->getHeader();
+            $row = $csv->nth(0);
+
+        } catch (\Throwable $th) {
+            $result = $this->processCsvWithoutHeaders($storagePath);
+            $row = $result['row'];
+            $header = $result['header'];
+            
+        }
 
         // Upload to filesystem
         $fileSystem = $this->singleFile($rootValue, $request);
@@ -342,5 +351,36 @@ class FilesystemManagementMutation
         ]);
 
         return $filesystem;
+    }
+
+    public function processCsvWithoutHeaders($storagePath): array
+    {
+        $csv = Reader::createFromPath($storagePath, 'r');
+
+        $allRecords = iterator_to_array($csv->getRecords());
+
+        if (empty($allRecords)) {
+            return [
+                'headers' => [],
+                'firstRow' => []
+            ];
+        }
+
+        $firstRecord = array_values($allRecords[0]);
+
+        $headers = [];
+        for ($i = 0; $i < count($firstRecord); $i++) {
+            $headers[] = 'column_' . ($i + 1);
+        }
+
+        $firstRow = [];
+        foreach ($firstRecord as $index => $value) {
+            $firstRow[$headers[$index]] = $value;
+        }
+
+        return [
+            'header' => $headers,
+            'row' => $firstRow
+        ];
     }
 }
