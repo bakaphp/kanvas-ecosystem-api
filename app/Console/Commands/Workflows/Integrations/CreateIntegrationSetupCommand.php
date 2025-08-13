@@ -7,6 +7,8 @@ namespace App\Console\Commands\Workflows\Integrations;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Workflow\Models\Integrations;
 
 use function Laravel\Prompts\info;
@@ -90,7 +92,62 @@ class CreateIntegrationSetupCommand extends Command
             'handler' => $handler,
         ]);
 
+        $this->integrationMessageType($appId);
+
         info('Integration created successfully - ' . $integration->getId() . ' - ' . $integration->name);
         $this->line(json_encode($integrationData, JSON_PRETTY_PRINT));
+    }
+
+    public function integrationMessageType(int $appId)
+    {
+        $hasMessageType = $this->confirm('¿Does the integration have need a message type?', false);
+
+        if ($hasMessageType) {
+            $name = $this->ask('Enter Integration Message Type Name');
+            $verb = $this->ask('Enter Integration Message Type Verb');
+
+            $hasTemplate = $this->confirm('¿Does this message type have a template?', false);
+
+            if ($hasTemplate) {
+                $config = [];
+
+                while (true) {
+                    $fieldName = $this->ask('Enter field name (dot notation supported, empty to finish)');
+                    if (empty($fieldName)) {
+                        break;
+                    }
+
+                    $fieldType = $this->choice('Data type', [
+                        'string', 'integer', 'boolean', 'array', 'email', 'url'
+                    ], 0);
+
+                    $isRequired = $this->confirm('Required?', true);
+
+                    $typeRules = [
+                        'string' => 'string',
+                        'integer' => 'integer',
+                        'boolean' => 'boolean',
+                        'array' => 'array',
+                        'email' => 'email',
+                        'url' => 'url'
+                    ];
+
+                    $rule = ($isRequired ? 'required' : 'nullable') . '|' . $typeRules[$fieldType];
+                    $config[$fieldName] = $rule;
+                    $this->info("Added: $fieldName = $rule");
+                }
+
+                $this->info('Final configuration:');
+                $this->line(json_encode($config, JSON_PRETTY_PRINT));
+            }
+
+            $messageTypeDto = MessageTypeInput::from([
+                'apps_id' => $appId,
+                'name' => $name,
+                'verb' => $verb,
+                'template' => json_encode($config)
+            ]);
+            (new CreateMessageTypeAction($messageTypeDto))->execute();
+        }
     }
 }

@@ -32,6 +32,7 @@ class FilesystemQuery
          */
         $files = Filesystem::select(
             'filesystem_entities.uuid',
+            'filesystem.uuid as filesystem_uuid',
             'filesystem_entities.field_name',
             'filesystem_entities.weight',
             'filesystem.name',

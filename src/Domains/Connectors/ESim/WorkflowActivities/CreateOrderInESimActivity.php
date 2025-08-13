@@ -88,7 +88,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                     }
 
                     $providerValue = strtolower($provider->value);
-                    $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
+                    $fromMobile = strtolower($order->metadata['source'] ?? '') !== 'b2b' && isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
                     $isRefuelOrder = isset($order->metadata['parent_order_id']) && ! empty($order->metadata['parent_order_id']);
                     $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
                     $language = $order->metadata['language'] ?? 'es';
@@ -370,6 +370,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $stripeService = new StripeCustomerService($order->app);
                 $stripe->paymentIntents->update($paymentIntentId, [
                     'customer' => $stripeService->getOrCreateCustomerByPerson($order->people)->id,
+                    'description' => 'Kanvas Order #' . $order->order_number,
                 ]);
             } catch (Throwable $e) {
                 report($e);

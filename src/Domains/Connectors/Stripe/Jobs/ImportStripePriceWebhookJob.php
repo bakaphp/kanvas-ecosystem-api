@@ -9,11 +9,13 @@ use Kanvas\Connectors\Stripe\Services\StripePriceService;
 use Kanvas\Subscription\Importer\Actions\PriceImporterAction;
 use Kanvas\Subscription\Importer\DataTransferObjects\PriceImporter;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class ImportStripePriceWebhookJob extends ProcessWebhookJob
 {
     public array $data = [];
 
+    #[Override]
     public function execute(): array
     {
         if (! in_array($this->webhookRequest->payload['type'], ['price.created', 'price.updated'])) {

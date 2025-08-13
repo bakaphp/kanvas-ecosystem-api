@@ -30,8 +30,8 @@ type Company {
         )
     addresses: [CompanyAddress!]!
         @paginate(
-           builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\AddressManagementQuery@getAllCompanyAddress"
-           defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\AddressManagementQuery@getAllCompanyAddress"
+            defaultCount: 25
         )
     country_code: String
     created_at: DateTime

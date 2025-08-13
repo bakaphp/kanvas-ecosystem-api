@@ -50,7 +50,7 @@ class GooglePlayInAppPurchaseMutation
         }
 
         /**
-         * @todo move this to the create order DTO
+         * @todo move this to the create order Action
          */
         $order->fireWorkflow(
             WorkflowEnum::AFTER_CREATE_ORDER->value,

@@ -72,8 +72,9 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
+                $chatSession = null;
                 if (! $message->message['from_me']) {
-                    new CreateSessionAction(
+                    $chatSession = new CreateSessionAction(
                         Session::from([
                             'app' => $app,
                             'company' => $channel->company,
@@ -98,7 +99,8 @@ class AgentChannelResponderActivity extends KanvasActivity
                 return new AgentChannelResponderAction(
                     $channel,
                     $message,
-                    Agent::getById($agentId, $app)
+                    Agent::getById($agentId, $app),
+                    $chatSession
                 )->execute($params);
             },
             company: $channel->company,

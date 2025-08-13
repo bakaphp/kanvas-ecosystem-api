@@ -22,6 +22,10 @@ class DistributeMessagesToUsersAction
         $totalDelivered = 0;
         $user = $this->message->user;
 
+        if (! $this->message->isPublic()) {
+            return 0;
+        }
+
         // Use the repository to get followers
         $followersBuilder = UsersFollowsRepository::getFollowersBuilder($user, $this->app);
 

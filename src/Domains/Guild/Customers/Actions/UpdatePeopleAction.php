@@ -42,6 +42,7 @@ class UpdatePeopleAction
             'google_contact_id' => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
+            'licence_number' => $this->peopleData->licence_number,
         ];
 
         //@todo how to avoid duplicated? should it be use or frontend?

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Roles;
 
+use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Bouncer;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Actions\BulkAllowRoleToPermissionAction;
@@ -238,7 +240,7 @@ class RolesManagementMutation
         $assign->execute();
     }
 
-    private function removeRoleAction($user, $app, int $roleId): void
+    private function removeRoleAction(Users $user, AppInterface $app, int $roleId): void
     {
         $role = SilberRole::find($roleId);
         if (! $role) {
@@ -283,8 +285,7 @@ class RolesManagementMutation
         }
     }
 
-
-    private function getCurrentUserAppRoles(Users $user, Apps $app)
+    private function getCurrentUserAppRoles(Users $user, Apps $app): Collection
     {
         $allUserRoles = $user->getRoles();
         $appScope = RolesEnums::getScope($app);

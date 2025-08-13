@@ -14,7 +14,7 @@ use Kanvas\Payments\Models\PaymentMethods;
 
 class PaymentMethodMutation
 {
-    public function createPaymentMethod($_, array $request): PaymentMethods
+    public function createPaymentMethod(mixed $root, array $request): PaymentMethods
     {
         $user = auth()->user();
         $app = app(Apps::class);
@@ -71,7 +71,7 @@ class PaymentMethodMutation
         }
     }
 
-    public function updatePaymentMethod($_, array $request): PaymentMethods
+    public function updatePaymentMethod(mixed $root, array $request): PaymentMethods
     {
         $user = auth()->user();
         $app = app(Apps::class);
@@ -116,7 +116,7 @@ class PaymentMethodMutation
         )->execute();
     }
 
-    public function deletePaymentMethod($_, array $request): bool
+    public function deletePaymentMethod(mixed $root, array $request): bool
     {
         $user = auth()->user();
         $app = app(Apps::class);

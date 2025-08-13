@@ -7,6 +7,7 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\Stripe\Actions\PushUserToStripeCustomerAction;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Stripe\PaymentIntent;
@@ -30,7 +31,7 @@ class PaymentManagementMutation
 
     public function generatePaymentIntent(mixed $root, array $request): array
     {
-        //$user = auth()->user();
+        $user = auth()->user();
         $app = app(Apps::class);
         $amount = (float) $request['amount'];
 
@@ -41,12 +42,18 @@ class PaymentManagementMutation
 
         Stripe::setApiKey($stripeApiKey);
 
+        $customer = new PushUserToStripeCustomerAction(
+            $user,
+            $app,
+            $user->getCurrentCompany()
+        )->execute();
+
         $totalAmount = $amount * 100;
         $intent = PaymentIntent::create([
             'amount' => $totalAmount,
             'currency' => 'usd',
-            //'customer' => $customer->id,
-            ]);
+            'customer' => $customer->id,
+        ]);
 
         return [
             'status' => 'success',

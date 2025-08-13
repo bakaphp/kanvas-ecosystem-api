@@ -51,7 +51,7 @@ class Agent extends BaseModel
     #[Override]
     public function getGraphTypeName(): string
     {
-        return 'Agent';
+        return 'AgentAi';
     }
 
     public function type(): BelongsTo

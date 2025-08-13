@@ -89,6 +89,8 @@ use Kanvas\Connectors\Stripe\Webhooks\StripePaymentIntentWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\CreateUniversalAssistanceQuoteActivity;
+use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\CreateUniversalAssistanceVoucherActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushLeadActivity;
@@ -227,6 +229,8 @@ class KanvasWorkflowSynActionCommand extends Command
             PushLeadActivity::class,
             PushPeopleActivity::class,
             PushOrderToInvoiceActivity::class,
+            CreateUniversalAssistanceQuoteActivity::class,
+            CreateUniversalAssistanceVoucherActivity::class,
             PullNetSuiteQuoteWebhookJob::class,
             PremiumPromptApprovalWebhookJob::class,
             ChecklistUpdateStatusFromLeadActivity::class,
