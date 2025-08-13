@@ -222,7 +222,6 @@ class FilesystemManagementMutation
 
             $header = $csv->getHeader();
             $row = $csv->nth(0);
-
         } catch (\Throwable $th) {
             $result = $this->processCsvWithoutHeaders($storagePath);
             $row = $result['row'];
