@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5456b52be51b359e121c50ffe64bc097",
+    "content-hash": "742ec8dfc2673d6fef7bbb4cba2459c1",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -4550,16 +4550,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.16.14",
+            "version": "1.16.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "98125b4aa967f1a8fa43acdfc8b03f60de6917af"
+                "reference": "60bd8f6f3b591f4c8d159de4e071a37af227748b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/98125b4aa967f1a8fa43acdfc8b03f60de6917af",
-                "reference": "98125b4aa967f1a8fa43acdfc8b03f60de6917af",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/60bd8f6f3b591f4c8d159de4e071a37af227748b",
+                "reference": "60bd8f6f3b591f4c8d159de4e071a37af227748b",
                 "shasum": ""
             },
             "require": {
@@ -4612,9 +4612,9 @@
             "description": "The AI Agent Development Kit for PHP.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.16.14"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.16.16"
             },
-            "time": "2025-08-11T14:33:34+00:00"
+            "time": "2025-08-13T15:37:23+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
