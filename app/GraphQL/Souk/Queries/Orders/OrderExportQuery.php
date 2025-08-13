@@ -34,6 +34,16 @@ class OrderExportQuery
         try {
             $user = auth()->user();
             $orders = $this->getOrdersList($app, $company, $args);
+
+            if (! count($orders)) {
+                return [
+                    'status' => 'warning',
+                    'download_url' => null,
+                    'file_name' => null,
+                    'message' => 'No orders found matching the specified criteria.',
+                ];
+            }
+
             $exportService = new ExportOrdersAction(
                 user: $user,
                 orderData: $orders,

@@ -52,6 +52,7 @@ class SetupRolesCommand extends Command
             "update-orders" => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
+                MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::AGENT,
             ],
