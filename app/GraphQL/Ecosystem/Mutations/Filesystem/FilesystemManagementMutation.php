@@ -23,6 +23,7 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use League\Csv\Reader;
+use Throwable;
 
 class FilesystemManagementMutation
 {
@@ -222,7 +223,7 @@ class FilesystemManagementMutation
 
             $header = $csv->getHeader();
             $row = $csv->nth(0);
-        } catch (\Throwable $th) {
+        } catch (Throwable $th) {
             $result = $this->processCsvWithoutHeaders($storagePath);
             $row = $result['row'];
             $header = $result['header'];
@@ -351,7 +352,7 @@ class FilesystemManagementMutation
         return $filesystem;
     }
 
-    public function processCsvWithoutHeaders($storagePath): array
+    public function processCsvWithoutHeaders(string $storagePath): array
     {
         $csv = Reader::createFromPath($storagePath, 'r');
 
