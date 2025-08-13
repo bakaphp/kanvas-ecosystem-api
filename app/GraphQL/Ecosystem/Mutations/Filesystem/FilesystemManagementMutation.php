@@ -227,7 +227,6 @@ class FilesystemManagementMutation
             $result = $this->processCsvWithoutHeaders($storagePath);
             $row = $result['row'];
             $header = $result['header'];
-            
         }
 
         // Upload to filesystem
