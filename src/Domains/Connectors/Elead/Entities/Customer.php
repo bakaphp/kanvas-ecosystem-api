@@ -58,7 +58,7 @@ class Customer
         $customerData = [
             'isBusiness' => false,
             'firstName' => $name['firstName'],
-            'lastName' => $name['lastName'],
+            'lastName' => $name['lastName'] ?? $people->lastname,
             'middleName' => $name['middleName'] ?? ($middleName ?? ''),
             'birthday' => Date::isValid($people->dob) ? $people->dob : null,
             'emails' => [],
