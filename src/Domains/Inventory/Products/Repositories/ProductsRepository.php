@@ -12,11 +12,13 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Inventory\Products\Models\Products;
+use Override;
 
 class ProductsRepository
 {
     use SearchableTrait;
 
+    #[Override]
     public static function getModel(): Model
     {
         return new Products();
@@ -63,7 +65,7 @@ class ProductsRepository
         AppInterface $app,
         CompanyInterface $company,
         int $lowStockThreshold = 200,
-        ?int $productTypeId = null
+        ?array $productTypeId = null
     ): Builder {
         $query = Products::from('products as p')
             ->withoutGlobalScopes() // Disable global scopes
@@ -95,7 +97,7 @@ class ProductsRepository
 
         // Add product type filter if provided
         if ($productTypeId !== null) {
-            $query->where('p.products_types_id', '=', $productTypeId);
+            $query->whereIn('p.products_types_id', $productTypeId);
         }
 
         return $query;
