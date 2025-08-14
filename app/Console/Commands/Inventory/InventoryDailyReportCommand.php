@@ -106,7 +106,7 @@ class InventoryDailyReportCommand extends Command
     protected function checkLowStockProducts(AppInterface $app, CompanyInterface $company): void
     {
         $lowStockThreshold = (int) $this->option('low-stock-threshold');
-        $productTypeId = $this->option('product-type-id') ? (int) $this->option('product-type-id') : null;
+        $productTypeId = $this->option('product-type-id') ? explode(',', $this->option('product-type-id')) : null;
 
         $lowStockProducts = ProductsRepository::getLowStockProducts(
             $app,
