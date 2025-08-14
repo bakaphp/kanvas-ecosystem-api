@@ -8,6 +8,7 @@ use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Guild\Pipelines\Enums\PipelineEnum;
 
 /**
  * Class Pipeline.
@@ -55,5 +56,10 @@ class Pipeline extends BaseModel
     public function isDefault(): bool
     {
         return (bool) $this->is_default;
+    }
+
+    public function getStageCountAttribute(): int
+    {
+        return $this->get(PipelineEnum::STAGE_COUNTER->value) ?? 0;
     }
 }
