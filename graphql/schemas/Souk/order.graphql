@@ -515,7 +515,7 @@ extend type Query @guard {
             @paginate(
                 defaultCount: 25
                 model: "Kanvas\\Souk\\Orders\\Models\\OrderTransitionHistory"
-                scopes: ["fromApp", "notDeleted", "filterByUser"]
+                scopes: ["fromApp", "notDeleted"]
             )
     exportOrders(
         format: ExportFormat!
