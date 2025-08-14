@@ -12,9 +12,11 @@ use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class SendEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
