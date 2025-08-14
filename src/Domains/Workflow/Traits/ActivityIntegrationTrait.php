@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Actions\CreateMessageFromTypeAction;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -144,8 +145,13 @@ trait ActivityIntegrationTrait
         return $response;
     }
 
-    public function createIntegrationMessageByVerb(mixed $response, string $messageTypeVerb, string $messageTypeName, AppInterface $app, Model $entity)
-    {
+    public function createIntegrationMessageByVerb(
+        mixed $response,
+        string $messageTypeVerb,
+        string $messageTypeName,
+        AppInterface $app,
+        Model $entity
+    ): Message {
         $messageType = MessagesTypesRepository::getGlobalByVerbAndName($messageTypeVerb, $messageTypeName, $app);
         $systemModule = SystemModules::fromPublicApp()->where('model_name', get_class($entity))->firstOrFail();
 

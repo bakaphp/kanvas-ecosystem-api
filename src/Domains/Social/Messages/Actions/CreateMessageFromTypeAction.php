@@ -6,6 +6,7 @@ namespace Kanvas\Social\Messages\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use InvalidArgumentException;
 use Kanvas\Exceptions\ValidationException;
@@ -24,9 +25,13 @@ class CreateMessageFromTypeAction
     ) {
     }
 
-    public function execute(MessageType $messageType, mixed $data, ?SystemModules $systemModule = null, mixed $entityId = null): Message
-    {
-        if (is_string($data)) {
+    public function execute(
+        MessageType $messageType,
+        mixed $data,
+        ?SystemModules $systemModule = null,
+        mixed $entityId = null
+    ): Message {
+        if (Str::isJson($data)) {
             $data = json_decode($data, true);
         }
 
