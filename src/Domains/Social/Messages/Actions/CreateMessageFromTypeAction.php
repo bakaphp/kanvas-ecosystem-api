@@ -10,7 +10,6 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use InvalidArgumentException;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
