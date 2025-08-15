@@ -6,10 +6,13 @@ namespace Kanvas\Connectors\ScrapingDog\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
 use Carbon\Carbon;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\ScrapingDog\Actions\ScraperProcessorAction;
 use Kanvas\Connectors\ScrapingDog\Enums\ConfigEnum;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Connectors\ScrapingDog\Services\ProductService;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -18,10 +21,15 @@ use Override;
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;
+    public Channels $channel;
+    public Warehouses $warehouse;
+    public CompaniesBranches $companiesBranches;
 
     #[Override]
     public function execute(): array
     {
+        $this->channel = Channels::getById($this->receiver->configuration['channel_id']);
+        $this->warehouse = Warehouses::getById($this->receiver->configuration['warehouse_id']);
         $app = $this->receiver->app;
         $this->overwriteAppService($app);
         $request = $this->webhookRequest->payload;
@@ -33,11 +41,11 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         ];
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
         if (! $variant->get(ConfigEnum::VARIANT_PRICE_UPDATE->value)) {
-            $data = $this->updatePriceVariant($variant);
+            $data = $this->updateVariant($variant);
             $response['price'] = $data['price'];
             $response['discounted_price'] = $data['discounted_price'] ?? null;
         } elseif (Carbon::parse($variant->get(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value))->diffInMinutes() >= $minutesForUpdate) {
-            $data = $this->updatePriceVariant($variant);
+            $data = $this->updateVariant($variant);
             $response['price'] = $data['price'];
             $response['discounted_price'] = $data['discounted_price'] ?? null;
         }
@@ -45,18 +53,38 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         return $response;
     }
 
-    protected function updatePriceVariant(Variants $variant): array
+    protected function updateVariant(Variants $variant): array
     {
+        if (! $variant->product->get(ConfigEnum::VARIANT_DOWNLOAD->value)) {
+            $result = [
+                    [
+                        'asin' => $variant->product->slug,
+                    ],
+                ];
+            $companyBranch = CompaniesBranches::getById($this->receiver->configuration['company_branch_id']);
+            $action = (new ScraperProcessorAction(
+                $variant->app,
+                $this->receiver->user,
+                $companyBranch,
+                Regions::getById($this->receiver->configuration['region_id']),
+                $result
+            ));
+            $action->execute();
+            $variant->product->set(ConfigEnum::VARIANT_DOWNLOAD->value, 1);
+        }
+
         $product = new ScrapingDogRepository($this->receiver->app)->getByAsin($variant->sku);
-        $channels = Channels::getById($this->receiver->configuration['channel_id']);
-        $warehouse = Warehouses::getById($this->receiver->configuration['warehouse_id']);
         $mappedProduct = new ProductService(
-            $channels,
-            $warehouse,
+            $this->channel,
+            $this->warehouse,
             $this->receiver->user,
         )->mapProduct($product);
+        $productModel = $variant->product;
+        $productModel->name = $mappedProduct['name'];
+        $productModel->description = $mappedProduct['description'] ?? '';
+        $productModel->save();
         $variant->updatePriceInChannel(
-            $channels,
+            $this->channel,
             (float) $mappedProduct['price'],
             (float) $mappedProduct['discountPrice']
         );
