@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Stripe\Actions\PushUserToStripeCustomerAction;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Stripe\PaymentIntent;
 use Stripe\Stripe;
@@ -34,6 +35,7 @@ class PaymentManagementMutation
         $user = auth()->user();
         $app = app(Apps::class);
         $amount = (float) $request['amount'];
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
 
         $stripeApiKey = $app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value);
         if (empty($stripeApiKey)) {
@@ -49,6 +51,20 @@ class PaymentManagementMutation
         )->execute();
 
         $totalAmount = $amount * 100;
+
+        if ($totalAmount == 0 && $cart->getTotal() == 0) {
+            return [
+                'status' => 'success',
+                'id' => $cart->getSessionKey(),
+                'client_secret' => $cart->getSessionKey(),
+                'message' => [
+                'message' => 'Payment intent generated successfully',
+                'amount' => $amount,
+                'currency' => 'usd',
+                ],
+            ];
+        }
+
         $intent = PaymentIntent::create([
             'amount' => $totalAmount,
             'currency' => 'usd',
