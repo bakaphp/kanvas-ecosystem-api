@@ -62,7 +62,6 @@ class ScraperSearchActivity extends KanvasActivity
                 'product' => $action->execute(),
                 'word' => $word,
             ];
-            dump(count($response['product']));
 
             return $response;
         } catch (Throwable $e) {
