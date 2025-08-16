@@ -297,6 +297,7 @@ input PaymentCustomFieldInput {
 input TransitionOrderStatusInput {
     order_id: ID!
     status_slug: String!
+    date: String
 }
 
 type OrderStatusTransitionResult {
