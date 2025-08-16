@@ -9,14 +9,16 @@ use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+
 use function Sentry\captureException;
+
 class ScraperProductAction extends ScraperAction
 {
     public function execute(): array
     {
         $repository = new ScrapingDogRepository($this->app);
         $results = $repository->getSearch($this->search)['results'] ?? [];
-        
+
         $app = $this->app;
         $user = $this->user;
         $companyBranch = $this->companyBranch;
