@@ -14,6 +14,7 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\Souk\Orders\Notifications\NewOrderStoreOwnerNotification;
+use Kanvas\Souk\Orders\Validations\DuplicatedMetadata;
 use Kanvas\Souk\Orders\Validations\UniqueOrderNumber;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Users\Services\UserRoleNotificationService;
@@ -44,8 +45,14 @@ class CreateOrderAction
 
             // Additional validation
             $validator = Validator::make(
-                ['order_number' => $this->orderData->orderNumber],
-                ['order_number' => new UniqueOrderNumber($this->orderData->app, $this->orderData->company, $this->orderData->region)]
+                [
+                    'order_number' => $this->orderData->orderNumber,
+                    'metadata' => $this->orderData->metadata,
+                ],
+                [
+                    'order_number' => new UniqueOrderNumber($this->orderData->app, $this->orderData->company, $this->orderData->region),
+                    'metadata' => new DuplicatedMetadata($this->orderData->app, $this->orderData->company),
+                ]
             );
 
             if ($validator->fails()) {
