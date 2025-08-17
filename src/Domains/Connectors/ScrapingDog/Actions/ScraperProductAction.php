@@ -74,6 +74,12 @@ class ScraperProductAction extends ScraperAction
                     'sku' => $product['asin'],
                     'slug' => $product['asin'],
                     'source_id' => $product['asin'],
+                    'files' => [
+                        [
+                            'url' => $product['image'],
+                            'name' => 'main_image',
+                        ],
+                    ],
                     'channels' => [
                         [
                             'price' => $price,
