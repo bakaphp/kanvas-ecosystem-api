@@ -55,6 +55,7 @@ use Spatie\LaravelData\DataCollection;
  * @property float|null $shipping_price_gross_amount
  * @property float|null $shipping_price_net_amount
  * @property float|null $discount_amount
+ * @property float|null $tax_amount
  * @property string|null $discount_name
  * @property int|null $voucher_id
  * @property string|null $language_code

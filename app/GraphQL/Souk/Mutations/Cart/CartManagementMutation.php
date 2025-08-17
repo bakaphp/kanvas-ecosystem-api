@@ -146,8 +146,7 @@ class CartManagementMutation
                     'minimum' => $discount->min_order_value ?? 0,
                     'order' => 1,
                     'attributes' => [
-                        'discount_id' => $discount->id,
-                        'discount_name' => $discount->name,
+                        'discount_code' => $discount->code,
                         'discount_type' => $discount->discountType->name,
                         'max_discount_amount' => $discount->max_discount_amount,
                     ],
@@ -165,8 +164,7 @@ class CartManagementMutation
                             'minimum' => $discount->min_order_value ?? 0,
                             'order' => 1,
                             'attributes' => [
-                                'discount_id' => $discount->id,
-                                'discount_name' => $discount->name,
+                                'discount_code' => $discount->code,
                                 'discount_type' => $discount->discountType->name,
                                 'max_discount_applied' => true,
                             ],

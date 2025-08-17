@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Discounts\Models;
 
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Souk\Models\BaseModel;
@@ -22,6 +23,8 @@ use Kanvas\Souk\Models\BaseModel;
  */
 class DiscountCondition extends BaseModel
 {
+    use NoCompanyRelationshipTrait;
+
     protected $table = 'discount_conditions';
     protected $guarded = [];
 

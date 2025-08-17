@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Discounts\Models;
 
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Models\OrderItem;
@@ -22,6 +23,8 @@ use Kanvas\Souk\Orders\Models\OrderItem;
  */
 class OrderItemDiscount extends BaseModel
 {
+    use NoCompanyRelationshipTrait;
+    
     protected $table = 'order_item_discounts';
     protected $guarded = [];
 

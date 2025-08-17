@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Discounts\Models;
 
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Souk\Models\BaseModel;
 
@@ -20,6 +21,8 @@ use Kanvas\Souk\Models\BaseModel;
  */
 class DiscountType extends BaseModel
 {
+    use NoCompanyRelationshipTrait;
+    
     protected $table = 'discount_types';
     protected $guarded = [];
 

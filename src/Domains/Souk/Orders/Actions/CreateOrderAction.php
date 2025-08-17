@@ -69,6 +69,7 @@ class CreateOrderAction
             $order->shipping_price_gross_amount = $this->orderData->totalShipping;
             $order->shipping_price_net_amount = $this->orderData->totalShipping;
             $order->discount_amount = $this->orderData->totalDiscount;
+            $order->tax_amount = $this->orderData->taxes;
             $order->status = $this->orderData->status;
             $order->shipping_method_name = $this->orderData->shippingMethod;
             $order->fulfillment_status = $this->orderData->fulfillmentStatus;
