@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Observers;
 
-use Kanvas\Guild\Customers\Events\OrderUpdateEvent;
+use Kanvas\Souk\Orders\Events\OrderUpdateEvent;
 use Kanvas\Souk\Orders\Models\Order;
 
 class OrderObserver
