@@ -75,7 +75,7 @@ class ScraperProductAction extends ScraperAction
                     'channels' => [
                         [
                             'price' => $price,
-                            'discount_price' => $price,
+                            'discounted_price' => $price,
                             'is_published' => true,
                             'warehouses_id' => $warehouse->getId(),
                             'channels_id' => $channels->getId(),
