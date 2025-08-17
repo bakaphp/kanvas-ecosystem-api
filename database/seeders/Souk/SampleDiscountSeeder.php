@@ -22,8 +22,9 @@ class SampleDiscountSeeder extends Seeder
         $company = Companies::first();
         $user = Users::first();
 
-        if (!$app || !$company || !$user) {
+        if (! $app || ! $company || ! $user) {
             $this->command->warn('Skipping sample discounts - no app, company, or user found');
+
             return;
         }
 

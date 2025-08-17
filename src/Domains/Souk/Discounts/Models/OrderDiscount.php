@@ -24,7 +24,7 @@ use Kanvas\Souk\Orders\Models\Order;
 class OrderDiscount extends BaseModel
 {
     use NoCompanyRelationshipTrait;
-    
+
     protected $table = 'order_discounts';
     protected $guarded = [];
 

@@ -22,7 +22,7 @@ use Kanvas\Souk\Models\BaseModel;
 class DiscountConditionValue extends BaseModel
 {
     use NoCompanyRelationshipTrait;
-    
+
     protected $table = 'discount_condition_values';
     protected $guarded = [];
 
