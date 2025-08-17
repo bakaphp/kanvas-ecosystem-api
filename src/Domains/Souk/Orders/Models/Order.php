@@ -19,6 +19,7 @@ use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
@@ -136,6 +137,11 @@ class Order extends BaseModel
     public function payments(): MorphMany
     {
         return $this->morphMany(Payments::class, 'payable');
+    }
+
+    public function orderDiscounts(): HasMany
+    {
+        return $this->hasMany(OrderDiscount::class, 'order_id', 'id');
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder
