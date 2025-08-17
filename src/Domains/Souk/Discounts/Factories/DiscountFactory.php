@@ -2,18 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Database\Factories\Souk\Discounts;
+namespace Kanvas\Souk\Discounts\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\DiscountType;
+use Override;
 
 class DiscountFactory extends Factory
 {
     protected $model = Discount::class;
 
+    #[Override]
     public function definition(): array
     {
         $isPercentage = $this->faker->boolean();
@@ -21,9 +23,13 @@ class DiscountFactory extends Factory
             ? $this->faker->randomFloat(2, 5, 50) // 5% to 50%
             : $this->faker->randomFloat(2, 5, 100); // $5 to $100
 
+        $app = app(Apps::class);
+        $appId = $this->states['apps_id'] ?? $app->getId(); // Use the provided app ID if set
+        $companyId = $this->states['companies_id'] ?? Companies::factory()->create()->getId(); // Use the provided company ID if set
+
         return [
-            'apps_id' => Apps::factory(),
-            'companies_id' => Companies::factory(),
+            'apps_id' => $appId,
+            'companies_id' => $companyId,
             'name' => $this->faker->catchPhrase() . ' Sale',
             'description' => $this->faker->sentence(),
             'discount_type_id' => DiscountType::factory(),
@@ -40,6 +46,24 @@ class DiscountFactory extends Factory
             'is_one_per_customer' => $this->faker->boolean(30), // 30% chance of one per customer
             'is_deleted' => false,
         ];
+    }
+
+    public function withAppId(int $appId)
+    {
+        return $this->state(function (array $attributes) use ($appId) {
+            return [
+                'apps_id' => $appId,
+            ];
+        });
+    }
+
+    public function withCompanyId(int $companyId)
+    {
+        return $this->state(function (array $attributes) use ($companyId) {
+            return [
+                'companies_id' => $companyId,
+            ];
+        });
     }
 
     public function percentage(): self

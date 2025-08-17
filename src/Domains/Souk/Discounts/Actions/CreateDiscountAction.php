@@ -21,26 +21,30 @@ class CreateDiscountAction
 
     public function execute(): Discount
     {
-        $discount = new Discount();
-        $discount->apps_id = $this->app->getId();
-        $discount->companies_id = $this->company->getId();
-        $discount->name = $this->data->name;
-        $discount->description = $this->data->description;
-        $discount->discount_type_id = $this->data->discount_type_id;
-        $discount->value = $this->data->value;
-        $discount->is_percentage = $this->data->is_percentage;
-        $discount->min_order_value = $this->data->min_order_value ?? null;
-        $discount->max_discount_amount = $this->data->max_discount_amount;
-        $discount->code = $this->data->code;
-        $discount->start_date = $this->data->start_date === null ? null : Carbon::instance($this->data->start_date);
-        $discount->end_date = $this->data->end_date === null ? null : Carbon::instance($this->data->end_date);
-        $discount->is_active = $this->data->is_active;
-        $discount->usage_limit = $this->data->usage_limit ?? null;
-        $discount->is_one_per_customer = $this->data->is_one_per_customer;
-        $discount->saveOrFail();
+        $discount = Discount::firstOrCreate(
+            [
+            'code' => $this->data->code,
+            'apps_id' => $this->app->getId(),
+            'companies_id' => $this->company->getId(),
+            ],
+            [
+            'name' => $this->data->name,
+            'description' => $this->data->description,
+            'discount_type_id' => $this->data->discount_type_id,
+            'value' => $this->data->value,
+            'is_percentage' => $this->data->is_percentage,
+            'min_order_value' => $this->data->min_order_value ?? null,
+            'max_discount_amount' => $this->data->max_discount_amount,
+            'start_date' => $this->data->start_date === null ? null : Carbon::instance($this->data->start_date),
+            'end_date' => $this->data->end_date === null ? null : Carbon::instance($this->data->end_date),
+            'is_active' => $this->data->is_active,
+            'usage_limit' => $this->data->usage_limit ?? null,
+            'is_one_per_customer' => $this->data->is_one_per_customer,
+            ]
+        );
 
         // Create conditions if provided
-        if ($this->data->conditions->isNotEmpty()) {
+        if ($this->data->conditions->count()) {
             foreach ($this->data->conditions as $conditionData) {
                 $action = new CreateDiscountConditionAction($this->app, $discount, $conditionData);
                 $action->execute();

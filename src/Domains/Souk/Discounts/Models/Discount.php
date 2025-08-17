@@ -7,8 +7,10 @@ namespace Kanvas\Souk\Discounts\Models;
 use Baka\Traits\UuidTrait;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Souk\Discounts\Factories\DiscountFactory;
 use Kanvas\Souk\Discounts\Observers\DiscountObserver;
 use Kanvas\Souk\Models\BaseModel;
 
@@ -41,6 +43,7 @@ use Kanvas\Souk\Models\BaseModel;
 class Discount extends BaseModel
 {
     use UuidTrait;
+    use HasFactory;
 
     protected $table = 'discounts';
     protected $guarded = [];
@@ -146,5 +149,11 @@ class Discount extends BaseModel
         }
 
         return min($discountAmount, $orderValue);
+    }
+
+    #[Override]
+    protected static function newFactory()
+    {
+        return new DiscountFactory();
     }
 }

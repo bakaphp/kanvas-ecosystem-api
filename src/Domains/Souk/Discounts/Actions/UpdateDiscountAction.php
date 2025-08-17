@@ -34,7 +34,7 @@ class UpdateDiscountAction
         $this->discount->saveOrFail();
 
         // Update conditions if provided
-        if ($this->data->conditions->isNotEmpty()) {
+        if ($this->data->conditions->count()) {
             // Remove existing conditions
             $this->discount->conditions()->delete();
 
