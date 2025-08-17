@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Souk\Discounts\Factories\DiscountFactory;
 use Kanvas\Souk\Discounts\Observers\DiscountObserver;
 use Kanvas\Souk\Models\BaseModel;
+use Override;
 
 /**
  * Class Discount

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Souk\Discounts\Factories\DiscountTypeFactory;
 use Kanvas\Souk\Models\BaseModel;
+use Override;
 
 /**
  * Class DiscountType
