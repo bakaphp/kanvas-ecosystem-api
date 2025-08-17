@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Discounts\Actions;
 
 use Exception;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Discounts\Services\DiscountService;

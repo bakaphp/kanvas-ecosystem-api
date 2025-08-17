@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Cart;
 
-use Illuminate\Support\Facades\App;
 use Joelwmale\Cart\CartCondition;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -79,12 +78,13 @@ class CartManagementMutation
         $company = $user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company;
 
         $discountCodes = $request['discountCodes'] ?? [];
-        
+
         // Clear existing discount conditions
         $cart->clearConditions('discount');
 
         if (empty($discountCodes)) {
             $cartService = new CartService($cart);
+
             return $cartService->getCart();
         }
 
@@ -98,12 +98,12 @@ class CartManagementMutation
                     ->where('is_active', true)
                     ->first();
 
-                if (!$discount) {
+                if (! $discount) {
                     throw new ModelNotFoundException('Discount code not found: ' . $discountCode);
                 }
 
                 // Validate if discount can be used
-                if (!$discount->canBeUsed()) {
+                if (! $discount->canBeUsed()) {
                     throw new ModelNotFoundException('Discount code is not valid or has expired: ' . $discountCode);
                 }
 
@@ -119,7 +119,7 @@ class CartManagementMutation
                             $query->where('users_id', $user->getId());
                         })
                         ->exists();
-                    
+
                     if ($hasUsed) {
                         throw new ModelNotFoundException('You have already used this discount code: ' . $discountCode);
                     }
@@ -127,14 +127,14 @@ class CartManagementMutation
 
                 // Calculate cart subtotal for validation
                 $cartSubtotal = $cart->getSubTotal();
-                
+
                 // Check minimum order value
                 if ($discount->min_order_value && $cartSubtotal < $discount->min_order_value) {
                     throw new ModelNotFoundException('Minimum order value of $' . $discount->min_order_value . ' required for discount: ' . $discountCode);
                 }
 
                 // Apply the discount as a cart condition
-                $discountValue = $discount->is_percentage 
+                $discountValue = $discount->is_percentage
                     ? '-' . $discount->value . '%'
                     : '-' . $discount->value;
 
@@ -149,8 +149,8 @@ class CartManagementMutation
                         'discount_id' => $discount->id,
                         'discount_name' => $discount->name,
                         'discount_type' => $discount->discountType->name,
-                        'max_discount_amount' => $discount->max_discount_amount
-                    ]
+                        'max_discount_amount' => $discount->max_discount_amount,
+                    ],
                 ]);
 
                 // Apply max discount amount if set
@@ -168,22 +168,22 @@ class CartManagementMutation
                                 'discount_id' => $discount->id,
                                 'discount_name' => $discount->name,
                                 'discount_type' => $discount->discountType->name,
-                                'max_discount_applied' => true
-                            ]
+                                'max_discount_applied' => true,
+                            ],
                         ]);
                     }
                 }
 
                 $cart->condition($cartCondition);
-                
+
                 // Only apply the first valid discount code
                 break;
-                
             } catch (ModelNotFoundException $e) {
                 // If we have multiple codes, try the next one
                 if (count($discountCodes) === 1) {
                     throw $e;
                 }
+
                 continue;
             }
         }
