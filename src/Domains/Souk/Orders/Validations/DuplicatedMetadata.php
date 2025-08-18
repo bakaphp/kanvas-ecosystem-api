@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Validations;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Carbon;
@@ -13,7 +15,8 @@ use Kanvas\Souk\Orders\Models\Order;
 class DuplicatedMetadata implements ValidationRule
 {
     public function __construct(
-        private $app
+        private AppInterface $app,
+        private CompanyInterface $company
     ) {
     }
 
@@ -41,7 +44,7 @@ class DuplicatedMetadata implements ValidationRule
         }
     }
 
-    private function getConfigFromAppSettings()
+    private function getConfigFromAppSettings(): array
     {
         return [
             'field' => $this->app->get('validate_metadata_duplicated_field', 'data.tracking_id'),
@@ -50,7 +53,7 @@ class DuplicatedMetadata implements ValidationRule
         ];
     }
 
-    private function isDuplicate($value, $settings)
+    private function isDuplicate(mixed $value, array $settings): bool
     {
         if ($settings['use_cache']) {
             $cacheKey = "souk_unique_{$this->app->id}_{$settings['field']}_{$value}";
@@ -63,7 +66,7 @@ class DuplicatedMetadata implements ValidationRule
         return $this->queryDuplicate($value, $settings);
     }
 
-    private function queryDuplicate($value, $settings)
+    private function queryDuplicate(mixed $value, array $settings): bool
     {
         // Convert dot notation to JSON path for whereJsonContains
         $jsonPath = str_replace('.', '->', $settings['field']);
@@ -74,7 +77,7 @@ class DuplicatedMetadata implements ValidationRule
             ->exists();
     }
 
-    private function extractFieldValue($metadata, $fieldPath)
+    private function extractFieldValue(mixed $metadata, string $fieldPath): mixed
     {
         $parts = explode('.', $fieldPath);
         $value = $metadata;

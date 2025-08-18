@@ -19,8 +19,13 @@ class GetOrderStatsAction
     ) {
     }
 
-    public function execute(?string $date, ?string $startDate, ?string $endDate, ?string $baseDate = null, ?string $timezone = 'UTC'): array
-    {
+    public function execute(
+        ?string $date = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?string $baseDate = null,
+        string $timezone = 'UTC'
+    ): array {
         if ($date && (! $startDate || ! $endDate)) {
             $start = Carbon::parse($date, $timezone)->startOfDay()->timezone('UTC');
             $end   = Carbon::parse($date, $timezone)->endOfDay()->timezone('UTC');
@@ -199,7 +204,7 @@ class GetOrderStatsAction
         return $dates;
     }
 
-    private function getCurrentCount(?string $baseDate = null, ?string $timezone = 'UTC'): int
+    private function getCurrentCount(?string $baseDate = null, string $timezone = 'UTC'): int
     {
         return Order::query()
             ->where('apps_id', $this->app->id)
