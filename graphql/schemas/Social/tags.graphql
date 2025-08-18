@@ -67,6 +67,7 @@ extend type Query @guard {
                     "weight"
                     "status"
                     "is_feature"
+                    "users_id"
                 ]
             )
         orderBy: _
