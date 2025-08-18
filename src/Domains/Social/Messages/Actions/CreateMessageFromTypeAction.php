@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use InvalidArgumentException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -34,13 +33,7 @@ class CreateMessageFromTypeAction
             $data = json_decode($data, true);
         }
 
-        $template = json_decode($messageType->template, true);
-
-        if (! $template) {
-            throw new InvalidArgumentException('Invalid JSON template');
-        }
-
-        $mappedMessage['message'] = $this->mapDataToTemplate($template, $data);
+        $mappedMessage['message'] = $this->mapDataToTemplate($messageType->template, $data);
         $messageDto = MessageInput::fromArray(
             $mappedMessage,
             $this->user,
