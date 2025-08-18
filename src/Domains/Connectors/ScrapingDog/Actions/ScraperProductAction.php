@@ -26,6 +26,7 @@ class ScraperProductAction extends ScraperAction
         $products = [];
         foreach ($results as $result) {
             $data = $this->mapProduct($result);
+
             try {
                 $product = (
                     new ProductImporterAction(
@@ -37,13 +38,16 @@ class ScraperProductAction extends ScraperAction
                         true
                     )
                 )->execute();
+                config()->set('scout.queue', false);
                 $product->searchable();
                 $products[] = $product['id'];
             } catch (\Throwable $e) {
                 captureException($e);
+
                 continue;
             }
         }
+
         return $products;
     }
 
