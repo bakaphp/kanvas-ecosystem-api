@@ -69,8 +69,9 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 Regions::getById($this->receiver->configuration['region_id']),
                 $result
             ));
-            $action->execute();
-            $variant->product->set(ConfigEnum::VARIANT_DOWNLOAD->value, 1);
+            if ($action->execute()) {
+                $variant->product->set(ConfigEnum::VARIANT_DOWNLOAD->value, 1);
+            }
         }
 
         $product = new ScrapingDogRepository($this->receiver->app)->getByAsin($variant->sku);
