@@ -29,6 +29,7 @@ type Order {
     shipping_price_gross_amount: Money!
     shipping_price_net_amount: Money!
     discount_amount: Money!
+    tax_amount: Money!
     discount_name: String
     voucher_id: Int
     language_code: String

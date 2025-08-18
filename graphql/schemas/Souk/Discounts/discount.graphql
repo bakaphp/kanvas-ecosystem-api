@@ -1,0 +1,169 @@
+type Discount {
+    id: ID!
+    uuid: String!
+    name: String!
+    description: String
+    discount_type: DiscountType! @belongsTo(relation: "discountType")
+    value: Float!
+    is_percentage: Boolean!
+    min_order_value: Float
+    max_discount_amount: Float
+    code: String
+    start_date: DateTime
+    end_date: DateTime
+    is_active: Boolean!
+    usage_limit: Int
+    usage_count: Int!
+    is_one_per_customer: Boolean!
+    company: Company! @belongsTo
+    conditions: [DiscountCondition!] @hasMany
+    order_discounts: [OrderDiscount!] @hasMany(relation: "orderDiscounts")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type DiscountType {
+    id: ID!
+    name: String!
+    description: String
+    discounts: [Discount!] @hasMany
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type DiscountCondition {
+    id: ID!
+    discount: Discount! @belongsTo
+    type: String!
+    operator: String!
+    values: [DiscountConditionValue!] @hasMany
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type DiscountConditionValue {
+    id: ID!
+    condition: DiscountCondition! @belongsTo
+    value: String!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type OrderDiscount {
+    id: ID!
+    order: Order! @belongsTo
+    discount: Discount! @belongsTo
+    amount: Float!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type OrderItemDiscount {
+    id: ID!
+    order_item: OrderItem! @belongsTo(relation: "orderItem")
+    discount: Discount! @belongsTo
+    amount: Float!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input DiscountInput {
+    name: String!
+    description: String!
+    discount_type_id: ID!
+    value: Float!
+    is_percentage: Boolean = false
+    min_order_value: Float
+    max_discount_amount: Float
+    code: String
+    start_date: DateTime
+    end_date: DateTime
+    is_active: Boolean = true
+    usage_limit: Int
+    is_one_per_customer: Boolean = false
+    conditions: [DiscountConditionInput!]
+}
+
+input DiscountConditionInput {
+    type: DiscountConditionType!
+    operator: DiscountConditionOperator = IN
+    values: [String!]!
+}
+
+enum DiscountConditionType {
+    PRODUCT @enum(value: "product")
+    CATEGORY @enum(value: "category")
+    VARIANT @enum(value: "variant")
+    CUSTOMER @enum(value: "customer")
+    CUSTOMER_GROUP @enum(value: "customer_group")
+}
+
+enum DiscountConditionOperator {
+    IN @enum(value: "in")
+    NOT_IN @enum(value: "not_in")
+}
+
+type DiscountApplyResult {
+    success: Boolean!
+    message: String
+    discount: Discount
+    amount: Float
+}
+
+extend type Query @guardByAppKey {
+    discounts(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "name"
+                    "discount_type_id"
+                    "value"
+                    "is_percentage"
+                    "min_order_value"
+                    "max_discount_amount"
+                    "code"
+                    "start_date"
+                    "end_date"
+                    "is_active"
+                    "usage_limit"
+                    "is_one_per_customer"
+                ]
+            )
+    ): [Discount!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Discounts\\Models\\Discount"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    discountTypes(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name"])
+    ): [DiscountType!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Discounts\\Models\\DiscountType"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+}
+
+extend type Mutation @guardByAppKey {
+    createDiscount(input: DiscountInput!): Discount!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Discounts\\DiscountManagementMutation@create"
+        )
+
+    updateDiscount(id: ID!, input: DiscountInput!): Discount!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Discounts\\DiscountManagementMutation@update"
+        )
+
+    deleteDiscount(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Discounts\\DiscountManagementMutation@delete"
+        )
+}
