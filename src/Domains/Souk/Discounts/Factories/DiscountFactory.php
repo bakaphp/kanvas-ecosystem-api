@@ -35,7 +35,7 @@ class DiscountFactory extends Factory
             'discount_type_id' => DiscountType::factory(),
             'value' => $value,
             'is_percentage' => $isPercentage,
-            'min_order_value' => $this->faker->optional(0.5)->randomFloat(2, 20, 200),
+            'min_order_value' => 0, //$this->faker->optional(0.5)->randomFloat(2, 20, 200),
             'max_discount_amount' => $isPercentage ? $this->faker->optional(0.3)->randomFloat(2, 10, 100) : null,
             'code' => strtoupper($this->faker->unique()->lexify('????') . $this->faker->numerify('##')),
             'start_date' => $this->faker->optional(0.7)->dateTimeBetween('-1 month', '+1 month'),

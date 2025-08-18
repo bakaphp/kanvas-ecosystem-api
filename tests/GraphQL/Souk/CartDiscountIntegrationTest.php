@@ -109,7 +109,7 @@ class CartDiscountIntegrationTest extends TestCase
         $total = $response->json('data.cartDiscountCodesUpdate.total');
 
         // Subtotal should be the original price
-        $expectedSubtotal = $variantWarehouse->price;
+        $expectedSubtotal = $variantWarehouse->variant->getPriceInfoFromDefaultChannel()->price;
         $expectedTotal = $expectedSubtotal * 0.9; // 10% discount
 
         $this->assertEquals($expectedSubtotal, $subtotal);
@@ -251,6 +251,7 @@ class CartDiscountIntegrationTest extends TestCase
         $region = $variantWarehouse->warehouse->region;
         $company = $region->company;
         $uuid = Str::uuid();
+        $app = app(Apps::class);
 
         $this->app['auth']->forgetGuards();
 
@@ -261,27 +262,23 @@ class CartDiscountIntegrationTest extends TestCase
             'description' => 'Percentage discount',
         ]);
 
-        // Create a test discount using mutation
-        $createDiscountResponse = $this->graphQL('
-            mutation createDiscount($input: DiscountInput!) {
-                createDiscount(input: $input) {
-                    id
-                    code
-                }
-            }
-        ', [
-            'input' => [
-                'name' => 'Order Test Discount',
-                'code' => 'ORDERTEST15',
-                'discount_type_id' => $discountType->id,
-                'value' => 15,
-                'is_percentage' => true,
-                'is_active' => true,
-            ],
-        ]);
+        $discountFactory = Discount::fromCompany($company)->fromApp($app)->where('code', 'ORDERTEST15')->first();
 
-        $discountId = $createDiscountResponse->json('data.createDiscount.id');
-        $discountCode = $createDiscountResponse->json('data.createDiscount.code');
+        if (! $discountFactory) {
+            $discountFactory = Discount::factory()->withCompanyId($company->id)->create([
+            'name' => 'Order Test Discount',
+            'description' => 'Order Test Discount',
+            'code' => 'ORDERTEST15',
+            'discount_type_id' => $discountType->id,
+            'companies_id' => $company->id,
+            'value' => 15,
+            'is_percentage' => true,
+            'is_active' => true,
+            ]);
+        }
+
+        $discountId = $discountFactory->id;
+        $discountCode = $discountFactory->code;
 
         // Add item to cart
         $this->graphQL('
@@ -318,7 +315,7 @@ class CartDiscountIntegrationTest extends TestCase
         ]);
 
         // Verify discount was applied to cart
-        $expectedSubtotal = $variantWarehouse->price;
+        $expectedSubtotal = $variantWarehouse->variant->getPriceInfoFromDefaultChannel()->price;
         $expectedTotal = $expectedSubtotal * 0.85; // 15% off
 
         $this->assertEquals($expectedSubtotal, $cartResponse->json('data.cartDiscountCodesUpdate.subtotal'));
