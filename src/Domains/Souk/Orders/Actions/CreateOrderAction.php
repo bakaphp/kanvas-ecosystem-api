@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
@@ -32,11 +33,20 @@ class CreateOrderAction
     {
         $orderId = DB::connection('commerce')->transaction(function () {
             // Lock the table for uniqueness check
-            $existingOrder = ModelsOrder::where([
+            $existingOrderQuery = ModelsOrder::where([
                 'apps_id' => $this->orderData->app->getId(),
-                'companies_id' => $this->orderData->company->getId(),
                 'order_number' => $this->orderData->orderNumber,
-            ])->lockForUpdate()->first();
+            ]);
+
+            // Check if B2B mode is enabled (app-wise numbering only)
+            $isB2BMode = $this->orderData->app->get(B2BSettingsEnums::B2B_APP_WISE_ORDER_NUMBERING->getValue()) === '1';
+
+            if (! $isB2BMode) {
+                // Default mode: check uniqueness within company as well
+                $existingOrderQuery->where('companies_id', $this->orderData->company->getId());
+            }
+
+            $existingOrder = $existingOrderQuery->lockForUpdate()->first();
 
             if ($existingOrder) {
                 throw new ValidationException('Order number already exists');

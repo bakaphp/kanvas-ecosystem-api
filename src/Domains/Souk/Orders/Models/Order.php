@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
@@ -276,8 +277,9 @@ class Order extends BaseModel
     public function generateOrderNumber(): int
     {
         // Lock the orders table while retrieving the order with the highest order_number
-        $lastOrder = Order::where('companies_id', $this->companies_id)
-            ->where('apps_id', $this->apps_id)
+        $isB2BMode = $this->app->get(B2BSettingsEnums::B2B_APP_WISE_ORDER_NUMBERING->getValue()) === '1';
+        $lastOrder = Order::where('apps_id', $this->apps_id)
+            ->when(! $isB2BMode, fn ($q) => $q->where('companies_id', $this->companies_id))
             ->lockForUpdate() // Ensure no race conditions
             ->orderBy('order_number', 'desc') // Order by the actual order_number field
             ->first();
