@@ -38,7 +38,7 @@ class ScraperProductAction extends ScraperAction
                         true
                     )
                 )->execute();
-                config()->set('scout.queue', false);
+                // config()->set('scout.queue', false);
                 $product->searchable();
                 $products[] = $product['id'];
             } catch (\Throwable $e) {
@@ -56,14 +56,14 @@ class ScraperProductAction extends ScraperAction
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
         $channels = Channels::getDefault($this->companyBranch->company);
         $price = str_replace(['$', ','], '', $product['price'] ?? '0');
-
+        $asin = $product['parent_asin'] ?? $product['asin'];
         return [
             'name' => $product['title'],
             'description' => $product['description'] ?? '',
-            'slug' => $product['asin'],
-            'sku' => $product['asin'],
+            'slug' => $asin,
+            'sku' => $asin,
             'source' => 'amazon',
-            'source_id' => $product['parent_asin'] ?? $product['asin'],
+            'source_id' => $asin,
             'files' => [
                 [
                     'url' => $product['image'],
@@ -75,9 +75,9 @@ class ScraperProductAction extends ScraperAction
             'variants' => [
                 [
                     'name' => $product['title'],
-                    'sku' => $product['asin'],
-                    'slug' => $product['asin'],
-                    'source_id' => $product['asin'],
+                    'sku' => $asin,
+                    'slug' => $asin,
+                    'source_id' => $asin,
                     'files' => [
                         [
                             'url' => $product['image'],
