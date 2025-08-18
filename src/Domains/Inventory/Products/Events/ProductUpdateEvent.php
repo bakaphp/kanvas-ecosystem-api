@@ -9,7 +9,7 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Products\Models\Products;
 use Override;
 
 class ProductUpdateEvent implements ShouldBroadcast
@@ -18,26 +18,26 @@ class ProductUpdateEvent implements ShouldBroadcast
     use Dispatchable;
     use InteractsWithSockets;
 
-    public function __construct(protected People $people)
+    public function __construct(protected Products $product)
     {
     }
 
     public function broadcastWith(): array
     {
         return [
-            'id' => $this->people->id,
-            'name' => $this->people->name,
+            'id' => $this->product->id,
+            'name' => $this->product->name,
         ];
     }
 
     #[Override]
     public function broadcastOn(): Channel
     {
-        return new Channel('people-' . $this->people->uuid);
+        return new Channel('product-' . $this->product->uuid);
     }
 
     public function broadcastAs(): string
     {
-        return 'people.updated';
+        return 'product.updated';
     }
 }

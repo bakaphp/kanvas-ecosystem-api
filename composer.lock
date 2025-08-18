@@ -5021,6 +5021,70 @@
             "time": "2025-02-12T13:19:02+00:00"
         },
         {
+            "name": "laravel-notification-channels/expo",
+            "version": "v2.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel-notification-channels/expo.git",
+                "reference": "4a01760a361de6ca61d022d4a3e4efce54bdd74b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel-notification-channels/expo/zipball/4a01760a361de6ca61d022d4a3e4efce54bdd74b",
+                "reference": "4a01760a361de6ca61d022d4a3e4efce54bdd74b",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "guzzlehttp/guzzle": "^7.1",
+                "illuminate/contracts": "^11.0|^12.0",
+                "illuminate/notifications": "^11.0|^12.0",
+                "illuminate/support": "^11.0|^12.0",
+                "php": "~8.3"
+            },
+            "require-dev": {
+                "larastan/larastan": "^3.0",
+                "laravel/pint": "^1.0",
+                "orchestra/testbench": "^9.11",
+                "phpunit/phpunit": "^11.0"
+            },
+            "suggest": {
+                "ext-zlib": "Required for compressing payloads exceeding 1 KiB in size."
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "NotificationChannels\\Expo\\ExpoServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "NotificationChannels\\Expo\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Muhammed Sari",
+                    "email": "muhammed@dive.be",
+                    "homepage": "https://dive.be",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Expo Notifications Channel for Laravel",
+            "homepage": "https://github.com/laravel-notification-channels/expo",
+            "support": {
+                "issues": "https://github.com/laravel-notification-channels/expo/issues",
+                "source": "https://github.com/laravel-notification-channels/expo/tree/v2.1.0"
+            },
+            "time": "2025-02-24T22:52:18+00:00"
+        },
+        {
             "name": "laravel-workflow/laravel-workflow",
             "version": "1.0.34",
             "source": {
