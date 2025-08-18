@@ -49,17 +49,21 @@ class Discount extends BaseModel
     protected $table = 'discounts';
     protected $guarded = [];
 
-    protected $casts = [
-        'value' => 'float',
-        'min_order_value' => 'float',
-        'max_discount_amount' => 'float',
-        'is_percentage' => 'boolean',
-        'is_active' => 'boolean',
-        'is_one_per_customer' => 'boolean',
-        'is_deleted' => 'boolean',
-        'start_date' => 'datetime',
-        'end_date' => 'datetime',
-    ];
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'value' => 'float',
+            'min_order_value' => 'float',
+            'max_discount_amount' => 'float',
+            'is_percentage' => 'boolean',
+            'is_active' => 'boolean',
+            'is_one_per_customer' => 'boolean',
+            'is_deleted' => 'boolean',
+            'start_date' => 'datetime',
+            'end_date' => 'datetime',
+        ];
+    }
 
     public function discountType(): BelongsTo
     {

@@ -8,6 +8,7 @@ use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Models\Order;
+use Override;
 
 /**
  * Class OrderDiscount
@@ -28,10 +29,14 @@ class OrderDiscount extends BaseModel
     protected $table = 'order_discounts';
     protected $guarded = [];
 
-    protected $casts = [
-        'amount' => 'float',
-        'is_deleted' => 'boolean',
-    ];
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'amount' => 'float',
+            'is_deleted' => 'boolean',
+        ];
+    }
 
     public function order(): BelongsTo
     {

@@ -8,6 +8,7 @@ use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Souk\Models\BaseModel;
+use Override;
 
 /**
  * Class DiscountCondition
@@ -28,9 +29,13 @@ class DiscountCondition extends BaseModel
     protected $table = 'discount_conditions';
     protected $guarded = [];
 
-    protected $casts = [
-        'is_deleted' => 'boolean',
-    ];
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+             'is_deleted' => 'boolean',
+        ];
+    }
 
     public function discount(): BelongsTo
     {
