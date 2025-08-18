@@ -64,6 +64,7 @@ use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use NotificationChannels\Expo\ExpoPushToken;
 use Override;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
@@ -433,6 +434,23 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function linkedSources(): HasMany
     {
         return $this->hasMany(UserLinkedSources::class, 'users_id');
+    }
+
+    /**
+     * Expo push notification
+     * @return Collection<int, ExpoPushToken>
+     */
+    public function routeNotificationForExpo(): Collection
+    {
+        return $this->linkedSources()
+            ->whereHas('source', function ($query) {
+                $query->where('name', 'expo');
+            })
+            ->get()
+            ->map(function ($source) {
+                return ExpoPushToken::make($source->source_users_id_text);
+            })
+            ->filter();
     }
 
     public function channels(): BelongsToMany
