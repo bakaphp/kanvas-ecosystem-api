@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a748379d1b3541825eeab8455e1254f4",
+    "content-hash": "37a796776e3ad74bc1dc45672544605b",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -3042,7 +3042,7 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.407.0",
+            "version": "v0.408.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
@@ -3080,7 +3080,7 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.407.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.408.0"
             },
             "time": "2025-06-04T17:28:44+00:00"
         },
@@ -4553,16 +4553,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.16.20",
+            "version": "1.16.21",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "769a570bd544e1ce96e86709f320e97d9ae3f9b1"
+                "reference": "9f8b20849c0d5e7567638df8c926767cdeab9bac"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/769a570bd544e1ce96e86709f320e97d9ae3f9b1",
-                "reference": "769a570bd544e1ce96e86709f320e97d9ae3f9b1",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/9f8b20849c0d5e7567638df8c926767cdeab9bac",
+                "reference": "9f8b20849c0d5e7567638df8c926767cdeab9bac",
                 "shasum": ""
             },
             "require": {
@@ -4616,9 +4616,9 @@
             "description": "The AI Agent Development Kit for PHP.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.16.20"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.16.21"
             },
-            "time": "2025-08-16T15:14:27+00:00"
+            "time": "2025-08-18T09:37:46+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -11881,16 +11881,16 @@
         },
         {
             "name": "smalot/pdfparser",
-            "version": "v2.12.0",
+            "version": "v2.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/smalot/pdfparser.git",
-                "reference": "8440edbf58c8596074e78ada38dcb0bd041a5948"
+                "reference": "98d31ba34ef5b5a98897ef4b6c3925d502ea53b1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/8440edbf58c8596074e78ada38dcb0bd041a5948",
-                "reference": "8440edbf58c8596074e78ada38dcb0bd041a5948",
+                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/98d31ba34ef5b5a98897ef4b6c3925d502ea53b1",
+                "reference": "98d31ba34ef5b5a98897ef4b6c3925d502ea53b1",
                 "shasum": ""
             },
             "require": {
@@ -11926,9 +11926,9 @@
             ],
             "support": {
                 "issues": "https://github.com/smalot/pdfparser/issues",
-                "source": "https://github.com/smalot/pdfparser/tree/v2.12.0"
+                "source": "https://github.com/smalot/pdfparser/tree/v2.12.1"
             },
-            "time": "2025-03-31T13:16:09+00:00"
+            "time": "2025-07-31T06:19:56+00:00"
         },
         {
             "name": "spatie/enum",
@@ -12384,16 +12384,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.34.5",
+            "version": "1.34.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "8487a3a43551f3d24e73546362f93da2684a0a3a"
+                "reference": "da949c364611e0f2ce5cf9723f7786c60485b66d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/8487a3a43551f3d24e73546362f93da2684a0a3a",
-                "reference": "8487a3a43551f3d24e73546362f93da2684a0a3a",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/da949c364611e0f2ce5cf9723f7786c60485b66d",
+                "reference": "da949c364611e0f2ce5cf9723f7786c60485b66d",
                 "shasum": ""
             },
             "require": {
@@ -12465,7 +12465,7 @@
                 "spatie"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-health/tree/1.34.5"
+                "source": "https://github.com/spatie/laravel-health/tree/1.34.6"
             },
             "funding": [
                 {
@@ -12473,7 +12473,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-07-25T07:00:21+00:00"
+            "time": "2025-08-18T08:47:15+00:00"
         },
         {
             "name": "spatie/laravel-image-optimizer",
@@ -16912,16 +16912,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.7.0",
+            "version": "8.7.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "88b8c4e82943267106424f903ffa881b0fd9074b"
+                "reference": "fa2c08f15c6f212de0ec007c175edf5eff7c7d7b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/88b8c4e82943267106424f903ffa881b0fd9074b",
-                "reference": "88b8c4e82943267106424f903ffa881b0fd9074b",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/fa2c08f15c6f212de0ec007c175edf5eff7c7d7b",
+                "reference": "fa2c08f15c6f212de0ec007c175edf5eff7c7d7b",
                 "shasum": ""
             },
             "require": {
@@ -16958,7 +16958,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2025-07-24T08:04:30+00:00"
+            "time": "2025-08-18T09:05:26+00:00"
         },
         {
             "name": "typesense/laravel-scout-typesense-driver",
