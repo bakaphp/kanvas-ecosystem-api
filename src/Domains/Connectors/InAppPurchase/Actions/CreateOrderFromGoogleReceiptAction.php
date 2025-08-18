@@ -86,7 +86,7 @@ class CreateOrderFromGoogleReceiptAction
     {
         $googlePaymentConfig = $this->app->get(ConfigurationEnum::GOOGLE_PAYMENT_CLIENT_CONFIG->value) ?? $this->app->get(ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value);
         $googlePackageName = $this->app->get(EnumsConfigurationEnum::GOOGLE_PLAY_PACKAGE_NAME->value);
-        if (empty($googlePaymentConfig)) {
+        if (empty($googlePaymentConfig) && empty($googlePackageName)) {
             throw new ValidationException('Google client config is missing');
         }
 
