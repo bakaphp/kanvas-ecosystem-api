@@ -47,7 +47,7 @@ final class CustomerTest extends TestCase
             'verified_email' => true,
             'multipass_identifier' => null,
             'tax_exempt' => false,
-            'phone' => null,
+            'phone' => '18093505111',
             'email_marketing_consent' => [
                 'state' => 'not_subscribed',
                 'opt_in_level' => null,
@@ -70,7 +70,7 @@ final class CustomerTest extends TestCase
                 'province' => 'Ontario',
                 'country' => 'Canada',
                 'zip' => 'K2H7A8',
-                'phone' => '123-123-1234',
+                'phone' => '18093505111',
                 'name' => null,
                 'province_code' => 'ON',
                 'country_code' => 'CA',
