@@ -20,7 +20,7 @@ class TransitionOrderStateAction
     ) {
     }
 
-    public function execute(bool $processQuietly = false): array
+    public function execute(bool $processQuietly = false, ?string $customDate = null): array
     {
         $currentOrderStatus = $this->order->orderStatus;
 
@@ -52,19 +52,19 @@ class TransitionOrderStateAction
         }
 
         try {
-            DB::transaction(function () use ($orderStatusTransitions, $currentOrderStatus) {
+            DB::transaction(function () use ($orderStatusTransitions, $currentOrderStatus, $customDate) {
                 // Update the order status transition
                 $current = OrderTransitionHistory::where('order_id', $this->order->id)
                 ->where('is_current', true)
                 ->first();
 
                 if ($current) {
-                    $now = Carbon::now();
-                    $duration = $current->changed_at->diffInSeconds($now);
+                    $transitionDate = $customDate ? Carbon::parse($customDate) : Carbon::now();
+                    $duration = $current->changed_at->diffInSeconds($transitionDate);
 
                     $current->updateQuietly([
                         'is_current' => false,
-                        'ended_at' => $now,
+                        'ended_at' => $transitionDate,
                         'duration_in_seconds' => $duration,
                         'ended_by' => $this->user->getId(),
                     ]);
@@ -74,6 +74,7 @@ class TransitionOrderStateAction
                 $this->order->updateQuietly(['order_status_id' => $this->newOrderStatus->id]);
 
                 // Insert into order_transitions_history
+                $transitionDate = $customDate ? Carbon::parse($customDate) : Carbon::now();
                 OrderTransitionHistory::create([
                     'apps_id' => $this->order->apps_id,
                     'companies_id' => $this->order->companies_id,
@@ -84,7 +85,7 @@ class TransitionOrderStateAction
                     'description' => 'Order status changed from ' . $currentOrderStatus->slug . ' to ' . $this->newOrderStatus->slug,
                     'metadata' => is_array($this->order->metadata) ? json_encode($this->order->metadata) : $this->order->metadata,
                     'is_current' => true,
-                    'changed_at' => now(),
+                    'changed_at' => $transitionDate,
                     'changed_by' => $this->user->getId(),
                 ]);
             });

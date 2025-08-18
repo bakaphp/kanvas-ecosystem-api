@@ -247,4 +247,78 @@ class OrderStatusTest extends OrderBase
         $this->assertNotNull($orderTransitionHistory);
         $this->assertEquals(trim($order->currency), 'DOP');
     }
+
+    public function testOrderStatusTransitionWithCustomDate(): void
+    {
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'slots',
+                'value' => 100
+            ]
+        ])->json()['data']['createProduct'];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ],
+            attributes: [
+                [
+                    'name' => 'timezone',
+                    'value' => 'America/New_York',
+                ],
+            ]
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $this->channelResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $order = $this->createOrderFromCart(
+            variantId: $variantResponse['id'],
+            quantity: 1,
+            metadata: [
+                'data' => []
+            ],
+            orderType: $this->orderTypeName
+        );
+
+        $customDate = '2024-01-15 14:30:00';
+
+        $transitionWithDate = $this->graphQL('
+            mutation transitionOrderStatus($input: TransitionOrderStatusInput!) {
+                transitionOrderStatus(input: $input) {
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $order->id,
+                'status_slug' => 'pending',
+                'date' => $customDate,
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ]);
+
+        $orderTransitionHistory = OrderTransitionHistory::where([
+            'order_id' => $order->id,
+            'description' => 'Order status changed from draft to pending',
+        ])->first();
+
+        $this->assertEquals($transitionWithDate->json('data.transitionOrderStatus.message'), 'Order status transitioned successfully');
+        $this->assertNotNull($orderTransitionHistory);
+        $this->assertEquals($orderTransitionHistory->changed_at->format('Y-m-d H:i:s'), $customDate);
+    }
 }
