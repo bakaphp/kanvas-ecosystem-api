@@ -20,7 +20,7 @@
         "berkayk/onesignal-laravel": "^2.4",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
-        "echolabsdev/prism": "^0.83.2",
+        "echolabsdev/prism": "^0.85.0",
         "genealabs/laravel-model-caching": "^12.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
@@ -97,7 +97,7 @@
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "phpstan/phpstan": "^2.0.1",
-        "phpunit/phpunit": "^12.1"
+        "phpunit/phpunit": "12.3.4"
     },
     "autoload": {
         "psr-4": {

@@ -91,6 +91,7 @@ class CartManagementMutation
                 'pr10',
                 'ruben10',
                 'sl5',
+                'dev100',
             ];
 
             if (! in_array(strtolower($discountCodes[0]), $validDiscountCodes, true)) {
@@ -144,12 +145,12 @@ class CartManagementMutation
                 ]);
 
                 $cart->condition($fifteenPercentOff);
-            } elseif (strtolower($discountCodes[0]) === 'ruben10') {
+            } elseif (strtolower($discountCodes[0]) === 'dev100' && $isDevelopment === true) {
                 $fifteenPercentOff = new CartCondition([
-                  'name' => 'ruben10',
+                  'name' => 'dev100',
                   'type' => 'discount',
                   'target' => 'subtotal',
-                  'value' => '-10%',
+                  'value' => '-100%',
                   'minimum' => 1,
                   'order' => 1,
                 ]);
