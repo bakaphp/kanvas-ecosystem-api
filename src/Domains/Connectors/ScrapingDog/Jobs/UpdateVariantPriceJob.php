@@ -74,7 +74,6 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 )->execute();
                 $productModel->searchable();
             } elseif ($productModel->variants->count() < count($mappedProduct['variants'])) {
-
                 VariantService::createVariantsFromArray(
                     $productModel,
                     $mappedProduct['variants'],
