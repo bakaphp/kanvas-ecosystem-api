@@ -103,7 +103,6 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 'product' => $productModel->toArray(),
             ];
         } catch (\Throwable $e) {
-            dump('Error updating variant: ' . $e->getMessage());
             captureException($e);
         }
 
