@@ -55,9 +55,17 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             $this->receiver->user,
         );
         $mappedProduct = $productVariantService->mapProduct($product);
-        $productModel = Products::where('slug', $mappedProduct['slug'])
-                        ->where('apps_id', $this->receiver->app->getId())
-                        ->first();
+        $appId = $this->receiver->app->getId();
+        $desiredSlug = $mappedProduct['slug'];
+
+        $productModel = Products::where('apps_id', $appId)
+            ->whereIn('slug', [$desiredSlug, $sku])
+            ->orderByRaw('slug = ? DESC', [$desiredSlug])
+            ->first();
+
+        if ($productModel && $productModel->slug !== $desiredSlug) {
+            $productModel->update(['slug' => $desiredSlug]);
+        }
 
         try {
             $mappedProduct['variants'] = $productVariantService->mapVariant($product);
