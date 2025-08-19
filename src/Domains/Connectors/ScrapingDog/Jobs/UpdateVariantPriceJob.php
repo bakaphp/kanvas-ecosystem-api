@@ -55,10 +55,33 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
 
     protected function updateVariant(Variants $variant): array
     {
+        $product = new ScrapingDogRepository($this->receiver->app)->getByAsin($variant->sku);
+        $mappedProduct = new ProductService(
+            $this->channel,
+            $this->warehouse,
+            $this->receiver->user,
+        )->mapProduct($product);
+        $productModel = $variant->product;
+        $productModel->name = $mappedProduct['name'];
+        $productModel->description = $mappedProduct['description'] ?? '';
+        $productModel->slug = $mappedProduct['slug'];
+        $productModel->save();
+        $variant->updatePriceInChannel(
+            $this->channel,
+            (float) $mappedProduct['price'],
+            (float) $mappedProduct['discountPrice']
+        );
+        if ($mappedProduct['files']) {
+            $variant->deleteFiles();
+            foreach ($mappedProduct['files'] as $file) {
+                $variant->addFileFromUrl($file['url'], $file['name']);
+            }
+        }
+
         if (! $variant->product->get(ConfigEnum::VARIANT_DOWNLOAD->value)) {
             $result = [
                     [
-                        'asin' => $variant->product->slug,
+                        'asin' => $productModel->slug,
                     ],
                 ];
             $companyBranch = CompaniesBranches::getById($this->receiver->configuration['company_branch_id']);
@@ -74,27 +97,6 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             }
         }
 
-        $product = new ScrapingDogRepository($this->receiver->app)->getByAsin($variant->sku);
-        $mappedProduct = new ProductService(
-            $this->channel,
-            $this->warehouse,
-            $this->receiver->user,
-        )->mapProduct($product);
-        $productModel = $variant->product;
-        $productModel->name = $mappedProduct['name'];
-        $productModel->description = $mappedProduct['description'] ?? '';
-        $productModel->save();
-        $variant->updatePriceInChannel(
-            $this->channel,
-            (float) $mappedProduct['price'],
-            (float) $mappedProduct['discountPrice']
-        );
-        if ($mappedProduct['files']) {
-            $variant->deleteFiles();
-            foreach ($mappedProduct['files'] as $file) {
-                $variant->addFileFromUrl($file['url'], $file['name']);
-            }
-        }
         $variant->set(ConfigEnum::VARIANT_PRICE_UPDATE->value, true);
         $variant->set(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value, Carbon::now());
 
