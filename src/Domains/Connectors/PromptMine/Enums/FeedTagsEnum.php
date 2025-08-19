@@ -24,7 +24,7 @@ enum FeedTagsEnum: string
 
     public function userMotivationLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::TRENDING => 'Trending',
             self::FOR_YOU => 'For You',
             self::FOLLOWING => 'Following',
