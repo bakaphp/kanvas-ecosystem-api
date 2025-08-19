@@ -38,6 +38,8 @@ use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserContactsService;
+use Kanvas\Connectors\PromptMine\Actions\ChangeTagOrderAction;
+use Kanvas\Connectors\PromptMine\Enums\FeedTagsEnum;
 
 class UserManagementMutation
 {
@@ -364,6 +366,14 @@ class UserManagementMutation
             app: $app,
             preferences: $preferences
         ))->execute();
+
+        //Change user feed if preferences is present
+        $preferences = $user->get('user_app_' . $app->getId() . '_preferences');
+
+        if (in_array('user_motivation', $preferences)) {
+            $userMotivationFeedTagName = FeedTagsEnum::findByUserMotivationLabel($preferences['user_motivation']);
+            (new ChangeTagOrderAction($user, $app, $userMotivationFeedTagName->value, 1))->execute();
+        }
 
         return true;
     }
