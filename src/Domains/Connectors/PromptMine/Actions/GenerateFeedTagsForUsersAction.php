@@ -7,10 +7,8 @@ namespace Kanvas\Connectors\PromptMine\Actions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\PromptMine\Enums\FeedTagsEnum;
-use Kanvas\Users\Models\Users;
-use Kanvas\Social\Tags\Actions\CreateTagAction;
-use Kanvas\Social\Tags\DataTransferObjects\Tag as TagData;
 use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Users\Models\Users;
 
 class GenerateFeedTagsForUsersAction
 {
@@ -18,7 +16,8 @@ class GenerateFeedTagsForUsersAction
         private Users $user,
         private Apps $app,
         private Companies $company,
-    ) {}
+    ) {
+    }
 
     public function execute(): void
     {

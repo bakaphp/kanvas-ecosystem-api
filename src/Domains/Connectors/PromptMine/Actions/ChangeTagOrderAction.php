@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\PromptMine\Actions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Enums\FeedTagsEnum;
 use Kanvas\Social\Tags\Models\Tag;
-use Kanvas\Connectors\PromptMine\Actions\GenerateFeedTagsForUsersAction;
 use Kanvas\Users\Models\Users;
 
 class ChangeTagOrderAction
