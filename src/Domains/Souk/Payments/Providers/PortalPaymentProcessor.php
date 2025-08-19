@@ -74,6 +74,17 @@ class PortalPaymentProcessor
     {
         $credentials = $this->getMerchantCredentials($order);
 
+        if (! $credentials["id"]) {
+            $orderTypeName = $order->orderType?->name;
+            $isMultiMerchant = $this->app->get('portal_multy_merchant') === 1;
+
+            if ($isMultiMerchant && $orderTypeName) {
+                throw new \Exception("Missing merchant credentials for order type '{$orderTypeName}'. Please configure {$orderTypeName}_ECHO_PAY_MERCHANT_ID, {$orderTypeName}_ECHO_PAY_MERCHANT_KEY, and {$orderTypeName}_ECHO_PAY_MERCHANT_SECRET.");
+            } else {
+                throw new \Exception("Missing default merchant credentials. Please configure ECHO_PAY_MERCHANT_ID, ECHO_PAY_MERCHANT_KEY, and ECHO_PAY_MERCHANT_SECRET.");
+            }
+        }
+
         return MerchantDetail::from([
             ...$credentials,
             ...($includeDetails
