@@ -463,14 +463,13 @@ final class ProcessPaymentTest extends TestCase
         $order = Order::fromApp($app)->find($orderData['id']);
         $payment = $order->payments()->first();
 
-        // Test that it falls back to default credentials when order-type-specific ones don't exist
+        // Test that it throws exception when order-type-specific credentials don't exist
         $portalProcessor = new \Kanvas\Souk\Payments\Providers\PortalPaymentProcessor($app, $company);
-        $credentials = $this->callProtectedMethod($portalProcessor, 'getMerchantCredentials', [$order]);
 
-        // Should fall back to default credentials (empty values since order-type-specific don't exist)
-        $this->assertEquals('', $credentials['id']);
-        $this->assertEquals('', $credentials['key']);
-        $this->assertEquals('', $credentials['secretKey']);
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Missing merchant credentials for order type 'subscription'. Please configure subscription_ECHO_PAY_MERCHANT_ID, subscription_ECHO_PAY_MERCHANT_KEY, and subscription_ECHO_PAY_MERCHANT_SECRET.");
+
+        $this->callProtectedMethod($portalProcessor, 'setupMerchantAuthentication', [$payment, $order]);
 
         // Clean up
         $app->del('portal_multy_merchant');
@@ -584,6 +583,11 @@ final class ProcessPaymentTest extends TestCase
         $this->assertEquals(env('TEST_ECHO_PAY_MERCHANT_ID'), $credentials['id']);
         $this->assertEquals(env('TEST_ECHO_PAY_MERCHANT_KEY'), $credentials['key']);
         $this->assertEquals(env('TEST_ECHO_PAY_MERCHANT_SECRET'), $credentials['secretKey']);
+
+        // Test that setupMerchantAuthentication works without throwing exception
+        $merchantDetail = $this->callProtectedMethod($portalProcessor, 'setupMerchantAuthentication', [$payment, $order]);
+        $this->assertNotNull($merchantDetail);
+        $this->assertEquals(env('TEST_ECHO_PAY_MERCHANT_ID'), $merchantDetail->id);
 
         // Clean up
         $app->del('portal_multy_merchant');
