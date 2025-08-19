@@ -32,6 +32,10 @@ class LeadObserver
             )->getId();
         }
 
+        if (empty($lead->title)) {
+            $lead->title = $lead->firstname . ' ' . $lead->lastname;
+        }
+
         // set the default status if not specified
         if (! $lead->leads_status_id) {
             $lead->leads_status_id = LeadStatus::getDefault($lead->app)->getId();
