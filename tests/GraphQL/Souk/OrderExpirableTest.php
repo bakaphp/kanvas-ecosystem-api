@@ -531,6 +531,6 @@ class OrderExpirableTest extends TestCase
 
         // Should return validation error
         $this->assertArrayHasKey('errors', $response->json());
-        $this->assertStringContainsString('Duplicate tracking ID not allowed within 2 hours', $response->json('errors.0.message'));
+        $this->assertStringContainsString("The metadata contains a duplicate value for field 'data.tracking_id'", $response->json('errors.0.message'));
     }
 }
