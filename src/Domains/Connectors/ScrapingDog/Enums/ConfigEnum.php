@@ -15,4 +15,5 @@ enum ConfigEnum: string
     case VARIANT_PRICE_UPDATE = 'variant_price_update';
     case VARIANT_PRICE_DATE_UPDATE = 'variant_price_date_update';
     case VARIANT_DOWNLOAD = 'variant_download';
+    case TTL_SEARCH = 'ttl_search';
 }

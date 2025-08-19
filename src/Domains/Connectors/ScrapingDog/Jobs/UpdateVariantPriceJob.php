@@ -5,18 +5,22 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ScrapingDog\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Connectors\ScrapingDog\Enums\ConfigEnum;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Connectors\ScrapingDog\Services\ProductVariantService;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
+use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
+
+use function Sentry\captureException;
 
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
@@ -33,53 +37,76 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $app = $this->receiver->app;
         $this->overwriteAppService($app);
         $request = $this->webhookRequest->payload;
-        $variant = Variants::where('sku', $request['sku'])
-        ->where('apps_id', $app->getId())
-            ->firstOrFail();
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
+        $key = $request['sku'] . ':' . $this->receiver->app->getId();
 
-        $key = ConfigEnum::VARIANT_PRICE_UPDATE->value . ':' . $variant->getId();
-
-        return Cache::remember($key, $minutesForUpdate, function () use ($variant) {
-            return $this->updateVariant($variant);
-        });
+        return $this->updateVariant($request['sku']);
+        // return Cache::remember($key, $minutesForUpdate, function () use ($request) {
+        // });
     }
 
-    protected function updateVariant(Variants $variant): array
+    protected function updateVariant(string $sku): array
     {
-        $product = new ScrapingDogRepository($this->receiver->app)->getByAsin($variant->sku);
+        $repository = new ScrapingDogRepository($this->receiver->app);
+        $product = $repository->getByAsin($sku);
         $productVariantService = new ProductVariantService(
             $this->channel,
             $this->warehouse,
             $this->receiver->user,
         );
         $mappedProduct = $productVariantService->mapProduct($product);
-        $productModel = $variant->product;
-        $productModel->name = $mappedProduct['name'];
-        $productModel->description = $mappedProduct['description'] ?? '';
-        $productModel->slug = $mappedProduct['slug'];
-        $productModel->save();
-        $variants = $productVariantService->mapVariant($product);
-        $variantsModels = VariantService::createVariantsFromArray($productModel, $variants, auth()->user());
-        $variant->updatePriceInChannel(
-            $this->channel,
-            (float) $mappedProduct['price'],
-            (float) $mappedProduct['discountPrice']
-        );
-        if ($mappedProduct['files']) {
-            $variant->deleteFiles();
-            foreach ($mappedProduct['files'] as $file) {
-                $variant->addFileFromUrl($file['url'], $file['name']);
-            }
-        }
-        $variant->set(ConfigEnum::VARIANT_PRICE_UPDATE->value, true);
-        $variant->set(ConfigEnum::VARIANT_PRICE_DATE_UPDATE->value, Carbon::now());
+        $productModel = Products::where('slug', $mappedProduct['slug'])
+                        ->where('apps_id', $this->receiver->app->getId())
+                        ->first();
 
-        return [
-            'price' => $mappedProduct['price'],
-            'discounted_price' => $mappedProduct['discountPrice'] ?? null,
-            'variants' => $variantsModels,
-            'product' => $productModel->toArray(),
-        ];
+        try {
+            $mappedProduct['variants'] = $productVariantService->mapVariant($product);
+            if (! $productModel) {
+                $productModel = (
+                        new ProductImporterAction(
+                            ProductImporter::from($mappedProduct),
+                            $this->receiver->company,
+                            auth()->user(),
+                            Regions::getById($this->receiver->configuration['region_id']),
+                            $this->receiver->app,
+                            true
+                        )
+                )->execute();
+                $productModel->searchable();
+            } elseif ($productModel->variants->count() < count($mappedProduct['variants'])) {
+                VariantService::createVariantsFromArray(
+                    $productModel,
+                    $mappedProduct['variants'],
+                    auth()->user()
+                );
+            }
+            // @todo: remove this, cause redundant
+            $variant = Variants::where('sku', $sku)
+                ->where('apps_id', $this->receiver->app->getId())
+                ->firstOrFail();
+            $variant->updatePriceInChannel(
+                $this->channel,
+                (float) $mappedProduct['price'],
+                (float) $mappedProduct['discountPrice']
+            );
+            if ($mappedProduct['files']) {
+                $variant->deleteFiles();
+                foreach ($mappedProduct['files'] as $file) {
+                    $variant->addFileFromUrl($file['url'], $file['name']);
+                }
+            }
+
+            return [
+                'price' => $mappedProduct['price'],
+                'discounted_price' => $mappedProduct['discountPrice'] ?? null,
+                'variants' => $productModel->variants->toArray(),
+                'product' => $productModel->toArray(),
+            ];
+        } catch (\Throwable $e) {
+            dump('Error updating variant: ' . $e->getMessage());
+            captureException($e);
+        }
+
+        return [];
     }
 }
