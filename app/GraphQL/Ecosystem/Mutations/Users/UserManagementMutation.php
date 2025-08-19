@@ -12,8 +12,9 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
-use Kanvas\Auth\Socialite\DataTransferObject\User;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\PromptMine\Actions\ChangeTagOrderAction;
+use Kanvas\Connectors\PromptMine\Enums\FeedTagsEnum;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -38,8 +39,6 @@ use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserContactsService;
-use Kanvas\Connectors\PromptMine\Actions\ChangeTagOrderAction;
-use Kanvas\Connectors\PromptMine\Enums\FeedTagsEnum;
 
 class UserManagementMutation
 {

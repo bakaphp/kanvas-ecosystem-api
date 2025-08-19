@@ -6,9 +6,9 @@ namespace Kanvas\Connectors\PromptMine\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Enums\FeedTagsEnum;
-use Kanvas\Users\Models\Users;
 use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Connectors\PromptMine\Actions\GenerateFeedTagsForUsersAction;
+use Kanvas\Users\Models\Users;
 
 class ChangeTagOrderAction
 {
@@ -17,7 +17,8 @@ class ChangeTagOrderAction
         private Apps $app,
         private string $tagName,
         private int $weight
-    ) {}
+    ) {
+    }
 
     public function execute(): bool
     {
