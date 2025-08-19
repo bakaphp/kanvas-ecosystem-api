@@ -43,17 +43,7 @@ class ScoutMacros
                         ]
                     );
                 });
-
-                return ScoutMacros::getTypesenseData($app, $model, $query, $perPage, $options);
             }
-            $app->fireWorkflow(
-                event: WorkflowEnum::SEARCH->value,
-                params: [
-                    'search_type' => 'product',
-                    'search' => $query,
-                    'cache_key' => null,
-                ]
-            );
 
             return ScoutMacros::getTypesenseData($app, $model, $query, $perPage, $options);
         });
