@@ -32,7 +32,7 @@ class ScoutMacros
                 $optionsHash = md5(serialize($options));
                 $key = "semantic_search:{$app->getId()}:{$query}:{$perPage}:{$optionsHash}";
                 $seconds = (int)$app->get(AppEnums::CACHE_SEARCH_TTL->getValue(), 60);
-                
+
                 Cache::remember($key, $seconds, function () use ($app, $model, $options, $query, $key, $perPage) {
                     // Fire workflow event
                     return $app->fireWorkflow(
