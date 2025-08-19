@@ -50,16 +50,36 @@ class PortalPaymentProcessor
         $this->refId = 'ref' . time();        // Set the transaction's refId
     }
 
-    protected function setupMerchantAuthentication(Payments $payment, bool $includeDetails = false): MerchantDetail
+    protected function getMerchantCredentials(Order $order): array
     {
+        $isMultiMerchant = $this->app->get('portal_multy_merchant') === 1;
+        $orderTypeName = $order->orderType?->name;
+
+        if ($isMultiMerchant && $orderTypeName) {
+            return [
+                'id' => $this->app->get($orderTypeName . '_ECHO_PAY_MERCHANT_ID'),
+                'key' => $this->app->get($orderTypeName . '_ECHO_PAY_MERCHANT_KEY'),
+                'secretKey' => $this->app->get($orderTypeName . '_ECHO_PAY_MERCHANT_SECRET'),
+            ];
+        }
+
+        return [
+            'id' => $this->app->get('ECHO_PAY_MERCHANT_ID') ?? "",
+            'key' => $this->app->get('ECHO_PAY_MERCHANT_KEY') ?? "",
+            'secretKey' => $this->app->get('ECHO_PAY_MERCHANT_SECRET') ?? "",
+        ];
+    }
+
+    protected function setupMerchantAuthentication(Payments $payment, Order $order, bool $includeDetails = false): MerchantDetail
+    {
+        $credentials = $this->getMerchantCredentials($order);
+
         return MerchantDetail::from([
-            'id' => $this->app->get('ECHO_PAY_MERCHANT_ID'),
-            'key' => $this->app->get('ECHO_PAY_MERCHANT_KEY'),
-            'secretKey' => $this->app->get('ECHO_PAY_MERCHANT_SECRET'),
+            ...$credentials,
             ...($includeDetails
                 ? ['merchantDefinedInformation' => new MerchantDefinedInformation(
                     category: MerchantCategoryEnum::RETAIL,
-                    cardIdentifier: $this->app->get(ConfigurationEnum::MERCHANT_ID->value) ?? '',
+                    cardIdentifier: $credentials["id"],
                     platform: MerchantPlatformEnum::MOBILE,
                     customerId: 'user_' . $payment->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
@@ -98,7 +118,7 @@ class PortalPaymentProcessor
 
     public function startPaymentIntent(Payments $payment): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $payment->order);
         $payerAuthentication = $this->client->setupPayer(
             $payment->order->id,
             $payment->paymentMethod->stripe_card_id,
@@ -111,7 +131,7 @@ class PortalPaymentProcessor
     public function checkEnrollment(Payments $payment, string $referenceId): array
     {
         $orderInput = $payment->order;
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $orderInput);
 
         try {
             $enrollmentData = $this->client->checkPayerEnrollment(
@@ -185,7 +205,7 @@ class PortalPaymentProcessor
 
     public function validatePayerAuthResult(Payments $payment, Order $order, string $transactionId): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
 
         try {
             $validatedData = $this->client->validatePayerAuthResult(
@@ -339,7 +359,7 @@ class PortalPaymentProcessor
     private function processPaymentCall(Payments $payment, ConsumerAuthentication $consumerData, Order $order): array
     {
         $referenceId = $order->get('auth_session_id');
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment, includeDetails: true);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order, includeDetails: true);
         $pamentData = PaymentDetail::from([
             'orderCode' => $order->id,
             'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
@@ -414,7 +434,7 @@ class PortalPaymentProcessor
 
     public function capturePayment(Payments $payment, Order $order, string $transactionId): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
         $capturePayment = $this->client->capturePayment(
             PaymentCaptureInput::from([
                 'transactionId' => $transactionId,
@@ -447,7 +467,7 @@ class PortalPaymentProcessor
 
     public function reversePayment(Payments $payment, Order $order, string $transactionId, string $reason): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
         $reversePayment = $this->client->reversePayment(
             PaymentCaptureInput::from([
                 'transactionId' => $transactionId,
