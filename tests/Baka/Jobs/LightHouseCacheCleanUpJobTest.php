@@ -17,7 +17,7 @@ class LightHouseCacheCleanUpJobTest extends TestCase
 
         // Create a product with relationships loaded
         $product = Products::factory()->create();
-        
+
         // Load relationships that might contain closures
         $product->load(['variants', 'categories', 'attributes']);
 
@@ -32,13 +32,13 @@ class LightHouseCacheCleanUpJobTest extends TestCase
     public function testJobExecutesSuccessfully(): void
     {
         $product = Products::factory()->create();
-        
+
         // Mock the clearLightHouseCache method
         $product = $this->getMockBuilder(Products::class)
             ->setConstructorArgs([])
             ->onlyMethods(['clearLightHouseCache'])
             ->getMock();
-        
+
         $product->expects($this->once())
             ->method('clearLightHouseCache');
 
