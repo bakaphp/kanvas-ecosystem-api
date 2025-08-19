@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.354.1",
+            "version": "3.355.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "6aa524596cd83416085777a3bd037d06a70b5c65"
+                "reference": "17e7dd50a31164d18f4767636fd5d1c123f714e0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/6aa524596cd83416085777a3bd037d06a70b5c65",
-                "reference": "6aa524596cd83416085777a3bd037d06a70b5c65",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/17e7dd50a31164d18f4767636fd5d1c123f714e0",
+                "reference": "17e7dd50a31164d18f4767636fd5d1c123f714e0",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.354.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.355.0"
             },
-            "time": "2025-08-15T18:05:41+00:00"
+            "time": "2025-08-18T18:15:09+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -3147,16 +3147,16 @@
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.64.1",
+            "version": "v1.64.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "000a7957f2cf6d7d04d47f8d3ef981777d38b6f9"
+                "reference": "5fe68c9fa99020fdf3060094568f99d77bdc240c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/000a7957f2cf6d7d04d47f8d3ef981777d38b6f9",
-                "reference": "000a7957f2cf6d7d04d47f8d3ef981777d38b6f9",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/5fe68c9fa99020fdf3060094568f99d77bdc240c",
+                "reference": "5fe68c9fa99020fdf3060094568f99d77bdc240c",
                 "shasum": ""
             },
             "require": {
@@ -3207,9 +3207,9 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.64.1"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.64.2"
             },
-            "time": "2025-07-18T20:06:03+00:00"
+            "time": "2025-08-18T18:45:43+00:00"
         },
         {
             "name": "google/cloud-discoveryengine",
@@ -3369,20 +3369,20 @@
         },
         {
             "name": "google/common-protos",
-            "version": "4.12.2",
+            "version": "4.12.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/common-protos-php.git",
-                "reference": "0a399e6f39576e39ae9b66d3c704ae294afab1dc"
+                "reference": "64f73256492585461ab291aee90d07175d0c79b9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/0a399e6f39576e39ae9b66d3c704ae294afab1dc",
-                "reference": "0a399e6f39576e39ae9b66d3c704ae294afab1dc",
+                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/64f73256492585461ab291aee90d07175d0c79b9",
+                "reference": "64f73256492585461ab291aee90d07175d0c79b9",
                 "shasum": ""
             },
             "require": {
-                "google/protobuf": "^v3.25.3||^4.26.1",
+                "google/protobuf": "^4.26.1",
                 "php": "^8.1"
             },
             "require-dev": {
@@ -3422,9 +3422,9 @@
                 "google"
             ],
             "support": {
-                "source": "https://github.com/googleapis/common-protos-php/tree/v4.12.2"
+                "source": "https://github.com/googleapis/common-protos-php/tree/v4.12.3"
             },
-            "time": "2025-07-18T20:06:03+00:00"
+            "time": "2025-08-18T18:45:43+00:00"
         },
         {
             "name": "google/gax",
@@ -5666,16 +5666,16 @@
         },
         {
             "name": "laravel/scout",
-            "version": "v10.17.0",
+            "version": "v10.18.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/scout.git",
-                "reference": "66b064ab1f987560d1edfbc10f46557fddfed600"
+                "reference": "be9b14c37915429f0d60a305d786f93632b4b09c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/scout/zipball/66b064ab1f987560d1edfbc10f46557fddfed600",
-                "reference": "66b064ab1f987560d1edfbc10f46557fddfed600",
+                "url": "https://api.github.com/repos/laravel/scout/zipball/be9b14c37915429f0d60a305d786f93632b4b09c",
+                "reference": "be9b14c37915429f0d60a305d786f93632b4b09c",
                 "shasum": ""
             },
             "require": {
@@ -5743,7 +5743,7 @@
                 "issues": "https://github.com/laravel/scout/issues",
                 "source": "https://github.com/laravel/scout"
             },
-            "time": "2025-07-22T15:54:45+00:00"
+            "time": "2025-08-19T02:10:57+00:00"
         },
         {
             "name": "laravel/serializable-closure",
@@ -17457,16 +17457,16 @@
         },
         {
             "name": "webonyx/graphql-php",
-            "version": "v15.22.3",
+            "version": "v15.23.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webonyx/graphql-php.git",
-                "reference": "fbb26cecdaf1ec043be563c6ba2567227699c461"
+                "reference": "05f48eea3061e1c2717bc9dbe56effdb2fdc090e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/fbb26cecdaf1ec043be563c6ba2567227699c461",
-                "reference": "fbb26cecdaf1ec043be563c6ba2567227699c461",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/05f48eea3061e1c2717bc9dbe56effdb2fdc090e",
+                "reference": "05f48eea3061e1c2717bc9dbe56effdb2fdc090e",
                 "shasum": ""
             },
             "require": {
@@ -17479,7 +17479,7 @@
                 "amphp/http-server": "^2.1",
                 "dms/phpunit-arraysubset-asserts": "dev-master",
                 "ergebnis/composer-normalize": "^2.28",
-                "friendsofphp/php-cs-fixer": "3.85.1",
+                "friendsofphp/php-cs-fixer": "3.86.0",
                 "mll-lab/php-cs-fixer-config": "5.11.0",
                 "nyholm/psr7": "^1.5",
                 "phpbench/phpbench": "^1.2",
@@ -17519,7 +17519,7 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
-                "source": "https://github.com/webonyx/graphql-php/tree/v15.22.3"
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.23.0"
             },
             "funding": [
                 {
@@ -17527,7 +17527,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2025-08-13T12:41:53+00:00"
+            "time": "2025-08-19T13:03:43+00:00"
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
@@ -17658,16 +17658,16 @@
         },
         {
             "name": "brianium/paratest",
-            "version": "v7.11.0",
+            "version": "v7.11.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/paratestphp/paratest.git",
-                "reference": "c48f73d568f09df27177e178b61f8e910683dd5d"
+                "reference": "521aa381c212816d0dc2f04f1532a5831969cb5e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/paratestphp/paratest/zipball/c48f73d568f09df27177e178b61f8e910683dd5d",
-                "reference": "c48f73d568f09df27177e178b61f8e910683dd5d",
+                "url": "https://api.github.com/repos/paratestphp/paratest/zipball/521aa381c212816d0dc2f04f1532a5831969cb5e",
+                "reference": "521aa381c212816d0dc2f04f1532a5831969cb5e",
                 "shasum": ""
             },
             "require": {
@@ -17675,15 +17675,15 @@
                 "ext-pcre": "*",
                 "ext-reflection": "*",
                 "ext-simplexml": "*",
-                "fidry/cpu-core-counter": "^1.2.0",
+                "fidry/cpu-core-counter": "^1.3.0",
                 "jean85/pretty-package-versions": "^2.1.1",
                 "php": "~8.3.0 || ~8.4.0",
-                "phpunit/php-code-coverage": "^12.3.1",
+                "phpunit/php-code-coverage": "^12.3.2",
                 "phpunit/php-file-iterator": "^6",
                 "phpunit/php-timer": "^8",
-                "phpunit/phpunit": "^12.2.7",
-                "sebastian/environment": "^8.0.2",
-                "symfony/console": "^6.4.20 || ^7.3.1",
+                "phpunit/phpunit": "^12.3.5",
+                "sebastian/environment": "^8.0.3",
+                "symfony/console": "^6.4.20 || ^7.3.2",
                 "symfony/process": "^6.4.20 || ^7.3.0"
             },
             "require-dev": {
@@ -17691,12 +17691,12 @@
                 "ext-pcntl": "*",
                 "ext-pcov": "*",
                 "ext-posix": "*",
-                "phpstan/phpstan": "^2.1.17",
+                "phpstan/phpstan": "^2.1.22",
                 "phpstan/phpstan-deprecation-rules": "^2.0.3",
-                "phpstan/phpstan-phpunit": "^2.0.6",
-                "phpstan/phpstan-strict-rules": "^2.0.4",
+                "phpstan/phpstan-phpunit": "^2.0.7",
+                "phpstan/phpstan-strict-rules": "^2.0.6",
                 "squizlabs/php_codesniffer": "^3.13.2",
-                "symfony/filesystem": "^6.4.13 || ^7.3.0"
+                "symfony/filesystem": "^6.4.13 || ^7.3.2"
             },
             "bin": [
                 "bin/paratest",
@@ -17736,7 +17736,7 @@
             ],
             "support": {
                 "issues": "https://github.com/paratestphp/paratest/issues",
-                "source": "https://github.com/paratestphp/paratest/tree/v7.11.0"
+                "source": "https://github.com/paratestphp/paratest/tree/v7.11.2"
             },
             "funding": [
                 {
@@ -17748,7 +17748,7 @@
                     "type": "paypal"
                 }
             ],
-            "time": "2025-07-16T09:15:54+00:00"
+            "time": "2025-08-19T09:24:27+00:00"
         },
         {
             "name": "fakerphp/faker",

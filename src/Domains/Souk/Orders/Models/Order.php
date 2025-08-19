@@ -286,6 +286,7 @@ class Order extends BaseModel
         $lastOrder = Order::where('companies_id', $this->companies_id)
             ->where('apps_id', $this->apps_id)
             ->lockForUpdate() // Ensure no race conditions
+            ->withTrashed()
             ->orderBy('order_number', 'desc') // Order by the actual order_number field
             ->first();
 
