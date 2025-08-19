@@ -14,6 +14,7 @@ use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -38,9 +39,10 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $request = $this->webhookRequest->payload;
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
         $key = $request['sku'] . ':' . $this->receiver->app->getId();
-        return Cache::remember($key, $minutesForUpdate, function () use ($request) {
-            return $this->updateVariant($request['sku']);
-        });
+
+        return $this->updateVariant($request['sku']);
+        // return Cache::remember($key, $minutesForUpdate, function () use ($request) {
+        // });
     }
 
     protected function updateVariant(string $sku): array
@@ -56,9 +58,10 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $productModel = Products::where('slug', $mappedProduct['slug'])
                         ->where('apps_id', $this->receiver->app->getId())
                         ->first();
+
         try {
+            $mappedProduct['variants'] = $productVariantService->mapVariant($product);
             if (! $productModel) {
-                $mappedProduct['variants'] = $productVariantService->mapVariant($product);
                 $productModel = (
                         new ProductImporterAction(
                             ProductImporter::from($mappedProduct),
@@ -70,7 +73,15 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                         )
                 )->execute();
                 $productModel->searchable();
+            } elseif ($productModel->variants->count() < count($mappedProduct['variants'])) {
+
+                VariantService::createVariantsFromArray(
+                    $productModel,
+                    $mappedProduct['variants'],
+                    auth()->user()
+                );
             }
+            // @todo: remove this, cause redundant
             $variant = Variants::where('sku', $sku)
                 ->where('apps_id', $this->receiver->app->getId())
                 ->firstOrFail();
@@ -93,6 +104,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 'product' => $productModel->toArray(),
             ];
         } catch (\Throwable $e) {
+            dump('Error updating variant: ' . $e->getMessage());
             captureException($e);
         }
 
