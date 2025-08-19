@@ -32,7 +32,7 @@ class SearchJob extends ProcessWebhookJob
         $key = $search . ':' . $this->receiver->app->getId();
 
         return Cache::remember($key, $ttl, function () use ($repository, $search) {
-            return $repository->getSearch($search)['results'];
+            return ['results' => $repository->getSearch($search)['results']];
         });
     }
 }
