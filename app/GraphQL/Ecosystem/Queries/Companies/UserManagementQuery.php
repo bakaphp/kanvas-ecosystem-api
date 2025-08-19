@@ -55,6 +55,7 @@ class UserManagementQuery
             'users.id'
         )
         ->where('users_associated_company.companies_id', $companiesId)
+        ->where('users_associated_company.companies_id', $companiesId)
         ->where('users_associated_apps.apps_id', $app->getId())
         ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
         ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())

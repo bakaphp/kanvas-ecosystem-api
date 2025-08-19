@@ -26,7 +26,8 @@ class VariantWarehouseBuilder
         ->where('id', $warehouseId)
         ->unless(auth()->user()->isAppOwner(), function (Builder $warehouse) {
             $warehouse->fromCompany(auth()->user()->getCurrentCompany());
-        });
+        })
+        ->firstOrFail();
 
         $variants = new ModelsVariants();
         $variantWarehouse = new VariantsWarehouses();

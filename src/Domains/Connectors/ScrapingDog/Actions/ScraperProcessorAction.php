@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapingDog\Actions;
 
+use App\Macros\ScoutMacros;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Connectors\ScrapingDog\Services\ProductVariantService;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperProcessorAction as ScrapperApiProcessorAction;
 use Kanvas\Connectors\ScrapperApi\Events\ProductScrapperEvent;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
@@ -35,9 +38,19 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                 }
                 $mappedProduct = $service->mapProduct($product);
                 $mappedProduct['variants'] = $service->mapVariant($product);
-
                 if (empty($mappedProduct) || $mappedProduct['price'] == 0) {
                     continue;
+                }
+                if (empty($mappedProduct['variants'])) {
+                    $variant = $mappedProduct;
+                    $variant['channels'][] = [
+                        'price' => $mappedProduct['price'],
+                        'discounted_price' => $mappedProduct['discountPrice'] ?? null,
+                        'is_published' => true,
+                        'warehouses_id' => $warehouse->getId(),
+                        'channels_id' => $channels->getId(),
+                    ];
+                    $mappedProduct['variants'] = [$variant];
                 }
                 $product = (
                     new ProductImporterAction(
@@ -54,12 +67,21 @@ class ScraperProcessorAction extends ScrapperApiProcessorAction
                     ProductScrapperEvent::dispatch(
                         $this->app,
                         $this->uuid,
-                        $product,
+                        $product->toArray(),
                         $product->variants()->first()->getPrice($warehouse),
                         $this->searchText
                     );
                 }
-
+                if ($this->cacheKey) {
+                    $app = $this->app;
+                    $key = $this->cacheKey;
+                    $seconds = (int)$app->get(AppEnums::CACHE_SEARCH_TTL->getValue());
+                    $keyArray = explode(':', $this->cacheKey);
+                    Cache::forget($this->cacheKey);
+                    Cache::remember($this->cacheKey, $seconds, function () use ($product, $app, $keyArray, $key) {
+                        return ScoutMacros::getTypesenseData($app, $product, $keyArray[2], 25, []);
+                    });
+                }
                 $productList[] = $product;
             } catch (\Throwable $e) {
                 captureException($e);

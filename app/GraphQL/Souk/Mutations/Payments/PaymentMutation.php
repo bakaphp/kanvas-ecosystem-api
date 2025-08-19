@@ -18,7 +18,7 @@ use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 
 class PaymentMutation
 {
-    public function makePaymentIntent($_, array $request): array
+    public function makePaymentIntent(mixed $root, array $request): array
     {
         $app = app(Apps::class);
         $paymentId = (int) $request['paymentID'];
@@ -40,7 +40,7 @@ class PaymentMutation
         ];
     }
 
-    public function makePaymentIntentFromOrder($_, array $request): array
+    public function makePaymentIntentFromOrder(mixed $root, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderID'];
@@ -63,7 +63,7 @@ class PaymentMutation
         ];
     }
 
-    public function addPaymentToOrder($_, array $request): array
+    public function addPaymentToOrder(mixed $root, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderID'];
@@ -118,7 +118,7 @@ class PaymentMutation
         ];
     }
 
-    public function initiatePayerAuthentication($_, array $request): array
+    public function initiatePayerAuthentication(mixed $root, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
@@ -176,7 +176,7 @@ class PaymentMutation
         ];
     }
 
-    public function completeDeviceData($_, array $request): array
+    public function completeDeviceData(mixed $root, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
@@ -252,7 +252,7 @@ class PaymentMutation
         }
     }
 
-    public function validatePayerAuthResult($_, array $request): array
+    public function validatePayerAuthResult(mixed $root, array $request): array
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];

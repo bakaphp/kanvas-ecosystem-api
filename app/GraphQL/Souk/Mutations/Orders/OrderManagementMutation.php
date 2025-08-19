@@ -410,11 +410,12 @@ class OrderManagementMutation
         }
 
         try {
+            $date = $input['date'] ?? null;
             return new TransitionOrderStateAction(
                 $order,
                 $user,
                 $newOrderStatus
-            )->execute();
+            )->execute(false, $date);
         } catch (Throwable $e) {
             throw new ValidationException($e->getMessage());
         }

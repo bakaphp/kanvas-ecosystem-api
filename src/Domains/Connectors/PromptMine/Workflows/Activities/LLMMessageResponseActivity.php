@@ -12,17 +12,22 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
+use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
+use Throwable;
 
 class LLMMessageResponseActivity extends KanvasActivity
 {
@@ -231,16 +236,28 @@ class LLMMessageResponseActivity extends KanvasActivity
     {
         $promptClient = new PromptClient($message->app);
         $prompt = $message->message['prompt'] ?? null;
+        $params = [];
 
         $provider = (string) ($message->message['ai_model']['key'] ?? 'dalle3');
         $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
+
+        if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value && isset($message->message['platform']) && $message->message['platform'] === 'android') {
+            $params['safety_tolerance'] = 1;
+            $params['enable_safety_checker'] = true;
+        }
+
+        $imageLimitValidation = $this->validateImageLimit($message);
+
+        if ($imageLimitValidation !== null) {
+            return $imageLimitValidation;
+        }
 
         try {
             $generateImage = $promptClient->generateImage(
                 provider: $provider,
                 model: $model,
                 prompt: $prompt,
-                key: 'text-to-image'
+                params: $params
             );
         } catch (ClientException $e) {
             $errorBody = $e->getResponse()->getBody()->getContents();
@@ -253,6 +270,55 @@ class LLMMessageResponseActivity extends KanvasActivity
         return (string) $promptClient->extractImageUrl(
             $generateImage
         );
+    }
+
+    public function validateImageLimit(Message $message): ?string
+    {
+        try {
+            (new CheckMessagePostLimitAction(
+                message: $message,
+                //messageTypeId: MessageType::fromApp($message->app)->where('verb', 'prompt')->firstOrFail()->getId(),
+                messageJsonFilters: ['type' => 'image-format']
+            ))->execute();
+        } catch (Throwable $e) {
+            try {
+                $endViaList = array_map(
+                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                    ['push']
+                );
+                $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                    user: $message->user,
+                    entity: $message,
+                    message: 'You have reached your daily image generation limit.',
+                    title: 'Daily Limit Reached',
+                    via: $endViaList,
+                    templates: [
+                        'email_template' => 'email-new-message-nugget',
+                        'push_template' => 'push-new-message-nugget',
+                    ],
+                );
+
+                //send to the user profile when it fails
+                $errorProcessingImageNotification->setData([
+                    'destination_id' => $message->getId(),
+                    'destination_type' => 'USER',
+                    'destination_event' => 'FOLLOWING',
+                ]);
+                $message->user->notify($errorProcessingImageNotification);
+            } catch (Throwable $e) {
+                report($e);
+            }
+
+            //return $message->app->get('LIMIT_IMAGE_URL') ?? '';
+            return (string) json_encode([
+                'error' => 'You have reached your daily image generation limit.',
+                'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
+                'limit' => $message->app->get('message-post-limit') ?? 0,
+                'flag' => true,
+            ]);
+        }
+
+        return null;
     }
 
     private function generateTitleByPrompt(string $prompt): string

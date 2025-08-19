@@ -23,6 +23,7 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use League\Csv\Reader;
+use Throwable;
 
 class FilesystemManagementMutation
 {
@@ -105,16 +106,21 @@ class FilesystemManagementMutation
         if ($fileEntity->filesystem->apps_id != $app->getId()) {
             return false;
         }
+
+        $systemModule = $fileEntity->systemModule->model_name;
+        $entityId = $fileEntity->entity_id;
+
         $response = $fileEntity->softDelete();
 
         try {
-            $systemModule = $fileEntity->systemModule->model_name;
-            $entityData = $systemModule::getById($fileEntity->entity_id);
+            $entityData = $systemModule::getById($entityId);
             //@todo Set the same cache trait to all filesystem entities
             if (method_exists($entityData, 'clearLightHouseCacheJob')) {
                 $entityData->clearLightHouseCacheJob();
             }
+            $entityData->fireObserverEvent('saved');
         } catch (ModelNotFoundException $e) {
+            report($e);
         }
 
         return $response;
@@ -211,10 +217,17 @@ class FilesystemManagementMutation
 
         // Process CSV
         $csv = Reader::createFromPath($storagePath, 'r');
-        $csv->setHeaderOffset(0);
 
-        $header = $csv->getHeader();
-        $row = $csv->nth(0);
+        try {
+            $csv->setHeaderOffset(0);
+
+            $header = $csv->getHeader();
+            $row = $csv->nth(0);
+        } catch (Throwable $th) {
+            $result = $this->processCsvWithoutHeaders($storagePath);
+            $row = $result['row'];
+            $header = $result['header'];
+        }
 
         // Upload to filesystem
         $fileSystem = $this->singleFile($rootValue, $request);
@@ -324,5 +337,49 @@ class FilesystemManagementMutation
         }
 
         return null;
+    }
+
+    public function renameFile(mixed $rootVale, array $request): Filesystem
+    {
+        $filesystem = Filesystem::getById($request['id'], app(Apps::class));
+        if ($filesystem->users_id != auth()->user()->getId() && ! auth()->user()->isAdmin()) {
+            throw new ModelNotFoundException('File not found or you do not have permission to rename it.');
+        }
+        $filesystem->update([
+            'name' => $request['name'],
+        ]);
+
+        return $filesystem;
+    }
+
+    public function processCsvWithoutHeaders(string $storagePath): array
+    {
+        $csv = Reader::createFromPath($storagePath, 'r');
+
+        $allRecords = iterator_to_array($csv->getRecords());
+
+        if (empty($allRecords)) {
+            return [
+                'headers' => [],
+                'firstRow' => []
+            ];
+        }
+
+        $firstRecord = array_values($allRecords[0]);
+
+        $headers = [];
+        for ($i = 0; $i < count($firstRecord); $i++) {
+            $headers[] = 'column_' . ($i + 1);
+        }
+
+        $firstRow = [];
+        foreach ($firstRecord as $index => $value) {
+            $firstRow[$headers[$index]] = $value;
+        }
+
+        return [
+            'header' => $headers,
+            'row' => $firstRow
+        ];
     }
 }

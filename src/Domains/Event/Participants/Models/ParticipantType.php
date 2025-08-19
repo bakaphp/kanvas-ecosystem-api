@@ -10,6 +10,4 @@ class ParticipantType extends BaseModel
 {
     protected $table = 'participant_types';
     protected $guarded = [];
-
-    protected $is_deleted;
 }

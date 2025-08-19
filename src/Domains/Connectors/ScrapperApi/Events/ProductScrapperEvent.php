@@ -21,7 +21,7 @@ class ProductScrapperEvent implements ShouldBroadcast
     public function __construct(
         protected AppInterface $app,
         protected string $uuid,
-        protected Products $product,
+        protected array $product,
         protected float $price,
         protected ?string $searchText = null
     ) {
@@ -29,8 +29,7 @@ class ProductScrapperEvent implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        $product = Products::getById($this->product->getId());
-
+        $product = Products::getById($this->product['id']);
         return [
             'kanvas_product_id' => $product->getId(),
             'sku' => $product->variants()->first()->sku,

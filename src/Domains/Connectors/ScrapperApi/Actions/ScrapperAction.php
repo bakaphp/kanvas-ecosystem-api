@@ -24,7 +24,8 @@ class ScrapperAction
         public CompaniesBranches $companyBranch,
         protected Regions $region,
         public string $search,
-        public ?string $uuid = null
+        public ?string $uuid = null,
+        public ?string $cacheKey = null
     ) {
         $this->uuid = $uuid ?? app(AppEnums::KANVAS_IDENTIFIER->getValue());
     }
@@ -37,7 +38,7 @@ class ScrapperAction
         $importerProducts = 0;
         $limit = (int) $this->app->get('limit-product-scrapper');
         $firstGroup = array_slice($results, 0, $limit);
-        $secondGroup = array_slice($results, $limit);
+        $secondGroup = array_slice($results, $limit, 10);
         $app = $this->app;
         $user = $this->user;
         $companyBranch = $this->companyBranch;

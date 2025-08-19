@@ -24,6 +24,7 @@ class OrderStatsQuery
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
         $timezone = $input['timezone'] ?? null;
+        $baseDate = $input['baseDate'] ?? null;
 
         $orderStats = new GetOrderStatsAction(
             $app,
@@ -34,6 +35,7 @@ class OrderStatsQuery
             $date,
             $startDate,
             $endDate,
+            $baseDate,
             $timezone
         );
 

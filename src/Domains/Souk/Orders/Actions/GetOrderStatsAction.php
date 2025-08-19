@@ -19,8 +19,13 @@ class GetOrderStatsAction
     ) {
     }
 
-    public function execute(?string $date, ?string $startDate, ?string $endDate, ?string $timezone = 'UTC'): array
-    {
+    public function execute(
+        ?string $date = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?string $baseDate = null,
+        string $timezone = 'UTC'
+    ): array {
         if ($date && (! $startDate || ! $endDate)) {
             $start = Carbon::parse($date, $timezone)->startOfDay()->timezone('UTC');
             $end   = Carbon::parse($date, $timezone)->endOfDay()->timezone('UTC');
@@ -29,7 +34,7 @@ class GetOrderStatsAction
             $end = $endDate ? Carbon::parse($endDate, $timezone)->endOfDay()->timezone('UTC') : now()->endOfDay()->timezone('UTC');
         }
 
-        $currentCount = $this->getCurrentCount();
+        $currentCount = $this->getCurrentCount($baseDate, $timezone);
         $dailyTurnover = $this->getDailyTurnover($start, $end);
         $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount);
 
@@ -42,7 +47,7 @@ class GetOrderStatsAction
             'currentCount' => $currentCount,
             'dailyTurnover' => $dailyTurnover,
             'averageRotation' => $this->getAverageRotation($start, $end),
-            'orderRotationAvg' => $ordersInPeriod["orderAvg"] ? ($dailyTurnover["totalExits"] / $ordersInPeriod["orderAvg"]) * 100 : 0
+            'orderRotationAvg' => $ordersInPeriod["orderAvg"] > 0 ? ($dailyTurnover["totalExits"] / $ordersInPeriod["orderAvg"]) : 0
         ];
     }
 
@@ -199,10 +204,11 @@ class GetOrderStatsAction
         return $dates;
     }
 
-    private function getCurrentCount(): int
+    private function getCurrentCount(?string $baseDate = null, string $timezone = 'UTC'): int
     {
         return Order::query()
             ->where('apps_id', $this->app->id)
+            ->when($baseDate, fn ($q) => $q->where('created_at', '>=', Carbon::parse($baseDate, $timezone)->timezone('UTC')))
             ->whereHas('orderStatus', fn ($q) => $q->whereIn('slug', $this->currentCountStates))
             ->count();
     }
@@ -210,7 +216,7 @@ class GetOrderStatsAction
     private function getDailyTurnover($start, $end): array
     {
         $entries = OrderTransitionHistory::query()
-            ->selectRaw("COUNT(*) as count, DATE(changed_at) as date")
+            ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(changed_at) as date")
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
             ->orderBy('date')
@@ -222,7 +228,7 @@ class GetOrderStatsAction
             ->keyBy('date');
 
         $exits = OrderTransitionHistory::query()
-            ->selectRaw("COUNT(*) as count, DATE(changed_at) as date")
+            ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(changed_at) as date")
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
             ->orderBy('date')
@@ -255,8 +261,8 @@ class GetOrderStatsAction
         return [
             "totalEntries" => $entries->sum(fn ($entry) => $entry->count ?? 0),
             "totalExits" => $exits->sum(fn ($entry) => $entry->count ?? 0),
-            "exitAvg" => $totalExits / $dates->count(),
-            "entryAvg" => $totalEntries / $dates->count(),
+            "exitAvg" => $dates->count() > 0 ? $totalExits / $dates->count() : 0,
+            "entryAvg" => $dates->count() > 0 ? $totalEntries / $dates->count() : 0,
             "exitPercentage" => $totalEntries > 0 ? ($totalExits / $totalEntries * 100) : 0,
             "maxExitDate" => [
                 "date" => $maxExit->date,

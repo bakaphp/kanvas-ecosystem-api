@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\ScrapingDog\Actions\ScraperAction;
+use Kanvas\Connectors\ScrapingDog\Actions\ScraperProductAction;
 use Kanvas\Connectors\ScrapingDog\Enums\ConfigEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
@@ -32,23 +33,38 @@ class ScraperSearchActivity extends KanvasActivity
             //         'error' => 'Already searched this word recently',
             //     ];
             // }
-            $action = new ScraperAction(
-                $app,
-                Users::getById($params['user']),
-                CompaniesBranches::getById($params['companyBranch']),
-                Regions::getById($params['region']),
-                $params['search'],
-            );
-
+            $cacheKey = $params['cache_key'] ?? null;
+            $scraperProduct = $params['scraper_product'] ?? false;
+            if ($scraperProduct) {
+                $action = new ScraperProductAction(
+                    $app,
+                    Users::getById($params['user']),
+                    CompaniesBranches::getById($params['companyBranch']),
+                    Regions::getById($params['region']),
+                    $params['search'],
+                    $params['uuid'] ?? null,
+                    $cacheKey
+                );
+            } else {
+                $action = new ScraperAction(
+                    $app,
+                    Users::getById($params['user']),
+                    CompaniesBranches::getById($params['companyBranch']),
+                    Regions::getById($params['region']),
+                    $params['search'],
+                    $params['uuid'] ?? null,
+                    $cacheKey
+                );
+            }
             // $this->setRecentlySearched($app, $word);
-            return [
+            $response = [
                 'product' => $action->execute(),
-                'word' => $word
+                'word' => $word,
             ];
+
+            return $response;
         } catch (Throwable $e) {
             captureException($e);
-            dump($e->getMessage());
-            dump($e->getTraceAsString());
 
             return [
                 'error' => $e->getMessage(),

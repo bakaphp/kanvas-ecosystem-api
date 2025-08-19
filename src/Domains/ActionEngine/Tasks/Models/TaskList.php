@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Tasks\Factories\TaskListFactory;
+use Override;
 
 /**
  * Class Tasks.
@@ -37,6 +38,7 @@ class TaskList extends BaseModel
         return $this->hasMany(TaskListItem::class, 'task_list_id')->orderBy('weight');
     }
 
+    #[Override]
     public static function newFactory()
     {
         return TaskListFactory::new();

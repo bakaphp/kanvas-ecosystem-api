@@ -137,11 +137,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
     }
 
+    #[Override]
     public function getActivityLogName(): string
     {
         return 'variant-' . $this->companies_id . '-' . $this->apps_id;
     }
 
+    #[Override]
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -152,6 +154,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         ->logOnlyDirty();
     }
 
+    #[Override]
     public function getActivities(): Collection
     {
         return Activity::forSubject($this)
@@ -430,6 +433,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'uuid' => $this->uuid,
             'slug' => $this->slug,
             'sku' => $this->sku,
+            'ean' => $this->ean,
+            'barcode' => $this->barcode,
             'status' => [
                 'id' => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,
@@ -684,6 +689,16 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ],
                 [
                     'name' => 'sku',
+                    'type' => 'string',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'ean',
+                    'type' => 'string',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'barcode',
                     'type' => 'string',
                     'facet' => true,
                 ],

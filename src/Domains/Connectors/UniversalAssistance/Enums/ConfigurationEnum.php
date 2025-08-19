@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\UniversalAssistance\Enums;
+
+enum ConfigurationEnum: string
+{
+    case BASE_URL = 'UNIVERSAL_ASSISTANCE_API_BASE_URL';
+    case USERNAME = 'UNIVERSAL_ASSISTANCE_USERNAME';
+    case PASSWORD = 'UNIVERSAL_ASSISTANCE_PASSWORD';
+    case ORGANIZATION = 'UNIVERSAL_ASSISTANCE_ORGANIZATION';
+    case WSDL_QUOTE = 'UNIVERSAL_ASSISTANCE_WSDL_QUOTE';
+    case WSDL_VOUCHER = 'UNIVERSAL_ASSISTANCE_WSDL_VOUCHER';
+    case WSDL_QUERY = 'UNIVERSAL_ASSISTANCE_WSDL_QUERY';
+}

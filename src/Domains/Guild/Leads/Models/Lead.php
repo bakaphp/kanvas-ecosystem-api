@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Event\Participants\Models\ParticipantType;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
@@ -158,6 +157,10 @@ class Lead extends BaseModel
             })->where('is_deleted', 0);
         }
 
+        if ($app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value) && is_array($app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value))) {
+            $query->whereNotIn('leads_types_id', $app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value));
+        }
+
         return $query;
     }
 
@@ -264,7 +267,7 @@ class Lead extends BaseModel
 
     public function addCoBuyerParticipant(People $people): LeadParticipant
     {
-        $type = ParticipantType::where('name', 'Co-Buyer')
+        $type = LeadParticipantType::where('name', 'Co-Buyer')
             ->where('is_deleted', 0)
             ->where('companies_id', $this->companies_id)
             ->first();

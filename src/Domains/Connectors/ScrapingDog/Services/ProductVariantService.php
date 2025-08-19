@@ -14,6 +14,7 @@ class ProductVariantService extends ProductService
         foreach ($variantsGroup as $group) {
             $variant = $this->mapProduct($product);
             $variant['sku'] = $group['asin'];
+            $variant['slug'] = $group['asin'];
             $variant['source_id'] = $group['asin'];
 
             // Merge attributes from variant and product
@@ -32,7 +33,7 @@ class ProductVariantService extends ProductService
             ];
             $variant['channels'][] = $channel;
 
-            $variant['name'] = key_exists('attributes', $group) ? $this->getName($group['attributes']) : ($group['name'] ?? $product['title'] ?? '');
+            $variant['name'] = $group['name'];
 
             $variants[] = $variant;
         }

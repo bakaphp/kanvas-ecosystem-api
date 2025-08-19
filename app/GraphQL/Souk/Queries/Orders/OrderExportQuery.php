@@ -1,0 +1,186 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\GraphQL\Souk\Queries\Orders;
+
+use App\GraphQL\Souk\Handlers\OrderStatusHandler;
+use App\GraphQL\Souk\Handlers\OrderTypeHandler;
+use GraphQL\Type\Definition\ResolveInfo;
+use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Orders\Actions\ExportOrdersAction;
+use Kanvas\Souk\Orders\Models\Order;
+use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Nuwave\Lighthouse\WhereConditions\SQLOperator;
+
+class OrderExportQuery
+{
+    public function export(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): array {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $format = $args['format'];
+        $fieldMapper = $args['field_mapper'] ?? null;
+        $metadata = $args['metadata'] ?? [];
+        $timezone = $args['timezone'] ?? $user->timezone ?? null;
+
+        try {
+            $user = auth()->user();
+            $ordersQuery = $this->getOrdersQuery($app, $company, $args);
+
+            // Check if there are any orders first
+            if ($ordersQuery->count() === 0) {
+                return [
+                    'status' => 'warning',
+                    'download_url' => null,
+                    'file_name' => null,
+                    'message' => 'No orders found matching the specified criteria.',
+                ];
+            }
+
+            $exportService = new ExportOrdersAction(
+                app: $app,
+                user: $user,
+                orderData: $ordersQuery,
+                fieldMapper: $fieldMapper,
+                metadata: $metadata,
+                params: $args['where'] ?? [],
+                timezone: $timezone
+            );
+
+            return $exportService->execute($format);
+        } catch (\Exception $e) {
+            return [
+                'status' => 'error',
+                'download_url' => null,
+                'file_name' => null,
+                'message' => 'Export failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    public function getOrdersQuery(
+        Apps $app,
+        Companies $company,
+        array $args
+    ): Builder {
+        // Build the query with the same filters as the orders query
+        $query = Order::query()
+            ->fromCompany($company)
+            ->fromApp($app)
+            ->notDeleted()
+            ->filterByUser();
+
+        // Apply search filter
+        if (isset($args['search'])) {
+            $searchTerm = $args['search'];
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('user_email', 'like', "%{$searchTerm}%")
+                    ->orWhere('user_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('reference', 'like', "%{$searchTerm}%")
+                    ->orWhere('order_number', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply basic where conditions
+        if (isset($args['where']) && is_array($args['where'])) {
+            $query = $this->applyWhereConditions(
+                $query,
+                $args['where'] ?? []
+            );
+        }
+
+        // Apply orderType filter using the handler
+        if (isset($args['orderType']) && is_array($args['orderType'])) {
+            $handler = new OrderTypeHandler(new SQLOperator());
+            $handler($query, $args['orderType'], null, 'and');
+        }
+
+        // Apply orderStatus filter using the handler
+        if (isset($args['orderStatus']) && is_array($args['orderStatus'])) {
+            $handler = new OrderStatusHandler(new SQLOperator());
+            $handler($query, $args['orderStatus'], null, 'and');
+        }
+
+        // Apply order by
+        if (isset($args['orderBy']) && is_array($args['orderBy'])) {
+            foreach ($args['orderBy'] as $order) {
+                // Skip if order is not an array or doesn't have required fields
+                if (! is_array($order) || ! isset($order['column'])) {
+                    continue;
+                }
+
+                $column = $order['column'];
+                $direction = $order['order'] ?? 'ASC';
+
+                // Convert column name to lowercase to handle enum-like values
+                if (is_string($column)) {
+                    $column = strtolower($column);
+                }
+
+                $query->orderBy($column, $direction);
+            }
+        } else {
+            $query->orderBy('created_at', 'DESC');
+        }
+
+        return $query;
+    }
+
+    public function applyWhereConditions(Builder $query, array $conditions = []): Builder
+    {
+        $operatorMap = [
+            'EQ' => '=',
+            'NEQ' => '!=',
+            'GT' => '>',
+            'GTE' => '>=',
+            'LT' => '<',
+            'LTE' => '<=',
+            'LIKE' => 'LIKE',
+        ];
+
+        // Handle main condition
+        if (isset($conditions['column'], $conditions['value'])) {
+            $this->applySingleCondition($query, $conditions, $operatorMap);
+        }
+
+        // Handle AND conditions
+        if (isset($conditions['AND']) && is_array($conditions['AND'])) {
+            foreach ($conditions['AND'] as $andCondition) {
+                if (is_array($andCondition) && isset($andCondition['column'], $andCondition['value'])) {
+                    $this->applySingleCondition($query, $andCondition, $operatorMap);
+                }
+            }
+        }
+
+        return $query;
+    }
+
+    private function applySingleCondition(Builder $query, array $condition, array $operatorMap): void
+    {
+        $column = $condition['column'];
+        $operator = strtoupper($condition['operator'] ?? 'EQ');
+        $value = $condition['value'];
+
+        // Convert column name to lowercase to handle enum-like values
+        if (is_string($column)) {
+            $column = strtolower($column);
+        }
+
+        if ($operator === 'BETWEEN' && is_array($value) && count($value) >= 2) {
+            $query->whereBetween($column, [$value[0], $value[1]]);
+        } elseif (in_array($operator, ['IN', 'NOT_IN'])) {
+            $method = $operator === 'IN' ? 'whereIn' : 'whereNotIn';
+            $query->{$method}($column, (array) $value);
+        } elseif (array_key_exists($operator, $operatorMap)) {
+            $query->where($column, $operatorMap[$operator], $value);
+        }
+    }
+}

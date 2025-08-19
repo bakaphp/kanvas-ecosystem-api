@@ -41,6 +41,8 @@ class Filesystem extends BaseModel
     public $cachePrefix = 'filesystem_';
     public $cacheDriver = 'redis';
     protected static $flushCacheOnUpdate = true;
+    public ?string $macroKey = null;
+    public mixed $withoutAllGlobalScopes;
 
     protected $table = 'filesystem';
     protected $fillable = [

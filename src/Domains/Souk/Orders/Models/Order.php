@@ -19,6 +19,7 @@ use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
@@ -54,6 +55,7 @@ use Spatie\LaravelData\DataCollection;
  * @property float|null $shipping_price_gross_amount
  * @property float|null $shipping_price_net_amount
  * @property float|null $discount_amount
+ * @property float|null $tax_amount
  * @property string|null $discount_name
  * @property int|null $voucher_id
  * @property string|null $language_code
@@ -136,6 +138,11 @@ class Order extends BaseModel
     public function payments(): MorphMany
     {
         return $this->morphMany(Payments::class, 'payable');
+    }
+
+    public function orderDiscounts(): HasMany
+    {
+        return $this->hasMany(OrderDiscount::class, 'order_id', 'id');
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder

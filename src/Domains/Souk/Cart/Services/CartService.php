@@ -47,7 +47,7 @@ class CartService
             'items' => $cartItems, //$this->cart->getContent()->toArray(),
             'discounts' => $discounts,
             'total_discount' => $totalDiscount,
-            'subtotal' => $this->cart->getSubTotal(),
+            'subtotal' => $this->cart->getSubTotalWithoutConditions(),
             'total' => $this->cart->getTotal(),
         ];
         if ($shipping) {

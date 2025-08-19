@@ -9,6 +9,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
@@ -24,6 +25,7 @@ use Kanvas\Locations\Models\Countries;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -41,6 +43,7 @@ use Override;
  * @property string $firstname
  * @property string|null $middlename = null
  * @property string $lastname
+ * @property string $licence_number
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
@@ -101,6 +104,15 @@ class People extends BaseModel
         )->orderBy('created_at', 'desc');
     }
 
+    public function orders(): HasMany
+    {
+        return $this->hasMany(
+            Order::class,
+            'peoples_id',
+            'id'
+        )->orderBy('created_at', 'desc');
+    }
+
     public function emails(): HasMany
     {
         return $this->hasMany(
@@ -114,7 +126,7 @@ class People extends BaseModel
     }
 
     // Define the relationship with the Organization model
-    public function organizations()
+    public function organizations(): BelongsToMany
     {
         return $this->belongsToMany(
             Organization::class,
@@ -433,8 +445,8 @@ class People extends BaseModel
             'dob' => $this->dob,
             'apps_id' => $this->apps_id,
             'users_id' => $this->users_id,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'created_at' => $this->created_at->getTimestamp(),
+            'updated_at' => $this->updated_at->getTimestamp(),
             'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
                     'uuid' => $files->uuid,
