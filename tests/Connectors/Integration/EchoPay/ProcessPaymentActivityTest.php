@@ -119,8 +119,8 @@ final class ProcessPaymentActivityTest extends TestCase
 
         // Perform GraphQL mutation to create a draft order
         $response = $this->graphQL('
-            mutation createDraftOrder($input: DraftOrderInput!) {
-                createDraftOrder(input: $input) {
+           mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
                     order {
                         id
                     }
@@ -133,7 +133,8 @@ final class ProcessPaymentActivityTest extends TestCase
             'X-Kanvas-App' => $app->key,
         ]);
 
-        $order = $response->json('data.createDraftOrder.order');
+
+        $order = $response->json('data.createOrderFromCart.order');
 
         $order = Order::fromApp($app)->find($order['id']);
 
@@ -147,6 +148,7 @@ final class ProcessPaymentActivityTest extends TestCase
         $payment = $order->payments()->first();
         $result = $activity->execute($payment, $app, []);
         $order->refresh();
+
         $this->assertArrayHasKey('status', $result);
         $this->assertArrayHasKey('message', $result);
         $this->assertArrayHasKey('data', $result);
