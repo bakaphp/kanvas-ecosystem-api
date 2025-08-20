@@ -39,9 +39,9 @@ class CreateContentSessionAction
             'contacts' => $people->contacts->toArray(),
             'background' => $this->agent?->role,
             'checklist' => [
-                'credit-app' => fake()->url,
-                'trade-in' => fake()->url,
-            ]
+                'credit-app' => 'https://kanvas.dev/credit-app',
+                'trade-in' => 'https://kanvas.dev/trade-in',
+            ],
         ];
     }
 }
