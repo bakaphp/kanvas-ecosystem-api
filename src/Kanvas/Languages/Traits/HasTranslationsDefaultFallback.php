@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Languages\Traits;
 
 use Baka\Support\Str;
+use Illuminate\Support\Facades\App;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Attributes\Models\AttributesValues;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Spatie\Translatable\HasTranslations;
-use Illuminate\Support\Facades\App;
+
 trait HasTranslationsDefaultFallback
 {
     use HasTranslations;
