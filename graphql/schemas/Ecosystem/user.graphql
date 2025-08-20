@@ -21,6 +21,7 @@ type User {
     addresses: [Address!] @HasMany(relation: "addresses")
     sex: String
     user_active: Boolean!
+    lastvisit: String
     timezone: String
     abilities: Mixed! @method(name: "getAbilitiesList")
     roles: Mixed! @method(name: "getRolesToArray")

@@ -26,6 +26,7 @@ type User {
     roles: Mixed! @method(name: "getRolesToArray")
     mainRole: String!
     welcome: Boolean! @method(name: "getAppWelcome")
+    lastvisit: String
     created_at: DateTime
     systemModule: SystemModule! @belongsTo(relation: "systemModule")
     updated_at: DateTime
