@@ -93,8 +93,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 );
             }
 
-            $variant = Variants::with(['product', 'attributes', 'files', 'customFields'])
-                ->where('sku', $sku)
+            $variant = Variants::where('sku', $sku)
                 ->where('apps_id', $this->receiver->app->getId())
                 ->first();
 
@@ -137,6 +136,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             }
             $variant->setTranslation('name', 'es', TranslateToSpanishAction::execute($variant->name) ?? $variant->name);
             $variant->setTranslation('description', 'es', TranslateToSpanishAction::execute($variant->description) ?? $variant->description);
+            $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
 
             $variantData = $variant->toArray();
 
