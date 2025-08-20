@@ -118,7 +118,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                     auth()->user()
                 );
 
-                $variant = Variants::with(['product', 'attributes', 'files', 'customFields'])
+                $variant = Variants::with(['attributes', 'files', 'customFields'])
                     ->where('sku', $sku)
                     ->first();
             } else {
@@ -127,13 +127,12 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                     (float) $mappedProduct['price'],
                     (float) $mappedProduct['discountPrice']
                 );
+            }
+            if (! empty($mappedProduct['files'])) {
+                $variant->deleteFiles();
 
-                if (! empty($mappedProduct['files'])) {
-                    $variant->deleteFiles();
-
-                    foreach ($mappedProduct['files'] as $file) {
-                        $variant->addFileFromUrl($file['url'], $file['name']);
-                    }
+                foreach ($mappedProduct['files'] as $file) {
+                    $variant->addFileFromUrl($file['url'], $file['name']);
                 }
             }
             $variant->setTranslation('name', 'es', TranslateToSpanishAction::execute($variant->name) ?? $variant->name);
@@ -142,19 +141,32 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             $variantData = $variant->toArray();
 
             $variantData['channel'] = new ChannelInfoType()->price($variant, []);
-            $variant['translation'] = [
+            $variantData['product'] = Products::with(['files', 'categories'])
+                ->where('id', $productModel->getId())
+                ->where('apps_id', $this->receiver->app->getId())
+                ->first()
+                ->toArray();
+            $variants = Variants::with(['files', 'attributes'])
+            ->where('products_id', $productModel->getId())
+            ->where('apps_id', $this->receiver->app->getId())
+            ->get();
+            $variantData['translation'] = [
                 'name' => $variant->getTranslation('name', 'es'),
                 'description' => $variant->getTranslation('description', 'es'),
             ];
+
+            $variants = Variants::with(['files', 'attributes'])
+                ->where('products_id', $productModel->getId())
+                ->where('apps_id', $this->receiver->app->getId())
+                ->get();
 
             return [
                 'price' => $mappedProduct['price'],
                 'discounted_price' => $mappedProduct['discountPrice'] ?? null,
                 'variant' => $variantData,
-                'variants' => $productModel->variants->toArray(),
+                'variants' => $variants,
             ];
         } catch (\Throwable $e) {
-            dump($e->getMessage());
             captureException($e);
         }
 
