@@ -209,7 +209,7 @@ class ProductService
         return (float) $weight;
     }
 
-  
+
     private function parseWeightString(string $text): float
     {
         if (preg_match('/([\d.]+)\s*(pounds|ounces|lbs|oz|kg|g)\b/i', $text, $matches)) {
