@@ -86,6 +86,7 @@ class PullNetSuiteProductPriceAction
             ]
         ]);
 
+        $variant->set(CustomFieldEnum::NET_SUITE_PRODUCT_ID, $netsuiteProductInfo->itemId);
 
         return [
             'company' => $this->mainAppCompany->getId(),
