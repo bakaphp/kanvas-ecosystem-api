@@ -186,40 +186,46 @@ class ProductService
     {
         $weight = null;
 
-        if (isset($product['feature_bullets']) && is_array($product['feature_bullets'])) {
+        if (! empty($product['product_information']['Item Weight'])) {
+            $weight = $this->parseWeightString($product['product_information']['Item Weight']);
+        }
+
+        if ((! $weight || $weight <= 0) && ! empty($product['product_information']['Product Dimensions'])) {
+            $weight = $this->parseWeightString($product['product_information']['Product Dimensions']);
+        }
+
+        if ((! $weight || $weight <= 0) && ! empty($product['feature_bullets']) && is_array($product['feature_bullets'])) {
             foreach ($product['feature_bullets'] as $bullet) {
-                if (preg_match('/([\d.]+)\s*(pounds|ounces|lbs|oz|kg|g)\b/i', $bullet, $matches)) {
-                    $weight = (float) $matches[1];
-                    $unit = strtolower($matches[2]);
-                    switch ($unit) {
-                        case 'pounds':
-                        case 'lbs':
-                            $weight = $weight * 453.592;
-
-                            break;
-                        case 'ounces':
-                        case 'oz':
-                            $weight = $weight * 28.3495;
-
-                            break;
-                        case 'kg':
-                            $weight = $weight * 1000;
-
-                            break;
-                        case 'g':
-                            break;
-                    }
-
+                $weight = $this->parseWeightString($bullet);
+                if ($weight > 0) {
                     break;
                 }
             }
         }
-
         if (! $weight || $weight <= 0) {
             $weight = 453.592;
         }
 
         return (float) $weight;
+    }
+
+  
+    private function parseWeightString(string $text): float
+    {
+        if (preg_match('/([\d.]+)\s*(pounds|ounces|lbs|oz|kg|g)\b/i', $text, $matches)) {
+            $value = (float) $matches[1];
+            $unit = strtolower($matches[2]);
+
+            return match ($unit) {
+                'pounds', 'lbs' => $value * 453.592,
+                'ounces', 'oz' => $value * 28.3495,
+                'kg' => $value * 1000,
+                'g' => $value,
+                default => 0,
+            };
+        }
+
+        return 0;
     }
 
     public function calcDiscountPrice(array $product): array
