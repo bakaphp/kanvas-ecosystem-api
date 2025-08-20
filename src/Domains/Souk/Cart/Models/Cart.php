@@ -33,7 +33,7 @@ use Kanvas\Users\Models\Users;
 class Cart extends BaseModel
 {
     protected $table = 'carts';
-    
+
     protected $fillable = [
         'uuid',
         'apps_id',
