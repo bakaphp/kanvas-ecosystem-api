@@ -26,8 +26,12 @@ class ProductService
         $amazonPrice = $this->extractPrice($product);
         $name = Str::limit($product['title'] ?? '', 255);
         $listPrice = $this->extractListPrice($product);
-
-        // Usar parent_asin si existe, sino usar el asin del customization_options
+        if ($amazonPrice <= 0 && $listPrice > 0) {
+            $amazonPrice = $listPrice;
+        }
+        if ($listPrice == 0 && $amazonPrice > 0) {
+            $listPrice = $amazonPrice;
+        }
         $asin = $this->getProductAsin($product);
 
         $mappedProduct = [
