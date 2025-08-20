@@ -38,7 +38,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $this->overwriteAppService($app);
         $request = $this->webhookRequest->payload;
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
-        $key = $request['sku'] . ':' . $this->receiver->app->getId();
+        $key = 'update_' . $request['sku'] . ':' . $this->receiver->app->getId();
 
         return Cache::remember($key, $minutesForUpdate, function () use ($request) {
             return $this->updateVariant($request['sku']);
@@ -91,16 +91,37 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             // @todo: remove this, cause redundant
             $variant = Variants::where('sku', $sku)
                 ->where('apps_id', $this->receiver->app->getId())
-                ->firstOrFail();
-            $variant->updatePriceInChannel(
-                $this->channel,
-                (float) $mappedProduct['price'],
-                (float) $mappedProduct['discountPrice']
-            );
-            if ($mappedProduct['files']) {
-                $variant->deleteFiles();
-                foreach ($mappedProduct['files'] as $file) {
-                    $variant->addFileFromUrl($file['url'], $file['name']);
+                ->first();
+            if (! $variant) {
+                $variant = $mappedProduct;
+                $variant['sku'] = $sku;
+                $variant['slug'] = $sku;
+                $variant['source_id'] = $sku;
+                $variant['channels'] = [
+                    [
+                        'price' => $mappedProduct['price'],
+                        'discounted_price' => $mappedProduct['discountPrice'],
+                        'is_published' => true,
+                        'warehouses_id' => $this->warehouse->getId(),
+                        'channels_id' => $this->channel->getId(),
+                    ],
+                ];
+                VariantService::createVariantsFromArray(
+                    $productModel,
+                    [$variant],
+                    auth()->user()
+                );
+            } else {
+                $variant->updatePriceInChannel(
+                    $this->channel,
+                    (float) $mappedProduct['price'],
+                    (float) $mappedProduct['discountPrice']
+                );
+                if ($mappedProduct['files']) {
+                    $variant->deleteFiles();
+                    foreach ($mappedProduct['files'] as $file) {
+                        $variant->addFileFromUrl($file['url'], $file['name']);
+                    }
                 }
             }
 
