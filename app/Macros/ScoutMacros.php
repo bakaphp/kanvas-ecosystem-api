@@ -33,27 +33,17 @@ class ScoutMacros
                 $key = "semantic_search:{$app->getId()}:{$query}:{$perPage}:{$optionsHash}";
                 $seconds = (int)$app->get(AppEnums::CACHE_SEARCH_TTL->getValue(), 60);
 
-                return Cache::remember($key, $seconds, function () use ($app, $model, $options, $query, $key, $perPage) {
+                Cache::remember($key, $seconds, function () use ($app, $model, $options, $query, $key, $perPage) {
                     // Fire workflow event
-                    $app->fireWorkflow(
+                    return $app->fireWorkflow(
                         event: WorkflowEnum::SEARCH->value,
                         params: [
                             'search_type' => 'product',
                             'search' => $query,
-                            'cache_key' => $key,
                         ]
                     );
-                    return ScoutMacros::getTypesenseData($app, $model, $query, $perPage, $options);
                 });
             }
-            $app->fireWorkflow(
-                event: WorkflowEnum::SEARCH->value,
-                params: [
-                    'search_type' => 'product',
-                    'search' => $query,
-                    'cache_key' => null,
-                ]
-            );
 
             return ScoutMacros::getTypesenseData($app, $model, $query, $perPage, $options);
         });

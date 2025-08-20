@@ -82,7 +82,7 @@ final class ZOrderTest extends TestCase
                 region: $warehouse->region,
                 company: $product->company,
                 email: fake()->email,
-                phone: fake()->phoneNumber,
+                phone: '18093505111',
                 people: $people,
                 user: $product->user,
                 token: Str::random(),

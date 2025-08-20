@@ -145,12 +145,6 @@ class EchoPayService
 
     public function deleteCardFromRequest(PaymentMethod $paymentMethod): array
     {
-        $query = http_build_query([
-            'id' => $this->merchant->id,
-            'key' => $this->merchant->key,
-            'secretKey' => $this->merchant->secretKey,
-        ]);
-
         $id = $paymentMethod->metadata['paymentInstrumentId'] ?? $paymentMethod->stripe_card_id;
 
         return $this->deleteCard($id);
