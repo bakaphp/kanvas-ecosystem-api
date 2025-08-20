@@ -33,4 +33,11 @@ class MessagesTypesRepository
         return MessageType::fromApp($app)->where('verb', $verb)
             ->firstOrFail();
     }
+
+    public static function getGlobalByVerbAndName(string $verb, string $name): MessageType
+    {
+        return MessageType::fromPublicApp()->where('verb', $verb)
+                            ->where('name', $name)
+                            ->firstOrFail();
+    }
 }

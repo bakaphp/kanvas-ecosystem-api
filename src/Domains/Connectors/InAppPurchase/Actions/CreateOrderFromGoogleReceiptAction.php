@@ -104,7 +104,7 @@ class CreateOrderFromGoogleReceiptAction
         ))->execute();
     }
 
-    private function createOrderData(array $allReceiptData, $people): Order
+    private function createOrderData(array $allReceiptData, People $people): Order
     {
         $orderItem = $this->createOrderItem($allReceiptData);
 
