@@ -42,8 +42,8 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
         $key = 'update_' . $request['sku'] . ':' . $this->receiver->app->getId();
 
-        return $this->updateVariant($request['sku']);
         return Cache::remember($key, $minutesForUpdate, function () use ($request) {
+            return $this->updateVariant($request['sku']);
         });
     }
 
