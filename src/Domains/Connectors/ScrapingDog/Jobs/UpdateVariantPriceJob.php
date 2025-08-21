@@ -40,7 +40,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $this->overwriteAppService($app);
         $request = $this->webhookRequest->payload;
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
-        $key = 'update_' . $request['sku'] . ':' . $this->receiver->app->getId();
+        $key = 'update_v1_' . $request['sku'] . ':' . $this->receiver->app->getId();
 
         return Cache::remember($key, $minutesForUpdate, function () use ($request) {
             return $this->updateVariant($request['sku']);
@@ -154,6 +154,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 'name' => $variant->getTranslation('name', 'es'),
                 'description' => $variant->getTranslation('description', 'es'),
             ];
+            $variantData['customization_options'] = $product['customization_options'];
 
             $variants = Variants::with(['files', 'attributes'])
                 ->where('products_id', $productModel->getId())
