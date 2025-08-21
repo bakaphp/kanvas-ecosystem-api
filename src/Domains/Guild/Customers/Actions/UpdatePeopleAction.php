@@ -148,6 +148,12 @@ class UpdatePeopleAction
                         'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->people->app)->getId(),
                         'duration' => $address->duration ?? 0.0,
                     ]);
+                } else {
+                    $existingAddress->update([
+                        'address_2' => $address->address_2,
+                        'is_default' => $address->is_default,
+                        'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->people->app)->getId(),
+                    ]);
                 }
             }
 
