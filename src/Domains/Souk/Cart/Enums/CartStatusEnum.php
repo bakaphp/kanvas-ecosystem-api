@@ -9,5 +9,4 @@ enum CartStatusEnum: string
     case PENDING = 'pending';
     case ABANDONED = 'abandoned';
     case RECOVERED = 'recovered';
-    case COMPLETED = 'completed';
 }
