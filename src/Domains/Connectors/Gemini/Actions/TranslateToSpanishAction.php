@@ -12,6 +12,12 @@ class TranslateToSpanishAction
 {
     public static function execute(string|int|float $text): ?string
     {
+        if (is_numeric($text)) {
+            $text = (string)$text;
+
+            return $text;
+        }
+
         $client = new Client();
 
         $url = 'https://qa-ai-api.vercel.app/api/gemini/translate';
