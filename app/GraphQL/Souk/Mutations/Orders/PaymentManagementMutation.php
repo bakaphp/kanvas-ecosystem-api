@@ -67,11 +67,6 @@ class PaymentManagementMutation
             ];
         }
 
-        //50 = $0.50 , stripe doesn't allow payment intent less than 0.5
-        if ($totalAmount < 50) {
-            throw new ValidationException('Error Generating Payment Intent');
-        }
-
         $intent = PaymentIntent::create([
             'amount' => $totalAmount,
             'currency' => 'usd',
