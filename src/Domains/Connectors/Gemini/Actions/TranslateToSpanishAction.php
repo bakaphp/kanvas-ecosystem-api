@@ -10,7 +10,7 @@ use GuzzleHttp\Exception\ServerException;
 
 class TranslateToSpanishAction
 {
-    public static function execute(string $text): ?string
+    public static function execute(string|int|float $text): ?string
     {
         $client = new Client();
 
