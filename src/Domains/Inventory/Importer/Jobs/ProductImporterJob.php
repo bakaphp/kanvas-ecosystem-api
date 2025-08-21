@@ -14,9 +14,10 @@ use Kanvas\Inventory\Importer\Events\ProductImportEvent;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Override;
-use Throwable;
 
 use function Sentry\captureException;
+
+use Throwable;
 
 class ProductImporterJob extends AbstractImporterJob
 {
@@ -43,6 +44,7 @@ class ProductImporterJob extends AbstractImporterJob
                 }, $column = 'id'); */
 
         $this->startFilesystemMapperImport();
+        $processProducts = [];
 
         foreach ($this->importer as $request) {
             try {
