@@ -24,8 +24,6 @@ use Override;
 
 use function Sentry\captureException;
 
-use Throwable;
-
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;
@@ -42,15 +40,10 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $this->overwriteAppService($app);
         $request = $this->webhookRequest->payload;
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
-        $key = 'update_' . $request['sku'] . ':' . $this->receiver->app->getId();
+        $key = 'update_v1_' . $request['sku'] . ':' . $this->receiver->app->getId();
 
-        return Cache::remember($key, $minutesForUpdate, function () use ($request, $key) {
-            try {
-                return $this->updateVariant($request['sku']);
-            } catch (Throwable $e) {
-                captureException($e);
-                Cache::forget($key);
-            }
+        return Cache::remember($key, $minutesForUpdate, function () use ($request) {
+            return $this->updateVariant($request['sku']);
         });
     }
 
@@ -141,10 +134,8 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                     $variant->addFileFromUrl($file['url'], $file['name']);
                 }
             }
-
-            $variant->setTranslation('name', 'es', TranslateToSpanishAction::execute((string)$variant->name ?? '') ?? $variant->name);
-            $variant->setTranslation('description', 'es', TranslateToSpanishAction::execute((string)$variant->description ?? '') ?? $variant->description);
-
+            $variant->setTranslation('name', 'es', TranslateToSpanishAction::execute($variant->name) ?? $variant->name);
+            $variant->setTranslation('description', 'es', TranslateToSpanishAction::execute($variant->description) ?? $variant->description);
             $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
 
             $variantData = $variant->toArray();
@@ -163,6 +154,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 'name' => $variant->getTranslation('name', 'es'),
                 'description' => $variant->getTranslation('description', 'es'),
             ];
+            $variantData['customization_options'] = $product['customization_options'];
 
             $variants = Variants::with(['files', 'attributes'])
                 ->where('products_id', $productModel->getId())
