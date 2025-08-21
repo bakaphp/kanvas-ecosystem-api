@@ -24,7 +24,7 @@ class CartSeeder extends Seeder
             'apps_id' => $app->id,
             'companies_id' => $company->id,
             'users_id' => $user->id,
-            'session_id' => 'session_user_' . $user->id,
+            'cart_session_id' => 'session_user_' . $user->id,
             'email' => $user->email,
             'amount' => 149.99,
             'currency' => 'usd',
@@ -41,7 +41,7 @@ class CartSeeder extends Seeder
             'apps_id' => $app->id,
             'companies_id' => $company->id,
             'users_id' => null,
-            'session_id' => 'guest_session_123',
+            'cart_session_id' => 'guest_session_123',
             'email' => 'guest@example.com',
             'amount' => 89.99,
             'currency' => 'usd',
@@ -57,16 +57,13 @@ class CartSeeder extends Seeder
             'apps_id' => $app->id,
             'companies_id' => $company->id,
             'users_id' => $user->id,
-            'session_id' => 'session_payment_' . $user->id,
+            'cart_session_id' => 'session_payment_' . $user->id,
             'email' => $user->email,
-            'payment_intent_id' => 'pi_3NwHhp2eZvKYlo2C1234567890',
-            'client_secret' => 'pi_3NwHhp2eZvKYlo2C1234567890_secret_abc123',
             'amount' => 299.99,
             'currency' => 'usd',
             'status' => 'pending',
             'metadata' => [
                 'source' => 'checkout',
-                'payment_method' => 'stripe',
                 'items_count' => 5
             ]
         ]);

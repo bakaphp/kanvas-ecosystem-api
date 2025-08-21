@@ -7,6 +7,7 @@ namespace Database\Factories\Souk\Cart;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Cart\Enums\CartStatusEnum;
 use Kanvas\Souk\Cart\Models\Cart;
 use Kanvas\Users\Models\Users;
 
@@ -24,13 +25,16 @@ class CartFactory extends Factory
             'apps_id' => Apps::factory(),
             'companies_id' => Companies::factory(),
             'users_id' => $this->faker->boolean(70) ? Users::factory() : null,
-            'session_id' => $this->faker->unique()->regexify('[a-zA-Z0-9]{32}'),
+            'cart_session_id' => $this->faker->unique()->regexify('[a-zA-Z0-9]{32}'),
             'email' => $this->faker->optional(0.8)->email(),
-            'payment_intent_id' => $this->faker->optional(0.3)->regexify('pi_[a-zA-Z0-9]{24}'),
-            'client_secret' => $this->faker->optional(0.3)->regexify('pi_[a-zA-Z0-9]{24}_secret_[a-zA-Z0-9]{8}'),
             'amount' => $this->faker->optional(0.6)->randomFloat(2, 10, 500),
             'currency' => $this->faker->randomElement(['usd', 'eur', 'gbp']),
-            'status' => $this->faker->randomElement(['pending', 'abandoned', 'recovered', 'completed']),
+            'status' => $this->faker->randomElement([
+                CartStatusEnum::PENDING->value,
+                CartStatusEnum::ABANDONED->value,
+                CartStatusEnum::RECOVERED->value,
+                CartStatusEnum::COMPLETED->value,
+            ]),
             'metadata' => $this->faker->optional(0.7)->randomElement([
                 ['source' => 'web', 'utm_campaign' => 'summer_sale'],
                 ['source' => 'mobile', 'app_version' => '2.1.0'],
@@ -43,30 +47,28 @@ class CartFactory extends Factory
     public function pending(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'pending',
+            'status' => CartStatusEnum::PENDING->value,
         ]);
     }
 
     public function abandoned(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'abandoned',
+            'status' => CartStatusEnum::ABANDONED->value,
+        ]);
+    }
+
+    public function recovered(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => CartStatusEnum::RECOVERED->value,
         ]);
     }
 
     public function completed(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'completed',
-        ]);
-    }
-
-    public function withPayment(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'payment_intent_id' => $this->faker->regexify('pi_[a-zA-Z0-9]{24}'),
-            'client_secret' => $this->faker->regexify('pi_[a-zA-Z0-9]{24}_secret_[a-zA-Z0-9]{8}'),
-            'amount' => $this->faker->randomFloat(2, 10, 500),
+            'status' => CartStatusEnum::COMPLETED->value,
         ]);
     }
 

@@ -14,14 +14,12 @@ use Kanvas\Users\Models\Users;
  * Class Cart
  *
  * @property int $id
- * @property string|null $uuid
+ * @property string $uuid
  * @property int $apps_id
  * @property int $companies_id
  * @property int|null $users_id
- * @property string|null $session_id
+ * @property string|null $cart_session_id
  * @property string|null $email
- * @property string|null $payment_intent_id
- * @property string|null $client_secret
  * @property float|null $amount
  * @property string $currency
  * @property string $status
@@ -39,10 +37,8 @@ class Cart extends BaseModel
         'apps_id',
         'companies_id',
         'users_id',
-        'session_id',
+        'cart_session_id',
         'email',
-        'payment_intent_id',
-        'client_secret',
         'amount',
         'currency',
         'status',
