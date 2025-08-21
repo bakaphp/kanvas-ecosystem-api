@@ -67,6 +67,9 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use NotificationChannels\Expo\ExpoPushToken;
 use Override;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
+use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
+use Bavix\Wallet\Traits\CanConfirm;
+use Bavix\Wallet\Interfaces\Confirmable;
 
 /**
  * Users Model.
@@ -118,7 +121,7 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property int    $user_recover_code
  * @property int    $is_deleted
  */
-class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable
+class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable, Confirmable
 {
     use HashTableTrait;
     use Notifiable;
@@ -137,6 +140,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
     use HasRating;
     use CanUseWorkflow;
+    use HasWalletsTrait;
+    use CanConfirm;
 
     protected ?string $defaultCompanyName = null;
     protected ?string $currentDeviceId = null;

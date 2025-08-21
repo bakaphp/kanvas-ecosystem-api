@@ -56,6 +56,14 @@ class CreateOrderFromAppleReceiptAction
             'transactionDate' => $this->appleInAppPurchase->transaction_date,
         ];
 
+        $productVariant = Variants::getBySku($this->appleInAppPurchase->product_id, $this->company, $this->app);
+        if (! $productVariant) {
+            throw new ValidationException('Product Variant not found');
+        }
+
+        $warehouse = $this->region->warehouses()->firstOrFail();
+        $orderTransaction = $this->user->deposit($productVariant->getPrice($warehouse), null, false);
+
         $verifiedReceipt = $this->verifyReceipt($receipt);
         $receiptStatus = $verifiedReceipt->getStatus();
 
@@ -76,6 +84,9 @@ class CreateOrderFromAppleReceiptAction
             $order->setCustomFields($this->appleInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }
+
+        // If receipt is valid and the order is completed(fulfilled) then we need to credit the wallet of the user. Get the user wallet, get the amount of credit from the receipt and add it to the wallet balance. @todo Maybe we need to get the product information from the database.
+        $this->user->confirm($orderTransaction);
 
         return $order;
     }
