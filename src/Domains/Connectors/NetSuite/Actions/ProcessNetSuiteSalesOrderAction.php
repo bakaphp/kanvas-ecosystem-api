@@ -14,7 +14,7 @@ use Kanvas\Users\Models\Users;
 use NetSuite\Classes\GetRequest;
 use NetSuite\Classes\RecordRef;
 
-class ProcessNetSuiteOrderSalesAction
+class ProcessNetSuiteSalesOrderAction
 {
     protected NetSuiteQuoteService $quoteService;
 
@@ -28,24 +28,29 @@ class ProcessNetSuiteOrderSalesAction
     /**
      * Process NetSuite order sales and update stock for affected products.
      */
-    public function execute(string $orderId): array
+    public function execute(string $orderId, ?int $limit = null): array
     {
         $processedProducts = [];
-        
+
         // Get the sales order from NetSuite using the quote service
         $salesOrder = $this->getSalesOrderById($orderId);
-        
-        if (!$salesOrder || !isset($salesOrder->itemList) || !$salesOrder->itemList->item) {
+
+        if (! $salesOrder || ! isset($salesOrder->itemList) || ! $salesOrder->itemList->item) {
             throw new Exception("Sales order {$orderId} not found or has no items");
         }
 
         // Get a system user for the updates
         $user = $this->getSystemUser();
-        
+
         // Process each item in the sales order
-        $items = is_array($salesOrder->itemList->item) 
-            ? $salesOrder->itemList->item 
+        $items = is_array($salesOrder->itemList->item)
+            ? $salesOrder->itemList->item
             : [$salesOrder->itemList->item];
+
+        // Apply limit if specified
+        if ($limit !== null) {
+            $items = array_slice($items, 0, $limit);
+        }
 
         foreach ($items as $item) {
             try {
@@ -75,8 +80,8 @@ class ProcessNetSuiteOrderSalesAction
     {
         // Get the item's barcode/item number
         $barcode = $item->item->name ?? null;
-        
-        if (!$barcode) {
+
+        if (! $barcode) {
             return [
                 'item_id' => $item->item->internalId ?? 'unknown',
                 'barcode' => null,
@@ -84,7 +89,6 @@ class ProcessNetSuiteOrderSalesAction
                 'processed' => false,
             ];
         }
-
         // Use PullNetSuiteProductPriceAction to update the stock
         $pullProductAction = new PullNetSuiteProductPriceAction(
             $this->app,
@@ -93,13 +97,13 @@ class ProcessNetSuiteOrderSalesAction
         );
 
         $result = $pullProductAction->execute($barcode);
-        
+
         return [
             'item_id' => $item->item->internalId ?? 'unknown',
             'barcode' => $barcode,
             'quantity' => $item->quantity ?? 0,
             'result' => $result,
-            'processed' => !isset($result['error']),
+            'processed' => ! isset($result['error']),
         ];
     }
 
@@ -110,7 +114,7 @@ class ProcessNetSuiteOrderSalesAction
     {
         // Try to get current authenticated user
         $user = Auth::user();
-        
+
         if ($user instanceof Users) {
             return $user;
         }
@@ -126,8 +130,8 @@ class ProcessNetSuiteOrderSalesAction
 
         // Last resort: get any user from the company
         $anyUser = Users::fromCompany($this->mainAppCompany)->first();
-        
-        if (!$anyUser) {
+
+        if (! $anyUser) {
             throw new Exception('No user found to perform stock updates');
         }
 

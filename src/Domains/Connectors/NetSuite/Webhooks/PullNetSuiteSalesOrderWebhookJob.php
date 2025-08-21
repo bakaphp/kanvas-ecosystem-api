@@ -6,11 +6,11 @@ namespace Kanvas\Connectors\NetSuite\Webhooks;
 
 use Exception;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\NetSuite\Actions\ProcessNetSuiteOrderSalesAction;
+use Kanvas\Connectors\NetSuite\Actions\ProcessNetSuiteSalesOrderAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-class PullNetSuiteOrderSalesWebhookJob extends ProcessWebhookJob
+class PullNetSuiteSalesOrderWebhookJob extends ProcessWebhookJob
 {
     #[Override]
     public function execute(): array
@@ -25,26 +25,26 @@ class PullNetSuiteOrderSalesWebhookJob extends ProcessWebhookJob
         $mainCompanyId = $this->receiver->app->get('B2B_MAIN_COMPANY_ID');
         $processedProducts = [];
 
-        $successMessage = 'NetSuite OrderSales Not Processed';
-        
+        $successMessage = 'NetSuite Sales order Not Processed';
+
         // Only process if order is approved
         if ($orderStatus === 'Approved' && $mainCompanyId) {
             $mainCompany = Companies::getById($mainCompanyId);
 
-            $processOrderSalesAction = new ProcessNetSuiteOrderSalesAction(
+            $processSalesOrderAction = new ProcessNetSuiteSalesOrderAction(
                 $this->receiver->app,
                 $mainCompany
             );
 
             try {
-                $processedProducts = $processOrderSalesAction->execute($orderId);
-                $successMessage = 'NetSuite OrderSales Stock Updated';
+                $processedProducts = $processSalesOrderAction->execute($orderId);
+                $successMessage = 'NetSuite Sales Order Stock Updated';
             } catch (Exception $e) {
                 report($e);
-                $successMessage = 'NetSuite OrderSales Processing Failed: ' . $e->getMessage();
+                $successMessage = 'NetSuite Sales Order Processing Failed: ' . $e->getMessage();
             }
         } elseif ($orderStatus !== 'Approved') {
-            $successMessage = 'NetSuite OrderSales Not Approved - Skipped';
+            $successMessage = 'NetSuite Sales Order Not Approved - Skipped';
         }
 
         return [
