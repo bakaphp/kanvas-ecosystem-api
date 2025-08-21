@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -440,7 +441,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * Expo push notification
      * @return Collection<int, ExpoPushToken>
      */
-    public function routeNotificationForExpo(): Collection
+    public function routeNotificationForExpo(): SupportCollection
     {
         return $this->linkedSources()
             ->whereHas('source', function ($query) {
