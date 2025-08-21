@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Pipelines\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Guild\Pipelines\Observers\PipelineStageObserver;
 
 /**
  * Class PipelineStage.
@@ -19,6 +21,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property int $rotting_days
  * @property int $weight
  */
+#[ObservedBy(PipelineStageObserver::class)]
 class PipelineStage extends BaseModel
 {
     use NoAppRelationshipTrait;

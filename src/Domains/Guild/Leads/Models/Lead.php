@@ -157,6 +157,10 @@ class Lead extends BaseModel
             })->where('is_deleted', 0);
         }
 
+        if ($app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value) && is_array($app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value))) {
+            $query->whereNotIn('leads_types_id', $app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value));
+        }
+
         return $query;
     }
 

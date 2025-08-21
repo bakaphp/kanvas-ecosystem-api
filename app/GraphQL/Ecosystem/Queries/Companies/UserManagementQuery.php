@@ -41,6 +41,7 @@ class UserManagementQuery
             'users_associated_apps.displayname',
             'users_associated_apps.phone_verified_at',
             'users_associated_apps.email_verified_at',
+            'users_associated_apps.lastvisit',
             'users_associated_apps.created_at',
             'users_associated_apps.updated_at'
         )

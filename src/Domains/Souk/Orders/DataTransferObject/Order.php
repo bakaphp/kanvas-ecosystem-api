@@ -32,7 +32,7 @@ class Order extends Data
         public readonly People $people,
         public readonly UserInterface $user,
         public readonly string $token,
-        public readonly string $orderNumber,
+        public int|float|string $orderNumber,
         public readonly ?Address $shippingAddress,
         public readonly ?Address $billingAddress,
         public float $total,

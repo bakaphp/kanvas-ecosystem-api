@@ -20,7 +20,7 @@
         "berkayk/onesignal-laravel": "^2.4",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
-        "echolabsdev/prism": "^0.83.2",
+        "echolabsdev/prism": "^0.85.0",
         "genealabs/laravel-model-caching": "^12.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
@@ -33,6 +33,7 @@
         "inspector-apm/neuron-ai": "^1.9",
         "joelwmale/laravel-cart": "^1.2",
         "knplabs/knp-snappy": "^1.5",
+        "laravel-notification-channels/expo": "^2.1",
         "laravel-workflow/laravel-workflow": "^1.0.24",
         "laravel/cashier": "^15.6.0",
         "laravel/framework": "^12.0",
@@ -93,10 +94,11 @@
         "fakerphp/faker": "^1.9.1",
         "kitloong/laravel-migrations-generator": "^7.0",
         "larastan/larastan": "^3.0",
+        "laravel/boost": "^1.0",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "phpstan/phpstan": "^2.0.1",
-        "phpunit/phpunit": "^12.1"
+        "phpunit/phpunit": "12.3.6"
     },
     "autoload": {
         "psr-4": {

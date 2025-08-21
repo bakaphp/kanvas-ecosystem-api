@@ -8,6 +8,10 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Social\Messages\Actions\CreateMessageFromTypeAction;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
@@ -139,5 +143,29 @@ trait ActivityIntegrationTrait
         }
 
         return $response;
+    }
+
+    public function createIntegrationMessageByVerb(
+        mixed $response,
+        string $messageTypeVerb,
+        string $messageTypeName,
+        AppInterface $app,
+        Model $entity
+    ): Message {
+        $messageType = MessagesTypesRepository::getGlobalByVerbAndName($messageTypeVerb, $messageTypeName, $app);
+        $systemModule = SystemModules::fromPublicApp()->where('model_name', get_class($entity))->firstOrFail();
+
+        $createMessageAction = new CreateMessageFromTypeAction(
+            user: $entity->user,
+            company: $entity->company,
+            app: $app
+        );
+
+        return $createMessageAction->execute(
+            messageType: $messageType,
+            data: json_encode($response),
+            systemModule: $systemModule,
+            entityId: $entity->getId()
+        );
     }
 }

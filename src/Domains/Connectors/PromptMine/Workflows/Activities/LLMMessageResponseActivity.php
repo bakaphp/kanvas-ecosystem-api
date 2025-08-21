@@ -309,7 +309,15 @@ class LLMMessageResponseActivity extends KanvasActivity
                 report($e);
             }
 
-            return $message->app->get('LIMIT_IMAGE_URL') ?? '';
+            $useOnlyImageResponse = (bool) ($message->app->get('use_only_image_response') ?? false);
+
+            return $useOnlyImageResponse ? $message->app->get('LIMIT_IMAGE_URL') :
+                (string) json_encode([
+                'error' => 'You have reached your daily image generation limit.',
+                'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
+                'limit' => $message->app->get('message-post-limit') ?? 0,
+                'flag' => true,
+            ]);
         }
 
         return null;
