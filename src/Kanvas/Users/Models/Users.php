@@ -22,7 +22,6 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -441,9 +440,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * Expo push notification
      * @return Collection<int, ExpoPushToken>
      */
-    public function routeNotificationForExpo(): SupportCollection
+    public function routeNotificationForExpo(): Collection
     {
-        return $this->linkedSources()
+        $tokens = $this->linkedSources()
             ->whereHas('source', function ($query) {
                 $query->where('title', 'expo');
             })
@@ -452,6 +451,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 return ExpoPushToken::make($source->source_users_id_text);
             })
             ->filter();
+
+        return new Collection($tokens);
     }
 
     public function channels(): BelongsToMany
