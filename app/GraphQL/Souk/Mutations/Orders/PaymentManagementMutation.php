@@ -50,7 +50,9 @@ class PaymentManagementMutation
             $user->getCurrentCompany()
         )->execute();
 
-        $totalAmount = $amount * 100;
+        //$totalAmount = $amount * 100;
+        //$totalAmount = $amount === $cart->getTotal() ? $amount : $cart->getTotal();
+        $totalAmount = $cart->getTotal() * 100;
 
         if ($totalAmount == 0 && $cart->getTotal() == 0) {
             return [
@@ -67,7 +69,7 @@ class PaymentManagementMutation
 
         //50 = $0.50 , stripe doesn't allow payment intent less than 0.5
         if ($totalAmount < 50) {
-            throw new ValidationException('Payment amount is too low, amount must be at least $0.50 usd');
+            throw new ValidationException('Error Generating Payment Intent');
         }
 
         $intent = PaymentIntent::create([
