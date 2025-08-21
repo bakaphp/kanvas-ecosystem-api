@@ -33,7 +33,6 @@ class CartFactory extends Factory
                 CartStatusEnum::PENDING->value,
                 CartStatusEnum::ABANDONED->value,
                 CartStatusEnum::RECOVERED->value,
-                CartStatusEnum::COMPLETED->value,
             ]),
             'metadata' => $this->faker->optional(0.7)->randomElement([
                 ['source' => 'web', 'utm_campaign' => 'summer_sale'],
@@ -62,13 +61,6 @@ class CartFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => CartStatusEnum::RECOVERED->value,
-        ]);
-    }
-
-    public function completed(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'status' => CartStatusEnum::COMPLETED->value,
         ]);
     }
 
