@@ -13,7 +13,6 @@ class ChannelBuilder
 {
     public function getByRegion($root, array $args)
     {
-
         $variantChannelsTable = VariantsChannels::getTableName();
         $warehousesTable = Warehouses::getTableName();
         $channelsTable = Channels::getTableName();
