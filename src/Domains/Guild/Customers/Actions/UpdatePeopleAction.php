@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
+use Illuminate\Support\Facades\Log;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\Address;
@@ -147,6 +148,12 @@ class UpdatePeopleAction
                         'countries_id' => $address->country_id ?? 0,
                         'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->people->app)->getId(),
                         'duration' => $address->duration ?? 0.0,
+                    ]);
+                } else {
+                    $existingAddress->update([
+                        'address_2' => $address->address_2,
+                        'is_default' => $address->is_default,
+                        'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->people->app)->getId(),
                     ]);
                 }
             }
