@@ -444,7 +444,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         return $this->linkedSources()
             ->whereHas('source', function ($query) {
-                $query->where('name', 'expo');
+                $query->where('title', 'expo');
             })
             ->get()
             ->map(function ($source) {
