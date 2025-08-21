@@ -10,6 +10,7 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -88,6 +89,11 @@ class Channels extends BaseModel
         );
     }
 
+    public function productVariantChannels(): HasMany
+    {
+        return $this->hasMany(VariantsChannels::class, 'channels_id');
+    }
+
     public function price(): Attribute
     {
         return Attribute::make(
@@ -121,5 +127,16 @@ class Channels extends BaseModel
         return Attribute::make(
             get: fn () => Str::isJson($this->pivot->config) ? json_decode($this->pivot->config, true) : $this->pivot->config
         );
+    }
+
+    public function getRegions(): Collection
+    {
+        return $this->productVariantChannels()
+            ->with('warehouse.region')
+            ->get()
+            ->pluck('warehouse.region')
+            ->whereNotNull()
+            ->unique('id')
+            ->values();
     }
 }
