@@ -56,7 +56,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                             ...$order->metadata['data'] ?? [],
                             'terms_and_conditions' => true,
                             ...$variant ? [
-                                'late-fee-variant-id' => $variant->getAttributeBySlug('late-fee-variant-id')?->value,
+                                'late-fee-variant-id' => $variant->product?->getAttributeBySlug('late-fee-variant-id')?->value,
                                 'late_fee_grace_start_at' => $graceStartAt->toDateTimeString()
                             ] : [],
                         ],
