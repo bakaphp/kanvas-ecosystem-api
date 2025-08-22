@@ -111,6 +111,7 @@ use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationAct
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageReportNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
+use Kanvas\Souk\Cart\Activities\SyncCartToDatabaseActivity;
 use Kanvas\Souk\Orders\Activities\B2BUpdateCompanyOrderActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
@@ -218,6 +219,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ShopifyComplianceWebhookJob::class,
             PayFromWalletActivity::class,
             AddFundsToWalletActivity::class,
+            SyncCartToDatabaseActivity::class,
             PushOrderToNetsuiteActivity::class,
             CheckMessageContentActivity::class,
             B2BUpdateCompanyOrderActivity::class,
