@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Builders\Channels;
 
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
@@ -11,7 +12,7 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class ChannelBuilder
 {
-    public function getByRegion($root, array $args)
+    public function getByRegion($root, array $args): Builder
     {
         $variantChannelsTable = VariantsChannels::getTableName();
         $warehousesTable = Warehouses::getTableName();
