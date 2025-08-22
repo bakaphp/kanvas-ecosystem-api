@@ -13,6 +13,8 @@ use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use NetSuite\Classes\InventoryItem;
 
 /**
  * This action handles the synchronization of the NetSuite Customer Items List,
@@ -62,28 +64,27 @@ class PullNetSuiteProductPriceAction
 
         $warehouseOptions = $this->getWarehouseOptions($netsuiteProductInfo, $variantWarehouse, $defaultWarehouse);
 
-        $mapPrice =  (float) $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
-        $colorCode =  $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value);
+        $mapPrice = (float) $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
+        $colorCode = $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value);
 
         $config = [
             'map_price' => $mapPrice,
-            ...(isset($warehouseOptions["minimum_quantity"]) && $setMinimumQuantity ? ["minimum_quantity" => $warehouseOptions["minimum_quantity"]] : []),
-
+            ...(isset($warehouseOptions['minimum_quantity']) && $setMinimumQuantity ? ['minimum_quantity' => $warehouseOptions['minimum_quantity']] : []),
         ];
 
-        if (isset($warehouseOptions["quantity"]) && $warehouseOptions["quantity"] !== null) {
-            $variantWarehouse->quantity = $warehouseOptions["quantity"];
-            $variantWarehouse->price = $warehouseOptions["price"] ?? 0;
+        if (isset($warehouseOptions['quantity']) && $warehouseOptions['quantity'] !== null) {
+            $variantWarehouse->quantity = $warehouseOptions['quantity'];
+            $variantWarehouse->price = $warehouseOptions['price'] ?? 0;
         }
 
-        $variantWarehouse->config =  $config ?? null;
+        $variantWarehouse->config = $config ?? null;
         $variantWarehouse->saveOrFail();
 
         $variant->addAttributes($this->user, [
             [
                 'name' => 'color_code',
                 'value' => $colorCode,
-            ]
+            ],
         ]);
 
         $variant->set(CustomFieldEnum::NET_SUITE_PRODUCT_ID->value, $searchNetsuiteProductInfo[0]->internalId);
@@ -92,14 +93,17 @@ class PullNetSuiteProductPriceAction
             'company' => $this->mainAppCompany->getId(),
             'item' => $barcode,
             'config' => $config,
-            "options" => $warehouseOptions,
+            'options' => $warehouseOptions,
         ];
     }
 
-
-    private function getWarehouseOptions($netsuiteProductInfo, $variantWarehouse = null, $defaultWarehouse = null)
-    {
+    private function getWarehouseOptions(
+        InventoryItem $netsuiteProductInfo,
+        ?VariantsWarehouses $variantWarehouse = null,
+        string|int|null $defaultWarehouse = null
+    ): array {
         $config = [];
+
         try {
             $config['quantity'] = $this->productService->getInventoryQuantityByLocation(
                 $netsuiteProductInfo,

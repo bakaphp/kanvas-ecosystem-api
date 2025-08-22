@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\NetSuite\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
-use Illuminate\Support\Facades\Auth;
 use Kanvas\Connectors\NetSuite\Client;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteQuoteService;
 use Kanvas\Users\Models\Users;
@@ -20,7 +20,8 @@ class ProcessNetSuiteSalesOrderAction
 
     public function __construct(
         protected AppInterface $app,
-        protected CompanyInterface $mainAppCompany
+        protected CompanyInterface $mainAppCompany,
+        protected UserInterface $user
     ) {
         $this->quoteService = new NetSuiteQuoteService($app, $mainAppCompany);
     }
@@ -39,9 +40,6 @@ class ProcessNetSuiteSalesOrderAction
             throw new Exception("Sales order {$orderId} not found or has no items");
         }
 
-        // Get a system user for the updates
-        $user = $this->getSystemUser();
-
         // Process each item in the sales order
         $items = is_array($salesOrder->itemList->item)
             ? $salesOrder->itemList->item
@@ -54,7 +52,7 @@ class ProcessNetSuiteSalesOrderAction
 
         foreach ($items as $item) {
             try {
-                $processedProduct = $this->processOrderItem($item, $user);
+                $processedProduct = $this->processOrderItem($item, $this->user);
                 if ($processedProduct) {
                     $processedProducts[] = $processedProduct;
                 }
@@ -105,37 +103,6 @@ class ProcessNetSuiteSalesOrderAction
             'result' => $result,
             'processed' => ! isset($result['error']),
         ];
-    }
-
-    /**
-     * Get a system user for performing updates.
-     */
-    private function getSystemUser(): Users
-    {
-        // Try to get current authenticated user
-        $user = Auth::user();
-
-        if ($user instanceof Users) {
-            return $user;
-        }
-
-        // Fallback to getting any admin user from the company
-        $adminUser = Users::fromCompany($this->mainAppCompany)
-            ->where('roles_id', 1) // Assuming 1 is admin role
-            ->first();
-
-        if ($adminUser) {
-            return $adminUser;
-        }
-
-        // Last resort: get any user from the company
-        $anyUser = Users::fromCompany($this->mainAppCompany)->first();
-
-        if (! $anyUser) {
-            throw new Exception('No user found to perform stock updates');
-        }
-
-        return $anyUser;
     }
 
     /**

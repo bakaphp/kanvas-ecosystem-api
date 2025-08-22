@@ -24,7 +24,6 @@ trait NotificationExpoTrait
         }
 
         $messageContent = Str::cleanJsonString($this->getPushTemplate());
-
         if (! Str::isJson($messageContent)) {
             report('Message content for push notification is not a valid JSON ' . json_encode($messageContent));
 
@@ -32,7 +31,6 @@ trait NotificationExpoTrait
         }
 
         $messageContent = json_decode($messageContent, true);
-
         $expoMessage = ExpoMessage::create($messageContent['title'])
           ->body($messageContent['message'])
           ->data($this->getData())

@@ -50,7 +50,9 @@ class PaymentManagementMutation
             $user->getCurrentCompany()
         )->execute();
 
-        $totalAmount = $amount * 100;
+        //$totalAmount = $amount * 100;
+        //$totalAmount = $amount === $cart->getTotal() ? $amount : $cart->getTotal();
+        $totalAmount = $cart->getTotal() * 100;
 
         if ($totalAmount == 0 && $cart->getTotal() == 0) {
             return [

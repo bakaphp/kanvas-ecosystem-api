@@ -33,7 +33,8 @@ class PullNetSuiteSalesOrderWebhookJob extends ProcessWebhookJob
 
             $processSalesOrderAction = new ProcessNetSuiteSalesOrderAction(
                 $this->receiver->app,
-                $mainCompany
+                $mainCompany,
+                $this->receiver->user
             );
 
             try {
