@@ -287,12 +287,20 @@ class OrderLateFeeTest extends TestCase
                 addLateFee: false,
             );
 
+        // Capture the updated_at timestamp right before processing late fees
+        $reservation1BeforeLateFee = $reservation1->fresh();
+        $firstUpdatedAt = $reservation1BeforeLateFee->updated_at;
+
+        sleep(1); // Ensure there's a time difference if updated_at changes
         Artisan::call('kanvas:movipass-charge-late-orders');
         $order = $reservation1->fresh();
 
         $this->assertCount(3, $lateOrders);
         $this->assertCount(2, $order->items);
         $this->assertEquals($total + 200, $order->getTotalAmount()); // 1 day + 30 days
+
+        // Check that updated_at was NOT changed by late fee processing
+        $this->assertEquals($firstUpdatedAt->getTimestamp(), $order->updated_at->getTimestamp(), 'The updated_at timestamp should not change when processing late fees');
         $this->assertEquals($total + 300, $reservation2->fresh()->getTotalAmount()); // 1 day + 60 days
         $this->assertEquals($total + 200, $reservation3->fresh()->getTotalAmount()); // 1 day + 59 days
     }
