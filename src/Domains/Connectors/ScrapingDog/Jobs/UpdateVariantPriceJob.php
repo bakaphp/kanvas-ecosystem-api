@@ -9,16 +9,15 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
+use Kanvas\Connectors\ScrapingDog\Actions\CreateProductAction;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Connectors\ScrapingDog\Services\ProductVariantService;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
-use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -41,6 +40,9 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $request = $this->webhookRequest->payload;
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
         $key = 'update_v1_' . $request['sku'] . ':' . $this->receiver->app->getId();
+        if (isset($request['forgot_cache'])) {
+            Cache::forget($key);
+        }
 
         return Cache::remember($key, $minutesForUpdate, function () use ($request) {
             return $this->updateVariant($request['sku']);
@@ -63,36 +65,35 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $productModel = Products::where('apps_id', $appId)
             ->whereIn('slug', [$desiredSlug, $sku])
             ->orderByRaw('slug = ? DESC', [$desiredSlug])
+            ->withTrashed()
             ->first();
 
+        if ($productModel->is_deleted) {
+            $productModel->is_deleted = false;
+            $productModel->save();
+        }
         if ($productModel && $productModel->slug !== $desiredSlug) {
             $productModel->update(['slug' => $desiredSlug]);
         }
 
         try {
-            $mappedProduct['variants'] = $productVariantService->mapVariant($product);
             if (! $productModel) {
-                $productModel = (
-                        new ProductImporterAction(
-                            ProductImporter::from($mappedProduct),
-                            $this->receiver->company,
-                            auth()->user(),
-                            Regions::getById($this->receiver->configuration['region_id']),
-                            $this->receiver->app,
-                            true
-                        )
-                )->execute();
-                $productModel->searchable();
-                $productModel->setTranslation('name', 'es', TranslateToSpanishAction::execute($productModel->name) ?? $productModel->name);
-                $productModel->setTranslation('description', 'es', TranslateToSpanishAction::execute($productModel->description) ?? $productModel->description);
-            } elseif ($productModel->variants->count() < count($mappedProduct['variants'])) {
-                VariantService::createVariantsFromArray(
-                    $productModel,
-                    $mappedProduct['variants'],
+                $dto = ProductDto::from([
+                    'app' => $this->receiver->app,
+                    'company' => $this->receiver->company,
+                    'user' => $this->receiver->user,
+                    'name' => $mappedProduct['name'],
+                    'description' => $mappedProduct['description'],
+                    'categories' => $mappedProduct['categories'],
+                    'slug' => $mappedProduct['slug'],
+                ]);
+                $productModel = (new CreateProductAction(
+                    $dto,
                     auth()->user()
-                );
+                ))->execute();
             }
 
+            // return $product;
             $variant = Variants::where('sku', $sku)
                 ->where('apps_id', $this->receiver->app->getId())
                 ->first();
@@ -111,15 +112,14 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                     ]],
                 ]);
 
-                VariantService::createVariantsFromArray(
+                $variant = VariantService::createVariantsFromArray(
                     $productModel,
                     [$newVariant],
                     auth()->user()
-                );
-
-                $variant = Variants::with(['attributes', 'files', 'customFields'])
-                    ->where('sku', $sku)
-                    ->first();
+                )[0];
+                $variant->setTranslation('name', 'es', TranslateToSpanishAction::execute($variant->name) ?? $variant->name);
+                $variant->setTranslation('description', 'es', TranslateToSpanishAction::execute($variant->description) ?? $variant->description);
+                $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
             } else {
                 $variant->updatePriceInChannel(
                     $this->channel,
@@ -133,19 +133,17 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 foreach ($mappedProduct['files'] as $file) {
                     $variant->addFileFromUrl($file['url'], $file['name']);
                 }
+                $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
             }
-            $variant->setTranslation('name', 'es', TranslateToSpanishAction::execute($variant->name) ?? $variant->name);
-            $variant->setTranslation('description', 'es', TranslateToSpanishAction::execute($variant->description) ?? $variant->description);
-            $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
 
             $variantData = $variant->toArray();
 
             $variantData['channel'] = new ChannelInfoType()->price($variant, []);
             $variantData['product'] = Products::with(['files', 'categories'])
-                ->where('id', $productModel->getId())
-                ->where('apps_id', $this->receiver->app->getId())
+                ->where('id', $variant->products_id)
                 ->first()
                 ->toArray();
+
             $variants = Variants::with(['files', 'attributes'])
             ->where('products_id', $productModel->getId())
             ->where('apps_id', $this->receiver->app->getId())
