@@ -65,8 +65,13 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $productModel = Products::where('apps_id', $appId)
             ->whereIn('slug', [$desiredSlug, $sku])
             ->orderByRaw('slug = ? DESC', [$desiredSlug])
+            ->withTrashed()
             ->first();
 
+        if ($productModel->is_deleted) {
+            $productModel->is_deleted = false;
+            $productModel->save();
+        }
         if ($productModel && $productModel->slug !== $desiredSlug) {
             $productModel->update(['slug' => $desiredSlug]);
         }
