@@ -33,8 +33,7 @@ trait NotificationExpoTrait
         $messageContent = json_decode($messageContent, true);
         $additionalData = $this->getData();
 
-        unset(
-            $additionalData['entity'],
+        unset($additionalData['entity'],
             $additionalData['app'],
             $additionalData['options'],
             $additionalData['fromUser'],
