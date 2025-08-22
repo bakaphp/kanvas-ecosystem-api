@@ -107,7 +107,6 @@ final class SyncMovipassImpoundActivityTest extends TestCase
             'X-Kanvas-App' => $app->key,
         ]);
 
-        print_r($response->json());
         $order = $response->json('data.createOrderFromCart.order');
         $order = Order::fromApp($app)->find($order['id']);
 
@@ -121,7 +120,7 @@ final class SyncMovipassImpoundActivityTest extends TestCase
         $result = $activity->execute($order, $app, [
             'currentEventTypeName' => WorkflowEnum::CREATED->value,
         ]);
-        print_r($result);
+
         $order->refresh();
         $this->assertEquals($result['status'], 'success');
         $this->assertEquals($result['message'], 'Order synced correctly');
