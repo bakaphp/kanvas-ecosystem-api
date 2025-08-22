@@ -326,6 +326,7 @@ input ExportMetadataInput {
     custom_title: String
     subtitle: String
     headerImages: [String!]
+    dateField: String
 }
 
 extend type Mutation @guard {
@@ -542,6 +543,7 @@ extend type Query @guard {
                     "order_types_id"
                     "parent_id"
                     "created_at"
+                    "updated_at"
                 ]
             )
         orderType: _
