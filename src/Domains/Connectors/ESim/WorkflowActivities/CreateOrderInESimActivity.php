@@ -364,6 +364,13 @@ class CreateOrderInESimActivity extends KanvasActivity
             $clientSecret = $order->checkout_token;
             $paymentIntentId = explode('_secret_', $clientSecret ?? '')[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
 
+            if (empty($paymentIntentId)) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Payment intent ID is empty',
+                ];
+            }
+
             $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
 
             try {

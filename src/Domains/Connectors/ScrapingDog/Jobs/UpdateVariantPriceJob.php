@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapingDog\Jobs;
 
+use App\GraphQL\Inventory\Types\ChannelInfoType;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Connectors\ScrapingDog\Services\ProductVariantService;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -38,7 +40,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $this->overwriteAppService($app);
         $request = $this->webhookRequest->payload;
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
-        $key = $request['sku'] . ':' . $this->receiver->app->getId();
+        $key = 'update_v1_' . $request['sku'] . ':' . $this->receiver->app->getId();
 
         return Cache::remember($key, $minutesForUpdate, function () use ($request) {
             return $this->updateVariant($request['sku']);
@@ -81,6 +83,8 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                         )
                 )->execute();
                 $productModel->searchable();
+                $productModel->setTranslation('name', 'es', TranslateToSpanishAction::execute($productModel->name) ?? $productModel->name);
+                $productModel->setTranslation('description', 'es', TranslateToSpanishAction::execute($productModel->description) ?? $productModel->description);
             } elseif ($productModel->variants->count() < count($mappedProduct['variants'])) {
                 VariantService::createVariantsFromArray(
                     $productModel,
@@ -88,27 +92,80 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                     auth()->user()
                 );
             }
-            // @todo: remove this, cause redundant
+
             $variant = Variants::where('sku', $sku)
                 ->where('apps_id', $this->receiver->app->getId())
-                ->firstOrFail();
-            $variant->updatePriceInChannel(
-                $this->channel,
-                (float) $mappedProduct['price'],
-                (float) $mappedProduct['discountPrice']
-            );
-            if ($mappedProduct['files']) {
+                ->first();
+
+            if (! $variant) {
+                $newVariant = array_merge($mappedProduct, [
+                    'sku' => $sku,
+                    'slug' => $sku,
+                    'source_id' => $sku,
+                    'channels' => [[
+                        'price' => $mappedProduct['price'],
+                        'discounted_price' => $mappedProduct['discountPrice'],
+                        'is_published' => true,
+                        'warehouses_id' => $this->warehouse->getId(),
+                        'channels_id' => $this->channel->getId(),
+                    ]],
+                ]);
+
+                VariantService::createVariantsFromArray(
+                    $productModel,
+                    [$newVariant],
+                    auth()->user()
+                );
+
+                $variant = Variants::with(['attributes', 'files', 'customFields'])
+                    ->where('sku', $sku)
+                    ->first();
+            } else {
+                $variant->updatePriceInChannel(
+                    $this->channel,
+                    (float) $mappedProduct['price'],
+                    (float) $mappedProduct['discountPrice']
+                );
+            }
+            if (! empty($mappedProduct['files'])) {
                 $variant->deleteFiles();
+
                 foreach ($mappedProduct['files'] as $file) {
                     $variant->addFileFromUrl($file['url'], $file['name']);
                 }
             }
+            $variant->setTranslation('name', 'es', TranslateToSpanishAction::execute($variant->name) ?? $variant->name);
+            $variant->setTranslation('description', 'es', TranslateToSpanishAction::execute($variant->description) ?? $variant->description);
+            $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
+
+            $variantData = $variant->toArray();
+
+            $variantData['channel'] = new ChannelInfoType()->price($variant, []);
+            $variantData['product'] = Products::with(['files', 'categories'])
+                ->where('id', $productModel->getId())
+                ->where('apps_id', $this->receiver->app->getId())
+                ->first()
+                ->toArray();
+            $variants = Variants::with(['files', 'attributes'])
+            ->where('products_id', $productModel->getId())
+            ->where('apps_id', $this->receiver->app->getId())
+            ->get();
+            $variantData['translation'] = [
+                'name' => $variant->getTranslation('name', 'es'),
+                'description' => $variant->getTranslation('description', 'es'),
+            ];
+            $variantData['customization_options'] = $product['customization_options'];
+
+            $variants = Variants::with(['files', 'attributes'])
+                ->where('products_id', $productModel->getId())
+                ->where('apps_id', $this->receiver->app->getId())
+                ->get();
 
             return [
                 'price' => $mappedProduct['price'],
                 'discounted_price' => $mappedProduct['discountPrice'] ?? null,
-                'variants' => $productModel->variants->toArray(),
-                'product' => $productModel->toArray(),
+                'variant' => $variantData,
+                'variants' => $variants,
             ];
         } catch (\Throwable $e) {
             captureException($e);

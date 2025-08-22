@@ -37,9 +37,10 @@ class SyncPeopleByThirdPartyCustomFieldAction
 
             if ($people !== null) {
                 $this->people->id = $people->getId();
+                $createPeople = new UpdatePeopleAction($people, $this->people);
+            } else {
+                $createPeople = new CreatePeopleAction($this->people);
             }
-
-            $createPeople = new CreatePeopleAction($this->people);
 
             return $createPeople->execute();
         });

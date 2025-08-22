@@ -349,6 +349,8 @@ class PullNetSuiteQuoteToOrderAction
             ->whereNotNull('metadata')
             ->where('metadata', '!=', '{}')
             ->where('metadata', '!=', '[]')
+            ->where('metadata', '!=', '')
+            ->whereRaw('JSON_VALID(metadata)')  // Ensure metadata is valid JSON
             ->where(function ($query) use ($quoteIdString, $quoteIdInt) {
                 $query->whereRaw("JSON_EXTRACT(metadata, '$.netsuite_quote_id') = ?", [$quoteIdString])
                       ->orWhereRaw("JSON_EXTRACT(metadata, '$.netsuite_quote_id') = ?", [$quoteIdInt]);

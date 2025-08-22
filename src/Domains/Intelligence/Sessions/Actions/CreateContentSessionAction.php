@@ -12,7 +12,7 @@ class CreateContentSessionAction
 {
     public function __construct(
         public string $entityNamespace,
-        public int $entityId,
+        public int|string $entityId,
         public ?Agent $agent = null,
         public ?CompaniesBranches $branch = null,
     ) {
@@ -38,6 +38,10 @@ class CreateContentSessionAction
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
             'background' => $this->agent?->role,
+            'checklist' => [
+                'credit-app' => 'https://kanvas.dev/credit-app',
+                'trade-in' => 'https://kanvas.dev/trade-in',
+            ],
         ];
     }
 }

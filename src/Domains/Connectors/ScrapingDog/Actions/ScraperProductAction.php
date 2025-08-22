@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapingDog\Actions;
 
+use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapingDog\Enums\ConfigEnum as ScrapingDogConfigEnum;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -40,6 +41,9 @@ class ScraperProductAction extends ScraperAction
                 )->execute();
                 // config()->set('scout.queue', false);
                 $product->searchable();
+                $product->setTranslation('name', 'es', TranslateToSpanishAction::execute($data['name']) ?? $data['name']);
+                $product->setTranslation('description', 'es', TranslateToSpanishAction::execute($product->description) ?? $product->description);
+
                 $products[] = $product['id'];
             } catch (\Throwable $e) {
                 captureException($e);
@@ -57,6 +61,7 @@ class ScraperProductAction extends ScraperAction
         $channels = Channels::getDefault($this->companyBranch->company);
         $price = str_replace(['$', ','], '', $product['price'] ?? '0');
         $asin = $product['parent_asin'] ?? $product['asin'];
+
         return [
             'name' => $product['title'],
             'description' => $product['description'] ?? '',

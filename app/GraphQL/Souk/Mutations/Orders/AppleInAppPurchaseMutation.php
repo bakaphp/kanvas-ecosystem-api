@@ -39,7 +39,6 @@ class AppleInAppPurchaseMutation
             $region,
             $request['input']
         );
-
         $createOrderFromInAppPurchase = new CreateOrderFromAppleReceiptAction($appleInAppPurchase);
 
         $order = $createOrderFromInAppPurchase->execute();
