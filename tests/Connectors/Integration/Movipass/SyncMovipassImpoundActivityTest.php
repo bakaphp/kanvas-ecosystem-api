@@ -11,6 +11,7 @@ use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -32,9 +33,6 @@ final class SyncMovipassImpoundActivityTest extends TestCase
         $user = Auth::user();
         $company = $user->getCurrentCompany();
         $region = Regions::getDefault($company ?? $company, $app);
-
-        $orderTypeName = 'impound_lot';
-
 
         $this->setIntegration(
             $app,
@@ -109,6 +107,7 @@ final class SyncMovipassImpoundActivityTest extends TestCase
             'X-Kanvas-App' => $app->key,
         ]);
 
+        print_r($response->json());
         $order = $response->json('data.createOrderFromCart.order');
         $order = Order::fromApp($app)->find($order['id']);
 
@@ -122,9 +121,11 @@ final class SyncMovipassImpoundActivityTest extends TestCase
         $result = $activity->execute($order, $app, [
             'currentEventTypeName' => WorkflowEnum::CREATED->value,
         ]);
+        print_r($result);
         $order->refresh();
         $this->assertEquals($result['status'], 'success');
         $this->assertEquals($result['message'], 'Order synced correctly');
         $this->assertEquals($order->reference, 'Charge for impound lot - #' . $order->order_number);
+        $this->assertEquals($order->status, OrderStatusEnum::PENDING->value);
     }
 }

@@ -6,6 +6,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -61,6 +62,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                         ],
                     ];
 
+                    $order->status = OrderStatusEnum::PENDING->value;
                     $order->saveQuietly();
                 }
 
