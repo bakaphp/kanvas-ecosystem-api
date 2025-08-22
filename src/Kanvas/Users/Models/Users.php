@@ -438,9 +438,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Expo push notification
-     * @return Collection<int, ExpoPushToken>
+     * @return array<int, ExpoPushToken>
      */
-    public function routeNotificationForExpo(): Collection
+    public function routeNotificationForExpo(): array
     {
         $tokens = $this->linkedSources()
             ->whereHas('source', function ($query) {
@@ -448,11 +448,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             })
             ->get()
             ->map(function ($source) {
-                return ExpoPushToken::make($source->source_users_id_text);
+                if (Str::contains($source->source_users_id_text, 'ExponentPushToken')) {
+                    return ExpoPushToken::make($source->source_users_id_text);
+                }
             })
-            ->filter();
+            ->filter()
+            ->values();
 
-        return new Collection($tokens);
+        return $tokens->toArray();
     }
 
     public function channels(): BelongsToMany
