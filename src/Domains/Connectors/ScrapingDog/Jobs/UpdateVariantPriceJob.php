@@ -40,6 +40,9 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
         $request = $this->webhookRequest->payload;
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
         $key = 'update_v1_' . $request['sku'] . ':' . $this->receiver->app->getId();
+        if (isset($request['forgot_cache'])) {
+            Cache::forget($key);
+        }
 
         return Cache::remember($key, $minutesForUpdate, function () use ($request) {
             return $this->updateVariant($request['sku']);
@@ -131,7 +134,10 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             $variantData = $variant->toArray();
 
             $variantData['channel'] = new ChannelInfoType()->price($variant, []);
-            $variantData['product'] = $variant->product->load(['files', 'categories'])->toArray();
+            $variantData['product'] = Products::with(['files', 'categories'])
+                ->where('id', $variant->products_id)
+                ->first()
+                ->toArray();
 
             $variants = Variants::with(['files', 'attributes'])
             ->where('products_id', $productModel->getId())
