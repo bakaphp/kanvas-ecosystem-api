@@ -108,7 +108,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                     $productModel,
                     [$newVariant],
                     auth()->user()
-                )[0]->load(['product', 'attributes', 'files', 'customFields']);
+                )[0];
                 $variant->setTranslation('name', 'es', TranslateToSpanishAction::execute($variant->name) ?? $variant->name);
                 $variant->setTranslation('description', 'es', TranslateToSpanishAction::execute($variant->description) ?? $variant->description);
                 $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
@@ -125,6 +125,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 foreach ($mappedProduct['files'] as $file) {
                     $variant->addFileFromUrl($file['url'], $file['name']);
                 }
+                $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
             }
 
             $variantData = $variant->toArray();
