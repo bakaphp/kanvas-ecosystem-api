@@ -28,10 +28,11 @@ return [
     'port' => '8000',
     'swoole' => [
         'options' => [
-            'worker_num' => 10,
-            'task_worker_num' => 10,
+            'worker_num' => env('SWOOLE_WORKER_NUM', swoole_cpu_num() * 2),
+            'task_worker_num' => env('SWOOLE_TASK_WORKER_NUM', swoole_cpu_num() * 2),
             'enable_coroutine' => true,
-            'max_request' => 1000,
+            'max_coroutine' => 100000,
+            'max_request' => 10000,
             'package_max_length' => 100 * 1024 * 1024,
             'buffer_output_size' => 32 * 1024 * 1024,
             'http_parse_post' => true,
@@ -159,8 +160,8 @@ return [
     */
 
     'cache' => [
-        'rows' => 1000,
-        'bytes' => 10000,
+        'rows' => 10000,
+        'bytes' => 50000,
     ],
 
     /*
@@ -194,6 +195,7 @@ return [
 
     'watch' => [
         'app',
+        'src',
         'bootstrap',
         'config',
         'database',
@@ -215,7 +217,7 @@ return [
     |
     */
 
-    'garbage' => 50,
+    'garbage' => 100,
 
     /*
     |--------------------------------------------------------------------------

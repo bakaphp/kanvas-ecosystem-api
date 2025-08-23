@@ -646,7 +646,7 @@ class Order extends BaseModel
         return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
     }
 
-    public function calculateTotal(): void
+    public function calculateTotal(bool $autoSave = true): void
     {
         $total = OrderItem::query()->where(['order_id' => $this->id])
         ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
@@ -659,6 +659,9 @@ class Order extends BaseModel
         $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
         $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
         $this->discount_amount = (float) $discount;
-        $this->saveOrFail();
+
+        if ($autoSave) {
+            $this->saveOrFail();
+        }
     }
 }

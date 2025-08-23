@@ -84,6 +84,7 @@ class AgentChannelResponderAction
             throw new ValidationException('No conversation found');
         }
 
+        //entity is a lead
         if ($this->message->entity() === null) {
             throw new ValidationException('No entity found');
         }
@@ -95,7 +96,7 @@ class AgentChannelResponderAction
 
         $currentAgent->setConfiguration(
             $this->agent,
-            $this->message->entity()
+            $this->message->entity()->people
         );
 
         if ($useInspector) {
