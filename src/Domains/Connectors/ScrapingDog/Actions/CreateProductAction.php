@@ -8,9 +8,11 @@ use Baka\Support\Str;
 use Carbon\Carbon;
 use Kanvas\Inventory\Products\Actions\CreateProductAction as BaseCreateProductAction;
 use Kanvas\Inventory\Products\Models\Products;
+use Override;
 
 class CreateProductAction extends BaseCreateProductAction
 {
+    #[Override]
     public function execute(): Products
     {
         $productType = $this->productDto?->productsType?->getId();

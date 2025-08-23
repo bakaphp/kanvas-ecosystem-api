@@ -14,11 +14,13 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Override;
 
 use function Sentry\captureException;
 
 class ScraperProcessorAction extends ScrapperApiProcessorAction
 {
+    #[Override]
     public function execute(): array
     {
         $productList = [];

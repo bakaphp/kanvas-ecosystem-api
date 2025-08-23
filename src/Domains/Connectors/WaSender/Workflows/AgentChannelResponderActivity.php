@@ -83,9 +83,9 @@ class AgentChannelResponderActivity extends KanvasActivity
                             'entity_id' => $message->entity()->getId(),
                             'canal_id' => $message->message['chat_jid'],
                             'user' => [
-                                'name' => $message->entity()->getName(),
-                                'id' => $message->entity()->getId(),
-                                'email' => $message->entity()->getEmails()->first()?->value,
+                                'name' => $message->entity()->people->getName(),
+                                'id' => $message->entity()->people->getId(),
+                                'email' => $message->entity()->people->getEmails()->first()?->value,
                             ],
                             'agent' => Agent::getById($agentId, $app),
                         ])
