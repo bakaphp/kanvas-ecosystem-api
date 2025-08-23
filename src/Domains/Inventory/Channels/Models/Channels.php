@@ -15,6 +15,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
 /**
  * Class Channels.
@@ -38,6 +39,7 @@ class Channels extends BaseModel
     use SlugTrait;
     use DatabaseSearchableTrait;
     use DefaultTrait;
+    use HasTagsTrait;
 
     protected $table = 'channels';
     protected $guarded = [];
