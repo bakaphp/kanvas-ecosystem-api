@@ -963,7 +963,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     /**
      * Create a unique slug for channels (both 1-to-1 and groups)
      */
-    protected function createChannelSlug(string $jid,  ?Lead $lead = null): string
+    protected function createChannelSlug(string $jid, ?Lead $lead = null): string
     {
         $leadId = ($lead ? '-' . (string) $lead->getId() : '');
         // Use different prefixes for groups and 1-to-1 channels for clarity
