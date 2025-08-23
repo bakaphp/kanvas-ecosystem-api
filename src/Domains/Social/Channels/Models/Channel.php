@@ -26,8 +26,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  *  @property int $last_message_id
  *  @property int $apps_id
  *  @property int $companies_id
- *  @property int $entity_id
- *  @property int $entity_namespace
+ *  @property int|null $entity_id
+ *  @property string|null $entity_namespace
  */
 class Channel extends BaseModel
 {
