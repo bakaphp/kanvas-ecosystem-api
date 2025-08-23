@@ -18,9 +18,14 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
+use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
+use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
+use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -1039,6 +1044,32 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             return $activeLead;
         }
 
+        $leadType = LeadType::getByName('Warm', $people->app);
+        $leadSource = new CreateLeadSourceAction(
+            new LeadSource(
+                $people->app,
+                $people->company,
+                $leadType->getId(),
+                'whatsapp',
+                true,
+                'whatsapp'
+            )
+        )->execute();
+
+        $leadReceiver = new CreateLeadReceiverAction(
+            new LeadReceiver(
+                app: $people->app,
+                branch: $people->company->defaultBranch,
+                user: $people->user,
+                agent: $people->user,
+                name: 'Agent',
+                source: 'AI Agent',
+                isDefault: false,
+                lead_sources_id: $leadSource->getId(),
+                lead_types_id: $leadType->getId()
+            )
+        )->execute();
+
         $leadData = new DataTransferObjectLead(
             app: $people->app,
             branch: $people->company->defaultBranch,
@@ -1057,12 +1088,15 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             ),
             leads_owner_id: 0,
             status_id: 0,
-            receiver_id: $this->receiver->getId(),
+            type_id: $leadType->getId(),
+            source_id: $leadSource->getId(),
+            receiver_id: $leadReceiver->getId()
         );
 
         $lead = new CreateLeadAction($leadData)->execute();
         $lead->addTags([
             'whatsapp',
+            'ai-agent',
         ]);
 
         return $lead;
