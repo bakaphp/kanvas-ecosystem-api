@@ -198,6 +198,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                  */
                 $people = $this->processContactFromMessage($chatJid, $messageData);
                 $lead = $this->createLeadFromPeople($people);
+
+                if ($lead && empty($channel->entity_namespace)) {
+                    $channel->entity_namespace = get_class($lead);
+                    $channel->entity_id = $lead->id;
+                    $channel->update();
+                }
             }
             /*
             if (isset($people) && $people instanceof People) {
@@ -1012,6 +1018,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 //$channel->users_id = $this->receiver->user->getId();
                 //$channel->uuid = Str::uuid()->toString();
                 $channel->save();
+
+                $channel->addTag('whatsapp');
             } elseif ($name && $channel->name !== $name) {
                 $channel->name = $name;
                 $channel->save();
@@ -1044,7 +1052,11 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             return $activeLead;
         }
 
-        $leadType = LeadType::getByName('Warm', $people->app);
+        $leadType = LeadType::fromApp($people->app)
+                    ->fromCompany($people->company)
+                    ->where('name', 'Warm')
+                    ->firstOrFail();
+
         $leadSource = new CreateLeadSourceAction(
             new LeadSource(
                 $people->app,
