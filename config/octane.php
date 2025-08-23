@@ -28,8 +28,8 @@ return [
     'port' => '8000',
     'swoole' => [
         'options' => [
-            'worker_num' => 16,
-            'task_worker_num' => 16,
+            'worker_num' => env('SWOOLE_WORKER_NUM', swoole_cpu_num() * 2),
+            'task_worker_num' => env('SWOOLE_TASK_WORKER_NUM', swoole_cpu_num() * 2),
             'enable_coroutine' => true,
             'max_coroutine' => 100000,
             'max_request' => 10000,
