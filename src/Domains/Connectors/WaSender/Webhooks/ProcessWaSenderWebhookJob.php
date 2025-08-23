@@ -1037,6 +1037,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $channel->save();
             }
 
+            if ($lead && empty($channel->entity_namespace)) {
+                $channel->entity_namespace = get_class($lead->people);
+                $channel->entity_id = $lead->people->getId();
+                $channel->update();
+            }
+
             return $channel;
         }, 5); // 5 attempts with exponential backoff
     }
