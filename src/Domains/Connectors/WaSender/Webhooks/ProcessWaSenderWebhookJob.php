@@ -130,6 +130,13 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $chatJid = $key['remoteJid'] ?? null;
             $isFromMe = $key['fromMe'] ?? false;
             $messageId = $key['id'] ?? Str::uuid()->toString();
+            $lead = null;
+
+            if ($chatJid === null) {
+                report('WaSender webhook message missing chat JID' . json_encode($messageData));
+
+                continue; // Skip processing this message
+            }
 
             // If the message is not from the user, process the contact
             if (! $isFromMe) {
@@ -144,7 +151,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $messageSlug = $this->createMessageSlug($messageId, $chatJid);
 
             // Get or create a channel for this conversation
-            $channel = $this->getOrCreateChannel($chatJid);
+            $channel = $this->getOrCreateChannel(
+                jid: $chatJid,
+                lead: $lead
+            );
 
             // Find existing message or create a new one using CreateMessageAction
             $existingMessage = Message::where('uuid', $messageSlug)
