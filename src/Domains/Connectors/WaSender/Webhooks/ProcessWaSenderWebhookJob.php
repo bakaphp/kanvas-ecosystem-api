@@ -17,6 +17,10 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Actions\CreateLeadAction;
+use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -188,11 +192,16 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                  * @todo we need to create users for each user and associate with people
                  */
                 $people = $this->processContactFromMessage($chatJid, $messageData);
+                $lead = $this->createLeadFromPeople($people);
             }
-
+            /*
             if (isset($people) && $people instanceof People) {
                 // Associate the message with the contact
                 $message->addEntity($people);
+            } */
+            if (isset($lead) && $lead instanceof Lead) {
+                // Associate the message with the lead
+                $message->addEntity($lead);
             }
 
             // Associate message with channel
@@ -1021,6 +1030,42 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $pushName = $messageData['pushName'] ?? null;
 
         return $this->processContact($jid, $pushName);
+    }
+
+    protected function createLeadFromPeople(People $people): Lead
+    {
+        $activeLead = LeadsRepository::getPeopleActiveLead($people);
+        if ($activeLead) {
+            return $activeLead;
+        }
+
+        $leadData = new DataTransferObjectLead(
+            app: $people->app,
+            branch: $people->company->defaultBranch,
+            user: $people->user,
+            title: $people->name . ' WhatsApp Opp',
+            pipeline_stage_id: 0,
+            people: new PeopleDTO(
+                $people->app,
+                $people->company->defaultBranch,
+                $people->user,
+                $people->firstname,
+                Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
+                Address::collect([], DataCollection::class),
+                $people->lastname,
+                $people->id
+            ),
+            leads_owner_id: 0,
+            status_id: 0,
+            receiver_id: $this->receiver->getId(),
+        );
+
+        $lead = new CreateLeadAction($leadData)->execute();
+        $lead->addTags([
+            'whatsapp',
+        ]);
+
+        return $lead;
     }
 
     /**

@@ -10,11 +10,13 @@ use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Override;
 
 use function Sentry\captureException;
 
 class ScraperProductAction extends ScraperAction
 {
+    #[Override]
     public function execute(): array
     {
         $repository = new ScrapingDogRepository($this->app);
