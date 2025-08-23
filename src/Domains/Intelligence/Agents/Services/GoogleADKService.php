@@ -6,7 +6,9 @@ namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Exception;
 use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Exceptions\ValidationException;
@@ -55,7 +57,7 @@ class GoogleADKService
             $response = $this->client->post($endpoint);
 
             return json_decode($response->getBody()->getContents(), true) ?? [];
-        } catch (\GuzzleHttp\Exception\ClientException $e) {
+        } catch (ClientException $e) {
             $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';
             $responseData = json_decode($responseBody, true);
 
@@ -79,8 +81,12 @@ class GoogleADKService
      * @return string Complete response text
      * @throws GuzzleException
      */
-    public function chat(string $userId, string $sessionId, string $message, ?callable $onChunk = null): string
-    {
+    public function chat(
+        string $userId,
+        string $sessionId,
+        string $message,
+        ?callable $onChunk = null
+    ): string {
         $response = Http::withHeaders([
             'Accept' => 'text/event-stream',
             'Content-Type' => 'application/json',
@@ -133,7 +139,7 @@ class GoogleADKService
                         if ($data) {
                             // Check for error messages
                             if (isset($data['error'])) {
-                                throw new \Exception('API Error: ' . $data['error']);
+                                throw new Exception('API Error: ' . $data['error']);
                             }
 
                             // Process content parts

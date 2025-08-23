@@ -41,6 +41,7 @@ use Override;
  * @property string $user_activation_forgot
  * @property int $banned
  * @property int $status
+ * @property int $is_verified
  * @property int $user_recover_code
  * @property string $two_step_phone_number
  * @property string $email_verified_at
@@ -83,6 +84,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         'user_activation_key',
         'banned',
         'status',
+        'is_verified',
         'two_step_phone_number',
         'unread_notifications_count',
         'unread_notifications_count',

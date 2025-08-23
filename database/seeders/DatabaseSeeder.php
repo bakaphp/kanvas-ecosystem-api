@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
             MessageActivityTypeSeeder::class,
             NotificationChannelsSeeder::class,
             KanvasModulesSeeder::class,
+            SoukSeeder::class,
         ]);
     }
 }

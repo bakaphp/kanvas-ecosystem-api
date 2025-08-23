@@ -8,10 +8,12 @@ use Kanvas\Connectors\ScrapingDog\Jobs\ScraperJob;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction as ScraperApiAction;
 use Laravel\Octane\Facades\Octane;
+use Override;
 
 class ScraperAction extends ScraperApiAction
 {
     // @todo: abstract the logic to a base class, we can reuse this because the repository and processor have same methods
+    #[Override]
     public function execute(): array
     {
         $repository = new ScrapingDogRepository($this->app);
@@ -54,7 +56,6 @@ class ScraperAction extends ScraperApiAction
             $this->cacheKey
         );
         sleep(4);
-
 
         return [
             'scrapperProducts' => 5,

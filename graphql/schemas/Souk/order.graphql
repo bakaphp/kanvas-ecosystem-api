@@ -29,6 +29,7 @@ type Order {
     shipping_price_gross_amount: Money!
     shipping_price_net_amount: Money!
     discount_amount: Money!
+    tax_amount: Money!
     discount_name: String
     voucher_id: Int
     language_code: String
@@ -297,6 +298,7 @@ input PaymentCustomFieldInput {
 input TransitionOrderStatusInput {
     order_id: ID!
     status_slug: String!
+    date: String
 }
 
 type OrderStatusTransitionResult {
@@ -324,6 +326,7 @@ input ExportMetadataInput {
     custom_title: String
     subtitle: String
     headerImages: [String!]
+    dateField: String
 }
 
 extend type Mutation @guard {
@@ -426,6 +429,7 @@ extend type Query @guard {
                     "order_types_id"
                     "parent_id"
                     "created_at"
+                    "updated_at"
                 ]
             )
         orderType: _
@@ -539,6 +543,7 @@ extend type Query @guard {
                     "order_types_id"
                     "parent_id"
                     "created_at"
+                    "updated_at"
                 ]
             )
         orderType: _

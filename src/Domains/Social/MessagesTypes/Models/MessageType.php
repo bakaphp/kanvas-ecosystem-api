@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\MessagesTypes\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Kanvas\Social\MessagesTypes\Factories\MessageTypeFactory;
 use Kanvas\Social\Models\BaseModel;
+use Override;
 
 /**
  *  class MessageType
@@ -33,6 +35,14 @@ class MessageType extends BaseModel
     protected $guarded = [
         'uuid',
     ];
+
+    #[Override]
+    public function casts(): array
+    {
+        return [
+            'template' => Json::class,
+        ];
+    }
 
     protected static function newFactory()
     {

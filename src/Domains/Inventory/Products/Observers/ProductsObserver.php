@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Observers;
 
+use Kanvas\Inventory\Products\Events\ProductUpdateEvent;
 use Kanvas\Inventory\Products\Models\Products;
 
 class ProductsObserver
@@ -23,5 +24,10 @@ class ProductsObserver
         if ($product->isDirty('users_id')) {
             $product->users_id = $product->getOriginal('users_id');
         }
+    }
+
+    public function updated(Products $product): void
+    {
+        ProductUpdateEvent::dispatch($product);
     }
 }

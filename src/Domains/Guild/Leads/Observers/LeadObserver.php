@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Leads\Events\LeadUpdateEvent;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -29,6 +30,10 @@ class LeadObserver
                 $lead->company,
                 $lead->firstname
             )->getId();
+        }
+
+        if (empty($lead->title)) {
+            $lead->title = $lead->firstname . ' ' . $lead->lastname;
         }
 
         // set the default status if not specified
@@ -91,6 +96,8 @@ class LeadObserver
     {
         //$lead->fireWorkflow(WorkflowEnum::UPDATED->value);
         Subscription::broadcast('leadUpdate', $lead, true);
+        LeadUpdateEvent::dispatch($lead);
+
         //$lead->clearLightHouseCacheJob();
     }
 }

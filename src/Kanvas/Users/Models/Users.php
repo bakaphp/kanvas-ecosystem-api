@@ -64,6 +64,7 @@ use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use NotificationChannels\Expo\ExpoPushToken;
 use Override;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
@@ -435,6 +436,28 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $this->hasMany(UserLinkedSources::class, 'users_id');
     }
 
+    /**
+     * Expo push notification
+     * @return array<int, ExpoPushToken>
+     */
+    public function routeNotificationForExpo(): array
+    {
+        $tokens = $this->linkedSources()
+            ->whereHas('source', function ($query) {
+                $query->where('title', 'expo');
+            })
+            ->get()
+            ->map(function ($source) {
+                if (Str::contains($source->source_users_id_text, 'ExponentPushToken')) {
+                    return ExpoPushToken::make($source->source_users_id_text);
+                }
+            })
+            ->filter()
+            ->values();
+
+        return $tokens->toArray();
+    }
+
     public function channels(): BelongsToMany
     {
         $databaseSocial = config('database.social.database', 'social');
@@ -764,6 +787,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user = $this->getAppProfile(app(Apps::class));
 
         return $user->displayname ?? $this->displayname ?? '';
+    }
+
+    public function getAppIsVerified(): bool
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return (bool) $user->is_verified;
     }
 
     public function getAppEmail(): string

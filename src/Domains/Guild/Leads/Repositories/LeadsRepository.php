@@ -8,13 +8,16 @@ use Baka\Enums\StateEnums;
 use Baka\Traits\SearchableTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Override;
 
 class LeadsRepository
 {
     use SearchableTrait;
 
+    #[Override]
     public static function getModel(): Model
     {
         return new Lead();
@@ -28,5 +31,15 @@ class LeadsRepository
         return LeadReceiver::where('companies_branches_id', $branch->getId())
                     ->where('is_default', StateEnums::YES->getValue())
                     ->firstOrFail();
+    }
+
+    public static function getPeopleActiveLead(People $people): ?Lead
+    {
+        return Lead::fromApp($people->app)
+                    ->fromCompany($people->company)
+                    ->where('people_id', $people->id)
+                        ->whereHas('status', function ($query) {
+                            $query->whereIn('name', ['active', 'created']);
+                        })->first();
     }
 }

@@ -65,6 +65,7 @@ class SystemModules extends BaseModel
         'name',
         'apps_id',
         'slug',
+        'use_import'
     ];
 
     /**

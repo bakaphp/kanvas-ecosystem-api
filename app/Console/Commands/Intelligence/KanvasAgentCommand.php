@@ -87,7 +87,7 @@ class KanvasAgentCommand extends Command
     /**
      * Start an interactive chat session with the agent.
      */
-    protected function startInteractiveChat(object $agent, Model $entity)
+    protected function startInteractiveChat(object $agent, Model $entity): void
     {
         $this->info("Interactive chat session started. Type 'exit' or 'quit' to end the conversation.");
         $chatHistory = [];

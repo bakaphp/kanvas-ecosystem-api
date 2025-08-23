@@ -31,7 +31,6 @@ use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
 use Kanvas\Regions\Models\Regions as KanvasRegions;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Throwable;
 
 class ProductImporterAction
 {
@@ -51,15 +50,11 @@ class ProductImporterAction
         $this->app = $this->app ?? app(Apps::class);
     }
 
-    /**
-     * Run all method dor a specify product.
-     */
     public function execute(): ProductsModel
     {
-        try {
-            DB::connection('inventory')->beginTransaction();
-
+        return DB::connection('inventory')->transaction(function () {
             $status = $this->createStatus();
+
             $productDto = ProductsDto::from([
                 'app' => $this->app,
                 'company' => $this->company,
@@ -76,6 +71,7 @@ class ProductImporterAction
                 'is_published' => $this->importedProduct->isPublished,
                 'attributes' => $this->importedProduct->attributes,
             ]);
+
             $createAction = new CreateProductAction($productDto, $this->user);
             $createAction->setRunWorkflow($this->runWorkflow);
             $this->product = $createAction->execute();
@@ -89,7 +85,6 @@ class ProductImporterAction
             }
 
             $this->categories();
-
             $this->productWarehouse();
 
             if ($this->importedProduct->vendor) {
@@ -97,25 +92,26 @@ class ProductImporterAction
                     'vendor' => $this->importedProduct->vendor,
                 ]);
             }
-            //$this->variants();
-            // @todo to be removed
-            // $this->variantsLocation($this->product);
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
             }
+
             if ($this->importedProduct->tags) {
                 $this->product->syncTags($this->importedProduct->tags);
             }
-            DB::connection('inventory')->commit();
-            $this->product->fireWorkflow(WorkflowEnum::SYNC_SHOPIFY->value);
-        } catch (Throwable $e) {
-            DB::connection('inventory')->rollback();
 
-            throw $e;
-        }
+            // Fire workflow after transaction commits successfully
+            $this->product->fireWorkflow(
+                WorkflowEnum::SYNC_SHOPIFY->value,
+                true,
+                [
+                    'app' => $this->app,
+                ]
+            );
 
-        return $this->product;
+            return $this->product;
+        });
     }
 
     protected function createStatus(): ?ModelsStatus
