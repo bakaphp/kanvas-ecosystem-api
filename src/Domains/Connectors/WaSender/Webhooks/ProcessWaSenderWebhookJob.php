@@ -1033,7 +1033,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
                 $channel->addTags([
                     'whatsapp',
-                    'ai-agent'
+                    'ai-agent',
                 ]);
             } elseif ($name && $channel->name !== $name) {
                 $channel->name = $name;
