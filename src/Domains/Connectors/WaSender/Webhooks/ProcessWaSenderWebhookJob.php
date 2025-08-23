@@ -130,12 +130,31 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $chatJid = $key['remoteJid'] ?? null;
             $isFromMe = $key['fromMe'] ?? false;
             $messageId = $key['id'] ?? Str::uuid()->toString();
+            $lead = null;
+
+            if ($chatJid === null) {
+                report('WaSender webhook message missing chat JID' . json_encode($messageData));
+
+                continue; // Skip processing this message
+            }
+
+            // If the message is not from the user, process the contact
+            if (! $isFromMe) {
+                /**
+                 * @todo we need to create users for each user and associate with people
+                 */
+                $people = $this->processContactFromMessage($chatJid, $messageData);
+                $lead = $this->createLeadFromPeople($people);
+            }
 
             // Create the message slug
             $messageSlug = $this->createMessageSlug($messageId, $chatJid);
 
             // Get or create a channel for this conversation
-            $channel = $this->getOrCreateChannel($chatJid);
+            $channel = $this->getOrCreateChannel(
+                jid: $chatJid,
+                lead: $lead
+            );
 
             // Find existing message or create a new one using CreateMessageAction
             $existingMessage = Message::where('uuid', $messageSlug)
@@ -191,20 +210,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 }
             }
 
-            // If the message is not from the user, process the contact
-            if (! $isFromMe) {
-                /**
-                 * @todo we need to create users for each user and associate with people
-                 */
-                $people = $this->processContactFromMessage($chatJid, $messageData);
-                $lead = $this->createLeadFromPeople($people);
-
-                if ($lead && empty($channel->entity_namespace)) {
-                    $channel->entity_namespace = get_class($lead);
-                    $channel->entity_id = $lead->id;
-                    $channel->update();
-                }
-            }
             /*
             if (isset($people) && $people instanceof People) {
                 // Associate the message with the contact
@@ -968,15 +973,16 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     /**
      * Create a unique slug for channels (both 1-to-1 and groups)
      */
-    protected function createChannelSlug(string $jid): string
+    protected function createChannelSlug(string $jid, ?Lead $lead = null): string
     {
+        $leadId = ($lead ? '-' . (string) $lead->getId() : '');
         // Use different prefixes for groups and 1-to-1 channels for clarity
         if ($this->isGroupJid($jid)) {
-            return 'wa-group-' . Str::slug($jid);
+            return 'wa-group-' . Str::slug($jid) . $leadId;
         } elseif ($this->isChannelJid($jid)) {
-            return 'wa-channel-' . Str::slug($jid);
+            return 'wa-channel-' . Str::slug($jid) . $leadId;
         } else {
-            return 'wa-chat-' . Str::slug($jid);
+            return 'wa-chat-' . Str::slug($jid) . $leadId;
         }
     }
 
@@ -984,12 +990,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
      * Get an existing channel or create a new one (for any conversation type)
      * with database transaction locking to prevent race conditions
      */
-    protected function getOrCreateChannel(string $jid, ?string $name = null): Channel
+    protected function getOrCreateChannel(string $jid, ?string $name = null, ?Lead $lead = null): Channel
     {
-        $slug = $this->createChannelSlug($jid);
+        $slug = $this->createChannelSlug($jid, $lead);
 
         // Use a database transaction with locking
-        return DB::transaction(function () use ($slug, $jid, $name) {
+        return DB::transaction(function () use ($slug, $jid, $name, $lead) {
             // Attempt to find the channel with a lock for update
             $channel = Channel::where('slug', $slug)
                 ->where('companies_id', $this->receiver->company->getId())
@@ -1017,6 +1023,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $channel->apps_id = $this->receiver->app->getId();
                 //$channel->users_id = $this->receiver->user->getId();
                 //$channel->uuid = Str::uuid()->toString();
+
+                if ($lead) {
+                    $channel->entity_namespace = get_class($lead);
+                    $channel->entity_id = $lead->id;
+                }
+
                 $channel->save();
 
                 $channel->addTag('whatsapp');
