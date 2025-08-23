@@ -133,7 +133,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $lead = null;
 
             if ($chatJid === null) {
-                report('WaSender webhook message missing chat JID' . json_encode($messageData));
+                report('WaSender webhook message missing chat JID' . json_encode((array) $messageData));
 
                 continue; // Skip processing this message
             }
@@ -975,14 +975,14 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
      */
     protected function createChannelSlug(string $jid, ?Lead $lead = null): string
     {
-        $leadId = ($lead ? '-' . (string) $lead->getId() : '');
+        //$leadId = ($lead ? '-' . (string) $lead->getId() : '');
         // Use different prefixes for groups and 1-to-1 channels for clarity
         if ($this->isGroupJid($jid)) {
-            return 'wa-group-' . Str::slug($jid) . $leadId;
+            return 'wa-group-' . Str::slug($jid);
         } elseif ($this->isChannelJid($jid)) {
-            return 'wa-channel-' . Str::slug($jid) . $leadId;
+            return 'wa-channel-' . Str::slug($jid);
         } else {
-            return 'wa-chat-' . Str::slug($jid) . $leadId;
+            return 'wa-chat-' . Str::slug($jid);
         }
     }
 
@@ -1025,8 +1025,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 //$channel->uuid = Str::uuid()->toString();
 
                 if ($lead) {
-                    $channel->entity_namespace = get_class($lead);
-                    $channel->entity_id = $lead->id;
+                    $channel->entity_namespace = get_class($lead->people);
+                    $channel->entity_id = $lead->people->getId();
                 }
 
                 $channel->save();
