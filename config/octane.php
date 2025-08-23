@@ -31,7 +31,7 @@ return [
             'worker_num' => 16,
             'task_worker_num' => 16,
             'enable_coroutine' => true,
-            'max_coroutine' => 100000, 
+            'max_coroutine' => 100000,
             'max_request' => 10000,
             'package_max_length' => 100 * 1024 * 1024,
             'buffer_output_size' => 32 * 1024 * 1024,
