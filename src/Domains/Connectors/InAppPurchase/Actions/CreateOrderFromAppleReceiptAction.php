@@ -24,6 +24,8 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Spatie\LaravelData\DataCollection;
 
@@ -131,7 +133,13 @@ class CreateOrderFromAppleReceiptAction
         // Validate we have the expected purchase
         $firstPurchase = $inAppPurchases[0];
 
+        //@todo add the other variant to the order items
         $orderItem = $this->createOrderItem($firstPurchase);
+
+        /**
+         * @TODO add to the user iap_list -> the model and sku he just bought so mobile know
+         * what he has avaible if next steps fail or close the phone
+         */
 
         return new Order(
             app: $this->app,
@@ -148,16 +156,16 @@ class CreateOrderFromAppleReceiptAction
             taxes: 0.0,
             totalDiscount: 0.0,
             totalShipping: 0.0,
-            status: 'completed',
+            status: OrderStatusEnum::COMPLETED->value,
             orderNumber: '',
             shippingMethod: null,
             currency: $this->region->currency,
-            fulfillmentStatus: 'fulfilled',
+            fulfillmentStatus: OrderFulfillmentStatusEnum::PENDING->value,
             items: OrderItem::collect([$orderItem], DataCollection::class),
             metadata: $allReceiptData,
             weight: 0.0,
             checkoutToken: '',
-            paymentGatewayName: ['manual'],
+            paymentGatewayName: ['apple-iap'],
             languageCode: null,
         );
     }
@@ -165,6 +173,7 @@ class CreateOrderFromAppleReceiptAction
     private function createOrderItem(LatestReceiptInfo $inAppData): OrderItem
     {
         $variant = $this->getVariant($inAppData->getProductId());
+        //@todo change this to be prices from channel
         $warehouse = $this->region->warehouses()->firstOrFail();
 
         return new OrderItem(
