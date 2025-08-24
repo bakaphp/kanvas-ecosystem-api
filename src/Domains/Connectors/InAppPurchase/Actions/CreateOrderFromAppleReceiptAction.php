@@ -79,10 +79,7 @@ class CreateOrderFromAppleReceiptAction
             $order->saveCustomFields();
         }
 
-        // Get from the database what kind of product it is, a consumable purchase(Example: purchase by consuming coins from wallet) or a wallet charging product(purchase for crediting coins to wallet) and subscriptions.
-        if ($order->get('purchase_type')) {
-             PurchaseTypeEnum::processPurchase($order);
-        }
+        PurchaseTypeEnum::processPurchase($order);
 
         return $order;
     }

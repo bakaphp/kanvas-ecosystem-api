@@ -14,6 +14,7 @@ use Imdhemy\Purchases\Facades\Product;
 use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\GooglePlayInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\GooglePlayReceiptStatusEnum;
+use Kanvas\Connectors\InAppPurchase\Enums\PurchaseTypeEnum;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
@@ -77,6 +78,8 @@ class CreateOrderFromGoogleReceiptAction
             $order->setCustomFields($this->googlePlayInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }
+
+        PurchaseTypeEnum::processPurchase($order);
 
         return $order;
     }
