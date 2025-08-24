@@ -16,15 +16,22 @@ return new class () extends Migration {
             $table->integer('apps_id')->index('apps_id');
             $table->integer('companies_id')->index('companies_id');
             $table->integer('users_id')->nullable()->index('users_id');
-            $table->string('cart_session_id')->nullable()->index('cart_session_id');
+            $table->string('session_id')->nullable()->index('session_id');
             $table->string('email')->nullable();
             $table->decimal('amount', 10, 2)->nullable();
             $table->string('currency', 3)->default('usd');
             $table->string('status', 50)->default('pending')->index('status');
+            $table->integer('notification_count')->default(0)->index();
+            $table->text('items')->nullable();
+            $table->text('conditions')->nullable();
             $table->json('metadata')->nullable();
             $table->integer('is_deleted')->nullable()->default(0)->index('is_deleted');
             $table->dateTime('created_at')->nullable()->index('created_at');
             $table->dateTime('updated_at')->nullable()->index('updated_at');
+
+            //index  apps + company
+            $table->index(['apps_id', 'companies_id'], 'apps_companies');
+            $table->index(['apps_id', 'companies_id', 'users_id'], 'apps_companies_users');
         });
     }
 
