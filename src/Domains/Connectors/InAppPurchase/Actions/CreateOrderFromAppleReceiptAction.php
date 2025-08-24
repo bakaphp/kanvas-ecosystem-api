@@ -24,6 +24,7 @@ use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Kanvas\Souk\Wallet\Actions\AddFundsToWalletAction;
 use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromAppleReceiptAction
@@ -56,14 +57,6 @@ class CreateOrderFromAppleReceiptAction
             'transactionDate' => $this->appleInAppPurchase->transaction_date,
         ];
 
-        $productVariant = Variants::getBySku($this->appleInAppPurchase->product_id, $this->company, $this->app);
-        if (! $productVariant) {
-            throw new ValidationException('Product Variant not found');
-        }
-
-        $warehouse = $this->region->warehouses()->firstOrFail();
-        $orderTransaction = $this->user->deposit($productVariant->getPrice($warehouse), null, false);
-
         $verifiedReceipt = $this->verifyReceipt($receipt);
         $receiptStatus = $verifiedReceipt->getStatus();
 
@@ -85,8 +78,9 @@ class CreateOrderFromAppleReceiptAction
             $order->saveCustomFields();
         }
 
-        // If receipt is valid and the order is completed(fulfilled) then we need to credit the wallet of the user. Get the user wallet, get the amount of credit from the receipt and add it to the wallet balance. @todo Maybe we need to get the product information from the database.
-        $this->user->confirm($orderTransaction);
+        // If receipt is valid and the order is completed(fulfilled) then we credit the wallet of the user.
+        // Get from the database what kind of product it is, a consumable purchase(Example: purchase by consuming coins from wallet) or a wallet charging product(purchase for crediting coins to wallet) and subscriptions.
+        ( new AddFundsToWalletAction($order))->execute();
 
         return $order;
     }
