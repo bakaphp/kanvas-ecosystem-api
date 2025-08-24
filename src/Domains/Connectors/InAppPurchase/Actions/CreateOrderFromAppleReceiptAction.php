@@ -14,6 +14,7 @@ use Imdhemy\AppStore\Receipts\Verifier;
 use Imdhemy\AppStore\ValueObjects\LatestReceiptInfo;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
+use Kanvas\Connectors\InAppPurchase\Enums\PurchaseTypeEnum;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
@@ -78,9 +79,10 @@ class CreateOrderFromAppleReceiptAction
             $order->saveCustomFields();
         }
 
-        // If receipt is valid and the order is completed(fulfilled) then we credit the wallet of the user.
         // Get from the database what kind of product it is, a consumable purchase(Example: purchase by consuming coins from wallet) or a wallet charging product(purchase for crediting coins to wallet) and subscriptions.
-        ( new AddFundsToWalletAction($order))->execute();
+        if ($order->get('purchase_type')) {
+             PurchaseTypeEnum::processPurchase($order);
+        }
 
         return $order;
     }
