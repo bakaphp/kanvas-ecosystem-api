@@ -24,6 +24,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
         )
     is_published: Boolean
     created_at: DateTime
+    message: [Message] @hasMany(relation: "getIntegrationMessage")
     updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
