@@ -35,6 +35,7 @@ class CreateContentSessionAction
         return array_merge(
             [
                 'lead_id' => $lead->id,
+                'lead_channel_id' => $lead->uuid,
                 'type' => $lead->type?->name,
                 'status' => $lead->status()->first()?->name,
             ],
