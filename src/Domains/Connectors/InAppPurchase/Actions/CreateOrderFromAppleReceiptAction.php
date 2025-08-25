@@ -25,7 +25,6 @@ use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
-use Kanvas\Souk\Wallet\Actions\AddFundsToWalletAction;
 use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromAppleReceiptAction
