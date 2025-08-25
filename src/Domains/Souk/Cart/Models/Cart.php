@@ -43,6 +43,7 @@ class Cart extends BaseModel
         'amount',
         'currency',
         'status',
+        'notification_count',
         'metadata',
         'items',
         'conditions',

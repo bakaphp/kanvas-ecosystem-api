@@ -8,98 +8,75 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Models\Settings;
+use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Souk\Cart\Enums\ConfigurationEnum;
 use Kanvas\Souk\Cart\Models\Cart;
 use Kanvas\Users\Models\Users;
-use Kanvas\Notifications\Templates\Blank;
 
 /**
- * Cart Maintenance Command
+ * Abandon Cart Command
  */
-class CartMaintenanceCommand extends Command
+class AbandonCartCommand extends Command
 {
-    protected $signature = 'souk:cart-maintenance';
-    protected $description = 'Maintain cart data synchronization with Redis and send notifications for abandoned carts at 1h, 24h, and 72h intervals';
-
-    private array $notificationIntervals = [
-        'first' => ['hours' => 1, 'sent_field' => 'first_notification_sent'],
-        'second' => ['hours' => 24, 'sent_field' => 'second_notification_sent'], 
-        'third' => ['hours' => 72, 'sent_field' => 'third_notification_sent'],
-    ];
+    protected $signature = 'souk:abandon-cart';
+    protected $description = 'Process abandoned cart notifications at specified intervals by applications';
 
     public function handle(): int
     {
-        $this->info('Starting cart maintenance and abandoned cart notification process...');
+        $this->info('Starting abandoned cart notification process...');
 
-        $apps = Apps::all();
+        // Get all apps that have abandon cart notifications enabled
+        $appsIds = Settings::where([
+            'name' => ConfigurationEnum::ABANDON_CART_ENABLED->value,
+            'value' => '1',
+        ])->select('apps_id')->get()->pluck('apps_id');
 
-        foreach ($apps as $app) {
-            $this->info("Processing carts for app: {$app->name} (ID: {$app->getId()})");
-            
-            // Sync cart data with Redis
-            $this->syncCartDataWithRedis($app);
-            
+        if ($appsIds->isEmpty()) {
+            $this->info('No apps have abandon cart notifications enabled.');
+            return 0;
+        }
+
+        $this->info('Processing ' . $appsIds->count() . ' apps with abandon cart enabled');
+
+        foreach ($appsIds as $appId) {
+            $app = Apps::getById($appId);
+            $this->info("Processing abandoned carts for app: {$app->name} (ID: {$app->getId()})");
+
             // Process abandoned cart notifications
             $this->processAbandonedCartsForApp($app);
         }
 
-        $this->info('Cart maintenance and notification process completed.');
+        $this->info('Abandoned cart notification process completed.');
         return 0;
     }
 
-    private function syncCartDataWithRedis(Apps $app): void
+    private function getNotificationIntervals(Apps $app): array
     {
-        $this->info("Syncing cart data with Redis for app: {$app->name}");
-        
-        // Get all active carts for this app
-        $activeCarts = Cart::where('apps_id', $app->getId())
-            ->whereNull('deleted_at')
-            ->get();
-
-        foreach ($activeCarts as $cart) {
-            try {
-                // Check if Redis data exists for this cart session
-                $redisKey = "cart:{$cart->cart_session_id}";
-                $redisData = Redis::get($redisKey);
-                
-                if ($redisData) {
-                    // Update cart metadata with Redis data if needed
-                    $redisCartData = json_decode($redisData, true);
-                    $this->updateCartFromRedis($cart, $redisCartData);
-                } else {
-                    // Redis data is missing, cart might be truly abandoned
-                    $this->handleMissingRedisData($cart);
-                }
-            } catch (\Exception $e) {
-                Log::error("Failed to sync cart {$cart->getId()} with Redis: " . $e->getMessage());
-            }
-        }
-    }
-
-    private function updateCartFromRedis(Cart $cart, array $redisData): void
-    {
-        $metadata = $cart->metadata ?? [];
-        $metadata['last_redis_sync'] = Carbon::now()->toISOString();
-        $metadata['redis_items_count'] = count($redisData['items'] ?? []);
-        $metadata['redis_total'] = $redisData['total'] ?? 0;
-        
-        $cart->update(['metadata' => $metadata]);
-    }
-
-    private function handleMissingRedisData(Cart $cart): void
-    {
-        $metadata = $cart->metadata ?? [];
-        $metadata['redis_missing_since'] = $metadata['redis_missing_since'] ?? Carbon::now()->toISOString();
-        
-        $cart->update(['metadata' => $metadata]);
+        return [
+            'first' => [
+                'hours' => (int) ($app->get(ConfigurationEnum::ABANDON_CART_FIRST_NOTIFICATION_HOURS->value) ?? 1),
+                'notification_count' => 1
+            ],
+            'second' => [
+                'hours' => (int) ($app->get(ConfigurationEnum::ABANDON_CART_SECOND_NOTIFICATION_HOURS->value) ?? 24),
+                'notification_count' => 2
+            ],
+            'third' => [
+                'hours' => (int) ($app->get(ConfigurationEnum::ABANDON_CART_THIRD_NOTIFICATION_HOURS->value) ?? 72),
+                'notification_count' => 3
+            ],
+        ];
     }
 
     private function processAbandonedCartsForApp(Apps $app): void
     {
         $this->info("Processing abandoned carts for app: {$app->name}");
 
-        foreach ($this->notificationIntervals as $intervalType => $config) {
+        $notificationIntervals = $this->getNotificationIntervals($app);
+
+        foreach ($notificationIntervals as $intervalType => $config) {
             $this->processCartsForInterval($app, $intervalType, $config);
         }
     }
@@ -107,19 +84,16 @@ class CartMaintenanceCommand extends Command
     private function processCartsForInterval(Apps $app, string $intervalType, array $config): void
     {
         $hoursAgo = $config['hours'];
-        $sentField = $config['sent_field'];
-        
+        $notificationCount = $config['notification_count'];
+
         $cutoffTime = Carbon::now()->subHours($hoursAgo);
-        
+
         $abandonedCarts = Cart::where('apps_id', $app->getId())
             ->where('status', 'pending')
             ->where('updated_at', '<=', $cutoffTime)
             ->whereNotNull('users_id')
             ->whereNotNull('email')
-            ->where(function ($query) use ($sentField) {
-                $query->whereNull("metadata->{$sentField}")
-                    ->orWhere("metadata->{$sentField}", false);
-            })
+            ->where('notification_count', '<', $notificationCount)
             ->get();
 
         $this->info("Found {$abandonedCarts->count()} carts abandoned for {$hoursAgo} hours");
@@ -133,8 +107,8 @@ class CartMaintenanceCommand extends Command
     {
         try {
             $user = $cart->user;
-            
-            if (!$user) {
+
+            if (! $user) {
                 $this->warn("Cart {$cart->id} has no associated user, skipping");
                 return;
             }
@@ -145,16 +119,16 @@ class CartMaintenanceCommand extends Command
             }
 
             $notificationData = $this->getNotificationData($cart, $intervalType, $config);
-            
+
             // Send push notification
             $this->sendPushNotification($user, $notificationData);
-            
-            // Send email notification  
+
+            // Send email notification
             $this->sendEmailNotification($user, $cart, $notificationData);
-            
+
             // Update cart metadata to mark notification as sent
-            $this->markNotificationAsSent($cart, $config['sent_field'], $intervalType);
-            
+            $this->markNotificationAsSent($cart, $config['notification_count'], $intervalType);
+
             $this->info("Sent {$intervalType} notification for cart {$cart->id} to user {$user->email}");
             
         } catch (\Exception $e) {
@@ -172,10 +146,14 @@ class CartMaintenanceCommand extends Command
             'currency' => $cart->currency,
             'abandoned_hours' => $config['hours'],
             'notification_type' => $intervalType,
+            'notification_count' => $config['notification_count'],
+            'current_notification_count' => $cart->notification_count,
+            'items_count' => count($cart->items ?? []),
+            'session_id' => $cart->session_id,
         ];
 
         // Generate interval-specific content
-        return match($intervalType) {
+        return match ($intervalType) {
             'first' => [
                 // Empty for now - will be populated with custom templates
             ],
@@ -211,7 +189,7 @@ class CartMaintenanceCommand extends Command
                 ['push'],
                 $user
             );
-            
+
             $user->notify($notification);
             
         } catch (\Exception $e) {
@@ -238,7 +216,7 @@ class CartMaintenanceCommand extends Command
                 ['mail'],
                 $cart
             );
-            
+
             $notification->setSubject($notificationData['title']);
             Notification::route('mail', $user->email)->notify($notification);
             
@@ -247,13 +225,15 @@ class CartMaintenanceCommand extends Command
         }
     }
 
-    private function markNotificationAsSent(Cart $cart, string $sentField, string $intervalType): void
+    private function markNotificationAsSent(Cart $cart, int $notificationCount, string $intervalType): void
     {
         $metadata = $cart->metadata ?? [];
-        $metadata[$sentField] = true;
         $metadata['last_notification_sent'] = Carbon::now()->toISOString();
         $metadata['last_notification_type'] = $intervalType;
-        
-        $cart->update(['metadata' => $metadata]);
+
+        $cart->update([
+            'notification_count' => $notificationCount,
+            'metadata' => $metadata
+        ]);
     }
 }
