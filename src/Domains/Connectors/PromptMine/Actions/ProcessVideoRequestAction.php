@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
@@ -31,6 +32,14 @@ class ProcessVideoRequestAction
         // Construct the API URL based on video type
         $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
         $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
+
+        /**
+         * if its google use the specific api route
+         */
+        if (Str::contains($videoModel, 'veo')) {
+            $videoKey = 'google/' . ltrim($videoModel, 'fal-ai/');
+        }
+
         $apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
 
         if (empty($apiUrl) || empty($baseApiUrl)) {

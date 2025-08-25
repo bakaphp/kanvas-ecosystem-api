@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Services;
 
+use Baka\Support\Str;
 use Exception;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
@@ -135,10 +136,19 @@ class VideoProcessingService
         $maxAttempts = 3;
         $attempt = 0;
 
+        $videoModel = $this->entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
+
         // Reconstruct API URL for polling
         $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
         $baseApiUrl = $this->app->get('PROMPT_VIDEO_API_URL');
         $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
+        /**
+         * if its google use the specific api route
+         */
+        if (Str::contains($videoModel, 'veo')) {
+            $videoKey = 'google/' . ltrim($videoModel, 'fal-ai/');
+        }
+
         $apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
 
         while ($attempt < $maxAttempts) {
