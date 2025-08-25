@@ -13,6 +13,18 @@ class MessageObserver
 {
     public function creating(Message $message): void
     {
+        if ($message->app->get('validate-message-schema')) {
+            $checkJson = new MessageSchemaValidator($message, $message->messageType);
+            $checkJson->validate();
+        }
+
+        $message->fireWorkflow(
+            WorkflowEnum::CREATING->value,
+            true,
+            [
+                'app' => $message->app,
+            ]
+        );
         //$messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
         /* if (
             $message->app->get('message-image-type')
@@ -26,11 +38,6 @@ class MessageObserver
                 messageTypeId: $message->message_types_id
             ))->execute();
         } */
-
-        if ($message->app->get('validate-message-schema')) {
-            $checkJson = new MessageSchemaValidator($message, $message->messageType);
-            $checkJson->validate();
-        }
     }
 
     public function created(Message $message): void
