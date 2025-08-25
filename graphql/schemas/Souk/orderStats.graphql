@@ -67,6 +67,7 @@ input OrderStatsInput {
     startDate: String # start of period (e.g., "2025-07-01")
     endDate: String # end of period (e.g., "2025-07-07")
     timezone: String # e.g., "America/New_York"
+    baseDate: String # starting date to count current orders (e.g., "2025-07-07")
 }
 
 extend type Query @guard {

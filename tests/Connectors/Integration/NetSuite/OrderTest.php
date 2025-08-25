@@ -6,6 +6,8 @@ namespace Tests\Connectors\Integration\NetSuite;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\NetSuite\Actions\ProcessNetSuiteSalesOrderAction;
 use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteQuoteAction;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
@@ -259,5 +261,67 @@ final class OrderTest extends TestCase
         } else {
             $this->fail('Order has not been pushed to NetSuite yet.');
         }
+    }
+
+    public function testSearchSalesOrderInformation()
+    {
+        $company = Companies::first();
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $salesOrderId = env('NET_SUITE_SALES_ORDER_ID');
+
+        if (! $salesOrderId) {
+            $this->markTestSkipped('NET_SUITE_SALES_ORDER_ID environment variable not set');
+        }
+
+        $processOrderAction = new ProcessNetSuiteSalesOrderAction($app, $company, $user);
+
+        // Use reflection to access the private getSalesOrderById method
+        $reflection = new \ReflectionClass($processOrderAction);
+        $method = $reflection->getMethod('getSalesOrderById');
+        $method->setAccessible(true);
+
+        $salesOrder = $method->invoke($processOrderAction, $salesOrderId);
+
+        $items = is_array($salesOrder->itemList->item)
+            ? $salesOrder->itemList->item
+            : [$salesOrder->itemList->item];
+
+        $this->assertNotNull($salesOrder);
+        $this->assertInstanceOf(\NetSuite\Classes\SalesOrder::class, $salesOrder);
+        $this->assertNotNull($salesOrder->internalId ?? null);
+    }
+
+    public function testProcessSalesOrderAction()
+    {
+        $company = Companies::first();
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $salesOrderId = env('NET_SUITE_SALES_ORDER_ID');
+
+        if (! $salesOrderId) {
+            $this->markTestSkipped('NET_SUITE_SALES_ORDER_ID environment variable not set');
+        }
+
+        $result = new ProcessNetSuiteSalesOrderAction($app, $company, $user)->execute($salesOrderId, 5);
+
+        $this->assertNotNull($result);
+    }
+
+    public function testProcessNetSuiteSalesOrderActionWithInvalidOrderId()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $user = auth()->user();
+
+        $processOrderAction = new ProcessNetSuiteSalesOrderAction($app, $company, $user);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessageMatches('/Error retrieving sales order|Sales order .* not found/');
+
+        // Use an invalid order ID
+        $processOrderAction->execute('99999999');
     }
 }

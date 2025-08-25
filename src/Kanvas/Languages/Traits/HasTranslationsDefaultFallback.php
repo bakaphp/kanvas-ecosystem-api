@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Languages\Traits;
 
 use Baka\Support\Str;
+use Illuminate\Support\Facades\App;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Attributes\Models\AttributesValues;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
@@ -101,5 +102,18 @@ trait HasTranslationsDefaultFallback
         }
 
         return $this->setTranslation($key, $this->getLocale(), $value);
+    }
+
+    public function toArray()
+    {
+        $attributes = $this->attributesToArray(); // attributes selected by the query
+        // remove attributes if they are not selected
+        $translatables = array_filter($this->getTranslatableAttributes(), function ($key) use ($attributes) {
+            return array_key_exists($key, $attributes);
+        });
+        foreach ($translatables as $field) {
+            $attributes[$field] = $this->getTranslation($field, App::getLocale());
+        }
+        return array_merge($attributes, $this->relationsToArray());
     }
 }

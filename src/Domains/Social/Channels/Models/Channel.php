@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -26,13 +27,14 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  *  @property int $last_message_id
  *  @property int $apps_id
  *  @property int $companies_id
- *  @property int $entity_id
- *  @property int $entity_namespace
+ *  @property int|null $entity_id
+ *  @property string|null $entity_namespace
  */
 class Channel extends BaseModel
 {
     use UuidTrait;
     use CanUseWorkflow;
+    use HasTagsTrait;
 
     protected $table = 'channels';
 

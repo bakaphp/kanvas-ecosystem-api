@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Actions;
 
+use Baka\Support\Str;
+use Illuminate\Support\Facades\Blade;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
 class CreateContentSessionAction
 {
     public function __construct(
         public string $entityNamespace,
-        public int $entityId,
+        public int|string $entityId,
         public ?Agent $agent = null,
         public ?CompaniesBranches $branch = null,
     ) {
@@ -22,12 +25,32 @@ class CreateContentSessionAction
     {
         return match ($this->entityNamespace) {
             People::class => $this->mapPeople(People::getById($this->entityId)),
+            Lead::class => $this->mapLead(Lead::getById($this->entityId)),
             default => [],
         };
     }
 
+    protected function mapLead(Lead $lead): array
+    {
+        return array_merge(
+            [
+                'lead_id' => $lead->id,
+                'type' => $lead->type?->name,
+                'status' => $lead->status()->first()?->name,
+            ],
+            $this->mapPeople($lead->people)
+        );
+    }
+
     protected function mapPeople(People $people): array
     {
+        $data = [
+            'creditApp' => 'https://kanvas.dev/credit-app',
+            'tradeIn' => 'https://kanvas.dev/trade-in',
+        ];
+
+        $background = $this->agent?->role !== null && is_array($this->agent->role) ? Blade::render(json_encode($this->agent->role), $data) : null;
+
         return [
             'branch' => $this->branch,
             'people_id' => $people->id,
@@ -37,7 +60,11 @@ class CreateContentSessionAction
             'leads' => $people->leads->toArray(),
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
-            'background' => $this->agent?->role,
+            'background' => Str::isJson($background) ? json_decode($background) : $background,
+            'checklist' => [
+                'creditApp' => 'https://kanvas.dev/credit-app',
+                'tradeIn' => 'https://kanvas.dev/trade-in',
+            ],
         ];
     }
 }

@@ -6,6 +6,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -55,12 +56,13 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                             ...$order->metadata['data'] ?? [],
                             'terms_and_conditions' => true,
                             ...$variant ? [
-                                'late-fee-variant-id' => $variant->getAttributeBySlug('late-fee-variant-id')?->value,
+                                'late-fee-variant-id' => $variant->product?->getAttributeBySlug('late-fee-variant-id')?->value,
                                 'late_fee_grace_start_at' => $graceStartAt->toDateTimeString()
                             ] : [],
                         ],
                     ];
 
+                    $order->status = OrderStatusEnum::PENDING->value;
                     $order->saveQuietly();
                 }
 

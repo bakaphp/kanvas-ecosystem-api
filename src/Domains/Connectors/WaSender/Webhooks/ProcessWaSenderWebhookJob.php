@@ -17,6 +17,15 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Actions\CreateLeadAction;
+use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
+use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
+use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
+use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -121,12 +130,31 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $chatJid = $key['remoteJid'] ?? null;
             $isFromMe = $key['fromMe'] ?? false;
             $messageId = $key['id'] ?? Str::uuid()->toString();
+            $lead = null;
+
+            if ($chatJid === null) {
+                report('WaSender webhook message missing chat JID' . json_encode((array) $messageData));
+
+                continue; // Skip processing this message
+            }
+
+            // If the message is not from the user, process the contact
+            if (! $isFromMe) {
+                /**
+                 * @todo we need to create users for each user and associate with people
+                 */
+                $people = $this->processContactFromMessage($chatJid, $messageData);
+                $lead = $this->createLeadFromPeople($people);
+            }
 
             // Create the message slug
             $messageSlug = $this->createMessageSlug($messageId, $chatJid);
 
             // Get or create a channel for this conversation
-            $channel = $this->getOrCreateChannel($chatJid);
+            $channel = $this->getOrCreateChannel(
+                jid: $chatJid,
+                lead: $lead
+            );
 
             // Find existing message or create a new one using CreateMessageAction
             $existingMessage = Message::where('uuid', $messageSlug)
@@ -182,17 +210,14 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 }
             }
 
-            // If the message is not from the user, process the contact
-            if (! $isFromMe) {
-                /**
-                 * @todo we need to create users for each user and associate with people
-                 */
-                $people = $this->processContactFromMessage($chatJid, $messageData);
-            }
-
+            /*
             if (isset($people) && $people instanceof People) {
                 // Associate the message with the contact
                 $message->addEntity($people);
+            } */
+            if (isset($lead) && $lead instanceof Lead) {
+                // Associate the message with the lead
+                $message->addEntity($lead);
             }
 
             // Associate message with channel
@@ -948,8 +973,9 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     /**
      * Create a unique slug for channels (both 1-to-1 and groups)
      */
-    protected function createChannelSlug(string $jid): string
+    protected function createChannelSlug(string $jid, ?Lead $lead = null): string
     {
+        //$leadId = ($lead ? '-' . (string) $lead->getId() : '');
         // Use different prefixes for groups and 1-to-1 channels for clarity
         if ($this->isGroupJid($jid)) {
             return 'wa-group-' . Str::slug($jid);
@@ -964,12 +990,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
      * Get an existing channel or create a new one (for any conversation type)
      * with database transaction locking to prevent race conditions
      */
-    protected function getOrCreateChannel(string $jid, ?string $name = null): Channel
+    protected function getOrCreateChannel(string $jid, ?string $name = null, ?Lead $lead = null): Channel
     {
-        $slug = $this->createChannelSlug($jid);
+        $slug = $this->createChannelSlug($jid, $lead);
 
         // Use a database transaction with locking
-        return DB::transaction(function () use ($slug, $jid, $name) {
+        return DB::transaction(function () use ($slug, $jid, $name, $lead) {
             // Attempt to find the channel with a lock for update
             $channel = Channel::where('slug', $slug)
                 ->where('companies_id', $this->receiver->company->getId())
@@ -997,10 +1023,27 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $channel->apps_id = $this->receiver->app->getId();
                 //$channel->users_id = $this->receiver->user->getId();
                 //$channel->uuid = Str::uuid()->toString();
+
+                if ($lead) {
+                    $channel->entity_namespace = get_class($lead->people);
+                    $channel->entity_id = $lead->people->getId();
+                }
+
                 $channel->save();
+
+                $channel->addTags([
+                    'whatsapp',
+                    'ai-agent',
+                ]);
             } elseif ($name && $channel->name !== $name) {
                 $channel->name = $name;
                 $channel->save();
+            }
+
+            if ($lead && empty($channel->entity_namespace)) {
+                $channel->entity_namespace = get_class($lead->people);
+                $channel->entity_id = $lead->people->getId();
+                $channel->update();
             }
 
             return $channel;
@@ -1021,6 +1064,75 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $pushName = $messageData['pushName'] ?? null;
 
         return $this->processContact($jid, $pushName);
+    }
+
+    protected function createLeadFromPeople(People $people): Lead
+    {
+        $activeLead = LeadsRepository::getPeopleActiveLead($people);
+        if ($activeLead) {
+            return $activeLead;
+        }
+
+        $leadType = LeadType::fromApp($people->app)
+                    ->fromCompany($people->company)
+                    ->where('name', 'Warm')
+                    ->firstOrFail();
+
+        $leadSource = new CreateLeadSourceAction(
+            new LeadSource(
+                $people->app,
+                $people->company,
+                $leadType->getId(),
+                'whatsapp',
+                true,
+                'whatsapp'
+            )
+        )->execute();
+
+        $leadReceiver = new CreateLeadReceiverAction(
+            new LeadReceiver(
+                app: $people->app,
+                branch: $people->company->defaultBranch,
+                user: $people->user,
+                agent: $people->user,
+                name: 'Agent',
+                source: 'AI Agent',
+                isDefault: false,
+                lead_sources_id: $leadSource->getId(),
+                lead_types_id: $leadType->getId()
+            )
+        )->execute();
+
+        $leadData = new DataTransferObjectLead(
+            app: $people->app,
+            branch: $people->company->defaultBranch,
+            user: $people->user,
+            title: $people->name . ' WhatsApp Opp',
+            pipeline_stage_id: 0,
+            people: new PeopleDTO(
+                $people->app,
+                $people->company->defaultBranch,
+                $people->user,
+                $people->firstname,
+                Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
+                Address::collect([], DataCollection::class),
+                $people->lastname,
+                $people->id
+            ),
+            leads_owner_id: 0,
+            status_id: 0,
+            type_id: $leadType->getId(),
+            source_id: $leadSource->getId(),
+            receiver_id: $leadReceiver->getId()
+        );
+
+        $lead = new CreateLeadAction($leadData)->execute();
+        $lead->addTags([
+            'whatsapp',
+            'ai-agent',
+        ]);
+
+        return $lead;
     }
 
     /**

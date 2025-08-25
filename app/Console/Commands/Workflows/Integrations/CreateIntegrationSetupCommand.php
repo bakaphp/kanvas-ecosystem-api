@@ -132,9 +132,12 @@ class CreateIntegrationSetupCommand extends Command
                         'url' => 'url'
                     ];
 
-                    $rule = ($isRequired ? 'required' : 'nullable') . '|' . $typeRules[$fieldType];
-                    $config[$fieldName] = $rule;
-                    $this->info("Added: $fieldName = $rule");
+                    $config[$fieldName] = [
+                        'type' => $fieldType,
+                        'required' => $isRequired
+                    ];
+
+                    $this->info("Field '$fieldName' added.");
                 }
 
                 $this->info('Final configuration:');

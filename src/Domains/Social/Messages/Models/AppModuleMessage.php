@@ -45,7 +45,7 @@ class AppModuleMessage extends BaseModel
 
     public function message(): BelongsTo
     {
-        return $this->belongTo(Message::class, 'message_id');
+        return $this->belongsTo(Message::class, 'message_id');
     }
 
     public function entity(): BelongsTo

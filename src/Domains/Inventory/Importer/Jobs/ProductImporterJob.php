@@ -43,6 +43,7 @@ class ProductImporterJob extends AbstractImporterJob
                 }, $column = 'id'); */
 
         $this->startFilesystemMapperImport();
+        $processProducts = [];
 
         foreach ($this->importer as $request) {
             try {

@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Cart\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Baka\Casts\Json;
+use Baka\Traits\UuidTrait;
 use Kanvas\Souk\Models\BaseModel;
-use Kanvas\Users\Models\Users;
+use Override;
 
 /**
  * Class Cart
@@ -30,6 +29,8 @@ use Kanvas\Users\Models\Users;
  */
 class Cart extends BaseModel
 {
+    use UuidTrait;
+
     protected $table = 'carts';
 
     protected $fillable = [
@@ -37,20 +38,14 @@ class Cart extends BaseModel
         'apps_id',
         'companies_id',
         'users_id',
-        'cart_session_id',
+        'session_id',
         'email',
         'amount',
         'currency',
         'status',
         'metadata',
-    ];
-
-    protected $casts = [
-        'amount' => 'decimal:2',
-        'metadata' => 'array',
-        'is_deleted' => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'items',
+        'conditions',
     ];
 
     protected $attributes = [
@@ -59,27 +54,17 @@ class Cart extends BaseModel
         'is_deleted' => 0,
     ];
 
-    /**
-     * Cart belongs to app.
-     */
-    public function app(): BelongsTo
+    #[Override]
+    public function casts(): array
     {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
-
-    /**
-     * Cart belongs to company.
-     */
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
-
-    /**
-     * Cart belongs to user (optional for guest carts).
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
+        return [
+            'amount' => 'decimal:2',
+            'metadata' => Json::class,
+            'is_deleted' => 'boolean',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
+            'items' => Json::class,
+            'conditions' => Json::class,
+        ];
     }
 }
