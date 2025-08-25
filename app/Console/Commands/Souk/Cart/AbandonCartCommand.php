@@ -130,7 +130,7 @@ class AbandonCartCommand extends Command
             $this->markNotificationAsSent($cart, $config['notification_count'], $intervalType);
 
             $this->info("Sent {$intervalType} notification for cart {$cart->id} to user {$user->email}");
-            
+
         } catch (\Exception $e) {
             Log::error("Failed to process abandoned cart {$cart->id}: " . $e->getMessage());
             $this->error("Error processing cart {$cart->id}: " . $e->getMessage());
@@ -191,7 +191,7 @@ class AbandonCartCommand extends Command
             );
 
             $user->notify($notification);
-            
+
         } catch (\Exception $e) {
             Log::error("Failed to send push notification: " . $e->getMessage());
         }
@@ -219,7 +219,7 @@ class AbandonCartCommand extends Command
 
             $notification->setSubject($notificationData['title']);
             Notification::route('mail', $user->email)->notify($notification);
-            
+
         } catch (\Exception $e) {
             Log::error("Failed to send email notification: " . $e->getMessage());
         }
