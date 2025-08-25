@@ -10,7 +10,6 @@ use Kanvas\Souk\Wallet\Actions\AddFundsToWalletAction;
 use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
 use Kanvas\Souk\Wallet\Transaction;
 
-
 enum PurchaseTypeEnum: string
 {
     case COIN_PURCHASE = 'coin_purchase';
