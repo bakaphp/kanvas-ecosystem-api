@@ -154,7 +154,6 @@ class AbandonCartCommand extends Command
             $this->markNotificationAsSent($cart, $config['notification_count'], $intervalType);
 
             $this->info("Sent {$intervalType} notification for cart {$cart->id} to user {$user->email}");
-
         } catch (\Exception $e) {
             Log::error("Failed to process abandoned cart {$cart->id}: " . $e->getMessage());
             $this->error("Error processing cart {$cart->id}: " . $e->getMessage());
