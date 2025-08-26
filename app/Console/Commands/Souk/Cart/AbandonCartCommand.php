@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Souk\Cart\Enums\ConfigurationEnum;
+use Kanvas\Souk\Cart\Enums\AbandonCartConfigEnum;
 use Kanvas\Souk\Cart\Models\Cart;
 use Kanvas\Users\Models\Users;
 
@@ -29,7 +29,7 @@ class AbandonCartCommand extends Command
 
         // Get all apps that have abandon cart notifications enabled
         $appsIds = Settings::where([
-            'name' => ConfigurationEnum::ABANDON_CART_ENABLED->value,
+            'name' => AbandonCartConfigEnum::ENABLED->value,
             'value' => '1',
         ])->select('apps_id')->get()->pluck('apps_id');
 
@@ -54,20 +54,47 @@ class AbandonCartCommand extends Command
 
     private function getNotificationIntervals(Apps $app): array
     {
-        return [
-            'first' => [
-                'hours' => (int) ($app->get(ConfigurationEnum::ABANDON_CART_FIRST_NOTIFICATION_HOURS->value) ?? 1),
-                'notification_count' => 1
-            ],
-            'second' => [
-                'hours' => (int) ($app->get(ConfigurationEnum::ABANDON_CART_SECOND_NOTIFICATION_HOURS->value) ?? 24),
-                'notification_count' => 2
-            ],
-            'third' => [
-                'hours' => (int) ($app->get(ConfigurationEnum::ABANDON_CART_THIRD_NOTIFICATION_HOURS->value) ?? 72),
-                'notification_count' => 3
-            ],
-        ];
+        $intervals = [];
+
+        foreach (['first', 'second', 'third'] as $intervalType) {
+            $hours = match ($intervalType) {
+                'first' => (int) ($app->get(AbandonCartConfigEnum::FIRST_HOURS->value) ?? 1),
+                'second' => (int) ($app->get(AbandonCartConfigEnum::SECOND_HOURS->value) ?? 24),
+                'third' => (int) ($app->get(AbandonCartConfigEnum::THIRD_HOURS->value) ?? 72),
+            };
+
+            $emailTemplate = match ($intervalType) {
+                'first' => $app->get(AbandonCartConfigEnum::FIRST_EMAIL_TEMPLATE->value) ?? 'abandon-cart-first',
+                'second' => $app->get(AbandonCartConfigEnum::SECOND_EMAIL_TEMPLATE->value) ?? 'abandon-cart-second',
+                'third' => $app->get(AbandonCartConfigEnum::THIRD_EMAIL_TEMPLATE->value) ?? 'abandon-cart-third',
+            };
+
+            $pushTemplate = match ($intervalType) {
+                'first' => $app->get(AbandonCartConfigEnum::FIRST_PUSH_TEMPLATE->value) ?? 'abandon-cart-push-first',
+                'second' => $app->get(AbandonCartConfigEnum::SECOND_PUSH_TEMPLATE->value) ?? 'abandon-cart-push-second',
+                'third' => $app->get(AbandonCartConfigEnum::THIRD_PUSH_TEMPLATE->value) ?? 'abandon-cart-push-third',
+            };
+
+            $discountCode = match ($intervalType) {
+                'first' => $app->get(AbandonCartConfigEnum::FIRST_DISCOUNT_CODE->value),
+                'second' => $app->get(AbandonCartConfigEnum::SECOND_DISCOUNT_CODE->value),
+                'third' => $app->get(AbandonCartConfigEnum::THIRD_DISCOUNT_CODE->value),
+            };
+
+            $intervals[$intervalType] = [
+                'hours' => $hours,
+                'notification_count' => match ($intervalType) {
+                    'first' => 1,
+                    'second' => 2,
+                    'third' => 3,
+                },
+                'email_template' => $emailTemplate,
+                'push_template' => $pushTemplate,
+                'discount_code' => $discountCode
+            ];
+        }
+
+        return $intervals;
     }
 
     private function processAbandonedCartsForApp(Apps $app): void
@@ -108,7 +135,7 @@ class AbandonCartCommand extends Command
         try {
             $user = $cart->user;
 
-            if (! $user) {
+            if (!$user) {
                 $this->warn("Cart {$cart->id} has no associated user, skipping");
                 return;
             }
@@ -120,11 +147,8 @@ class AbandonCartCommand extends Command
 
             $notificationData = $this->getNotificationData($cart, $intervalType, $config);
 
-            // Send push notification
-            $this->sendPushNotification($user, $notificationData);
-
-            // Send email notification
-            $this->sendEmailNotification($user, $cart, $notificationData);
+            // Send combined email and push notification
+            $this->sendNotification($user, $cart, $notificationData);
 
             // Update cart metadata to mark notification as sent
             $this->markNotificationAsSent($cart, $config['notification_count'], $intervalType);
@@ -139,7 +163,7 @@ class AbandonCartCommand extends Command
 
     private function getNotificationData(Cart $cart, string $intervalType, array $config): array
     {
-        $baseData = [
+        return [
             'cart_id' => $cart->id,
             'cart_uuid' => $cart->uuid,
             'amount' => $cart->amount,
@@ -150,78 +174,66 @@ class AbandonCartCommand extends Command
             'current_notification_count' => $cart->notification_count,
             'items_count' => count($cart->items ?? []),
             'session_id' => $cart->session_id,
+            'cart_items' => $cart->items ?? [],
+            'cart_conditions' => $cart->conditions ?? [],
+            'app' => $cart->app,
+            'user_name' => $cart->user->firstname ?? $cart->user->email ?? 'Customer',
+            'email_template' => $config['email_template'],
+            'push_template' => $config['push_template'],
+            'urgency_level' => match ($intervalType) {
+                'first' => 'low',
+                'second' => 'medium',
+                'third' => 'high',
+                default => 'low'
+            },
+            'discount_code' => $config['discount_code'], // App-configurable discount code
         ];
-
-        // Generate interval-specific content
-        return match ($intervalType) {
-            'first' => [
-                // Empty for now - will be populated with custom templates
-            ],
-            'second' => [
-                // Empty for now - will be populated with custom templates
-            ],
-            'third' => [
-                // Empty for now - will be populated with custom templates
-            ],
-            default => $baseData
-        };
     }
 
-    private function sendPushNotification(Users $user, array $notificationData): void
+    private function sendNotification(Users $user, Cart $cart, array $notificationData): void
     {
         try {
-            $pushData = [
-                'title' => $notificationData['title'],
-                'body' => $notificationData['message'],
-                'data' => [
-                    'type' => 'abandoned_cart',
-                    'cart_id' => $notificationData['cart_id'],
-                    'cart_uuid' => $notificationData['cart_uuid'],
-                    'discount_code' => $notificationData['discount_code'],
-                    'action' => 'view_cart',
-                ],
-            ];
+            $emailTemplateName = $notificationData['email_template'];
+            $pushTemplateName = $notificationData['push_template'];
 
-            // Create notification using Blank template
-            $notification = new Blank(
-                'abandoned_cart_push_' . $notificationData['notification_type'],
-                $pushData,
-                ['push'],
-                $user
-            );
-
-            $user->notify($notification);
-
-        } catch (\Exception $e) {
-            Log::error("Failed to send push notification: " . $e->getMessage());
-        }
-    }
-
-    private function sendEmailNotification(Users $user, Cart $cart, array $notificationData): void
-    {
-        try {
-            $emailData = [
+            // Prepare data for both email and push notifications
+            $notificationChannelData = [
                 'user_name' => $user->firstname ?? $user->email,
                 'cart_amount' => $notificationData['amount'],
                 'currency' => $notificationData['currency'],
-                'message' => $notificationData['message'],
-                'discount_code' => $notificationData['discount_code'],
                 'urgency_level' => $notificationData['urgency_level'],
+                'cart_id' => $cart->id,
+                'cart_uuid' => $cart->uuid,
+                'items_count' => $notificationData['items_count'],
+                'cart_items' => $notificationData['cart_items'],
+                'cart_conditions' => $notificationData['cart_conditions'],
+                'notification_type' => $notificationData['notification_type'],
+                'abandoned_hours' => $notificationData['abandoned_hours'],
+                'app' => $cart->app,
+                'user' => $user,
+                'cart' => $cart,
+                'action' => 'view_cart',
+                'type' => 'abandoned_cart',
+                'discount_code' => $notificationData['discount_code'],
             ];
 
-            // Create notification using Blank template
+            // Create notification using Blank template with both email and push channels
             $notification = new Blank(
-                'abandoned_cart_' . $notificationData['notification_type'],
-                $emailData,
-                ['mail'],
+                $emailTemplateName,
+                $notificationChannelData,
+                ['mail', 'push'],
                 $cart
             );
 
-            $notification->setSubject($notificationData['title']);
-            Notification::route('mail', $user->email)->notify($notification);
+            // Set push template name for push notifications
+            $notification->setPushTemplateName($pushTemplateName);
 
+            // Send to user - templates will handle their own titles/subjects
+            $user->notify($notification);
+
+            $this->info("Notification sent for cart {$cart->uuid} (user: {$cart->users_id}) - {$notificationData['notification_type']} notification using email template: {$emailTemplateName}, push template: {$pushTemplateName}");
         } catch (\Exception $e) {
-            Log::error("Failed to send email notification: " . $e->getMessage());
+            $this->error("Failed to send notification for cart {$cart->uuid}: " . $e->getMessage());
         }
     }
 
