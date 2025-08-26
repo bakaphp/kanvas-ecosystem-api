@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Actions;
 
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Souk\Orders\Models\Order;
 
 class CheckMessagePostLimitAction
 {
@@ -40,6 +42,16 @@ class CheckMessagePostLimitAction
             $this->getChildrenCount,
             $this->messageJsonFilters
         );
+
+        /**
+         * @todo for now until the refactor
+         * update limit by orders
+         */
+        $totalOrdersToday = Order::fromApp($this->message->app)
+                                ->where('created_at', '>=', Carbon::now()->subHours($this->timeFrame))
+                                ->count();
+
+        $messageCount += (int) $totalOrdersToday;
 
         // $this->message->app->reGenerateRedisSettings();
         //$messageLimit = $this->message->app->get('message-post-limit');
