@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\WaSender\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
@@ -53,17 +54,17 @@ class AgentChannelResponderActivity extends KanvasActivity
 
                 $lead = $message->entity();
 
-                if ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
-                    return [
-                        'message' => 'Lead is being handed off to human agent',
-                        'entity' => null,
-                    ];
-                }
-
                 // Don't process messages from the phone owner
                 if ($message->message['from_me'] ?? false) {
                     return [
                         'message' => 'Message is from the owner of the phone tied to the agent',
+                        'entity' => null,
+                    ];
+                }
+
+                if (! $message->message['from_me'] && $lead instanceof Lead && $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                    return [
+                        'message' => 'Lead is being handed off to human agent',
                         'entity' => null,
                     ];
                 }
