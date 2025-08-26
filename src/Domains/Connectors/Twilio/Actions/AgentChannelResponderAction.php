@@ -74,7 +74,7 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
 
         //if its not an ADKAgent, send the response as a text message
         if (! ($currentAgent instanceof ADKAgent)) {
-           $onChunk($responseText, []);
+            $onChunk($responseText, []);
         }
 
         return [
