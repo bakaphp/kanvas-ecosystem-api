@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\WaSender\Workflows;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -50,6 +51,15 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
+                $lead = $message->entity();
+
+                if ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                    return [
+                        'message' => 'Lead is being handed off to human agent',
+                        'entity' => null,
+                    ];
+                }
+
                 // Don't process messages from the phone owner
                 if ($message->message['from_me'] ?? false) {
                     return [
@@ -79,13 +89,13 @@ class AgentChannelResponderActivity extends KanvasActivity
                             'app' => $app,
                             'company' => $channel->company,
                             'channel' => $channel,
-                            'entity_namespace' => is_object($message->entity()) ? get_class($message->entity()) : null,
-                            'entity_id' => $message->entity()->getId(),
+                            'entity_namespace' => is_object($lead) ? get_class($lead) : null,
+                            'entity_id' => $lead->getId(),
                             'canal_id' => $message->message['chat_jid'],
                             'user' => [
-                                'name' => $message->entity()->people->getName(),
-                                'id' => $message->entity()->people->getId(),
-                                'email' => $message->entity()->people->getEmails()->first()?->value,
+                                'name' => $lead->people->getName(),
+                                'id' => $lead->people->getId(),
+                                'email' => $lead->people->getEmails()->first()?->value,
                             ],
                             'agent' => Agent::getById($agentId, $app),
                         ])
