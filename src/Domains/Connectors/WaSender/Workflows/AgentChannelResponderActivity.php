@@ -62,7 +62,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                if (! $message->message['from_me'] && $lead instanceof Lead && $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                if ($lead instanceof Lead && $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
                     return [
                         'message' => 'Lead is being handed off to human agent',
                         'entity' => null,
