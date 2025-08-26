@@ -326,6 +326,8 @@ class VideoProcessingService
             );
             $this->entity->user->notify($newMessageNotification);
 
+            $this->entity->addTag('video');
+
             $totalDelivery = new DistributeMessagesToUsersAction($this->entity, $this->entity->app)->execute();
         } catch (InternalServerErrorException $e) {
             report($e);

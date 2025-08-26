@@ -2,13 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\WaSender\Workflows;
+namespace Kanvas\Connectors\Twilio\Workflows;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
-use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Connectors\Twilio\Actions\AgentChannelResponderAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -33,7 +31,7 @@ class AgentChannelResponderActivity extends KanvasActivity
         return $this->executeIntegration(
             entity: $channel,
             app: $app,
-            integration: IntegrationsEnum::WASENDER,
+            integration: IntegrationsEnum::TWILIO,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
                 if (empty($message)) {
                     return [
@@ -52,19 +50,10 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                $lead = $message->entity();
-
                 // Don't process messages from the phone owner
                 if ($message->message['from_me'] ?? false) {
                     return [
                         'message' => 'Message is from the owner of the phone tied to the agent',
-                        'entity' => null,
-                    ];
-                }
-
-                if ($lead instanceof Lead && $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
-                    return [
-                        'message' => 'Lead is being handed off to human agent',
                         'entity' => null,
                     ];
                 }
@@ -90,23 +79,18 @@ class AgentChannelResponderActivity extends KanvasActivity
                             'app' => $app,
                             'company' => $channel->company,
                             'channel' => $channel,
-                            'entity_namespace' => is_object($lead) ? get_class($lead) : null,
-                            'entity_id' => $lead->getId(),
+                            'entity_namespace' => is_object($message->entity()) ? get_class($message->entity()) : null,
+                            'entity_id' => $message->entity()->getId(),
                             'canal_id' => $message->message['chat_jid'],
                             'user' => [
-                                'name' => $lead->people->getName(),
-                                'id' => $lead->people->getId(),
-                                'email' => $lead->people->getEmails()->first()?->value,
+                                'name' => $message->entity()->people->getName(),
+                                'id' => $message->entity()->people->getId(),
+                                'email' => $message->entity()->people->getEmails()->first()?->value,
                             ],
                             'agent' => Agent::getById($agentId, $app),
                         ])
                     )->execute();
                 }
-
-                $slowDownApiResponseTime = $params['slowDownApiResponseTime'] ?? 5;
-                //https://wasenderapi.com/api-docs/rate-limits/understanding-rate-limits
-                sleep($slowDownApiResponseTime); // Simulate processing time
-
                 return new AgentChannelResponderAction(
                     $channel,
                     $message,
