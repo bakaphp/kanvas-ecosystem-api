@@ -135,7 +135,7 @@ class AbandonCartCommand extends Command
         try {
             $user = $cart->user;
 
-            if (!$user) {
+            if (! $user) {
                 $this->warn("Cart {$cart->id} has no associated user, skipping");
                 return;
             }
