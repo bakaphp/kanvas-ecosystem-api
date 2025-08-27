@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Intelligence\Queries;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 
 class AgentSessionQuery
@@ -16,7 +17,14 @@ class AgentSessionQuery
         $session = Session::getByUuid($request['id'], $app);
 
         if ($session->agent->role !== $session->content['background']) {
-            $content = $session->content;
+            $content = new CreateContentSessionAction(
+                $session->entity_namespace,
+                $session->entity_id,
+                $session->agent,
+                $session->company->defaultBranch,
+            )->execute();
+
+            //$content = $session->content;
             $content['background'] = $session->agent->role;
             $session->content = $content;
             $session->update();

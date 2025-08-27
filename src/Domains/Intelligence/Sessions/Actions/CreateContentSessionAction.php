@@ -43,11 +43,12 @@ class CreateContentSessionAction
         );
     }
 
-    protected function mapPeople(People $people): array
+    protected function mapPeople(People $people, Lead $lead): array
     {
         $data = [
             'creditApp' => 'https://kanvas.dev/credit-app',
             'tradeIn' => 'https://kanvas.dev/trade-in',
+            'leadOwnerEmail' => $lead->owner?->email,
         ];
 
         $background = $this->agent?->role !== null && is_array($this->agent->role) ? Blade::render(json_encode($this->agent->role), $data) : null;
