@@ -177,7 +177,7 @@ class AbandonCartCommand extends Command
         // Get template texts using the enum
         $emailTitleKey = match ($intervalType) {
             'first' => 'email_first_title',
-            'second' => 'email_second_title', 
+            'second' => 'email_second_title',
             'third' => 'email_third_title',
         };
 
@@ -195,7 +195,7 @@ class AbandonCartCommand extends Command
 
         $pushMessageKey = match ($intervalType) {
             'first' => 'push_first_message',
-            'second' => 'push_second_message', 
+            'second' => 'push_second_message',
             'third' => 'push_third_message',
         };
 
@@ -216,7 +216,7 @@ class AbandonCartCommand extends Command
 
         // Build email message
         $emailMessage = AbandonCartTemplateEnum::get($emailMessageKey, $lang);
-        if ($intervalType === 'first' || !$config['discount_code']) {
+        if ($intervalType === 'first' || ! $config['discount_code']) {
             $emailMessage = sprintf($emailMessage, $userName);
         } else {
             $emailMessage = sprintf($emailMessage, $userName, $config['discount_code']);
